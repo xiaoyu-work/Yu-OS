@@ -598,13 +598,18 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.YUOS_APT_SIGNING_PASSPHRASE }}
           YUOS_WEB_DIST_DIR: ${{ github.workspace }}/build/web-dist
           YUOS_RELEASE_SECURITY_BOOTSTRAP: ${{ inputs.release_security_bootstrap && '1' || '0' }}
+          RELEASE_TARGET: ${{ inputs.target }}
         run: |
           EXISTING_APT_REPO_URL="https://xiaoyu-work.github.io/Yu-OS/apt" \
             APT_PUBLIC_KEYRING="$YUOS_RELEASE_SECURITY_KEYRING" \
             bash packaging/apt-repo/sync-existing-packages.sh
-          bash packaging/apt-repo/build-repo.sh
-          mkdir build/apt-repo/apt
-          mv build/apt-repo/{dists,pool,yuos-archive-keyring.gpg,yuos-archive-keyring.asc} build/apt-repo/apt/
+          if [[ "$RELEASE_TARGET" == "website" && -f build/release-security-previous/.no-existing-repository ]]; then
+            mv build/web-dist build/apt-repo
+          else
+            bash packaging/apt-repo/build-repo.sh
+            mkdir build/apt-repo/apt
+            mv build/apt-repo/{dists,pool,yuos-archive-keyring.gpg,yuos-archive-keyring.asc} build/apt-repo/apt/
+          fi
 
       - uses: actions/upload-pages-artifact@v3
         with:
