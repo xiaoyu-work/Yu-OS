@@ -102,11 +102,15 @@ fn untrusted_and_extension_sources_are_always_fenced_or_tool_definitions() {
                 ),
                 "{kind} is owner-controlled context but is projected unfenced"
             ),
-            TrustClass::ModelGenerated if kind.tag() == "workspace_agent_report" => assert_eq!(
-                profile.projection,
-                Projection::UserChannelEnvelope,
-                "{kind} is retained model-authored context, not a fresh assistant turn"
-            ),
+            TrustClass::ModelGenerated
+                if matches!(kind, SourceKind::WorkspaceAgentReport | SourceKind::DelegatedTaskBrief) =>
+            {
+                assert_eq!(
+                    profile.projection,
+                    Projection::UserChannelEnvelope,
+                    "{kind} is retained model-authored context, not a fresh assistant turn"
+                )
+            }
             TrustClass::ModelGenerated => assert_eq!(
                 profile.projection,
                 Projection::AssistantChannel,

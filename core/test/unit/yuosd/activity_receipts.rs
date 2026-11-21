@@ -72,7 +72,11 @@ fn receipt_recording_derives_source_and_owner_without_claiming_execution() {
         .get(1000, activity["id"].as_str().unwrap())
         .unwrap();
     assert_eq!(current.state, activities::ActivityState::Active);
-    assert!(!crate::paths::agent_jobs_dir().exists());
+    assert!(crate::agent::service::Store::open_default()
+        .unwrap()
+        .list_for_activity(1000, &current.id, 1)
+        .unwrap()
+        .is_empty());
 }
 
 #[test]

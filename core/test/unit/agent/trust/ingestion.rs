@@ -246,6 +246,14 @@ fn from_tool_results(observed: &mut std::collections::BTreeSet<SourceKind>) {
 }
 
 fn from_context_and_hooks(observed: &mut std::collections::BTreeSet<SourceKind>) {
+    use crate::agent::context::packet::{ContextKind, ContextSection};
+
+    record(
+        observed,
+        ContextSection::new(ContextKind::DelegatedTaskBrief, "background task brief", HOSTILE.into())
+            .labeled(),
+    );
+
     // A fired trigger: the owner's rule text stays the instruction, the
     // event's own fields become a separate fenced data block.
     let rule: crate::triggers::TriggerRule = serde_json::from_value(serde_json::json!({

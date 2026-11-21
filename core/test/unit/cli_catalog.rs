@@ -136,6 +136,7 @@ fn catalogue_matches_current_model_and_engine_surfaces() {
             "unload",
             "infer",
             "embed",
+            "decide",
             "image",
             "transcribe",
             "translate",

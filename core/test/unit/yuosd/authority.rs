@@ -113,7 +113,9 @@ fn route_audiences_match_their_families() {
                 || name == "gui.media.exchange"
                 || name == "gui.audio.control"
                 || name == "gui.file.picker"
-                || name == "gui.notification.exchange" => Audience::GuiResource,
+                || name == "gui.notification.exchange"
+                || matches!(name, "gui.desktop.events" | "gui.desktop.launch" | "gui.desktop.lock"
+                    | "gui.power.review" | "gui.system-settings") => Audience::GuiResource,
             name if name == "app_service.call"
                 || name == "app_service.cli_call"
                 || name == "app.directory_install"
