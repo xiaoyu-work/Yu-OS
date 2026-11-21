@@ -1,6 +1,6 @@
 //! Ephemeral copy/paste continuity presentation with explicit local placement.
 
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     ActivityContinuityDocument, ActivityContinuityImportAcknowledgement,
     ActivityContinuityImportRequest, ActivityExecutionPlacement,
     MAX_ACTIVITY_CONTINUITY_DOCUMENT_BYTES,

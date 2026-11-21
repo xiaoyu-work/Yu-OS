@@ -21,7 +21,7 @@ user interfaces consume them without relying on model behavior.
   delivery state, Jobs and approval authority are unchanged.
 
 Authenticated Apps submit capability-gated intent through
-`clawd/app_notifications.rs`. Post/close/send require `ui.notify`; source-scoped
+`yuosd/app_notifications.rs`. Post/close/send require `ui.notify`; source-scoped
 list independently requires `data.inbox.read`. Every publication, close and list
 binds to the App ID in the sealed grant, not a caller-supplied source or display
 name. Ordinary IDs retain `app:<id>`; IDs too long for the existing 128-byte
@@ -50,7 +50,7 @@ seconds. Revisions prevent late updates from restoring an abandoned view, and
 multiple viewers remain independent. These are notification hints only, never
 the kernel-attended `SessionPresence` proof or permission/consent authority.
 
-The Root-held `clawd/notifications/gui.rs` resource is the sole automatic
+The Root-held `yuosd/notifications/gui.rs` resource is the sole automatic
 desktop delivery consumer. An explicitly declared and granted
 `ipc.subscribe:notifications.presentation` admits bounded leased display data;
 the independent `ipc.invoke` right admits exact presentation controls.
@@ -67,7 +67,7 @@ acknowledge a newer deduplicated publication, change a terminal record or
 settle another retry. Replacements receive fresh handles while the original
 UI swaps the displayed card without a transient duplicate or blank surface.
 
-The OS-owned `claw-notification-panel` terminates the existing shell descriptor
+The OS-owned `yuos-notification-panel` terminates the existing shell descriptor
 and relays the public bounded rendering/preferences contract. It owns neither
 App configuration nor a user bus. The native App keeps its original popup UI,
 private preference file and image preparation. Popup mute is distinct from
@@ -93,13 +93,13 @@ the worker's automatic legacy-state move no longer selects it.
 | `sqlite.rs` | Durable SQLite provider |
 | `ntfy.rs` | Opt-in ntfy delivery adapter |
 | `visibility.rs` | Bounded, expiring, owner-scoped conversation-view hints; no durable state or authority |
-| `../clawd/notifications/gui.rs` | Exact signed-GUI resource, one owner presenter, leased display tickets and checked lifetime |
-| `../bin/claw-notification-panel.rs` | OS shell descriptor and public rendering/preferences proxy; no App code/configuration |
+| `../yuosd/notifications/gui.rs` | Exact signed-GUI resource, one owner presenter, leased display tickets and checked lifetime |
+| `../bin/yuos-notification-panel.rs` | OS shell descriptor and public rendering/preferences proxy; no App code/configuration |
 | `../../test/unit/notifications/` | Unit and adapter tests |
 
 ## Dependencies
 
-Producers and `clawd` depend on the `NotificationService` definition. They do
+Producers and `yuosd` depend on the `NotificationService` definition. They do
 not reach into SQLite tables or delivery adapters directly. The desktop and Web
 surfaces consume owner-scoped broker routes. Activity attention filters by
 authenticated owner and associated task IDs; notification acknowledgement is

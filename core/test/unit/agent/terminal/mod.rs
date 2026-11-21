@@ -26,17 +26,17 @@ fn parse(args: &[&str]) -> Result<ChatOptions, String> {
 fn app() -> App {
     App::new(
         BackendInfo {
-            home: "/home/claw".into(),
+            home: "/home/yuos".into(),
             provider: "ollama".into(),
-            model: "claw-model".into(),
-            models: vec!["claw-model".into(), "other-model".into()],
+            model: "yuos-model".into(),
+            models: vec!["yuos-model".into(), "other-model".into()],
             provider_ready: true,
             model_catalog_warning: None,
         },
         Conversation {
             id: "ses_001953abcdef0_123456789abc".into(),
             workspace_id:None,
-            title: "Claw terminal test".into(),
+            title: "Yu OS terminal test".into(),
             archived: false,
             history_truncated: false,
             messages: vec![
@@ -60,7 +60,7 @@ fn job(status: &str) -> Job {
         id: "task-1".into(),
         session_id: "ses_001953abcdef0_123456789abc".into(),
         activity_id: None,
-        workspace: Some("/home/claw/project".into()),
+        workspace: Some("/home/yuos/project".into()),
         after_task_id: None,
         prompt: "Run the terminal test".into(),
         status: status.into(),
@@ -69,11 +69,11 @@ fn job(status: &str) -> Job {
         finished_at: None,
         response: None,
         error: None,
-        requested_model: Some("claw-model".into()),
+        requested_model: Some("yuos-model".into()),
         requested_reasoning_effort: None,
         plan_only: false,
         provider: Some("ollama".into()),
-        model: Some("claw-model".into()),
+        model: Some("yuos-model".into()),
         turns_used: None,
     }
 }
@@ -119,7 +119,7 @@ fn terminal_selection_preserves_plain_compatibility() {
 }
 
 #[test]
-fn parser_accepts_only_claw_terminal_options() {
+fn parser_accepts_only_yuos_terminal_options() {
     let options = parse(&[
         "--session",
         "ses_existing",
@@ -148,7 +148,7 @@ fn parser_accepts_only_claw_terminal_options() {
 }
 
 #[test]
-fn claw_commands_are_closed_and_semantic() {
+fn yuos_commands_are_closed_and_semantic() {
     assert_eq!(parse_command("/help"), Some(Command::Help));
     assert_eq!(
         parse_command("/resume ses_1"),
@@ -443,14 +443,14 @@ fn copy_and_export_use_only_redacted_visible_text() {
 #[test]
 fn composer_edits_unicode_by_character_not_byte() {
     let mut app = app();
-    app.insert_text("Claw 配额");
+    app.insert_text("Yu OS 配额");
     app.move_left();
     app.backspace();
     app.insert_char('好');
-    assert_eq!(app.input, "Claw 好额");
+    assert_eq!(app.input, "Yu OS 好额");
     app.cursor = 0;
     app.delete();
-    assert_eq!(app.input, "law 好额");
+    assert_eq!(app.input, "u OS 好额");
 
     app.input.clear();
     app.cursor = 0;
@@ -466,17 +466,17 @@ fn queued_tasks_retain_the_broker_acknowledged_workspace_and_dependency() {
     let mut app = app();
     let mut queued = job("pending");
     queued.prompt = "first queued task".into();
-    queued.workspace = Some("/home/claw/project-a".into());
+    queued.workspace = Some("/home/yuos/project-a".into());
     queued.after_task_id = Some("task-active".into());
     app.queue_task(queued);
     let queued = app.queued_tasks.pop_front().unwrap();
     assert_eq!(queued.prompt, "first queued task");
-    assert_eq!(queued.workspace.as_deref(), Some("/home/claw/project-a"));
+    assert_eq!(queued.workspace.as_deref(), Some("/home/yuos/project-a"));
     assert_eq!(queued.after_task_id.as_deref(), Some("task-active"));
 }
 
 #[test]
-fn searchable_pickers_return_typed_claw_selections() {
+fn searchable_pickers_return_typed_yuos_selections() {
     let mut app = app();
     app.open_model_picker();
     app.picker_insert('o');
@@ -605,7 +605,7 @@ fn stream_projection_keeps_private_payloads_out_of_the_transcript() {
             "event": {
                 "kind": "tool_use",
                 "id": "tool-1",
-                "name": "cos_fs",
+                "name": "yu_fs",
                 "input": {"secret": "must-not-render"}
             }
         }),
@@ -629,7 +629,7 @@ fn stream_projection_keeps_private_payloads_out_of_the_transcript() {
             "progress": {
                 "kind": "tool_result",
                 "id": "tool-1",
-                "name": "cos_fs",
+                "name": "yu_fs",
                 "ok": true,
                 "latency_ms": 42,
                 "body": "private result body"
@@ -687,7 +687,7 @@ fn provider_tool_announcement_waits_for_authoritative_runtime_start() {
             "event": {
                 "kind": "tool_use",
                 "id": "tool-1",
-                "name": "cos_sysinfo",
+                "name": "yu_sysinfo",
                 "input": {"path": "/private"}
             }
         }),
@@ -712,7 +712,7 @@ fn provider_tool_announcement_waits_for_authoritative_runtime_start() {
             "progress": {
                 "kind": "tool_start",
                 "id": "tool-1",
-                "name": "cos_sysinfo"
+                "name": "yu_sysinfo"
             }
         }),
     )
@@ -730,7 +730,7 @@ fn provider_tool_announcement_waits_for_authoritative_runtime_start() {
 fn detached_tool_is_unconfirmed_instead_of_still_running() {
     let mut app = app();
     app.begin_task(&job("running"));
-    app.tool_started("tool-1", "cos_sysinfo");
+    app.tool_started("tool-1", "yu_sysinfo");
 
     app.detach_task();
 
@@ -758,7 +758,7 @@ fn detached_tool_is_unconfirmed_instead_of_still_running() {
 fn reconnecting_tool_is_rendered_as_unconfirmed() {
     let mut app = app();
     app.begin_task(&job("running"));
-    app.tool_started("tool-1", "cos_sysinfo");
+    app.tool_started("tool-1", "yu_sysinfo");
     app.status = RunStatus::Reconnecting;
 
     let mut terminal = ratatui::Terminal::new(TestBackend::new(100, 28)).unwrap();
@@ -771,19 +771,19 @@ fn reconnecting_tool_is_rendered_as_unconfirmed() {
         .map(|cell| cell.symbol())
         .collect::<String>();
     assert!(output.contains("execution status unconfirmed"));
-    assert!(!output.contains("Running cos_sysinfo"));
+    assert!(!output.contains("Running yu_sysinfo"));
 }
 
 #[test]
 fn clearing_active_transcript_keeps_live_tool_identity() {
     let mut app = app();
     app.begin_task(&job("running"));
-    app.tool_started("tool-1", "cos_sysinfo");
+    app.tool_started("tool-1", "yu_sysinfo");
 
     app.clear_transcript();
 
     assert!(app.entries.iter().any(|entry| {
-        entry.text == "cos_sysinfo"
+        entry.text == "yu_sysinfo"
             && matches!(
                 entry.kind,
                 EntryKind::Tool {
@@ -929,7 +929,7 @@ fn task_controls_change_only_future_task_defaults() {
     assert_eq!(app.task_max_turns, Some(8));
     assert_eq!(app.task_reasoning_effort.as_deref(), Some("minimal"));
     assert!(app.task_plan_only);
-    assert_eq!(app.selected_model, "claw-model");
+    assert_eq!(app.selected_model, "yuos-model");
 }
 
 #[test]
@@ -951,7 +951,7 @@ fn appearance_controls_are_terminal_local() {
     assert_eq!(app.theme_name(), "blue");
     assert_eq!(
         app.terminal_title().as_deref(),
-        Some("Claw - Claw terminal test")
+        Some("Yu OS - Yu OS terminal test")
     );
     assert!(app.compact_statusline);
     assert_eq!(app.keymap_name(), "vim");
@@ -1015,13 +1015,13 @@ fn vim_keymap_edits_idle_composer_but_never_steals_task_cancel() {
 #[test]
 fn agents_view_reports_only_real_delegate_tool_calls() {
     let mut app = app();
-    app.tool_started("delegate-1", "cos_delegate");
-    app.tool_started("tool-1", "cos_sysinfo");
+    app.tool_started("delegate-1", "yu_delegate");
+    app.tool_started("tool-1", "yu_sysinfo");
     assert_eq!(
         app.delegate_summaries(),
         vec![("delegate-1".into(), "running")]
     );
-    app.tool_finished("delegate-1", "cos_delegate", true, Some(12));
+    app.tool_finished("delegate-1", "yu_delegate", true, Some(12));
     assert_eq!(
         app.delegate_summaries(),
         vec![("delegate-1".into(), "completed")]
@@ -1044,7 +1044,7 @@ fn platform_overview_is_bounded_read_only_presentation() {
     app.open_platform_overview(PlatformOverview {
         presentation: json!({
             "authority": "Read-only verified inventory.",
-            "skills": ["claw-os"],
+            "skills": ["yuos"],
             "mcp": {"configured_enabled": ["fixture"]},
         })
         .to_string(),
@@ -1060,7 +1060,7 @@ fn platform_overview_is_bounded_read_only_presentation() {
         .map(|cell| cell.symbol())
         .collect::<String>();
     assert!(output.contains("Verified read-only inventory"));
-    assert!(output.contains("claw-os"));
+    assert!(output.contains("yuos"));
 }
 
 #[test]
@@ -1283,7 +1283,7 @@ fn platform_mcp_center_exposes_metadata_without_launch_material() {
 }
 
 #[test]
-fn platform_extensions_center_preserves_one_claw_extension_model() {
+fn platform_extensions_center_preserves_one_yuos_extension_model() {
     let mut app = app();
     app.open_platform_overview(PlatformOverview {
         presentation: "{}".into(),
@@ -1472,7 +1472,7 @@ fn platform_debug_center_omits_secret_bearing_configuration() {
         InputAction::OpenDebugOverview
     );
     app.open_debug_overview(DebugOverview {
-        daemon: "clawd".into(),
+        daemon: "yuosd".into(),
         daemon_status: "ok".into(),
         started_at: "2026-01-01T00:00:00Z".into(),
         uptime_ms: 1000,
@@ -1504,7 +1504,7 @@ fn platform_debug_center_omits_secret_bearing_configuration() {
         .map(|cell| cell.symbol())
         .collect::<String>();
     assert!(output.contains("Debug Center"));
-    assert!(output.contains("clawd"));
+    assert!(output.contains("yuosd"));
     assert!(output.contains("gpt-test"));
     assert!(output.contains("Credentials, headers, URLs"));
     assert!(!output.contains("api_key"));
@@ -1571,7 +1571,7 @@ fn platform_account_center_requires_logout_confirmation_and_never_scans_import_r
 }
 
 #[test]
-fn voice_center_uses_claw_media_models_without_claiming_realtime_capture() {
+fn voice_center_uses_yuos_media_models_without_claiming_realtime_capture() {
     let mut app = app();
     assert_eq!(
         handle_key(
@@ -1624,15 +1624,15 @@ fn approvals_default_to_readable_authorize_once() {
     app.add_approvals(vec![ApprovalRequest {
         id: "approval-1".into(),
         verb: "fs.write".into(),
-        scope: json!({"path": "/home/claw/output"}),
+        scope: json!({"path": "/home/yuos/output"}),
         label: "Create or modify files".into(),
         description: "Write new files or change existing ones in the granted folder.".into(),
-        target: "/home/claw/output".into(),
+        target: "/home/yuos/output".into(),
         reason: "Write requested output".into(),
         status: "pending".into(),
         session: "ses_001953abcdef0_123456789abc".into(),
         requested_at: 1_767_225_600,
-        requester: Some("Claw Agent".into()),
+        requester: Some("Yu OS Agent".into()),
         risk: Some("high".into()),
         decided_at: None,
         duration: None,
@@ -1678,14 +1678,14 @@ fn approvals_default_to_readable_authorize_once() {
         .unwrap();
     assert_eq!(authorize.bg, Color::Magenta);
     assert!(output.contains("Create or modify files"));
-    assert!(output.contains("Target: /home/claw/output"));
+    assert!(output.contains("Target: /home/yuos/output"));
     assert!(output.contains("Write new files or change existing ones"));
     assert!(output.contains("Left/Right choose"));
     assert!(output.contains("Esc/Ctrl+C stop task"));
     assert!(!output.contains("Enter send"));
 
     let request = app.pending_approvals.front_mut().unwrap();
-    request.target = format!("/home/claw/{}/ report-tail.txt", "long-directory".repeat(12));
+    request.target = format!("/home/yuos/{}/ report-tail.txt", "long-directory".repeat(12));
     request.scope = json!({"kind": "path", "value": request.target});
     for (width, height) in [(80, 18), (40, 12), (24, 8)] {
         app.approval_scroll = 0;
@@ -1790,11 +1790,11 @@ fn model_output_is_redacted_and_control_safe() {
 }
 
 #[test]
-fn ratatui_frame_is_claw_owned_and_contains_core_state() {
+fn ratatui_frame_is_yuos_owned_and_contains_core_state() {
     let mut app = app();
     app.begin_task(&job("running"));
-    app.push_assistant_delta("## Result\n\nClaw completed the work.");
-    app.tool_started("tool-1", "cos_sysinfo");
+    app.push_assistant_delta("## Result\n\nYu OS completed the work.");
+    app.tool_started("tool-1", "yu_sysinfo");
     let backend = TestBackend::new(100, 28);
     let mut terminal = ratatui::Terminal::new(backend).unwrap();
     terminal.draw(|frame| ui::render(frame, &app)).unwrap();
@@ -1804,17 +1804,17 @@ fn ratatui_frame_is_claw_owned_and_contains_core_state() {
         .iter()
         .map(|cell| cell.symbol())
         .collect::<String>();
-    assert!(output.contains("CLAW AGENT"));
-    assert!(output.contains("Claw terminal test"));
-    assert!(output.contains("Claw completed the work."));
-    assert!(output.contains("cos_sysinfo"));
-    assert!(output.contains("Running cos_sysinfo"));
+    assert!(output.contains("YU OS AGENT"));
+    assert!(output.contains("Yu OS terminal test"));
+    assert!(output.contains("Yu OS completed the work."));
+    assert!(output.contains("yu_sysinfo"));
+    assert!(output.contains("Running yu_sysinfo"));
     assert!(output.contains("waiting for result"));
     assert!(!output.contains("Codex"));
 }
 
 #[test]
-fn slash_palette_exposes_only_supported_claw_commands() {
+fn slash_palette_exposes_only_supported_yuos_commands() {
     let mut app = app();
     app.insert_text("/m");
     let backend = TestBackend::new(100, 28);
@@ -1846,7 +1846,7 @@ fn activity_commands_use_one_palette_entry() {
 }
 
 #[test]
-fn picker_and_working_header_render_real_claw_state() {
+fn picker_and_working_header_render_real_yuos_state() {
     let mut app = app();
     app.open_model_picker();
     app.picker_insert('o');
@@ -1936,7 +1936,7 @@ fn durable_task_picker_opens_redacted_details_and_exact_actions() {
         created_at: "2026-01-01T00:00:00Z".into(),
         session_id: Some("ses_001953abcdef0_123456789abc".into()),
         activity_id: None,
-        workspace: Some("/home/claw/project".into()),
+        workspace: Some("/home/yuos/project".into()),
         after_task_id: None,
         waiting_on: 0,
         cancel_requested: false,
@@ -2000,15 +2000,15 @@ fn approval_center_keeps_history_read_only_and_pending_decisions_exact() {
     let pending = ApprovalRequest {
         id: "approval-center-1".into(),
         verb: "fs.write".into(),
-        scope: json!({"kind": "path", "value": "/home/claw/output"}),
+        scope: json!({"kind": "path", "value": "/home/yuos/output"}),
         label: "Create or modify files".into(),
         description: "Write new files or change existing ones in the granted folder.".into(),
-        target: "/home/claw/output".into(),
+        target: "/home/yuos/output".into(),
         reason: "Write the requested output".into(),
         status: "pending".into(),
         session: "ses_001953abcdef0_123456789abc".into(),
         requested_at: 1_767_225_600,
-        requester: Some("Claw Agent".into()),
+        requester: Some("Yu OS Agent".into()),
         risk: Some("high".into()),
         decided_at: None,
         duration: None,
@@ -2084,7 +2084,7 @@ fn notification_inbox_uses_durable_mutations_and_preferences() {
         job_id: None,
         actions: vec![NotificationAction {
             label: "Open task".into(),
-            uri: "clawos://task/task-1".into(),
+            uri: "yuos://task/task-1".into(),
         }],
         deliveries: vec![NotificationDelivery {
             channel: "web".into(),

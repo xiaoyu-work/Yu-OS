@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # rootfs/build.sh — Build a Debian rootfs by composing features.
 #
-# 1. Bootstraps a minimal Debian rootfs into build/claw-os-rootfs (always).
+# 1. Bootstraps a minimal Debian rootfs into build/yuos-rootfs (always).
 # 2. Copies rootfs/overlay/* on top (always).
 # 3. Applies each feature in order: apt-installs its packages.txt, then runs
 #    its install.sh.
@@ -11,7 +11,7 @@
 # Usage:
 #   sudo ./rootfs/build.sh [--features f1,f2,f3] [--reuse-if-matching]
 #
-# Default features: base,cos-core,browser  (matches the legacy behaviour).
+# Default features: base,yuos-core,browser  (matches the legacy behaviour).
 
 set -euo pipefail
 
@@ -32,8 +32,8 @@ set -euo pipefail
 # inherited unchanged, so `... | tee build.log` and the caller's
 # ${PIPESTATUS[0]} keep working. Skipped when stdin is not a tty (e.g. CI),
 # where there is no controlling terminal to detach from.
-if [ -z "${COS_BUILD_DETACHED:-}" ] && [ -t 0 ] && command -v setsid >/dev/null 2>&1; then
-    export COS_BUILD_DETACHED=1
+if [ -z "${YUOS_BUILD_DETACHED:-}" ] && [ -t 0 ] && command -v setsid >/dev/null 2>&1; then
+    export YUOS_BUILD_DETACHED=1
     exec setsid -w "$0" "$@" < /dev/null
 fi
 
@@ -46,8 +46,8 @@ export DEBIAN_FRONTEND=noninteractive
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-ROOTFS="$PROJECT_DIR/build/claw-os-rootfs"
-STAMP_PATH="$PROJECT_DIR/build/claw-os-rootfs.stamp"
+ROOTFS="$PROJECT_DIR/build/yuos-rootfs"
+STAMP_PATH="$PROJECT_DIR/build/yuos-rootfs.stamp"
 SUITE="trixie"
 STAMP_SCHEMA=1
 BUILDER_INPUTS_VERSION=1
@@ -64,7 +64,7 @@ source "$PROJECT_DIR/scripts/lib/git-readonly.sh"
 # arch when $ARCH is unset.
 source "$PROJECT_DIR/scripts/lib/arch.sh"
 
-DEFAULT_FEATURES="base,cos-core,browser"
+DEFAULT_FEATURES="base,yuos-core,browser"
 FEATURES="$DEFAULT_FEATURES"
 REUSE_IF_MATCHING=0
 
@@ -141,16 +141,16 @@ done
 # exactly like the CI workflow does when the signing secret is absent. Once a
 # key exists the feature comes back automatically, with no flag to remember.
 # ---------------------------------------------------------------------------
-apt_key_file="${COS_APT_PUBLIC_KEY_FILE:-$PROJECT_DIR/packaging/apt-repo/claw-os-archive-keyring.gpg}"
+apt_key_file="${YUOS_APT_PUBLIC_KEY_FILE:-$PROJECT_DIR/packaging/apt-repo/yuos-archive-keyring.gpg}"
 if [[ ",$FEATURES," == *",apt-source,"* ]] \
     && [ ! -s "$apt_key_file" ] \
-    && [ -z "${COS_APT_PUBLIC_KEY_FINGERPRINT:-}" ]; then
+    && [ -z "${YUOS_APT_PUBLIC_KEY_FINGERPRINT:-}" ]; then
     cat >&2 <<EOF
-warning: no Claw OS apt signing key available — dropping the 'apt-source'
+warning: no Yu OS apt signing key available — dropping the 'apt-source'
          feature. The image will build and boot normally but ships without
          the apt upgrade channel.
-         Provide one with COS_APT_PUBLIC_KEY_FILE=<keyring> (or
-         COS_APT_PUBLIC_KEY_FINGERPRINT=<fpr> to fetch it over HTTPS).
+         Provide one with YUOS_APT_PUBLIC_KEY_FILE=<keyring> (or
+         YUOS_APT_PUBLIC_KEY_FINGERPRINT=<fpr> to fetch it over HTTPS).
 EOF
     FEATURES="$(printf '%s' "$FEATURES" | sed -e 's/,apt-source,/,/g' \
         -e 's/^apt-source,//' -e 's/,apt-source$//' -e 's/^apt-source$//')"
@@ -164,8 +164,8 @@ fi
 
 # Build a Debian-monotonic rolling version from semver + git commit count + SHA.
 source "$PROJECT_DIR/scripts/lib/package-version.sh"
-COS_VERSION="$(package_version "$PROJECT_DIR")"
-COS_PACKAGE_VERSION="$COS_VERSION"
+YUOS_VERSION="$(package_version "$PROJECT_DIR")"
+YUOS_PACKAGE_VERSION="$YUOS_VERSION"
 
 source_hash() {
     if git_readonly -C "$PROJECT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -209,12 +209,12 @@ artifact_hash() {
             find "$PROJECT_DIR/build/debs" -maxdepth 1 -type f -name '*.deb' -print0
         fi
         if [[ ",$FEATURES," == *",desktop,"* ]]; then
-            shell_pin="${CLAW_APP_PACKAGE_ROOT:-$PROJECT_DIR/build/app-packages}/desktop-shell-$DEB_ARCH/selection.json"
+            shell_pin="${YUOS_APP_PACKAGE_ROOT:-$PROJECT_DIR/build/app-packages}/desktop-shell-$DEB_ARCH/selection.json"
             if [ -f "$shell_pin" ]; then
                 printf '%s\0' "$shell_pin"
             fi
         fi
-        key_file="${COS_APT_PUBLIC_KEY_FILE:-$PROJECT_DIR/packaging/apt-repo/claw-os-archive-keyring.gpg}"
+        key_file="${YUOS_APT_PUBLIC_KEY_FILE:-$PROJECT_DIR/packaging/apt-repo/yuos-archive-keyring.gpg}"
         if [ -f "$key_file" ]; then
             printf '%s\0' "$key_file"
         fi
@@ -233,19 +233,19 @@ artifact_hash() {
 
 ENVIRONMENT_HASH="$(
     {
-        printf 'COS_QWEN3_SKIP_ORT_GENAI=%s\0' "${COS_QWEN3_SKIP_ORT_GENAI:-0}"
-        printf 'COS_QWEN3_HF_REPO=%s\0' "${COS_QWEN3_HF_REPO:-}"
-        printf 'COS_QWEN3_HF_REVISION=%s\0' "${COS_QWEN3_HF_REVISION:-}"
-        printf 'COS_QWEN3_MODEL_NAME=%s\0' "${COS_QWEN3_MODEL_NAME:-}"
-        printf 'COS_QWEN3_MODEL_VERSION=%s\0' "${COS_QWEN3_MODEL_VERSION:-}"
-        printf 'COS_QWEN3_FILES=%s\0' "${COS_QWEN3_FILES:-}"
-        printf 'COS_QWEN3_ORT_GENAI_VERSION=%s\0' "${COS_QWEN3_ORT_GENAI_VERSION:-}"
-        printf 'COS_APT_REPO_URL=%s\0' "${COS_APT_REPO_URL:-}"
-        printf 'COS_APT_REPO_SUITE=%s\0' "${COS_APT_REPO_SUITE:-}"
-        printf 'COS_APT_PUBLIC_KEY_FILE=%s\0' "${COS_APT_PUBLIC_KEY_FILE:-}"
-        printf 'COS_APT_PUBLIC_KEY_URL=%s\0' "${COS_APT_PUBLIC_KEY_URL:-}"
-        printf 'COS_APT_PUBLIC_KEY_FINGERPRINT=%s\0' "${COS_APT_PUBLIC_KEY_FINGERPRINT:-}"
-        printf 'CLAW_PLATFORM=%s\0' "${CLAW_PLATFORM:-}"
+        printf 'YUOS_QWEN3_SKIP_ORT_GENAI=%s\0' "${YUOS_QWEN3_SKIP_ORT_GENAI:-0}"
+        printf 'YUOS_QWEN3_HF_REPO=%s\0' "${YUOS_QWEN3_HF_REPO:-}"
+        printf 'YUOS_QWEN3_HF_REVISION=%s\0' "${YUOS_QWEN3_HF_REVISION:-}"
+        printf 'YUOS_QWEN3_MODEL_NAME=%s\0' "${YUOS_QWEN3_MODEL_NAME:-}"
+        printf 'YUOS_QWEN3_MODEL_VERSION=%s\0' "${YUOS_QWEN3_MODEL_VERSION:-}"
+        printf 'YUOS_QWEN3_FILES=%s\0' "${YUOS_QWEN3_FILES:-}"
+        printf 'YUOS_QWEN3_ORT_GENAI_VERSION=%s\0' "${YUOS_QWEN3_ORT_GENAI_VERSION:-}"
+        printf 'YUOS_APT_REPO_URL=%s\0' "${YUOS_APT_REPO_URL:-}"
+        printf 'YUOS_APT_REPO_SUITE=%s\0' "${YUOS_APT_REPO_SUITE:-}"
+        printf 'YUOS_APT_PUBLIC_KEY_FILE=%s\0' "${YUOS_APT_PUBLIC_KEY_FILE:-}"
+        printf 'YUOS_APT_PUBLIC_KEY_URL=%s\0' "${YUOS_APT_PUBLIC_KEY_URL:-}"
+        printf 'YUOS_APT_PUBLIC_KEY_FINGERPRINT=%s\0' "${YUOS_APT_PUBLIC_KEY_FINGERPRINT:-}"
+        printf 'YUOS_PLATFORM=%s\0' "${YUOS_PLATFORM:-}"
     } | sha256sum | awk '{print $1}'
 )"
 
@@ -263,14 +263,14 @@ source_commit=$SOURCE_COMMIT
 source_hash=$SOURCE_HASH
 artifact_hash=$artifact
 environment_hash=$ENVIRONMENT_HASH
-cos_package_version=$COS_PACKAGE_VERSION
+yu_package_version=$YUOS_PACKAGE_VERSION
 qwen_ort_genai_version=${ORT_GENAI_VERSION:-unknown}
-qwen_skip_ort_genai=${COS_QWEN3_SKIP_ORT_GENAI:-0}
+qwen_skip_ort_genai=${YUOS_QWEN3_SKIP_ORT_GENAI:-0}
 EOF
 }
 STAMP_CONTENT="$(stamp_content)"
 
-export ROOTFS PROJECT_DIR SCRIPT_DIR SUITE COS_VERSION COS_PACKAGE_VERSION ARCH DEB_ARCH KERNEL_PKG FEATURES
+export ROOTFS PROJECT_DIR SCRIPT_DIR SUITE YUOS_VERSION YUOS_PACKAGE_VERSION ARCH DEB_ARCH KERNEL_PKG FEATURES
 
 rootfs_mounts() {
     findmnt -rn -o TARGET 2>/dev/null \
@@ -342,7 +342,7 @@ fi
 mkdir -p "$ROOTFS"
 debootstrap --extractor=ar --arch="$DEB_ARCH" "$SUITE" "$ROOTFS"
 
-# 2. Apply global overlay (config files, cos-init, etc.).
+# 2. Apply global overlay (config files, yuos-init, etc.).
 echo ":: applying global overlay"
 # Do not stamp checkout ownership or modes onto existing Debian directories.
 # New entries retain executable bits, but not group or world write access.
@@ -393,8 +393,8 @@ cat > "$ROOTFS/etc/apt/apt.conf.d/81cos-no-pty" <<'EOF'
 Dpkg::Use-Pty "0";
 EOF
 
-# Make conffile conflicts non-interactive for the whole build. Some Claw OS
-# debs (e.g. claw-os-desktop) ship config files that already exist on the
+# Make conffile conflicts non-interactive for the whole build. Some Yu OS
+# debs (e.g. yuos-desktop) ship config files that already exist on the
 # rootfs from the base overlay (/etc/apt/apt.conf.d/20auto-upgrades). dpkg would
 # stop at an interactive "keep/replace?" conffile prompt, but stdin inside the
 # chroot is not a terminal, so the prompt hits EOF and the install aborts.
@@ -405,7 +405,7 @@ Dpkg::Options { "--force-confdef"; "--force-confold"; };
 EOF
 
 # debootstrap writes a single-component sources.list (`main` only).
-# Claw OS needs `contrib` (e.g. some codec headers) and especially
+# Yu OS needs `contrib` (e.g. some codec headers) and especially
 # `non-free-firmware` (Intel/Realtek/Broadcom Wi-Fi blobs, CPU
 # microcode). `non-free` covers anything still parked there that
 # trixie hasn't migrated. `*-backports` provides packages dropped from

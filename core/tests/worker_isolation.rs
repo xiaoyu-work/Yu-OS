@@ -69,14 +69,14 @@ fn sandbox_available() -> bool {
 /// Skip only where the platform genuinely cannot enforce the policy.
 ///
 /// CI and the image builds declare the prerequisites installed by
-/// setting `COS_WORKER_SANDBOX_REQUIRED=1`; there, an unavailable
+/// setting `YUOS_WORKER_SANDBOX_REQUIRED=1`; there, an unavailable
 /// sandbox is a failure, not a skip, so a missing dependency cannot
 /// quietly turn this suite into a no-op.
 macro_rules! require_sandbox {
     () => {
         if !sandbox_available() {
             let availability = yu::worker::availability();
-            if std::env::var_os("COS_WORKER_SANDBOX_REQUIRED").is_some() {
+            if std::env::var_os("YUOS_WORKER_SANDBOX_REQUIRED").is_some() {
                 panic!(
                     "worker sandbox prerequisites are declared installed but missing: {}",
                     availability.refusal()
@@ -104,14 +104,14 @@ fn host_secrets_and_other_homes_are_not_reachable() {
         dir.path(),
         false,
         "cat /etc/shadow 2>&1; ls /home 2>&1; ls /root 2>&1; \
-         ls ~/.ssh 2>&1; ls /var/lib/cos 2>&1; ls /run/cos 2>&1",
+         ls ~/.ssh 2>&1; ls /var/lib/yuos 2>&1; ls /run/yuos 2>&1",
     );
     let seen = output.stdout_string() + &output.stderr_string();
     assert!(
         !seen.contains("root:"),
         "shadow contents leaked into the sandbox: {seen}"
     );
-    for probe in ["/etc/shadow", "/root", "/var/lib/cos"] {
+    for probe in ["/etc/shadow", "/root", "/var/lib/yuos"] {
         assert!(
             seen.contains(probe),
             "expected a failure naming {probe}, got: {seen}"
@@ -132,7 +132,7 @@ fn the_broker_socket_and_credential_store_are_absent() {
     let output = run_in_sandbox(
         dir.path(),
         false,
-        "test -S /run/cos/clawd.sock && echo BROKER-PRESENT || echo broker-absent; \
+        "test -S /run/yuos/yuosd.sock && echo BROKER-PRESENT || echo broker-absent; \
          ls -a ~ 2>&1 | head -20",
     );
     let seen = output.stdout_string();
@@ -233,7 +233,7 @@ fn a_symlink_out_of_the_workspace_resolves_to_nothing() {
 
 #[test]
 fn a_granted_scope_that_names_a_kernel_root_refuses_the_launch() {
-    let caps = CapSet::from_caps(vec![Cap::new(Verb::FS_READ, Scope::path("/run/cos/**"))]);
+    let caps = CapSet::from_caps(vec![Cap::new(Verb::FS_READ, Scope::path("/run/yuos/**"))]);
     let error = yu::worker::derive::granted_path_mounts(&caps).unwrap_err();
     assert!(error.contains("kernel-owned"), "{error}");
 }
@@ -406,19 +406,19 @@ fn no_parent_environment_or_descriptor_is_inherited() {
 
     std::env::set_var("OPENAI_API_KEY", "sk-should-not-leak");
     std::env::set_var("SSH_AUTH_SOCK", "/run/user/0/ssh-agent");
-    std::env::set_var("COS_CAPS_DATA_DIR", "/var/lib/cos/caps");
+    std::env::set_var("YUOS_CAPS_DATA_DIR", "/var/lib/yuos/caps");
     let output = run_in_sandbox(dir.path(), false, "env; echo ---; ls -l /proc/self/fd");
     std::env::remove_var("OPENAI_API_KEY");
     std::env::remove_var("SSH_AUTH_SOCK");
-    std::env::remove_var("COS_CAPS_DATA_DIR");
+    std::env::remove_var("YUOS_CAPS_DATA_DIR");
     drop(held);
 
     let seen = output.stdout_string();
     for leaked in [
         "sk-should-not-leak",
         "SSH_AUTH_SOCK",
-        "COS_CAPS_DATA_DIR",
-        "COS_PROC_DATA_DIR",
+        "YUOS_CAPS_DATA_DIR",
+        "YUOS_PROC_DATA_DIR",
         "DBUS_SESSION_BUS_ADDRESS",
         "XAUTHORITY",
     ] {
@@ -583,7 +583,7 @@ fn an_over_running_worker_is_killed_at_its_deadline() {
 fn a_worker_cannot_leave_a_descendant_behind() {
     require_sandbox!();
     let dir = workspace();
-    let marker = format!("cos-orphan-{}", std::process::id());
+    let marker = format!("yuos-orphan-{}", std::process::id());
     let output = run_in_sandbox(
         dir.path(),
         false,
@@ -636,7 +636,7 @@ fn an_mcp_server_gets_the_same_isolation_as_an_app_operation() {
         argv: vec![
             "-c".to_string(),
             "cat /etc/shadow 2>&1; cat /proc/net/dev; \
-             test -S /run/cos/clawd.sock && echo BROKER-PRESENT || echo broker-absent; env"
+             test -S /run/yuos/yuosd.sock && echo BROKER-PRESENT || echo broker-absent; env"
                 .to_string(),
         ],
         cwd: None,
@@ -770,8 +770,8 @@ fn a_legitimate_app_operation_reads_and_writes_only_its_declared_resources() {
 fn source_python_dirs() -> Vec<PathBuf> {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     [
-        root.join("claw-os-sdk").join("python").join("src"),
-        root.join("cos-runtime").join("python").join("src"),
+        root.join("yuos-sdk").join("python").join("src"),
+        root.join("yuos-runtime").join("python").join("src"),
     ]
     .into_iter()
     .map(|path| path.canonicalize().expect("Python SDK tree"))
@@ -785,7 +785,7 @@ fn source_python_path() -> std::ffi::OsString {
 /// Run `script` with brokered egress for `endpoints`.
 fn run_with_egress(script: &str, endpoints: Vec<yu::worker::Endpoint>) -> WorkerOutput {
     let dir = workspace();
-    std::env::set_var("COS_SDK_PYTHON_DIR", source_python_path());
+    std::env::set_var("YUOS_SDK_PYTHON_DIR", source_python_path());
     let caps = CapSet::from_caps(
         endpoints
             .iter()
@@ -810,7 +810,7 @@ fn run_with_egress(script: &str, endpoints: Vec<yu::worker::Endpoint>) -> Worker
         desktop: false,
     })
     .expect("derive policy");
-    std::env::remove_var("COS_SDK_PYTHON_DIR");
+    std::env::remove_var("YUOS_SDK_PYTHON_DIR");
     assert_eq!(policy.network.as_str(), "brokered");
     let limits = policy.limits;
     let launch = WorkerLaunch::new(policy).with_authority(yu::worker::BrokerAuthority::new(
@@ -846,7 +846,7 @@ fn https_flows_through_the_broker_and_tls_still_names_the_host() {
     let output = run_with_egress(
         r#"
 import ssl
-from cos_runtime import egress
+from yuos_runtime import egress
 sock = egress.create_connection('example.com', 443, 20)
 tls = ssl.create_default_context().wrap_socket(sock, server_hostname='example.com')
 tls.sendall(b'GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n')
@@ -873,7 +873,7 @@ fn plain_http_flows_through_the_broker() {
     }
     let output = run_with_egress(
         r#"
-from cos_runtime import egress
+from yuos_runtime import egress
 sock = egress.create_connection('example.com', 80, 20)
 sock.sendall(b'GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n')
 print('status', sock.recv(64).split(b' ')[1].decode())
@@ -892,7 +892,7 @@ fn the_broker_refuses_every_endpoint_outside_the_grant() {
     require_sandbox!();
     let output = run_with_egress(
         r#"
-from cos_runtime import egress
+from yuos_runtime import egress
 for host, port in (
     ('evil.example', 443),
     ('example.com', 8443),
@@ -922,7 +922,7 @@ fn a_trailing_dot_or_idna_form_cannot_evade_the_grant() {
     require_sandbox!();
     let output = run_with_egress(
         r#"
-from cos_runtime import egress
+from yuos_runtime import egress
 for host in ('example.com.', 'EXAMPLE.COM', 'ex\u00e4mple.com'):
     try:
         egress.create_connection(host, 8443, 5)
@@ -941,9 +941,9 @@ for host in ('example.com.', 'EXAMPLE.COM', 'ex\u00e4mple.com'):
 fn a_worker_without_an_egress_grant_has_no_broker_at_all() {
     require_sandbox!();
     let dir = workspace();
-    std::env::set_var("COS_SDK_PYTHON_DIR", source_python_path());
+    std::env::set_var("YUOS_SDK_PYTHON_DIR", source_python_path());
     let script = r#"python3 - <<'PY' 2>&1
-from cos_runtime import egress
+from yuos_runtime import egress
 print('available', egress.available())
 try:
     egress.create_connection('example.com', 443, 5)
@@ -952,7 +952,7 @@ except Exception as error:
     print('refused', type(error).__name__)
 PY"#;
     let output = run_in_sandbox(dir.path(), false, script);
-    std::env::remove_var("COS_SDK_PYTHON_DIR");
+    std::env::remove_var("YUOS_SDK_PYTHON_DIR");
     let seen = output.stdout_string() + &output.stderr_string();
     assert!(seen.contains("available False"), "{seen}");
     assert!(seen.contains("refused EgressUnavailable"), "{seen}");
@@ -1060,11 +1060,11 @@ fn app_memory_is_brokered_to_the_owner_store_and_scoped_to_its_source() {
     require_sandbox!();
     let package = workspace();
     let owner_data = workspace();
-    std::env::set_var("COS_SDK_PYTHON_DIR", source_python_path());
-    std::env::set_var("COS_BIN", env!("CARGO_BIN_EXE_yu"));
+    std::env::set_var("YUOS_SDK_PYTHON_DIR", source_python_path());
+    std::env::set_var("YUOS_BIN", env!("CARGO_BIN_EXE_yu"));
     // The launcher resolves the owner's agent store from its own
     // environment; the worker never sees this directory.
-    std::env::set_var("COS_DATA_DIR", owner_data.path());
+    std::env::set_var("YUOS_DATA_DIR", owner_data.path());
 
     // A neighbour App's partition and an owner-private store that must
     // stay invisible whatever the operation does.
@@ -1078,9 +1078,9 @@ fn app_memory_is_brokered_to_the_owner_store_and_scoped_to_its_source() {
     let script = format!(
         r#"
 import os, pathlib
-from cos_runtime import memory
+from yuos_runtime import memory
 
-data = pathlib.Path(os.environ['COS_DATA_DIR'])
+data = pathlib.Path(os.environ['YUOS_DATA_DIR'])
 print('data_dir', data.name, data.parent.name)
 
 # The App's own scoped store, written through the SDK. There is no
@@ -1132,8 +1132,8 @@ print('apps_root', sorted(os.listdir(os.path.join({owner_root:?}, 'apps'))))
         desktop: false,
     })
     .expect("derive policy");
-    std::env::remove_var("COS_SDK_PYTHON_DIR");
-    std::env::remove_var("COS_BIN");
+    std::env::remove_var("YUOS_SDK_PYTHON_DIR");
+    std::env::remove_var("YUOS_BIN");
 
     // The mounted data directory is the App's own partition, not the
     // owner's root, so no credential store or neighbour App is inside.
@@ -1162,7 +1162,7 @@ print('apps_root', sorted(os.listdir(os.path.join({owner_root:?}, 'apps'))))
     ));
     let prepared = yu::worker::prepare(&launch).expect("prepare");
     let output = yu::worker::run_captured(prepared, None, limits, |_| Ok(())).expect("run");
-    std::env::remove_var("COS_DATA_DIR");
+    std::env::remove_var("YUOS_DATA_DIR");
     let seen = output.stdout_string() + &output.stderr_string();
     assert!(seen.contains("data_dir memory-fixture apps"), "{seen}");
     assert!(seen.contains("wrote True"), "{seen}");
@@ -1208,7 +1208,7 @@ fn legacy_app_state_is_waiting_inside_the_first_sandboxed_launch() {
     require_sandbox!();
     let package = workspace();
     let owner_data = workspace();
-    std::env::set_var("COS_SDK_PYTHON_DIR", source_python_path());
+    std::env::set_var("YUOS_SDK_PYTHON_DIR", source_python_path());
 
     // What the App wrote before workers were isolated, plus a
     // neighbour's directory that must not travel with it.
@@ -1221,7 +1221,7 @@ fn legacy_app_state_is_waiting_inside_the_first_sandboxed_launch() {
 
     let script = r#"
 import os, pathlib
-data = pathlib.Path(os.environ['COS_DATA_DIR'])
+data = pathlib.Path(os.environ['YUOS_DATA_DIR'])
 print('events', (data / 'calendar' / 'events.db').read_text())
 print('neighbour', (data / 'db').exists())
 print('partition', sorted(p.name for p in data.iterdir()))
@@ -1247,7 +1247,7 @@ print('partition', sorted(p.name for p in data.iterdir()))
         desktop: false,
     })
     .expect("derive policy");
-    std::env::remove_var("COS_SDK_PYTHON_DIR");
+    std::env::remove_var("YUOS_SDK_PYTHON_DIR");
 
     // Deriving the launch is what performs the one-time move, so the
     // owner root no longer holds the App's directory and the
@@ -1533,14 +1533,14 @@ import json
 import os
 import pathlib
 import sys
-from cos_runtime import policy
+from yuos_runtime import policy
 
 args = sys.argv[1:]
 if args[:2] == ["--wire=1", "__policy"]:
-    os.execv(COS, [COS, *args])
+    os.execv(YU, [YU, *args])
 
 def record(value):
-    with (pathlib.Path(os.environ["COS_DATA_DIR"]) / "fixture-services.jsonl").open("a") as log:
+    with (pathlib.Path(os.environ["YUOS_DATA_DIR"]) / "fixture-services.jsonl").open("a") as log:
         log.write(json.dumps(value) + "\n")
 
 if len(args) == 5 and args[:2] == ["credential", "load"] and args[3:] == ["--namespace", "default"]:
@@ -1576,7 +1576,7 @@ else:
     raise RuntimeError("unsupported fixture service request: " + repr(args))
 "#,
     );
-    let path = python.join("fixture-cos");
+    let path = python.join("fixture-yu");
     std::fs::write(&path, script).unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
     path
@@ -1683,15 +1683,15 @@ async fn run_shipped_app(
     std::fs::create_dir_all(&partition).expect("partition");
     let service_log = partition.join("fixture-services.jsonl");
     std::fs::write(&service_log, "").unwrap();
-    let fixture_cos = fixture_services(&python, app_id, &caps);
+    let fixture_yu = fixture_services(&python, app_id, &caps);
     let stub_socket = partition.join("egress.sock");
     let stub = endpoint.as_ref().map(|endpoint| {
         let tls = fixture_tls(&python, &endpoint.host);
         StubEgress::start(stub_socket.clone(), fixture, Some(tls))
     });
 
-    std::env::set_var("COS_SDK_PYTHON_DIR", &python);
-    std::env::set_var("COS_BIN", env!("CARGO_BIN_EXE_yu"));
+    std::env::set_var("YUOS_SDK_PYTHON_DIR", &python);
+    std::env::set_var("YUOS_BIN", env!("CARGO_BIN_EXE_yu"));
     let metadata = std::fs::metadata(&directory).unwrap();
     let pinned_entries = [&entry, &manifest_path]
         .into_iter()
@@ -1703,16 +1703,16 @@ async fn run_shipped_app(
     let authorized = yu::worker::derive::authorize_granted_path_mounts(&caps).unwrap();
     let extra_env = BTreeMap::from([
         (
-            "COS_APP_MANIFEST".to_string(),
+            "YUOS_APP_MANIFEST".to_string(),
             manifest_path.to_string_lossy().into_owned(),
         ),
         (
-            "COS_BIN".to_string(),
-            fixture_cos.to_string_lossy().into_owned(),
+            "YUOS_BIN".to_string(),
+            fixture_yu.to_string_lossy().into_owned(),
         ),
         (
-            "CLAW_COS_BIN".to_string(),
-            fixture_cos.to_string_lossy().into_owned(),
+            "YUOS_KERNEL_BIN".to_string(),
+            fixture_yu.to_string_lossy().into_owned(),
         ),
         (
             "SSL_CERT_FILE".to_string(),
@@ -1736,8 +1736,8 @@ async fn run_shipped_app(
         transports: &[],
     })
     .expect("derive policy");
-    std::env::remove_var("COS_SDK_PYTHON_DIR");
-    std::env::remove_var("COS_BIN");
+    std::env::remove_var("YUOS_SDK_PYTHON_DIR");
+    std::env::remove_var("YUOS_BIN");
     assert!(policy.mounts.iter().any(|mount| {
         mount.source == python
             && mount.class == yu::worker::MountClass::Runtime
@@ -1757,13 +1757,13 @@ async fn run_shipped_app(
     if let Some(endpoint) = endpoint.as_ref() {
         assert!(matches!(policy.network, yu::worker::NetworkPolicy::Brokered { .. }));
         assert_eq!(
-            policy.env.get("COS_EGRESS_ENDPOINTS").map(String::as_str),
+            policy.env.get("YUOS_EGRESS_ENDPOINTS").map(String::as_str),
             Some(endpoint.authority().as_str()),
             "the derived egress allowlist is not the granted endpoint"
         );
-        policy.env.insert("COS_EGRESS_SOCKET".to_string(), stub_socket.to_string_lossy().into_owned());
+        policy.env.insert("YUOS_EGRESS_SOCKET".to_string(), stub_socket.to_string_lossy().into_owned());
     } else {
-        assert!(policy.env.get("COS_EGRESS_ENDPOINTS").is_none_or(|value| value.is_empty()));
+        assert!(policy.env.get("YUOS_EGRESS_ENDPOINTS").is_none_or(|value| value.is_empty()));
     }
 
     let launch = WorkerLaunch::new(policy).with_authority(yu::worker::BrokerAuthority::new(

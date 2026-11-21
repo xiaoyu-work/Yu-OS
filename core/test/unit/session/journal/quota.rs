@@ -36,7 +36,7 @@ fn capability_use() -> JournalEvent {
 fn tool() -> JournalEvent {
     JournalEvent::ToolStarted {
         turn: 0,
-        tool: Label::new("cos_todo"),
+        tool: Label::new("yu_todo"),
         tool_use_id: Label::new("t"),
         known: true,
     }

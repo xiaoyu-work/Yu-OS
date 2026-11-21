@@ -10,7 +10,7 @@
 //! The model identifier the provider receives doubles as the GGUF file
 //! path. The expected formats are:
 //!
-//!   - bare path: `/var/lib/cos/models/llama3-8b/v1/model.gguf`
+//!   - bare path: `/var/lib/yuos/models/llama3-8b/v1/model.gguf`
 //!   - `llama_local:` prefix: `llama_local:/path/to/model.gguf`
 //!
 //! Both forms are accepted to keep CLI ergonomics flexible — `yu agent

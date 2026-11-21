@@ -8,7 +8,7 @@ execution and live file synchronization are not part of this interface.
 
 ## Interface and execution plan
 
-The closed version-1 contract is defined in `clawd-client::nearby`. The broker
+The closed version-1 contract is defined in `yuosd-client::nearby`. The broker
 exposes `nearby.status` and `nearby.control`. No request can select an owner,
 executable, D-Bus endpoint, raw interface or capability set.
 
@@ -29,7 +29,7 @@ and responses are closed; identifiers and names never create authority.
 Implementation proceeds through one contract, broker authorization and durable
 state, an isolated non-root file/protocol helper plus Owly's dedicated radio
 service, four client presentations, then package/update integration. The
-network parsers do not execute in `clawd` or the model worker. The same radio
+network parsers do not execute in `yuosd` or the model worker. The same radio
 lease is shared by the owner's presentations; starting another independent
 client is not a reason to acquire a second radio or silently stop existing work.
 
@@ -54,7 +54,7 @@ or sent to an LLM automatically.
 
 Owly is a separately compiled MIT dependency at a recorded immutable source
 revision. Its radio process retains only network administration/raw-radio
-privileges. The Claw-owned transfer helper runs without root privileges and
+privileges. The Yu OS-owned transfer helper runs without root privileges and
 without an App/model session or arbitrary D-Bus access.
 
 Shared mode depends on a compatible card and AP channel; Exclusive and Active
@@ -72,8 +72,8 @@ Wi-Fi recovery still require the target physical radio and phone.
 | Surface | Entry and workflow |
 | --- | --- |
 | CLI | `yu share status` / `doctor`, `receive --seconds 300`, `open`, `browse`, `send PEER_ID FILE...`, `accept OFFER_ID`, `decline OFFER_ID`, `cancel TRANSFER_ID`, `stop`, `watch` |
-| Claw TUI | `/share` opens the dedicated center. `O`/`I` compose an explicit send/receive window command, `D` discovers, `S` composes a peer-ID plus JSON file-list command, arrows scroll/select and `A`/`N` decides only the selected offer. `X` stops; `Esc` only detaches |
-| Native Desktop | Nearby Sharing in the Agent sidebar, or `cos-agent-ui --nearby` / the Agent launcher action. Pick local files, explicitly acknowledge disruptive modes, choose a discovered recipient, confirm each offer, inspect progress and stop |
+| Yu OS TUI | `/share` opens the dedicated center. `O`/`I` compose an explicit send/receive window command, `D` discovers, `S` composes a peer-ID plus JSON file-list command, arrows scroll/select and `A`/`N` decides only the selected offer. `X` stops; `Esc` only detaches |
+| Native Desktop | Nearby Sharing in the Agent sidebar, or `yuos-agent-ui --nearby` / the Agent launcher action. Pick local files, explicitly acknowledge disruptive modes, choose a discovered recipient, confirm each offer, inspect progress and stop |
 | Authenticated Web | `#/nearby` in the Agent Web shell. Select browser files first, stage them in bounded chunks, then activate a window. Receiving writes the OS host's inbox, not an arbitrary browser download location |
 
 CLI output is structured JSON. For example:
@@ -129,11 +129,11 @@ auto-accept setting.
 
 | Layer | Deliverable | Acceptance |
 | --- | --- | --- |
-| Definition | Closed schema 1 in `clawd-client::nearby`; counts, byte/frame limits and action-specific acknowledgements | Unknown authority fields, stale IDs, malformed timestamps and oversized serialized views fail |
+| Definition | Closed schema 1 in `yuosd-client::nearby`; counts, byte/frame limits and action-specific acknowledgements | Unknown authority fields, stale IDs, malformed timestamps and oversized serialized views fail |
 | Broker | One owner/window/transfer service, exact existing capability review, private durable staging and owner inbox | Foreign owners/Hosts cannot mutate; imported data is non-executing and never overwrites existing files |
 | Transport | Fixed non-root sandbox and Owly radio lease | Private pipe survives interrupted reads; actual TLS `/Ask` declines without a decision and transfers after exact acceptance |
 | Presentations | CLI, ratatui center, native center and authenticated Web | No model/task prerequisite; visible limits, unverified names, explicit disruption, stable selection, progress and no mutation replay |
-| Distribution | Independent locked builds, Root-only D-Bus acquisition, signed components and checked upgrade stop | No active-user radio bypass, raw sockets in `clawd`, automatic radio enablement or unsigned package fallback |
+| Distribution | Independent locked builds, Root-only D-Bus acquisition, signed components and checked upgrade stop | No active-user radio bypass, raw sockets in `yuosd`, automatic radio enablement or unsigned package fallback |
 | Physical device | Supported card plus iPhone Everyone mode | A file each way, declined/expired offer, cancel/detach, explicit stop, sleep/resume and at least five minutes of normal-network observation |
 
 Offer notifications are informational and expire with the offer. Delivery
@@ -149,7 +149,7 @@ Delivered means protocol acknowledgement, not proof that a person read a file.
 
 ## Installed behavior
 
-Agent supplies `claw-os-nearby-v1`, both fixed binaries and MIT notices.
+Agent supplies `yuos-nearby-v1`, both fixed binaries and MIT notices.
 Desktop depends on that service interface. The optional radio daemon starts
 through D-Bus, not an enabled boot-time sharing window. It retains only
 `CAP_NET_ADMIN`/`CAP_NET_RAW`; the broker's address-family policy is unchanged.
@@ -170,4 +170,4 @@ fork propagates failed `Backend::down` and startup recovery rather than
 publishing a false idle/restore acknowledgement. Core pins the exact service
 bus owner and accepts a natural-expiry receipt only for its exact checked
 lease. See [`updating.md`](updating.md) and the
-[`transport provenance`](../crates/claw-nearby/PROVENANCE.md).
+[`transport provenance`](../crates/yuos-nearby/PROVENANCE.md).

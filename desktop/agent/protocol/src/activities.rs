@@ -1,5 +1,5 @@
 //! Activity presentation only. Ownership, persistence, transitions and work
-//! admission belong to clawd, shared with the terminal client.
+//! admission belong to yuosd, shared with the terminal client.
 
 use serde::{Deserialize, Serialize};
 

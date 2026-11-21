@@ -20,7 +20,7 @@ export function AppsPage() {
   }, []);
   return <div className="h-full overflow-y-auto p-6">
     <div className="flex justify-between gap-3"><div><h1 className="text-xl font-semibold">Apps</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Installed Claw Web Apps. Ordinary operations do not require an AI task.</p></div>
+      <p className="mt-1 text-sm text-muted-foreground">Installed Yu OS Web Apps. Ordinary operations do not require an AI task.</p></div>
       <Button onClick={() => navigate("/app-store")}><ShoppingBag className="mr-2 h-4 w-4" /> Yu OS Store</Button></div>
     {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
     {!apps && !error && <Loader2 className="mt-6 h-5 w-5 animate-spin" />}

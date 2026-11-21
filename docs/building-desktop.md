@@ -1,8 +1,8 @@
-# Building the Claw OS Desktop Image
+# Building the Yu OS Desktop Image
 
 The desktop profile builds Hyprland and the graphical Agent against Debian 13.
-`claw-os-desktop` also contains the signed Desktop Shell (Quickshell, Caelestia
-and private Qt). Every other Claw App is installed by default through its own
+`yuos-desktop` also contains the signed Desktop Shell (Quickshell, Caelestia
+and private Qt). Every other Yu OS App is installed by default through its own
 package. The build stops if the approved Shell input or signed App APT inputs
 are unavailable.
 
@@ -20,7 +20,7 @@ sudo ./presets/desktop.sh
 ```
 
 `DESKTOP_SHELL_RELEASE` is the version of an approved immutable
-`desktop-shell-v<version>` release in `xiaoyu-work/clawos-app`. Supply the
+`desktop-shell-v<version>` release in `xiaoyu-work/yuos-app`. Supply the
 same version as `desktop_shell_version` when dispatching the OS `desktop`,
 `installer` or `all` target. It is a build input, not a package the user installs. Changing
 it for a published Desktop requires a new OS package version.
@@ -28,10 +28,10 @@ The build's signature check uses Bubblewrap with only the packaged publisher;
 it does not read or change the build host's trust store.
 
 Use the native architecture and corresponding GRUB package on arm64.
-The default output is `build/claw-os-vm-amd64.vmdk`; import it into VMware.
+The default output is `build/yuos-vm-amd64.vmdk`; import it into VMware.
 See [the Azure build](building-azure.md) for a generalized Gen2 VHD.
 
-For a bootable amd64 installer, the manual **Release Claw OS → installer**
+For a bootable amd64 installer, the manual **Release Yu OS → installer**
 target builds a BIOS/UEFI Calamares ISO from the same run's verified Agent,
 Base and Desktop packages. The ISO and its SHA-256 checksum are run artifacts,
 not a public release or hardware certification. Verify a clean installation and
@@ -43,18 +43,16 @@ The local desktop VM opens the graphical setup wizard without asking you to
 sign in. Create your account, optionally choose an avatar, and select
 **Finish** to enter the desktop.
 After logout or reboot, sign in with that account and password. Sign-in and
-lock show the time above and the password field at the bottom. First-run
-setup keeps its frosted-glass panels.
+lock show the Yu OS wallpaper full-screen, with the time above and the
+password field at the bottom. First-run setup keeps its frosted-glass panels.
 
-Setup, sign-in, and lock share the original Yu OS mountain wallpaper at
-`/usr/share/backgrounds/claw-os/yuos-default.jpg`. To use the same default
-after sign-in, choose a signed Desktop Shell release that reads this system
-file; `desktop-shell-v0.1.0` still uses its own bundled image. A wallpaper
-chosen by the user takes precedence on the desktop.
+Setup, sign-in, lock, and the signed Desktop Shell share the default wallpaper at
+`/usr/share/backgrounds/yuos/yuos-default.jpg`. A wallpaper chosen by the user
+takes precedence on the desktop.
 
 The signed system shell starts with its built-in desktop permissions.
 Other App permission requests still appear in the graphical OS review
-window. The headless VM still sets up its `cos` account on the serial console.
+window. The headless VM still sets up its `yu` account on the serial console.
 
 On an installed machine, the greeter and desktop use the connected display's
 preferred mode as reported by its graphics driver. The setup wizard fits that
@@ -65,9 +63,9 @@ the viewer window is hypervisor-specific. No per-resolution wallpaper copies
 are needed.
 
 With the matching signed Shell, selecting an installed App in the desktop
-menu submits its launch without a separate review. Claw Apps keep their
+menu submits its launch without a separate review. Yu OS Apps keep their
 signed identity and separate permission checks; ordinary Linux desktop apps
-open as the logged-in user and receive no Claw App authority. Shutdown and
+open as the logged-in user and receive no Yu OS App authority. Shutdown and
 restart from the system menu go directly to the OS;
 other Apps and the Agent receive no power permission from a menu click.
 

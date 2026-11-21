@@ -1,10 +1,10 @@
-# ClawOS Agent App (`com.yuos.Agent`)
+# YuOS Agent App (`com.yuos.Agent`)
 
-The user-facing face of the ClawOS system Agent. The brain (LLM
+The user-facing face of the YuOS system Agent. The brain (LLM
 runtime, providers, tools, caps, memory) lives in `core/src/agent/`
-and is orchestrated by the user-session `clawd` daemon. This directory holds the
+and is orchestrated by the user-session `yuosd` daemon. This directory holds the
 **desktop UI surface** plus the small local HTTP bridge that
-brokers a streaming JSON+SSE protocol between the UI and `clawd`.
+brokers a streaming JSON+SSE protocol between the UI and `yuosd`.
 
 ## Layout
 
@@ -14,17 +14,17 @@ desktop/agent/
 ├── protocol/               # shared versioned HTTP/SSE presentation contract
 ├── docs/
 │   └── design-system.md    # shared dark-surface / brand-blue accent system
-├── bridge/                 # cos-agent-bridge — HTTP+SSE daemon
+├── bridge/                 # yuos-agent-bridge — HTTP+SSE daemon
 │   └── src/
 │       ├── main.rs         # 127.0.0.1 Axum server (/api only)
-│       ├── state.rs        # port discovery + shared clawd client
+│       ├── state.rs        # port discovery + shared yuosd client
 │       └── routes/
 │           ├── chat.rs     # POST /api/chat   (SSE stream)
 │           ├── activities.rs # shared Activity service + durable work admission
 │           ├── sessions.rs # canonical list/get/update/fork/history + legacy read-only projection
 │           ├── models.rs   # GET /api/models
 │           └── voice.rs    # POST /api/voice/upload → configured STT provider
-└── ui/                     # cos-agent-ui — native libcosmic chat
+└── ui/                     # yuos-agent-ui — native libcosmic chat
     ├── src/
     │   ├── main.rs         #   Application assembly, routing, subscription
     │   ├── activities.rs   #   Fetched Activity views, forms and request generations
@@ -55,14 +55,14 @@ See [Workspaces](../../docs/workspaces.md).
 
 Presentation protocol v4 pairs UI and bridge so semantic associations cannot be
 discarded by an older client. It re-exports the renderer-independent
-`clawd-client::workspaces` DTOs; no privileged Agent implementation is linked
+`yuosd-client::workspaces` DTOs; no privileged Agent implementation is linked
 into the UI.
 
 ## Nearby Sharing
 
 The standalone sidebar also exposes
 [Nearby Sharing](../../docs/nearby-sharing.md), without an Agent task or model
-configuration. `cos-agent-ui --nearby` and the Agent desktop action open that
+configuration. `yuos-agent-ui --nearby` and the Agent desktop action open that
 center directly. The native file picker, exact per-offer accept/decline,
 progress, cancel and stop all consume `nearby.status/control` through the
 authenticated versioned bridge. Closing the center/window only detaches.
@@ -83,38 +83,38 @@ are not verified effects, and goal completion remains explicit.
 
 ```
 ┌─ standalone window ─┐   ┌─ Super+A layer overlay ─┐
-│  cos-agent-ui       │   │  cos-agent-ui      │
+│  yuos-agent-ui       │   │  yuos-agent-ui      │
 │  (native libcosmic) │   │  --overlay         │
 └─────────┬───────────┘   └─────────┬──────────┘
           │                         │
           └────────────┬────────────┘
                        ▼
            ┌──────────────────────────┐
-           │  cos-agent-bridge        │
+           │  yuos-agent-bridge        │
            │  127.0.0.1:$PORT         │
            │  /api/*                  │
            └────────────┬─────────────┘
                         │
                         ▼  Unix socket
            ┌──────────────────────────┐
-           │  clawd                   │
+           │  yuosd                   │
            │  task + notification RPC │
            └──────────────────────────┘
 ```
 
 Native desktop delivery is independent of this bridge. The
-[Root GUI resource](../../core/src/clawd/gui/MODULE.md#notification-presentation)
+[Root GUI resource](../../core/src/yuosd/gui/MODULE.md#notification-presentation)
 owns the single automatic desktop consumer and the original App popup
 lifetime. The OS shell descriptor carries public cards and exact presentation
 actions, not a raw App bus or a model/UI prerequisite.
 
-Helium's Claw Agent side panel uses the same authenticated bridge and Job
+Helium's Yu OS Agent side panel uses the same authenticated bridge and Job
 stream through the Desktop-owned chat Native Messaging client. Chat streams
 also emit `task_status` on nonterminal Job state changes so the browser can
 show permission waits; existing clients can ignore the additive event.
 
-The bridge and approval applet share `crates/clawd-client` for canonical
-`CLAWD_SOCKET` discovery (`COS_CLAWD_SOCKET` remains a compatibility alias),
+The bridge and approval applet share `crates/yuosd-client` for canonical
+`YUOSD_SOCKET` discovery (`YUOS_YUOSD_SOCKET` remains a compatibility alias),
 v2 broker envelopes and request correlation, `CBK1` length-prefixed framing,
 deadlines, bounds, and typed transport/protocol errors. This broker wire
 version is independent of desktop HTTP/SSE presentation protocol v4. The
@@ -127,21 +127,21 @@ occurrence counts are presentation data from the same projection, not a local
 desktop batch or delivery queue.
 
 The shared client inventory also retains mainline's protected
-[`system.review.*` contract](../../crates/clawd-client/MODULE.md), including
+[`system.review.*` contract](../../crates/yuosd-client/MODULE.md), including
 root-peer checks, and the notification acknowledge/dismiss routes. Activity
 constraints do not replace the existing review presenter or create consent.
 The bridge owns no desktop delivery loop. The retained explicit private-bus
 example is historical compatibility coverage only, never a production fallback.
 
-The UI and bridge both compile against `protocol/` (`cos-agent-protocol`).
+The UI and bridge both compile against `protocol/` (`yuos-agent-protocol`).
 That crate exclusively owns the desktop presentation contract: endpoint DTOs,
 named SSE payloads, stable error envelopes, discovery metadata, and protocol
 version constants. Its only other dependencies beyond Serde/`serde_json` are
 UUID and clock-disabled Chrono parsing, used to compare normalized Activity
 acknowledgements without importing broker/domain code. The bridge
 remains the anti-corruption layer: `bridge/src/translation.rs` decodes generic
-clawd results, removes worker/task storage details and raw memory content, and
-emits only protocol types. The UI does not deserialize clawd or core models.
+yuosd results, removes worker/task storage details and raw memory content, and
+emits only protocol types. The UI does not deserialize yuosd or core models.
 
 Conversation inventory comes from the same owner-scoped
 `agent.conversation.*` service as Agent Web. Native search is presentation-only;
@@ -171,7 +171,7 @@ over in this dependency-light crate; the boundary is documented by
 `ToolInput`.
 
 The bridge no longer serves a static SPA — the previous React
-frontend was retired in favour of `cos-agent-ui`. Every UI surface
+frontend was retired in favour of `yuos-agent-ui`. Every UI surface
 talks only to the `/api/*` endpoints.
 
 The overlay is a single-instance Wayland layer-shell surface:
@@ -217,8 +217,8 @@ It then sends context through an untrusted-data system boundary without
 storing it as the visible user prompt.
 
 The UI install and desktop package recipes target
-`/usr/local/bin/cos-agent-ui` and install the
-cross-language SDK entry point at `/usr/local/bin/cos-ask-claw-launcher`;
+`/usr/local/bin/yuos-agent-ui` and install the
+cross-language SDK entry point at `/usr/local/bin/yuos-ask-launcher`;
 private context launches accept no executable override or `PATH` lookup.
 
 ## Activities
@@ -479,7 +479,7 @@ existing gate; no grant or approval-decision route exists on this card.
 Denying `fs.delete` alone does not prevent deletion via writes/exec or other
 allowed verbs, and this feature makes no universal sandbox or undo guarantee.
 
-The independent `crates/clawd-client` inventory includes all three routes in
+The independent `crates/yuosd-client` inventory includes all three routes in
 its enum, Serde names, `ALL` and `as_str`; core route additions alone are not
 sufficient to wire a desktop consumer.
 
@@ -514,10 +514,10 @@ does not mutate the source Activity.
 
 ## Endpoint discovery
 
-The bridge binds an ephemeral port when `COS_AGENT_BRIDGE_PORT` is
+The bridge binds an ephemeral port when `YUOS_AGENT_BRIDGE_PORT` is
 unset (the systemd default), generates a random bearer token, and
 atomically writes both values to
-`$XDG_RUNTIME_DIR/cos-agent-bridge/endpoint.json` with mode `0600`.
+`$XDG_RUNTIME_DIR/yuos-agent-bridge/endpoint.json` with mode `0600`.
 The native UI reads this file and attaches the token to every bridge request.
 
 ## Protocol compatibility
@@ -608,7 +608,7 @@ proves factual correctness, execution effects or Activity goal completion.
 
 Activity endpoints use the same bearer authentication, v3 negotiation, and
 typed error envelopes as chat. Request DTOs accept no owner or capability
-fields: clawd derives ownership from the bridge's kernel identity. The
+fields: yuosd derives ownership from the bridge's kernel identity. The
 translation module validates the broker's Activity schema and removes private
 job fields before emitting presentation DTOs. Object-state entries retain the
 contract's typed server-supplied `owner_uid`; it is never a caller selector.
@@ -619,4 +619,4 @@ intentionally non-additive: its complete shape is exact and unknown fields fail.
 
 ## License
 
-This subtree is licensed Apache-2.0, same as the rest of ClawOS.
+This subtree is licensed Apache-2.0, same as the rest of YuOS.

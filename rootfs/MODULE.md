@@ -9,7 +9,7 @@ target.
 
 - Bootstrap the architecture-specific Debian base.
 - Apply ordered feature packages, overlays, and install hooks.
-- Install Claw OS Debian packages and optional model/runtime assets.
+- Install Yu OS Debian packages and optional model/runtime assets.
 - Stamp complete builds so compatible consumers can safely reuse a rootfs.
 
 ## Key Files
@@ -30,13 +30,13 @@ result. Feature code must not depend on a WSL/Docker/VM-specific staging path.
 Global, desktop and local-login overlay copies keep existing directory modes
 and apply a `022` umask to new entries. Checkout/archive modes must not make
 the installed executable or publisher trust ancestors group-writable.
-Installed Claw OS binaries arrive through packages built from the current
+Installed Yu OS binaries arrive through packages built from the current
 source. Reuse is allowed only when the complete stamp, artifacts, environment,
 architecture, and feature list match.
 
 The release workflow downloads its same-run, signed Agent/Base packages and
 separately authenticated App APT inputs before
-headless image composition. `cos-core/install.sh` looks up the exact version,
+headless image composition. `yuos-core/install.sh` looks up the exact version,
 including Debian's `%3a` filename encoding for the security epoch, so existing
 artifacts satisfy composition without a second binary/package build. It
 configures the signed App channel and installs the checked App/support/library
@@ -94,5 +94,5 @@ unprivileged fixture test runs the real install script against a temporary
 rootfs and ensures the package-owned App, SDK and XPI remain unchanged:
 
 ```bash
-python3 -m pytest -q rootfs/features/claw-mail-ai/test_install.py
+python3 -m pytest -q rootfs/features/yuos-mail-ai/test_install.py
 ```

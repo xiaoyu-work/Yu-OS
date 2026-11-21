@@ -10,8 +10,8 @@ fn fixture() -> (
 ) {
     let data = tempfile::tempdir().unwrap();
     let apps = tempfile::tempdir().unwrap();
-    let data_guard = TestEnvVarGuard::set("COS_DATA_DIR", data.path());
-    let apps_guard = TestEnvVarGuard::set("COS_APPS_DIR", apps.path());
+    let data_guard = TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
+    let apps_guard = TestEnvVarGuard::set("YUOS_APPS_DIR", apps.path());
     let dir = apps.path().join("demo");
     std::fs::create_dir(&dir).unwrap();
     std::fs::write(dir.join("app.json"), json!({
@@ -25,28 +25,28 @@ fn fixture() -> (
     .unwrap();
     crate::test_env::sign_test_package(&dir, crate::provenance::PackageKind::App, "demo");
     let activity =
-        crate::clawd::activities::create(json!({"title":"Goal","goal":"Read key"}), &peer())
+        crate::yuosd::activities::create(json!({"title":"Goal","goal":"Read key"}), &peer())
             .unwrap();
     (data, apps, data_guard, apps_guard, activity)
 }
 
-fn peer() -> crate::clawd::client_identity::ClientIdentity {
-    crate::clawd::client_identity::ClientIdentity {
+fn peer() -> crate::yuosd::client_identity::ClientIdentity {
+    crate::yuosd::client_identity::ClientIdentity {
         pid: Some(std::process::id()),
         uid: Some(1000),
         gid: Some(1000),
         start_time_ticks: Some(1),
-        ..crate::clawd::client_identity::ClientIdentity::unknown()
+        ..crate::yuosd::client_identity::ClientIdentity::unknown()
     }
 }
 
 fn broker(command: Command, params: Value) -> Result<Value, String> {
     match command {
         Command::ActivityGet => {
-            crate::clawd::activities::get(params, &peer()).map_err(|e| e.to_string())
+            crate::yuosd::activities::get(params, &peer()).map_err(|e| e.to_string())
         }
         Command::ActivityReceiptRecord => {
-            crate::clawd::activity_receipts::record(params, &peer()).map_err(|e| e.to_string())
+            crate::yuosd::activity_receipts::record(params, &peer()).map_err(|e| e.to_string())
         }
         _ => panic!("unexpected command"),
     }
@@ -85,7 +85,7 @@ fn operation_execution_captures_the_normal_app_result_without_completing_the_act
 fn inactive_activity_blocks_execution_and_app_errors_remain_errors() {
     let _lock = crate::test_env::lock_env();
     let (_data, _apps, _dg, _ag, activity) = fixture();
-    crate::clawd::activities::transition(json!({"id":activity["id"],"state":"paused"}), &peer())
+    crate::yuosd::activities::transition(json!({"id":activity["id"],"state":"paused"}), &peer())
         .unwrap();
     assert!(
         execute_with(&invocation(&activity), broker, |_, _, _| panic!(
@@ -93,7 +93,7 @@ fn inactive_activity_blocks_execution_and_app_errors_remain_errors() {
         ))
         .is_err()
     );
-    crate::clawd::activities::transition(json!({"id":activity["id"],"state":"active"}), &peer())
+    crate::yuosd::activities::transition(json!({"id":activity["id"],"state":"active"}), &peer())
         .unwrap();
     let error = execute_with(&invocation(&activity), broker, |_, _, _| {
         Err("normal App policy refused".into())

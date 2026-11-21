@@ -84,7 +84,7 @@ fn parses_minimal_manifest_and_substitutes_manifest_dir() {
     write(
         &p,
         r#"{
-          "schema": "claw.agent-api/v1",
+          "schema": "yuos.agent-api/v1",
           "id": "org.tesseract",
           "name": "tesseract",
           "transport": "mcp+stdio",
@@ -196,7 +196,7 @@ fn discover_skips_invalid_and_keeps_valid() {
 
 #[test]
 fn discover_handles_missing_directory() {
-    let nope = PathBuf::from("/tmp/claw-agent-api-does-not-exist-xyzzy");
+    let nope = PathBuf::from("/tmp/yuos-agent-api-does-not-exist-xyzzy");
     let out = discover_in(&[nope]);
     assert!(out.is_empty());
 }
@@ -214,10 +214,10 @@ fn default_search_paths_uses_xdg() {
     assert!(paths.iter().any(|p| p.starts_with(home.path())));
     assert!(paths
         .iter()
-        .any(|p| p == &PathBuf::from("/opt/share/claw/agent-api")));
+        .any(|p| p == &PathBuf::from("/opt/share/yuos/agent-api")));
     assert!(paths
         .iter()
-        .any(|p| p == &PathBuf::from("/usr/share/claw/agent-api")));
+        .any(|p| p == &PathBuf::from("/usr/share/yuos/agent-api")));
 
     match prev_home {
         Some(v) => std::env::set_var("XDG_DATA_HOME", v),

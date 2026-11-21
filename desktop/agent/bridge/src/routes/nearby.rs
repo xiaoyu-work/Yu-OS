@@ -7,8 +7,8 @@ use axum::{
     extract::{Query, State},
     http::StatusCode,
 };
-use clawd_client::Command;
-use cos_agent_protocol::{
+use yuosd_client::Command;
+use yuos_agent_protocol::{
     ErrorCode,
     nearby::{NearbyRequest, NearbyResponse, NearbyStatusRequest, NearbyView},
 };
@@ -22,7 +22,7 @@ pub async fn status(
 ) -> Result<Json<NearbyView>, ApiError> {
     let owner = current_uid().map_err(invalid)?;
     let value = state
-        .clawd
+        .yuosd
         .call(Command::NearbyStatus, serde_json::json!({}))
         .await
         .map_err(invalid)?;
@@ -39,7 +39,7 @@ pub async fn control(
         .map_err(|e| ApiError::new(StatusCode::BAD_REQUEST, ErrorCode::InvalidRequest, e))?;
     let owner = current_uid().map_err(invalid)?;
     let value = state
-        .clawd
+        .yuosd
         .call(
             Command::NearbyControl,
             serde_json::to_value(&body).map_err(invalid)?,

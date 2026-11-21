@@ -1,6 +1,6 @@
 //! Fetched owner-configured accounting and revision-bound drafts.
 
-use cos_agent_protocol::{MonetaryBudgetDraft, MonetaryCurrency};
+use yuos_agent_protocol::{MonetaryBudgetDraft, MonetaryCurrency};
 
 use super::{
     Action, Activities, ActivityDetailResponse, ActivityMonetaryBudget,

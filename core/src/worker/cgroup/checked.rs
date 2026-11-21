@@ -3,8 +3,8 @@ use std::os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use claw_display_control::workload::{check_cgroup, open_directory, read_file, write_file, Workload};
-use claw_display_control::InstanceId;
+use yuos_display_control::workload::{check_cgroup, open_directory, read_file, write_file, Workload};
+use yuos_display_control::InstanceId;
 
 use super::Limits;
 
@@ -25,7 +25,7 @@ impl CheckedScope {
     ) -> Result<Self, String> {
         Self::create_at(
             parent.duplicate().map_err(|error| error.to_string())?,
-            &format!("gui-{}", claw_display_control::Epoch(instance.0).label()),
+            &format!("gui-{}", yuos_display_control::Epoch(instance.0).label()),
             Some(limits),
         )
     }

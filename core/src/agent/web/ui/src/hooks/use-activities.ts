@@ -62,14 +62,14 @@ export function useActivityView<T>(
     if (interval) {
       void refresh();
       window.addEventListener("focus", onChange);
-      window.addEventListener("cos:notifications-changed", onChange);
+      window.addEventListener("yuos:notifications-changed", onChange);
     }
     return () => {
       ++sequence.current;
       controller.current?.abort();
       window.clearTimeout(timer.current);
       window.removeEventListener("focus", onChange);
-      window.removeEventListener("cos:notifications-changed", onChange);
+      window.removeEventListener("yuos:notifications-changed", onChange);
     };
   }, [refresh, interval]);
 

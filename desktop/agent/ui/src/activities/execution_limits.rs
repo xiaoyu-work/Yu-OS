@@ -2,7 +2,7 @@
 
 use std::time::SystemTime;
 
-use cos_agent_protocol::ExecutionLimitsDraft;
+use yuos_agent_protocol::ExecutionLimitsDraft;
 
 use super::{
     Action, Activities, ActivityDetailResponse, ActivityExecutionLimits,

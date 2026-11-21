@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Yu OS
+Description=Yu OS boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/yuos
+ScriptFile=/usr/share/plymouth/themes/yuos/yuos.script

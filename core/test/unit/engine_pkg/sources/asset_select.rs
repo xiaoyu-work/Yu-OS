@@ -157,8 +157,8 @@ fn no_match_returns_none() {
 
 #[test]
 fn current_context_reads_env_override() {
-    std::env::set_var("COS_ENGINE_ACCELERATOR", "CUDA");
+    std::env::set_var("YUOS_ENGINE_ACCELERATOR", "CUDA");
     let c = SelectionContext::current();
     assert_eq!(c.accelerator, "cuda");
-    std::env::remove_var("COS_ENGINE_ACCELERATOR");
+    std::env::remove_var("YUOS_ENGINE_ACCELERATOR");
 }

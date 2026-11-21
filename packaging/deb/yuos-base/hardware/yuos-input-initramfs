@@ -1,0 +1,86 @@
+#!/bin/sh
+set -eu
+
+if [ "${1:-}" = prereqs ]; then
+    exit 0
+fi
+
+. /usr/share/initramfs-tools/hook-functions
+
+copy_qcom_firmware() {
+    for suffix in '' .zst .xz; do
+        for directory in /usr/lib/firmware/updates /usr/lib/firmware; do
+            firmware=$directory/qcom/$1$suffix
+            if [ -f "$firmware" ]; then
+                if [ ! -e "$DESTDIR$firmware" ]; then
+                    copy_file firmware "$firmware"
+                fi
+                return
+            fi
+        done
+    done
+}
+
+# Include drivers without forcing them to load on other boards.
+arch=$DPKG_ARCH
+laptop8=false
+case "$arch" in
+    amd64)
+        set -- applespi spi_pxa2xx_platform spi_pxa2xx_pci intel_lpss_pci \
+            surface_aggregator surface_aggregator_registry surface_aggregator_hub \
+            surface_hid surface_kbd 8250_dw pinctrl_intel_platform usbhid hid_apple xhci_pci
+        if modinfo -k "$version" t2bce_vhci >/dev/null 2>&1; then
+            force_load t2bce_vhci
+        fi
+        ;;
+    arm64)
+        set -- msm dispcc_x1e80100 gpucc_x1e80100 gpucc_x1p42100 phy_qcom_edp \
+            panel_edp panel_samsung_atna33xc20 pwm_bl leds_qcom_lpg qcom_pbs \
+            phy_qcom_qmp_combo qrtr qcom_pd_mapper pmic_glink pmic_glink_altmode \
+            ps883x gpio_sbu_mux display_connector simple_bridge i2c_hid_of \
+            spi_qcom_qspi spi_hid_of surface_aggregator surface_aggregator_registry surface_aggregator_tabletsw \
+            surface_aggregator_hub surface_hid_core surface_hid \
+            pinctrl_x1e80100 qnoc_x1e80100 pinctrl_glymur qnoc_glymur \
+            spmi_pmic_arb pinctrl_spmi_gpio i2c_qcom_geni reset_gpio gpio_shared_proxy \
+            qcom_hwspinlock smem smp2p socinfo nvmem_qfprom nvmem_qcom_spmi_sdam \
+            qcom_cpucp_mbox pci_pwrctrl_pwrseq pwrseq_qcom_wcn dwc3_qcom rtc_pm8xxx \
+            qcom_pon pm8941_pwrkey icc_bwmon qcom_tsens qcom_spmi_temp_alarm \
+            hid_asus asus_glymur_ec phy_nxp_ptn3222 gpucc_glymur gxclkctl_kaanapali thunderbolt_qcom \
+            i2c_mt65xx i2c_hid_acpi nvidia nvidia_modeset nvidia_drm nvidia_uvm \
+            nvme nvme_apple apple_pmp pwm_apple leds_pwm
+        config=/etc/default/grub.d/60-yuos-qualcomm.cfg
+        if [ -r "$config" ] && grep -Eq "^export YUOS_QCOM_DTB='glymur-microsoft-surface-laptop8(-15)?[.]dtb'$" "$config"; then
+            laptop8=true
+            # The panel and USB-C need SOCCP before disk unlock. Do not force PAS past the boot blacklist.
+            set -- "$@" qcom_q6v5_pas ucsi_glink thunderbolt_platform
+        fi
+        ;;
+    *) exit 0 ;;
+esac
+for module do
+    if modinfo -k "$version" "$module" >/dev/null 2>&1; then
+        manual_add_modules "$module"
+    fi
+done
+
+if [ "$arch" = arm64 ]; then
+    for blob in gen70500_sqe.fw gen70500_gmu.bin gen71500_sqe.fw gen71500_gmu.bin gen80100_sqe.fw gen80100_gmu.bin; do
+        copy_qcom_firmware "$blob"
+    done
+    if "$laptop8"; then
+        for blob in qcadsp8480.mbn adsp_dtbs.elf qccdsp8480.mbn cdsp_dtbs.elf; do
+            copy_qcom_firmware "glymur/microsoft/mahua/$blob"
+        done
+        for blob in usb4-router-legacy.bin usb4-router-v2.bin; do
+            copy_qcom_firmware "glymur/surface-laptop8/$blob"
+        done
+    fi
+    if [ -d /usr/lib/firmware/updates/qcom ]; then
+        find /usr/lib/firmware/updates/qcom -type f \
+            \( -name '*zap*.mbn' -o -name 'qcdxkmsuc*.mbn' \) | while IFS= read -r firmware; do
+            if [ ! -e "$DESTDIR$firmware" ]; then
+                copy_file firmware "$firmware"
+            fi
+        done
+    fi
+fi

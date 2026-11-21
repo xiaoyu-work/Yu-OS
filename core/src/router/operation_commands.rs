@@ -3,7 +3,7 @@
 use serde_json::{json, Value};
 
 use crate::activities::{Activity, ActivityState, ReceiptOutcome};
-use crate::clawd::routes::Command;
+use crate::yuosd::routes::Command;
 use crate::operations::{cli::request, receipts};
 
 pub(super) fn run(command: &str, args: &[String]) -> Result<Value, String> {

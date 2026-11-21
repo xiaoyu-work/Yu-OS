@@ -12,8 +12,8 @@
 //! version: 0.1.0
 //! license: MIT
 //! allowed-tools:
-//!   - cos_fs
-//!   - cos_exec
+//!   - yu_fs
+//!   - yu_exec
 //! triggers: [pdf, "extract text"]
 //! ---
 //! # My Skill
@@ -58,7 +58,7 @@ pub struct SkillManifest {
     pub license: Option<String>,
     pub author: Option<String>,
     pub homepage: Option<String>,
-    /// Tool ids (e.g. `cos_fs`, `cos_exec`) the skill is permitted
+    /// Tool ids (e.g. `yu_fs`, `yu_exec`) the skill is permitted
     /// to invoke. Empty means *no restriction declared* — the
     /// runtime guardrails layer ([`crate::agent::tools::guardrails`])
     /// decides defaults.
@@ -481,7 +481,7 @@ fn build_manifest(mut raw: BTreeMap<String, RawValue>) -> Result<SkillManifest, 
     // A `signature:` frontmatter block used to carry a manifest-only
     // ed25519 signature. That scheme covered the manifest fields but
     // neither the skill body, its scripts nor its resources, so it is
-    // gone: authentication is the `claw.provenance/v1` package
+    // gone: authentication is the `yuos.provenance/v1` package
     // envelope, which binds the whole file tree. Refusing the old key
     // is a loud migration rather than a silently ignored control.
     if raw.contains_key("signature") {

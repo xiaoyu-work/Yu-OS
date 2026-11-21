@@ -16,25 +16,25 @@ use sha2::{Digest, Sha256};
 
 use crate::provenance::VerifiedPackage;
 
-pub(crate) const REPOSITORY: &str = "xiaoyu-work/clawos-app";
-pub(crate) const INDEX_URL: &str = "https://xiaoyu-work.github.io/clawos-app/store/index.json";
+pub(crate) const REPOSITORY: &str = "xiaoyu-work/yuos-app";
+pub(crate) const INDEX_URL: &str = "https://xiaoyu-work.github.io/yuos-app/store/index.json";
 pub(crate) const ARCHIVE_FINGERPRINT: &str = "ADBA1957E712B6C80B4CC8736C044D6F411416AF";
 pub(crate) const MAX_METADATA: usize = 8 * 1024 * 1024;
 #[cfg(test)]
 pub(crate) const MAX_DOWNLOAD: u64 = 256 * 1024 * 1024;
 pub(crate) const WEB_DESCRIPTOR: &str = "web-ui.json";
-pub(crate) const WEB_PROTOCOL: &str = "claw.web-app/v1";
+pub(crate) const WEB_PROTOCOL: &str = "yuos.web-app/v1";
 
 const ARCHIVE_KEY: &str = include_str!("../../assets/app-store-archive-key.asc");
 
 pub(crate) fn web_product(app_id: &str, source_kind: &str, source_name: &str) -> bool {
     matches!(source_kind, "product" | "capability")
         && !matches!(source_name, "store" | "launcher")
-        && !matches!(app_id, "pkg" | "cosmic-store" | "launcher" | "cosmic-launcher" | "claw-launcher")
+        && !matches!(app_id, "pkg" | "cosmic-store" | "launcher" | "cosmic-launcher" | "yuos-launcher")
 }
 
 pub(crate) fn app_package_name(name: &str) -> bool {
-    name.starts_with("claw-app-") || name.starts_with("claw-cap-")
+    name.starts_with("yuos-app-") || name.starts_with("yuos-cap-")
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -177,7 +177,7 @@ impl Catalog {
         }
         let catalog: Self = serde_json::from_slice(bytes)
             .map_err(|_| "The official App Store catalog has an invalid shape".to_string())?;
-        if catalog.schema != "claw.app-store/v2"
+        if catalog.schema != "yuos.app-store/v2"
             || catalog.repository != REPOSITORY
             || catalog.runtime_abi != 1
             || catalog.apps.is_empty()
@@ -303,7 +303,7 @@ impl Record {
                 .all(|byte| byte.is_ascii_alphanumeric() || b".+~-".contains(&byte))
             || self.release_tag
                 != format!(
-                    "{prefix}-{}-v{}",
+                    "yuos-{prefix}-{}-v{}",
                     self.display.source_name,
                     self.release_version.replace('~', "-")
                 )
@@ -311,7 +311,7 @@ impl Record {
             || self.display.name.len() > 1024
             || self.display.description.len() > 16 * 1024
             || !valid_sha256(&self.artifact.sha256)
-            || self.artifact.file != format!("claw-app-snapshot-{}.tar.gz", self.artifact.sha256)
+            || self.artifact.file != format!("yuos-app-snapshot-{}.tar.gz", self.artifact.sha256)
             || self.artifact.size == 0
             || self.artifact.size > 1024 * 1024 * 1024
             || self.artifact.media_type != "application/gzip"

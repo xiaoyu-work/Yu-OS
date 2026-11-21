@@ -34,7 +34,7 @@ use crate::config::AgentConfig;
 pub struct AutoCurator {
     curator: Arc<MemoryCurator>,
     db: MemoryDb,
-    config: Arc<crate::config::CosConfig>,
+    config: Arc<crate::config::YuConfig>,
     routed_paths: crate::paths::RoutedPathContext,
 }
 
@@ -58,7 +58,7 @@ impl AutoCurator {
     }
 
     pub fn from_snapshot_logged(
-        config: Arc<crate::config::CosConfig>,
+        config: Arc<crate::config::YuConfig>,
         db: &MemoryDb,
         notes: NotesStore,
     ) -> Option<Arc<Self>> {
@@ -71,7 +71,7 @@ impl AutoCurator {
     }
 
     pub fn from_snapshot_with_paths(
-        config: Arc<crate::config::CosConfig>,
+        config: Arc<crate::config::YuConfig>,
         db: &MemoryDb,
         notes: NotesStore,
         routed_paths: crate::paths::RoutedPathContext,
@@ -86,7 +86,7 @@ impl AutoCurator {
     }
 
     pub fn from_snapshot_with_runtime_paths(
-        config: Arc<crate::config::CosConfig>,
+        config: Arc<crate::config::YuConfig>,
         db: &MemoryDb,
         notes: NotesStore,
         routed_paths: crate::paths::RoutedPathContext,
@@ -129,7 +129,7 @@ impl AutoCurator {
         self.curator.notes_dir()
     }
 
-    pub fn config_snapshot(&self) -> &Arc<crate::config::CosConfig> {
+    pub fn config_snapshot(&self) -> &Arc<crate::config::YuConfig> {
         &self.config
     }
 
@@ -198,7 +198,7 @@ impl AutoCurator {
 }
 
 pub(crate) async fn with_detached_context<F, R>(
-    config: Arc<crate::config::CosConfig>,
+    config: Arc<crate::config::YuConfig>,
     routed_paths: crate::paths::RoutedPathContext,
     trusted_session: Option<crate::proc::SessionInfo>,
     future: F,

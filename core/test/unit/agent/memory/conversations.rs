@@ -6,7 +6,7 @@ fn seed(db: &MemoryDb, session_id: &str) {
         (
             1,
             "assistant",
-            "checking\n[tool_use:cos_app_fs] {\"path\":\"notes\"}",
+            "checking\n[tool_use:yu_app_fs] {\"path\":\"notes\"}",
         ),
         (2, "user", "[tool_result] first result\nsecond line"),
         (3, "assistant", "first answer"),
@@ -43,7 +43,7 @@ fn conversation_history_preserves_structured_tool_rows() {
         .unwrap()
         .messages;
     assert_eq!(history.len(), 6);
-    assert_eq!(history[1].message.tool_calls[0]["name"], "cos_app_fs");
+    assert_eq!(history[1].message.tool_calls[0]["name"], "yu_app_fs");
     assert_eq!(
         history[2].message.tool_results[0]["text"],
         "first result\nsecond line"

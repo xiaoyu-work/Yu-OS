@@ -1,7 +1,7 @@
 /// Inter-process communication via file-based message queues.
 ///
 /// Messages are stored as JSON files in per-session directories
-/// under `$COS_DATA_DIR/ipc/<session-id>/`. Each message file is
+/// under `$YUOS_DATA_DIR/ipc/<session-id>/`. Each message file is
 /// named with a zero-padded counter (e.g. `0001.json`). Stateless
 /// design — no daemon required; every invocation reads/writes the
 /// filesystem directly.

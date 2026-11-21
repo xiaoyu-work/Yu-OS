@@ -3368,7 +3368,7 @@ SP<IFramebuffer> IHyprRenderer::renderVisualWindow(PHLWINDOW window, PHLMONITOR 
     if (m_context.active() || window->effects().hasActiveTransformers())
         return nullptr;
 
-    const auto frame = createFB("Claw visual window");
+    const auto frame = createFB("Yu OS visual window");
     if (!frame || !frame->alloc(pixels.x, pixels.y, DRM_FORMAT_ABGR8888))
         return nullptr;
     frame->setImageDescription(DEFAULT_SRGB_IMAGE_DESCRIPTION);
@@ -3378,7 +3378,7 @@ SP<IFramebuffer> IHyprRenderer::renderVisualWindow(PHLWINDOW window, PHLMONITOR 
 
     SRenderOptions options;
     options.sceneResources = makeShared<CSceneResources>(
-        createFB("Claw visual isolation"), SSceneBufferDescription{.format = DRM_FORMAT_ABGR8888, .imageDescription = DEFAULT_SRGB_IMAGE_DESCRIPTION});
+        createFB("Yu OS visual isolation"), SSceneBufferDescription{.format = DRM_FORMAT_ABGR8888, .imageDescription = DEFAULT_SRGB_IMAGE_DESCRIPTION});
     CRegion damage{CBox{{}, pixels}};
     if (!beginRender(monitor, damage, RENDER_MODE_FULL_FAKE, nullptr, frame, true, options))
         return nullptr;

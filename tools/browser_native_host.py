@@ -13,7 +13,7 @@ import sys
 from typing import BinaryIO
 
 MAX_FRAME_BYTES = 8 * 1024 * 1024
-_SOCKET_NAME = "claw-browser.sock"
+_SOCKET_NAME = "yuos-browser.sock"
 
 
 def _read_exact(stream: BinaryIO | socket.socket, count: int) -> bytes:
@@ -162,5 +162,5 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
-        print(f"claw-browser-host: {exc}", file=sys.stderr)
+        print(f"yuos-browser-host: {exc}", file=sys.stderr)
         raise SystemExit(1)

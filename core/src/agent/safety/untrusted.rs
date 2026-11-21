@@ -1,6 +1,6 @@
 //! Untrusted-content boundary wrapping (prompt-injection / XPIA defense).
 //!
-//! ClawOS's agent is kernel-resident and drives gated `cos_*` tools with
+//! Yu OS Agent is kernel-resident and drives gated `yu_*` tools with
 //! real system reach. That makes prompt injection an OS-level threat: an
 //! instruction hidden inside a web page the agent read, an app tool
 //! result, an MCP server response, or a prior-session memory note must

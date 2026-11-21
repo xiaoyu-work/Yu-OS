@@ -1,0 +1,20 @@
+[Unit]
+Description=Yu OS — set up agent-home OverlayFS
+Documentation=https://github.com/xiaoyu-work/Yu-OS
+DefaultDependencies=no
+After=local-fs.target
+Before=multi-user.target shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Reads an explicit admin/first-boot target from /etc/default/yuos-home.
+# When unset, the helper resolves an existing human user's passwd home;
+# if no such user exists yet it defers without creating /home/yuos.
+EnvironmentFile=-/etc/default/yuos-home
+ExecStart=/usr/lib/yuos/init/setup-home.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

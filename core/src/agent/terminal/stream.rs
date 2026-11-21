@@ -151,7 +151,7 @@ pub(super) fn queue_prompt(
 }
 
 async fn reject_submission(backend: &dyn Backend, job: &Job) -> Result<Job, String> {
-    let error = "Claw did not acknowledge the task's conversation, model, workspace or dependency";
+    let error = "Yu OS did not acknowledge the task's conversation, model, workspace or dependency";
     backend
         .cancel(&job.id)
         .await
@@ -342,7 +342,7 @@ fn spawn(backend: Arc<dyn Backend>, runtime_tx: mpsc::UnboundedSender<RuntimeEve
                 }
                 Err(StreamError::Retryable(error)) => {
                     let _ = send(RuntimeEventKind::Failed(format!(
-                        "Claw broker task stream did not recover after \
+                        "Yu OS broker task stream did not recover after \
                          {MAX_STREAM_RECONNECT_ATTEMPTS} attempts: {error}"
                     )));
                     return;

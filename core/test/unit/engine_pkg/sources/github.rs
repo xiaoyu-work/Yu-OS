@@ -85,7 +85,7 @@ async fn latest_round_trips() {
     let req_bytes = handle.await.unwrap();
     let head = String::from_utf8_lossy(&req_bytes).to_ascii_lowercase();
     assert!(head.starts_with("get /repos/ggml-org/llama.cpp/releases/latest "));
-    assert!(head.contains("user-agent: cos/"));
+    assert!(head.contains("user-agent: yuos/"));
     assert!(!head.contains("authorization:"));
 }
 

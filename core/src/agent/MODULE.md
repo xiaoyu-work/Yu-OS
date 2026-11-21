@@ -25,11 +25,11 @@ surfaces.
   coalesces into quiet batches, independently of consent and critical alerts.
 - Attach built-in, app, and MCP tools to one guarded registry.
 - Delegate dynamic App and MCP execution to the task-owned extension host when
-  running inside `claw-agentd`.
+  running inside `yuos-agentd`.
 - Expose CLI, task-queue, and authenticated local web surfaces. Web Chat and
-  Tasks use the same durable `clawd` queue, while Inbox projects the
+  Tasks use the same durable `yuosd` queue, while Inbox projects the
   Notification Service and keeps raw context events in a separate diagnostic
-  view. The queue's execution side runs in `claw-agentd`, never in the `clawd`
+  view. The queue's execution side runs in `yuos-agentd`, never in the `yuosd`
   broker — see [`../agentd/MODULE.md`](../agentd/MODULE.md).
 - Keep CLI parsing and presentation grouped by command responsibility while
   `mod.rs` remains the composition and top-level routing boundary.
@@ -70,7 +70,7 @@ surfaces.
 | `mod.rs` | Agent module composition and top-level `yu agent` routing |
 | `command_catalog.rs` | Recursive-discovery metadata for the internal `agent dev` namespace |
 | `conversation_commands.rs` | `ask`/`chat` routing and the compatible plain-text conversation interface |
-| `terminal/` | Claw-owned ratatui state, renderer, direct broker client, stream projection and model catalogue |
+| `terminal/` | Yu OS-owned ratatui state, renderer, direct broker client, stream projection and model catalogue |
 | `session_commands.rs` | Conversation recall, session listing, titles, counts, purge, and statistics |
 | `memory_commands.rs` | App memory, notes, semantic memory, and memory-learning commands |
 | `skills_commands.rs` | Installed Skill inspection, provenance guards, usage, and hub operations |
@@ -119,7 +119,7 @@ surfaces.
 The normal call direction is:
 
 ```text
-CLI/web -> clawd task queue -> claw-agentd worker
+CLI/web -> yuosd task queue -> yuos-agentd worker
   -> runtime loop
   -> prompt + memory
   -> Provider
@@ -129,11 +129,11 @@ CLI/web -> clawd task queue -> claw-agentd worker
 ```
 
 A denied capability moves a task to the durable `waiting_approval` state after
-the worker exits. The `clawd` supervisor requeues the same task and session
+the worker exits. The `yuosd` supervisor requeues the same task and session
 when every linked request is approved, or finishes it with an error when a
 request is denied, disappears, or remains undecided for eight hours. The Web
 surface reads owner-owned task memory directly, reads approval state through
-`clawd`, and requires the installed `pkexec` helper for decisions.
+`yuosd`, and requires the installed `pkexec` helper for decisions.
 
 `runtime/turn.rs` is the contract seam between providers and tools. Provider
 changes must preserve equivalent streaming/non-streaming text, tools, opaque
@@ -148,7 +148,7 @@ handles retain a non-model-visible internal policy identity; hosted invocation
 audit binds that identity to the server, descriptor digest, capability
 generation, and signed extension lease.
 
-CLI, web, and worker composition roots snapshot `Arc<CosConfig>`, resolve
+CLI, web, and worker composition roots snapshot `Arc<YuConfig>`, resolve
 runtime/registry paths, and open optional stores before calling
 `runtime::loop_::run_with_deps`. Lower runtime code receives these dependencies
 through typed contexts rather than rediscovering process state.
@@ -174,7 +174,7 @@ pool/fallback classification.
 
 - `mod.rs` command inventory and the owning `*_commands.rs` dispatcher when a
   top-level command or `dev` subcommand is added, removed, or renamed.
-- `command_catalog.rs`, `cli_catalog.rs`, and `tools/cos_help.rs` when recursive
+- `command_catalog.rs`, `cli_catalog.rs`, and `tools/yu_help.rs` when recursive
   command discovery changes.
 - A production command module and its matching
   `../../test/unit/agent/<module>.rs` test body.
@@ -183,7 +183,7 @@ pool/fallback classification.
 - `conversation_commands.rs` with `runtime/loop_.rs`,
   `runtime/presentation.rs`, and `memory/` when chat streaming or continuation
   semantics change.
-- `terminal/` and `clawd/conversations.rs` when terminal interaction or
+- `terminal/` and `yuosd/conversations.rs` when terminal interaction or
   conversation presentation changes. The renderer never owns canonical
   conversation, task, provider, tool or permission state.
 - `service::Submission`, worker assignment/execution, and the typed task

@@ -14,9 +14,9 @@ fn now() -> DateTime<Utc> {
 fn seeded_floor() -> Floor {
     let mut components = BTreeMap::new();
     components.insert(
-        "clawd".to_string(),
+        "yuosd".to_string(),
         ComponentFloor {
-            path: "/usr/local/bin/clawd".to_string(),
+            path: "/usr/local/bin/yuosd".to_string(),
             sha256: "a".repeat(64),
             size: 12,
             dev: 7,
@@ -51,10 +51,10 @@ fn publishing_produces_a_readable_projection_that_matches_the_floor() {
     assert!(published.matches(&floor));
     assert_eq!(published.security_epoch, floor.security_epoch);
     assert_eq!(published.abi, floor.abi);
-    assert_eq!(published.components["clawd"].sha256, "a".repeat(64));
+    assert_eq!(published.components["yuosd"].sha256, "a".repeat(64));
     assert_eq!(
-        published.packages["claw-os-agent"].1,
-        floor.packages["claw-os-agent"].version
+        published.packages["yuos-agent"].1,
+        floor.packages["yuos-agent"].version
     );
 }
 
@@ -83,7 +83,7 @@ fn the_projection_carries_no_recovery_or_trust_material() {
 fn the_projection_is_world_readable_but_never_group_writable() {
     use std::os::unix::fs::PermissionsExt;
 
-    // Every Claw OS binary that publishes this file runs with a private
+    // Every Yu OS binary that publishes this file runs with a private
     // umask, so the mode has to be asserted after a real write rather
     // than assumed from the open flags.
     let previous = unsafe { libc::umask(0o077) };

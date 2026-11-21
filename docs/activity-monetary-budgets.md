@@ -3,7 +3,7 @@
 Activity monetary budgets are owner-defined accounting constraints for model
 turns. They do not replace global AI consent, capabilities, approvals,
 execution limits, provider configuration, or task cancellation. Terminal-only
-and desktop installations use the same `clawd` broker and `activities.db`
+and desktop installations use the same `yuosd` broker and `activities.db`
 backend. Agent Web and the native desktop Activity view are presentation
 clients of those same owner-scoped broker routes and own no policy, ledger,
 pricing, persistence, identity, or authority.
@@ -118,7 +118,7 @@ This is deliberately an accounting upper bound, not provider-invoice accuracy.
 
 Public requests cannot set owner, spent/reserved totals, ledger entries,
 provider usage, or settlement state. The private worker channel accepts only
-bounded reserve/settle exchanges for its one signed task; `clawd` re-derives
+bounded reserve/settle exchanges for its one signed task; `yuosd` re-derives
 owner, Activity, Job, and Session from Root-owned state.
 
 Database schema 6 adds the separate monetary policy and ledger without

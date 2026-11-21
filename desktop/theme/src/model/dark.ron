@@ -1,8 +1,8 @@
 Dark (
     (
         name: "cosmic-dark",
-        // Claw brand blue (#005CFE) — the single accent across the whole
-        // "Claw Glass" design language (from the logo claw-dot). Replaces the
+        // Yu OS brand blue (#005CFE) — the single accent across the whole
+        // "Yu OS Glass" design language (from the logo yuos-dot). Replaces the
         // macOS Aqua dark-mode blue so light and dark share one brand accent.
         blue: (
             c: "#005CFE",
@@ -16,7 +16,7 @@ Dark (
         yellow: (
             c: "#FFD60A",
         ),
-        // Claw Glass: dark variant is DEEP BLUE glass, not neutral charcoal.
+        // Yu OS Glass: dark variant is DEEP BLUE glass, not neutral charcoal.
         // Surface seeds carry a navy-blue cast at the original luminance so
         // dark frosted surfaces read as blue glass (per "不要灰暗").
         gray_1: (

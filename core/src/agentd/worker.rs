@@ -1,4 +1,4 @@
-//! Worker-side entry point for `claw-agentd`.
+//! Worker-side entry point for `yuos-agentd`.
 //!
 //! By the time this code runs the process has already been stripped of
 //! privilege by [`super::spawn`]: it is the task owner, has no
@@ -69,19 +69,19 @@ const MONETARY_BUDGET_TIMEOUT: Duration = Duration::from_secs(15);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(60);
 const IO_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// `claw-agentd` process entry point. Never returns.
+/// `yuos-agentd` process entry point. Never returns.
 pub fn main(args: &[String]) -> ! {
     if args.iter().any(|arg| arg == "-h" || arg == "--help") {
         println!(
             "\
-claw-agentd — Claw OS unprivileged agent worker
+yuos-agentd — Yu OS unprivileged agent worker
 
-This binary is spawned by clawd with a private job channel on fd 3 and
+This binary is spawned by yuosd with a private job channel on fd 3 and
 runs exactly one agent task as the task owner. It is not intended to be
 started by hand.
 
 Usage:
-  claw-agentd --worker
+  yuos-agentd --worker
 "
         );
         std::process::exit(0);
@@ -89,7 +89,7 @@ Usage:
     match run() {
         Ok(()) => std::process::exit(0),
         Err(error) => {
-            eprintln!("claw-agentd: {error}");
+            eprintln!("yuos-agentd: {error}");
             std::process::exit(1);
         }
     }
@@ -160,7 +160,7 @@ fn adopt_channel() -> Result<std::os::unix::net::UnixStream, String> {
     let declared = std::env::var(protocol::CHANNEL_FD_ENV)
         .map_err(|_| {
             format!(
-                "claw-agentd must be started by clawd; {} is not set",
+                "yuos-agentd must be started by yuosd; {} is not set",
                 protocol::CHANNEL_FD_ENV
             )
         })?
@@ -538,7 +538,7 @@ impl ChannelIo {
         match receiver.recv_timeout(HANDSHAKE_TIMEOUT) {
             Ok(Ok(assignment)) => Ok(*assignment),
             Ok(Err(error)) => Err(error),
-            Err(_) => Err("timed out waiting for an assignment from clawd".to_string()),
+            Err(_) => Err("timed out waiting for an assignment from yuosd".to_string()),
         }
     }
 
@@ -610,9 +610,9 @@ async fn io_main(
         return;
     }
     #[cfg(debug_assertions)]
-    if let Some(path) = std::env::var_os("COS_AGENTD_TEST_COMMIT_MARKER") {
+    if let Some(path) = std::env::var_os("YUOS_AGENTD_TEST_COMMIT_MARKER") {
         use std::io::Write;
-        std::env::remove_var("COS_AGENTD_TEST_COMMIT_MARKER");
+        std::env::remove_var("YUOS_AGENTD_TEST_COMMIT_MARKER");
         if let Ok(mut marker) = std::fs::OpenOptions::new().append(true).open(path) {
             let _ = marker.write_all(b"committed\n");
             let _ = marker.sync_all();
@@ -705,11 +705,11 @@ where
 {
     let assignment = match frames.next_frame::<BrokerFrame>().await? {
         Some(BrokerFrame::Prepare(assignment)) => assignment,
-        Some(_) | None => return Err("expected an assignment prepare from clawd".to_string()),
+        Some(_) | None => return Err("expected an assignment prepare from yuosd".to_string()),
     };
     if assignment.protocol != protocol::PROTOCOL_VERSION {
         return Err(format!(
-            "agentd protocol mismatch: clawd speaks v{}, claw-agentd speaks v{}; \
+            "agentd protocol mismatch: yuosd speaks v{}, yuos-agentd speaks v{}; \
              reinstall so both come from the same build",
             assignment.protocol,
             protocol::PROTOCOL_VERSION
@@ -824,7 +824,7 @@ where
             return Err("agent task was cancelled before execution commit".to_string())
         }
         Some(BrokerFrame::Shutdown) | None => {
-            return Err("clawd closed the task before execution commit".to_string())
+            return Err("yuosd closed the task before execution commit".to_string())
         }
         Some(_) => return Err("expected an authenticated execution commit".to_string()),
     };
@@ -946,7 +946,7 @@ where
             Ok(Some(BrokerFrame::Shutdown)) => break,
             Ok(Some(_)) => continue,
             Ok(None) | Err(_) => {
-                state.refuse_all("clawd closed the agent worker channel");
+                state.refuse_all("yuosd closed the agent worker channel");
                 return;
             }
         }
@@ -1012,7 +1012,7 @@ impl ChannelApprovalGateway {
             Ok(reply) => Ok(reply),
             Err(_) => {
                 self.state.forget(correlation_id);
-                Err("timed out waiting for clawd to mediate the permission".to_string())
+                Err("timed out waiting for yuosd to mediate the permission".to_string())
             }
         }
     }
@@ -1564,7 +1564,7 @@ impl ProgressSink for ChannelProgressSink {
     }
 }
 
-/// Forwards the same records `clawd` used to append in-process, already
+/// Forwards the same records `yuosd` used to append in-process, already
 /// projected through [`crate::audit_policy`], so the root-owned audit
 /// trail keeps covering model-visible tool and turn activity without
 /// the worker ever holding the log open.

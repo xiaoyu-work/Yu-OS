@@ -14,7 +14,7 @@ fn mutation_started() -> JournalEvent {
 fn tool_started() -> JournalEvent {
     JournalEvent::ToolStarted {
         turn: 1,
-        tool: Label::new("cos_todo"),
+        tool: Label::new("yu_todo"),
         tool_use_id: Label::new("t1"),
         known: true,
     }

@@ -10,12 +10,12 @@ use crate::apps::{self, installation};
 use crate::cli_help::{show_app_command_schema, show_app_help, show_app_schema, show_apps};
 
 /// Directory where freedesktop `.desktop` launchers are written at
-/// `yu app install`. Overridable via `COS_APPLICATIONS_DIR` (used by
+/// `yu app install`. Overridable via `YUOS_APPLICATIONS_DIR` (used by
 /// tests and per-user installs); defaults to the system location the
 /// desktop shell's applibrary/launcher already scan.
 fn applications_dir() -> PathBuf {
     PathBuf::from(
-        env::var("COS_APPLICATIONS_DIR").unwrap_or_else(|_| "/usr/share/applications".into()),
+        env::var("YUOS_APPLICATIONS_DIR").unwrap_or_else(|_| "/usr/share/applications".into()),
     )
 }
 
@@ -241,7 +241,7 @@ pub(super) fn schema_requested(args: &[String]) -> bool {
 /// `yu app lint [<name>]` — refuse apps that smuggle in AI SDKs.
 ///
 /// Apps are required to route every model call through the kernel's
-/// `yu ai chat --app <id>` gate (via `claw-os-sdk/python/src/claw_os_sdk/ai.py`). Importing
+/// `yu ai chat --app <id>` gate (via `yuos-sdk/python/src/yuos_sdk/ai.py`). Importing
 /// `openai`, `anthropic`, or `google.generativeai` directly would
 /// bypass budget, safety, and audit — so the linter looks for those
 /// imports in every `*.py` file under each app's directory and reports
@@ -281,7 +281,7 @@ fn lint_apps(
             "results": results,
             "ok": !any_violation,
             "hint": if any_violation {
-                "Lint failed. Apps must (a) route AI calls through `claw_os_sdk.ai` (not direct provider SDKs) \
+                "Lint failed. Apps must (a) route AI calls through `yuos_sdk.ai` (not direct provider SDKs) \
                  and (b) ship every package-relative file referenced by their `mcp.entry` so the kernel agent can spawn \
                  the MCP server. Run `yu app tool list <app>` to inspect the declared tool surface."
             } else {
@@ -427,10 +427,10 @@ fn require_directory_root() -> Result<(), String> {
 }
 
 fn request_directory(params: Value, app_id: &str) -> Result<installation::DirectoryPublication, String> {
-    let response = crate::clawd::client::request_blocking(
-        crate::clawd::config::socket_path(),
-        crate::clawd::protocol::Request::build(
-            crate::clawd::routes::Command::AppDirectoryInstall,
+    let response = crate::yuosd::client::request_blocking(
+        crate::yuosd::config::socket_path(),
+        crate::yuosd::protocol::Request::build(
+            crate::yuosd::routes::Command::AppDirectoryInstall,
             params,
         ),
     ).map_err(|error| {
@@ -563,10 +563,10 @@ pub(super) fn provenance_cmd(command: &str, args: &[String]) -> Result<Value, St
 
 fn request_withdrawal(params: Value) -> Result<Value, String> {
     let expected = params.clone();
-    let response = crate::clawd::client::request_blocking(
-        crate::clawd::config::socket_path(),
-        crate::clawd::protocol::Request::build(
-            crate::clawd::routes::Command::ProvenanceTrustWithdrawal, params,
+    let response = crate::yuosd::client::request_blocking(
+        crate::yuosd::config::socket_path(),
+        crate::yuosd::protocol::Request::build(
+            crate::yuosd::routes::Command::ProvenanceTrustWithdrawal, params,
         ),
     ).map_err(|error| format!(
         "Root retirement is unconfirmed: {error}. Own policy was not restored; reconcile or query the retained outcome."
@@ -921,7 +921,7 @@ fn scaffold_app_json(id: &str, want_ops: bool, want_desktop: bool) -> String {
     blocks.push("  \"version\": \"0.1.0\"".to_string());
     blocks.push(format!("  \"name\": {{ \"en\": \"{id}\" }}"));
     blocks.push(format!(
-        "  \"summary\": {{ \"en\": \"{id} — a Claw OS app.\" }}"
+        "  \"summary\": {{ \"en\": \"{id} — a Yu OS app.\" }}"
     ));
     blocks.push("  \"runtime\": \"python\"".to_string());
     blocks.push("  \"entry\": \"main.py\"".to_string());
@@ -960,16 +960,16 @@ fn scaffold_app_json(id: &str, want_ops: bool, want_desktop: bool) -> String {
 /// signal so the same entry serves both the headless op and the window.
 fn scaffold_main_py(id: &str, want_ops: bool, want_desktop: bool) -> String {
     let mut out = String::new();
-    out.push_str(&format!("\"\"\"{id} — a Claw OS app.\n\n"));
+    out.push_str(&format!("\"\"\"{id} — a Yu OS app.\n\n"));
     out.push_str("The kernel calls run(command, args) for each invocation.\n");
     out.push_str("\"\"\"\n\n");
 
     if want_desktop {
-        out.push_str("from claw_os_sdk import gui\n\n\n");
+        out.push_str("from yuos_sdk import gui\n\n\n");
         out.push_str("def run_gui(ctx):\n");
         out.push_str("    \"\"\"Draw your own window here (any toolkit). World A:\n");
         out.push_str("    the OS does not own the UI. Use ctx.files for any file\n");
-        out.push_str("    arguments, and ctx.open_agent_overlay() to summon Claw.\n");
+        out.push_str("    arguments, and ctx.open_agent_overlay() to summon Yu OS.\n");
         out.push_str("    \"\"\"\n");
         out.push_str("    print(f\"[{ctx.app_id}] GUI launch; files={ctx.files}\")\n\n\n");
     }
@@ -981,7 +981,7 @@ fn scaffold_main_py(id: &str, want_ops: bool, want_desktop: bool) -> String {
     }
 
     out.push_str("def run(command, args):\n");
-    out.push_str("    \"\"\"Entry point called by cos.\"\"\"\n");
+    out.push_str("    \"\"\"Entry point called by yu.\"\"\"\n");
     if want_desktop {
         out.push_str("    if gui.is_gui_launch():\n");
         out.push_str("        return run_gui(gui.context())\n");
@@ -998,7 +998,7 @@ fn scaffold_main_py(id: &str, want_ops: bool, want_desktop: bool) -> String {
 /// Writes `<applications_dir>/com.yuos.<Id>.desktop` with
 /// `Exec=yu app <id> <exec> [%F]`. Routing the launch through
 /// `yu app <id> ...` (rather than exec-ing the app binary) is what
-/// makes the GUI process kernel-spawned, so `COS_APP_ID` identity,
+/// makes the GUI process kernel-spawned, so `YUOS_APP_ID` identity,
 /// audit, and consent apply exactly as on the headless path.
 ///
 /// Returns `Ok(None)` if the app has no `desktop` block. Best-effort
@@ -1031,9 +1031,9 @@ fn write_desktop_entry(manifest: &apps::AppManifest) -> Result<Option<String>, S
     };
     let exec_line = exec_line.trim_end().to_string();
 
-    // Categories: always tag ClawOS, then the app's own (validated to
+    // Categories: always tag X-YuOS, then the app's own (validated to
     // contain no ';' or control chars at manifest parse time).
-    let mut cats = vec!["ClawOS".to_string()];
+    let mut cats = vec!["X-YuOS".to_string()];
     cats.extend(desktop.categories.iter().cloned());
 
     let mut entry = String::new();
@@ -1055,8 +1055,8 @@ fn write_desktop_entry(manifest: &apps::AppManifest) -> Result<Option<String>, S
         entry.push_str("SingleMainWindow=true\n");
     }
     // Provenance marker so the launcher / audit tooling can tell a
-    // Claw OS app entry from an ordinary system .desktop.
-    entry.push_str(&format!("X-CLAW-App-Id={id}\n"));
+    // Yu OS app entry from an ordinary system .desktop.
+    entry.push_str(&format!("X-YUOS-App-Id={id}\n"));
 
     let dir = applications_dir();
     std::fs::create_dir_all(&dir).map_err(|e| format!("create {}: {e}", dir.display()))?;

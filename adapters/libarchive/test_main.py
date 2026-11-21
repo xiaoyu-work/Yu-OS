@@ -90,7 +90,7 @@ class LibarchiveAdapterTests(unittest.TestCase):
         self.args_log = root / "bsdtar.log"
         os.environ["BSDTAR_ARGS_LOG"] = str(self.args_log)
         self.stub = _write_stub(self.bin_dir, "bsdtar", _BSDTAR_STUB)
-        os.environ["CLAW_BSDTAR_BIN"] = str(self.stub)
+        os.environ["YUOS_BSDTAR_BIN"] = str(self.stub)
 
         self.archive = root / "thing.tar.gz"
         self.archive.write_bytes(b"\x1f\x8b fake gz")
@@ -101,14 +101,14 @@ class LibarchiveAdapterTests(unittest.TestCase):
 
         self.main = load_local_module(
             HERE / "main.py",
-            "claw_test_libarchive_adapter_main",
+            "yuos_test_libarchive_adapter_main",
         )
         self.main.app._initialized = True
 
     def tearDown(self) -> None:
-        for k in ("CLAW_BSDTAR_BIN", "BSDTAR_ARGS_LOG", "BSDTAR_EXIT"):
+        for k in ("YUOS_BSDTAR_BIN", "BSDTAR_ARGS_LOG", "BSDTAR_EXIT"):
             os.environ.pop(k, None)
-        sys.modules.pop("claw_test_libarchive_adapter_main", None)
+        sys.modules.pop("yuos_test_libarchive_adapter_main", None)
 
     def test_tools_list_reports_three_tools(self) -> None:
         reply = _rpc(self.main.app, "tools/list")

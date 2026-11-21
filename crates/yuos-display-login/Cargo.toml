@@ -1,0 +1,15 @@
+[package]
+name = "yuos-display-login"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.90"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+name = "pam_yuos_display"
+crate-type = ["cdylib"]
+
+[dependencies]
+yuos-display-control = { path = "../yuos-display-control" }
+libc = "0.2"

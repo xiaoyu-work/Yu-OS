@@ -1,4 +1,4 @@
-//! The `claw.provenance/v1` envelope: one versioned content manifest
+//! The `yuos.provenance/v1` envelope: one versioned content manifest
 //! shared by every extension kind (App, Skill, MCP/Adapter).
 //!
 //! An extension package is a directory. Its provenance envelope lives
@@ -34,15 +34,15 @@ use crate::crypto::Sha256Stream;
 pub const ENVELOPE_FILE: &str = ".provenance.json";
 
 /// The only schema string this build accepts.
-pub const SCHEMA_V1: &str = "claw.provenance/v1";
+pub const SCHEMA_V1: &str = "yuos.provenance/v1";
 
 /// The only signature algorithm this build accepts.
 pub const ALG_ED25519: &str = "ed25519";
 
 /// Domain separator mixed into the canonical signing bytes. A
-/// signature produced for some other Claw structure can never be
+/// signature produced for some other Yu OS structure can never be
 /// replayed as a package signature.
-const CANON_DOMAIN: &[u8] = b"claw-provenance/v1\x00package-envelope\x00";
+const CANON_DOMAIN: &[u8] = b"yuos-provenance/v1\x00package-envelope\x00";
 
 /// Hard caps that bound parsing work before any signature check.
 pub const MAX_ENVELOPE_BYTES: usize = 8 * 1024 * 1024;
@@ -142,8 +142,8 @@ pub struct PackageBody {
     pub kind: PackageKind,
     pub id: String,
     pub version: String,
-    /// Schema string of the *inner* manifest (`cos.app-manifest/v1`,
-    /// `claw.agent-api/v1`, `agentskills.io/skill-md/v1`, …). Bound so
+    /// Schema string of the *inner* manifest (`yuos.app-manifest/v1`,
+    /// `yuos.agent-api/v1`, `agentskills.io/skill-md/v1`, …). Bound so
     /// a manifest can never be reinterpreted under a different schema.
     pub manifest_schema: String,
     /// Path of the inner manifest inside the package.
@@ -212,7 +212,7 @@ pub enum EnvelopeError {
 /// public key.
 pub fn key_id_for(public_key: &[u8; 32]) -> String {
     let mut h = Sha256Stream::new();
-    h.update(b"claw-provenance/v1\x00publisher-key\x00");
+    h.update(b"yuos-provenance/v1\x00publisher-key\x00");
     h.update(public_key);
     format!("sha256:{}", h.finalize_hex())
 }
@@ -327,7 +327,7 @@ impl Canon {
 /// `package.content_digest` so an artifact can be referenced by a
 /// single stable digest (used for revocation and rollback pinning).
 pub fn content_digest_bytes(files: &[FileEntry]) -> Vec<u8> {
-    let mut c = Canon::new(b"claw-provenance/v1\x00content-tree\x00");
+    let mut c = Canon::new(b"yuos-provenance/v1\x00content-tree\x00");
     c.uint("count", files.len() as u64);
     for f in files {
         c.text("path", &f.path)

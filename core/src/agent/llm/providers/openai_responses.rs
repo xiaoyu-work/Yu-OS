@@ -74,7 +74,7 @@ pub(crate) fn build_request_body(
         }
         if let Some(effort) = request
             .extra
-            .get("_cos_reasoning_effort")
+            .get("__yuos_reasoning_effort")
             .and_then(serde_json::Value::as_str)
         {
             object.insert("reasoning".into(), serde_json::json!({ "effort": effort }));

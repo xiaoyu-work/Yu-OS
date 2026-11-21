@@ -1,6 +1,6 @@
 # External communications
 
-ClawOS can expose the same system agent through an external chat bot. Discord
+YuOS can expose the same system agent through an external chat bot. Discord
 and Telegram support bidirectional conversations. The other gateway apps are
 currently outbound integrations unless their own documentation says otherwise.
 
@@ -31,7 +31,7 @@ bot.
 
 ### 2. Store the token and access policy
 
-Store the raw bot token in the ClawOS credential store:
+Store the raw bot token in the YuOS credential store:
 
 ```bash
 yu credential store discord_bot_token "<bot-token>"
@@ -74,15 +74,15 @@ implicitly allow its child threads.
 Environment variables override persisted settings for service deployments:
 
 ```text
-COS_DISCORD_TOKEN
-COS_DISCORD_ALLOWED_USERS
-COS_DISCORD_ALLOWED_GUILDS
-COS_DISCORD_ALLOWED_CHANNELS
-COS_DISCORD_REQUIRE_MENTION
-COS_DISCORD_RPM
+YUOS_DISCORD_TOKEN
+YUOS_DISCORD_ALLOWED_USERS
+YUOS_DISCORD_ALLOWED_GUILDS
+YUOS_DISCORD_ALLOWED_CHANNELS
+YUOS_DISCORD_REQUIRE_MENTION
+YUOS_DISCORD_RPM
 ```
 
-Prefer the credential store over `COS_DISCORD_TOKEN`.
+Prefer the credential store over `YUOS_DISCORD_TOKEN`.
 
 ### 3. Run it
 
@@ -99,12 +99,12 @@ yu app gateway-discord status
 yu app gateway-discord stop
 ```
 
-Register it with the ClawOS service manager for a persistent deployment:
+Register it with the YuOS service manager for a persistent deployment:
 
 ```bash
 yu service register \
   --name discord-agent \
-  --description "ClawOS Discord agent gateway" \
+  --description "YuOS Discord agent gateway" \
   --command "yu app gateway-discord start"
 yu service start discord-agent
 yu service logs discord-agent --tail 50
@@ -133,12 +133,12 @@ Telegram already supports bidirectional long polling:
 
 ```bash
 yu credential store telegram_bot_token "<bot-token>"
-export COS_TELEGRAM_ALLOWED_CHATS=123456789
+export YUOS_TELEGRAM_ALLOWED_CHATS=123456789
 yu app gateway-telegram start
 ```
 
-`COS_TELEGRAM_ALLOWED_CHATS` is mandatory and accepts comma-separated chat
-IDs. `COS_TELEGRAM_RPM` changes the default five requests per minute.
+`YUOS_TELEGRAM_ALLOWED_CHATS` is mandatory and accepts comma-separated chat
+IDs. `YUOS_TELEGRAM_RPM` changes the default five requests per minute.
 
 ## Outbound-only gateways
 

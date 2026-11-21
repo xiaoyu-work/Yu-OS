@@ -1,0 +1,31 @@
+[package]
+name = "yuos-semantic"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/xiaoyu-work/Yu-OS"
+description = "Local semantic (embedding-based) document search daemon for YuOS — companion to Recoll's keyword layer."
+
+[[bin]]
+name = "yuos-semantic-daemon"
+path = "src/bin/daemon.rs"
+
+[[bin]]
+name = "yuos-semantic"
+path = "src/bin/cli.rs"
+
+[lib]
+name = "yuos_semantic"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+yuos-embed = { path = "../yuos-embed" }
+clap = { workspace = true, features = ["env"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+dirs = "5"
+sha2 = "0.10"

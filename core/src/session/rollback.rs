@@ -81,8 +81,8 @@ pub enum Status {
 pub fn rollback(sid: &SessionId) -> Result<Vec<Outcome>, SessionError> {
     rollback_with_package_restore(
         sid,
-        &mut crate::clawd::packages::restore_package_state,
-        &mut crate::clawd::packages::inverse_completion,
+        &mut crate::yuosd::packages::restore_package_state,
+        &mut crate::yuosd::packages::inverse_completion,
     )
 }
 
@@ -279,7 +279,7 @@ pub(crate) fn rollback_with_package_restore(
                 was_active,
                 was_enabled,
             } => match require(Verb::SYS_SERVICE, Scope::name(unit.clone())) {
-                Ok(()) => match crate::clawd::systemd::restore_unit_state(
+                Ok(()) => match crate::yuosd::systemd::restore_unit_state(
                     sid,
                     seq,
                     &unit,

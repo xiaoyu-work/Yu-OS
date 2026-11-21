@@ -80,7 +80,7 @@ impl WorkspaceBinding {
                 return Err("Workspace work cannot write unscoped learned/App memory; report a sourced Workspace finding instead".into());
             }
             if cap.verb == Verb::FS_READ {
-                crate::clawd::workspaces::reads::filesystem_read(
+                crate::yuosd::workspaces::reads::filesystem_read(
                     self.owner_uid,
                     &self.workspace_id,
                     &cap.scope,
@@ -101,7 +101,7 @@ pub(crate) fn task_capability(job: &Job, cap: &Cap) -> Result<(), String> {
         return Err("Workspace work cannot write global learned/App memory".into());
     }
     if cap.verb == Verb::FS_READ {
-        crate::clawd::workspaces::reads::filesystem_read(
+        crate::yuosd::workspaces::reads::filesystem_read(
             job.owner_uid.ok_or("Workspace has no owner")?,
             id,
             &cap.scope,

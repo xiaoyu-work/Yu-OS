@@ -14,8 +14,8 @@ chroot "$ROOTFS" passwd -l root >/dev/null
 rm -f "$ROOTFS/etc/cloud/cloud-init.disabled"
 
 mkdir -p "$ROOTFS/etc/cloud/cloud.cfg.d"
-cat > "$ROOTFS/etc/cloud/cloud.cfg.d/10-claw-os-cloud.cfg" <<'EOF'
-# Provider-neutral Claw OS cloud defaults.
+cat > "$ROOTFS/etc/cloud/cloud.cfg.d/10-yuos-cloud.cfg" <<'EOF'
+# Provider-neutral Yu OS cloud defaults.
 preserve_hostname: false
 disable_root: true
 ssh_deletekeys: true

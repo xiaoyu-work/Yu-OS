@@ -7,7 +7,7 @@
  * a "needs token" event so the App shell can show the bootstrap modal.
  */
 
-const TOKEN_KEY = "cos.token";
+const TOKEN_KEY = "yuos.token";
 
 export function getToken(): string {
   if (typeof window === "undefined") return "";
@@ -109,7 +109,7 @@ async function request<T = any>(
   if (!res.ok) {
     if (res.status === 401) {
       clearToken();
-      window.dispatchEvent(new CustomEvent("cos:auth-required"));
+      window.dispatchEvent(new CustomEvent("yuos:auth-required"));
     }
     let body: any;
     try {
@@ -162,7 +162,7 @@ export async function streamSse(
   if (!res.ok || !res.body) {
     if (res.status === 401) {
       clearToken();
-      window.dispatchEvent(new CustomEvent("cos:auth-required"));
+      window.dispatchEvent(new CustomEvent("yuos:auth-required"));
     }
     let errBody: any;
     try {

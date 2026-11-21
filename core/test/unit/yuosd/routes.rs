@@ -1,0 +1,731 @@
+use super::*;
+use serde_json::json;
+
+/// Expected non-root route surface. Changes here are intentional API and
+/// authority changes rather than incidental registry drift.
+const EXPECTED_USER_COMMANDS: &[&str] = &[
+    "provenance.trust_withdrawal",
+    "ai.chat",
+    "gui.file.read.request",
+    "gui.file.read.status",
+    "gui.file.write.request",
+    "gui.file.write.status",
+    "gui.file.save.reserve",
+    "gui.file.create.request",
+    "gui.file.create.status",
+    "gui.file.create.reserve",
+    "gui.package.intent",
+    "gui.capture.control",
+    "gui.media.exchange",
+    "gui.audio.control",
+    "gui.file.picker",
+    "gui.notification.exchange",
+    "notification.presentation.control",
+    "daemon.health",
+    "daemon.status",
+    "workspace.list",
+    "workspace.get",
+    "workspace.control",
+    "workspace.read",
+    "workspace.index_source",
+    "nearby.status",
+    "nearby.control",
+    "channel.configure",
+    "channel.manage",
+    "system.channel.control",
+    "system.app-event.publish",
+    "system.mail.control",
+    "activity.create",
+    "activity.list",
+    "activity.get",
+    "activity.attention",
+    "activity.update",
+    "activity.transition",
+    "activity.run",
+    "activity.continuity.export",
+    "activity.continuity.import",
+    "activity.execution_limits.get",
+    "activity.execution_limits.set",
+    "activity.execution_limits.enabled",
+    "activity.monetary_budget.get",
+    "activity.monetary_budget.set",
+    "activity.monetary_budget.enabled",
+    "activity.capability_policy.get",
+    "activity.capability_policy.set",
+    "activity.capability_policy.enabled",
+    "activity.scheduling_policy.get",
+    "activity.scheduling_policy.set",
+    "activity.work.get",
+    "activity.work.set",
+    "activity.work.enabled",
+    "activity.objects",
+    "activity.object.attach",
+    "activity.object_state.list",
+    "activity.object_state.record",
+    "operation.preview",
+    "activity.operation.preview",
+    "activity.receipts",
+    "activity.receipt.record",
+    "agent.conversation.create",
+    "agent.conversation.get",
+    "agent.conversation.list",
+    "agent.conversation.update",
+    "agent.conversation.fork",
+    "agent.conversation.revert",
+    "task.submit",
+    "task.workspace.resolve",
+    "task.list",
+    "task.get",
+    "task.status",
+    "task.cancel",
+    "task.retry",
+    "task.stream",
+    "task.result",
+    "task.count",
+    "memory.history",
+    "memory.sessions",
+    "memory.reset",
+    "memory.inspect",
+    "memory.read",
+    "memory.update",
+    "memory.forget",
+    "agent.hooks.get",
+    "agent.hooks.set",
+    "agent.account.get",
+    "agent.account.logout",
+    "agent.usage",
+    "credential.oauth-refresh",
+    "channel.configure",
+    "channel.manage",
+    "nearby.control",
+    "nearby.status",
+    "system.app-event.publish",
+    "system.channel.control",
+    "system.mail.control",
+    "system.audio.control",
+    "system.desktop-preferences.control",
+    "system.app-permissions",
+    "permission.apps",
+    "system.accessibility.control",
+    "system.backup.control",
+    "system.bluetooth.control",
+    "system.camera.control",
+    "system.clipboard.control",
+    "system.container.control",
+    "system.config.control",
+    "system.crash.inspect",
+    "system.desktop.control",
+    "system.filesystem.read",
+    "system.filesystem.write",
+    "system.screenshot.capture",
+    "system.media-player.control",
+    "system.calendar.day",
+    "system.observation.query",
+    "system.notification.control",
+    "system.browser.control",
+    "system.browser.render",
+    "system.display.control",
+    "system.events.control",
+    "system.file.replace",
+    "system.firewall.control",
+    "system.hardware.inspect",
+    "system.location.query",
+    "system.network.control",
+    "system.network.diagnose",
+    "system.package.query",
+    "system.package.install",
+    "system.package.control",
+    "system.package.restore",
+    "system.package.status",
+    "system.package.recover",
+    "system.power.control",
+    "system.printer.control",
+    "system.regional-settings.control",
+    "system.security.inspect",
+    "system.service.control",
+    "system.service.restore",
+    "system.snapshot.control",
+    "system.storage.control",
+    "system.usb.control",
+    "system.users.control",
+    "scheduler.run",
+    "app_store.list",
+    "app_store.installed",
+    "app_store.requests",
+    "app_store.prepare",
+    "app_store.commit",
+    "app_store.cancel",
+    "app_store.open",
+    "app_session.register",
+    "app.gui.launch",
+    "app.gui.stop",
+    "app.gui.wait",
+    "app_session.register_native",
+    "mcp_session.register",
+    "app_session.bind",
+    "app_session.check_live",
+    "app_session.set_transient",
+    "app_session.deregister",
+    // The human `yu app <id> <command>` surface for MCP-only Apps. It is
+    // `Access::User` (an unprivileged local CLI peer), a distinct command
+    // from the `Access::PrivateTaskHost` `app_service.call`, and the daemon
+    // derives every authority fact from the peer rather than the request.
+    "app_service.cli_call",
+    // The launcher's relay: addressed by a grant `yuosd` issued to that
+    // exact process, and refused for every route a session may not
+    // reach. It is `Access::User` because the launcher is unprivileged.
+    "app_session.relay",
+    "permission.pending",
+    "system.review.prepare",
+    "system.review.pending",
+    "system.review.show",
+    "system.review.consume",
+    "system.review.cancel",
+    "permission.recent",
+    "permission.status",
+    "permission.request",
+    "permission.decide",
+    "context.snapshot",
+    "context.sources",
+    "context.event.append",
+    "context.event.query",
+    "system.operations",
+    "notification.publish",
+    "notification.list",
+    "notification.subscribe",
+    "notification.view",
+    "notification.read",
+    "notification.read_all",
+    "notification.acknowledge",
+    "notification.dismiss",
+    "notification.preferences.get",
+    "notification.preferences.set",
+    "notification.delivery.claim",
+    "notification.delivery.complete",
+    "transaction.begin",
+    "transaction.list",
+    "transaction.commit",
+    "transaction.rollback",
+    // Read-only view of the caller's own session-journal partitions:
+    // health, head sequence and the mutations whose outcome is still
+    // unknown. It resolves no grant and reads nobody else's chain.
+    "journal.status",
+];
+
+/// Root-only routes. `permission.revoke` joins `context.update`: it
+/// retires standing authority and its `owner_uid` names whose, so a
+/// non-root peer must not reach it in either direction.
+/// `journal.mutation.resolve` joins them because recording what
+/// happened to an unresolved privileged mutation is an administrative
+/// statement, and it is what ends that operation's replay refusal.
+/// Global directory publication must not give an ordinary peer filesystem authority.
+const EXPECTED_ROOT_COMMANDS: &[&str] = &[
+    "app.directory_install",
+    "app_store.apt_hook",
+    "context.update",
+    "journal.mutation.resolve",
+    "permission.revoke",
+    "system.review.decide",
+];
+
+const EXPECTED_PRIVATE_TASK_HOST_COMMANDS: &[&str] = &["app_service.call"];
+
+#[test]
+fn the_table_and_the_command_enum_cannot_drift() {
+    assert_eq!(ROUTES.len(), Command::ALL.len());
+    for (index, command) in Command::ALL.iter().enumerate() {
+        assert_eq!(ROUTES[index].command, *command);
+        assert_eq!(command.route().name, ROUTES[index].name);
+        assert_eq!(Command::parse(command.as_str()), Some(*command));
+    }
+}
+
+#[test]
+fn route_names_are_unique_and_loggable() {
+    let mut seen = std::collections::BTreeSet::new();
+    for route in ROUTES {
+        assert!(seen.insert(route.name), "duplicate route {}", route.name);
+        assert!(
+            crate::audit_policy::is_token(route.name),
+            "route name must be safe to store verbatim: {}",
+            route.name
+        );
+    }
+}
+
+#[test]
+fn the_access_allowlist_is_exactly_what_it_was() {
+    let user: std::collections::BTreeSet<_> = user_commands().collect();
+    let root: std::collections::BTreeSet<_> = root_commands().collect();
+    let private_host: std::collections::BTreeSet<_> = private_task_host_commands().collect();
+    assert_eq!(
+        user,
+        EXPECTED_USER_COMMANDS.iter().copied().collect(),
+        "the set of routes a non-root peer may reach changed"
+    );
+    assert_eq!(
+        root,
+        EXPECTED_ROOT_COMMANDS.iter().copied().collect(),
+        "the set of root-only routes changed"
+    );
+    assert_eq!(
+        private_host,
+        EXPECTED_PRIVATE_TASK_HOST_COMMANDS
+            .iter()
+            .copied()
+            .collect(),
+        "the set of private task Host routes changed"
+    );
+}
+
+#[test]
+fn every_route_owns_its_audit_metadata() {
+    let payload_free: std::collections::BTreeSet<_> = [
+        "daemon.health",
+        "daemon.status",
+        "agent.account.get",
+        "agent.hooks.get",
+        "app_store.list",
+        "app_store.installed",
+        "app_store.requests",
+        "task.count",
+        "workspace.list",
+        "nearby.status",
+        "context.snapshot",
+        "context.sources",
+        "nearby.status",
+        "notification.preferences.get",
+        "notification.read_all",
+        "transaction.begin",
+        "transaction.list",
+    ]
+    .into_iter()
+    .collect();
+    let mut observed_payload_free = std::collections::BTreeSet::new();
+    for route in ROUTES {
+        let facts = crate::audit_policy::request_facts_for_route(
+            route.name,
+            route.audit_fields,
+            &json!({}),
+        );
+        assert_eq!(facts.command, route.name);
+        assert!(facts.command_text.is_none());
+        let mut fields = std::collections::BTreeSet::new();
+        for (field, _) in route.audit_fields {
+            assert!(
+                fields.insert(*field),
+                "{} declares audit field {field} twice",
+                route.name
+            );
+        }
+        if route.audit_fields.is_empty() {
+            observed_payload_free.insert(route.name);
+        }
+    }
+    assert_eq!(observed_payload_free, payload_free);
+}
+
+#[test]
+fn every_route_uses_the_typed_stable_error_policy() {
+    for route in ROUTES {
+        let execution = route.errors.response(
+            crate::yuosd::protocol::RequestId::unknown(),
+            BrokerError::from("provider failed".to_string()),
+        );
+        assert_eq!(
+            execution.error.expect("error body").code,
+            "execution_failed",
+            "{}",
+            route.name
+        );
+        assert_eq!(route.errors, ErrorPolicy::Typed);
+    }
+}
+
+#[test]
+fn unrouted_commands_are_not_dispatchable() {
+    assert!(Command::parse("vendor.debug.dump").is_none());
+    assert!(Command::parse("").is_none());
+    assert!(Command::parse("DAEMON.HEALTH").is_none());
+    assert!(Command::parse("context.update").is_some());
+    assert!(Command::parse("scheduler.run").is_some());
+}
+
+#[test]
+fn cli_and_private_app_service_routes_are_separate() {
+    // The two App-service routes are distinct commands with distinct access
+    // classes: the human CLI route is `Access::User`, the private task-host
+    // route is `Access::PrivateTaskHost`. They never collapse into one.
+    let cli = Command::AppServiceCliCall.route();
+    let private = Command::AppServiceCall.route();
+    assert_ne!(cli.command, private.command);
+    assert_ne!(cli.name, private.name);
+    assert_eq!(cli.access, Access::User);
+    assert_eq!(private.access, Access::PrivateTaskHost);
+
+    let user = ClientIdentity {
+        pid: Some(42),
+        uid: Some(1000),
+        gid: Some(1000),
+        execution_uid: None,
+        start_time_ticks: Some(1),
+        attended_local: false,
+        extension_host: None,
+    };
+
+    // A direct (non-task-host) user peer reaches the CLI route but is refused
+    // the private task-host route outright — a direct client cannot reach the
+    // private App-service path at all.
+    assert_eq!(cli.authorize(&user), Ok(()));
+    assert_eq!(private.authorize(&user), Err(Fault::NotAuthorized));
+
+    // The private route stays task-host-only; the CLI route never grants a
+    // task-host principal (that is enforced when the request is prepared, not
+    // in the access table).
+    let mut task_host = user;
+    task_host.execution_uid = Some(61_000);
+    task_host.extension_host = Some(crate::yuosd::client_identity::AuthenticatedExtensionHost {
+        purpose: crate::extension_host::protocol::HostPurpose::Task,
+        lease_id: "task-a".to_string(),
+        authority_session_id: Some("session-a".to_string()),
+        host_session_id: Some("host-a".to_string()),
+        owner_uid: 1000,
+        extension_uid: 61_000,
+        capability_generation: "a".repeat(16),
+        host_pid: 42,
+        host_start_time_ticks: Some(1),
+        task_session: None,
+        task_app_data: None,
+    });
+    assert_eq!(private.authorize(&task_host), Ok(()));
+}
+
+#[test]
+fn root_only_commands_are_not_reachable_by_a_user_peer() {
+    let user = ClientIdentity {
+        pid: Some(42),
+        uid: Some(1000),
+        gid: Some(1000),
+        execution_uid: None,
+        start_time_ticks: Some(1),
+        attended_local: false,
+        extension_host: None,
+    };
+    let root = ClientIdentity {
+        pid: Some(42),
+        uid: Some(0),
+        gid: Some(0),
+        execution_uid: None,
+        start_time_ticks: Some(1),
+        attended_local: false,
+        extension_host: None,
+    };
+    for command in EXPECTED_ROOT_COMMANDS {
+        let route = Command::parse(command).unwrap().route();
+        assert_eq!(
+            route.authorize(&user),
+            Err(Fault::NotAuthorized),
+            "{command}"
+        );
+        assert_eq!(route.authorize(&root), Ok(()), "{command}");
+    }
+    let health = Command::DaemonHealth.route();
+    assert_eq!(health.authorize(&user), Ok(()));
+
+    let private = Command::AppServiceCall.route();
+    assert_eq!(private.authorize(&user), Err(Fault::NotAuthorized));
+    assert_eq!(private.authorize(&root), Err(Fault::NotAuthorized));
+    let mut task_host = user;
+    task_host.execution_uid = Some(61_000);
+    task_host.extension_host = Some(crate::yuosd::client_identity::AuthenticatedExtensionHost {
+        purpose: crate::extension_host::protocol::HostPurpose::Task,
+        lease_id: "task-a".to_string(),
+        authority_session_id: Some("session-a".to_string()),
+        host_session_id: Some("host-a".to_string()),
+        owner_uid: 1000,
+        extension_uid: 61_000,
+        capability_generation: "a".repeat(16),
+        host_pid: 42,
+        host_start_time_ticks: Some(1),
+        task_session: None,
+        task_app_data: None,
+    });
+    assert_eq!(private.authorize(&task_host), Ok(()));
+    task_host.extension_host.as_mut().unwrap().purpose =
+        crate::extension_host::protocol::HostPurpose::AppService;
+    assert_eq!(private.authorize(&task_host), Err(Fault::NotAuthorized));
+}
+
+#[test]
+fn a_peer_without_credentials_reaches_no_route_at_all() {
+    let unknown = ClientIdentity::unknown();
+    for route in ROUTES {
+        assert_eq!(
+            route.authorize(&unknown),
+            Err(Fault::MissingCredentials),
+            "{}",
+            route.name
+        );
+    }
+}
+
+#[test]
+fn system_review_typed_wire_is_closed_bounded_and_separates_owner_cancellation() {
+    let decision = json!({
+        "id":"rv-0123456789abcdef0123456789abcdef", "revision":7,
+        "action":"confirm_install", "choices":[],
+    });
+    let decide = Command::SystemReviewDecide.route();
+    let cancel = Command::SystemReviewCancel.route();
+    let typed = json!({"owner_uid":1000,"review":decision});
+    assert_eq!((decide.decode)(typed.clone()).unwrap(), typed);
+    let cancellation = json!({"review":{
+        "id":"rv-0123456789abcdef0123456789abcdef", "revision":7,
+        "action":"cancel", "choices":[],
+    }});
+    assert_eq!((cancel.decode)(cancellation.clone()).unwrap(), cancellation);
+    assert!((cancel.decode)(json!({"owner_uid":1001,"review":decision})).is_err());
+    assert!((decide.decode)(
+        json!({"owner_uid":1000,"id":"rv-fixture","decision":"approve","review":decision})
+    )
+    .is_err());
+    for field in [
+        "approved",
+        "grant",
+        "owner_uid",
+        "permissions_granted",
+        "trust",
+    ] {
+        let mut forged = typed.clone();
+        forged["review"][field] = json!(true);
+        assert!((decide.decode)(forged).is_err(), "{field}");
+    }
+    let mut oversized = typed;
+    oversized["review"]["id"] = json!("x".repeat(yuosd_client::system_review::MAX_DECISION_BYTES));
+    assert!((decide.decode)(oversized).is_err());
+    let legacy =
+        json!({"id":"rv-0123456789abcdef0123456789abcdef","owner_uid":1000,"decision":"approve"});
+    assert_eq!((decide.decode)(legacy.clone()).unwrap(), legacy);
+}
+
+#[test]
+fn file_replace_is_a_session_authorized_mutation_with_no_content_audit_fields() {
+    let route = Command::SystemFileReplace.route();
+    assert_eq!(route.name, "system.file.replace");
+    assert_eq!(route.access, Access::User);
+    assert_eq!(route.kind, Kind::Mutation);
+    assert_eq!(route.budget.deadline, Deadline::Uninterruptible);
+    assert_eq!(route.authority.subject, SubjectSource::Session);
+    assert_eq!(route.authority.audience, Audience::SystemService);
+    assert_eq!(
+        (route.authority.requirement)(&json!({})).unwrap(),
+        authority::Requirement::RouteDerived
+    );
+    let facts = crate::audit_policy::request_facts_for_route(
+        route.name,
+        route.audit_fields,
+        &json!({"session":"session-1","path":"/private/file","content_base64":"private-content","expected":{"sha256":"private-hash"}}),
+    );
+    let recorded = serde_json::to_string(&facts).unwrap();
+    for private in ["/private/file", "private-content", "private-hash"] {
+        assert!(!recorded.contains(private));
+    }
+}
+
+#[test]
+fn activity_routes_record_identity_and_sizes_not_private_planning_text() {
+    let private_text = "private-activity-planning-content";
+    for command in [
+        Command::ActivityCreate,
+        Command::ActivityList,
+        Command::ActivityGet,
+        Command::ActivityAttention,
+        Command::ActivityUpdate,
+        Command::ActivityTransition,
+        Command::ActivityRun,
+        Command::ActivityContinuityExport,
+        Command::ActivityContinuityImport,
+        Command::ActivityObjects,
+        Command::ActivityObjectAttach,
+    ] {
+        let route = command.route();
+        assert_eq!(route.authority.subject, SubjectSource::Peer);
+        let facts = crate::audit_policy::request_facts_for_route(
+            route.name,
+            route.audit_fields,
+            &json!({
+                "id": "00000000-0000-4000-8000-000000000001",
+                "title": private_text,
+                "goal": private_text,
+                "boundaries": private_text,
+                "completion_criteria": private_text,
+                "completion_note": private_text,
+                "prompt": private_text,
+                "resources": [{"label": private_text, "reference": private_text}],
+                "object": {"app_id":"demo","object_type":"entry","object_id":private_text},
+                "document": private_text,
+            }),
+        );
+        let recorded = serde_json::to_string(&facts).unwrap();
+        assert!(!recorded.contains(private_text), "{}", route.name);
+    }
+}
+
+#[test]
+fn every_route_has_a_finite_concurrency_budget() {
+    for route in ROUTES {
+        assert!(
+            route.budget.max_in_flight > 0,
+            "{} may never run",
+            route.name
+        );
+        assert!(
+            route.budget.max_in_flight <= 64,
+            "{} has an unbounded-looking budget",
+            route.name
+        );
+        if let Deadline::Interruptible(limit) = route.budget.deadline {
+            assert!(limit.as_secs() > 0, "{}", route.name);
+        }
+    }
+}
+
+#[test]
+fn mutating_routes_are_never_cancelled_mid_flight() {
+    // Dropping a privileged mutation at an await point can leave a
+    // package half-installed. Those routes bound themselves instead.
+    for route in ROUTES {
+        if route.kind == Kind::Mutation {
+            assert_eq!(
+                route.budget.deadline,
+                Deadline::Uninterruptible,
+                "{} is a mutation and must not be cancelled by the broker",
+                route.name
+            );
+        }
+    }
+}
+
+#[test]
+fn read_only_routes_are_classified_as_queries() {
+    for name in [
+        "activity.list",
+        "activity.get",
+        "activity.attention",
+        "activity.continuity.export",
+        "activity.objects",
+        "operation.preview",
+        "activity.operation.preview",
+        "activity.receipts",
+        "daemon.health",
+        "daemon.status",
+        "task.list",
+        "task.workspace.resolve",
+        "task.get",
+        "task.result",
+        "memory.history",
+        "agent.usage",
+        "context.snapshot",
+        "context.event.query",
+        "permission.status",
+        "system.operations",
+        "system.hardware.inspect",
+        "transaction.list",
+    ] {
+        assert_eq!(
+            Command::parse(name).unwrap().route().kind,
+            Kind::Query,
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn state_changing_routes_are_classified_as_mutations() {
+    for name in [
+        "activity.create",
+        "activity.update",
+        "activity.transition",
+        "activity.run",
+        "activity.continuity.import",
+        "activity.object.attach",
+        "activity.receipt.record",
+        "task.submit",
+        "task.cancel",
+        "task.retry",
+        "context.update",
+        "context.event.append",
+        "permission.request",
+        "permission.decide",
+        "transaction.begin",
+        "transaction.commit",
+        "transaction.rollback",
+        "scheduler.run",
+        "app_session.register",
+        "app_session.bind",
+        "system.package.install",
+        "system.service.restore",
+        "credential.oauth-refresh",
+    ] {
+        assert_eq!(
+            Command::parse(name).unwrap().route().kind,
+            Kind::Mutation,
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn every_route_decodes_through_its_own_typed_body() {
+    // `null` params stand in for "no arguments". Routes with required
+    // fields must refuse it; routes without any must accept it and
+    // produce an empty object rather than a null.
+    for route in ROUTES {
+        match (route.decode)(Value::Null) {
+            Ok(params) => assert_eq!(params, json!({}), "{}", route.name),
+            Err(fault) => assert_eq!(fault, Fault::InvalidParams, "{}", route.name),
+        }
+    }
+}
+
+#[test]
+fn no_route_accepts_an_undeclared_field() {
+    for route in ROUTES {
+        let smuggled = json!({"__yuosd_unexpected__": true});
+        assert_eq!(
+            (route.decode)(smuggled),
+            Err(Fault::InvalidParams),
+            "{} accepted an undeclared field",
+            route.name
+        );
+    }
+}
+
+#[test]
+fn no_route_accepts_a_non_object_body() {
+    for route in ROUTES {
+        for body in [json!("text"), json!(7), json!([1, 2]), json!(true)] {
+            assert_eq!(
+                (route.decode)(body),
+                Err(Fault::InvalidParams),
+                "{} accepted a non-object body",
+                route.name
+            );
+        }
+    }
+}
+
+#[test]
+fn a_decoded_body_carries_only_declared_fields() {
+    let route = Command::SystemPackageControl.route();
+    let params = (route.decode)(json!({
+        "session": "sess-1",
+        "action": "remove",
+        "package": "nano",
+    }))
+    .unwrap();
+    assert_eq!(
+        params,
+        json!({"session": "sess-1", "action": "remove", "package": "nano"})
+    );
+}

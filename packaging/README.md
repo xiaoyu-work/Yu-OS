@@ -1,7 +1,7 @@
-# Claw OS packaging
+# Yu OS packaging
 
 This directory produces the **`.deb` packages** that make up an installed
-Claw OS system, and the **apt repository** that lets users `apt upgrade`
+Yu OS system, and the **apt repository** that lets users `apt upgrade`
 to newer versions.
 
 ## Layout
@@ -11,9 +11,9 @@ packaging/
 ├── deb/                       Debian package definitions
 │   ├── build-debs.sh          Build Agent, Base, or both into build/debs/
 │   ├── build-desktop-deb.sh   Wrap a staged desktop root into a .deb
-│   ├── claw-os-agent/         Reusable headless Agent for Debian/Ubuntu
-│   ├── claw-os-base/          Claw OS distribution integration
-│   ├── claw-os-desktop/       Optional graphical desktop metadata
+│   ├── yuos-agent/         Reusable headless Agent for Debian/Ubuntu
+│   ├── yuos-base/          Yu OS distribution integration
+│   ├── yuos-desktop/       Optional graphical desktop metadata
 │   └── common/                Shared downgrade-protection preinst, APT hook
 ├── release-security/
 │   ├── policy.json            Security epoch, ABI, protocols, tracked components
@@ -36,11 +36,11 @@ packaging/
 
 | Package | Contains | Architecture | Depends |
 |---|---|---|---|
-| `claw-os-agent` | `cos` with the Claw-owned TUI, `clawd`, `claw-agentd`, browser provider, semantic binaries, skills, SDK/runtime, trust roots, Agent system/user units and App channel configuration; no App payloads | `amd64`, `arm64` | Debian/Ubuntu runtime libraries, `systemd`, and `pkexec`; recommends `claw-apps-agent` and Helium |
-| `claw-os-base` | `cos-init`, managed agent-home setup, Claw OS boot/service policy, and model-specific udev/libinput rules | `all` | `claw-os-agent` |
-| `claw-os-desktop` | Protected Hyprland, graphical login and Agent, system services, and the signed Desktop Shell (Quickshell, Caelestia and private Qt) | `amd64`, `arm64` | `claw-os-base`, `claw-os-display-session-v2`, `claw-apps-agent`, every individual graphical Claw App package and the Thunderbird integration |
+| `yuos-agent` | `yu` with the Yu OS-owned TUI, `yuosd`, `yuos-agentd`, browser provider, semantic binaries, skills, SDK/runtime, trust roots, Agent system/user units and App channel configuration; no App payloads | `amd64`, `arm64` | Debian/Ubuntu runtime libraries, `systemd`, and `pkexec`; recommends `yuos-apps-agent` and Helium |
+| `yuos-base` | `yuos-init`, managed agent-home setup, Yu OS boot/service policy, and model-specific udev/libinput rules | `all` | `yuos-agent` |
+| `yuos-desktop` | Protected Hyprland, graphical login and Agent, system services, and the signed Desktop Shell (Quickshell, Caelestia and private Qt) | `amd64`, `arm64` | `yuos-base`, `yuos-display-session-v2`, `yuos-apps-agent`, every individual graphical Yu OS App package and the Thunderbird integration |
 
-Keep the [hardware workarounds](../docs/image-architecture.md#hardware-enablement) in `deb/claw-os-base/hardware/`. Base stages the system udev and libinput data; Desktop stages the same libinput quirk source into Hyprland's private libinput database. Both packages use the existing signed release path.
+Keep the [hardware workarounds](../docs/image-architecture.md#hardware-enablement) in `deb/yuos-base/hardware/`. Base stages the system udev and libinput data; Desktop stages the same libinput quirk source into Hyprland's private libinput database. Both packages use the existing signed release path.
 
 Desktop also stages the [System Updates controller](../docs/updating.md#system-updates-in-settings)
 and its offline boot service. Source pushes alone do not supply packages to it.
@@ -54,10 +54,10 @@ that boundary. Installed paths, all 63 retained identities (51 headless and
 new privilege is introduced.
 
 The separately signed App channel owns product/capability packages, native
-ELFs/resources, Browser assets, Mail's XPI, `claw-app-support` and named Python
-libraries. Support provides `claw-app-support-v1`; Files alone provides
-`claw-app-python-claw-files-v1`. App packages cannot provide OS/package/authority
-ABIs. Agent retains `claw_os_sdk`, `cos_runtime`, toolkit/system services and
+ELFs/resources, Browser assets, Mail's XPI, `yuos-app-support` and named Python
+libraries. Support provides `yuos-app-support-v1`; Files alone provides
+`yuos-app-python-yuos-files-v1`. App packages cannot provide OS/package/authority
+ABIs. Agent retains `yuos_sdk`, `yuos_runtime`, toolkit/system services and
 Root helpers. Its `yuos-app-runtime-v1 (= 0.2.1)` implementation version
 comes from `app-platform.json`; App packages require `>= 0.2.1`, still ABI 1.
 
@@ -71,12 +71,12 @@ fail closed; there is no production source fallback. Images install the same
 checked independent `.deb` files in the ordinary APT transaction.
 
 Desktop embeds only the signed `desktop-shell` App in
-`/usr/lib/cos/apps/desktop-shell`. Release preparation freezes the approved
-immutable Shell build from `clawos-app`, and assembly checks its signature,
+`/usr/lib/yuos/apps/desktop-shell`. Release preparation freezes the approved
+immutable Shell build from `yuos-app`, and assembly checks its signature,
 entrypoint, resources and target architecture without changing the App tree.
 Its launcher, identity and permission checks are unchanged. The remaining
 63 identities and Mail's Thunderbird integration are separately owned packages
-required by Desktop, not an installed `claw-apps-desktop` metapackage.
+required by Desktop, not an installed `yuos-apps-desktop` metapackage.
 The historical immutable metapackage remains in the App archive for retention.
 
 Bootstrap publishes the approved SDK and independent App APT packages first,
@@ -84,9 +84,9 @@ then the OS packages. Desktop also needs its approved signed Shell build input.
 Agent only *recommends* the headless set, so App runtime dependencies create
 no circular hard dependency and Agent-only
 Ubuntu/WSL installs do not require the full Desktop. Configure both signed
-channels before a default install; Agent also ships `claw-apps.sources` and
+channels before a default install; Agent also ships `yuos-apps.sources` and
 the public key. An existing minimal `--no-install-recommends` Agent can run
-`apt update` and explicitly select `claw-apps-agent`, native App packages or
+`apt update` and explicitly select `yuos-apps-agent`, native App packages or
 the protected Store later. Maintainer scripts do not run nested APT installs.
 
 Agent also owns the shared `Cosmic` icon theme used by the public toolkit.
@@ -100,7 +100,7 @@ display, clipboard, filesystem or other App capability.
 
 The Agent also supplies the unprivileged `pop-launcher` runtime, its original
 declared plugin manifests/scripts and MPL/GPL attribution through
-`claw-os-launcher-backend-v1 (= 1)`. It builds the actual OS-owned backend;
+`yuos-launcher-backend-v1 (= 1)`. It builds the actual OS-owned backend;
 neither an App nor an OS package embeds a second frontend or installed App
 identity. Desktop refuses a second owner of those paths, using the same bounded
 pre-0.2.1 ownership transfer. The independently packaged upstream
@@ -113,7 +113,7 @@ ordinary owner reviews still control those resources.
 
 Agent and Desktop each ship a Root-owned list of the exact signed App
 envelopes selected from their authenticated APT inputs. Agent owns the
-headless selection; Desktop owns the additional GUI Apps. Claw's system Shell
+headless selection; Desktop owns the additional GUI Apps. Yu OS's system Shell
 retains its fixed startup policy. The broker still verifies the installed App
 and binds the selected entry. An App ID, publisher, installation path or
 manifest flag alone cannot opt an App into this policy.
@@ -135,23 +135,23 @@ direct product preference writes. Grouping, styles, actions, bounded decoded
 icons and confirmed popup mute are retained without merging renderer graphs.
 `native-boundary` still rejects reintroduced App source links.
 `desktop/justfile` keeps source-only `build-source-fixtures` and
-`install-source-fixtures` with an explicit immutable `CLAW_APP_SOURCE_LOCK`;
+`install-source-fixtures` with an explicit immutable `YUOS_APP_SOURCE_LOCK`;
 production no longer fetches/mounts native App sources or copies manifests.
 Desktop requires runtime-v1 implementation 0.2.1 through the normal template.
 Actual Linux native builds and installed native/GUI acceptance remain
-required. Public [SDK 0.2.1](https://github.com/xiaoyu-work/claw-os/releases/tag/sdk-v0.2.1)
-and [App platform 0.2.1](https://github.com/xiaoyu-work/claw-os/releases/tag/app-platform-v0.2.1)
+required. Public [SDK 0.2.1](https://github.com/xiaoyu-work/Yu-OS/releases/tag/sdk-v0.2.1)
+and [App platform 0.2.1](https://github.com/xiaoyu-work/Yu-OS/releases/tag/app-platform-v0.2.1)
 artifacts are published. Their publication alone does not establish independent
 App APT delivery or installed native/GUI acceptance.
 
-The Desktop source also installs `/usr/libexec/claw-os-applet-provider` and
-provides `claw-os-applet-services-v1 (= 1)`. Assembly refuses a missing,
+The Desktop source also installs `/usr/libexec/yuos-applet-provider` and
+provides `yuos-applet-services-v1 (= 1)`. Assembly refuses a missing,
 non-regular, non-executable, truncated or wrong-architecture helper before
-declaring that ABI. The [public client contract](../claw-os-sdk/wire/v1/applet-services.md)
+declaring that ABI. The [public client contract](../yuos-sdk/wire/v1/applet-services.md)
 enters a later SDK release; provider implementation stays in the OS package.
 
-Calendar reads use Agent's `claw-os-calendar-read-v1` service and the separately
-built `/usr/lib/cos/bin/claw-calendar-reader`. Its query code is GPL-3.0-only,
+Calendar reads use Agent's `yuos-calendar-read-v1` service and the separately
+built `/usr/lib/yuos/bin/yuos-calendar-reader`. Its query code is GPL-3.0-only,
 with `calendar-reader.LICENSE` installed in Agent's documentation directory.
 The binary is part of the signed component inventory and is measured before
 launch. Desktop retains the public Applet helper and requires this service;
@@ -165,12 +165,12 @@ The source-composition descriptions below record the earlier bundled layout.
 The ownership graph and guarded APT consumers above supersede those delivery
 claims; their source staging is retained only for explicit fixtures.
 
-`claw-os-agent` was the exact same package on Ubuntu and Claw OS. It included
-`cos-browser`, the per-task App/MCP extension host, and all command-style apps.
+`yuos-agent` was the exact same package on Ubuntu and Yu OS. It included
+`yuos-browser`, the per-task App/MCP extension host, and all command-style apps.
 It also owns the Mail XPI at
 `/usr/lib/thunderbird/distribution/extensions/yu-mail-ai@yuos.io.xpi`, built
 reproducibly by the Mail product in
-[`xiaoyu-work/clawos-app`](https://github.com/xiaoyu-work/clawos-app/tree/main/products/mail).
+[`xiaoyu-work/yuos-app`](https://github.com/xiaoyu-work/yuos-app/tree/main/products/mail).
 This small UI protocol adapter
 must upgrade with its native host and Python implementation, not wait for an
 independent desktop release. It adds no Thunderbird runtime dependency;
@@ -185,7 +185,7 @@ records `build/app-sources/resolved.json`. Failed branch resolution never
 falls back to an older cache.
 
 Each package build freezes that selection once. Agent packaging uses
-`--write-lock` and passes the resulting snapshot through `CLAW_APP_SOURCE_LOCK`
+`--write-lock` and passes the resulting snapshot through `YUOS_APP_SOURCE_LOCK`
 to all later staging steps. Desktop packaging consumes the snapshot captured
 when its native sources were prepared, not a newer manifest fetched after
 compilation. Both packages retain the selection and exact SHA in
@@ -203,13 +203,13 @@ Common App support comes from the same build snapshot's `shared/python`. The OS 
 `python3 scripts/app_sources.py --stage-shared <root>` invokes the public
 `tools/stage.py --shared --root <root>` contract once, separately from product
 staging and OS SDK/runtime. It installs the three owned names `_shared`,
-`gateway` and `canonical_argv.py` under `usr/lib/cos/python`; exact identical
+`gateway` and `canonical_argv.py` under `usr/lib/yuos/python`; exact identical
 co-staging is reusable, while conflicting bytes, modes, symlinks or extra files
 fail before copying any common library. Tests, vectors and bytecode are excluded.
-No OS `apps/` source tree or duplicate support under `usr/lib/cos/apps` remains.
+No OS `apps/` source tree or duplicate support under `usr/lib/yuos/apps` remains.
 Agent keeps its `python3-idna (>= 3.3), python3-idna (<< 4)` dependency.
 
-This is the existing compatibility delivery: `claw-os-agent` still
+This is the existing compatibility delivery: `yuos-agent` still
 owns the installed common files. Independent App APT/common packages must replace
 that delivery in a separately coordinated ownership cutover. This checkpoint
 adds neither a permanent new source-build dependency for that cutover nor an
@@ -220,14 +220,14 @@ The remaining coupling is explicit source composition and release delivery:
 package metadata and the staging CLI are build contracts, development selects
 the versioned SDK/runtime/toolkit platform artifact, and
 installed changes still require a package release here. Bundled
-`cos_runtime` is not an independently published third-party SDK. Paired
+`yuos_runtime` is not an independently published third-party SDK. Paired
 migration commits are cutover choreography, not a requirement to edit both
 implementations for every future feature. Pins alone do not prove complete
 decoupling.
 
 Native Files is composed under `build/native-apps/cosmic-files`, preserving
 both executables and resources in the desktop package. Files also exports the
-shared `claw_files.document` parsing/conversion library into the Agent package;
+shared `yuos_files.document` parsing/conversion library into the Agent package;
 the Document Engine client and native Files use this one implementation.
 The native executable embeds its product helpers and uses installed OS
 SDK/runtime libraries, not mutable App entrypoints.
@@ -235,10 +235,10 @@ SDK/runtime libraries, not mutable App entrypoints.
 Document Engine's complete legacy `doc` source lives at the pinned
 `capabilities/document-engine/apps/doc`, with `kind: "shared-capability-client"`
 package metadata. This is not a Documents business product or a new runtime
-identity. The group's declared dependency selects Files' named `claw_files`
+identity. The group's declared dependency selects Files' named `yuos_files`
 export for tests and staging, including Doc-only staging without Files Apps.
 Co-staging never merges conflicting library trees. Agent still owns
-`/usr/lib/cos/apps/doc`, `/usr/lib/cos/python/claw_files`, SDK/runtime and the
+`/usr/lib/yuos/apps/doc`, `/usr/lib/yuos/python/yuos_files`, SDK/runtime and the
 canonical argument module. All six operations, manifest needs/AI declarations,
 outputs, memory identity and user state remain unchanged. The source lock now
 selects 63 retained identities after the original 75-identity source relocation:
@@ -249,16 +249,16 @@ Native preparation stays product-only.
 Storage SDK supplies independent `db` and `kv` clients from
 `capabilities/storage-sdk/apps/<id>`, not from the distinct Storage business
 product. DB's original manifest, SQLite
-implementation and MCP server install unchanged at `/usr/lib/cos/apps/db`.
+implementation and MCP server install unchanged at `/usr/lib/yuos/apps/db`.
 Five MCP/CLI tools retain their exact read/write needs and 1,000-returned-row
-bound. Existing files stay at `$COS_DATA_DIR/db/<name>.db` within the same
+bound. Existing files stay at `$YUOS_DATA_DIR/db/<name>.db` within the same
 owner/App partition; no KV or Agent-memory state is read, imported or merged.
 No SDK/provider or native source is added to the capability payload. The
 installed Agent package still has 63 identities, all from the external App pin;
 Desktop still has 12. Normal signed package updates remain the only installed
 update path; source relocation adds no data transition.
-KV's manifest and MCP-only data implementation install at `/usr/lib/cos/apps/kv`;
-its string map remains at `$COS_DATA_DIR/kv.json` in the independent `kv`
+KV's manifest and MCP-only data implementation install at `/usr/lib/yuos/apps/kv`;
+its string map remains at `$YUOS_DATA_DIR/kv.json` in the independent `kv`
 partition. No `main.py` is invented. App common support supplies `_shared.atomic`
 alongside the separately owned OS SDK/runtime. KV fixes stale caches, lost
 concurrent updates, failed-write cache publication and non-private replacement.
@@ -268,14 +268,14 @@ grant changes. See [the update contract](../docs/updating.md#app-data-moves-into
 
 HTTP supplies `net` from `capabilities/http/apps/net` at the same immutable pin.
 Its original manifest, HTTP implementation and MCP server install at
-`/usr/lib/cos/apps/net`; App common support supplies `_shared.safe_http`, while
+`/usr/lib/yuos/apps/net`; App common support supplies `_shared.safe_http`, while
 OS supplies SDK/runtime, policy, egress enforcement and worker isolation. Existing two
 MCP/CLI contracts, exact endpoint/output grants, size bounds and atomic download
 behavior are unchanged. No provider, user data, additional identity or runtime
 source-fetch/update mechanism moves into this capability group.
 
 AI Helpers supplies the complete `summarize` client from
-`capabilities/ai-helpers/apps/summarize`, installed at `/usr/lib/cos/apps/summarize`
+`capabilities/ai-helpers/apps/summarize`, installed at `/usr/lib/yuos/apps/summarize`
 in Agent only. The OS supplies SDK AI and bundled policy/memory exports, not
 copied providers. Its strict external-content AI policy, monthly budget,
 request cap, result shape and `self:summarize` memory namespace remain unchanged.
@@ -307,7 +307,7 @@ The desktop package keeps its native manifest/binary, page entries, translations
 icons, polkit resources and config defaults. Its eleven management Apps remain
 separate Agent-package identities; source relocation does not move user settings
 or copy settings-daemon/provider authority into the product.
-Permission-management UI/MCP requires the `claw-os-app-permissions-v1`
+Permission-management UI/MCP requires the `yuos-app-permissions-v1`
 virtual service dependency. The Agent package provides it; the Desktop package
 requires it so independent publication cannot silently pair the new UI with
 an old broker. Permission overrides stay in the existing root-owned approval
@@ -321,7 +321,7 @@ explicitly.
 Native Capture is composed under `build/native-apps/cosmic-screenshot` with
 its original independent portal-client graph. The desktop package retains
 `/usr/bin/cosmic-screenshot`, its descriptor, desktop entry and all icons.
-It depends on Agent's `claw-os-capture-v1`: non-interactive capture requires
+It depends on Agent's `yuos-capture-v1`: non-interactive capture requires
 separate screen and exact-directory write grants, not a worker session bus.
 The shared interactive portal and installed screenshots/configuration remain
 OS/user-owned. No Capture binary or native resources enter the headless Agent
@@ -330,7 +330,7 @@ payload, and normal signed package updates remain the only installed update path
 Media Player is composed at `build/native-apps/cosmic-player` with its full
 native source and original locked renderer. Desktop owns `/usr/bin/cosmic-player`,
 the `com.yuos.Player` resources/thumbnailer and the seven-tool descriptor;
-Agent provides the required `claw-os-media-player-v1` adapter. Observation and
+Agent provides the required `yuos-media-player-v1` adapter. Observation and
 control require separate exact grants and operate only this owner's installed
 native Player. There is no worker bus or second playback state. Replace the
 signed manifest and matching packages together; binary-only hot-swap is refused.
@@ -343,7 +343,7 @@ its panel/applets retain their existing links to the component's private
 config/util sources. Those inputs are still composed with the whole native
 component, but are no longer declared `native_libraries` exports; the source
 stager does not invent exports to preserve these legacy links.
-Agent provides `claw-os-notifications-v1`, preserving authoritative SQLite,
+Agent provides `yuos-notifications-v1`, preserving authoritative SQLite,
 owner/source validation, DND/preferences, audit and delivery leases/retries.
 MCP 0.2 uses durable strings instead of desktop integer IDs and explicitly
 rejects icon paths/URLs; popup timeout/transient metadata does not bypass
@@ -351,29 +351,29 @@ durability. Update the signed desktop payload and compatible Agent together,
 then restart the desktop; binary-only hot-swap is refused. No fixture binary,
 new user-data store or legacy `notify` JSON import enters either payload.
 The complete `notify` Python facade now comes from the same product revision,
-but `/usr/lib/cos/apps/notify` belongs only to Agent. Its separate send/list
+but `/usr/lib/yuos/apps/notify` belongs only to Agent. Its separate send/list
 grants address `app:notify` through the OS service and installed Python SDK.
 There is no dependency on calling the native App, no new storage directory,
 and no historical-data import. See [the explicit compatibility decision](../docs/updating.md#legacy-notify-service-transition).
 
-It also creates the empty root-owned `/usr/lib/cos/extensions` registry.
+It also creates the empty root-owned `/usr/lib/yuos/extensions` registry.
 Executable Agent extension packages placed there remain inactive until their
 signed id is selected in user configuration; see
 [`docs/extension-provenance.md`](../docs/extension-provenance.md) and
 [`docs/extension-abi.md`](../docs/extension-abi.md).
-Fresh installs create `cos-extension` at GID `60999`; safe upgrades may retain
+Fresh installs create `yuos-extension` at GID `60999`; safe upgrades may retain
 the prior package's arbitrary sysusers GID only after proving it has no
 unrelated ownership, membership, user, or process semantics. Supervised
 workers keep the task uid, while hosted extensions use an exclusive
-package-created locked account from `cos-ext-00..63` (`61000..61063`) plus
+package-created locked account from `yuos-ext-00..63` (`61000..61063`) plus
 that primary gid. This blocks process injection
-into the task owner or another extension domain. `clawd.service` also
+into the task owner or another extension domain. `yuosd.service` also
 delegates its cgroup-v2 subtree and pins `KillMode=control-group`; dynamic
 extension execution fails closed unless per-task CPU, memory, pids, and
 `cgroup.kill` containment plus private tmpfs mounts can be verified. Cleanup
 failures retain a durable per-uid quarantine record until restart recovery
 proves process, mount, task-state, and routed-ACL residue is gone.
-`preinst` stops `clawd` for upgrades. Identity provisioning checks exact
+`preinst` stops `yuosd` for upgrades. Identity provisioning checks exact
 name/UID/GID/NSS, shadow, systemd-homed, subordinate-ID and live-process
 collisions. It does not crawl host filesystem trees or enumerate mounts:
 WSL, container, network and removable mount topologies are not
@@ -386,26 +386,26 @@ accounts recorded as package-created, still matching policy, and owning no
 live process or runtime/quarantine state; preexisting correct accounts or
 changed records are retained.
 The systemd service runs with primary group `root`, so managed runtime/state
-roots are `root:root`; `clawd.sock` is independently assigned `root:sudo`
+roots are `root:root`; `yuosd.sock` is independently assigned `root:sudo`
 mode `0660`.
 Legacy subordinate-GID validation covers the union of the fixed UID pool and
 the exact retained GID, including values in `61064..61183`, with
 overflow-safe endpoint, interior, and covering-range checks.
-`claw-os-base` adds only behavior
-that intentionally turns a Debian-family rootfs into a Claw OS system.
-When `claw-os-base` is removed, its maintainer script first snapshots the
+`yuos-base` adds only behavior
+that intentionally turns a Debian-family rootfs into a Yu OS system.
+When `yuos-base` is removed, its maintainer script first snapshots the
 visible managed home, unmounts OverlayFS, and materializes that merged view in
 the underlying home. A migration or unmount failure blocks package removal and
 retains the overlay/recovery data; see
-[`docs/updating.md`](../docs/updating.md#removing-the-claw-os-integration-package).
+[`docs/updating.md`](../docs/updating.md#removing-the-yuos-integration-package).
 
 ## Authenticated desktop runtime
 
 The unpublished authenticated desktop runtime adds the OS-only
-`claw-os-display-session-v2` interface: Agent provides it and Desktop requires
-it. Agent owns `/usr/lib/cos/bin/claw-display-host`,
-`/usr/local/bin/claw-display-session`, `/usr/local/bin/claw-gui-runner` and
-`/usr/lib/<GNU-multiarch>/security/pam_claw_display.so`. The executables install
+`yuos-display-session-v2` interface: Agent provides it and Desktop requires
+it. Agent owns `/usr/lib/yuos/bin/yuos-display-host`,
+`/usr/local/bin/yuos-display-session`, `/usr/local/bin/yuos-gui-runner` and
+`/usr/lib/<GNU-multiarch>/security/pam_yuos_display.so`. The executables install
 as `0755`, PAM as `0644`, with Root ownership and protected ancestors. Desktop
 owns the compositor/session and the greetd/PAM activation policy.
 It packages the Quickshell greeter, first-run assets, and the fixed local
@@ -422,9 +422,9 @@ acceptance. No release or version change is implied by this source wiring.
 
 ### File-manager desktop intents
 
-Agent provides `claw-os-file-manager-v1 (= 1)` and installs the unprivileged
-`/usr/lib/cos/bin/claw-file-manager` (`0755`). Desktop requires that public OS
-interface. The authenticated `claw-display-session --desktop` starts the
+Agent provides `yuos-file-manager-v1 (= 1)` and installs the unprivileged
+`/usr/lib/yuos/bin/yuos-file-manager` (`0755`). Desktop requires that public OS
+interface. The authenticated `yuos-display-session --desktop` starts the
 helper directly and checks its retirement at logout. It does not depend on
 XDG autostart or start under the user's systemd manager.
 Agent-only Ubuntu/WSL installs no activation file, user service, autostart or
@@ -447,7 +447,7 @@ cannot be targets. Normal Root admission still
 verifies that target's signed GUI, actual ancestry and delegation, owner,
 PAM/kernel login, protected review, capabilities, sandbox and managed lifetime.
 The helper clears inherited authority/override environment, including all
-`COS_*` and `CLAW*` markers, and forwards only basic owner/presentation settings.
+`YUOS_*` and `CLAW*` markers, and forwards only basic owner/presentation settings.
 Apps still have no raw user bus, FileManager1 bridge or weakened IPC sandbox.
 
 Each request permits at most 128 URLs, 4096 UTF-8 bytes per URL and 64 KiB of
@@ -460,13 +460,13 @@ No intent is automatically retried. Diagnostics report only launcher status,
 never URIs, StartupIDs, credentials or captured App output.
 
 A successful D-Bus method means **intent accepted**, not GUI started or
-completed. The ordinary `cos --gui` child awaits Root's real checked outcome;
+completed. The ordinary `yu --gui` child awaits Root's real checked outcome;
 process creation alone is not that evidence. The private core bin tests use
 their own bus and an explicit test-only fake executable, never installed
-`cos`, a live GUI, real PAM, accounts or clipboard. Run on Linux:
+`yu`, a live GUI, real PAM, accounts or clipboard. Run on Linux:
 
 ```bash
-cargo test -p yu --bin claw-file-manager -- --test-threads=1
+cargo test -p yu --bin yuos-file-manager -- --test-threads=1
 ```
 
 Real authenticated GUI acceptance with the installed Files App is a separate
@@ -479,22 +479,22 @@ This source wiring changes no release, App pin, security floor or update gate.
 
 ## Extension trust roots
 
-`claw-os-agent` creates two root-owned publisher trust roots:
+`yuos-agent` creates two root-owned publisher trust roots:
 
 | Path | Mode | Purpose |
 |---|---|---|
-| `/usr/lib/cos/trust/publishers.d/` | `0755`, files `0644` | Vendor keys shipped by the package |
-| `/etc/cos/trust/publishers.d/` | `0755`, empty | Operator-managed keys; never shipped |
-| `/etc/cos/trust/state.json` | `0644` | Combined generation recorded during Agent package configuration |
+| `/usr/lib/yuos/trust/publishers.d/` | `0755`, files `0644` | Vendor keys shipped by the package |
+| `/etc/yuos/trust/publishers.d/` | `0755`, empty | Operator-managed keys; never shipped |
+| `/etc/yuos/trust/state.json` | `0644` | Combined generation recorded during Agent package configuration |
 
 Content for the vendor root comes from
-`packaging/deb/claw-os-agent/trust/publishers.d/`. The build fails if a
+`packaging/deb/yuos-agent/trust/publishers.d/`. The build fails if a
 file there contains a `private_key` field, so signing keys can never be
 shipped by accident. Both roots — and every ancestor up to `/` — must be
 root-owned, non-symlink and free of group/world write bits; the loader
 refuses a root that fails those checks and reports it as a diagnostic.
 
-Apps and skills installed under `/usr/lib/cos` inherit package-manager
+Apps and skills installed under `/usr/lib/yuos` inherit package-manager
 (vendor) trust: their content digest is pinned on first use, and a
 later change rotates the pin with a `provenance.vendor_pin_rotated`
 audit record. Everything a user installs needs a publisher signature.
@@ -516,11 +516,11 @@ At package build time:
 
 | Artifact | Path in the package |
 |---|---|
-| Canonical release manifest | `/usr/lib/cos/release-security/<package>/manifest.json` |
-| Detached signature | `/usr/lib/cos/release-security/<package>/manifest.json.asc` |
-| Verifier used by maintainer scripts | `/usr/lib/cos/bin/claw-security-floor` |
-| APT pre-install hook (single executable token) | `/usr/lib/cos/apt/security-floor-hook` |
-| APT hook configuration (conffile) | `/etc/apt/apt.conf.d/50claw-os-security-floor` |
+| Canonical release manifest | `/usr/lib/yuos/release-security/<package>/manifest.json` |
+| Detached signature | `/usr/lib/yuos/release-security/<package>/manifest.json.asc` |
+| Verifier used by maintainer scripts | `/usr/lib/yuos/bin/yuos-security-floor` |
+| APT pre-install hook (single executable token) | `/usr/lib/yuos/apt/security-floor-hook` |
+| APT hook configuration (conffile) | `/etc/apt/apt.conf.d/50yuos-security-floor` |
 
 Each package owns its **own** manifest subdirectory. Two packages must never
 own the same regular file: dpkg would let whichever unpacked last decide what
@@ -529,14 +529,14 @@ the others' maintainer scripts read.
 The manifest is generated by `release-security/make-manifest.py` and embedded
 verbatim into the shared `preinst` by `release-security/render-preinst.sh`,
 because a `preinst` runs before any of its own package's files exist. The
-control file also exposes `XB-Claw-Os-Security-Epoch`, `XB-Claw-Os-Abi` and
-`Provides: claw-os-abi-<N>`, so the merge job and APT's own solver can see the
+control file also exposes `XB-YuOS-Security-Epoch`, `XB-YuOS-Abi` and
+`Provides: yuos-abi-<N>`, so the merge job and APT's own solver can see the
 epoch and ABI generation without unpacking anything.
 
 Signing happens during the package build, since the manifest travels inside the
-`.deb`. Set `CLAW_OS_RELEASE_SECURITY_KEY_ID` (or `GPG_KEY_ID`) with the secret
+`.deb`. Set `YUOS_RELEASE_SECURITY_KEY_ID` (or `GPG_KEY_ID`) with the secret
 key available; the publication workflows import
-`CLAW_OS_APT_SIGNING_PRIVATE_KEY` for exactly this.
+`YUOS_APT_SIGNING_PRIVATE_KEY` for exactly this.
 
 `release-security/sign-manifest.sh` makes that decision for both package
 builds, and it fails closed. Requesting *no* key is an explicitly announced
@@ -558,13 +558,13 @@ are documented in [`../docs/updating.md`](../docs/updating.md#downgrade-protecti
 ## Build
 
 The .debs are built **from already-compiled binaries** — `dpkg-deb --build`
-just assembles staging trees. CI builds `cos` and the separate native
+just assembles staging trees. CI builds `yu` and the separate native
 helpers first. Helium comes from its signed upstream APT channel; the OS
 and Browser App do not redistribute the upstream binary.
 
 Each package version is generated independently as
 `<semver>+git<commit-count>.g<sha>`. Pull-request artifacts use a lower-sorting
-`~pr...` suffix. Local dirty trees must set `COS_PACKAGE_VERSION` explicitly
+`~pr...` suffix. Local dirty trees must set `YUOS_PACKAGE_VERSION` explicitly
 to avoid reusing a stale commit-derived package filename.
 
 ```bash
@@ -574,17 +574,17 @@ cargo build --release -p yu --target x86_64-unknown-linux-musl
 # Build only the reusable Agent
 python3 scripts/app_packages.py prepare --variant agent --architecture amd64
 ./packaging/deb/build-debs.sh agent
-# -> build/debs/claw-os-agent_<version>_amd64.deb
+# -> build/debs/yuos-agent_<version>_amd64.deb
 
-# Build only the architecture-independent Claw OS integration
+# Build only the architecture-independent Yu OS integration
 ./packaging/deb/build-debs.sh base
-# -> build/debs/claw-os-base_<version>_all.deb
+# -> build/debs/yuos-base_<version>_all.deb
 
 # Rootfs composition can still build Agent + Base together:
 ./packaging/deb/build-debs.sh all
 
 # The desktop rootfs feature builds Desktop independently:
-# -> build/debs/claw-os-desktop_<version>_amd64.deb
+# -> build/debs/yuos-desktop_<version>_amd64.deb
 
 # Build the independent website artifact
 npm ci --prefix web --replace-registry-host=always
@@ -594,7 +594,7 @@ npm run build --prefix web
 GPG_KEY_ID=<signing-key-fingerprint> ./packaging/apt-repo/build-repo.sh
 # -> build/apt-repo/dists/trixie/main/binary-amd64/Packages.gz
 # -> build/apt-repo/dists/trixie/main/binary-arm64/Packages.gz
-# -> build/apt-repo/pool/main/c/claw-os-{agent,base,desktop}/*.deb
+# -> build/apt-repo/pool/main/c/yuos-{agent,base,desktop}/*.deb
 ```
 
 Build from a Linux-filesystem checkout. Windows-mounted WSL directories may
@@ -607,14 +607,14 @@ channel.
 
 ## Independent publication
 
-The **Release Claw OS** workflow (`release.yml`) has one target selector:
+The **Release Yu OS** workflow (`release.yml`) has one target selector:
 
 | Target | Builds and publishes |
 | --- | --- |
-| `agent` | `claw-os-agent` for amd64 and arm64, with TUI, Ubuntu install/reinstall and actual official Store/browser/MCP checks |
-| `base` | `claw-os-base` (`Architecture: all`) |
+| `agent` | `yuos-agent` for amd64 and arm64, with TUI, Ubuntu install/reinstall and actual official Store/browser/MCP checks |
+| `base` | `yuos-base` (`Architecture: all`) |
 | `core` | Agent and Base together, without Desktop or image builds; coordinated protocol updates and headless recovery |
-| `desktop` | `claw-os-desktop` for amd64 and arm64, using native GitHub-hosted Ubuntu runners |
+| `desktop` | `yuos-desktop` for amd64 and arm64, using native GitHub-hosted Ubuntu runners |
 | `installer` | Candidate amd64 Desktop Calamares ISO and checksum, verified against same-run signed packages; workflow artifacts only |
 | `images` | Shared-rootfs Docker/WSL images; consumes same-run signed Agent/Base packages without publishing them to APT |
 | `website` | Website and Pages composition; preserves every existing package |
@@ -639,7 +639,7 @@ higher. A non-cancelling release queue serializes publication runs; architecture
 and component builds within a run remain parallel.
 
 Before the indexes are signed, `apt-repo/verify-release-security.sh` checks the
-whole pool: every Claw OS package must carry a canonical release manifest that
+whole pool: every Yu OS package must carry a canonical release manifest that
 describes exactly that package, version and architecture, signed by the key the
 repository publishes; the set must be mutually compatible; and nothing may
 regress the epoch, the version, or the bytes of a version already published.
@@ -652,7 +652,7 @@ Compatible package versions remain independently publishable.
 
 Publication is anchored to a **signed baseline marker**. Once a repository has
 published `dists/<suite>/release-security/baseline.json` and advertised
-`Claw-Os-Release-Security-Baseline: 1` in its signed `Release`, every later
+`YuOS-Release-Security-Baseline: 1` in its signed `Release`, every later
 publication must retrieve and verify that marker and every published
 per-package manifest. A `curl` failure, a non-200 status, a missing manifest or
 a signature failure is fatal — never "there is no repository yet". Establishing
@@ -664,7 +664,7 @@ exists, and no ordinary build can set it.
 The marker is never advertised without the artifact behind it.
 `verify-release-security.sh` writes a structured status describing what it
 actually produced, and `build-repo.sh` emits
-`Claw-Os-Release-Security-Baseline: 1` only when that status says a signed
+`YuOS-Release-Security-Baseline: 1` only when that status says a signed
 baseline was written and verified. A pool that still carries no
 release-security metadata publishes honestly *without* the field, and only
 under the explicit migration input — so the repository can never end up in a
@@ -705,33 +705,33 @@ Never apply this CI-only cleanup to a developer host.
 ## Apt repo URL
 
 CI publishes the repo to GitHub Pages. The default URL hard-coded in the
-`apt-source` rootfs feature is `https://xiaoyu-work.github.io/claw-os`.
+`apt-source` rootfs feature is `https://xiaoyu-work.github.io/Yu-OS/apt`.
 
-End-user setup on a non-Claw-OS Debian/Ubuntu machine:
+End-user setup on a non-Yu OS-OS Debian/Ubuntu machine:
 
 ```bash
-curl -fsSL https://xiaoyu-work.github.io/claw-os/claw-os-archive-keyring.gpg \
-  | sudo tee /usr/share/keyrings/claw-os-archive-keyring.gpg >/dev/null
-echo "deb [signed-by=/usr/share/keyrings/claw-os-archive-keyring.gpg check-valid-until=yes allow-insecure=no allow-weak=no allow-downgrade-to-insecure=no by-hash=yes] https://xiaoyu-work.github.io/claw-os trixie main" \
-  | sudo tee /etc/apt/sources.list.d/claw-os.list
+curl -fsSL https://xiaoyu-work.github.io/Yu-OS/apt/yuos-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/yuos-archive-keyring.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/yuos-archive-keyring.gpg check-valid-until=yes allow-insecure=no allow-weak=no allow-downgrade-to-insecure=no by-hash=yes] https://xiaoyu-work.github.io/Yu-OS/apt trixie main" \
+  | sudo tee /etc/apt/sources.list.d/yuos.list
 sudo apt update
-sudo apt install claw-os-agent
+sudo apt install yuos-agent
 ```
 
-That one package installs and enables `clawd.service`. It does not install
-Claw OS home overlays, boot policy, or desktop integration. To turn a composed
-rootfs into Claw OS, install `claw-os-base`; its runtime dependency pulls in
-`claw-os-agent` without coupling their release schedules.
+That one package installs and enables `yuosd.service`. It does not install
+Yu OS home overlays, boot policy, or desktop integration. To turn a composed
+rootfs into Yu OS, install `yuos-base`; its runtime dependency pulls in
+`yuos-agent` without coupling their release schedules.
 
 Repository builds require `GPG_KEY_ID` and refuse to emit unsigned metadata.
 GitHub Actions imports the private key from the
-`CLAW_OS_APT_SIGNING_PRIVATE_KEY` secret; the corresponding public key is
-embedded in Claw OS images and published beside the repository.
-Local rootfs builds should set `COS_APT_PUBLIC_KEY_FILE` to a trusted
+`YUOS_APT_SIGNING_PRIVATE_KEY` secret; the corresponding public key is
+embedded in Yu OS images and published beside the repository.
+Local rootfs builds should set `YUOS_APT_PUBLIC_KEY_FILE` to a trusted
 binary export of that public key. Download fallback is available only when
-`COS_APT_PUBLIC_KEY_FINGERPRINT` is supplied explicitly.
+`YUOS_APT_PUBLIC_KEY_FINGERPRINT` is supplied explicitly.
 
-Package publication workflows require `CLAW_OS_APT_SIGNING_PRIVATE_KEY` and
+Package publication workflows require `YUOS_APT_SIGNING_PRIVATE_KEY` and
 cannot publish without it. Image workflows never fall back to an unsigned
 source: when the key is unavailable they omit the `apt-source` feature while
 continuing to build Docker and WSL artifacts.
@@ -739,23 +739,23 @@ continuing to build Docker and WSL artifacts.
 OAuth client registration and end-user authorization are runtime concerns.
 Agent packages and publication workflows never accept or embed Google or
 Microsoft client identities. Apps or users configure provider clients through
-the Claw OS credential store or runtime environment before starting OAuth
+the Yu OS credential store or runtime environment before starting OAuth
 login.
 ## Nearby transport package boundary
 
-Agent builds [`claw-nearby`](../crates/claw-nearby/MODULE.md) through its own
+Agent builds [`yuos-nearby`](../crates/yuos-nearby/MODULE.md) through its own
 manifest and lock with `--locked`, then installs the two fixed binaries,
 Root-only D-Bus policy, D-Bus activation service, NetworkManager device section
-and awdl0 link policy. `claw-os-nearby-v1` is a service-presence contract, not
+and awdl0 link policy. `yuos-nearby-v1` is a service-presence contract, not
 hardware certification. Desktop depends on it for its sharing center.
 
-The radio alone receives raw/network-admin privileges; `clawd.service` is not
+The radio alone receives raw/network-admin privileges; `yuosd.service` is not
 broadened. The unsigned/active-user upstream radio policy is not installed.
 The required optional physical-radio tools remain explicit for headless users,
 without automatically replacing their network manager. Rootfs profiles and
 targets consume this package rather than duplicating its payload.
 
 The limited MIT lease-service fork and notices are described in
-[`../crates/claw-nearby/PROVENANCE.md`](../crates/claw-nearby/PROVENANCE.md).
+[`../crates/yuos-nearby/PROVENANCE.md`](../crates/yuos-nearby/PROVENANCE.md).
 [`docs/updating.md`](../docs/updating.md#nearby-sharing-updates) covers checked
 retirement and interrupted-window behavior.

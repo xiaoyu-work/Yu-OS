@@ -5,7 +5,7 @@ use axum::{
     http::{Method, Request, StatusCode},
     middleware,
 };
-use cos_agent_protocol::PROTOCOL_VERSION_HEADER;
+use yuos_agent_protocol::PROTOCOL_VERSION_HEADER;
 use serde_json::{Value, json};
 use tower::ServiceExt as _;
 
@@ -16,7 +16,7 @@ fn router() -> Router {
     let state = AppState {
         port: 0,
         auth_token: TOKEN.into(),
-        clawd: clawd_client::Client::new("missing-scheduling-priority-test.sock"),
+        yuosd: yuosd_client::Client::new("missing-scheduling-priority-test.sock"),
     };
     crate::routes::api()
         .route_layer(middleware::from_fn_with_state(
@@ -35,7 +35,7 @@ async fn request(method: Method, path: &str, body: Option<Value>) -> axum::respo
                 .uri(path)
                 .header(
                     PROTOCOL_VERSION_HEADER,
-                    cos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
+                    yuos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
                 )
                 .header("authorization", format!("Bearer {TOKEN}"))
                 .header("content-type", "application/json")
@@ -59,7 +59,7 @@ async fn scheduling_priority_routes_require_authentication_and_version() {
                     .uri(&path)
                     .header(
                         PROTOCOL_VERSION_HEADER,
-                        cos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
+                        yuos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
                     )
                     .body(Body::empty())
                     .unwrap(),
@@ -86,7 +86,7 @@ async fn scheduling_priority_routes_require_authentication_and_version() {
 fn scheduling_priority_params_forward_only_path_policy_and_cas() {
     let body = ActivitySchedulingPrioritySetRequest {
         expected_revision: Some(u64::MAX - 1),
-        priority: cos_agent_protocol::ActivitySchedulingPriority::Background,
+        priority: yuos_agent_protocol::ActivitySchedulingPriority::Background,
     };
     let params = with_id(ACTIVITY, &body).ok().unwrap();
     assert_eq!(

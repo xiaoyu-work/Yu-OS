@@ -1,10 +1,10 @@
 use super::*;
 use crate::apps::store::{self, Record};
-use crate::clawd::{app_execution, app_store};
-use crate::clawd::state::DaemonState;
-use crate::clawd::transport::{frame::PeerStream, peer, ReadOutcome};
-use crate::clawd::transport::limits::{Admission, Limits as AdmissionLimits};
-use crate::clawd::wire::Request;
+use crate::yuosd::{app_execution, app_store};
+use crate::yuosd::state::DaemonState;
+use crate::yuosd::transport::{frame::PeerStream, peer, ReadOutcome};
+use crate::yuosd::transport::limits::{Admission, Limits as AdmissionLimits};
+use crate::yuosd::wire::Request;
 use crate::provenance::{sign, PackageKind, TrustStore, TrustTier};
 use serde_json::{json, Value};
 use std::os::fd::AsFd;
@@ -33,7 +33,7 @@ def run(command, args):
             ctypes.CDLL(None).prctl(15, b"custody-grand", 0, 0, 0)
             while True:
                 time.sleep(1)
-    root = pathlib.Path(os.environ["COS_DATA_DIR"])
+    root = pathlib.Path(os.environ["YUOS_DATA_DIR"])
     (root / "ready.json").write_text(json.dumps({"ready": True, "child": child}))
     while True:
         time.sleep(1)
@@ -58,15 +58,15 @@ fn install_trust() {
 #[test]
 #[ignore = "private actor of the ordinary Root custody fixtures"]
 fn ordinary_store_actor() {
-    assert_eq!(std::env::var("COS_ORDINARY_CUSTODY_ACTOR").unwrap(), "1");
+    assert_eq!(std::env::var("YUOS_ORDINARY_CUSTODY_ACTOR").unwrap(), "1");
     assert_ne!(unsafe { libc::geteuid() }, 0);
     install_trust();
     std::io::stdin().read_exact(&mut [0]).unwrap();
     let apps = Path::new(BASE).join("apps");
     let app = crate::apps::find_verified(&apps, ID).unwrap();
     let launch = crate::bridge::AppLaunch::new(app.require_verified().unwrap().clone()).unwrap();
-    let operation = std::env::var("COS_ORDINARY_CUSTODY_OPERATION").unwrap();
-    let result = if std::env::var("COS_ORDINARY_CUSTODY_TASK").as_deref() == Ok("1") {
+    let operation = std::env::var("YUOS_ORDINARY_CUSTODY_OPERATION").unwrap();
+    let result = if std::env::var("YUOS_ORDINARY_CUSTODY_TASK").as_deref() == Ok("1") {
         crate::bridge::run_task_app(&launch, &operation, &[], apps.to_str().unwrap())
     } else {
         crate::bridge::run_app(
@@ -81,10 +81,10 @@ fn ordinary_store_actor() {
 #[test]
 #[ignore = "private foreign peer of the ordinary Root custody fixtures"]
 fn foreign_cleanup_actor() {
-    assert_eq!(std::env::var("COS_ORDINARY_CUSTODY_ACTOR").unwrap(), "1");
+    assert_eq!(std::env::var("YUOS_ORDINARY_CUSTODY_ACTOR").unwrap(), "1");
     std::io::stdin().read_exact(&mut [0]).unwrap();
     let listener = std::os::unix::net::UnixListener::bind(
-        std::env::var_os("COS_ORDINARY_CUSTODY_FOREIGN_SOCKET").unwrap(),
+        std::env::var_os("YUOS_ORDINARY_CUSTODY_FOREIGN_SOCKET").unwrap(),
     ).unwrap();
     for mut connection in listener.incoming().flatten() {
         let _ = connection.set_read_timeout(Some(Duration::from_secs(2)));
@@ -144,7 +144,7 @@ fn sign_app(directory: &Path, version: &str, key: &sign::SigningKeyFile) {
         }
     }).to_string()).unwrap();
     std::fs::write(directory.join("web-ui.json"), json!({
-        "schema": "claw.web-app/v1", "app_id": ID,
+        "schema": "yuos.web-app/v1", "app_id": ID,
         "source_kind": "product", "source_name": "custody-fixture",
         "title": "Ordinary custody fixture", "description": "Isolated signed App",
         "entry": "web/index.html",
@@ -152,7 +152,7 @@ fn sign_app(directory: &Path, version: &str, key: &sign::SigningKeyFile) {
     std::fs::write(directory.join("web/index.html"), "<!doctype html><title>Private fixture</title>").unwrap();
     sign::sign_directory(directory, &sign::SignRequest {
         kind: PackageKind::App, id: ID.into(), version: version.into(),
-        manifest_schema: "cos.app/v2".into(), manifest_path: "app.json".into(),
+        manifest_schema: "yuos.app/v2".into(), manifest_path: "app.json".into(),
         entrypoints: vec!["main.py".into()],
         resources: vec!["web-ui.json".into(), "web/index.html".into()],
     }, key).unwrap();
@@ -171,7 +171,7 @@ fn record(directory: &Path) -> Record {
     let record = Record {
         app_id: ID.into(), app_version: "2.0.0".into(), architecture: "all".into(),
         artifact: store::Artifact {
-            file: format!("claw-app-snapshot-{checksum}.tar.gz"), size: archive.len() as u64,
+            file: format!("yuos-app-snapshot-{checksum}.tar.gz"), size: archive.len() as u64,
             sha256: checksum, media_type: "application/gzip".into(),
         },
         manifest: store::ManifestBinding { path: "app.json".into(), size: manifest.len() as u64, sha256: store::sha256(&manifest) },
@@ -180,7 +180,7 @@ fn record(directory: &Path) -> Record {
             content_digest: package.content_digest().into(),
             publisher_key_id: package.audit_facts()["publisher_key_id"].as_str().unwrap().into(),
         },
-        release_version: "2.0.0".into(), release_tag: "app-custody-fixture-v2.0.0".into(),
+        release_version: "2.0.0".into(), release_tag: "yuos-app-custody-fixture-v2.0.0".into(),
         display: store::Display {
             name: "Ordinary custody fixture".into(), description: "Isolated signed App".into(),
             source_kind: "product".into(), source_name: "custody-fixture".into(),
@@ -195,11 +195,11 @@ fn record(directory: &Path) -> Record {
     };
     let now = chrono::Utc::now();
     let catalog = store::Catalog {
-        schema: "claw.app-store/v2".into(), repository: store::REPOSITORY.into(),
+        schema: "yuos.app-store/v2".into(), repository: store::REPOSITORY.into(),
         runtime_abi: 1, generation: "1".into(), issued_at: now,
         expires_at: now + chrono::Duration::hours(1),
         packages: vec![store::AptPackage {
-            package: "claw-app-custody-fixture".into(), version: "2.0.0".into(),
+            package: "yuos-app-custody-fixture".into(), version: "2.0.0".into(),
             architecture: "all".into(), size: 1,
             sha256: record.delivery.package_sha256.clone(), apps: vec![ID.into()],
         }],
@@ -215,9 +215,9 @@ pub(super) struct RootGroup(pub(super) PathBuf);
 impl Drop for RootGroup {
     fn drop(&mut self) {
         fn remove_owned(path: &Path) {
-            let fd = claw_display_control::workload::open_directory(path).unwrap();
-            claw_display_control::workload::check_cgroup(fd.as_fd()).unwrap();
-            claw_display_control::workload::retire_cgroup(
+            let fd = yuos_display_control::workload::open_directory(path).unwrap();
+            yuos_display_control::workload::check_cgroup(fd.as_fd()).unwrap();
+            yuos_display_control::workload::retire_cgroup(
                 fd.as_fd(), Instant::now() + Duration::from_secs(5),
             ).unwrap();
             for entry in std::fs::read_dir(path).unwrap() {
@@ -235,7 +235,7 @@ struct Fixture {
     state: DaemonState,
     broker: crate::agentd::supervisor::BrokerContext,
     admission: Arc<Admission>,
-    _services: Arc<crate::clawd::app_services::AppServiceManager>,
+    _services: Arc<crate::yuosd::app_services::AppServiceManager>,
     request: String,
     review: String,
     record: Record,
@@ -253,14 +253,14 @@ impl Fixture {
                 "ordinary custody fixture requires private mount/network namespaces");
         }
         let backing = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
-        let cos = PathBuf::from(std::env::var_os("COS_ORDINARY_TEST_COS").expect("compiled cos fixture"));
-        let runner = PathBuf::from(std::env::var_os("COS_ORDINARY_TEST_RUNNER").expect("compiled runner fixture"));
+        let yu = PathBuf::from(std::env::var_os("YUOS_ORDINARY_TEST_YU").expect("compiled yu fixture"));
+        let runner = PathBuf::from(std::env::var_os("YUOS_ORDINARY_TEST_RUNNER").expect("compiled runner fixture"));
         let actor = std::env::current_exe().unwrap();
         mount_tmpfs(c"/run");
         mount_tmpfs(c"/var/lib");
         mount_tmpfs(c"/usr/local/bin");
         for path in [
-            BASE, "/run/lock", "/var/lib/dpkg/info", "/var/lib/cos",
+            BASE, "/run/lock", "/var/lib/dpkg/info", "/var/lib/yuos",
             &format!("{BASE}/apps"), &format!("{BASE}/trust"), &format!("{BASE}/state"),
             &format!("{BASE}/runtime"), &format!("{BASE}/data"),
         ] {
@@ -269,8 +269,8 @@ impl Fixture {
         std::fs::set_permissions("/run/lock", std::fs::Permissions::from_mode(0o1777)).unwrap();
         std::fs::write("/var/lib/dpkg/status", "").unwrap();
         std::fs::write("/var/lib/dpkg/lock", "").unwrap();
-        copy_executable(&cos, Path::new("/usr/local/bin/yu"));
-        copy_executable(&runner, Path::new("/usr/local/bin/claw-app-runner"));
+        copy_executable(&yu, Path::new("/usr/local/bin/yu"));
+        copy_executable(&runner, Path::new("/usr/local/bin/yuos-app-runner"));
         copy_executable(&actor, &Path::new(BASE).join("actor"));
         synthetic_accounts();
         let data = backing.path().join("data");
@@ -278,16 +278,16 @@ impl Fixture {
         chown(&data, OWNER, OWNER);
         std::fs::set_permissions(&data, std::fs::Permissions::from_mode(0o700)).unwrap();
         bind_mount(&data, &Path::new(BASE).join("data"));
-        let group = Path::new("/sys/fs/cgroup").join(format!("cos-ordinary-fixture-{}", uuid::Uuid::new_v4().simple()));
+        let group = Path::new("/sys/fs/cgroup").join(format!("yuos-ordinary-fixture-{}", uuid::Uuid::new_v4().simple()));
         std::fs::create_dir(&group).unwrap();
         let environment = vec![
-            crate::test_env::TestEnvVarGuard::set("CLAWD_EXTENSION_CGROUP_ROOT", &group),
-            crate::test_env::TestEnvVarGuard::set("COS_EXTENSION_EXEC_GROUP", "nogroup"),
-            crate::test_env::TestEnvVarGuard::set("COS_RUNTIME_DIR", format!("{BASE}/runtime")),
-            crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", format!("{BASE}/state")),
-            crate::test_env::TestEnvVarGuard::set("COS_USER_DATA_DIR", format!("{BASE}/data")),
-            crate::test_env::TestEnvVarGuard::set("COS_APPS_DIR", format!("{BASE}/apps")),
-            crate::test_env::TestEnvVarGuard::set("COS_CAPS_DATA_DIR", format!("{BASE}/state")),
+            crate::test_env::TestEnvVarGuard::set("YUOSD_EXTENSION_CGROUP_ROOT", &group),
+            crate::test_env::TestEnvVarGuard::set("YUOS_EXTENSION_EXEC_GROUP", "nogroup"),
+            crate::test_env::TestEnvVarGuard::set("YUOS_RUNTIME_DIR", format!("{BASE}/runtime")),
+            crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", format!("{BASE}/state")),
+            crate::test_env::TestEnvVarGuard::set("YUOS_USER_DATA_DIR", format!("{BASE}/data")),
+            crate::test_env::TestEnvVarGuard::set("YUOS_APPS_DIR", format!("{BASE}/apps")),
+            crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", format!("{BASE}/state")),
         ];
         let key = sign::SigningKeyFile::generate(Some("isolated ordinary custody fixture".into())).unwrap();
         std::fs::write(Path::new(BASE).join("trust/key.json"),
@@ -305,7 +305,7 @@ impl Fixture {
         crate::approvals::system_review::consume(OWNER, &review.id, old.require_verified().unwrap()).unwrap();
         let activation_review = review.id.clone();
         let request = uuid::Uuid::new_v4().simple().to_string();
-        let source_parent = Path::new("/var/lib/cos/app-store/staging").join(&request).join("package");
+        let source_parent = Path::new("/var/lib/yuos/app-store/staging").join(&request).join("package");
         sign_app(&source_parent, "2.0.0", &key);
         // Discovery derives the App ID from its directory name; retain the real staging layout.
         let source = crate::apps::installation::DirectoryInstall::prepare(
@@ -338,8 +338,8 @@ impl Fixture {
             state.clone(), admission.clone(), primary,
         ).unwrap();
         app_execution::initialize(&broker);
-        crate::clawd::gui::Manager::start(state.clone(), admission.clone()).unwrap();
-        let services = crate::clawd::app_services::AppServiceManager::new(broker.clone());
+        crate::yuosd::gui::Manager::start(state.clone(), admission.clone()).unwrap();
+        let services = crate::yuosd::app_services::AppServiceManager::new(broker.clone());
         state.install_app_service_manager(&services).unwrap();
         Self {
             state, broker, admission, _services: services, request, review: review.id, record,
@@ -365,8 +365,8 @@ impl Fixture {
         ).await
     }
 
-    fn directory_request(&self) -> (Value, crate::clawd::client_identity::ClientIdentity) {
-        let source = Path::new("/var/lib/cos/app-store/staging").join(&self.request).join("package");
+    fn directory_request(&self) -> (Value, crate::yuosd::client_identity::ClientIdentity) {
+        let source = Path::new("/var/lib/yuos/app-store/staging").join(&self.request).join("package");
         let apps = Path::new(BASE).join("apps");
         let app = crate::apps::installation::DirectoryInstall::prepare(&source, &apps)
             .unwrap().preview().unwrap();
@@ -378,7 +378,7 @@ impl Fixture {
         if review.effective_state().unwrap() == crate::approvals::system_review::ReviewState::Pending {
             crate::approvals::system_review::decide(0, &review.id, true, Some(package)).unwrap();
         }
-        let client = crate::clawd::client_identity::ClientIdentity {
+        let client = crate::yuosd::client_identity::ClientIdentity {
             pid: Some(std::process::id()), uid: Some(0), gid: Some(0), execution_uid: None,
             start_time_ticks: crate::proc::read_start_time_ticks_pub(std::process::id()),
             attended_local: false, extension_host: None,
@@ -397,19 +397,19 @@ impl Fixture {
         let review = body["review_id"].as_str().unwrap().to_string();
         let mut foreign = client.clone();
         foreign.uid = Some(OWNER);
-        let error = crate::clawd::app_install::install(&self.state, body.clone(), &foreign).await.unwrap_err();
+        let error = crate::yuosd::app_install::install(&self.state, body.clone(), &foreign).await.unwrap_err();
         assert!(error.message.contains("kernel UID 0"));
         let mut delegated = client.clone();
         delegated.execution_uid = Some(EXECUTION);
-        let error = crate::clawd::app_install::install(&self.state, body.clone(), &delegated).await.unwrap_err();
+        let error = crate::yuosd::app_install::install(&self.state, body.clone(), &delegated).await.unwrap_err();
         assert!(error.message.contains("kernel UID 0"));
         let mut different_root = body.clone();
         different_root["expected_apps_root"] = json!(BASE);
-        let error = crate::clawd::app_install::install(&self.state, different_root, &client).await.unwrap_err();
+        let error = crate::yuosd::app_install::install(&self.state, different_root, &client).await.unwrap_err();
         assert!(error.message.contains("different local App root"));
         let mut different_destination = body.clone();
         different_destination["expected_installed_destination"] = json!(Path::new(BASE).join("apps").join(ID));
-        let error = crate::clawd::app_install::install(&self.state, different_destination, &client).await.unwrap_err();
+        let error = crate::yuosd::app_install::install(&self.state, different_destination, &client).await.unwrap_err();
         assert!(error.message.contains("destination differs"), "{}", error.message);
         body["expected_installed_destination"] = json!(Path::new(BASE).join("apps").join("ordinary").join("custody"));
         assert_eq!(self.version(), "1.0.0");
@@ -419,17 +419,17 @@ impl Fixture {
             "Package: custody-owner\nStatus: install ok installed\nArchitecture: all\nVersion: 1.0\nDescription: private fixture\n\n",
         ).unwrap();
         std::fs::write(list, format!("{BASE}/apps/ordinary/custody/web/index.html\n")).unwrap();
-        let refusal = crate::clawd::app_install::install(&self.state, body.clone(), &client).await;
+        let refusal = crate::yuosd::app_install::install(&self.state, body.clone(), &client).await;
         std::fs::write("/var/lib/dpkg/status", status).unwrap();
         std::fs::remove_file(list).unwrap();
         assert!(refusal.unwrap_err().message.contains("APT"));
         assert_eq!(self.version(), "1.0.0");
-        assert!(!crate::clawd::app_install::pending(ID).unwrap());
-        let result = crate::clawd::app_install::install(&self.state, body, &client)
+        assert!(!crate::yuosd::app_install::pending(ID).unwrap());
+        let result = crate::yuosd::app_install::install(&self.state, body, &client)
             .await.map_err(|error| error.message)?;
         assert_eq!(crate::approvals::system_review::get(0, &review).unwrap().state,
             crate::approvals::system_review::ReviewState::Consumed);
-        assert!(!crate::clawd::app_install::pending(ID).unwrap());
+        assert!(!crate::yuosd::app_install::pending(ID).unwrap());
         Ok(result)
     }
 }
@@ -470,24 +470,24 @@ impl Actor {
         command.args(["--exact", ACTOR, "--ignored", "--nocapture", "--test-threads=1"])
             .env_clear().env("PATH", "/usr/local/bin:/usr/bin:/bin")
             .env("HOME", &paths.control_dir)
-            .env("COS_DATA_DIR", paths.control_dir.join("data"))
-            .env("COS_LOG_DIR", paths.control_dir.join("log"))
-            .env("COS_CACHE_DIR", paths.control_dir.join("cache"))
-            .env("COS_BIN", "/usr/local/bin/yu")
-            .env("COS_USER_DATA_DIR", format!("{BASE}/data"))
-            .env("COS_APPS_DIR", format!("{BASE}/apps"))
-            .env("COS_PROC_DATA_DIR", format!("/run/cos/caps/{OWNER}"))
-            .env("COS_SESSION", if task { "task-host" } else { "ordinary-parent" })
+            .env("YUOS_DATA_DIR", paths.control_dir.join("data"))
+            .env("YUOS_LOG_DIR", paths.control_dir.join("log"))
+            .env("YUOS_CACHE_DIR", paths.control_dir.join("cache"))
+            .env("YUOS_BIN", "/usr/local/bin/yu")
+            .env("YUOS_USER_DATA_DIR", format!("{BASE}/data"))
+            .env("YUOS_APPS_DIR", format!("{BASE}/apps"))
+            .env("YUOS_PROC_DATA_DIR", format!("/run/yuos/caps/{OWNER}"))
+            .env("YUOS_SESSION", if task { "task-host" } else { "ordinary-parent" })
             .env("XDG_RUNTIME_DIR", runtime)
-            .env("COS_ORDINARY_CUSTODY_ACTOR", "1")
-            .env("COS_ORDINARY_CUSTODY_TASK", if task { "1" } else { "0" })
-            .env("COS_ORDINARY_CUSTODY_OPERATION", if grandchild { "grandchild" } else { "hold" })
+            .env("YUOS_ORDINARY_CUSTODY_ACTOR", "1")
+            .env("YUOS_ORDINARY_CUSTODY_TASK", if task { "1" } else { "0" })
+            .env("YUOS_ORDINARY_CUSTODY_OPERATION", if grandchild { "grandchild" } else { "hold" })
             .current_dir(&paths.control_dir).stdin(Stdio::piped())
             .stdout(Stdio::inherit()).stderr(Stdio::inherit());
         if task {
             command.env(crate::extension_host::protocol::BROKER_SOCKET_ENV, &paths.broker_socket);
         } else {
-            command.env("CLAWD_SOCKET", &paths.broker_socket);
+            command.env("YUOSD_SOCKET", &paths.broker_socket);
         }
         let task_path = c_path(&paths.dir);
         unsafe {
@@ -523,7 +523,7 @@ impl Actor {
         ]);
         let task_session = Arc::new(session("task-parent", child.id(), caps.clone()));
         let client = match &data {
-            Some(data) => crate::clawd::client_identity::ClientIdentity::from_verified_delegation(
+            Some(data) => crate::yuosd::client_identity::ClientIdentity::from_verified_delegation(
                 child.id(), OWNER, execution_uid, execution_gid,
                 crate::proc::read_start_time_ticks_pub(child.id()).unwrap(),
                 AuthenticatedExtensionHost {
@@ -537,7 +537,7 @@ impl Actor {
                     task_session: Some(task_session.clone()), task_app_data: Some(data.clone()),
                 },
             ),
-            None => crate::clawd::client_identity::ClientIdentity::from_peer(peer::PeerProcess {
+            None => crate::yuosd::client_identity::ClientIdentity::from_peer(peer::PeerProcess {
                 pid: child.id(), uid: OWNER, gid: OWNER,
                 start_time_ticks: crate::proc::read_start_time_ticks_pub(child.id()).unwrap(),
             }),
@@ -569,7 +569,7 @@ impl Actor {
                     connection = listener.accept() => connection.unwrap().0,
                 };
                 let mut stream = PeerStream::new(connection).unwrap();
-                let ReadOutcome::Frame(frame) = stream.read_request(crate::clawd::wire::MAX_REQUEST_BYTES).await.unwrap()
+                let ReadOutcome::Frame(frame) = stream.read_request(crate::yuosd::wire::MAX_REQUEST_BYTES).await.unwrap()
                     else { continue };
                 let credentials = peer::verify(frame.credentials).unwrap();
                 assert_eq!(credentials.pid, client.pid.unwrap());
@@ -579,10 +579,10 @@ impl Actor {
                 let request: Request = serde_json::from_slice(&frame.body).unwrap();
                 let command = request.command;
                 let params = request.params.clone();
-                let response = crate::clawd::server::dispatch_verified_request(
+                let response = crate::yuosd::server::dispatch_verified_request(
                     request, &client, &state, &admission,
                 ).await;
-                if command == crate::clawd::routes::Command::AppSessionRegister {
+                if command == crate::yuosd::routes::Command::AppSessionRegister {
                     assert!(response.error.is_none(), "real Root registration failed: {:?}", response.error);
                     if let Some(value) = response.result.as_ref() {
                         captured.lock().unwrap().session = value["session_id"].as_str().unwrap().into();
@@ -590,13 +590,13 @@ impl Actor {
                         if task { assert!(value["task_app_data_dir"].is_string()); }
                     }
                 }
-                if command == crate::clawd::routes::Command::AppSessionBind {
+                if command == crate::yuosd::routes::Command::AppSessionBind {
                     let mut captured = captured.lock().unwrap();
                     captured.pid = params["pid"].as_u64().unwrap() as u32;
                     captured.socket = params["custody_socket"].as_str().unwrap().into();
                     assert!(response.error.is_none(), "real Root binding failed: {:?}", response.error);
                 }
-                stream.write_response(&crate::clawd::protocol::encode_response(&response).unwrap()).await.unwrap();
+                stream.write_response(&crate::yuosd::protocol::encode_response(&response).unwrap()).await.unwrap();
             }
         });
         child.stdin.as_mut().unwrap().write_all(&[1]).unwrap();
@@ -619,7 +619,7 @@ impl Actor {
         let process = unsafe { libc::syscall(libc::SYS_pidfd_open, captured.pid, 0) };
         assert!(process >= 0);
         let process = unsafe { OwnedFd::from_raw_fd(process as i32) };
-        assert!(!claw_display_control::identity::pidfd_exited(process.as_fd()).unwrap());
+        assert!(!yuos_display_control::identity::pidfd_exited(process.as_fd()).unwrap());
     }
 
     fn session(&self) -> String { self.observed.lock().unwrap().session.clone() }
@@ -674,34 +674,34 @@ impl Drop for Actor {
 
 async fn wait_fence_release() {
     let deadline = Instant::now() + Duration::from_secs(20);
-    while crate::clawd::app_mutation::admit(ID).is_err() {
+    while crate::yuosd::app_mutation::admit(ID).is_err() {
         assert!(Instant::now() < deadline, "cleanup worker abandoned its mutation fence");
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
 }
 
 fn group_empty(path: &Path) -> bool {
-    let fd = claw_display_control::workload::open_directory(path).unwrap();
-    claw_display_control::workload::cgroup_is_empty(fd.as_fd()).unwrap()
+    let fd = yuos_display_control::workload::open_directory(path).unwrap();
+    yuos_display_control::workload::cgroup_is_empty(fd.as_fd()).unwrap()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and COS_ORDINARY_TEST_COS/RUNNER"]
+#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_YU/RUNNER"]
 async fn ordinary_root_standalone_retires_host_before_publication() {
     let _environment = crate::test_env::lock_env();
     let fixture = Fixture::new();
     let fresh_root = Path::new(BASE).join("empty-apps");
     assert!(!fresh_root.exists());
     {
-        let _root = crate::test_env::TestEnvVarGuard::set("COS_APPS_DIR", &fresh_root);
+        let _root = crate::test_env::TestEnvVarGuard::set("YUOS_APPS_DIR", &fresh_root);
         let (mut body, client) = fixture.directory_request();
         body["expected_apps_root"] = json!(fresh_root);
         body["expected_installed_destination"] = json!(fresh_root.join(ID));
-        let refusal = crate::clawd::app_install::install(&fixture.state, body.clone(), &client).await.unwrap_err();
+        let refusal = crate::yuosd::app_install::install(&fixture.state, body.clone(), &client).await.unwrap_err();
         assert!(refusal.message.contains("existing daemon App root"), "{}", refusal.message);
         assert!(!fresh_root.exists(), "rollback initialized an absent installed App root");
         body.as_object_mut().unwrap().remove("expected_installed_destination");
-        let installed = crate::clawd::app_install::install(&fixture.state, body, &client).await.unwrap();
+        let installed = crate::yuosd::app_install::install(&fixture.state, body, &client).await.unwrap();
         assert_eq!(installed["destination"], fresh_root.join(ID).to_str().unwrap());
         let metadata = std::fs::metadata(&fresh_root).unwrap();
         assert_eq!(metadata.uid(), 0);
@@ -719,12 +719,12 @@ async fn ordinary_root_standalone_retires_host_before_publication() {
     assert!(!Path::new(BASE).join("apps").join(ID).exists(), "directory publication created a duplicate flat App");
     assert_eq!(fixture.version(), "2.0.0");
     assert!(fixture.approved(), "Root's separate directory review must not consume the Store owner's review");
-    assert!(claw_display_control::identity::pidfd_exited(process.as_fd()).unwrap());
+    assert!(yuos_display_control::identity::pidfd_exited(process.as_fd()).unwrap());
     assert!(!actor.group(&fixture).exists());
     assert!(!actor.observed.lock().unwrap().socket.parent().unwrap().exists());
     let installed = Path::new(BASE).join("apps").join("ordinary").join("custody");
     let inode = std::fs::metadata(&installed).unwrap().ino();
-    let record_path = Path::new("/var/lib/cos/app-directory-installs")
+    let record_path = Path::new("/var/lib/yuos/app-directory-installs")
         .join(format!("{}.json", crate::crypto::sha256_hex(ID.as_bytes())));
     let mut record: Value = serde_json::from_slice(&std::fs::read(&record_path).unwrap()).unwrap();
     let (body, client) = fixture.directory_request();
@@ -732,10 +732,10 @@ async fn ordinary_root_standalone_retires_host_before_publication() {
     for phase in ["publishing", "indeterminate"] {
         record["phase"] = json!(phase);
         crate::agent::util::atomic_write_with_fsync(&record_path, &serde_json::to_vec(&record).unwrap()).unwrap();
-        let error = crate::clawd::app_install::install(&fixture.state, body.clone(), &client).await.unwrap_err();
+        let error = crate::yuosd::app_install::install(&fixture.state, body.clone(), &client).await.unwrap_err();
         assert!(error.message.contains("cannot be replayed"), "{phase}: {}", error.message);
         assert_eq!(std::fs::metadata(&installed).unwrap().ino(), inode);
-        assert!(crate::clawd::app_install::pending(ID).unwrap());
+        assert!(crate::yuosd::app_install::pending(ID).unwrap());
     }
     let recover = json!({
         "action": "recover", "app_id": ID, "expected_apps_root": Path::new(BASE).join("apps"),
@@ -743,21 +743,21 @@ async fn ordinary_root_standalone_retires_host_before_publication() {
     let scratch = installed.parent().unwrap().join(format!(".{ID}.install-staging-outcome"));
     std::fs::create_dir(&scratch).unwrap();
     std::fs::remove_dir_all(body["source"].as_str().unwrap()).unwrap();
-    let error = crate::clawd::app_install::install(&fixture.state, recover.clone(), &client).await.unwrap_err();
+    let error = crate::yuosd::app_install::install(&fixture.state, recover.clone(), &client).await.unwrap_err();
     assert!(error.message.contains("scratch"), "{}", error.message);
-    assert!(crate::clawd::app_install::pending(ID).unwrap());
+    assert!(crate::yuosd::app_install::pending(ID).unwrap());
     std::fs::remove_dir(&scratch).unwrap();
-    let recovered = crate::clawd::app_install::install(&fixture.state, recover, &client).await.unwrap();
+    let recovered = crate::yuosd::app_install::install(&fixture.state, recover, &client).await.unwrap();
     assert_eq!(recovered["manifest"]["version"], "2.0.0");
     assert_eq!(std::fs::metadata(&installed).unwrap().ino(), inode);
     assert_eq!(crate::approvals::system_review::get(0, review).unwrap().state,
         crate::approvals::system_review::ReviewState::Approved, "outcome checking consumed a fresh review");
-    assert!(!crate::clawd::app_install::pending(ID).unwrap());
+    assert!(!crate::yuosd::app_install::pending(ID).unwrap());
     actor.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and COS_ORDINARY_TEST_COS/RUNNER"]
+#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_YU/RUNNER"]
 async fn ordinary_root_standalone_cancel_retry_publishes_only_after_cleanup() {
     let _environment = crate::test_env::lock_env();
     let fixture = Fixture::new();
@@ -770,7 +770,7 @@ async fn ordinary_root_standalone_cancel_retry_publishes_only_after_cleanup() {
     let review = body["review_id"].as_str().unwrap().to_string();
     let recovery_client = client.clone();
     let pending = tokio::spawn(async move {
-        crate::clawd::app_install::install(&state, body, &client).await
+        crate::yuosd::app_install::install(&state, body, &client).await
     });
     let deadline = Instant::now() + Duration::from_secs(5);
     while !group_empty(&actor.group(&fixture)) {
@@ -781,14 +781,14 @@ async fn ordinary_root_standalone_cancel_retry_publishes_only_after_cleanup() {
     assert!(fixture.approved());
     pending.abort();
     assert!(pending.await.unwrap_err().is_cancelled());
-    assert!(crate::clawd::app_mutation::admit(ID).is_err(), "cancelled waiter released active cleanup custody");
+    assert!(crate::yuosd::app_mutation::admit(ID).is_err(), "cancelled waiter released active cleanup custody");
     provider.record_result(&Ok(json!({"completed": true})));
     drop(provider);
     wait_fence_release().await;
     assert_eq!(fixture.version(), "2.0.0", "client loss cancelled the Root publication controller");
     assert_eq!(crate::approvals::system_review::get(0, &review).unwrap().state,
         crate::approvals::system_review::ReviewState::Consumed);
-    let result = crate::clawd::app_install::install(&fixture.state, json!({
+    let result = crate::yuosd::app_install::install(&fixture.state, json!({
         "action": "recover", "app_id": ID, "expected_apps_root": Path::new(BASE).join("apps"),
     }), &recovery_client).await.unwrap();
     assert_eq!(result["manifest"]["version"], "2.0.0");
@@ -800,7 +800,7 @@ async fn ordinary_root_standalone_cancel_retry_publishes_only_after_cleanup() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace, idmapped mounts and COS_ORDINARY_TEST_COS/RUNNER"]
+#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace, idmapped mounts and YUOS_ORDINARY_TEST_YU/RUNNER"]
 async fn ordinary_root_task_host_retires_namespace_data_before_publication() {
     let _environment = crate::test_env::lock_env();
     let fixture = Fixture::new();
@@ -816,23 +816,23 @@ async fn ordinary_root_task_host_retires_namespace_data_before_publication() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and COS_ORDINARY_TEST_COS/RUNNER"]
+#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_YU/RUNNER"]
 async fn ordinary_root_indeterminate_provider_blocks_store_publication() {
     let _environment = crate::test_env::lock_env();
     let fixture = Fixture::new();
     let mut actor = Actor::start(&fixture, false, false);
     actor.ready().await;
     let mut provider = app_execution::provider(&actor.session(), OWNER).unwrap().unwrap();
-    provider.record_result(&Err(crate::clawd::protocol::BrokerError::indeterminate(
+    provider.record_result(&Err(crate::yuosd::protocol::BrokerError::indeterminate(
         "synthetic provider has no completion receipt",
     )));
     drop(provider);
     let error = fixture.publish_directory().await.unwrap_err();
-    let released = crate::clawd::app_mutation::fence(ID).await.unwrap();
+    let released = crate::yuosd::app_mutation::fence(ID).await.unwrap();
     drop(released);
     assert!(error.contains("provider completion is unknown"), "{error}");
-    assert!(crate::clawd::app_install::pending(ID).unwrap());
-    assert!(crate::clawd::app_mutation::admit(ID).is_err(), "durable pending custody disappeared with the in-process fence");
+    assert!(crate::yuosd::app_install::pending(ID).unwrap());
+    assert!(crate::yuosd::app_mutation::admit(ID).is_err(), "durable pending custody disappeared with the in-process fence");
     assert_eq!(fixture.version(), "1.0.0");
     assert!(fixture.approved());
     assert!(group_empty(&actor.group(&fixture)));
@@ -931,7 +931,7 @@ async fn grandchild_pid(group: &Path) -> u32 {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and COS_ORDINARY_TEST_COS/RUNNER"]
+#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_YU/RUNNER"]
 async fn ordinary_root_live_grandchild_blocks_publication_until_checked_retry() {
     let _environment = crate::test_env::lock_env();
     let fixture = Fixture::new();
@@ -947,7 +947,7 @@ async fn ordinary_root_live_grandchild_blocks_publication_until_checked_retry() 
     assert!(error.contains("pending") || error.contains("populated"), "{error}");
     assert_eq!(fixture.version(), "1.0.0");
     assert!(fixture.approved());
-    assert!(!claw_display_control::identity::pidfd_exited(process.as_fd()).unwrap());
+    assert!(!yuos_display_control::identity::pidfd_exited(process.as_fd()).unwrap());
     assert!(!group_empty(&group));
     assert!(app_execution::provider(&actor.session(), OWNER).is_err());
     held.release();
@@ -959,7 +959,7 @@ async fn ordinary_root_live_grandchild_blocks_publication_until_checked_retry() 
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and COS_ORDINARY_TEST_COS/RUNNER"]
+#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_YU/RUNNER"]
 async fn ordinary_root_foreign_and_lost_ack_cannot_authorize_publication() {
     let _environment = crate::test_env::lock_env();
     let fixture = Fixture::new();
@@ -972,8 +972,8 @@ async fn ordinary_root_foreign_and_lost_ack_cannot_authorize_publication() {
     command.args(["--exact", FOREIGN, "--ignored", "--nocapture", "--test-threads=1"])
         .env_clear().env("PATH", "/usr/local/bin:/usr/bin:/bin")
         .env("HOME", format!("{BASE}/home/custody-fixture-owner"))
-        .env("COS_ORDINARY_CUSTODY_ACTOR", "1")
-        .env("COS_ORDINARY_CUSTODY_FOREIGN_SOCKET", &socket)
+        .env("YUOS_ORDINARY_CUSTODY_ACTOR", "1")
+        .env("YUOS_ORDINARY_CUSTODY_FOREIGN_SOCKET", &socket)
         .stdin(Stdio::piped()).stdout(Stdio::inherit()).stderr(Stdio::inherit());
     unsafe {
         command.pre_exec(|| {

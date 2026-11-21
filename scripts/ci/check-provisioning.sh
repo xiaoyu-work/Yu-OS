@@ -5,19 +5,19 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 scripts=(
     scripts/ci/*.sh
     scripts/lib/image-identity.sh
-    rootfs/features/claw-mail-ai/install.sh
+    rootfs/features/yuos-mail-ai/install.sh
     tools/install-mail-ai.sh
     packaging/deb/build-debs.sh
     packaging/deb/build-desktop-deb.sh
-    desktop/hyprland-claw/build-locker.sh
-    desktop/hyprland-claw/stage-desktop.sh
+    desktop/hyprland-yuos/build-locker.sh
+    desktop/hyprland-yuos/stage-desktop.sh
     rootfs/features/desktop/install.sh
-    crates/claw-display-login/test/fixtures/bootstrap.sh
-    crates/claw-display-login/test/fixtures/authenticate.sh
+    crates/yuos-display-login/test/fixtures/bootstrap.sh
+    crates/yuos-display-login/test/fixtures/authenticate.sh
     targets/docker/build.sh
     targets/docker/container-entrypoint.sh
     targets/wsl/build.sh
-    targets/wsl/overlay/usr/lib/cos/init/wsl-oobe
+    targets/wsl/overlay/usr/lib/yuos/init/wsl-oobe
 )
 for script in "${scripts[@]}"; do
     bash -n "$script"

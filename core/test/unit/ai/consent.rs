@@ -193,20 +193,20 @@ fn format_for_review_shows_every_field() {
     assert!(text.contains("external-content"));
 }
 
-// ---- on-disk round trip (uses COS_USER_CONFIG_DIR) ----
+// ---- on-disk round trip (uses YUOS_USER_CONFIG_DIR) ----
 
 fn with_tmp_consent_dir<R>(label: &str, f: impl FnOnce() -> R) -> R {
     let tmp = std::env::temp_dir().join(format!(
-        "cos-consent-test-{label}-{}",
+        "yuos-consent-test-{label}-{}",
         std::process::id()
     ));
     let _ = fs::remove_dir_all(&tmp);
-    let prev = std::env::var_os("COS_USER_CONFIG_DIR");
-    std::env::set_var("COS_USER_CONFIG_DIR", &tmp);
+    let prev = std::env::var_os("YUOS_USER_CONFIG_DIR");
+    std::env::set_var("YUOS_USER_CONFIG_DIR", &tmp);
     let out = f();
     match prev {
-        Some(v) => std::env::set_var("COS_USER_CONFIG_DIR", v),
-        None => std::env::remove_var("COS_USER_CONFIG_DIR"),
+        Some(v) => std::env::set_var("YUOS_USER_CONFIG_DIR", v),
+        None => std::env::remove_var("YUOS_USER_CONFIG_DIR"),
     }
     let _ = fs::remove_dir_all(&tmp);
     out

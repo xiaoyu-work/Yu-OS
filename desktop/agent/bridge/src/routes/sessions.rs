@@ -8,14 +8,14 @@ use axum::{
     http::StatusCode,
 };
 use chrono::DateTime;
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     ErrorCode, HistoryMessage, HistoryResponse, SessionSummary, SessionUpdateRequest,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{api_error::ApiError, state::AppState, translation};
-use clawd_client::Command;
+use yuosd_client::Command;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -56,7 +56,7 @@ struct Conversation {
     #[serde(default)]
     message_count: u64,
     #[serde(default)]
-    jobs: Vec<cos_agent_protocol::ConversationJob>,
+    jobs: Vec<yuos_agent_protocol::ConversationJob>,
     #[serde(default)]
     jobs_truncated: bool,
     #[serde(default)]
@@ -72,7 +72,7 @@ pub async fn list(
     Query(query): Query<ListQuery>,
 ) -> Result<Json<Vec<SessionSummary>>, ApiError> {
     let canonical = state
-        .clawd
+        .yuosd
         .call(
             Command::AgentConversationList,
             json!({ "archived": query.archived, "limit": 1_000 }),
@@ -94,7 +94,7 @@ pub async fn list(
 
     if !query.archived {
         let legacy = state
-            .clawd
+            .yuosd
             .call(Command::MemorySessions, json!({ "limit": 1_000 }))
             .await
             .map_err(|error| ApiError::service_unavailable(error.to_string()))?;
@@ -115,11 +115,11 @@ pub async fn list(
     Ok(Json(sessions))
 }
 
-pub async fn create(State(state):State<AppState>,Json(request):Json<cos_agent_protocol::SessionCreateRequest>)->Result<Json<SessionSummary>,ApiError>{
+pub async fn create(State(state):State<AppState>,Json(request):Json<yuos_agent_protocol::SessionCreateRequest>)->Result<Json<SessionSummary>,ApiError>{
     if let Some(id)=request.workspace_id.as_deref() {
-        cos_agent_protocol::workspaces::validate_id(id).map_err(|error|ApiError::new(StatusCode::BAD_REQUEST,ErrorCode::InvalidRequest,error))?;
+        yuos_agent_protocol::workspaces::validate_id(id).map_err(|error|ApiError::new(StatusCode::BAD_REQUEST,ErrorCode::InvalidRequest,error))?;
     }
-    let value=state.clawd.call(Command::AgentConversationCreate,serde_json::to_value(&request).map_err(|error|ApiError::bad_gateway(error.to_string()))?).await
+    let value=state.yuosd.call(Command::AgentConversationCreate,serde_json::to_value(&request).map_err(|error|ApiError::bad_gateway(error.to_string()))?).await
         .map_err(|error|ApiError::service_unavailable(error.to_string()))?;
     let session=summary(parse_conversation(value)?,true,false)?;
     if session.workspace_id!=request.workspace_id{return Err(ApiError::bad_gateway("Workspace conversation acknowledgement mismatch"));}
@@ -134,7 +134,7 @@ pub async fn get(
         Ok(conversation) => summary(conversation, true, false).map(Json),
         Err(primary) => {
             let value = state
-                .clawd
+                .yuosd
                 .call(Command::MemorySessions, json!({ "limit": 1_000 }))
                 .await
                 .map_err(|_| primary)?;
@@ -178,7 +178,7 @@ pub async fn update(
         params["archived"] = Value::Bool(archived);
     }
     let value = state
-        .clawd
+        .yuosd
         .call(Command::AgentConversationUpdate, params)
         .await
         .map_err(|error| ApiError::bad_gateway(error.to_string()))?;
@@ -192,7 +192,7 @@ pub async fn fork(
     Path(id): Path<String>,
 ) -> Result<Json<SessionSummary>, ApiError> {
     let value = state
-        .clawd
+        .yuosd
         .call(Command::AgentConversationFork, json!({ "id": id }))
         .await
         .map_err(|error| ApiError::bad_gateway(error.to_string()))?;
@@ -236,7 +236,7 @@ pub async fn history(
         }
         Err(primary) => {
             let value = state
-                .clawd
+                .yuosd
                 .call(
                     Command::MemoryHistory,
                     json!({ "session_id": id, "limit": 500 }),
@@ -256,7 +256,7 @@ async fn get_conversation(
     limit: u32,
 ) -> Result<Conversation, ApiError> {
     let value = state
-        .clawd
+        .yuosd
         .call(
             Command::AgentConversationGet,
             json!({ "id": id, "limit": limit }),

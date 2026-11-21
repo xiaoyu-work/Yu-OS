@@ -1,7 +1,7 @@
 #!/bin/bash
 # packaging/deb/tests/test-security-floor-packaging.sh
 #
-# Adversarial tests for Claw OS update downgrade protection, driven
+# Adversarial tests for Yu OS update downgrade protection, driven
 # through the *real* artifacts: real `.deb` archives built with
 # `dpkg-deb`, the real rendered maintainer scripts, the real compiled
 # verifier, and real OpenPGP signatures made with an ephemeral key that
@@ -34,8 +34,8 @@
 #   bash packaging/deb/tests/test-security-floor-packaging.sh
 #
 # Environment:
-#   COS_SECURITY_FLOOR_BIN  prebuilt claw-security-floor (else cargo build)
-#   COS_TEST_TMPDIR         scratch root (must be a Linux filesystem)
+#   YUOS_SECURITY_FLOOR_BIN  prebuilt yuos-security-floor (else cargo build)
+#   YUOS_TEST_TMPDIR         scratch root (must be a Linux filesystem)
 
 set -euo pipefail
 
@@ -48,7 +48,7 @@ MAKE_MANIFEST="$RELEASE_SECURITY_DIR/make-manifest.py"
 RENDER_PREINST="$RELEASE_SECURITY_DIR/render-preinst.sh"
 DEB_DIR="$PROJECT_DIR/packaging/deb"
 
-WORK_ROOT="${COS_TEST_TMPDIR:-$PROJECT_DIR/build/tests}"
+WORK_ROOT="${YUOS_TEST_TMPDIR:-$PROJECT_DIR/build/tests}"
 WORK="$WORK_ROOT/security-floor-$$"
 PASS=0
 
@@ -85,29 +85,29 @@ mkdir -p "$WORK"
 # ---------------------------------------------------------------------------
 # The verifier under test.
 # ---------------------------------------------------------------------------
-HELPER="${COS_SECURITY_FLOOR_BIN:-}"
+HELPER="${YUOS_SECURITY_FLOOR_BIN:-}"
 if [ -z "$HELPER" ]; then
     for candidate in \
-        "$PROJECT_DIR/target/debug/claw-security-floor" \
-        "$PROJECT_DIR/target/release/claw-security-floor" \
-        "$PROJECT_DIR/core/target/debug/claw-security-floor" \
-        "$PROJECT_DIR/core/target/release/claw-security-floor"; do
+        "$PROJECT_DIR/target/debug/yuos-security-floor" \
+        "$PROJECT_DIR/target/release/yuos-security-floor" \
+        "$PROJECT_DIR/core/target/debug/yuos-security-floor" \
+        "$PROJECT_DIR/core/target/release/yuos-security-floor"; do
         [ -x "$candidate" ] && { HELPER="$candidate"; break; }
     done
 fi
 if [ -z "$HELPER" ]; then
-    echo ":: building claw-security-floor" >&2
-    ( cd "$PROJECT_DIR/core" && cargo build --bin claw-security-floor ) >&2
-    HELPER="$PROJECT_DIR/target/debug/claw-security-floor"
-    [ -x "$HELPER" ] || HELPER="$PROJECT_DIR/core/target/debug/claw-security-floor"
+    echo ":: building yuos-security-floor" >&2
+    ( cd "$PROJECT_DIR/core" && cargo build --bin yuos-security-floor ) >&2
+    HELPER="$PROJECT_DIR/target/debug/yuos-security-floor"
+    [ -x "$HELPER" ] || HELPER="$PROJECT_DIR/core/target/debug/yuos-security-floor"
 fi
-[ -x "$HELPER" ] || fail "claw-security-floor was not built"
+[ -x "$HELPER" ] || fail "yuos-security-floor was not built"
 
 # A debug build carries hundreds of megabytes of symbols. The tests
 # copy the verifier into every fixture package and build real .debs
 # from them, so work on a stripped copy: it is the same program, and
 # the archives stay small enough to build in seconds.
-STRIPPED_HELPER="$WORK/claw-security-floor"
+STRIPPED_HELPER="$WORK/yuos-security-floor"
 cp "$HELPER" "$STRIPPED_HELPER"
 chmod 0755 "$STRIPPED_HELPER"
 if command -v strip >/dev/null 2>&1; then
@@ -122,7 +122,7 @@ HELPER="$STRIPPED_HELPER"
 export GNUPGHOME="$WORK/gnupg"
 mkdir -m 700 -p "$GNUPGHOME"
 gpg --batch --quiet --passphrase '' --quick-generate-key \
-    'Claw OS Security Floor Test <test@example.invalid>' default default never \
+    'Yu OS Security Floor Test <test@example.invalid>' default default never \
     >/dev/null 2>&1
 KEY_ID="$(gpg --batch --with-colons --list-secret-keys \
     | awk -F: '$1 == "fpr" { print $10; exit }')"
@@ -133,7 +133,7 @@ gpg --batch --export "$KEY_ID" > "$KEYRING"
 # ---------------------------------------------------------------------------
 # Fixture package builder.
 #
-# Stages every component claw-os-agent declares, generates a real
+# Stages every component yuos-agent declares, generates a real
 # signed manifest with the production script, renders the production
 # preinst, and assembles a real .deb.
 # ---------------------------------------------------------------------------
@@ -141,7 +141,7 @@ COMPONENT_PATHS=$(python3 - "$POLICY" <<'PY'
 import json, sys
 policy = json.load(open(sys.argv[1], encoding="utf-8"))
 for entry in policy["components"]:
-    if entry["package"] == "claw-os-agent":
+    if entry["package"] == "yuos-agent":
         print(entry["path"])
 PY
 )
@@ -166,10 +166,10 @@ stage_package() {
     local path
     for path in $COMPONENT_PATHS; do
         mkdir -p "$stage$(dirname "$path")"
-        if [ "$path" = "/usr/lib/cos/bin/claw-security-floor" ]; then
+        if [ "$path" = "/usr/lib/yuos/bin/yuos-security-floor" ]; then
             cp "$HELPER" "$stage$path"
         else
-            printf 'claw-os component %s %s %s\n' "$path" "$version" "$marker" \
+            printf 'yuos component %s %s %s\n' "$path" "$version" "$marker" \
                 > "$stage$path"
         fi
         chmod 0755 "$stage$path"
@@ -189,33 +189,33 @@ PY
     [ -z "$unsigned" ] && sign_args=(--sign-key "$KEY_ID")
     local issued_args=()
     [ -n "$issued_at" ] && issued_args=(--issued-at "$issued_at")
-    mkdir -p "$stage/usr/lib/cos/release-security"
+    mkdir -p "$stage/usr/lib/yuos/release-security"
     python3 "$MAKE_MANIFEST" \
-        --package claw-os-agent \
+        --package yuos-agent \
         --version "$version" \
         --arch amd64 \
         --suite trixie \
         --stage-dir "$stage" \
         --policy "$policy" \
-        --output "$stage/usr/lib/cos/release-security/claw-os-agent/manifest.json" \
+        --output "$stage/usr/lib/yuos/release-security/yuos-agent/manifest.json" \
         "${sign_args[@]}" "${issued_args[@]}" > /dev/null
     rm -f "$stage/policy.json"
 
     local staged_epoch="${epoch:-$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["security_epoch"])' "$POLICY")}"
-    "$RENDER_PREINST" claw-os-agent "$version" "$staged_epoch" "$stage" \
+    "$RENDER_PREINST" yuos-agent "$version" "$staged_epoch" "$stage" \
         "$stage/DEBIAN/preinst"
-    install -m 755 "$DEB_DIR/claw-os-agent/prerm" "$stage/DEBIAN/prerm"
-    install -m 755 "$DEB_DIR/claw-os-agent/postrm" "$stage/DEBIAN/postrm"
-    sed -e "s/__VERSION__/$version/g" "$DEB_DIR/claw-os-agent/postinst" \
+    install -m 755 "$DEB_DIR/yuos-agent/prerm" "$stage/DEBIAN/prerm"
+    install -m 755 "$DEB_DIR/yuos-agent/postrm" "$stage/DEBIAN/postrm"
+    sed -e "s/__VERSION__/$version/g" "$DEB_DIR/yuos-agent/postinst" \
         > "$stage/DEBIAN/postinst"
     chmod 0755 "$stage/DEBIAN/postinst"
     cat > "$stage/DEBIAN/control" <<EOF
-Package: claw-os-agent
+Package: yuos-agent
 Version: $version
 Section: admin
 Priority: optional
 Architecture: amd64
-Maintainer: Claw OS <noreply@github.com>
+Maintainer: Yu OS <noreply@github.com>
 Description: fixture package for downgrade-protection tests
 EOF
 }
@@ -234,17 +234,17 @@ unpack_into() {
 # Run the exact helper invocation the postinst performs.
 commit_release() {
     local root="$1" version="$2"
-    local manifest="$root/usr/lib/cos/release-security/claw-os-agent/manifest.json"
+    local manifest="$root/usr/lib/yuos/release-security/yuos-agent/manifest.json"
     local signature="$manifest.asc"
     if [ -f "$signature" ]; then
-        "$root/usr/lib/cos/bin/claw-security-floor" commit \
-            --root "$root" --package claw-os-agent --version "$version" \
+        "$root/usr/lib/yuos/bin/yuos-security-floor" commit \
+            --root "$root" --package yuos-agent --version "$version" \
             --manifest "$manifest" --signature "$signature" \
-            --reason "claw-os-agent configure"
+            --reason "yuos-agent configure"
     else
-        "$root/usr/lib/cos/bin/claw-security-floor" commit \
-            --root "$root" --package claw-os-agent --version "$version" \
-            --manifest "$manifest" --reason "claw-os-agent configure"
+        "$root/usr/lib/yuos/bin/yuos-security-floor" commit \
+            --root "$root" --package yuos-agent --version "$version" \
+            --manifest "$manifest" --reason "yuos-agent configure"
     fi
 }
 
@@ -252,12 +252,12 @@ commit_release() {
 install_keyring() {
     local root="$1"
     mkdir -p "$root/usr/share/keyrings"
-    cp "$KEYRING" "$root/usr/share/keyrings/claw-os-archive-keyring.gpg"
+    cp "$KEYRING" "$root/usr/share/keyrings/yuos-archive-keyring.gpg"
 }
 
 floor_generation() {
     python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["generation"])' \
-        "$1/var/lib/cos/security/floor.json"
+        "$1/var/lib/yuos/security/floor.json"
 }
 
 SECURITY_EPOCH="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["security_epoch"])' "$POLICY")"
@@ -293,14 +293,14 @@ DPKG_ROOT="$ROOT" "$STAGE1/DEBIAN/preinst" install \
     || fail "a first install must be allowed"
 unpack_into "$STAGE1" "$ROOT"
 commit_release "$ROOT" "$V1" >/dev/null || fail "the first configure must seed the floor"
-[ -f "$ROOT/var/lib/cos/security/floor.json" ] || fail "no floor state was written"
-[ -f "$ROOT/var/lib/cos/security/history.jsonl" ] || fail "no floor history was written"
+[ -f "$ROOT/var/lib/yuos/security/floor.json" ] || fail "no floor state was written"
+[ -f "$ROOT/var/lib/yuos/security/history.jsonl" ] || fail "no floor history was written"
 [ "$(floor_generation "$ROOT")" = "1" ] || fail "the first floor must be generation 1"
 ok "a first install seeds the security floor"
 
 # The floor must have recorded the publisher key, so later unsigned
 # candidates can be refused.
-grep -q "$KEY_ID" "$ROOT/var/lib/cos/security/floor.json" \
+grep -q "$KEY_ID" "$ROOT/var/lib/yuos/security/floor.json" \
     || fail "the floor did not record the verified publisher key"
 ok "the floor records the publisher key that signed the release"
 
@@ -308,7 +308,7 @@ ok "the floor records the publisher key that signed the release"
 # 2. A newer, correctly signed release is accepted.
 # ---------------------------------------------------------------------------
 DPKG_ROOT="$ROOT" "$ROOT/DEBIAN_prerm_missing" 2>/dev/null || true
-install -m 755 "$DEB_DIR/claw-os-agent/prerm" "$WORK/installed-prerm"
+install -m 755 "$DEB_DIR/yuos-agent/prerm" "$WORK/installed-prerm"
 DPKG_ROOT="$ROOT" "$WORK/installed-prerm" upgrade "$V2" \
     || fail "an upgrade to a newer version must be allowed by prerm"
 DPKG_ROOT="$ROOT" "$STAGE2/DEBIAN/preinst" upgrade "$V1" \
@@ -406,7 +406,7 @@ ok "an expired release manifest is refused even though it is newer"
 # ---------------------------------------------------------------------------
 STAGE_TAMPERED="$WORK/stage-tampered"
 stage_package "$STAGE_TAMPERED" "1:0.2.0+git700.gxxxxxxxxxxxx" eta
-python3 - "$STAGE_TAMPERED/usr/lib/cos/release-security/claw-os-agent/manifest.json" <<'PY'
+python3 - "$STAGE_TAMPERED/usr/lib/yuos/release-security/yuos-agent/manifest.json" <<'PY'
 import json, sys
 path = sys.argv[1]
 document = json.loads(open(path, encoding="utf-8").read())
@@ -415,7 +415,7 @@ open(path, "w", encoding="utf-8").write(
     json.dumps(document, sort_keys=True, separators=(",", ":")) + "\n"
 )
 PY
-"$RENDER_PREINST" claw-os-agent "1:0.2.0+git700.gxxxxxxxxxxxx" "$SECURITY_EPOCH" \
+"$RENDER_PREINST" yuos-agent "1:0.2.0+git700.gxxxxxxxxxxxx" "$SECURITY_EPOCH" \
     "$STAGE_TAMPERED" "$STAGE_TAMPERED/DEBIAN/preinst"
 if DPKG_ROOT="$ROOT2" "$STAGE_TAMPERED/DEBIAN/preinst" upgrade "$V1" \
     2>"$WORK/tampered.err"; then
@@ -439,23 +439,23 @@ ok "an unsigned candidate is refused once a signed release has been recorded"
 # 8. Removal and purge leave the floor intact.
 # ---------------------------------------------------------------------------
 GENERATION_BEFORE="$(floor_generation "$ROOT2")"
-DPKG_ROOT="$ROOT2" "$ROOT2/usr/lib/cos/bin/claw-security-floor" show \
+DPKG_ROOT="$ROOT2" "$ROOT2/usr/lib/yuos/bin/yuos-security-floor" show \
     --root "$ROOT2" >/dev/null
-"$DEB_DIR/claw-os-agent/postrm" remove >/dev/null 2>&1 || true
-[ -f "$ROOT2/var/lib/cos/security/floor.json" ] \
+"$DEB_DIR/yuos-agent/postrm" remove >/dev/null 2>&1 || true
+[ -f "$ROOT2/var/lib/yuos/security/floor.json" ] \
     || fail "package removal deleted the floor"
 [ "$(floor_generation "$ROOT2")" = "$GENERATION_BEFORE" ] \
     || fail "package removal changed the floor"
-grep -q "NOT removed" "$DEB_DIR/claw-os-agent/postrm" \
+grep -q "NOT removed" "$DEB_DIR/yuos-agent/postrm" \
     || fail "the agent postrm must state that the floor survives purge"
-grep -Fq 'rm -rf "$DPKG_ROOT/var/lib/cos/security/staging"' \
-    "$DEB_DIR/claw-os-agent/postrm" \
+grep -Fq 'rm -rf "$DPKG_ROOT/var/lib/yuos/security/staging"' \
+    "$DEB_DIR/yuos-agent/postrm" \
     || fail "purge should still clean the candidate staging directory"
-if grep -Eq 'rm -rf?[[:space:]]+"?\$?\{?DPKG_ROOT\}?"?/var/lib/cos/security"?[[:space:]]*$' \
-    "$DEB_DIR/claw-os-agent/postrm"; then
+if grep -Eq 'rm -rf?[[:space:]]+"?\$?\{?DPKG_ROOT\}?"?/var/lib/yuos/security"?[[:space:]]*$' \
+    "$DEB_DIR/yuos-agent/postrm"; then
     fail "the agent postrm must never delete the floor directory"
 fi
-if grep -Fq '/var/lib/cos-security' "$DEB_DIR/claw-os-agent/postrm"; then
+if grep -Fq '/var/lib/yuos-security' "$DEB_DIR/yuos-agent/postrm"; then
     fail "the agent postrm must never delete the runtime projection"
 fi
 ok "removal and purge preserve the security floor"
@@ -479,10 +479,10 @@ build_deb() {
     # `-Znone` keeps the fixture archives fast to assemble; the hook
     # path under test reads the payload tar, not a specific compressor.
     fakeroot dpkg-deb -Znone --root-owner-group --build "$stage" \
-        "$DEBS/claw-os-agent_${version}_amd64.deb" >/dev/null 2>&1 \
+        "$DEBS/yuos-agent_${version}_amd64.deb" >/dev/null 2>&1 \
         || dpkg-deb -Znone --root-owner-group --build "$stage" \
-            "$DEBS/claw-os-agent_${version}_amd64.deb" >/dev/null
-    printf '%s\n' "$DEBS/claw-os-agent_${version}_amd64.deb"
+            "$DEBS/yuos-agent_${version}_amd64.deb" >/dev/null
+    printf '%s\n' "$DEBS/yuos-agent_${version}_amd64.deb"
 }
 OLD_DEB="$(build_deb "$STAGE1" "$V1")"
 NEW_DEB="$(build_deb "$STAGE2" "$V2")"
@@ -498,7 +498,7 @@ hook_input() {
     printf 'VERSION 2\nAPT::Architecture=amd64\n\n%s\n' "$1"
 }
 
-if hook_input "claw-os-agent $V2 < $V1 $OLD_DEB" \
+if hook_input "yuos-agent $V2 < $V1 $OLD_DEB" \
     | "$HELPER" apt-hook --root "$ROOT3" 2>"$WORK/hook.err"; then
     fail "the APT hook accepted an older candidate"
 fi
@@ -506,40 +506,40 @@ grep -q "version_regression" "$WORK/hook.err" \
     || fail "the APT hook refusal was not classified"
 ok "the APT hook refuses an older candidate before anything is unpacked"
 
-hook_input "claw-os-agent $V2 = $V2 $NEW_DEB" \
+hook_input "yuos-agent $V2 = $V2 $NEW_DEB" \
     | "$HELPER" apt-hook --root "$ROOT3" >/dev/null \
     || fail "the APT hook refused the current release"
 ok "the APT hook accepts the current release"
 
 hook_input "vim - < 9.0 /var/cache/apt/archives/vim_9.0_amd64.deb" \
     | "$HELPER" apt-hook --root "$ROOT3" >/dev/null \
-    || fail "the APT hook must ignore transactions with no Claw OS package"
+    || fail "the APT hook must ignore transactions with no Yu OS package"
 ok "the APT hook ignores unrelated transactions"
 
 # A hook wrapper without the verifier installed must drain stdin and
-# succeed, so a half-removed Claw OS cannot break unrelated apt runs.
+# succeed, so a half-removed Yu OS cannot break unrelated apt runs.
 HOOK_WRAPPER="$WORK/hook-wrapper"
-sed 's|^HELPER=.*|HELPER=/nonexistent/claw-security-floor|' \
+sed 's|^HELPER=.*|HELPER=/nonexistent/yuos-security-floor|' \
     "$DEB_DIR/common/security-floor-hook" > "$HOOK_WRAPPER"
 chmod 0755 "$HOOK_WRAPPER"
-hook_input "claw-os-agent $V2 < $V1 $OLD_DEB" | "$HOOK_WRAPPER" \
+hook_input "yuos-agent $V2 < $V1 $OLD_DEB" | "$HOOK_WRAPPER" \
     || fail "the APT hook wrapper must tolerate a missing verifier"
 ok "the APT hook wrapper tolerates a missing verifier"
 
 # ---------------------------------------------------------------------------
 # 10. Recovery authorizations.
 # ---------------------------------------------------------------------------
-RECOVERY_DIR="$ROOT3/var/lib/cos/security/recovery"
+RECOVERY_DIR="$ROOT3/var/lib/yuos/security/recovery"
 mkdir -p "$RECOVERY_DIR"
 FLOOR_DIGEST="$(python3 -c '
 import hashlib, sys
 print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest())
-' "$ROOT3/var/lib/cos/security/floor.json")"
+' "$ROOT3/var/lib/yuos/security/floor.json")"
 FLOOR_GENERATION="$(floor_generation "$ROOT3")"
 MANIFEST_DIGEST="$(python3 -c '
 import hashlib, sys
 print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest())
-' "$STAGE1/usr/lib/cos/release-security/claw-os-agent/manifest.json")"
+' "$STAGE1/usr/lib/yuos/release-security/yuos-agent/manifest.json")"
 
 write_authorization() {
     local id="$1" package="$2" version="$3" digest="$4" expires="$5"
@@ -554,7 +554,7 @@ document = {
     "expires_at": expires,
     "floor_generation": int(generation),
     "floor_sha256": floor,
-    "format": "claw.security-recovery/v1",
+    "format": "yuos.security-recovery/v1",
     "id": ident,
     "manifest_sha256": digest,
     "package": package,
@@ -579,7 +579,7 @@ print((datetime.datetime.now(tz=datetime.timezone.utc)
        - datetime.timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
 
 # Wrong component.
-write_authorization "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" claw-os-base "$V1" \
+write_authorization "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" yuos-base "$V1" \
     "$MANIFEST_DIGEST" "$FUTURE"
 if DPKG_ROOT="$ROOT3" "$STAGE1/DEBIAN/preinst" upgrade "$V2" >/dev/null 2>&1; then
     fail "an authorization for another package permitted a downgrade"
@@ -588,7 +588,7 @@ ok "a recovery authorization for another package does not apply"
 
 # Expired.
 rm -f "$RECOVERY_DIR"/*.json
-write_authorization "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" claw-os-agent "$V1" \
+write_authorization "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" yuos-agent "$V1" \
     "$MANIFEST_DIGEST" "$PAST"
 if DPKG_ROOT="$ROOT3" "$STAGE1/DEBIAN/preinst" upgrade "$V2" >/dev/null 2>&1; then
     fail "an expired authorization permitted a downgrade"
@@ -597,7 +597,7 @@ ok "an expired recovery authorization does not apply"
 
 # Wrong artifact digest.
 rm -f "$RECOVERY_DIR"/*.json
-write_authorization "cccccccccccccccccccccccccccccccc" claw-os-agent "$V1" \
+write_authorization "cccccccccccccccccccccccccccccccc" yuos-agent "$V1" \
     "$(printf 'f%.0s' $(seq 64))" "$FUTURE"
 if DPKG_ROOT="$ROOT3" "$STAGE1/DEBIAN/preinst" upgrade "$V2" >/dev/null 2>&1; then
     fail "an authorization naming another artifact permitted a downgrade"
@@ -606,7 +606,7 @@ ok "a recovery authorization for another artifact does not apply"
 
 # Exactly right: allowed once, then consumed by the configure step.
 rm -f "$RECOVERY_DIR"/*.json
-write_authorization "dddddddddddddddddddddddddddddddd" claw-os-agent "$V1" \
+write_authorization "dddddddddddddddddddddddddddddddd" yuos-agent "$V1" \
     "$MANIFEST_DIGEST" "$FUTURE"
 DPKG_ROOT="$ROOT3" "$STAGE1/DEBIAN/preinst" upgrade "$V2" >/dev/null \
     || fail "an exactly matching authorization must permit the downgrade"
@@ -629,7 +629,7 @@ ok "a consumed recovery authorization cannot be replayed"
 
 # The authorize path itself cannot be driven without a terminal, which
 # is exactly the condition an agent, App or MCP session runs in.
-if "$HELPER" recover authorize --root "$ROOT3" --package claw-os-agent \
+if "$HELPER" recover authorize --root "$ROOT3" --package yuos-agent \
     --version "$V1" --epoch 1 --manifest-sha256 "$MANIFEST_DIGEST" \
     --reason "automated attempt" --expires-in 1 </dev/null >/dev/null 2>&1; then
     fail "a recovery authorization was recorded without an operator terminal"
@@ -645,12 +645,12 @@ install_keyring "$ROOT4"
 DPKG_ROOT="$ROOT4" "$STAGE1/DEBIAN/preinst" install >/dev/null
 unpack_into "$STAGE1" "$ROOT4"
 commit_release "$ROOT4" "$V1" >/dev/null
-cp "$ROOT4/var/lib/cos/security/floor.json" "$WORK/floor-gen1.json"
+cp "$ROOT4/var/lib/yuos/security/floor.json" "$WORK/floor-gen1.json"
 DPKG_ROOT="$ROOT4" "$STAGE2/DEBIAN/preinst" upgrade "$V1" >/dev/null
 unpack_into "$STAGE2" "$ROOT4"
 commit_release "$ROOT4" "$V2" >/dev/null
 
-cp "$WORK/floor-gen1.json" "$ROOT4/var/lib/cos/security/floor.json"
+cp "$WORK/floor-gen1.json" "$ROOT4/var/lib/yuos/security/floor.json"
 if DPKG_ROOT="$ROOT4" "$STAGE1/DEBIAN/preinst" upgrade "$V2" \
     2>"$WORK/rollback.err"; then
     fail "a rolled-back floor state was accepted"
@@ -670,7 +670,7 @@ install_keyring "$ROOT5"
 DPKG_ROOT="$ROOT5" "$STAGE1/DEBIAN/preinst" install >/dev/null
 unpack_into "$STAGE1" "$ROOT5"
 commit_release "$ROOT5" "$V1" >/dev/null
-printf '{"format":"nope"}\n' > "$ROOT5/var/lib/cos/security/floor.json"
+printf '{"format":"nope"}\n' > "$ROOT5/var/lib/yuos/security/floor.json"
 if DPKG_ROOT="$ROOT5" "$STAGE2/DEBIAN/preinst" upgrade "$V1" >/dev/null 2>&1; then
     fail "a corrupt floor was treated as absent"
 fi
@@ -683,8 +683,8 @@ install_keyring "$ROOT6"
 DPKG_ROOT="$ROOT6" "$STAGE1/DEBIAN/preinst" install >/dev/null
 unpack_into "$STAGE1" "$ROOT6"
 commit_release "$ROOT6" "$V1" >/dev/null
-mv "$ROOT6/var/lib/cos/security/floor.json" "$WORK/elsewhere.json"
-ln -s "$WORK/elsewhere.json" "$ROOT6/var/lib/cos/security/floor.json"
+mv "$ROOT6/var/lib/yuos/security/floor.json" "$WORK/elsewhere.json"
+ln -s "$WORK/elsewhere.json" "$ROOT6/var/lib/yuos/security/floor.json"
 if DPKG_ROOT="$ROOT6" "$STAGE2/DEBIAN/preinst" upgrade "$V1" >/dev/null 2>&1; then
     fail "a symlinked floor state was followed"
 fi
@@ -697,7 +697,7 @@ install_keyring "$ROOT7"
 DPKG_ROOT="$ROOT7" "$STAGE1/DEBIAN/preinst" install >/dev/null
 unpack_into "$STAGE1" "$ROOT7"
 commit_release "$ROOT7" "$V1" >/dev/null
-rm -f "$ROOT7/usr/lib/cos/bin/claw-security-floor"
+rm -f "$ROOT7/usr/lib/yuos/bin/yuos-security-floor"
 if DPKG_ROOT="$ROOT7" "$STAGE0/DEBIAN/preinst" upgrade "$V1" \
     2>"$WORK/noverifier.err"; then
     fail "a candidate was accepted with the verifier deleted"
@@ -709,35 +709,35 @@ ok "deleting the verifier does not disable the floor"
 # ---------------------------------------------------------------------------
 # 12. Package wiring contracts.
 # ---------------------------------------------------------------------------
-grep -Fq 'commit_security_floor' "$DEB_DIR/claw-os-agent/postinst" \
+grep -Fq 'commit_security_floor' "$DEB_DIR/yuos-agent/postinst" \
     || fail "the agent postinst must commit the floor"
-grep -Fq 'security_set_is_runnable' "$DEB_DIR/claw-os-agent/postinst" \
+grep -Fq 'security_set_is_runnable' "$DEB_DIR/yuos-agent/postinst" \
     || fail "the agent postinst must gate the service start on a compatible set"
-python3 - "$DEB_DIR/claw-os-agent/postinst" <<'PY'
+python3 - "$DEB_DIR/yuos-agent/postinst" <<'PY'
 import sys
 body = open(sys.argv[1], encoding="utf-8").read()
 commit = body.index("        commit_security_floor")
-start = body.index("deb-systemd-invoke start clawd.service")
-assert commit < start, "the floor must be committed before clawd is started"
+start = body.index("deb-systemd-invoke start yuosd.service")
+assert commit < start, "the floor must be committed before yuosd is started"
 PY
 ok "the agent postinst commits the floor before starting the broker"
 
-for package in claw-os-agent claw-os-base claw-os-desktop; do
+for package in yuos-agent yuos-base yuos-desktop; do
     grep -Fq 'check-incoming' "$DEB_DIR/$package/prerm" \
         || fail "$package prerm must gate the incoming version"
 done
 ok "every gated package refuses an older incoming version in prerm"
 
-grep -Fq 'claw-os-abi-__ABI__' "$DEB_DIR/claw-os-base/control" \
-    || fail "claw-os-base must depend on the agent ABI generation"
-grep -Fq 'claw-os-abi-__ABI__' "$DEB_DIR/claw-os-desktop/control" \
-    || fail "claw-os-desktop must depend on the agent ABI generation"
-grep -Fq 'Provides: claw-os-abi-__ABI__' "$DEB_DIR/claw-os-agent/control" \
-    || fail "claw-os-agent must provide the ABI generation"
+grep -Fq 'yuos-abi-__ABI__' "$DEB_DIR/yuos-base/control" \
+    || fail "yuos-base must depend on the agent ABI generation"
+grep -Fq 'yuos-abi-__ABI__' "$DEB_DIR/yuos-desktop/control" \
+    || fail "yuos-desktop must depend on the agent ABI generation"
+grep -Fq 'Provides: yuos-abi-__ABI__' "$DEB_DIR/yuos-agent/control" \
+    || fail "yuos-agent must provide the ABI generation"
 ok "package dependencies encode the compatible ABI generation"
 
-grep -Fq '/etc/apt/apt.conf.d/50claw-os-security-floor' \
-    "$DEB_DIR/claw-os-agent/conffiles" \
+grep -Fq '/etc/apt/apt.conf.d/50yuos-security-floor' \
+    "$DEB_DIR/yuos-agent/conffiles" \
     || fail "the APT hook configuration must be a conffile"
 ok "the APT hook configuration ships as a conffile"
 
@@ -749,14 +749,14 @@ BUILD_DESKTOP="$DEB_DIR/build-desktop-deb.sh"
 bash -n "$BUILD_DEBS" || fail "build-debs.sh is not valid bash"
 bash -n "$BUILD_DESKTOP" || fail "build-desktop-deb.sh is not valid bash"
 for needle in \
-    'ensure_bin claw-security-floor cos' \
-    '/usr/lib/cos/bin/claw-security-floor' \
-    '/usr/lib/cos/apt/security-floor-hook' \
-    '/etc/apt/apt.conf.d/50claw-os-security-floor' \
-    'write_release_manifest claw-os-agent' \
-    'write_release_manifest claw-os-base' \
-    'render_security_preinst claw-os-agent' \
-    'render_security_preinst claw-os-base'; do
+    'ensure_bin yuos-security-floor yu' \
+    '/usr/lib/yuos/bin/yuos-security-floor' \
+    '/usr/lib/yuos/apt/security-floor-hook' \
+    '/etc/apt/apt.conf.d/50yuos-security-floor' \
+    'write_release_manifest yuos-agent' \
+    'write_release_manifest yuos-base' \
+    'render_security_preinst yuos-agent' \
+    'render_security_preinst yuos-base'; do
     grep -Fq "$needle" "$BUILD_DEBS" \
         || fail "build-debs.sh does not wire '$needle'"
 done
@@ -765,26 +765,26 @@ grep -Fq 'render-preinst.sh' "$BUILD_DESKTOP" \
 grep -Fq 'make-manifest.py' "$BUILD_DESKTOP" \
     || fail "the desktop package must carry a release manifest"
 # Every package must stage into its own manifest subdirectory.
-for package in claw-os-agent claw-os-base; do
+for package in yuos-agent yuos-base; do
     grep -Fq "release-security/\$package" "$BUILD_DEBS" \
         || fail "build-debs.sh must stage per-package manifest directories"
 done
-grep -Fq 'release-security/claw-os-desktop/manifest.json' "$BUILD_DESKTOP" \
+grep -Fq 'release-security/yuos-desktop/manifest.json' "$BUILD_DESKTOP" \
     || fail "the desktop package must stage its own manifest directory"
 ok "every gated package build embeds the verifier and its own release manifest"
 
 # The APT hook must be one executable token: APT looks its protocol
 # version up by the exact command string.
-HOOK_CONF="$DEB_DIR/common/50claw-os-security-floor"
-grep -Fxq 'DPkg::Pre-Install-Pkgs { "/usr/lib/cos/apt/security-floor-hook"; };' "$HOOK_CONF" \
+HOOK_CONF="$DEB_DIR/common/50yuos-security-floor"
+grep -Fxq 'DPkg::Pre-Install-Pkgs { "/usr/lib/yuos/apt/security-floor-hook"; };' "$HOOK_CONF" \
     || fail "the hook must be registered as a single executable token"
-grep -Fxq 'DPkg::Tools::Options::/usr/lib/cos/apt/security-floor-hook::Version "2";' \
+grep -Fxq 'DPkg::Tools::Options::/usr/lib/yuos/apt/security-floor-hook::Version "2";' \
     "$HOOK_CONF" \
     || fail "the hook must be registered for protocol version 2"
 grep -q 'if \[' "$HOOK_CONF" \
     && fail "the hook command must not be a shell fragment"
 [[ "$(apt-config -c "$HOOK_CONF" shell hook_version \
-    'DPkg::Tools::Options::/usr/lib/cos/apt/security-floor-hook::Version' 2>/dev/null)" == "hook_version='2'" ]] \
+    'DPkg::Tools::Options::/usr/lib/yuos/apt/security-floor-hook::Version' 2>/dev/null)" == "hook_version='2'" ]] \
     || fail "APT does not parse the hook registration as intended"
 ok "the APT hook registration parses to exactly the intended keys"
 
@@ -792,12 +792,12 @@ ok "the APT hook registration parses to exactly the intended keys"
 # 14. The control metadata the publication merge job reads.
 # ---------------------------------------------------------------------------
 CONTROL_STAGE="$WORK/stage-control"
-mkdir -p "$CONTROL_STAGE/DEBIAN" "$CONTROL_STAGE/usr/share/doc/claw-os-agent"
-echo "fixture" > "$CONTROL_STAGE/usr/share/doc/claw-os-agent/README"
+mkdir -p "$CONTROL_STAGE/DEBIAN" "$CONTROL_STAGE/usr/share/doc/yuos-agent"
+echo "fixture" > "$CONTROL_STAGE/usr/share/doc/yuos-agent/README"
 POLICY_EPOCH="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["security_epoch"])' "$POLICY")"
 POLICY_ABI="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["abi"])' "$POLICY")"
-MIN_BASE="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["minimum_compatible"]["claw-os-base"])' "$POLICY")"
-MIN_DESKTOP="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["minimum_compatible"]["claw-os-desktop"])' "$POLICY")"
+MIN_BASE="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["minimum_compatible"]["yuos-base"])' "$POLICY")"
+MIN_DESKTOP="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["minimum_compatible"]["yuos-desktop"])' "$POLICY")"
 APP_RUNTIME_VERSION="$(python3 "$PROJECT_DIR/scripts/app_packages.py" runtime-version)"
 sed -e "s/__VERSION__/$V2/g" \
     -e "s/__ARCH__/amd64/g" \
@@ -806,18 +806,18 @@ sed -e "s/__VERSION__/$V2/g" \
     -e "s/__SECURITY_EPOCH__/$POLICY_EPOCH/g" \
     -e "s/__MIN_BASE__/$MIN_BASE/g" \
     -e "s/__MIN_DESKTOP__/$MIN_DESKTOP/g" \
-    "$DEB_DIR/claw-os-agent/control" > "$CONTROL_STAGE/DEBIAN/control"
+    "$DEB_DIR/yuos-agent/control" > "$CONTROL_STAGE/DEBIAN/control"
 CONTROL_DEB="$WORK/control-fixture.deb"
 dpkg-deb -Znone --root-owner-group --build "$CONTROL_STAGE" "$CONTROL_DEB" >/dev/null
-[ "$(dpkg-deb --field "$CONTROL_DEB" XB-Claw-Os-Security-Epoch)" = "$POLICY_EPOCH" ] \
+[ "$(dpkg-deb --field "$CONTROL_DEB" XB-YuOS-Security-Epoch)" = "$POLICY_EPOCH" ] \
     || fail "the security epoch must be readable from the built package"
-[ "$(dpkg-deb --field "$CONTROL_DEB" XB-Claw-Os-Abi)" = "$POLICY_ABI" ] \
+[ "$(dpkg-deb --field "$CONTROL_DEB" XB-YuOS-Abi)" = "$POLICY_ABI" ] \
     || fail "the ABI generation must be readable from the built package"
 dpkg-deb --field "$CONTROL_DEB" Provides \
     | grep -Fq "yuos-app-runtime-v1 (= $APP_RUNTIME_VERSION)" \
     || fail "the App runtime implementation version must survive control rendering"
-for service in "claw-os-abi-$POLICY_ABI" claw-os-app-permissions-v1 \
-    claw-os-capture-v1 claw-os-media-player-v1; do
+for service in "yuos-abi-$POLICY_ABI" yuos-app-permissions-v1 \
+    yuos-capture-v1 yuos-media-player-v1; do
     dpkg-deb --field "$CONTROL_DEB" Provides | tr ', ' '\n' | grep -Fxq "$service" \
         || fail "the $service virtual package must be declared"
 done
@@ -838,9 +838,9 @@ SIGNER="$RELEASE_SECURITY_DIR/sign-manifest.sh"
 source "$SIGNER"
 
 for script in "$DEB_DIR/build-debs.sh" "$DEB_DIR/build-desktop-deb.sh"; do
-    grep -Fq 'claw_resolve_signing_key' "$script" \
+    grep -Fq 'yuos_resolve_signing_key' "$script" \
         || fail "$(basename "$script") does not use the shared key resolver"
-    grep -Fq 'claw_write_release_manifest' "$script" \
+    grep -Fq 'yuos_write_release_manifest' "$script" \
         || fail "$(basename "$script") does not use the shared manifest writer"
     grep -q 'RELEASE_SECURITY_KEY_ID=""' "$script" \
         && fail "$(basename "$script") still clears a requested signing key"
@@ -849,16 +849,16 @@ ok "both package builds resolve and sign through the shared fail-closed helper"
 
 # No key requested: an unsigned build, clearly announced.
 unsigned_key="$(
-    CLAW_OS_RELEASE_SECURITY_KEY_ID="" GPG_KEY_ID="" \
-        claw_resolve_signing_key 2>"$WORK/unsigned-key.err"
+    YUOS_RELEASE_SECURITY_KEY_ID="" GPG_KEY_ID="" \
+        yuos_resolve_signing_key 2>"$WORK/unsigned-key.err"
 )" || fail "a build with no signing key must be allowed"
 [ -z "$unsigned_key" ] || fail "no key was requested, yet one was resolved"
 grep -q "UNSIGNED LOCAL BUILD" "$WORK/unsigned-key.err" \
     || fail "an unsigned local build must say so"
 
 # A key that is requested but unavailable is fatal.
-if CLAW_OS_RELEASE_SECURITY_KEY_ID="DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF" \
-    claw_resolve_signing_key >/dev/null 2>"$WORK/missing-key.err"; then
+if YUOS_RELEASE_SECURITY_KEY_ID="DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF" \
+    yuos_resolve_signing_key >/dev/null 2>"$WORK/missing-key.err"; then
     fail "a requested but unavailable signing key was accepted"
 fi
 grep -q "secret key is unavailable" "$WORK/missing-key.err" \
@@ -870,12 +870,12 @@ ok "a requested but unavailable signing key aborts the build"
 SIGN_STAGE="$WORK/stage-sign-failure"
 rm -rf "$SIGN_STAGE"
 mkdir -p "$SIGN_STAGE"
-for path in $(component_paths claw-os-agent); do
+for path in $(component_paths yuos-agent); do
     mkdir -p "$SIGN_STAGE$(dirname "$path")"
     printf 'component %s\n' "$path" > "$SIGN_STAGE$path"
     chmod 0755 "$SIGN_STAGE$path"
 done
-SIGN_OUT="$SIGN_STAGE/usr/lib/cos/release-security/claw-os-agent/manifest.json"
+SIGN_OUT="$SIGN_STAGE/usr/lib/yuos/release-security/yuos-agent/manifest.json"
 
 FAILING_BIN="$WORK/failing-gpg"
 mkdir -p "$FAILING_BIN"
@@ -893,8 +893,8 @@ exec "$(command -v gpg)" "\$@"
 EOF
 chmod +x "$FAILING_BIN/gpg"
 
-if PATH="$FAILING_BIN:$PATH" claw_write_release_manifest \
-    "$KEY_ID" "" "$MAKE_MANIFEST" claw-os-agent "$V1" amd64 trixie \
+if PATH="$FAILING_BIN:$PATH" yuos_write_release_manifest \
+    "$KEY_ID" "" "$MAKE_MANIFEST" yuos-agent "$V1" amd64 trixie \
     "$SIGN_STAGE" "$POLICY" "$SIGN_OUT" >/dev/null 2>"$WORK/sign-failure.err"; then
     fail "a failed signature was reported as success"
 fi
@@ -929,8 +929,8 @@ exec "$(command -v gpg)" "\$@"
 EOF
 chmod +x "$TRUNCATING_BIN/gpg"
 
-if PATH="$TRUNCATING_BIN:$PATH" claw_write_release_manifest \
-    "$KEY_ID" "" "$MAKE_MANIFEST" claw-os-agent "$V1" amd64 trixie \
+if PATH="$TRUNCATING_BIN:$PATH" yuos_write_release_manifest \
+    "$KEY_ID" "" "$MAKE_MANIFEST" yuos-agent "$V1" amd64 trixie \
     "$SIGN_STAGE" "$POLICY" "$SIGN_OUT" >/dev/null 2>"$WORK/bad-signature.err"; then
     fail "a signature that does not verify was accepted"
 fi
@@ -941,14 +941,14 @@ ok "a signature that does not verify aborts the build and removes the manifest"
 
 # A genuine signed build still works, and an unsigned one is allowed but
 # carries no signature.
-claw_write_release_manifest "$KEY_ID" "" "$MAKE_MANIFEST" claw-os-agent "$V1" \
+yuos_write_release_manifest "$KEY_ID" "" "$MAKE_MANIFEST" yuos-agent "$V1" \
     amd64 trixie "$SIGN_STAGE" "$POLICY" "$SIGN_OUT" >/dev/null \
     || fail "a genuine signed build must succeed"
 [ -s "$SIGN_OUT.asc" ] || fail "a signed build produced no signature"
 gpgv --keyring "$KEYRING" "$SIGN_OUT.asc" "$SIGN_OUT" >/dev/null 2>&1 \
     || fail "the signature does not verify against the publishing key"
 rm -f "$SIGN_OUT" "$SIGN_OUT.asc"
-claw_write_release_manifest "" "" "$MAKE_MANIFEST" claw-os-agent "$V1" \
+yuos_write_release_manifest "" "" "$MAKE_MANIFEST" yuos-agent "$V1" \
     amd64 trixie "$SIGN_STAGE" "$POLICY" "$SIGN_OUT" >/dev/null \
     || fail "an explicitly unsigned local build must succeed"
 [ -s "$SIGN_OUT" ] || fail "an unsigned build produced no manifest"
@@ -960,10 +960,10 @@ ok "a signed build verifies against its key; an unsigned one carries no signatur
 BUILD_PROBE_OUT="$WORK/build-probe-debs"
 BUILD_PROBE_STAGE="$WORK/build-probe-stage"
 mkdir -p "$BUILD_PROBE_OUT" "$BUILD_PROBE_STAGE"
-if COS_PACKAGE_VERSION="1:0.2.1+gitprobe.gaaaaaaaaaaaa" \
-    COS_DEB_OUT_DIR="$BUILD_PROBE_OUT" \
-    COS_DEB_STAGE_DIR="$BUILD_PROBE_STAGE" \
-    CLAW_OS_RELEASE_SECURITY_KEY_ID="DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF" \
+if YUOS_PACKAGE_VERSION="1:0.2.1+gitprobe.gaaaaaaaaaaaa" \
+    YUOS_DEB_OUT_DIR="$BUILD_PROBE_OUT" \
+    YUOS_DEB_STAGE_DIR="$BUILD_PROBE_STAGE" \
+    YUOS_RELEASE_SECURITY_KEY_ID="DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF" \
     bash "$BUILD_DEBS" agent >"$WORK/build-probe.out" 2>"$WORK/build-probe.err"; then
     fail "build-debs.sh continued with an unusable signing key"
 fi

@@ -39,7 +39,7 @@ fn v1_has_an_exact_deterministic_shape_and_round_trips() {
     let json = String::from_utf8(document.to_json().unwrap()).unwrap();
     let expected = format!(
         concat!(
-            r#"{{"kind":"claw_os.activity_continuity","schema_version":1,"lineage":"#,
+            r#"{{"kind":"yuos.activity_continuity","schema_version":1,"lineage":"#,
             r#"{{"id":"00000000-0000-4000-8000-000000000123","revision":7}},"#,
             r#""snapshot":"{}","intent":{{"title":"Release","goal":"Publish the release","#,
             r#""completion_criteria":"Reviewed and available","boundaries":"Ask before publishing"}},"#,
@@ -94,8 +94,8 @@ fn kind_version_snapshot_unknown_and_duplicate_fields_fail_closed() {
 
     let json = String::from_utf8(valid.to_json().unwrap()).unwrap();
     let duplicate = json.replacen(
-        r#""kind":"claw_os.activity_continuity""#,
-        r#""kind":"claw_os.activity_continuity","kind":"claw_os.activity_continuity""#,
+        r#""kind":"yuos.activity_continuity""#,
+        r#""kind":"yuos.activity_continuity","kind":"yuos.activity_continuity""#,
         1,
     );
     assert!(ActivityContinuityDocument::from_json(duplicate.as_bytes()).is_err());

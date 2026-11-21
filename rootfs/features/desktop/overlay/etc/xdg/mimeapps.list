@@ -7,7 +7,7 @@
 # $XDG_CONFIG_HOME/mimeapps.list, which takes priority.
 #
 # This file is dropped by rootfs/features/desktop (overlay) so that a
-# freshly-installed ClawOS has sane vendor defaults for the common
+# freshly-installed YuOS has sane vendor defaults for the common
 # MIME types — web, mail, text, images, PDFs, archives, media — without
 # the user having to "Open With → Always" the first time they
 # encounter each file type.

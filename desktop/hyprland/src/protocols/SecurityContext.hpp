@@ -8,7 +8,7 @@
 
 class CSecurityContext {
   public:
-    CSecurityContext(SP<CWpSecurityContextV1> resource_, int listenFD_, int closeFD_, uint32_t clawOrigin, uint64_t clawToken);
+    CSecurityContext(SP<CWpSecurityContextV1> resource_, int listenFD_, int closeFD_, uint32_t yuosOrigin, uint64_t yuosToken);
     ~CSecurityContext();
 
     bool                           good();
@@ -16,8 +16,8 @@ class CSecurityContext {
     std::string                    m_sandboxEngine;
     std::string                    m_appID;
     std::string                    m_instanceID;
-    uint32_t                       m_clawOrigin = 0;
-    uint64_t                       m_clawToken  = 0;
+    uint32_t                       m_yuosOrigin = 0;
+    uint64_t                       m_yuosToken  = 0;
 
     Hyprutils::OS::CFileDescriptor m_listenFD;
     Hyprutils::OS::CFileDescriptor m_closeFD;
@@ -32,7 +32,7 @@ class CSecurityContext {
     wl_event_source*         m_closeSource  = nullptr;
 
     bool                     m_committed = false;
-    bool                     m_clawListener = false;
+    bool                     m_yuosListener = false;
 };
 
 class CSecurityContextManagerResource {
@@ -53,7 +53,7 @@ struct SCSecurityContextSandboxedClientDestroyWrapper {
 
 class CSecurityContextSandboxedClient {
   public:
-    static SP<CSecurityContextSandboxedClient> create(Hyprutils::OS::CFileDescriptor clientFD, uint32_t clawOrigin, uint64_t clawToken);
+    static SP<CSecurityContextSandboxedClient> create(Hyprutils::OS::CFileDescriptor clientFD, uint32_t yuosOrigin, uint64_t yuosToken);
     ~CSecurityContextSandboxedClient();
 
     void                                           onDestroy();
@@ -61,7 +61,7 @@ class CSecurityContextSandboxedClient {
     SCSecurityContextSandboxedClientDestroyWrapper m_destroyListener;
 
   private:
-    CSecurityContextSandboxedClient(Hyprutils::OS::CFileDescriptor clientFD_, uint32_t clawOrigin, uint64_t clawToken);
+    CSecurityContextSandboxedClient(Hyprutils::OS::CFileDescriptor clientFD_, uint32_t yuosOrigin, uint64_t yuosToken);
 
     wl_client*                     m_client = nullptr;
 
@@ -76,7 +76,7 @@ class CSecurityContextProtocol : public IWaylandProtocol {
     virtual void bindManager(wl_client* client, void* data, uint32_t ver, uint32_t id);
 
     bool         isClientSandboxed(const wl_client* client);
-    void         retireClaw(uint64_t token);
+    void         retireYuOs(uint64_t token);
 
   private:
     void destroyResource(CSecurityContextManagerResource* resource);

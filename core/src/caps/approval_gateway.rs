@@ -29,7 +29,7 @@ pub struct PendingApproval {
 /// Consent mediation for a process that cannot touch the approvals
 /// store. Both calls are short, bounded round-trips; neither holds the
 /// worker while a human decides. The worker reports the filed request
-/// to `clawd`, which persists and resumes the task through its queue.
+/// to `yuosd`, which persists and resumes the task through its queue.
 pub trait ApprovalGateway: Send + Sync + std::fmt::Debug {
     /// Trusted execution context supplied by the broker assignment.
     /// The broker independently enforces the same value.
@@ -63,8 +63,8 @@ pub trait ApprovalGateway: Send + Sync + std::fmt::Debug {
 
 static GATEWAY: RwLock<Option<Arc<dyn ApprovalGateway>>> = RwLock::new(None);
 
-/// Install the process-wide gateway. Called once by `claw-agentd`
-/// before the agent runtime starts; never by `clawd` or the CLI, which
+/// Install the process-wide gateway. Called once by `yuos-agentd`
+/// before the agent runtime starts; never by `yuosd` or the CLI, which
 /// reach the store directly.
 pub(crate) fn install(gateway: Arc<dyn ApprovalGateway>) {
     if let Ok(mut slot) = GATEWAY.write() {

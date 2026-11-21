@@ -390,7 +390,7 @@ fn skills_usage_cmd_at(args: &[String], path: &std::path::Path) -> Result<Value,
 /// existing [`crate::agent::skills::sync::install_from_archive`]
 /// pipeline.
 ///
-/// Auth: optional GitHub PAT from `$COS_HUB_TOKEN`, `$GITHUB_TOKEN`,
+/// Auth: optional GitHub PAT from `$YUOS_HUB_TOKEN`, `$GITHUB_TOKEN`,
 /// or `$GH_TOKEN` (in that order). The token is forwarded to both
 /// the GitHub REST API call and the asset download — required for
 /// private hubs and helpful even for public hubs to avoid
@@ -411,7 +411,7 @@ fn skills_hub_cmd(args: &[String]) -> Result<Value, String> {
         })?;
     let (owner, repo) = parse_owner_repo(&spec)?;
 
-    let token = std::env::var("COS_HUB_TOKEN")
+    let token = std::env::var("YUOS_HUB_TOKEN")
         .ok()
         .or_else(|| std::env::var("GITHUB_TOKEN").ok())
         .or_else(|| std::env::var("GH_TOKEN").ok())
@@ -534,7 +534,7 @@ fn parse_owner_repo(spec: &str) -> Result<(String, String), String> {
     let repo = parts.next().unwrap_or("").trim();
     if owner.is_empty() || repo.is_empty() {
         return Err(format!(
-            "expected '<owner>/<repo>' (e.g. clawos/skills-hub), got '{spec}'"
+            "expected '<owner>/<repo>' (e.g. yuos/skills-hub), got '{spec}'"
         ));
     }
     Ok((owner.to_string(), repo.to_string()))

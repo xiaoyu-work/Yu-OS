@@ -7,13 +7,13 @@ fn a_well_formed_manifest_parses_and_pins_its_digest() {
     let spec = ManifestSpec::default();
     let bytes = manifest_bytes(&spec);
     let parsed = Manifest::parse(&bytes).expect("parses");
-    assert_eq!(parsed.package, "claw-os-agent");
+    assert_eq!(parsed.package, "yuos-agent");
     assert_eq!(parsed.security_epoch, 1);
     assert_eq!(parsed.digest, crate::crypto::sha256_hex(&bytes));
     assert_eq!(parsed.bytes, bytes);
     assert_eq!(
         parsed
-            .component_digest("clawd")
+            .component_digest("yuosd")
             .map(|entry| entry.sha256.as_str()),
         Some(spec.component_digest.as_str())
     );
@@ -36,7 +36,7 @@ fn a_reordered_but_semantically_equal_manifest_is_refused() {
 fn a_manifest_from_another_format_is_refused() {
     let mut value: serde_json::Value =
         serde_json::from_slice(&manifest_bytes(&ManifestSpec::default())).unwrap();
-    value["format"] = serde_json::json!("claw.release-security/v0");
+    value["format"] = serde_json::json!("yuos.release-security/v0");
     let bytes = crate::update::canonical::to_bytes(&value).unwrap();
     let error = Manifest::parse(&bytes).unwrap_err();
     assert!(error.contains("format"), "{error}");

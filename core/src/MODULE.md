@@ -9,21 +9,21 @@ library API exported by `core/src/lib.rs`.
 
 - Route CLI and internal bridge commands.
 - Implement system primitives, capability enforcement, audit, and sessions.
-- Host the agent runtime and `clawd` broker.
+- Host the agent runtime and `yuosd` broker.
 - Connect apps, packages, services, browser, process, and model subsystems.
 
 ## Key Files
 
 | Path | Role |
 | --- | --- |
-| `main.rs`, `router.rs` | `cos` entry and top-level dispatch |
+| `main.rs`, `router.rs` | `yu` entry and top-level dispatch |
 | `router/app_commands.rs` | App lint/install/create/tool/consent management |
 | `cli_catalog.rs`, `cli_help.rs` | Shared public command tree and schemas for terminal/model discovery |
 | `../test/unit/router.rs` | Router help/schema/app/dispatch regression tests |
 | `lib.rs` | Library module surface |
-| `bin/` | `clawd` and helper binary entries |
+| `bin/` | `yuosd` and helper binary entries |
 | `agent/` | Agent runtime and AI-facing tools |
-| `clawd/` | Privileged broker services |
+| `yuosd/` | Privileged broker services |
 | `caps/` | Capability model and enforcement |
 | `credential/` | Encrypted store, crypto/master-key boundary, authorization, OAuth, lifecycle, and CLI facade; see [`credential/MODULE.md`](credential/MODULE.md) |
 | `provenance/` | Extension package signing, trust roots, verification, install |

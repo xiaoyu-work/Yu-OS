@@ -6,25 +6,25 @@
 //! about in `config.json` (`[[agent.mcp_servers]]`). This module lets
 //! externally installed open-source software show up without anyone
 //! editing config: an adapter package drops a tiny JSON sidecar in
-//! `/usr/share/claw/agent-api/<id>.json` (or the per-user equivalent
+//! `/usr/share/yuos/agent-api/<id>.json` (or the per-user equivalent
 //! under `$XDG_DATA_HOME`) and the agent picks it up at startup.
 //!
-//! ## Manifest schema (`claw.agent-api/v1`)
+//! ## Manifest schema (`yuos.agent-api/v1`)
 //!
 //! ```jsonc
 //! {
-//!   "schema": "claw.agent-api/v1",
+//!   "schema": "yuos.agent-api/v1",
 //!   "id":     "org.tesseract",        // unique reverse-DNS id (dedup key)
 //!   "name":   "tesseract",            // snake_case; becomes the
 //!                                     // mcp_<name>_<tool> prefix
 //!   "title":   { "en": "Tesseract OCR" },
 //!   "summary": { "en": "OCR engine" },
-//!   "vendor":  "claw-adapter",        // "upstream" | "claw-adapter" | "plugin"
+//!   "vendor":  "yuos-adapter",        // "upstream" | "yuos-adapter" | "plugin"
 //!   "license": "Apache-2.0",
 //!   "transport": "mcp+stdio",         // only stdio is supported today
 //!   "command": "python3",
 //!   "args":    ["${manifest_dir}/main.py"],
-//!   "env":     { "PYTHONPATH": "/usr/lib/cos/python" },
+//!   "env":     { "PYTHONPATH": "/usr/lib/yuos/python" },
 //!   "cwd":     null,
 //!   "timeout_secs": 30,
 //!   "enabled": true,
@@ -46,17 +46,17 @@
 //! `${manifest_dir}` in `command`, any `args` entry, or any `env`
 //! value resolves to the absolute parent directory of the manifest
 //! file. This lets a single manifest work both in-repo (next to
-//! `main.py`) and when installed under `/usr/lib/claw/...` without
+//! `main.py`) and when installed under `/usr/lib/yuos/...` without
 //! changing the JSON.
 //!
 //! ## Search order
 //!
 //! 1. Each path in `cfg.agent.agent_api_paths` (when non-empty —
 //!    overrides everything else for tests / dev).
-//! 2. `$XDG_DATA_HOME/claw/agent-api/` (default
-//!    `$HOME/.local/share/claw/agent-api/`).
+//! 2. `$XDG_DATA_HOME/yuos/agent-api/` (default
+//!    `$HOME/.local/share/yuos/agent-api/`).
 //! 3. Each dir in `$XDG_DATA_DIRS` (default `/usr/local/share:/usr/share`)
-//!    joined with `claw/agent-api/`.
+//!    joined with `yuos/agent-api/`.
 //!
 //! The first manifest seen for a given `id` wins; later ones are
 //! logged as duplicates and skipped. This means a user can shadow a
@@ -71,7 +71,7 @@ use serde::{Deserialize, Serialize};
 use super::integration::McpServerSpec;
 use crate::provenance::{self, PackageKind, VerifyOptions};
 
-const SCHEMA: &str = "claw.agent-api/v1";
+const SCHEMA: &str = "yuos.agent-api/v1";
 
 fn default_timeout_secs() -> u64 {
     30
@@ -112,7 +112,7 @@ pub struct AgentApiManifest {
     pub summary: HashMap<String, String>,
 
     /// `"upstream"` (the project itself ships the manifest),
-    /// `"claw-adapter"` (Claw maintains a wrapper around it),
+    /// `"yuos-adapter"` (Yu OS maintains a wrapper around it),
     /// `"plugin"` (an extension to a host app), or anything else for
     /// forward compatibility.
     #[serde(default)]
@@ -267,7 +267,7 @@ fn validate_no_shell_metachars(
 /// out of the verified snapshot.
 ///
 /// Presence in an XDG search path is not authority to execute. A
-/// package directory must carry a `claw.provenance/v1` envelope signed
+/// package directory must carry a `yuos.provenance/v1` envelope signed
 /// by a trusted publisher, or be root-owned content under an approved
 /// system package root, or carry an explicit developer grant.
 pub fn load_package(dir: &Path) -> Result<Option<McpServerSpec>, ManifestError> {
@@ -462,16 +462,16 @@ fn spec_from_manifest(
 /// Resolve the default discovery search dirs from the environment.
 ///
 /// Order is high → low priority: per-user XDG_DATA_HOME, then each
-/// entry in XDG_DATA_DIRS, all joined with `claw/agent-api`. Dirs
+/// entry in XDG_DATA_DIRS, all joined with `yuos/agent-api`. Dirs
 /// that don't exist are still returned — callers filter on read.
 pub fn default_search_paths() -> Vec<PathBuf> {
     let mut out = Vec::new();
 
     if let Some(home) = xdg_data_home() {
-        out.push(home.join("claw/agent-api"));
+        out.push(home.join("yuos/agent-api"));
     }
     for d in xdg_data_dirs() {
-        out.push(d.join("claw/agent-api"));
+        out.push(d.join("yuos/agent-api"));
     }
     out
 }

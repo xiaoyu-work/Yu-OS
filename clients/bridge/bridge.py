@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Claw OS Bridge — text-based interface between LLM and Claw OS.
+"""Yu OS Bridge — text-based interface between LLM and Yu OS.
 
 No tool schemas.  No prompt pollution.  The agent discovers capabilities
-progressively by running ``cos`` commands.
+progressively by running ``yu`` commands.
 
 The bridge scans LLM output for lines starting with ``$ ``, executes
 them via the yu CLI, and feeds the results back.  The loop continues
@@ -24,15 +24,15 @@ import sys
 
 # ---------------------------------------------------------------------------
 # System prompt — intentionally minimal.  Everything else is discovered
-# by the agent at runtime via ``$ cos``.
+# by the agent at runtime via ``$ yu``.
 # ---------------------------------------------------------------------------
 
 SYSTEM_PROMPT = """\
-You are an AI agent running on Claw OS.
+You are an AI agent running on Yu OS.
 
 To interact with the system, write a command on a line starting with $:
 
-$ cos
+$ yu
 
 Run the command above to see what you can do.\
 """
@@ -67,9 +67,9 @@ class Executor:
             # ANTHROPIC_API_KEY, ...) into the container.
             docker_env_args = []
             if self.apps_dir:
-                docker_env_args += ["-e", f"COS_APPS_DIR={self.apps_dir}"]
+                docker_env_args += ["-e", f"YUOS_APPS_DIR={self.apps_dir}"]
             if self.data_dir:
-                docker_env_args += ["-e", f"COS_DATA_DIR={self.data_dir}"]
+                docker_env_args += ["-e", f"YUOS_DATA_DIR={self.data_dir}"]
             cmd = ["docker", "exec"] + docker_env_args + [self.container_id, "yu"] + parts
             # Run `docker exec` itself with a minimal env — just enough
             # for the client to find the docker CLI and talk to the
@@ -82,16 +82,16 @@ class Executor:
                 if k in os.environ:
                     env[k] = os.environ[k]
         else:
-            cmd = [self._cos_path()] + parts
+            cmd = [self._yu_path()] + parts
             # Local mode runs in this process's user context, so it's
-            # safe to inherit env — but only pass through the cos-
+            # safe to inherit env — but only pass through the yu-
             # specific knobs explicitly (the rest of the parent env is
             # already visible to the child process by default).
             env = os.environ.copy()
             if self.apps_dir:
-                env["COS_APPS_DIR"] = self.apps_dir
+                env["YUOS_APPS_DIR"] = self.apps_dir
             if self.data_dir:
-                env["COS_DATA_DIR"] = self.data_dir
+                env["YUOS_DATA_DIR"] = self.data_dir
 
         try:
             result = subprocess.run(
@@ -107,19 +107,19 @@ class Executor:
         except Exception as e:
             return f"error: {e}"
 
-    def _cos_path(self):
+    def _yu_path(self):
         """Resolve the yu binary. Prefer system-installed, fall back to local build."""
         import shutil
-        system_cos = shutil.which("yu")
-        if system_cos:
-            return system_cos
+        system_yu = shutil.which("yu")
+        if system_yuos:
+            return system_yu
         # Development: use locally built Rust binary
         base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         return os.path.join(base, "core", "target", "release", "yu")
 
 
 # ---------------------------------------------------------------------------
-# Command extraction — pull ``$ cos …`` lines from LLM text
+# Command extraction — pull ``$ yu …`` lines from LLM text
 # ---------------------------------------------------------------------------
 
 def extract_commands(text, max_commands=1024):
@@ -170,14 +170,14 @@ def run_agent(model="claude-sonnet-4-6", container_id=None, system_prompt=None):
         base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         executor = Executor(
             apps_dir=os.path.join(base, "apps"),
-            data_dir=os.environ.get("COS_DATA_DIR", "/tmp/cos-data"),
+            data_dir=os.environ.get("YUOS_DATA_DIR", "/tmp/yuos-data"),
         )
 
     if system_prompt is None:
         system_prompt = SYSTEM_PROMPT
 
     messages = []
-    print("Claw OS — Type your request (Ctrl+C to exit)\n")
+    print("Yu OS — Type your request (Ctrl+C to exit)\n")
 
     # Hard ceiling on how many command-extract / re-prompt round-trips
     # a single user turn may trigger. Without this an LLM that emits
@@ -246,7 +246,7 @@ def run_agent(model="claude-sonnet-4-6", container_id=None, system_prompt=None):
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="Claw OS Bridge")
+    parser = argparse.ArgumentParser(description="Yu OS Bridge")
     parser.add_argument("--container", help="Docker container ID to run commands in")
     parser.add_argument("--model", default="claude-sonnet-4-6", help="Model to use")
     parser.add_argument("--system", help="Custom system prompt")

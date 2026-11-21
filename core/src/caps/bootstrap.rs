@@ -1,12 +1,12 @@
-//! Auto-bootstrap a user-CLI session when `cos` is invoked from a
+//! Auto-bootstrap a user-CLI session when `yu` is invoked from a
 //! terminal, or as the non-interactive `yu app ...` desktop launcher,
-//! without an upstream `COS_SESSION`.
+//! without an upstream `YUOS_SESSION`.
 //!
 //! ## Why
 //!
 //! Strict-mode caps enforcement requires every gated call to come from
 //! a known session in the proc registry. The canonical session-creation
-//! path is `yu proc spawn`, which sets `COS_SESSION` for its child.
+//! path is `yu proc spawn`, which sets `YUOS_SESSION` for its child.
 //! But when a real human runs `yu agent setup` or `yu agent chat`
 //! from a shell, there is no upstream session: the user just typed the
 //! command at a TTY. Without a fix every gated call would deny with
@@ -15,14 +15,14 @@
 //! ## What this does
 //!
 //! At process start [`bootstrap_user_cli_session`] checks whether
-//! `COS_SESSION` is unset. If so it:
+//! `YUOS_SESSION` is unset. If so it:
 //!
 //! 1. Builds a [`crate::proc::SessionInfo`] with `role = Admin` and a
 //!    wild-scoped [`crate::caps::CapSet`] (single-user desktop OS:
 //!    anyone with shell access already has full power).
 //! 2. Writes it into the proc registry so
 //!    [`crate::caps::enforcement::require`] can find it.
-//! 3. Sets `COS_SESSION` in the process environment so subsequent
+//! 3. Sets `YUOS_SESSION` in the process environment so subsequent
 //!    capability checks (in this process and any direct children that
 //!    inherit the env) pick it up.
 //! 4. Returns a [`SessionGuard`] whose `Drop` impl removes the row
@@ -33,12 +33,12 @@
 //! ## Failure handling (fail-closed)
 //!
 //! Earlier revisions of this module silently demoted the process to
-//! `COS_PERMS_MODE=permissive` if the registry write failed. That is
+//! `YUOS_PERMS_MODE=permissive` if the registry write failed. That is
 //! the wrong default for a security-oriented kernel: a corrupted data
 //! dir would invisibly turn every gated call into a yes. We now
 //! return an error from the bootstrap and let `main()` surface it to
 //! the user, who can decide whether to retry, fix permissions, or
-//! explicitly run with `COS_PERMS_MODE=permissive` set in the
+//! explicitly run with `YUOS_PERMS_MODE=permissive` set in the
 //! environment.
 
 use std::env;
@@ -59,17 +59,17 @@ pub struct SessionGuard {
 impl Drop for SessionGuard {
     fn drop(&mut self) {
         deregister_session(&self.session_id);
-        env::remove_var("COS_SESSION");
+        env::remove_var("YUOS_SESSION");
     }
 }
 
-/// Bootstrap a CLI session if `COS_SESSION` is unset. Returns a guard
+/// Bootstrap a CLI session if `YUOS_SESSION` is unset. Returns a guard
 /// holding the registered session id, or `None` if no work was done
-/// (because `COS_SESSION` was already set by an upstream caller).
+/// (because `YUOS_SESSION` was already set by an upstream caller).
 ///
 /// The session row is written through [`crate::proc::register_session`],
-/// which resolves beneath `COS_PROC_DATA_DIR` when set, otherwise
-/// beneath the normal per-process data dir. Routed clawd jobs pass
+/// which resolves beneath `YUOS_PROC_DATA_DIR` when set, otherwise
+/// beneath the normal per-process data dir. Routed yuosd jobs pass
 /// the same capability-state directory to App and MCP children.
 ///
 /// On registry-write failure this function returns `None` and **does
@@ -87,12 +87,12 @@ fn bootstrap_user_cli_session_impl(
     args: &[String],
     interactive_terminal: bool,
 ) -> Option<SessionGuard> {
-    if env::var_os("COS_SESSION").is_some_and(|v| !v.is_empty()) {
+    if env::var_os("YUOS_SESSION").is_some_and(|v| !v.is_empty()) {
         return None;
     }
     let is_app_launcher = is_safe_noninteractive_app_launcher(args);
-    if env::var_os("COS_APP_ID").is_some()
-        || env::var_os("COS_MCP_SERVER").is_some()
+    if env::var_os("YUOS_APP_ID").is_some()
+        || env::var_os("YUOS_MCP_SERVER").is_some()
         || crate::caps::enforcement::process_has_no_new_privs()
         || matches!(
             args.first().map(String::as_str),
@@ -146,7 +146,7 @@ fn bootstrap_user_cli_session_impl(
 
     match register_session(info) {
         Ok(()) => {
-            env::set_var("COS_SESSION", &session_id);
+            env::set_var("YUOS_SESSION", &session_id);
             Some(SessionGuard { session_id })
         }
         Err(e) => {
@@ -188,9 +188,9 @@ fn is_safe_noninteractive_app_launcher(args: &[String]) -> bool {
     let (Some(app_id), Some(operation)) = (args.get(1), args.get(2)) else {
         return false;
     };
-    let apps_dir = std::env::var_os("COS_APPS_DIR")
+    let apps_dir = std::env::var_os("YUOS_APPS_DIR")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| std::path::PathBuf::from("/usr/lib/cos/apps"));
+        .unwrap_or_else(|| std::path::PathBuf::from("/usr/lib/yuos/apps"));
     let apps = crate::apps::discover_verified(&apps_dir);
     let Some(app) = apps.get(app_id) else {
         return false;
@@ -211,7 +211,7 @@ fn is_safe_noninteractive_app_launcher(args: &[String]) -> bool {
 
 /// Generate a fresh, collision-resistant suffix for the CLI session
 /// id. We previously used a 32-bit `(nanos ^ pid)` value that easily
-/// collided when two `cos` invocations fired in the same nanosecond
+/// collided when two `yu` invocations fired in the same nanosecond
 /// or when a forked child reused its parent's pid. UUIDv4 gives us
 /// 122 bits of entropy from the OS RNG, which is comfortably above
 /// the collision-resistance threshold even if a script kicks off

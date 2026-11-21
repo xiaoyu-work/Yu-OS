@@ -330,7 +330,7 @@ fn checkpoints_lists_pre_tool_checkpoint_events_only() {
             1,
             json!({
                 "status": "ok",
-                "tool_name": "cos_sandbox",
+                "tool_name": "yu_sandbox",
                 "tool_call_id": "c1",
                 "checkpoint_id": "cp-1",
             }),
@@ -341,7 +341,7 @@ fn checkpoints_lists_pre_tool_checkpoint_events_only() {
             2,
             json!({
                 "status": "error",
-                "tool_name": "cos_proc",
+                "tool_name": "yu_proc",
                 "tool_call_id": "c2",
                 "error": "overlayfs unavailable",
             }),
@@ -354,7 +354,7 @@ fn checkpoints_lists_pre_tool_checkpoint_events_only() {
     assert_eq!(v["ok"], json!(1));
     assert_eq!(v["errors"], json!(1));
     let rows = v["events"].as_array().unwrap();
-    assert_eq!(rows[0]["tool_name"], json!("cos_sandbox"));
+    assert_eq!(rows[0]["tool_name"], json!("yu_sandbox"));
     assert_eq!(rows[0]["checkpoint_id"], json!("cp-1"));
     assert_eq!(rows[1]["error"], json!("overlayfs unavailable"));
 }
@@ -366,19 +366,19 @@ fn checkpoints_session_filter_narrows() {
             "pre_tool_checkpoint",
             "s1",
             0,
-            json!({"status": "ok", "tool_name": "cos_sandbox"}),
+            json!({"status": "ok", "tool_name": "yu_sandbox"}),
         ),
         ev(
             "pre_tool_checkpoint",
             "s2",
             0,
-            json!({"status": "ok", "tool_name": "cos_proc"}),
+            json!({"status": "ok", "tool_name": "yu_proc"}),
         ),
     ];
     let (_d, p) = fixture(&events);
     let v = audit_cmd(&argv_with_path(&p, &["checkpoints", "--session", "s1"])).unwrap();
     assert_eq!(v["total"], json!(1));
-    assert_eq!(v["events"][0]["tool_name"], json!("cos_sandbox"));
+    assert_eq!(v["events"][0]["tool_name"], json!("yu_sandbox"));
 }
 
 // ---- clear ----

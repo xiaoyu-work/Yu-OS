@@ -99,7 +99,7 @@ pub fn is_valid(raw: &str) -> bool {
 
 /// The Debian epoch `raw` declares, or 0 when it declares none.
 ///
-/// Claw OS publishes the release-security epoch *as* the Debian epoch,
+/// Yu OS publishes the release-security epoch *as* the Debian epoch,
 /// so that APT's own candidate ordering prefers an emergency release
 /// even when its upstream version is lower. An unparseable version
 /// yields 0, which is never accepted by the callers that compare it

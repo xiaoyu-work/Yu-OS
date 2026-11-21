@@ -5,7 +5,7 @@ use std::fs::Metadata;
 use std::os::unix::fs::MetadataExt;
 use std::time::Duration;
 
-use clawd_client::{Client, Command};
+use yuosd_client::{Client, Command};
 use futures::StreamExt;
 use serde::Deserialize;
 use serde_json::json;
@@ -219,7 +219,7 @@ async fn post(
     let hints = HashMap::from([
         ("urgency", &urgency),
         ("transient", &transient),
-        ("x-claw-connection-bound", &connection_bound),
+        ("x-yuos-connection-bound", &connection_bound),
     ]);
     proxy
         .notify(

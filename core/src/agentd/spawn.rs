@@ -1,6 +1,6 @@
-//! Privilege-dropping spawn for one `claw-agentd` worker.
+//! Privilege-dropping spawn for one `yuos-agentd` worker.
 //!
-//! `clawd` is root, so the only thing that separates the agent runtime
+//! `yuosd` is root, so the only thing that separates the agent runtime
 //! from the broker's authority is what happens between `fork(2)` and
 //! `execve(2)`. That window is handled entirely here, in one
 //! `pre_exec` closure, and in this order:
@@ -13,7 +13,7 @@
 //!    still has the privilege to do it. This is what removes `sudo`
 //!    and every other supplementary group; without it a worker would
 //!    inherit the broker's group membership and could open
-//!    `/run/cos/clawd.sock`.
+//!    `/run/yuos/yuosd.sock`.
 //! 4. `setresgid` to the dedicated extension execution group, then
 //!    `setresuid` to the owner's account, real/effective/saved ids
 //!    together, so broker-socket group membership cannot survive and
@@ -45,14 +45,14 @@ use super::protocol;
 /// Environment keys copied from the broker when present. Everything
 /// else is dropped: the worker starts from an empty environment.
 const INHERITED_ENV_KEYS: &[&str] = &[
-    "COS_APPS_DIR",
-    "COS_AGENT_EXTENSIONS_DIR",
-    "COS_BIN",
-    "COS_CACHE_DIR",
-    "COS_CONFIG_DIR",
-    "COS_DATA_DIR",
-    "COS_LOG_DIR",
-    "COS_RUNTIME_DIR",
+    "YUOS_APPS_DIR",
+    "YUOS_AGENT_EXTENSIONS_DIR",
+    "YUOS_BIN",
+    "YUOS_CACHE_DIR",
+    "YUOS_CONFIG_DIR",
+    "YUOS_DATA_DIR",
+    "YUOS_LOG_DIR",
+    "YUOS_RUNTIME_DIR",
     "LANG",
     "LC_ALL",
     "RUST_LOG",
@@ -62,8 +62,8 @@ const INHERITED_ENV_KEYS: &[&str] = &[
 ];
 
 const WORKER_PATH: &str = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
-pub const ISOLATED_GROUP_ENV: &str = "COS_EXTENSION_EXEC_GROUP";
-pub const DEFAULT_ISOLATED_GROUP: &str = "cos-extension";
+pub const ISOLATED_GROUP_ENV: &str = "YUOS_EXTENSION_EXEC_GROUP";
+pub const DEFAULT_ISOLATED_GROUP: &str = "yuos-extension";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct FileIdentity {
@@ -358,7 +358,7 @@ pub fn resolve_isolated_execution_gid() -> Result<u32, String> {
     }
     let gid = group_gid(&name)?.ok_or_else(|| {
         format!(
-            "isolated execution group `{name}` does not exist; reinstall the claw-os-agent package"
+            "isolated execution group `{name}` does not exist; reinstall the yuos-agent package"
         )
     })?;
     if gid == 0 {
@@ -451,22 +451,22 @@ pub const ROOT_OWNER_REFUSAL: &str = "refusing to run an agent task owned by roo
      runtime must run as a non-root account. Submit the task from a non-root user, or give the \
      agent its own unprivileged account.";
 
-/// Path to the worker executable. `COS_AGENTD_BIN` wins for tests and
-/// dev trees; otherwise the binary installed beside `clawd`, then the
+/// Path to the worker executable. `YUOS_AGENTD_BIN` wins for tests and
+/// dev trees; otherwise the binary installed beside `yuosd`, then the
 /// packaged location.
 pub fn worker_binary_path() -> PathBuf {
-    if let Some(path) = std::env::var_os("COS_AGENTD_BIN") {
+    if let Some(path) = std::env::var_os("YUOS_AGENTD_BIN") {
         return PathBuf::from(path);
     }
     if let Ok(current) = std::env::current_exe() {
         if let Some(dir) = current.parent() {
-            let sibling = dir.join("claw-agentd");
+            let sibling = dir.join("yuos-agentd");
             if sibling.exists() {
                 return sibling;
             }
         }
     }
-    PathBuf::from("/usr/local/bin/claw-agentd")
+    PathBuf::from("/usr/local/bin/yuos-agentd")
 }
 
 /// True when the supervisor itself is privileged — the production
@@ -538,8 +538,8 @@ pub fn spawn_worker_in(
         }
     }
     #[cfg(debug_assertions)]
-    if let Some(value) = std::env::var_os("COS_AGENTD_TEST_COMMIT_MARKER") {
-        command.env("COS_AGENTD_TEST_COMMIT_MARKER", value);
+    if let Some(value) = std::env::var_os("YUOS_AGENTD_TEST_COMMIT_MARKER") {
+        command.env("YUOS_AGENTD_TEST_COMMIT_MARKER", value);
     }
 
     let channel_fd = worker_end.as_raw_fd();

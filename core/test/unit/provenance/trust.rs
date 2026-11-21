@@ -107,7 +107,7 @@ fn default_roots_are_compiled_in_and_env_free() {
     // Nothing an attacker can set in the environment may introduce a
     // trust root. Only the fixed system paths (plus the passwd-derived
     // per-user roots) may appear.
-    let guard = crate::test_env::TestEnvVarGuard::set("COS_TRUST_DIR", "/attacker/keys");
+    let guard = crate::test_env::TestEnvVarGuard::set("YUOS_TRUST_DIR", "/attacker/keys");
     let roots = TrustStore::default_roots();
     drop(guard);
     assert!(roots
@@ -502,7 +502,7 @@ fn unknown_schema_or_algorithm_is_rejected() {
     let dir = tmpdir("schema");
     let key = SigningKeyFile::generate(None).unwrap();
     let mut file = entry(&key, &["app"], "active");
-    file["schema"] = serde_json::json!("claw.trust/v2");
+    file["schema"] = serde_json::json!("yuos.trust/v2");
     write(&dir.join("a.json"), &file);
     let mut alg = entry(&key, &["app"], "active");
     alg["keys"][0]["algorithm"] = serde_json::json!("rsa");

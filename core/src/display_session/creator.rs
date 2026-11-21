@@ -2,7 +2,7 @@ use std::os::fd::{AsFd, AsRawFd, OwnedFd};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::time::Instant;
 
-use claw_display_control::{CompositorCommand, CompositorReply, Epoch, Error, InstanceId};
+use yuos_display_control::{CompositorCommand, CompositorReply, Epoch, Error, InstanceId};
 use wayland_client::{
     protocol::{wl_callback, wl_registry},
     Connection, Dispatch, EventQueue, QueueHandle,
@@ -62,7 +62,7 @@ impl Creator {
                 instance,
                 reason,
             } if epoch == control.epoch && instance == lease.instance => {
-                use claw_display_control::wire::GuiRefusal;
+                use yuos_display_control::wire::GuiRefusal;
                 return Err(Error::Protocol(match reason {
                     GuiRefusal::InvalidBinding => "compositor refused the GUI creator binding",
                     GuiRefusal::Unavailable => "compositor GUI creator resource is unavailable",
@@ -87,7 +87,7 @@ impl Creator {
         ))?;
         let (close, close_peer) = UnixStream::pair()?;
         let context = manager.create_listener(listener.as_fd(), close_peer.as_fd(), &handle, ());
-        context.set_sandbox_engine("claw-os".to_string());
+        context.set_sandbox_engine("yuos".to_string());
         context.set_app_id(app_id.to_string());
         context.set_instance_id(Epoch(lease.instance.0).label());
         context.commit();

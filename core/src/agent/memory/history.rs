@@ -9,9 +9,9 @@
 //! holding the conversational text plus per-row tool call / result
 //! views, suitable for direct JSON serialisation to any frontend.
 //!
-//! The web UI (`agent/web/routes/sessions.rs::history`) and clawd's
+//! The web UI (`agent/web/routes/sessions.rs::history`) and yuosd's
 //! `memory.history` command both call into here so the desktop
-//! `cos-agent-ui` and the React-free web client see identical history.
+//! `yuos-agent-ui` and the React-free web client see identical history.
 
 use serde::Serialize;
 use serde_json::{json, Value};

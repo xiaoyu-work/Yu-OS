@@ -1,7 +1,7 @@
 //! Durable session — the OS-level handle for a piece of agent work.
 //!
 //! Today's "session" (see [`crate::caps::bootstrap`]) is short-lived: a
-//! row in `proc/registry.json` written when a `cos` process starts and
+//! row in `proc/registry.json` written when a `yu` process starts and
 //! removed on `Drop`. That is fine for synchronous CLI invocations, but
 //! it gives the user nothing they can `ls`, `pause`, `resume`, hand off
 //! to another agent runtime, or rollback days later. This module is
@@ -23,7 +23,7 @@
 //! ## Layout
 //!
 //! ```text
-//! $COS_DATA_DIR/sessions/<sid>/
+//! $YUOS_DATA_DIR/sessions/<sid>/
 //!   meta.json         — purpose / role / parent_sid / status / budget / timestamps
 //!   caps.json         — current CapSet (mutable: caps can be granted/revoked)
 //!   turns.jsonl       — append-only conversation / tool-call events
@@ -41,10 +41,10 @@
 //! - acquire `lease.json` with `flock` or run a heartbeat thread (Phase 2),
 //! - replace the in-process `caps::bootstrap` session (Phase 1.4),
 //! - record mutations from every gated verb (Phase 3),
-//! - expose a `cos-apid` socket (Phase 4),
+//! - expose a `yuos-apid` socket (Phase 4),
 //! - surface anything in the user CLI (Phase 5).
 //!
-//! Everything here is a library: a future `cos-apid` daemon and the
+//! Everything here is a library: a future `yuos-apid` daemon and the
 //! existing in-process `yu` binary will both call these same functions.
 
 mod gc;

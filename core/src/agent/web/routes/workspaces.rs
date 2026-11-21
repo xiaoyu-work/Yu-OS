@@ -1,6 +1,6 @@
 //! Authenticated human adapters over the shared Workspace broker.
 
-use crate::clawd::routes::Command;
+use crate::yuosd::routes::Command;
 use crate::workspaces::{WorkspaceList, WorkspaceView};
 use axum::{extract::Path, http::StatusCode, Json};
 use serde_json::{json, Value};
@@ -64,9 +64,9 @@ fn checked_view(value: Value) -> ApiResult {
 }
 
 pub async fn list() -> ApiResult {
-    let value = super::clawd::request(Command::WorkspaceList, json!({}))
+    let value = super::yuosd::request(Command::WorkspaceList, json!({}))
         .await
-        .map_err(super::clawd::RpcError::into_api_error)?;
+        .map_err(super::yuosd::RpcError::into_api_error)?;
     let list: WorkspaceList = serde_json::from_value(value).map_err(invalid)?;
     if list.schema != 1 || list.workspaces.len() > crate::workspaces::MAX_WORKSPACES {
         return Err(invalid("invalid Workspace list"));
@@ -84,9 +84,9 @@ pub async fn list() -> ApiResult {
 pub async fn get(Path(id): Path<String>) -> ApiResult {
     crate::workspaces::validate_id(&id).map_err(invalid)?;
     checked_view(
-        super::clawd::request(Command::WorkspaceGet, json!({"id":id}))
+        super::yuosd::request(Command::WorkspaceGet, json!({"id":id}))
             .await
-            .map_err(super::clawd::RpcError::into_api_error)?,
+            .map_err(super::yuosd::RpcError::into_api_error)?,
     )
 }
 
@@ -98,12 +98,12 @@ pub async fn control(Json(mut body): Json<Value>) -> ApiResult {
     let request: crate::workspaces::ControlRequest =
         serde_json::from_value(body).map_err(invalid)?;
     let id = request.request.id().map(str::to_string);
-    let value = super::clawd::request(
+    let value = super::yuosd::request(
         Command::WorkspaceControl,
         serde_json::to_value(request).map_err(invalid)?,
     )
     .await
-    .map_err(super::clawd::RpcError::into_api_error)?;
+    .map_err(super::yuosd::RpcError::into_api_error)?;
     let view: WorkspaceView = serde_json::from_value(value).map_err(invalid)?;
     if id.as_ref().is_some_and(|id| *id != view.workspace.id) {
         return Err(invalid("Workspace acknowledgement identity mismatch"));
@@ -116,12 +116,12 @@ pub async fn read(
     Json(body): Json<crate::workspaces::ReadBody>,
 ) -> ApiResult {
     let request = body.into_request(id).map_err(invalid)?;
-    let value = super::clawd::request(
+    let value = super::yuosd::request(
         Command::WorkspaceRead,
         serde_json::to_value(request).map_err(invalid)?,
     )
     .await
-    .map_err(super::clawd::RpcError::into_api_error)?;
+    .map_err(super::yuosd::RpcError::into_api_error)?;
     Ok(Json(project(value)))
 }
 
@@ -138,12 +138,12 @@ pub async fn index_source(Path(id): Path<String>, Json(mut body): Json<Value>) -
     let request: crate::workspaces::IndexRequest = serde_json::from_value(body).map_err(invalid)?;
     crate::workspaces::validate_id(&request.tag_id).map_err(invalid)?;
     Ok(Json(
-        super::clawd::request(
+        super::yuosd::request(
             Command::WorkspaceIndexSource,
             serde_json::to_value(request).map_err(invalid)?,
         )
         .await
-        .map_err(super::clawd::RpcError::into_api_error)?,
+        .map_err(super::yuosd::RpcError::into_api_error)?,
     ))
 }
 

@@ -318,12 +318,12 @@ add_library(hyprland_lib STATIC ${SRCFILES})
 add_executable(Hyprland src/main.cpp ${TRACY_CPP_FILES})
 target_link_libraries(Hyprland hyprland_lib)
 
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../hyprland-claw"
-                 "${CMAKE_CURRENT_BINARY_DIR}/claw-compositor")
-target_sources(hyprland_lib PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../hyprland-claw/Selection.cpp")
-target_sources(hyprland_lib PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../hyprland-claw/Desktop.cpp")
-target_sources(hyprland_lib PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../hyprland-claw/DesktopVision.cpp")
-target_link_libraries(hyprland_lib PUBLIC claw_compositor_adapter)
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../hyprland-yuos"
+                 "${CMAKE_CURRENT_BINARY_DIR}/yuos-compositor")
+target_sources(hyprland_lib PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../hyprland-yuos/Selection.cpp")
+target_sources(hyprland_lib PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../hyprland-yuos/Desktop.cpp")
+target_sources(hyprland_lib PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../hyprland-yuos/DesktopVision.cpp")
+target_link_libraries(hyprland_lib PUBLIC yuos_compositor_adapter)
 
 target_include_directories(hyprland_lib PUBLIC ${deps_INCLUDE_DIRS} ${LUA_INCLUDE_DIRS})
 target_include_directories(Hyprland PUBLIC ${deps_INCLUDE_DIRS} ${LUA_INCLUDE_DIRS})

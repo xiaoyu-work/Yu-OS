@@ -461,7 +461,7 @@ other content
     #[test]
     fn log_load_missing_file_is_default() {
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-log-{}-{}",
+            "yuos-curator-log-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -477,7 +477,7 @@ other content
     #[test]
     fn log_round_trip_through_disk() {
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-log-rt-{}-{}",
+            "yuos-curator-log-rt-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -503,7 +503,7 @@ other content
     #[test]
     fn log_load_corrupt_falls_back_to_default() {
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-log-corrupt-{}-{}",
+            "yuos-curator-log-corrupt-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -604,7 +604,7 @@ other content
             .unwrap();
 
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-e2e-{}-{}",
+            "yuos-curator-e2e-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -686,7 +686,7 @@ other content
             .unwrap();
 
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-secret-fields-{}-{}",
+            "yuos-curator-secret-fields-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -743,7 +743,7 @@ other content
             .unwrap();
 
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-alias-{}-{}",
+            "yuos-curator-alias-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -803,7 +803,7 @@ other content
         db.record_message("sess-malformed", "user", "temporary instructions")
             .unwrap();
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-malformed-{}-{}",
+            "yuos-curator-malformed-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -849,7 +849,7 @@ other content
         db.record_message("sess-source", "assistant", "noted")
             .unwrap();
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-source-{}-{}",
+            "yuos-curator-source-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -907,7 +907,7 @@ other content
         let aux = AuxiliaryClient::new(provider, AuxiliaryConfig::new("mock", "mock-aux"));
 
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-observed-at-{}-{}",
+            "yuos-curator-observed-at-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -941,7 +941,7 @@ other content
         use std::sync::{Arc, Barrier};
 
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-concurrent-{}-{}",
+            "yuos-curator-concurrent-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -1028,7 +1028,7 @@ other content
         db.record_message("sess-1", "user", "stuff").unwrap();
 
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-correct-{}-{}",
+            "yuos-curator-correct-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -1078,7 +1078,7 @@ other content
         db.record_message("sess-1", "user", "stuff").unwrap();
 
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-same-{}-{}",
+            "yuos-curator-same-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -1127,7 +1127,7 @@ other content
         db.record_message("sess-1", "user", "stuff").unwrap();
 
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-dedupe-{}-{}",
+            "yuos-curator-dedupe-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -1180,7 +1180,7 @@ other content
         db.record_message("sess-1", "user", "hi").unwrap();
 
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-dry-{}-{}",
+            "yuos-curator-dry-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -1251,7 +1251,7 @@ other content
         // and leave `runs` empty so a schema bump doesn't wedge
         // agents that upgrade in place.
         let dir = std::env::temp_dir().join(format!(
-            "cos-curator-v1compat-{}-{}",
+            "yuos-curator-v1compat-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

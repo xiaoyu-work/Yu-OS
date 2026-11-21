@@ -4,7 +4,7 @@ fn fixture() -> NearbyView {
     NearbyView {
         schema: SCHEMA,
         owner_uid: 1000,
-        inbox: "/home/user/Downloads/Claw Nearby".into(),
+        inbox: "/home/user/Downloads/Yu OS Nearby".into(),
         uploads: Vec::new(),
         probe: RadioProbe {
             available: true,

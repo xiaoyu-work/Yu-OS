@@ -1,10 +1,10 @@
 //! Engine package management — `yu engine ...`.
 //!
-//! ClawOS treats native inference runtimes (llama.cpp, onnxruntime,
+//! YuOS treats native inference runtimes (llama.cpp, onnxruntime,
 //! onnxruntime-genai) as **independently upgradable system components**,
 //! not compile-time dependencies. Each engine has many versions installed
 //! side by side under `<data_dir>/engines/<engine>/<version>/`, and the
-//! `active` field in `engines.json` decides which one cos loads at
+//! `active` field in `engines.json` decides which one yu loads at
 //! runtime.
 //!
 //! ## Storage layout
@@ -42,7 +42,7 @@ pub mod paths;
 pub mod registry;
 pub mod sources;
 
-/// All engine names ClawOS knows how to manage. Used for input
+/// All engine names YuOS knows how to manage. Used for input
 /// validation and CLI help. Adding a new engine is just appending here
 /// + (when remote install lands) adding asset rules.
 pub const KNOWN_ENGINES: &[&str] = &["llama-cpp", "ort", "ort-genai"];
@@ -638,7 +638,7 @@ fn default_online_release_tag(engine: &str) -> Option<&'static str> {
 /// Decide whether to allow installation of an asset that has no
 /// publisher-supplied SHA-256 digest. Returns `Ok(())` when the
 /// install may proceed (either because we have a digest or the
-/// operator set `COS_ENGINE_TRUST_UNVERIFIED`). Returns `Err(msg)`
+/// operator set `YUOS_ENGINE_TRUST_UNVERIFIED`). Returns `Err(msg)`
 /// otherwise so the caller can surface a user-facing refusal.
 ///
 /// Extracted so it can be unit-tested without spinning up an HTTP
@@ -652,7 +652,7 @@ pub(crate) fn check_digest_requirement(
     if expected_sha.is_some() {
         return Ok(());
     }
-    let allow_unverified = std::env::var_os("COS_ENGINE_TRUST_UNVERIFIED")
+    let allow_unverified = std::env::var_os("YUOS_ENGINE_TRUST_UNVERIFIED")
         .map(|v| v != "0" && !v.is_empty())
         .unwrap_or(false);
     if allow_unverified {
@@ -660,7 +660,7 @@ pub(crate) fn check_digest_requirement(
     } else {
         Err(format!(
             "refusing to install {engine}@{tag}: release asset \"{asset_name}\" is \
-             missing a SHA-256 digest. Re-run with COS_ENGINE_TRUST_UNVERIFIED=1 to \
+             missing a SHA-256 digest. Re-run with YUOS_ENGINE_TRUST_UNVERIFIED=1 to \
              override (insecure)."
         ))
     }
@@ -751,7 +751,7 @@ async fn run_online_install(
         // sibling `.sha256` file, or the `digest` field of GitHub's
         // asset metadata). Anything else means we'd be running native
         // code we can't independently authenticate. The
-        // `COS_ENGINE_TRUST_UNVERIFIED=1` env var is an emergency
+        // `YUOS_ENGINE_TRUST_UNVERIFIED=1` env var is an emergency
         // override for operators rescuing themselves from a publisher
         // outage; setting it is logged.
         check_digest_requirement(
@@ -766,7 +766,7 @@ async fn run_online_install(
                 engine = %engine,
                 version = %release.tag_name,
                 asset = %asset.name,
-                "installing engine without publisher-supplied digest (COS_ENGINE_TRUST_UNVERIFIED set)"
+                "installing engine without publisher-supplied digest (YUOS_ENGINE_TRUST_UNVERIFIED set)"
             );
         }
         let dl_label = format!("{engine}@{}", release.tag_name);

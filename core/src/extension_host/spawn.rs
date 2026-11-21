@@ -1,4 +1,4 @@
-//! Privilege drop and lifetime control for `claw-extension-host`.
+//! Privilege drop and lifetime control for `yuos-extension-host`.
 
 use std::ffi::{CStr, CString};
 use std::io::Write;
@@ -23,13 +23,13 @@ mod task_data;
 
 pub(crate) use task_data::TaskAppData;
 
-pub const HOST_BINARY_ENV: &str = "COS_EXTENSION_HOST_BIN";
-pub const TASK_DIAGNOSTIC_ENV: &str = "COS_EXTENSION_TASK_ID";
-pub const CONTROL_SOCKET_DIAGNOSTIC_ENV: &str = "COS_EXTENSION_CONTROL_SOCKET";
-pub const HOST_SESSION_ENV: &str = "COS_EXTENSION_HOST_SESSION";
-pub const CGROUP_ROOT_ENV: &str = "CLAWD_EXTENSION_CGROUP_ROOT";
+pub const HOST_BINARY_ENV: &str = "YUOS_EXTENSION_HOST_BIN";
+pub const TASK_DIAGNOSTIC_ENV: &str = "YUOS_EXTENSION_TASK_ID";
+pub const CONTROL_SOCKET_DIAGNOSTIC_ENV: &str = "YUOS_EXTENSION_CONTROL_SOCKET";
+pub const HOST_SESSION_ENV: &str = "YUOS_EXTENSION_HOST_SESSION";
+pub const CGROUP_ROOT_ENV: &str = "YUOSD_EXTENSION_CGROUP_ROOT";
 
-const HOST_PATH: &str = "/usr/local/bin/claw-extension-host";
+const HOST_PATH: &str = "/usr/local/bin/yuos-extension-host";
 const SAFE_PATH: &str = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 const HOST_NOFILE_LIMIT: libc::rlim_t = 512;
 const HOST_NPROC_LIMIT: libc::rlim_t = 512;
@@ -44,13 +44,13 @@ const CGROUP_LIMITS: [(&str, &str); 4] = [
     ("memory.oom.group", "1"),
     ("cpu.max", "100000 100000"),
 ];
-const BROKER_CGROUP: &str = "cos-broker";
+const BROKER_CGROUP: &str = "yuos-broker";
 
 const INHERITED_ENV_KEYS: &[&str] = &[
-    "COS_AGENT_EXTENSIONS_DIR",
-    "COS_APPS_DIR",
-    "COS_BIN",
-    "COS_SDK_PYTHON_DIR",
+    "YUOS_AGENT_EXTENSIONS_DIR",
+    "YUOS_APPS_DIR",
+    "YUOS_BIN",
+    "YUOS_SDK_PYTHON_DIR",
     "LANG",
     "LC_ALL",
     "SSL_CERT_DIR",
@@ -579,7 +579,7 @@ pub fn host_binary_path() -> PathBuf {
     }
     if let Ok(current) = std::env::current_exe() {
         if let Some(dir) = current.parent() {
-            let sibling = dir.join("claw-extension-host");
+            let sibling = dir.join("yuos-extension-host");
             if sibling.exists() {
                 return sibling;
             }
@@ -720,7 +720,7 @@ pub fn spawn_host(
         ));
     }
     if let Err(refusal) =
-        crate::update::runtime::enforce_component_binary("claw-extension-host", &binary)
+        crate::update::runtime::enforce_component_binary("yuos-extension-host", &binary)
     {
         let cleanup = cgroup.cleanup_blocking();
         return Err(combine_cleanup_error(
@@ -789,20 +789,20 @@ pub fn spawn_host(
     command.env("TMPDIR", "/tmp");
     command.env("TMP", "/tmp");
     command.env("TEMP", "/tmp");
-    command.env("COS_PERMS_MODE", "strict");
-    command.env("COS_EXTENSION_CHILD_ISOLATION", "1");
+    command.env("YUOS_PERMS_MODE", "strict");
+    command.env("YUOS_EXTENSION_CHILD_ISOLATION", "1");
     command.env(
-        "COS_PROC_DATA_DIR",
-        std::env::var_os("COS_PROC_DATA_DIR")
+        "YUOS_PROC_DATA_DIR",
+        std::env::var_os("YUOS_PROC_DATA_DIR")
             .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("/run/cos/caps").join(owner.uid.to_string())),
+            .unwrap_or_else(|| PathBuf::from("/run/yuos/caps").join(owner.uid.to_string())),
     );
-    command.env("COS_DATA_DIR", paths.control_dir.join("data"));
+    command.env("YUOS_DATA_DIR", paths.control_dir.join("data"));
     if let Some(data) = &app_data {
         data.configure_environment(&mut command);
     }
-    command.env("COS_CACHE_DIR", paths.control_dir.join("cache"));
-    command.env("COS_LOG_DIR", paths.control_dir.join("log"));
+    command.env("YUOS_CACHE_DIR", paths.control_dir.join("cache"));
+    command.env("YUOS_LOG_DIR", paths.control_dir.join("log"));
     // Diagnostics only. Host authority comes exclusively from the private
     // bootstrap descriptor and never reads these values.
     command.env(TASK_DIAGNOSTIC_ENV, &launch.lease_id);
@@ -810,7 +810,7 @@ pub fn spawn_host(
     command.env(protocol::BROKER_SOCKET_ENV, &paths.broker_socket);
     if let Some(host_session_id) = launch.host_session_id.as_deref() {
         command.env(HOST_SESSION_ENV, host_session_id);
-        command.env("COS_SESSION", host_session_id);
+        command.env("YUOS_SESSION", host_session_id);
     }
     for key in INHERITED_ENV_KEYS {
         if let Some(value) = std::env::var_os(key) {
@@ -827,7 +827,7 @@ pub fn spawn_host(
     let writable_task_path = CString::new(paths.dir.as_os_str().as_bytes())
         .map_err(|_| "extension task path contains NUL".to_string())?;
     let child_data = app_data.clone();
-    let try_namespaces = std::env::var("CLAWD_EXTENSION_HOST_NAMESPACES")
+    let try_namespaces = std::env::var("YUOSD_EXTENSION_HOST_NAMESPACES")
         .map(|value| !matches!(value.trim(), "0" | "off" | "false" | "no"))
         .unwrap_or(true);
     unsafe {
@@ -1238,7 +1238,7 @@ impl PrivateMountNamespace {
                 unsafe { libc::_exit(120) };
             }
             if mount_child {
-                if unsafe { libc::mkdir(c"/tmp/cos-nested-mount".as_ptr(), 0o700) } != 0
+                if unsafe { libc::mkdir(c"/tmp/yuos-nested-mount".as_ptr(), 0o700) } != 0
                     && std::io::Error::last_os_error().raw_os_error() != Some(libc::EEXIST)
                 {
                     unsafe { libc::_exit(121) };
@@ -1246,7 +1246,7 @@ impl PrivateMountNamespace {
                 if unsafe {
                     libc::mount(
                         c"tmpfs".as_ptr(),
-                        c"/tmp/cos-nested-mount".as_ptr(),
+                        c"/tmp/yuos-nested-mount".as_ptr(),
                         c"tmpfs".as_ptr(),
                         libc::MS_NOSUID | libc::MS_NODEV,
                         c"mode=0700,size=4096,nr_inodes=8".as_ptr().cast(),
@@ -1255,7 +1255,7 @@ impl PrivateMountNamespace {
                 {
                     unsafe { libc::_exit(122) };
                 }
-            } else if unsafe { libc::umount2(c"/tmp/cos-nested-mount".as_ptr(), 0) } != 0 {
+            } else if unsafe { libc::umount2(c"/tmp/yuos-nested-mount".as_ptr(), 0) } != 0 {
                 unsafe { libc::_exit(123) };
             }
             unsafe { libc::_exit(0) };
@@ -1493,7 +1493,7 @@ impl ResourceGroup {
     pub(crate) fn create(root: &ContainmentRoot, task_id: &str) -> Result<Self, String> {
         let digest = crate::crypto::sha256_hex(task_id.as_bytes());
         let nonce = uuid::Uuid::new_v4().simple().to_string();
-        let name = format!("cos-extension-{}-{}", &digest[..16], &nonce[..12]);
+        let name = format!("yuos-extension-{}-{}", &digest[..16], &nonce[..12]);
         let path = root.path.join(name);
         std::fs::create_dir(&path)
             .map_err(|error| format!("create extension containment group: {error}"))?;
@@ -1673,7 +1673,7 @@ fn prepare_current_cgroup_root() -> Result<PathBuf, String> {
     let members = read_pids(&root.join("cgroup.procs"))?;
     if members != [std::process::id()] {
         return Err(format!(
-            "delegated cgroup {} must contain only clawd before containment setup",
+            "delegated cgroup {} must contain only yuosd before containment setup",
             root.display()
         ));
     }
@@ -1686,12 +1686,12 @@ fn prepare_current_cgroup_root() -> Result<PathBuf, String> {
     if let Err(error) = std::fs::write(broker.join("cgroup.procs"), std::process::id().to_string())
     {
         let _ = std::fs::remove_dir(&broker);
-        return Err(format!("move clawd into broker cgroup leaf: {error}"));
+        return Err(format!("move yuosd into broker cgroup leaf: {error}"));
     }
     require_no_processes(&root)?;
     let broker_members = read_pids(&broker.join("cgroup.procs"))?;
     if broker_members != [std::process::id()] {
-        return Err("clawd did not enter its dedicated broker cgroup".to_string());
+        return Err("yuosd did not enter its dedicated broker cgroup".to_string());
     }
     Ok(root)
 }
@@ -1811,7 +1811,7 @@ fn cleanup_stale_groups(root: &Path, broker_leaf: bool) -> Result<(), String> {
         if broker_leaf && name == BROKER_CGROUP {
             continue;
         }
-        if !name.starts_with("cos-extension-") {
+        if !name.starts_with("yuos-extension-") {
             return Err(format!(
                 "delegated extension cgroup root contains an unexpected child: {}",
                 entry.path().display()

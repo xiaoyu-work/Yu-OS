@@ -1,4 +1,4 @@
-"""Verify the Claw payload and hand new installations to the pinned Asahi engine."""
+"""Verify the Yu OS payload and hand new installations to the pinned Asahi engine."""
 
 import json
 import os
@@ -10,7 +10,7 @@ import zipfile
 import asahi_engine as engine
 
 
-PACKAGE = "claw-os.zip"
+PACKAGE = "yuos.zip"
 PAYLOAD = Path("../os") / PACKAGE
 EFI = "esp/EFI/BOOT/BOOTAA64.EFI"
 STAGE2 = "esp/m1n1/boot.bin"
@@ -21,7 +21,7 @@ DIRECTORIES = {"esp/", "esp/EFI/", "esp/EFI/BOOT/", "esp/m1n1/"}
 ESP_BYTES = 500 * 1024**2
 
 
-class ClawInstaller(engine.InstallerMain):
+class YuOsInstaller(engine.InstallerMain):
     def check_cur_os(self):
         if self.cur_os:
             owners = self.cur_os.admin_users or ()
@@ -45,7 +45,7 @@ class ClawInstaller(engine.InstallerMain):
     def bless(self):
         super().bless()
         if self.sysinfo.device_class == "j700ap":
-            from claw_neo import check_startup_disk
+            from yuos_neo import check_startup_disk
 
             check_startup_disk(self.dutil, self.ins.osi.vgid)
 
@@ -64,9 +64,9 @@ def template_for(payload, mac, neo=None):
         members = package.infolist()
         names = {member.orig_filename for member in members}
         if len(names) != len(members) or not LAYOUT <= names <= LAYOUT | DIRECTORIES | {NEO_STAGE1}:
-            raise ValueError("unexpected files in the Claw OS installer payload")
+            raise ValueError("unexpected files in the Yu OS installer payload")
         if any(not package.getinfo(name).file_size for name in LAYOUT):
-            raise ValueError("the Claw OS installer payload contains an empty file")
+            raise ValueError("the Yu OS installer payload contains an empty file")
         size = package.getinfo("root.img").file_size
         with package.open("root.img") as image:
             header = image.read(2048)[1024:]
@@ -86,8 +86,8 @@ def template_for(payload, mac, neo=None):
             neo.stage_one(package, NEO_STAGE1)
 
     return {
-        "name": "Claw OS",
-        "default_os_name": "Claw OS",
+        "name": "Yu OS",
+        "default_os_name": "Yu OS",
         "package": PACKAGE,
         "boot_object": "m1n1.bin",
         "next_object": "m1n1/boot.bin",
@@ -106,15 +106,15 @@ def run(mode):
     mac = engine.system.SystemInfo()
     neo = None
     if mac.device_class == "j700ap":
-        if not Path("claw_neo.py").is_file():
+        if not Path("yuos_neo.py").is_file():
             raise ValueError("use the MacBook Neo restore environment staged by install-macos.sh")
-        import claw_neo as neo
+        import yuos_neo as neo
 
         neo.select_board(mac)
     template = template_for(PAYLOAD, mac, neo)
     metadata = {"os_list": [template]}
     Path("installer_data.json").write_text(json.dumps(metadata), encoding="utf-8")
-    installer = ClawInstaller(Path("version.tag").read_text().strip())
+    installer = YuOsInstaller(Path("version.tag").read_text().strip())
     installer.sysinfo = mac
     installer.device = engine.DEVICES[mac.device_class]
     ipsw = installer.choose_ipsw(template["supported_fw"])
@@ -122,7 +122,7 @@ def run(mode):
     if neo:
         neo.check_restore(mac, ipsw)
         engine.MIN_INSTALL_FREE = max(engine.MIN_INSTALL_FREE, size)
-    print(f"{mac.device_class}: Claw OS, dedicated APFS boot stub and ESP, unencrypted Linux root")
+    print(f"{mac.device_class}: Yu OS, dedicated APFS boot stub and ESP, unencrypted Linux root")
     print(f"Recommended free space: {engine.ssize(size)}. Asahi checks the actual partition layout before installation.")
     if mode == "--plan":
         print("Read-only preflight: no partitions or boot policies changed.")
@@ -145,8 +145,8 @@ if __name__ == "__main__":
             raise ValueError("choose --plan or --install")
         run(sys.argv[1])
     except (OSError, RuntimeError, ValueError, zipfile.BadZipFile) as error:
-        raise SystemExit(f"Claw OS: {error}") from None
+        raise SystemExit(f"Yu OS: {error}") from None
     except subprocess.CalledProcessError:
-        raise SystemExit("Claw OS: an Asahi system operation failed") from None
+        raise SystemExit("Yu OS: an Asahi system operation failed") from None
     except (KeyboardInterrupt, EOFError):
-        raise SystemExit("Claw OS: interrupted") from None
+        raise SystemExit("Yu OS: interrupted") from None

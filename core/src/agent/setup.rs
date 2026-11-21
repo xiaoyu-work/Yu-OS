@@ -3,10 +3,10 @@
 //! Replaces the previous `yu agent onboarding` family. Pick a
 //! modality (text / tts / stt / imagegen / embed / decision / all), then walk
 //! through provider → model → API key → persist → optional probe.
-//! Each modality writes to its own `~/.config/cos/config.json` block
-//! (`[agent]`, `[tts]`, `[stt]`, `[imagegen]`, `[embed]`, `[decision]`) and stores
+//! Each modality writes to its own `~/.config/yuos/config.json` block
+//! (`[agent]`, `[tts]`, `[stt]`, `[imagegen]`, `[embed]`) and stores
 //! credentials in the `agent` namespace of the per-user credential
-//! store (`~/.local/share/cos/credentials/agent/`).
+//! store (`~/.local/share/yuos/credentials/agent/`).
 //!
 //! Subcommands:
 //!   * `<modality>`     Run the wizard for one modality. Requires a TTY.
@@ -436,7 +436,7 @@ pub(crate) fn help_doc() -> Value {
 }
 
 /// Probe the currently configured provider without re-running the
-/// wizard. Useful after editing `~/.config/cos/config.json` by hand
+/// wizard. Useful after editing `~/.config/yuos/config.json` by hand
 /// or rotating an API key.
 fn verify_cmd(modality: Modality) -> Result<Value, String> {
     match modality {
@@ -858,7 +858,7 @@ fn wizard_llm(verify_after: bool) -> Result<Value, String> {
     if !std::io::stdin().is_terminal() {
         return Err(json!({
             "error": "yu agent setup requires an interactive TTY",
-            "hint": "run it in a terminal, or write ~/.config/cos/config.json and the `agent` credential manually",
+            "hint": "run it in a terminal, or write ~/.config/yuos/config.json and the `agent` credential manually",
         })
         .to_string());
     }
@@ -1113,7 +1113,7 @@ fn wizard_llm(verify_after: bool) -> Result<Value, String> {
                 );
                 let _ = writeln!(
                     e,
-                    "a privileged session (e.g. `sudo COS_CONFIG_PATH=$COS_CONFIG_PATH yu agent setup text`)."
+                    "a privileged session (e.g. `sudo YUOS_CONFIG_PATH=$YUOS_CONFIG_PATH yu agent setup text`)."
                 );
                 credential_env = Some(env_name);
             }
@@ -1248,7 +1248,7 @@ fn wizard_all(verify_after: bool) -> Result<Value, String> {
     if !std::io::stdin().is_terminal() {
         return Err(json!({
             "error": "yu agent setup all requires an interactive TTY",
-            "hint": "set up each modality non-interactively by editing ~/.config/cos/config.json",
+            "hint": "set up each modality non-interactively by editing ~/.config/yuos/config.json",
         })
         .to_string());
     }
@@ -1410,7 +1410,7 @@ fn providers_cmd(modality: Modality) -> Result<Value, String> {
 /// AI page). Filters out `mock` (test-only) and `llama_local` (managed
 /// via `yu model load`, not the standard credential flow). Power users
 /// can still address these by name via `yu agent setup text apply
-/// --provider mock ...` or by editing ~/.config/cos/config.json directly —
+/// --provider mock ...` or by editing ~/.config/yuos/config.json directly —
 /// only the lists are hidden, not the registry.
 fn user_facing_providers() -> Vec<&'static str> {
     llm::available_providers()
@@ -1956,7 +1956,7 @@ fn read_line() -> Result<String, String> {
 }
 
 pub fn config_path() -> PathBuf {
-    std::env::var_os("COS_CONFIG_PATH")
+    std::env::var_os("YUOS_CONFIG_PATH")
         .map(PathBuf::from)
         .unwrap_or_else(crate::paths::user_config_path)
 }

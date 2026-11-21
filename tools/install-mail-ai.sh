@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # tools/install-mail-ai.sh
 #
-# Install the Claw Mail AI WebExtension and Native Messaging registration
+# Install the Yu OS Mail AI WebExtension and Native Messaging registration
 # for Thunderbird. The shared App, SDK and trusted launcher must already be
-# installed together by claw-os-agent; this script never overwrites them.
+# installed together by yuos-agent; this script never overwrites them.
 #
 #   - WebExtension XPI          → /usr/lib/thunderbird/distribution/extensions/ (package-owned)
 #   - Thunderbird policies      → /etc/thunderbird/policies/policies.json
 #   - Thunderbird NM manifest   → /etc/thunderbird/native-messaging-hosts/os.yuos.mail_ai.json
-#   - Native host launcher      → /usr/lib/cos/claw-mail-ai-host (package-owned)
-#   - Shared App + SDK/runtime   → /usr/lib/cos/apps/mail-ai/, /usr/lib/cos/python/ (package-owned)
+#   - Native host launcher      → /usr/lib/yuos/yuos-mail-ai-host (package-owned)
+#   - Shared App + SDK/runtime   → /usr/lib/yuos/apps/mail-ai/, /usr/lib/yuos/python/ (package-owned)
 #
 # Run as root. Re-run is idempotent (overwrites).
 #
@@ -24,10 +24,10 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 EXT_ID="yu-mail-ai@yuos.io"
-APP_DEST="/usr/lib/cos/apps/mail-ai"
-SDK_DEST="/usr/lib/cos/python/claw_os_sdk"
-RUNTIME_DEST="/usr/lib/cos/python/cos_runtime"
-HOST_LAUNCHER="/usr/lib/cos/claw-mail-ai-host"
+APP_DEST="/usr/lib/yuos/apps/mail-ai"
+SDK_DEST="/usr/lib/yuos/python/yuos_sdk"
+RUNTIME_DEST="/usr/lib/yuos/python/yuos_runtime"
+HOST_LAUNCHER="/usr/lib/yuos/yuos-mail-ai-host"
 NM_MANIFEST="/etc/thunderbird/native-messaging-hosts/os.yuos.mail_ai.json"
 POLICY_FILE="/etc/thunderbird/policies/policies.json"
 XPI_DEST_DIR="/usr/lib/thunderbird/distribution/extensions"
@@ -36,15 +36,15 @@ XPI_DEST="${XPI_DEST_DIR}/${EXT_ID}.xpi"
 # Sanity checks.
 for d in "${APP_DEST}" "${SDK_DEST}" "${RUNTIME_DEST}"; do
   if [[ ! -d "$d" ]]; then
-    echo "error: required extension/package directory missing: $d; install claw-os-agent first" >&2
+    echo "error: required extension/package directory missing: $d; install yuos-agent first" >&2
     exit 1
   fi
 done
 if [[ ! -f "${XPI_DEST}" ]]; then
-  echo "error: package-owned Mail extension missing: ${XPI_DEST}; install claw-os-agent first" >&2
+  echo "error: package-owned Mail extension missing: ${XPI_DEST}; install yuos-agent first" >&2
   exit 1
 fi
-for binary in /usr/local/bin/claw-app-runner /usr/bin/python3 "${HOST_LAUNCHER}"; do
+for binary in /usr/local/bin/yuos-app-runner /usr/bin/python3 "${HOST_LAUNCHER}"; do
   if [[ ! -x "${binary}" ]]; then
     echo "error: required executable missing: ${binary}" >&2
     exit 1
@@ -52,7 +52,7 @@ for binary in /usr/local/bin/claw-app-runner /usr/bin/python3 "${HOST_LAUNCHER}"
 done
 for file in app.json main.py server.py native_host.py; do
   if [[ ! -f "${APP_DEST}/${file}" ]]; then
-    echo "error: claw-os-agent Mail package is incomplete: ${APP_DEST}/${file}" >&2
+    echo "error: yuos-agent Mail package is incomplete: ${APP_DEST}/${file}" >&2
     exit 1
   fi
 done
@@ -60,18 +60,18 @@ done
 # ---------------------------------------------------------------------------
 # 1. Reuse the shared, authenticated App package, SDK and UI protocol adapter.
 # ---------------------------------------------------------------------------
-echo "[claw-mail-ai] using package-owned Mail implementation → ${APP_DEST}"
-echo "[claw-mail-ai] using package-owned Mail extension → ${XPI_DEST}"
+echo "[yuos-mail-ai] using package-owned Mail implementation → ${APP_DEST}"
+echo "[yuos-mail-ai] using package-owned Mail extension → ${XPI_DEST}"
 
 # ---------------------------------------------------------------------------
 # 2. Native Messaging manifest for the package-owned launcher.
 # ---------------------------------------------------------------------------
-echo "[claw-mail-ai] installing NM manifest → ${NM_MANIFEST}"
+echo "[yuos-mail-ai] installing NM manifest → ${NM_MANIFEST}"
 install -d -m 0755 "$(dirname "${NM_MANIFEST}")"
 cat > "${NM_MANIFEST}" <<EOF
 {
   "name": "os.yuos.mail_ai",
-  "description": "Claw Mail AI — Native Messaging bridge between Thunderbird and apps/mail-ai",
+  "description": "Yu OS Mail AI — Native Messaging bridge between Thunderbird and apps/mail-ai",
   "path": "${HOST_LAUNCHER}",
   "type": "stdio",
   "allowed_extensions": ["${EXT_ID}"]
@@ -87,7 +87,7 @@ chmod 0644 "${NM_MANIFEST}"
 # (DownloadDirectory, AppUpdateURL, …) every time the script ran. Now we
 # read what's there, layer our keys on top, and write the union.
 # ---------------------------------------------------------------------------
-echo "[claw-mail-ai] installing policy      → ${POLICY_FILE}"
+echo "[yuos-mail-ai] installing policy      → ${POLICY_FILE}"
 install -d -m 0755 "$(dirname "${POLICY_FILE}")"
 
 OUR_POLICY=$(cat <<EOF
@@ -150,15 +150,15 @@ chmod 0644 "${POLICY_FILE}"
 
 cat <<MSG
 
-[claw-mail-ai] install complete.
+[yuos-mail-ai] install complete.
 
 Verify:
   1. Restart Thunderbird.
-  2. Look for the Claw AI button on the toolbar and a "Mail Assistant"
+  2. Look for the Yu OS AI button on the toolbar and a "Mail Assistant"
      entry in the Spaces sidebar.
-  3. Open a message — click the Claw AI button in the message header
+  3. Open a message — click the Yu OS AI button in the message header
      to see a Summary popup.
-  4. Open Tools → Add-ons and Themes → check that "Claw Mail AI" is
+  4. Open Tools → Add-ons and Themes → check that "Yu OS Mail AI" is
      installed and enabled.
   5. To debug the Native Messaging bridge:
        journalctl --user -t thunderbird

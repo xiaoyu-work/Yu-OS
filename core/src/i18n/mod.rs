@@ -1,12 +1,12 @@
 //! OS-wide internationalization.
 //!
-//! Claw OS is a multi-language system. Every user-facing string in the
+//! Yu OS is a multi-language system. Every user-facing string in the
 //! kernel, built-in apps, and third-party apps flows through this module
 //! so a single locale switch redrives the whole UI.
 //!
 //! Design principles:
 //!
-//! 1. **Locale is global, set once at boot.** Read from the `COS_LOCALE`
+//! 1. **Locale is global, set once at boot.** Read from the `YUOS_LOCALE`
 //!    env var first, then `$config_dir/locale`, then fall back to the
 //!    compile-time default (`Locale::DEFAULT`, currently English). Code
 //!    elsewhere asks [`current_locale`]; the value is cheap to read.

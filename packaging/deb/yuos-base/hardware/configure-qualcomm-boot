@@ -1,0 +1,69 @@
+#!/bin/sh
+set -efu
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+[ "$(dpkg --print-architecture)" = arm64 ] || exit 0
+[ "$(id -u)" = 0 ] || exit 1
+. /usr/lib/yuos/hw/qualcomm-boot.sh
+
+fail() {
+    echo "Yu OS Snapdragon boot: $*" >&2
+    exit 1
+}
+
+tree=
+for arg in $(cat /proc/cmdline); do
+    case "$arg" in
+        yuos.board_tree=*)
+            [ -z "$tree" ] || fail "multiple board selections"
+            tree=${arg#yuos.board_tree=}
+            [ -n "$tree" ] || fail "empty board selection"
+            ;;
+    esac
+done
+[ -n "$tree" ] || exit 0
+
+version=$(uname -r)
+board=$(yuos_qcom_board "$tree" "$version") || fail "unknown device tree: $tree"
+compatible=${board#*|}
+compatible=${compatible%%|*}
+running=$(tr '\000' '\n' </sys/firmware/devicetree/base/compatible | sed -n '1p')
+if [ "$running" != "$compatible" ]; then
+    fail "the running device tree does not match $tree"
+fi
+
+yuos_qcom_tree '' "$version" "$tree" >/dev/null || fail "installed kernel $version has no $tree"
+[ -s "/boot/initrd.img-$version" ] || fail "missing initramfs for $version"
+
+config=/etc/default/grub.d/60-yuos-qualcomm.cfg
+sleep_config=/etc/systemd/sleep.conf.d/60-yuos-qualcomm-board.conf
+header='# Managed by Yu OS Snapdragon installer.'
+sleep_settings=$(yuos_qcom_board_sleep "$tree")
+for managed in "$config" "$sleep_config"; do
+    if [ -e "$managed" ] || [ -L "$managed" ]; then
+        if [ -L "$managed" ] || [ ! -f "$managed" ] || [ "$(head -n 1 "$managed")" != "$header" ]; then
+            fail "refusing to replace $managed"
+        fi
+    fi
+done
+resume=
+if yuos_qcom_romulus "$tree" && grep -Fxq 'CONFIG_HIBERNATION=y' "/boot/config-$version"; then
+    resume=$(/usr/lib/yuos/hw/configure-romulus-resume "$version") || fail "could not configure disk hibernation"
+fi
+{
+    printf "%s\nexport YUOS_QCOM_DTB='%s'\nGRUB_DEFAULT=yuos-qcom\n" "$header" "$tree"
+    if [ -n "$resume" ]; then
+        printf "export YUOS_QCOM_RESUME='%s'\nexport YUOS_QCOM_RESUME_KERNEL='%s'\n" "$resume" "$version"
+    fi
+} | install -Dm0644 /dev/stdin "$config"
+
+if [ -n "$sleep_settings" ]; then
+    printf '%s\n[Sleep]\n%s\n' "$header" "$sleep_settings" |
+        install -Dm0644 /dev/stdin "$sleep_config"
+else
+    rm -f -- "$sleep_config"
+fi
+
+if yuos_qcom_laptop8 "$tree"; then
+    /usr/sbin/update-initramfs -u -k "$version"
+fi

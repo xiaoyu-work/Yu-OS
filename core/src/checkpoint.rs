@@ -9,7 +9,7 @@
 /// Checkpoints freeze the current upper layer and start a new one,
 /// giving agents instant snapshot/rollback without git or file copies.
 ///
-/// Directory layout under `$COS_DATA_DIR/overlay/`:
+/// Directory layout under `$YUOS_DATA_DIR/overlay/`:
 /// ```text
 /// base/                ← original /workspace content (lower layer)
 /// upper/               ← current modifications

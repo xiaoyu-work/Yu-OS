@@ -50,7 +50,7 @@ pub fn render_prompt_catalog(load: &LoadResult) -> Option<String> {
     Some(format!(
         "Progressive skill disclosure:\n\
          - The catalogue below contains metadata only; no skill instructions have been loaded.\n\
-         - When a skill clearly matches the current task, call `cos_skill` with `command=read` before acting on it.\n\
+         - When a skill clearly matches the current task, call `yu_skill` with `command=read` before acting on it.\n\
          - Read a referenced child file with `command=resource` only when that specific detail is needed.\n\
          - Do not call `read` when metadata says `disclosable=false`; report the size problem instead.\n\
          - If a disclosure call fails, do not retry it unchanged.\n\

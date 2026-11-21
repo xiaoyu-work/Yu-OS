@@ -3,7 +3,7 @@ use serde_json::{json, Value};
 /// `yu agent todo [list <session_id>|add <session_id> <id> <title> [--note <text>]|set-status <session_id> <id> <pending|in_progress|completed|cancelled>|remove <session_id> <id>|clear <session_id> --yes|path]`
 ///
 /// Surface for the per-session `TodoStore` (the same store the
-/// `cos_todo` LLM tool writes to). Lets operators inspect or
+/// `yu_todo` LLM tool writes to). Lets operators inspect or
 /// hand-edit a session's todo list out-of-band — useful when a
 /// long-running session has accumulated state and you want to
 /// see/correct it without re-running the agent.

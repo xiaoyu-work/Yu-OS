@@ -4,10 +4,10 @@
 //! Use case: shipping the same agent loop in different security
 //! contexts. Examples:
 //!
-//!   * **Untrusted prompts** — disable destructive tools (`cos_proc`
-//!     kill, `cos_sandbox` exec, network egress) so prompt injection
+//!   * **Untrusted prompts** — disable destructive tools (`yu_proc`
+//!     kill, `yu_sandbox` exec, network egress) so prompt injection
 //!     can't pivot to system damage.
-//!   * **Sub-agent delegation** — `cos_delegate` already restricts
+//!   * **Sub-agent delegation** — `yu_delegate` already restricts
 //!     children via `allowed_tools`. This module is the standalone
 //!     equivalent for the top-level loop.
 //!   * **Demo mode** — limit to read-only inspection tools.
@@ -35,7 +35,7 @@
 //! ```
 //!
 //! Library-only this commit. Runtime integration (e.g. wiring a
-//! `Guardrails` into the agent loop or `cos_delegate`) is a separate
+//! `Guardrails` into the agent loop or `yu_delegate`) is a separate
 //! step and a behaviour change requiring its own review.
 
 use std::collections::HashSet;

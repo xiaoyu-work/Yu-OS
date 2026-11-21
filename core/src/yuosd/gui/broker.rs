@@ -1,0 +1,580 @@
+use std::os::fd::AsRawFd;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
+
+use yuos_display_control::{workload::InstanceProcess, ProcessIdentity};
+use serde::Deserialize;
+use serde_json::{json, Value};
+use tokio::net::{UnixListener, UnixStream};
+
+use crate::caps::Verb;
+use crate::yuosd::app_sessions::gui::{kernel_peer, Registration};
+use crate::yuosd::client_identity::ClientIdentity;
+use crate::yuosd::protocol::{encode_response, BrokerError, Response};
+use crate::yuosd::routes::Command;
+use crate::yuosd::state::DaemonState;
+use crate::yuosd::transport::{peer, Admission, PeerStream, ReadOutcome};
+use crate::yuosd::wire::{
+    bounded::{Text, TextList},
+    Fault, InboundRequest, Request, RequestId, MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES,
+    PROTOCOL_VERSION,
+};
+use crate::yuosd::wire::requests::{DesktopMenuLaunch, DesktopPowerReview};
+
+use super::desktop_review::{Reply as DesktopReply, Window as DesktopReview};
+
+const CONNECTIONS: usize = 8;
+const IO_TIMEOUT: Duration = Duration::from_secs(5);
+
+struct BoundProcess {
+    process: ProcessIdentity,
+    containment: InstanceProcess,
+}
+
+struct State {
+    job: Arc<super::manager::Job>,
+    registration: Arc<Registration>,
+    package_intents: Arc<crate::yuosd::packages::gui::WindowIntents>,
+    capture: Arc<crate::yuosd::capture::gui::Window>,
+    media: Arc<crate::yuosd::media_player::gui::Window>,
+    audio: Arc<super::audio::Window>,
+    picker: Arc<super::file_picker::Window>,
+    notifications: Arc<crate::yuosd::notifications::gui::Window>,
+    desktop_review: Arc<DesktopReview>,
+    process: OnceLock<BoundProcess>,
+    stopped: AtomicBool,
+    listener_done: AtomicBool,
+    inflight: AtomicUsize,
+    failure: Mutex<Option<String>>,
+    shutdown: tokio::sync::watch::Sender<bool>,
+    home_metadata: bool,
+}
+
+pub(super) struct Broker {
+    state: Arc<State>,
+}
+
+impl Broker {
+    pub(super) fn picker(&self) -> Arc<super::file_picker::Window> {
+        self.state.picker.clone()
+    }
+
+    pub fn start(
+        listener: std::os::unix::net::UnixListener,
+        job: Arc<super::manager::Job>,
+        daemon: DaemonState,
+        admission: Arc<Admission>,
+        executor: &tokio::runtime::Handle,
+        home_metadata: bool,
+    ) -> Result<Self, String> {
+        listener
+            .set_nonblocking(true)
+            .map_err(|error| error.to_string())?;
+        peer::enable_credential_passing(listener.as_raw_fd()).map_err(|error| error.to_string())?;
+        let _runtime = executor.enter();
+        let listener = UnixListener::from_std(listener).map_err(|error| error.to_string())?;
+        let (shutdown, mut ended) = tokio::sync::watch::channel(false);
+        let registration = job.registration.clone();
+        let state = Arc::new(State {
+            package_intents: crate::yuosd::packages::gui::WindowIntents::new(registration.clone()),
+            capture: crate::yuosd::capture::gui::Window::new(registration.clone()),
+            media: job.media.clone(),
+            audio: super::audio::Window::new(registration.clone()),
+            picker: super::file_picker::Window::new(registration.clone()),
+            notifications: crate::yuosd::notifications::gui::Window::new(registration.clone()),
+            desktop_review: Arc::new(DesktopReview::new(registration.clone())),
+            job,
+            registration,
+            process: OnceLock::new(),
+            stopped: AtomicBool::new(false),
+            listener_done: AtomicBool::new(false),
+            inflight: AtomicUsize::new(0),
+            failure: Mutex::new(None),
+            shutdown,
+            home_metadata,
+        });
+        let endpoint = state.clone();
+        let context = crate::paths::RoutedPathContext::capture();
+        executor.spawn(async move {
+            let _done = ListenerDone(endpoint.clone());
+            loop {
+                let accepted = tokio::select! {
+                    _ = ended.changed() => return,
+                    accepted = listener.accept() => accepted,
+                };
+                let (stream, _) = match accepted {
+                    Ok(accepted) => accepted,
+                    Err(error) => {
+                        tracing::error!(%error, "GUI broker listener failed");
+                        if let Ok(mut failure) = endpoint.failure.lock() {
+                            *failure = Some(error.to_string());
+                        }
+                        return;
+                    }
+                };
+                if endpoint.stopped.load(Ordering::Acquire) {
+                    return;
+                }
+                if endpoint.inflight.load(Ordering::Acquire) >= CONNECTIONS {
+                    tracing::warn!("GUI broker connection ceiling reached");
+                    continue;
+                }
+                endpoint.inflight.fetch_add(1, Ordering::AcqRel);
+                let endpoint = endpoint.clone();
+                let daemon = daemon.clone();
+                let admission = admission.clone();
+                let context = context.clone();
+                tokio::spawn(async move {
+                    let _active = Active(endpoint.clone());
+                    context
+                        .scope(serve(stream, endpoint, daemon, admission))
+                        .await;
+                });
+            }
+        });
+        Ok(Self { state })
+    }
+
+    pub fn bind(
+        &self,
+        process: ProcessIdentity,
+        resources: &crate::worker::LaunchResources,
+    ) -> Result<(), String> {
+        let containment = InstanceProcess::receive(
+            process.pidfd().map_err(|error| error.to_string())?,
+            resources.gui_cgroup()?,
+        )
+        .map_err(|error| error.to_string())?;
+        self.state
+            .process
+            .get()
+            .map_or(Ok(()), |_| Err("GUI broker process was already bound".to_string()))?;
+        self.state.package_intents.bind(process.clone(), resources.gui_cgroup()?)?;
+        self.state.capture.bind(process.clone())?;
+        self.state.media.bind(process.clone())?;
+        self.state.audio.bind(process.clone())?;
+        self.state.picker.bind(process.clone())?;
+        self.state.notifications.bind(process.clone())?;
+        self.state
+            .process
+            .set(BoundProcess {
+                process,
+                containment,
+            })
+            .map_err(|_| "GUI broker process was already bound".to_string())
+    }
+
+    pub fn stop(&self) {
+        self.state.stopped.store(true, Ordering::Release);
+        self.state.package_intents.stop();
+        self.state.capture.stop();
+        self.state.media.stop();
+        self.state.audio.stop();
+        self.state.picker.stop();
+        self.state.notifications.stop();
+        self.state.desktop_review.stop();
+        self.state.shutdown.send_replace(true);
+    }
+
+    pub fn retire_intents_after_death(
+        &self, group: &yuos_display_control::workload::Workload, deadline: std::time::Instant,
+    ) -> Result<(), String> {
+        if !self.state.stopped.load(Ordering::Acquire) || !self.quiescent() {
+            return Err("package-intent provider has not quiesced".into());
+        }
+        self.state.package_intents.release_after_death(group, deadline)?;
+        self.state.notifications.release_after_death()?;
+        self.state.desktop_review.retire()
+    }
+
+    pub fn quiescent(&self) -> bool {
+        self.state.listener_done.load(Ordering::Acquire)
+            && self.state.inflight.load(Ordering::Acquire) == 0
+            && self.state.capture.quiescent()
+            && self.state.audio.quiescent()
+            && self.state.picker.quiescent()
+    }
+
+    pub fn health(&self) -> Result<(), String> {
+        self.state.capture.health()?;
+        let failure = self
+            .state
+            .failure
+            .lock()
+            .map_err(|_| "GUI broker status lock poisoned")?;
+        match failure.as_ref() {
+            Some(error) => Err(format!("GUI broker unavailable: {error}")),
+            None => Ok(()),
+        }
+    }
+}
+
+impl Drop for Broker {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
+struct Active(Arc<State>);
+impl Drop for Active {
+    fn drop(&mut self) {
+        self.0.inflight.fetch_sub(1, Ordering::AcqRel);
+    }
+}
+
+struct ListenerDone(Arc<State>);
+impl Drop for ListenerDone {
+    fn drop(&mut self) {
+        self.0.listener_done.store(true, Ordering::Release);
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PolicyQuery {
+    verb: Text<128>,
+    scope: crate::caps::Scope,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MemoryQuery {
+    command: Text<64>,
+    args: TextList<16, 65536>,
+}
+
+enum Validated {
+    Policy,
+    Memory,
+    Provider(Request),
+}
+
+fn validate(request: &mut InboundRequest, session: &str) -> Result<Validated, Fault> {
+    if request.v != PROTOCOL_VERSION {
+        return Err(Fault::UnsupportedVersion);
+    }
+    match request.command.as_str() {
+        crate::worker::broker::POLICY_CHECK_COMMAND => {
+            let query: PolicyQuery =
+                serde_json::from_value(request.params.clone()).map_err(|_| Fault::InvalidParams)?;
+            crate::caps::Verb::parse(query.verb.as_str()).ok_or(Fault::InvalidParams)?;
+            let _ = query.scope;
+            Ok(Validated::Policy)
+        }
+        crate::worker::broker::MEMORY_CALL_COMMAND => {
+            let query: MemoryQuery =
+                serde_json::from_value(request.params.clone()).map_err(|_| Fault::InvalidParams)?;
+            if !crate::worker::broker::MEMORY_SUBCOMMANDS.contains(&query.command.as_str()) {
+                return Err(Fault::InvalidParams);
+            }
+            let _ = query.args;
+            Ok(Validated::Memory)
+        }
+        name => {
+            let command = Command::parse(name).ok_or(Fault::UnknownCommand)?;
+            let route = crate::yuosd::app_sessions::gui::provider_route(command)
+                .map_err(|_| Fault::NotAuthorized)?;
+            let params = request.params.as_object_mut().ok_or(Fault::InvalidParams)?;
+            if params
+                .get("session")
+                .is_some_and(|value| value.as_str() != Some(session))
+            {
+                return Err(Fault::NotAuthorized);
+            }
+            params.insert("session".to_string(), Value::String(session.to_string()));
+            let params = (route.decode)(request.params.clone())?;
+            Ok(Validated::Provider(Request {
+                v: request.v,
+                id: request.id.clone(),
+                command,
+                params,
+            }))
+        }
+    }
+}
+
+async fn serve(
+    stream: UnixStream,
+    endpoint: Arc<State>,
+    daemon: DaemonState,
+    admission: Arc<Admission>,
+) {
+    let mut stream = match PeerStream::new(stream) {
+        Ok(stream) => stream,
+        Err(error) => {
+            tracing::warn!(%error, "GUI broker cannot authenticate connection");
+            return;
+        }
+    };
+    let mut shutdown = endpoint.shutdown.subscribe();
+    let read = tokio::select! {
+        _ = shutdown.changed() => return,
+        read = tokio::time::timeout(IO_TIMEOUT, stream.read_request(MAX_REQUEST_BYTES)) => read,
+    };
+    let frame = match read {
+        Ok(Ok(ReadOutcome::Frame(frame))) => frame,
+        Ok(Ok(ReadOutcome::Closed)) => return,
+        Ok(Ok(ReadOutcome::Legacy)) => {
+            fault(&mut stream, RequestId::unknown(), Fault::UnsupportedFrame).await;
+            return;
+        }
+        Ok(Err(error)) => {
+            fault(&mut stream, RequestId::unknown(), error).await;
+            return;
+        }
+        Err(_) => {
+            fault(&mut stream, RequestId::unknown(), Fault::ReadTimeout).await;
+            return;
+        }
+    };
+    if stream.has_pending_input() {
+        fault(&mut stream, RequestId::unknown(), Fault::ExtraFrame).await;
+        return;
+    }
+    let mut request: InboundRequest = match serde_json::from_slice(&frame.body) {
+        Ok(request) => request,
+        Err(_) => {
+            fault(&mut stream, RequestId::unknown(), Fault::InvalidEnvelope).await;
+            return;
+        }
+    };
+    let validated = match validate(&mut request, &endpoint.registration.session_id) {
+        Ok(validated) => validated,
+        Err(error) => {
+            fault(&mut stream, request.id, error).await;
+            return;
+        }
+    };
+    let authority = (|| {
+        let process = peer::verify(frame.credentials).ok_or("GUI broker peer is unverifiable")?;
+        let mut client = ClientIdentity::from_peer(process);
+        client.attended_local = false;
+        let peer = kernel_peer(&client)?;
+        let bound = endpoint
+            .process
+            .get()
+            .ok_or("GUI broker launch is not bound")?;
+        if endpoint.stopped.load(Ordering::Acquire)
+            || !bound
+                .containment
+                .is_peer(&peer)
+                .map_err(|error| error.to_string())?
+        {
+            return Err("GUI broker peer is outside this live instance".to_string());
+        }
+        let view = endpoint.registration.snapshot(&bound.process)?;
+        Ok((client, view))
+    })();
+    let (client, view) = match authority {
+        Ok(authority) => authority,
+        Err(error) => {
+            respond(
+                &mut stream,
+                Response::handler_error(request.id, BrokerError::authorization(error)),
+            )
+            .await;
+            return;
+        }
+    };
+    let response = match validated {
+        Validated::Policy => Response::ok(
+            request.id,
+            crate::worker::broker::policy_response(
+                &endpoint.registration.session_id,
+                Some(endpoint.registration.launch.app_id()),
+                &view.caps,
+                &request.params,
+            ),
+        ),
+        Validated::Memory => {
+            match crate::worker::broker::memory_call_with_caps(view.caps, &request.params) {
+                Ok(value) => Response::ok(request.id, json!({ "result": value })),
+                Err(error) => {
+                    Response::handler_error(request.id, BrokerError::authorization(error))
+                }
+            }
+        }
+        Validated::Provider(request) => {
+            if request.command == Command::GuiDesktopEvents {
+                let process = &endpoint.process.get().expect("authenticated bound GUI process").process;
+                Box::pin(super::desktop_events::serve(
+                    stream, &endpoint.job, process, request.id, shutdown,
+                )).await;
+                return;
+            } else if request.command == Command::SystemAppPermissions
+                && matches!(request.params["action"].as_str(), Some("show_choices" | "allow" | "deny"))
+            {
+                let result = if endpoint.registration.owner_settings
+                    && view.caps.covers(&crate::caps::Cap::new(Verb::SYS_PERMISSIONS, crate::caps::Scope::name("manage")))
+                {
+                    super::super::app_permissions::owner_settings(
+                        request.params, endpoint.registration.owner(), &endpoint.registration.home, &daemon,
+                    ).await
+                } else {
+                    Err("Application permission decisions require the system Settings window".into())
+                };
+                match result {
+                    Ok(value) => Response::ok(request.id, value),
+                    Err(error) => Response::handler_error(request.id, BrokerError::authorization(error)),
+                }
+            } else if request.command == Command::GuiSystemSettings {
+                let result = if endpoint.registration.owner_settings {
+                    // Dropping the request kills an unfinished helper, including
+                    // one still waiting for administrator authentication.
+                    tokio::select! {
+                        _ = shutdown.changed() => return,
+                        result = Box::pin(super::system_settings::request(
+                            request.params, endpoint.registration.owner()
+                        )) => result,
+                    }
+                } else {
+                    Err(BrokerError::authorization(
+                        "Machine settings require the OS-started Settings window",
+                    ))
+                };
+                match result {
+                    Ok(value) => Response::ok(request.id, value),
+                    Err(error) => Response::handler_error(request.id, error),
+                }
+            } else if request.command == Command::GuiPackageIntent {
+                if crate::yuosd::server::desktop_accounts::restricted(endpoint.registration.owner()) {
+                    respond(
+                        &mut stream,
+                        Response::handler_error(
+                            request.id,
+                            BrokerError::authorization("System package changes require an administrator"),
+                        ),
+                    )
+                    .await;
+                    return;
+                }
+                let bound = endpoint.process.get().expect("authenticated bound GUI process");
+                match crate::yuosd::packages::gui::request(
+                    &daemon, endpoint.package_intents.clone(), &bound.process, &client, request.params,
+                ).await {
+                    Ok(value) => Response::ok(request.id, value),
+                    Err(error) => Response::handler_error(request.id, error),
+                }
+            } else if matches!(request.command, Command::GuiDesktopLaunch | Command::GuiPowerReview) {
+                let id = request.id;
+                let selection = match request.command {
+                    Command::GuiDesktopLaunch => serde_json::from_value::<DesktopMenuLaunch>(request.params)
+                        .map(|r| (Verb::DESKTOP_LAUNCH, r.session, r.action, r.app_id, r.review_id)),
+                    _ => serde_json::from_value::<DesktopPowerReview>(request.params)
+                        .map(|r| (Verb::SYS_POWER, r.session, r.action, r.power_action, r.review_id)),
+                };
+                match selection {
+                    Ok((verb, session, action, selected, review_id)) => {
+                        let process = endpoint.process.get().expect("authenticated bound GUI process").process.clone();
+                        let context = crate::paths::RoutedPathContext::for_owner(
+                            endpoint.registration.owner(), endpoint.registration.home.clone(),
+                        );
+                        let window = endpoint.desktop_review.clone();
+                        let result = tokio::task::spawn_blocking({
+                            let (window, process, context) = (window.clone(), process.clone(), context.clone());
+                            move || context.scope_sync(|| window.request(
+                                &process, verb, session.as_str(), action.as_str(),
+                                selected.as_ref().map(|name| name.as_str()),
+                                review_id.as_ref().map(|value| value.as_str()),
+                            ))
+                        }).await;
+                        match result {
+                            Ok(Ok(DesktopReply::Message(reply))) => Response::ok(id, reply),
+                            Ok(Ok(DesktopReply::Power(effect))) => {
+                                match Box::pin(effect.dispatch(window, process, context)).await {
+                                    Ok(reply) => Response::ok(id, reply),
+                                    Err(error) => Response::handler_error(id, error),
+                                }
+                            }
+                            Ok(Err(error)) => Response::handler_error(id, BrokerError::authorization(error)),
+                            Err(_) => Response::handler_error(id, BrokerError::unavailable("desktop request ended without a confirmed outcome")),
+                        }
+                    }
+                    Err(_) => Response::fault(id, Fault::InvalidParams),
+                }
+            } else if request.command == Command::GuiDesktopLock {
+                let id = request.id;
+                let process = endpoint.process.get().expect("authenticated bound GUI process").process.clone();
+                let context = crate::paths::RoutedPathContext::for_owner(
+                    endpoint.registration.owner(), endpoint.registration.home.clone(),
+                );
+                match tokio::task::spawn_blocking(move || context.scope_sync(|| endpoint.lock_display(&process))).await {
+                    Ok(Ok(reply)) => Response::ok(id, reply),
+                    Ok(Err(error)) => Response::handler_error(id, error),
+                    Err(_) => Response::handler_error(id, BrokerError::unavailable("native lock result is unavailable")),
+                }
+            } else if request.command == Command::GuiMediaExchange {
+                match endpoint.media.exchange(request.params, &client).await {
+                    Ok(value) => Response::ok(request.id, value),
+                    Err(error) => Response::handler_error(request.id, error),
+                }
+            } else if endpoint.home_metadata && matches!(request.command,
+                Command::SystemFilesystemRead | Command::SystemFilesystemWrite | Command::SystemFileReplace)
+            {
+                Response::handler_error(request.id, BrokerError::authorization(
+                    "this GUI's native resources require exact selected-file consent; scalar filesystem providers cannot bypass it"))
+            } else {
+                crate::yuosd::notifications::gui::within(endpoint.notifications.clone(),
+                    super::file_picker::within(endpoint.picker.clone(),
+                        super::audio::within(endpoint.audio.clone(),
+                            crate::yuosd::capture::gui::within(endpoint.capture.clone(),
+                                crate::yuosd::server::dispatch_verified_request(request, &client, &daemon, &admission))))).await
+            }
+        }
+    };
+    respond(&mut stream, response).await;
+}
+
+impl State {
+    fn lock_display(&self, process: &ProcessIdentity) -> Result<Value, BrokerError> {
+        use crate::caps::{Cap, Scope};
+
+        let observed = std::time::Instant::now();
+        let view = self.registration.snapshot(process).map_err(BrokerError::authorization)?;
+        let lock = Cap::new(Verb::IPC_INVOKE, Scope::name("desktop.session.lock"));
+        if self.stopped.load(Ordering::Acquire)
+            || view.subject.task_id.is_some()
+            || view.subject.workspace.is_some()
+            || view.subject.activity.is_some()
+            || !view.caps.covers(&lock)
+        {
+            return Err(BrokerError::authorization("current GUI cannot lock this display"));
+        }
+        let deadline = observed + view.expires_in.min(Duration::from_secs(8));
+        let result = self.registration.control.lock(deadline);
+        crate::provenance::audit("desktop.lock", json!({
+            "owner_uid": self.registration.owner(),
+            "app_id": self.registration.launch.app_id(),
+            "epoch": self.registration.control.epoch.label(),
+            "confirmed": result.is_ok(),
+        }));
+        result.map_err(|error| BrokerError::execution(error.to_string()))?;
+        Ok(json!({"locked": true}))
+    }
+}
+
+async fn fault(stream: &mut PeerStream, id: RequestId, fault: Fault) {
+    tracing::warn!(class = fault.class(), "GUI broker request refused");
+    respond(stream, Response::error(id, fault.code(), fault.message())).await;
+}
+
+pub(super) async fn respond(stream: &mut PeerStream, response: Response) -> bool {
+    let body = match encode_response(&response) {
+        Ok(body) if body.len() <= MAX_RESPONSE_BYTES => body,
+        Ok(_) => {
+            tracing::error!("GUI broker response exceeded the wire bound");
+            return false;
+        }
+        Err(error) => {
+            tracing::error!(%error, "GUI broker response encoding failed");
+            return false;
+        }
+    };
+    match tokio::time::timeout(IO_TIMEOUT, stream.write_response(&body)).await {
+        Ok(Ok(())) => return true,
+        Ok(Err(error)) => tracing::debug!(%error, "GUI broker response recipient closed"),
+        Err(_) => tracing::warn!("GUI broker response deadline elapsed"),
+    }
+    false
+}

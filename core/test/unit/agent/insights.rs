@@ -119,7 +119,7 @@ fn average_duration_some_when_calls_present() {
 
 #[test]
 fn from_path_missing_file_returns_empty() {
-    let nonexistent = std::env::temp_dir().join("cos-insights-no-such.jsonl");
+    let nonexistent = std::env::temp_dir().join("yuos-insights-no-such.jsonl");
     let r = InsightsReport::from_path(&nonexistent);
     assert_eq!(r, InsightsReport::default());
 }
@@ -129,7 +129,7 @@ fn by_session_groups_correctly() {
     use std::path::PathBuf;
     use uuid::Uuid;
     let path: PathBuf = std::env::temp_dir().join(format!(
-        "cos-insights-by-session-{}.jsonl",
+        "yuos-insights-by-session-{}.jsonl",
         Uuid::new_v4().simple()
     ));
     std::fs::write(
@@ -154,7 +154,7 @@ fn recent_returns_last_n() {
     use std::path::PathBuf;
     use uuid::Uuid;
     let path: PathBuf = std::env::temp_dir().join(format!(
-        "cos-insights-recent-{}.jsonl",
+        "yuos-insights-recent-{}.jsonl",
         Uuid::new_v4().simple()
     ));
     std::fs::write(

@@ -124,7 +124,7 @@ async fn spawn_one_shot_mock(
 
 #[tokio::test]
 async fn end_to_end_image_generation_round_trip() {
-    std::env::set_var("COS_TEST_IMAGE_KEY", "sk-img");
+    std::env::set_var("YUOS_TEST_IMAGE_KEY", "sk-img");
     let body = serde_json::json!({
         "data": [{"b64_json": "iVBORw0KGgo="}]
     })
@@ -133,7 +133,7 @@ async fn end_to_end_image_generation_round_trip() {
 
     let mut c = cfg();
     c.base_url = Some(base_url);
-    c.api_key_env = Some("COS_TEST_IMAGE_KEY".into());
+    c.api_key_env = Some("YUOS_TEST_IMAGE_KEY".into());
     let g = OpenAICompatImageGen::from_config(&c);
     let resp = g
         .generate(ImageGenRequest {
@@ -163,12 +163,12 @@ async fn end_to_end_image_generation_round_trip() {
     // png/jpeg → output_compression added.
     assert!(req.contains("\"output_compression\":100"));
 
-    std::env::remove_var("COS_TEST_IMAGE_KEY");
+    std::env::remove_var("YUOS_TEST_IMAGE_KEY");
 }
 
 #[tokio::test]
 async fn end_to_end_image_generation_azure_omits_model() {
-    std::env::set_var("COS_TEST_IMAGE_KEY_2", "sk-img-az");
+    std::env::set_var("YUOS_TEST_IMAGE_KEY_2", "sk-img-az");
     let body = serde_json::json!({
         "data": [{"b64_json": "iVBORw0KGgo="}]
     })
@@ -218,7 +218,7 @@ async fn end_to_end_image_generation_azure_omits_model() {
 
     let mut c = cfg();
     c.base_url = Some(azure_style_base);
-    c.api_key_env = Some("COS_TEST_IMAGE_KEY_2".into());
+    c.api_key_env = Some("YUOS_TEST_IMAGE_KEY_2".into());
     let g = OpenAICompatImageGen::from_config(&c);
     let _ = g
         .generate(ImageGenRequest {
@@ -239,5 +239,5 @@ async fn end_to_end_image_generation_azure_omits_model() {
     );
     assert!(req.contains("\"prompt\":\"test\""));
 
-    std::env::remove_var("COS_TEST_IMAGE_KEY_2");
+    std::env::remove_var("YUOS_TEST_IMAGE_KEY_2");
 }

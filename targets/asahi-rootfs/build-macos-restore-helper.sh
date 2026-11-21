@@ -4,7 +4,7 @@ umask 077
 export LC_ALL=C
 
 fail() {
-    printf 'Claw OS: %s\n' "$*" >&2
+    printf 'Yu OS: %s\n' "$*" >&2
     exit 1
 }
 
@@ -26,7 +26,7 @@ case "$2" in
 esac
 requirement=$(restore_requirement "$3") || fail "use the ten-character Apple Team ID"
 
-work=$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/claw-restore.XXXXXX")
+work=$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/yuos-restore.XXXXXX")
 trap '/bin/rm -rf -- "$work"' EXIT
 fetch_pinned "$NEO_SOURCE_URL" "$NEO_SOURCE_SHA256" "$work/source.tar.gz" \
     || fail "could not verify the pinned Neo restore helper source"
@@ -42,17 +42,17 @@ swift_build() {
 swift_build test
 swift_build build
 binary_dir=$(swift_build build --show-bin-path)
-helper="$work/claw-os-restore-image"
+helper="$work/yuos-restore-image"
 /usr/bin/install -m 0755 "$binary_dir/omarchy-restore-image" "$helper"
 /usr/bin/codesign --force --options runtime --timestamp --identifier "$RESTORE_IDENTIFIER" --sign "$2" "$helper"
 /usr/bin/codesign --verify --strict "-R=$requirement" "$helper"
 "$helper" capabilities
 
 /bin/mkdir "$output"
-/usr/bin/install -m 0755 "$helper" "$output/claw-os-restore-image"
+/usr/bin/install -m 0755 "$helper" "$output/yuos-restore-image"
 /usr/bin/install -m 0644 "$package/LICENSE" "$output/LICENSE"
 (
     cd "$output"
-    /usr/bin/shasum -a 256 claw-os-restore-image | /usr/bin/tee claw-os-restore-image.sha256
+    /usr/bin/shasum -a 256 yuos-restore-image | /usr/bin/tee yuos-restore-image.sha256
 )
 printf 'Apple Team ID: %s\n' "$3"

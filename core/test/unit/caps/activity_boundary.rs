@@ -5,14 +5,14 @@ use crate::test_env::TestEnvVarGuard;
 use serde_json::json;
 
 fn create(owner: u32) -> String {
-    crate::clawd::activities::create(
+    crate::yuosd::activities::create(
         json!({"title":"Scoped work","goal":"Prepare a document"}),
-        &crate::clawd::client_identity::ClientIdentity {
+        &crate::yuosd::client_identity::ClientIdentity {
             uid: Some(owner),
             pid: Some(std::process::id()),
             gid: Some(owner),
             start_time_ticks: crate::proc::read_start_time_ticks_pub(std::process::id()),
-            ..crate::clawd::client_identity::ClientIdentity::unknown()
+            ..crate::yuosd::client_identity::ClientIdentity::unknown()
         },
     )
     .unwrap()["id"]
@@ -34,7 +34,7 @@ fn ask_policy() -> CapabilityPolicyDraft {
 fn runtime_scope_denies_symlink_escapes_and_new_leaves() {
     let _lock = crate::test_env::lock_env();
     let data = tempfile::tempdir().unwrap();
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", data.path());
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
     let allowed = data.path().join("drafts");
     let outside = data.path().join("originals");
     std::fs::create_dir(&allowed).unwrap();
@@ -94,7 +94,7 @@ fn runtime_scope_denies_symlink_escapes_and_new_leaves() {
 fn runtime_scope_confirmation_cannot_widen_symbolic_request() {
     let _lock = crate::test_env::lock_env();
     let data = tempfile::tempdir().unwrap();
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", data.path());
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
     let id = create(1000);
     crate::activities::open_default()
         .unwrap()
@@ -113,7 +113,7 @@ fn runtime_scope_confirmation_cannot_widen_symbolic_request() {
 fn a_new_policy_invalidates_an_already_running_unrestricted_attempt() {
     let _lock = crate::test_env::lock_env();
     let data = tempfile::tempdir().unwrap();
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", data.path());
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
     let id = create(1000);
     let boundary = ActivityBoundary::open(1000, &id, Some("task".into())).unwrap();
     let cap = Cap::new(
@@ -141,7 +141,7 @@ fn a_new_policy_invalidates_an_already_running_unrestricted_attempt() {
 fn a_policy_binding_is_not_confirmation_and_does_not_survive_revision_changes() {
     let _lock = crate::test_env::lock_env();
     let data = tempfile::tempdir().unwrap();
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", data.path());
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
     let id = create(1000);
     let service = crate::activities::open_default().unwrap();
     service
@@ -200,7 +200,7 @@ fn a_policy_binding_is_not_confirmation_and_does_not_survive_revision_changes() 
 async fn task_local_boundaries_check_owner_session_and_do_not_escape_the_scope() {
     let _lock = crate::test_env::lock_env();
     let data = tempfile::tempdir().unwrap();
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", data.path());
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
     let id = create(1000);
     let boundary = ActivityBoundary::open(1000, &id, Some("task".into())).unwrap();
     scope(Some(boundary), async {

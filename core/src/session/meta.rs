@@ -98,7 +98,7 @@ pub struct Budget {
 pub struct Lease {
     /// OS PID of the holding process.
     pub pid: u32,
-    /// Optional human-readable runtime label (`"cos-agent-chat"`,
+    /// Optional human-readable runtime label (`"yuos-agent-chat"`,
     /// `"langchain-py"`, …). Recorded purely for display; not part of
     /// any enforcement decision.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -179,7 +179,7 @@ impl SessionClient {
 /// Short-lived proof that an authenticated local client is still present.
 ///
 /// Unlike [`SessionClient`], this value is never persisted in durable session
-/// or task records. `clawd` keeps it in memory, binds it into one signed worker
+/// or task records. `yuosd` keeps it in memory, binds it into one signed worker
 /// assignment, and a consumer must re-check the process identity and expiry.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SessionPresence {
@@ -208,7 +208,7 @@ pub struct SessionPresence {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SessionOrigin {
-    /// Interactive system-Agent work: `yu agent ask/chat`, a `clawd`
+    /// Interactive system-Agent work: `yu agent ask/chat`, a `yuosd`
     /// transaction. Carries the minimal baseline and nothing else.
     SystemAgentTask,
     /// A `yu cron` job the owner created through the scheduler
@@ -266,7 +266,7 @@ pub struct SessionMeta {
     pub credential_tier: Option<u8>,
 
     /// OS uid that owns this durable session when it represents a
-    /// user-scoped daemon object such as a clawd transaction.
+    /// user-scoped daemon object such as a yuosd transaction.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owner_uid: Option<u32>,
 
@@ -311,7 +311,7 @@ pub struct SessionMeta {
     pub ended_at: Option<String>,
 
     /// Optional free-form label for the agent runtime that created
-    /// this session (`"cos-agent"`, `"langchain-py"`, …). Display only.
+    /// this session (`"yuos-agent"`, `"langchain-py"`, …). Display only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub creator_runtime: Option<String>,
 }

@@ -9,7 +9,7 @@ use serde_json::Value;
 use tokio::net::UnixStream;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::clawd::wire::RequestId;
+use crate::yuosd::wire::RequestId;
 
 use super::protocol::{
     control_socket_for, ControlRequest, ControlResponse, ExtensionBinding, ExtensionErrorCategory,
@@ -715,7 +715,7 @@ impl ExtensionHostClient {
                 "extension-host request exceeds its frame limit",
             ));
         }
-        crate::clawd::transport::frame::write_request_async(&mut stream, &body)
+        crate::yuosd::transport::frame::write_request_async(&mut stream, &body)
             .await
             .map_err(|error| {
                 ClientFault::new(
@@ -723,7 +723,7 @@ impl ExtensionHostClient {
                     format!("write extension-host request: {error}"),
                 )
             })?;
-        let body = crate::clawd::transport::frame::read_response_async(
+        let body = crate::yuosd::transport::frame::read_response_async(
             &mut stream,
             MAX_CONTROL_FRAME_BYTES,
         )
@@ -1032,12 +1032,12 @@ impl ExtensionHostClient {
     }
 }
 
-fn response_fault_category(fault: crate::clawd::wire::Fault) -> ExtensionErrorCategory {
+fn response_fault_category(fault: crate::yuosd::wire::Fault) -> ExtensionErrorCategory {
     match fault {
-        crate::clawd::wire::Fault::TruncatedFrame => ExtensionErrorCategory::Crash,
-        crate::clawd::wire::Fault::ReadTimeout
-        | crate::clawd::wire::Fault::WriteTimeout
-        | crate::clawd::wire::Fault::RouteTimeout => ExtensionErrorCategory::Timeout,
+        crate::yuosd::wire::Fault::TruncatedFrame => ExtensionErrorCategory::Crash,
+        crate::yuosd::wire::Fault::ReadTimeout
+        | crate::yuosd::wire::Fault::WriteTimeout
+        | crate::yuosd::wire::Fault::RouteTimeout => ExtensionErrorCategory::Timeout,
         _ => ExtensionErrorCategory::Protocol,
     }
 }
@@ -1060,7 +1060,7 @@ fn action_for_result<T>(result: &ClientResult<T>) -> super::protocol::LifecycleA
 
 fn app_manifest_digest(app_id: &str) -> Option<String> {
     let root = std::path::PathBuf::from(
-        std::env::var("COS_APPS_DIR").unwrap_or_else(|_| "/usr/lib/cos/apps".to_string()),
+        std::env::var("YUOS_APPS_DIR").unwrap_or_else(|_| "/usr/lib/yuos/apps".to_string()),
     );
     let app = crate::apps::find(&root, app_id)?;
     let bytes = std::fs::read(app.dir.join("app.json")).ok()?;
@@ -1114,10 +1114,10 @@ fn exchange_blocking(
     if body.len() > MAX_CONTROL_FRAME_BYTES {
         return Err("extension-host request exceeds its frame limit".to_string());
     }
-    crate::clawd::transport::frame::write_request_blocking(&mut stream, &body)
+    crate::yuosd::transport::frame::write_request_blocking(&mut stream, &body)
         .map_err(|error| format!("write extension-host request: {error}"))?;
     if read_response {
-        let _ = crate::clawd::transport::frame::read_response_blocking(
+        let _ = crate::yuosd::transport::frame::read_response_blocking(
             &mut stream,
             MAX_CONTROL_FRAME_BYTES,
         )

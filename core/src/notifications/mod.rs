@@ -329,9 +329,9 @@ impl NotificationDraft {
             let uri = url::Url::parse(&action.uri).map_err(|_| {
                 NotificationError::Invalid("action uri must be an absolute URL".to_string())
             })?;
-            if !matches!(uri.scheme(), "clawos" | "https") {
+            if !matches!(uri.scheme(), "yuos" | "https") {
                 return Err(NotificationError::Invalid(
-                    "action uri scheme must be clawos or https".to_string(),
+                    "action uri scheme must be yuos or https".to_string(),
                 ));
             }
         }

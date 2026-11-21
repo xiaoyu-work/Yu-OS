@@ -6,7 +6,7 @@ const windowId = "11111111-1111-4111-8111-111111111111";
 const uploadId = "22222222-2222-4222-8222-222222222222";
 function fixture(): NearbyView {
   return {
-    schema: 1, owner_uid: 1000, inbox: "/home/user/Downloads/Claw Nearby", uploads: [],
+    schema: 1, owner_uid: 1000, inbox: "/home/user/Downloads/Yu OS Nearby", uploads: [],
     probe: { available: true, mode: "shared", driver: "fixture", diagnostics: [] },
     session: { id: windowId, phase: "ready", mode: "shared", receive: true,
       expires_at: "2026-11-01T12:00:00.000Z", discovering: false, message: null,

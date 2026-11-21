@@ -1,7 +1,7 @@
 # App AI Tool Catalog
 
 The Tool catalog is the **single source of truth** for what computer
-operations a Claw OS App may ask an LLM to invoke through the kernel
+operations a Yu OS App may ask an LLM to invoke through the kernel
 AI gate. Every entry below is:
 
 * **Verb-bound** — each Tool maps to exactly one capability verb
@@ -43,7 +43,7 @@ see [`docs/app-ai-integration.md`](./app-ai-integration.md).
 ## How an App uses the catalog
 
 ```python
-from claw_os_sdk import ai, tools
+from yuos_sdk import ai, tools
 
 proposal = ai.chat(
     prompt="Summarise the file at /etc/hostname.",

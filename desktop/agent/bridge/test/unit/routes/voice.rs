@@ -143,13 +143,13 @@
         let audio = create_temp_audio(directory.path(), "wav", b"RIFF")
             .await
             .expect("create temporary audio");
-        let stub = directory.path().join("cos-stub");
+        let stub = directory.path().join("yuos-stub");
         let mut file = OpenOptions::new()
             .write(true)
             .create_new(true)
             .mode(0o700)
             .open(&stub)
-            .expect("create cos stub");
+            .expect("create yu stub");
         file.write_all(
             br#"#!/bin/sh
 if [ "$1" != "model" ] || [ "$2" != "transcribe" ] || [ ! -f "$3" ] || [ "$4" != "--format" ] || [ "$5" != "json" ]; then
@@ -159,7 +159,7 @@ fi
 printf '%s\n' '{"result":{"text":"stub transcript"}}'
 "#,
         )
-        .expect("write cos stub");
+        .expect("write yu stub");
         drop(file);
 
         let text =

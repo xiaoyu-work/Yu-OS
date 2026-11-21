@@ -4,7 +4,7 @@
 # vendor on bare metal. (Inside WSL/containers there is no PCI bus to scan,
 # so the detector falls back to /dev/dxg + nvidia-smi.) The proprietary
 # NVIDIA driver itself is NOT listed here — it is installed on demand by
-# /usr/lib/cos/hw/gpu-setup only on machines that actually have an NVIDIA
+# /usr/lib/yuos/hw/gpu-setup only on machines that actually have an NVIDIA
 # GPU, never unconditionally baked into the image.
 pciutils
 

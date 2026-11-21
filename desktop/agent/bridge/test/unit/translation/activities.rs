@@ -66,7 +66,7 @@ fn activity_attention_translation_keeps_the_shared_read_only_contract() {
 
 #[test]
 fn activity_object_state_translation_keeps_all_classifications_without_truth_claims() {
-    use cos_agent_protocol::{ObjectStateContent, ObjectStateSource};
+    use yuos_agent_protocol::{ObjectStateContent, ObjectStateSource};
     for content in [
         json!({"kind": "user_statement", "text": "<script>inert</script>"}),
         json!({"kind": "agent_inference", "text": "Caller-classified inference"}),
@@ -104,7 +104,7 @@ fn activity_object_state_translation_keeps_all_classifications_without_truth_cla
 
 #[test]
 fn activity_object_state_translation_reuses_bounded_receipt_report_without_replacement_data() {
-    use cos_agent_protocol::ActivityReceiptOutcome;
+    use yuos_agent_protocol::ActivityReceiptOutcome;
     let mut value = object_state_value();
     value["entries"][0]["draft"]["content"] = json!({
         "kind": "app_report", "receipt_id": "44444444-4444-4444-8444-444444444444"
@@ -172,7 +172,7 @@ fn activity_object_state_translation_rejects_schema_identity_shape_and_claim_mis
 
 #[test]
 fn activity_object_state_translation_keeps_expired_windows_and_immutable_history() {
-    use cos_agent_protocol::ObjectStateValidity;
+    use yuos_agent_protocol::ObjectStateValidity;
     for validity in ["not_yet_applicable", "within_reported_window", "expired"] {
         let mut value = object_state_value();
         value["entries"][0]["draft"]["observed_at"] = json!("2026-09-09T12:00:00Z");

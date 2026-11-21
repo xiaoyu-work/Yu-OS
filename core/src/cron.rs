@@ -1,4 +1,4 @@
-/// Agent-native cron scheduler for Claw OS.
+/// Agent-native cron scheduler for Yu OS.
 ///
 /// Unlike traditional crond, this provides agent-native capabilities:
 /// - Execution context: tier, scope, and credential injection
@@ -6,8 +6,8 @@
 /// - Overlap protection: skip, queue, kill, or allow concurrent runs
 /// - Runtime dynamic management: add/remove/enable/disable without config reload
 ///
-/// Storage: `$COS_DATA_DIR/cron/jobs/<id>.json` for definitions,
-///          `$COS_DATA_DIR/cron/logs/<id>/<timestamp>.json` for run history.
+/// Storage: `$YUOS_DATA_DIR/cron/jobs/<id>.json` for definitions,
+///          `$YUOS_DATA_DIR/cron/logs/<id>/<timestamp>.json` for run history.
 ///
 /// Commands:
 ///   add      — Register a cron job (--schedule, --command, --tier, --scope, etc.)
@@ -225,7 +225,7 @@ struct CronRunResult {
     duration_ms: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     run_id: Option<String>,
-    /// PID of the spawned shell. Recorded so that, on cos restart,
+    /// PID of the spawned shell. Recorded so that, on yu restart,
     /// `is_running` can decide whether a stale `status: "running"`
     /// row belongs to a still-live process or a crashed run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -685,23 +685,23 @@ fn execute_job(job: &CronJob, run_id: &str) -> CronRunResult {
     let mut cmd = std::process::Command::new(crate::bridge::app_runner_path());
     cmd.arg("--").arg(shell).arg(shell_flag).arg(&job.command);
     // Default stdin to /dev/null so a job that mistakenly tries to
-    // read input doesn't block forever inheriting the cos parent
+    // read input doesn't block forever inheriting the yu parent
     // tty / pipe.
     cmd.stdin(std::process::Stdio::null());
 
     // Inject cron context env vars
-    cmd.env("COS_CRON_JOB", &job.id);
-    cmd.env("COS_SESSION", &session_id);
+    cmd.env("YUOS_CRON_JOB", &job.id);
+    cmd.env("YUOS_SESSION", &session_id);
     cmd.env(
-        "COS_PROC_DATA_DIR",
-        PathBuf::from("/run/cos/caps").join(owner_uid.to_string()),
+        "YUOS_PROC_DATA_DIR",
+        PathBuf::from("/run/yuos/caps").join(owner_uid.to_string()),
     );
-    cmd.env("HOME", &owner_home).env("COS_HOME", &owner_home);
+    cmd.env("HOME", &owner_home).env("YUOS_HOME", &owner_home);
 
     // Inject tier/scope if specified
-    cmd.env("COS_TIER", tier.to_string());
+    cmd.env("YUOS_TIER", tier.to_string());
     if let Some(ref scope) = job.scope {
-        cmd.env("COS_SCOPE", scope);
+        cmd.env("YUOS_SCOPE", scope);
     }
 
     // Keep plaintext credentials in sealed anonymous memfds. Injection
@@ -751,7 +751,7 @@ fn execute_job(job: &CronJob, run_id: &str) -> CronRunResult {
                 };
                 #[cfg(not(unix))]
                 let path = String::new();
-                let env_key = format!("COS_CRED_{}_FILE", safe_name);
+                let env_key = format!("YUOS_CRED_{}_FILE", safe_name);
                 cmd.env(env_key, path);
                 credential_files.push(file);
             }
@@ -864,7 +864,7 @@ fn prepare_credential_memfd(name: &str, value: &str) -> std::io::Result<std::fs:
     use std::io::Write;
     use std::os::unix::io::FromRawFd;
 
-    let label = std::ffi::CString::new(format!("cos-cron-{name}"))
+    let label = std::ffi::CString::new(format!("yuos-cron-{name}"))
         .map_err(|_| std::io::Error::other("credential name contains NUL"))?;
     let fd =
         unsafe { libc::memfd_create(label.as_ptr(), libc::MFD_CLOEXEC | libc::MFD_ALLOW_SEALING) };
@@ -923,7 +923,7 @@ fn reject_symlink(path: &std::path::Path) -> std::io::Result<()> {
 }
 
 pub(crate) fn cleanup_runtime_credentials() -> Result<(), String> {
-    let root = PathBuf::from("/run/cos/cron");
+    let root = PathBuf::from("/run/yuos/cron");
     reject_symlink(&root).map_err(|error| format!("inspect cron runtime: {error}"))?;
     match fs::remove_dir_all(&root) {
         Ok(()) => Ok(()),
@@ -2233,7 +2233,7 @@ fn publish_cron_result(job: &CronJob, result: &CronRunResult) {
         .push(crate::notifications::NotificationAction {
             id: "open-scheduled-task".to_string(),
             label: "View task".to_string(),
-            uri: format!("clawos://agent/cron/{}", job.id),
+            uri: format!("yuos://agent/cron/{}", job.id),
         });
     publish_cron(owner_uid, &job.id, draft);
 }
@@ -2256,7 +2256,7 @@ fn publish_cron_skipped(owner_uid: u32, job_id: &str, reason: &str) {
 }
 
 fn publish_cron(owner_uid: u32, job_id: &str, draft: crate::notifications::NotificationDraft) {
-    if let Err(error) = crate::clawd::notifications::publish_for_owner(owner_uid, draft) {
+    if let Err(error) = crate::yuosd::notifications::publish_for_owner(owner_uid, draft) {
         tracing::warn!(
             owner_uid,
             job_id,

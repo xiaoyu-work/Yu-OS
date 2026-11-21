@@ -3,7 +3,7 @@ use super::*;
 use std::sync::Once;
 static PERMS_INIT: Once = Once::new();
 fn perms_init() {
-    PERMS_INIT.call_once(|| std::env::set_var("COS_PERMS_MODE", "permissive"));
+    PERMS_INIT.call_once(|| std::env::set_var("YUOS_PERMS_MODE", "permissive"));
 }
 use chrono::TimeZone;
 
@@ -281,9 +281,9 @@ fn cron_setup() -> (
 ) {
     let guard = CRON_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     CRON_INIT.call_once(|| {
-        let dir = std::env::temp_dir().join(format!("cos-test-shared-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("yuos-test-shared-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
-        std::env::set_var("COS_DATA_DIR", &dir);
+        std::env::set_var("YUOS_DATA_DIR", &dir);
     });
     let session = crate::test_env::TestSessionGuard::admin(&crate::paths::data_dir());
     // Clean up jobs and logs between tests
@@ -418,7 +418,7 @@ fn test_status() {
         "--tier".to_string(),
         "1".to_string(),
         "--scope".to_string(),
-        "/home/cos/project".to_string(),
+        "/home/yuos/project".to_string(),
         "--overlap".to_string(),
         "allow".to_string(),
         "--timeout".to_string(),
@@ -430,7 +430,7 @@ fn test_status() {
     assert_eq!(result["id"], "status-job");
     assert_eq!(result["schedule"], "30 14 * * *");
     assert_eq!(result["tier"], 1);
-    assert_eq!(result["scope"], "/home/cos/project");
+    assert_eq!(result["scope"], "/home/yuos/project");
     assert_eq!(result["overlap_policy"], "Allow");
     assert_eq!(result["timeout_secs"], 300);
 }
@@ -575,7 +575,7 @@ fn test_cronjob_serialization_roundtrip() {
         command: "echo hello".to_string(),
         description: "test roundtrip".to_string(),
         tier: Some(1),
-        scope: Some("/home/cos".to_string()),
+        scope: Some("/home/yuos".to_string()),
         credentials: vec!["key1".to_string(), "key2".to_string()],
         enabled: true,
         overlap_policy: OverlapPolicy::Queue,
@@ -744,7 +744,7 @@ fn wait_with_timeout_terminates_slow_child_and_reports_timeout() {
 #[test]
 fn crashed_running_recovered_on_startup() {
     // Reproduces the crashed-mid-run availability bug: a job
-    // whose last_run was stamped `status: "running"` before cos
+    // whose last_run was stamped `status: "running"` before yu
     // crashed must NOT be treated as still-running forever
     // under the default Skip policy. The fix records `pid` in
     // `last_run`; `is_running` checks whether that pid is

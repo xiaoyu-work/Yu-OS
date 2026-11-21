@@ -4,8 +4,8 @@ use axum::{
     Json,
     extract::{Path, Query, State, rejection::JsonRejection, rejection::QueryRejection},
 };
-use clawd_client::Command;
-use cos_agent_protocol::{
+use yuosd_client::Command;
+use yuos_agent_protocol::{
     ActivitySchedulingPolicy, ActivitySchedulingPriorityQuery, ActivitySchedulingPriorityResponse,
     ActivitySchedulingPrioritySetRequest,
 };
@@ -34,7 +34,7 @@ pub async fn get(
     query.map_err(|_| invalid("Scheduling-priority queries accept no owner or state selectors"))?;
     let owner = owner_uid()?;
     let value = state
-        .clawd
+        .yuosd
         .call(
             Command::ActivitySchedulingPolicyGet,
             with_id(&id, json!({}))?,
@@ -55,7 +55,7 @@ pub async fn set(
     request.validate_shape().map_err(invalid)?;
     let owner = owner_uid()?;
     let value = state
-        .clawd
+        .yuosd
         .call(
             Command::ActivitySchedulingPolicySet,
             with_id(&id, &request)?,

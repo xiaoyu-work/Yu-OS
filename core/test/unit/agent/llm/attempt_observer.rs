@@ -37,7 +37,7 @@ fn request() -> ChatRequest {
         temperature: Some(0.0),
         top_p: None,
         stop_sequences: Vec::new(),
-        extra: serde_json::json!({"_cos_turn_index": 7}),
+        extra: serde_json::json!({"__yuos_turn_index": 7}),
     }
 }
 

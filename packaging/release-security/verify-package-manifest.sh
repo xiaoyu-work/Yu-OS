@@ -11,11 +11,11 @@
 #
 # Verified:
 #
-#   * the payload carries `/usr/lib/cos/release-security/<package>/`
+#   * the payload carries `/usr/lib/yuos/release-security/<package>/`
 #     and nothing belonging to another package;
 #   * the manifest is canonical JSON and names this package, version
 #     and architecture;
-#   * its security epoch and ABI match the `XB-Claw-Os-*` control
+#   * its security epoch and ABI match the `XB-YuOS-*` control
 #     fields, and the Debian *epoch* of the version equals the security
 #     epoch, so APT's own ordering prefers a higher security epoch;
 #   * every component the manifest lists is present in the payload with
@@ -62,27 +62,27 @@ done
 PACKAGE="$(dpkg-deb -f "$DEB" Package)"
 VERSION="$(dpkg-deb -f "$DEB" Version)"
 ARCH="$(dpkg-deb -f "$DEB" Architecture)"
-EPOCH="$(dpkg-deb -f "$DEB" XB-Claw-Os-Security-Epoch || true)"
-ABI="$(dpkg-deb -f "$DEB" XB-Claw-Os-Abi || true)"
+EPOCH="$(dpkg-deb -f "$DEB" XB-YuOS-Security-Epoch || true)"
+ABI="$(dpkg-deb -f "$DEB" XB-YuOS-Abi || true)"
 PROVIDES="$(dpkg-deb -f "$DEB" Provides || true)"
 DEPENDS="$(dpkg-deb -f "$DEB" Depends || true)"
 
 case "$PACKAGE" in
-    claw-os-agent|claw-os-base|claw-os-desktop) ;;
-    *) echo "error: $PACKAGE is not a gated Claw OS package" >&2; exit 1 ;;
+    yuos-agent|yuos-base|yuos-desktop) ;;
+    *) echo "error: $PACKAGE is not a gated Yu OS package" >&2; exit 1 ;;
 esac
 if [ -n "$EXPECT_ARCH" ] && [ "$ARCH" != "$EXPECT_ARCH" ]; then
     echo "error: $PACKAGE is built for $ARCH, expected $EXPECT_ARCH" >&2
     exit 1
 fi
-[ -n "$EPOCH" ] || { echo "error: $PACKAGE declares no XB-Claw-Os-Security-Epoch" >&2; exit 1; }
-[ -n "$ABI" ] || { echo "error: $PACKAGE declares no XB-Claw-Os-Abi" >&2; exit 1; }
+[ -n "$EPOCH" ] || { echo "error: $PACKAGE declares no XB-YuOS-Security-Epoch" >&2; exit 1; }
+[ -n "$ABI" ] || { echo "error: $PACKAGE declares no XB-YuOS-Abi" >&2; exit 1; }
 
 # The ABI generation has to be expressed as a relationship APT's solver
 # understands, not only as an informational field.
 #
-# The match is token-exact. A substring test would let `claw-os-abi-1`
-# be satisfied by a package declaring `claw-os-abi-12`, which is a
+# The match is token-exact. A substring test would let `yuos-abi-1`
+# be satisfied by a package declaring `yuos-abi-12`, which is a
 # different, incompatible ABI generation. Debian relationship fields are
 # comma-separated, may carry alternatives (`|`), a version constraint
 # (`(>= 1)`) and an architecture qualifier (`:any`), so each token is
@@ -108,13 +108,13 @@ PY
 }
 
 case "$PACKAGE" in
-    claw-os-agent)
-        declares_abi "$PROVIDES" "claw-os-abi-$ABI" \
-            || { echo "error: claw-os-agent must provide claw-os-abi-$ABI" >&2; exit 1; }
+    yuos-agent)
+        declares_abi "$PROVIDES" "yuos-abi-$ABI" \
+            || { echo "error: yuos-agent must provide yuos-abi-$ABI" >&2; exit 1; }
         ;;
     *)
-        declares_abi "$DEPENDS" "claw-os-abi-$ABI" \
-            || { echo "error: $PACKAGE must depend on claw-os-abi-$ABI" >&2; exit 1; }
+        declares_abi "$DEPENDS" "yuos-abi-$ABI" \
+            || { echo "error: $PACKAGE must depend on yuos-abi-$ABI" >&2; exit 1; }
         ;;
 esac
 
@@ -123,11 +123,11 @@ trap 'rm -rf "$WORK"' EXIT
 dpkg-deb -x "$DEB" "$WORK/payload"
 dpkg-deb -e "$DEB" "$WORK/control"
 
-MANIFEST_DIR="$WORK/payload/usr/lib/cos/release-security"
+MANIFEST_DIR="$WORK/payload/usr/lib/yuos/release-security"
 MANIFEST="$MANIFEST_DIR/$PACKAGE/manifest.json"
 [ -s "$MANIFEST" ] || {
     echo "error: $PACKAGE carries no release manifest at" >&2
-    echo "       /usr/lib/cos/release-security/$PACKAGE/manifest.json" >&2
+    echo "       /usr/lib/yuos/release-security/$PACKAGE/manifest.json" >&2
     exit 1
 }
 # One package, one manifest directory: a package that also shipped a

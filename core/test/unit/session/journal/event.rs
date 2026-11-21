@@ -40,8 +40,8 @@ fn labels_reject_values_that_were_never_bounded() {
 #[test]
 fn references_accept_scopes_and_reject_control_characters() {
     assert_eq!(
-        Reference::new("path:/var/lib/cos").as_str(),
-        "path:/var/lib/cos"
+        Reference::new("path:/var/lib/yuos").as_str(),
+        "path:/var/lib/yuos"
     );
     assert_eq!(
         Reference::new("a scope with spaces").as_str(),
@@ -117,7 +117,7 @@ fn mutation_events_name_their_operation() {
 fn events_round_trip_through_their_stored_form() {
     let event = JournalEvent::ToolFinished {
         turn: 3,
-        tool: Label::new("cos_recall"),
+        tool: Label::new("yu_recall"),
         tool_use_id: Label::new("tu-9"),
         known: true,
         success: false,

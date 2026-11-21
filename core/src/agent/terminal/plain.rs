@@ -119,6 +119,6 @@ pub(super) fn run(options: ChatOptions) -> Result<Value, String> {
             prompts+=1;
             app.clear_transcript();
         }
-        Ok(json!({"session_id":app.conversation.id,"workspace_id":app.conversation.workspace_id,"prompts":prompts,"backend":"clawd"}))
+        Ok(json!({"session_id":app.conversation.id,"workspace_id":app.conversation.workspace_id,"prompts":prompts,"backend":"yuosd"}))
     })
 }

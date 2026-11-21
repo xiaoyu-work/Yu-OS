@@ -1,5 +1,5 @@
 //! Media provider factory — builds [`TtsRegistry`] / [`SttRegistry`]
-//! / [`ImageGenRegistry`] from a [`CosConfig`].
+//! / [`ImageGenRegistry`] from a [`YuConfig`].
 //!
 //! Each registry always starts with the deterministic `noop` provider
 //! (so call paths stay exercisable without any backend configured) and
@@ -52,7 +52,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::config::CosConfig;
+use crate::config::YuConfig;
 
 use super::imagegen::{ImageGenProvider, ImageGenRegistry};
 use super::imagegen_fal::{FalImageGenConfig, FalImageGenProvider};
@@ -92,7 +92,7 @@ fn opt_string(value: &str) -> Option<String> {
 /// Build a [`TtsRegistry`] from the active config. Always includes
 /// `noop`; layers a single concrete provider on top when
 /// `cfg.tts.provider` selects a known backend.
-pub fn tts_registry_from_cfg(cfg: &CosConfig) -> TtsRegistry {
+pub fn tts_registry_from_cfg(cfg: &YuConfig) -> TtsRegistry {
     let mut reg = TtsRegistry::with_default_providers();
     let p = &cfg.tts;
     let provider = p.provider.trim().to_lowercase();
@@ -186,7 +186,7 @@ pub fn tts_registry_from_cfg(cfg: &CosConfig) -> TtsRegistry {
 }
 
 /// Build an [`SttRegistry`] from the active config.
-pub fn stt_registry_from_cfg(cfg: &CosConfig) -> SttRegistry {
+pub fn stt_registry_from_cfg(cfg: &YuConfig) -> SttRegistry {
     let mut reg = SttRegistry::with_default_providers();
     let p = &cfg.stt;
     let provider = p.provider.trim().to_lowercase();
@@ -229,7 +229,7 @@ pub fn stt_registry_from_cfg(cfg: &CosConfig) -> SttRegistry {
 }
 
 /// Build an [`ImageGenRegistry`] from the active config.
-pub fn imagegen_registry_from_cfg(cfg: &CosConfig) -> ImageGenRegistry {
+pub fn imagegen_registry_from_cfg(cfg: &YuConfig) -> ImageGenRegistry {
     let mut reg = ImageGenRegistry::with_default_providers();
     let p = &cfg.imagegen;
     let provider = p.provider.trim().to_lowercase();

@@ -14,9 +14,9 @@ fn error_basic() {
 fn error_with_recovery_includes_all_fields() {
     let e = error_with_recovery(
         IO_FILE_NOT_FOUND,
-        "file not found: /home/cos/missing.txt",
+        "file not found: /home/yuos/missing.txt",
         "Check the path exists",
-        &["yu app fs ls /home/cos"],
+        &["yu app fs ls /home/yuos"],
     );
     assert_eq!(e["code"], "io.file_not_found");
     assert!(e["recovery"]["hint"].is_string());

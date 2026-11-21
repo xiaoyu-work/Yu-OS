@@ -1,6 +1,6 @@
 # Repository Instructions for Coding Agents
 
-This file is the shortest reliable path into the Claw OS repository. Use it to
+This file is the shortest reliable path into the Yu OS repository. Use it to
 choose the right subsystem before reading implementation files.
 
 ## Repository Documents
@@ -36,61 +36,61 @@ editing additional surfaces.
 
 | Task | Start here | Commonly coupled files |
 | --- | --- | --- |
-| `yu` CLI command or primitive | `core/src/main.rs`, `core/src/router.rs` | The primitive module, `core/src/clawd/`, inline Rust tests |
+| `yu` CLI command or primitive | `core/src/main.rs`, `core/src/router.rs` | The primitive module, `core/src/yuosd/`, inline Rust tests |
 | Model-visible content or prompt-injection containment | `core/src/agent/trust/` | `agent/prompt/`, `agent/safety/untrusted.rs`, the ingestion adapter, `test/unit/agent/trust/` |
-| Activity goal/lifecycle or presentation | `core/src/activities/`, `core/src/clawd/activities.rs`, `docs/activities.md` | `core/src/activity.rs`, task/session associations, Agent Web, `desktop/agent/`; one shared backend for headless and desktop |
+| Activity goal/lifecycle or presentation | `core/src/activities/`, `core/src/yuosd/activities.rs`, `docs/activities.md` | `core/src/activity.rs`, task/session associations, Agent Web, `desktop/agent/`; one shared backend for headless and desktop |
 | Activity execution limits or attempt accounting | `core/src/activities/execution_limits.rs`, `core/src/agent/service/execution_limits.rs`, `docs/activity-execution-limits.md` | Root claim reservations, actual turn ceiling, supervisor/standalone expiry and revocation, CLI/Web/native; constraints never grant capabilities |
 | Activity monetary budget or model-turn accounting | `core/src/activities/monetary_budget.rs`, `core/src/agent/runtime/monetary_budget.rs`, `docs/activity-monetary-budgets.md` | SQLite policy/ledger, shared turn reservation/output cap/settlement, private worker exchange, owner-scoped broker and terminal controls; policy prices are not provider invoices or authority |
 | Activity execution priority or shared queue admission | `core/src/activities/scheduling_policy.rs`, `core/src/agent/service.rs`, `docs/activities.md` | Owner-scoped SQLite CAS policy, authenticated broker and terminal controls, dynamic `Store::claim_one` ordering and bounded aging; never a Job field, authority grant, preemption or model decision |
-| Activity capability or confirmation boundaries | `core/src/caps/activity_boundary.rs`, `core/src/clawd/activity_capability_policy.rs`, `docs/activity-capability-policies.md` | Shared policy storage, root Job/lease identity, capability/approval gates, App grant bindings, live revocation and terminal/Web/native controls; policy never supplies permission |
-| Activity event-triggered work | `core/src/triggers.rs`, `core/src/clawd/scheduler.rs`, `docs/activities.md` | Owner/lifecycle/finite-limit preflight before consent, unattended task/session associations, durable delivery correlation and existing Activity result views; no model polling or serialized grants |
+| Activity capability or confirmation boundaries | `core/src/caps/activity_boundary.rs`, `core/src/yuosd/activity_capability_policy.rs`, `docs/activity-capability-policies.md` | Shared policy storage, root Job/lease identity, capability/approval gates, App grant bindings, live revocation and terminal/Web/native controls; policy never supplies permission |
+| Activity event-triggered work | `core/src/triggers.rs`, `core/src/yuosd/scheduler.rs`, `docs/activities.md` | Owner/lifecycle/finite-limit preflight before consent, unattended task/session associations, durable delivery correlation and existing Activity result views; no model polling or serialized grants |
 | Activity long-running automatic work | `core/src/activities/work.rs`, `core/src/triggers/work.rs`, `docs/activity-work.md` | Explicit scheduler-authorized enablement, same-owner event/time/completion wakeups, exact reserved Job/generation, caller-reported handoffs and conservative holds; shared CLI/TUI/Web/native state, never a new daemon or portable authority |
-| Activity attention or decision summary | `core/src/clawd/activity_attention.rs`, `core/src/notifications/`, `docs/activities.md` | Protected approval reads, associated Job issues/counts, task-linked notification projection, terminal/Web/native presentation; acknowledgement is never consent |
-| App object contract or Activity object reference | `core/src/objects/`, `core/src/caps/manifest/objects.rs`, `docs/app-objects.md` | SDK wire/types/helpers, `clawd/activity_objects.rs`, ordinary App dispatch, Web/native presentations |
-| Activity object observations, relations or corrections | `core/src/activities/object_state.rs`, `core/src/clawd/activity_object_state.rs`, `docs/object-state.md` | Shared SQLite history, owner/receipt/reference binding, CLI/Web/native presentations and recorded untrusted task context; no App data copy or inferred authority |
+| Activity attention or decision summary | `core/src/yuosd/activity_attention.rs`, `core/src/notifications/`, `docs/activities.md` | Protected approval reads, associated Job issues/counts, task-linked notification projection, terminal/Web/native presentation; acknowledgement is never consent |
+| App object contract or Activity object reference | `core/src/objects/`, `core/src/caps/manifest/objects.rs`, `docs/app-objects.md` | SDK wire/types/helpers, `yuosd/activity_objects.rs`, ordinary App dispatch, Web/native presentations |
+| Activity object observations, relations or corrections | `core/src/activities/object_state.rs`, `core/src/yuosd/activity_object_state.rs`, `docs/object-state.md` | Shared SQLite history, owner/receipt/reference binding, CLI/Web/native presentations and recorded untrusted task context; no App data copy or inferred authority |
 | App effect declaration or operation preview | `core/src/operations/`, `core/src/caps/manifest/effects.rs`, `docs/operation-previews.md` | Shared broker preview routes, SDK manifest schema, Activity Web/native views; no execution or authority |
-| Activity execution receipt | `core/src/activities/receipts.rs`, `core/src/clawd/activity_receipts.rs`, `docs/execution-receipts.md` | Normal App execution, grant-bound `agentd` reporting, immutable owner-scoped reports, redaction, terminal/Web/native views |
-| Staged file plan or guarded replacement | `docs/file-change-plans.md`, `core/src/clawd/file_changes.rs`, `packaging/apps.lock.json` | Exact session capabilities, authenticated App calls, indeterminate journal handling, external App-owned plans and shared receipts; never restore an OS-local App copy |
-| App execution from a leased Agent task | `core/src/extension_host/`, `core/src/clawd/app_services.rs`, `core/src/agentd/` | Isolated task/service Hosts, exact per-call authority, broker admission, runtime provenance, cancellation and Activity receipts; no dynamic App code in the model worker |
+| Activity execution receipt | `core/src/activities/receipts.rs`, `core/src/yuosd/activity_receipts.rs`, `docs/execution-receipts.md` | Normal App execution, grant-bound `agentd` reporting, immutable owner-scoped reports, redaction, terminal/Web/native views |
+| Staged file plan or guarded replacement | `docs/file-change-plans.md`, `core/src/yuosd/file_changes.rs`, `packaging/apps.lock.json` | Exact session capabilities, authenticated App calls, indeterminate journal handling, external App-owned plans and shared receipts; never restore an OS-local App copy |
+| App execution from a leased Agent task | `core/src/extension_host/`, `core/src/yuosd/app_services.rs`, `core/src/agentd/` | Isolated task/service Hosts, exact per-call authority, broker admission, runtime provenance, cancellation and Activity receipts; no dynamic App code in the model worker |
 | Agent ask/chat loop | `core/src/agent/runtime/loop_.rs`, `core/src/agent/runtime/turn.rs` | `prompt/`, `tools/`, `memory/`, `llm/` |
-| Agent terminal frontend | `core/src/agent/terminal/`, `docs/agent-terminal.md` | Claw-owned ratatui renderer, canonical conversations/tasks/approvals/Activities, `/workspace` context domains and `/directory` filesystem cwd, plain chat compatibility; external TUI binaries and compatibility protocols are not runtime dependencies |
+| Agent terminal frontend | `core/src/agent/terminal/`, `docs/agent-terminal.md` | Yu OS-owned ratatui renderer, canonical conversations/tasks/approvals/Activities, `/workspace` context domains and `/directory` filesystem cwd, plain chat compatibility; external TUI binaries and compatibility protocols are not runtime dependencies |
 | Request context, memory selection, or context budget | `core/src/agent/context/`, `core/src/agent/runtime/context.rs` | `prompt/`, memory tools, continuation/compaction recording; the model chooses additional reads through guarded tools |
-| Agent worker process / broker isolation | `core/src/agentd/`, `core/src/bin/claw-agentd.rs` | `clawd/server.rs`, `agent/service.rs`, `clawd.service`, `packaging/deb/build-debs.sh` |
-| Dynamic App/MCP extension isolation | `core/src/extension_host/`, `core/src/bin/claw-extension-host.rs` | `agentd/`, `clawd/server.rs`, App/MCP tool integration, `clawd.service`, packaging |
+| Agent worker process / broker isolation | `core/src/agentd/`, `core/src/bin/yuos-agentd.rs` | `yuosd/server.rs`, `agent/service.rs`, `yuosd.service`, `packaging/deb/build-debs.sh` |
+| Dynamic App/MCP extension isolation | `core/src/extension_host/`, `core/src/bin/yuos-extension-host.rs` | `agentd/`, `yuosd/server.rs`, App/MCP tool integration, `yuosd.service`, packaging |
 | Out-of-process Agent extension ABI | `core/src/agent_extensions/`, `core/src/extension_host/abi.rs` | `extension_host/agent_extension.rs`, agent runtime hooks/tools, provenance, audit, packaging |
 | Extension package provenance | `core/src/provenance/`, `docs/extension-provenance.md` | Agent extension registry/host, package roots and adversarial process tests |
 | LLM provider or model setup | `core/src/agent/llm/providers/`, `core/src/agent/llm/registry.rs`, `core/src/agent/setup.rs` | `types.rs`, `accumulate.rs`, streaming and non-streaming tests |
 | Tool, guardrail, or approval | `core/src/agent/tools/registry.rs`, `core/src/agent/runtime/turn.rs` | `guardrails.rs`, hooks, capability checks, audit |
 | Memory, recall, or sessions | `core/src/agent/memory/`, `core/src/session/` | runtime recording, prompt injection, audit/session CLI |
-| Workspace context domains or file/folder sharing tags | `core/src/workspaces/MODULE.md`, `docs/workspaces.md`, `crates/clawd-client/src/workspaces.rs` | Shared Activity database, owner-only broker, scoped Agent context and four presentations; tags are read-only data sharing, never App or execution grants |
-| Personal-file vectors or semantic index lifecycle | `crates/MODULE.md`, `crates/claw-semantic/src/indexer.rs`, `crates/claw-embed/src/local.rs` | Fixed local Core inference pipe, managed Qwen3/ORT/GenAI bundle, atomic file revisions, live-root reconciliation and broker-side scoped retrieval; no cloud or stub fallback |
-| Owner Memory center or learned-source edit/forget | `core/src/agent/memory/inspection.rs`, `core/src/clawd/memory/inspection.rs` | `memory.inspect/read/update/forget` wire/client inventory, Web/native presentations, exact revisions, original-source provenance and preserved conversation evidence |
-| Session journal or mutation bracketing | `core/src/session/journal/`, `core/src/clawd/journal.rs` | `core/src/clawd/server.rs` dispatch, `core/src/agentd/supervisor.rs`, authority audit, packaging modes |
-| Proactive notification | `core/src/notifications/`, `core/src/clawd/notifications.rs` | cron/triggers/heartbeat/nudges, Agent task lifecycle, Agent Web UI, desktop Agent bridge |
-| Native notification popup, panel descriptor or delivery presentation | `core/src/clawd/notifications/gui.rs`, `core/src/bin/claw-notification-panel.rs` | Explicit signed-GUI `notifications.presentation` IPC resource, single Root desktop consumer, original external App UI, OS shell descriptor and checked GUI retirement |
-| Nearby/AirDrop file sharing | `docs/nearby-sharing.md`, `core/src/clawd/nearby/MODULE.md`, `crates/claw-nearby/MODULE.md` | One owner-scoped service for CLI/TUI/Web/native, exact offer decisions, isolated non-root transport, checked Root radio retirement and signed package components; no Agent prerequisite or automatic file execution |
-| `clawd` RPC or privileged operation | `core/src/bin/clawd.rs`, `core/src/clawd/server.rs` | client RPC, caps, audit, the owning `clawd` module |
-| Broker wire protocol or a new broker route | `core/src/clawd/routes.rs`, `core/src/clawd/wire/`, `core/src/clawd/transport/` | `client.rs`, every in-repo client, `audit_policy.rs`, `core/tests/clawd_broker_socket.rs` |
+| Workspace context domains or file/folder sharing tags | `core/src/workspaces/MODULE.md`, `docs/workspaces.md`, `crates/yuosd-client/src/workspaces.rs` | Shared Activity database, owner-only broker, scoped Agent context and four presentations; tags are read-only data sharing, never App or execution grants |
+| Personal-file vectors or semantic index lifecycle | `crates/MODULE.md`, `crates/yuos-semantic/src/indexer.rs`, `crates/yuos-embed/src/local.rs` | Fixed local Core inference pipe, managed Qwen3/ORT/GenAI bundle, atomic file revisions, live-root reconciliation and broker-side scoped retrieval; no cloud or stub fallback |
+| Owner Memory center or learned-source edit/forget | `core/src/agent/memory/inspection.rs`, `core/src/yuosd/memory/inspection.rs` | `memory.inspect/read/update/forget` wire/client inventory, Web/native presentations, exact revisions, original-source provenance and preserved conversation evidence |
+| Session journal or mutation bracketing | `core/src/session/journal/`, `core/src/yuosd/journal.rs` | `core/src/yuosd/server.rs` dispatch, `core/src/agentd/supervisor.rs`, authority audit, packaging modes |
+| Proactive notification | `core/src/notifications/`, `core/src/yuosd/notifications.rs` | cron/triggers/heartbeat/nudges, Agent task lifecycle, Agent Web UI, desktop Agent bridge |
+| Native notification popup, panel descriptor or delivery presentation | `core/src/yuosd/notifications/gui.rs`, `core/src/bin/yuos-notification-panel.rs` | Explicit signed-GUI `notifications.presentation` IPC resource, single Root desktop consumer, original external App UI, OS shell descriptor and checked GUI retirement |
+| Nearby/AirDrop file sharing | `docs/nearby-sharing.md`, `core/src/yuosd/nearby/MODULE.md`, `crates/yuos-nearby/MODULE.md` | One owner-scoped service for CLI/TUI/Web/native, exact offer decisions, isolated non-root transport, checked Root radio retirement and signed package components; no Agent prerequisite or automatic file execution |
+| `yuosd` RPC or privileged operation | `core/src/bin/yuosd.rs`, `core/src/yuosd/server.rs` | client RPC, caps, audit, the owning `yuosd` module |
+| Broker wire protocol or a new broker route | `core/src/yuosd/routes.rs`, `core/src/yuosd/wire/`, `core/src/yuosd/transport/` | `client.rs`, every in-repo client, `audit_policy.rs`, `core/tests/yuosd_broker_socket.rs` |
 | MCP client/server integration | `core/src/agent/tools/mcp/`, `core/src/config.rs` | tool registry and agent lifecycle attachment |
 | Extension package provenance (App/Skill/MCP signing, trust roots, revocation) | `core/src/provenance/`, `docs/extension-provenance.md` | `core/src/apps.rs`, `core/src/agent/skills/loader.rs`, `core/src/agent/tools/mcp/discover.rs`, `packaging/deb/build-debs.sh` |
-| App client/business/MCP operation | External `clawos-app` guide and owning `products/<group>/package.json` or `capabilities/<group>/package.json` | Declared App manifest, entrypoint and tests; versioned SDK/runtime; automatic App-main build selection and package delivery |
+| App client/business/MCP operation | External `yuos-app` guide and owning `products/<group>/package.json` or `capabilities/<group>/package.json` | Declared App manifest, entrypoint and tests; versioned SDK/runtime; automatic App-main build selection and package delivery |
 | App installation or requested-permission disclosure | `core/src/apps/installation.rs`, `core/src/apps/permission_review.rs` | Shared lint, CLI review, exact verified package, protected review controller and separate owner App policy; confirmation alone grants no runtime authority |
-| OS preinstalled App defaults | `scripts/app_packages.py`, `core/src/clawd/preinstalled.rs` | Exact signed release selection, separate owner denials, scoped App grants; never infer permission from a publisher or App ID |
-| OS permission review UI or decision | `core/src/clawd/system_review.rs`, `crates/clawd-client/MODULE.md` | Shared App/capability DTO, protected display revisions, terminal and native renderers, bounded polkit helper, owner-only cancellation and existing approval authority |
-| Authenticated display login or GUI App lifetime | `core/src/display_session/MODULE.md`, `core/src/clawd/gui/MODULE.md` | `crates/claw-display-{control,login}/`, `core/src/worker/gui_transport/`, compositor/session/PAM startup, checked permission retirement and `docs/updating.md` |
-| Desktop sign-in or system updates | `desktop/hyprland-claw/MODULE.md`, `docs/updating.md` | OS-started Settings GUI in `clawos-app`, private GUI broker, greetd/PAM and the offline APT unit |
-| Bundled App product boundary or source fork | `docs/app-product-redesign.md`, external `clawos-app` guides, `packaging/MODULE.md` | Product UI/backend, App-owned common support, manifests, provenance/licenses, native launchers, account/state migration, compatibility packaging |
+| OS preinstalled App defaults | `scripts/app_packages.py`, `core/src/yuosd/preinstalled.rs` | Exact signed release selection, separate owner denials, scoped App grants; never infer permission from a publisher or App ID |
+| OS permission review UI or decision | `core/src/yuosd/system_review.rs`, `crates/yuosd-client/MODULE.md` | Shared App/capability DTO, protected display revisions, terminal and native renderers, bounded polkit helper, owner-only cancellation and existing approval authority |
+| Authenticated display login or GUI App lifetime | `core/src/display_session/MODULE.md`, `core/src/yuosd/gui/MODULE.md` | `crates/yuos-display-{control,login}/`, `core/src/worker/gui_transport/`, compositor/session/PAM startup, checked permission retirement and `docs/updating.md` |
+| Desktop sign-in or system updates | `desktop/hyprland-yuos/MODULE.md`, `docs/updating.md` | OS-started Settings GUI in `yuos-app`, private GUI broker, greetd/PAM and the offline APT unit |
+| Bundled App product boundary or source fork | `docs/app-product-redesign.md`, external `yuos-app` guides, `packaging/MODULE.md` | Product UI/backend, App-owned common support, manifests, provenance/licenses, native launchers, account/state migration, compatibility packaging |
 | Adapter | `adapters/<id>/app.json`, `adapters/<id>/main.py` | adapter tests and external binary dependency |
-| App/SDK wire contract | `claw-os-sdk/wire/`, language SDK package | generated bindings, conformance tests, `publish-sdk-release.yml` |
+| App/SDK wire contract | `yuos-sdk/wire/`, language SDK package | generated bindings, conformance tests, `publish-sdk-release.yml` |
 | App development platform release | `packaging/app-platform.json`, `scripts/app_platform.py`, `docs/app-platform.md` | Versioned SDK/runtime/toolkit exports; `publish-app-platform.yml`; never App helpers or private OS providers |
 | Rootfs composition | `scripts/lib/image-profiles.sh`, `rootfs/build.sh`, `rootfs/features/` | target build script and package contents |
 | WSL or Docker image | `.github/workflows/release.yml` (`images` target), `targets/wsl/`, `targets/docker/` | shared rootfs profile and same-run signed Agent/Base packages |
 | Debian/APT package | `packaging/deb/`, `packaging/apt-repo/` | `release.yml` package targets (`core` coordinates Agent/Base), `scripts/ci/`, rootfs package-install features |
 | Update downgrade protection | `core/src/update/`, `packaging/release-security/policy.json` | `packaging/deb/common/`, maintainer scripts, `packaging/apt-repo/verify-release-security.sh`, `docs/updating.md` |
 | Web desktop or website | `web/src/App.tsx`, `web/MODULE.md` | `web/src/components/`, `web/public/site/`, Pages composition workflow |
-| Desktop component | `desktop/README.md`, `desktop/PROVENANCE.md`, component README | `desktop/hyprland-claw/` native staging and login; Desktop Shell and standalone native Apps are built in `clawos-app` |
-| Hyprland/Quickshell desktop replacement | `desktop/hyprland-claw/MODULE.md`, `core/src/display_session/MODULE.md` | Full native compositor source, existing Root display/GUI authority, `core/src/clawd/desktop/windows.rs`, other desktop providers and signed external Caelestia frontend; source presence never authorizes activation |
-| Migrated App / shared-capability source | [`clawos-app`](https://github.com/xiaoyu-work/clawos-app), `packaging/apps.lock.json` | Product UI/business/MCP/native source and explicitly kinded capability clients live there; `scripts/app_sources.py` resolves main and stages one immutable build snapshot |
+| Desktop component | `desktop/README.md`, `desktop/PROVENANCE.md`, component README | `desktop/hyprland-yuos/` native staging and login; Desktop Shell and standalone native Apps are built in `yuos-app` |
+| Hyprland/Quickshell desktop replacement | `desktop/hyprland-yuos/MODULE.md`, `core/src/display_session/MODULE.md` | Full native compositor source, existing Root display/GUI authority, `core/src/yuosd/desktop/windows.rs`, other desktop providers and signed external Caelestia frontend; source presence never authorizes activation |
+| Migrated App / shared-capability source | [`yuos-app`](https://github.com/xiaoyu-work/yuos-app), `packaging/apps.lock.json` | Product UI/business/MCP/native source and explicitly kinded capability clients live there; `scripts/app_sources.py` resolves main and stages one immutable build snapshot |
 | CI workflow | `.github/workflows/` | scripts invoked by the workflow; only `test.yml` runs on pull requests, while publication workflows are manually dispatched or reusable |
 
 ## Development
@@ -116,8 +116,8 @@ ARCH=amd64 ./packaging/deb/build-debs.sh
 ```
 
 Do not edit generated output under `build/` or `target/`.
-`claw-os-sdk/python/src/claw_os_sdk/generated.py` is generated from the wire
-schema; regenerate it from `claw-os-sdk/` with:
+`yuos-sdk/python/src/yuos_sdk/generated.py` is generated from the wire
+schema; regenerate it from `yuos-sdk/` with:
 
 ```bash
 python3 wire/codegen.py
@@ -132,7 +132,7 @@ Tests that exercise a migrated product use a resolved immutable App source
 snapshot. Run `python3 scripts/app_sources.py` first to fetch current App `main`
 and record its exact SHA (CI does this explicitly). Do not maintain a commit
 pin in the version-2 repository selection. Multi-step package builds retain
-one generated snapshot through `CLAW_APP_SOURCE_LOCK`; SDK artifact pins,
+one generated snapshot through `YUOS_APP_SOURCE_LOCK`; SDK artifact pins,
 runtime package verification and installed update authority are unchanged.
 Cargo never downloads product fixtures or substitutes local App source for a
 declared external App. The lock's optional `capabilities` list resolves only
@@ -141,13 +141,13 @@ native preparation retain business-product ownership. Never recreate a local
 `apps/doc`, `apps/db`, `apps/kv`, `apps/net` or `apps/summarize` fallback or count a shared-capability
 group as a business product. Cross-repository runtime fixtures stage complete payloads
 and invoke manifest-selected entrypoints over public MCP, not private App modules.
-The 63 retained App sources belong to `clawos-app`: 24 business groups and
+The 63 retained App sources belong to `yuos-app`: 24 business groups and
 four shared-capability groups, with 51 Agent and 12 desktop identities.
 Eleven messaging connectors and the legacy `gateway-email` App were explicitly retired after the original source
 relocation; do not restore OS-local copies or source fallbacks.
 App-owned helpers live in external `shared/python`, with tests/vectors in
 `tests/shared`; no OS `apps/` source tree remains. Fixtures stage their common
-support through the pinned public CLI into `usr/lib/cos/python`, separately
+support through the pinned public CLI into `usr/lib/yuos/python`, separately
 from OS SDK/runtime and App payloads. Agent still delivers this support through
 existing compatibility package assembly; installed ownership has not moved to
 independent App APT packages.
@@ -183,15 +183,15 @@ GITHUB_WORKSPACE="$PWD" RUNNER_TEMP="$PWD/build" \
   bash scripts/ci/test-boundaries.sh capture
 
 # Browser broker and typed provider contract
-cargo test -p yu --lib clawd::browser -- --test-threads=1
+cargo test -p yu --lib yuosd::browser -- --test-threads=1
 
 # OS Applet providers (independent workspace; no App source preparation)
-cargo test --manifest-path desktop/services/claw-applet-services/Cargo.toml --lib --locked -- --test-threads=1
-cargo test --manifest-path desktop/services/claw-applet-services/Cargo.toml --features provider --locked -- --test-threads=1
+cargo test --manifest-path desktop/services/yuos-applet-services/Cargo.toml --lib --locked -- --test-threads=1
+cargo test --manifest-path desktop/services/yuos-applet-services/Cargo.toml --features provider --locked -- --test-threads=1
 
-# OS-owned Python suite; external App tests run in clawos-app
-PYTHONPATH=claw-os-sdk/python/src:cos-runtime/python/src \
-  python3 -m pytest -q adapters claw-os-sdk/python/src cos-runtime/python/src \
+# OS-owned Python suite; external App tests run in yuos-app
+PYTHONPATH=yuos-sdk/python/src:yuos-runtime/python/src \
+  python3 -m pytest -q adapters yuos-sdk/python/src yuos-runtime/python/src \
     packaging/deb/tests/test_app_sources.py
 ```
 
@@ -203,14 +203,14 @@ Documentation-only changes do not require code tests.
   push feature or temporary CI branches. Dispatch manual CI on `main`.
 - Preserve unrelated dirty-worktree changes. Stage explicit paths rather than
   using `git add -A`.
-- Keep public SDK code in `claw-os-sdk`; `cos-runtime` is for bundled apps and
+- Keep public SDK code in `yuos-sdk`; `yuos-runtime` is for bundled apps and
   internal policy helpers.
 - Apps declare operations/MCP tools and scopes in `app.json`; implementation
   belongs in the declared entrypoint and its modules. MCP-only Apps such as KV
   need neither `main.py` nor legacy operations. Schema inspection must not
   execute app entrypoint code.
 - Apps never call model-provider SDKs directly. AI access goes through the
-  Claw OS SDK/agent gate so consent, budgets, logging, and provider ownership
+  Yu OS SDK/agent gate so consent, budgets, logging, and provider ownership
   remain centralized.
 - Privileged or model-visible behavior must remain capability-gated and
   reconstructable from session/audit logs.
@@ -231,7 +231,7 @@ Documentation-only changes do not require code tests.
 
 ### New or changed app operation
 
-Make client changes in the owning `clawos-app` source package, not an OS-local
+Make client changes in the owning `yuos-app` source package, not an OS-local
 copy or ignored composition cache. Compatible changes need no OS implementation
 edit; new builds automatically consume App `main`, while installed changes
 still require signed package delivery. Coordinate an OS change only when its public SDK/runtime,
@@ -273,7 +273,7 @@ the same change.
    `system`/`developer`; everything else is a fenced user data message.
 4. Add an adversarial test in `core/test/unit/agent/trust/adversarial.rs`
    asserting the label cannot rise and the fence cannot be escaped.
-5. Never let a label reach `caps`, `policy`, `clawd`, the approvals store, or
+5. Never let a label reach `caps`, `policy`, `yuosd`, the approvals store, or
    the guarded tool registry.
 
 ### New or changed extension surface
@@ -373,7 +373,7 @@ owner-visible evidence rather than silently rewriting a conversation.
 
 Deletion removes shared bytes/tags and disables associated automatic work,
 pauses preserved goals and requests ordinary standalone/Activity Job
-cancellation. Unconfirmed retirement stays pending. Cover CLI, Claw TUI,
+cancellation. Unconfirmed retirement stays pending. Cover CLI, Yu OS TUI,
 authenticated Agent Web and native Agent presentations at exact displayed
 revisions, and update [`docs/workspaces.md`](docs/workspaces.md).
 
@@ -388,7 +388,7 @@ and provider-chain/pool behavior. A successful text-only request is not enough.
 GUI lifetime changes must preserve the Root PAM/kernel-login binding, private
 display epoch and instance-scoped transport. Permission revocation must await
 checked resource retirement without undoing durable denial on failure. A
-process-local `gui::retire_app` call from standalone `cos` is not a broker
+process-local `gui::retire_app` call from standalone `yu` is not a broker
 retirement acknowledgement; App install/update/rollback coordination remains a
 separate Root-owned contract. Headless operation must not require a display.
 
@@ -447,5 +447,5 @@ Before completion:
 | App/manifest/SDK contract | `docs/app-development.md`, SDK README |
 | Image feature/profile/identity | `docs/image-architecture.md`, `rootfs/features/README.md` |
 | Package or installed update behavior | `packaging/README.md`, `docs/updating.md` |
-| Extension signing, trust roots, or package verification | `docs/extension-provenance.md`, `packaging/deb/claw-os-agent/trust/publishers.d/README.md` |
+| Extension signing, trust roots, or package verification | `docs/extension-provenance.md`, `packaging/deb/yuos-agent/trust/publishers.d/README.md` |
 | Desktop boundary or provenance | `desktop/README.md`, `desktop/PROVENANCE.md` |

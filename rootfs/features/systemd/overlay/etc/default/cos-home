@@ -1,6 +1,0 @@
-# /etc/default/cos-home — admin-editable target for cos-home-setup.service.
-#
-# Sourced by the systemd unit on boot. Leave unset so the helper resolves
-# the first real login user's passwd home. Desktop first boot writes the
-# selected user's canonical home here after AccountsService creates it.
-# COS_HOME=/home/example

@@ -42,7 +42,7 @@ fn read_lock(repository: &Path) -> SourceLock {
                 .is_some_and(|value| !value.is_empty()),
             "App source repository is required"
         );
-        let path = std::env::var_os("CLAW_APP_SOURCE_LOCK")
+        let path = std::env::var_os("YUOS_APP_SOURCE_LOCK")
             .map(PathBuf::from)
             .unwrap_or_else(|| repository.join("build/app-sources/resolved.json"));
         let resolved: serde_json::Value = serde_json::from_str(

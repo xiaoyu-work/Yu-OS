@@ -7,9 +7,9 @@
 //! declares itself with a bounded envelope serialised into the content:
 //!
 //! ```text
-//! [[cos-data:9f2c… source=mcp_tool_result:github trust=untrusted-external bytes=1200]]
+//! [[yuos-data:9f2c… source=mcp_tool_result:github trust=untrusted-external bytes=1200]]
 //! …encoded payload…
-//! [[/cos-data:9f2c…]]
+//! [[/yuos-data:9f2c…]]
 //! ```
 //!
 //! Three properties make the fence hold:
@@ -54,8 +54,8 @@ const MARKER_OPEN: &str = "[[";
 /// marker digraph, and doubled to represent itself.
 const ESC: char = '\u{200b}';
 
-const OPEN_PREFIX: &str = "[[cos-data:";
-const CLOSE_PREFIX: &str = "[[/cos-data:";
+const OPEN_PREFIX: &str = "[[yuos-data:";
+const CLOSE_PREFIX: &str = "[[/yuos-data:";
 const MARKER_END: &str = "]]";
 
 /// Fixed directive line written between the header and the payload.

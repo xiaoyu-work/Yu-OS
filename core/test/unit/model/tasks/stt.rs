@@ -159,12 +159,12 @@ async fn spawn_one_shot_mock(
 
 #[tokio::test]
 async fn end_to_end_transcribe_round_trip() {
-    std::env::set_var("COS_TEST_STT_KEY", "sk-stt");
+    std::env::set_var("YUOS_TEST_STT_KEY", "sk-stt");
     let body = serde_json::json!({"text": "hello world"}).to_string();
     let (base_url, handle) = spawn_one_shot_mock(body, "HTTP/1.1 200 OK").await;
     let mut c = cfg();
     c.base_url = Some(base_url);
-    c.api_key_env = Some("COS_TEST_STT_KEY".into());
+    c.api_key_env = Some("YUOS_TEST_STT_KEY".into());
     let s = OpenAICompatStt::from_config(&c);
     let resp = s
         .transcribe(SttRequest {
@@ -191,17 +191,17 @@ async fn end_to_end_transcribe_round_trip() {
     assert!(req.contains("name=\"file\""));
     assert!(req.contains("filename=\"clip.mp3\""));
 
-    std::env::remove_var("COS_TEST_STT_KEY");
+    std::env::remove_var("YUOS_TEST_STT_KEY");
 }
 
 #[tokio::test]
 async fn end_to_end_transcribe_text_format_returns_plain_text() {
-    std::env::set_var("COS_TEST_STT_KEY_2", "sk-stt2");
+    std::env::set_var("YUOS_TEST_STT_KEY_2", "sk-stt2");
     let body = "Just a transcript line.".to_string();
     let (base_url, _h) = spawn_one_shot_mock(body, "HTTP/1.1 200 OK").await;
     let mut c = cfg();
     c.base_url = Some(base_url);
-    c.api_key_env = Some("COS_TEST_STT_KEY_2".into());
+    c.api_key_env = Some("YUOS_TEST_STT_KEY_2".into());
     let s = OpenAICompatStt::from_config(&c);
     let resp = s
         .transcribe(SttRequest {
@@ -216,19 +216,19 @@ async fn end_to_end_transcribe_text_format_returns_plain_text() {
         .await
         .expect("transcribe");
     assert_eq!(resp.text, "Just a transcript line.");
-    std::env::remove_var("COS_TEST_STT_KEY_2");
+    std::env::remove_var("YUOS_TEST_STT_KEY_2");
 }
 
 #[tokio::test]
 async fn azure_deployment_omits_model_field_in_multipart() {
-    std::env::set_var("COS_TEST_STT_KEY_3", "sk-stt3");
+    std::env::set_var("YUOS_TEST_STT_KEY_3", "sk-stt3");
     let body = serde_json::json!({"text": "ok"}).to_string();
     let (base_url, handle) = spawn_one_shot_mock(body, "HTTP/1.1 200 OK").await;
     // Force the URL to look like an Azure deployment URL.
     let azure_url = format!("{base_url}/deployments/whisper");
     let mut c = cfg();
     c.base_url = Some(azure_url);
-    c.api_key_env = Some("COS_TEST_STT_KEY_3".into());
+    c.api_key_env = Some("YUOS_TEST_STT_KEY_3".into());
     let s = OpenAICompatStt::from_config(&c);
     let _ = s
         .transcribe(SttRequest {
@@ -248,5 +248,5 @@ async fn azure_deployment_omits_model_field_in_multipart() {
         !req.contains("name=\"model\""),
         "Azure deployment shape must not send model field in multipart"
     );
-    std::env::remove_var("COS_TEST_STT_KEY_3");
+    std::env::remove_var("YUOS_TEST_STT_KEY_3");
 }

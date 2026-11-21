@@ -6,22 +6,24 @@
 `85b7b316d0b4104f23b1a7e73b9def3564b9b6db`. The
 [`source lock`](hyprland-source.lock.json) records the expanded Tracy and
 udis86 sources and their exact original trees. The imported `.gitmodules`
-is provenance, not a Claw OS submodule dependency.
+is provenance, not a Yu OS submodule dependency.
 
-The [GPL-3.0-only Root authority adapter](hyprland-claw/MODULE.md) is linked
+The [GPL-3.0-only Root authority adapter](hyprland-yuos/MODULE.md) is linked
 unconditionally. Native dependency revisions and archive hashes are recorded
-in [`dependencies.lock.json`](hyprland-claw/dependencies.lock.json).
-[`toolchain.lock.json`](hyprland-claw/toolchain.lock.json) pins the GCC
+in [`dependencies.lock.json`](hyprland-yuos/dependencies.lock.json).
+[`toolchain.lock.json`](hyprland-yuos/toolchain.lock.json) pins the GCC
 compiler layer of the Docker Official Image for each native architecture.
 The installed private C++ runtime carries the original GCC license and
 runtime exception; its compiler is not included.
-The [Desktop Shell App](https://github.com/xiaoyu-work/clawos-app/tree/main/products/desktop-shell)
+The [Desktop Shell App](https://github.com/xiaoyu-work/yuos-app/tree/main/products/desktop-shell)
 records its own sources and licenses. No Omarchy source is used.
+The [Media Player App](https://github.com/xiaoyu-work/yuos-app/tree/main/products/media-player)
+records the provenance of its independently packaged native player.
 
 The independent native locker builds the MIT-licensed Swaylock 1.8.6
-source pinned in [`build-locker.sh`](hyprland-claw/build-locker.sh). Its
-original notice ships with the binary. Claw's native password form replaces
-the upstream indicator. The PAM patch requires the dedicated Claw service
+source pinned in [`build-locker.sh`](hyprland-yuos/build-locker.sh). Its
+original notice ships with the binary. The Yu OS native password form replaces
+the upstream indicator. The PAM patch requires the dedicated Yu OS service
 for unlock and removes non-PAM recovery paths.
 
 The [original Claw OS mountain wallpaper](../assets/brand/wallpaper/NOTICE)
@@ -48,9 +50,9 @@ They do not provide a compositor, login, or desktop session.
 
 The forked [Tela icons](icons-tela/README.md) keep their original license.
 System76's trademark notice remains in [TRADEMARK.md](TRADEMARK.md).
-The [shared Applet services](services/claw-applet-services/MODULE.md) were
+The [shared Applet services](services/yuos-applet-services/MODULE.md) were
 extracted from the former applet host under their original GPL terms.
 The installed Settings/AccountsService policy from the `703a934b096b`
 Settings fork retains its GPL-3.0-only license in the Desktop package.
-The relocated [Smithay protocol fixture](../crates/claw-display-login/test/vendor/README.md)
+The relocated [Smithay protocol fixture](../crates/yuos-display-login/test/vendor/README.md)
 retains its own upstream pin and MIT notice; no Desktop package builds it.

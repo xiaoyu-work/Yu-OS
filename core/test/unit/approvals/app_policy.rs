@@ -11,8 +11,8 @@ struct Fixture {
 fn fixture() -> Fixture {
     let dir = tempfile::tempdir().unwrap();
     Fixture {
-        _data: TestEnvVarGuard::set("COS_DATA_DIR", dir.path()),
-        _caps: TestEnvVarGuard::set("COS_CAPS_DATA_DIR", dir.path()),
+        _data: TestEnvVarGuard::set("YUOS_DATA_DIR", dir.path()),
+        _caps: TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", dir.path()),
         _root: dir,
     }
 }
@@ -70,7 +70,7 @@ fn age(resolved: &mut approvals_store::Resolved, legacy: bool) {
 fn restoration_survives_process_restart_beyond_execution_ttl_including_existing_receipts() {
     let cap = Cap::new(Verb::SYS_OBSERVE, crate::caps::Scope::name("audio"));
     let caps = CapSet::from_caps([cap.clone()]);
-    if std::env::var_os("CLAW_PERMISSION_RESTORED_FIXTURE").is_some() {
+    if std::env::var_os("YUOS_PERMISSION_RESTORED_FIXTURE").is_some() {
         assert!(require(1000, "audio-manager", &caps).is_ok());
         let block = blocks(1000, "audio-manager").unwrap().remove(0);
         assert!(block.enabled(1000, "audio-manager").unwrap());
@@ -143,7 +143,7 @@ fn restoration_survives_process_restart_beyond_execution_ttl_including_existing_
             .args(["--exact",
                 "approvals::app_policy::tests::restoration_survives_process_restart_beyond_execution_ttl_including_existing_receipts",
                 "--test-threads=1"])
-            .env("CLAW_PERMISSION_RESTORED_FIXTURE", "1").output().unwrap();
+            .env("YUOS_PERMISSION_RESTORED_FIXTURE", "1").output().unwrap();
         assert!(
             output.status.success(),
             "{}\n{}",
@@ -396,15 +396,15 @@ fn restoration_requires_committed_policy_receipt_and_reports_projection_failure(
 #[test]
 fn revocation_survives_process_restart() {
     let cap = Cap::new(Verb::SYS_OBSERVE, crate::caps::Scope::name("audio"));
-    if std::env::var_os("CLAW_PERMISSION_RESTART_FIXTURE").is_some() {
+    if std::env::var_os("YUOS_PERMISSION_RESTART_FIXTURE").is_some() {
         assert_eq!(blocks(1000, "audio-manager").unwrap()[0].generation, 1);
         assert!(require(1000, "audio-manager", &CapSet::from_caps([cap])).is_err());
         return;
     }
     let _lock = crate::test_env::lock_env();
     let dir = tempfile::tempdir().unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", dir.path());
-    let _caps = crate::test_env::TestEnvVarGuard::set("COS_CAPS_DATA_DIR", dir.path());
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", dir.path());
+    let _caps = crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", dir.path());
     revoke(1000, "audio-manager", cap).unwrap();
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args([
@@ -412,7 +412,7 @@ fn revocation_survives_process_restart() {
             "approvals::app_policy::tests::revocation_survives_process_restart",
             "--test-threads=1",
         ])
-        .env("CLAW_PERMISSION_RESTART_FIXTURE", "1")
+        .env("YUOS_PERMISSION_RESTART_FIXTURE", "1")
         .output()
         .unwrap();
     assert!(

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Build the modern WSL package without a pre-created human account.
-# Output:  build/claw-os-wsl-<arch>.wsl  (arch from $ARCH).
+# Output:  build/yuos-wsl-<arch>.wsl  (arch from $ARCH).
 # Usage:   sudo ./build.sh wsl
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ROOTFS="$PROJECT_DIR/build/claw-os-rootfs"
+ROOTFS="$PROJECT_DIR/build/yuos-rootfs"
 
 source "$PROJECT_DIR/scripts/lib/arch.sh"
 source "$PROJECT_DIR/scripts/lib/image-identity.sh"
@@ -15,10 +15,10 @@ source "$PROJECT_DIR/scripts/lib/image-profiles.sh"
 
 FEATURES="${FEATURES:-$IMAGE_FEATURES_HEADLESS_RUNTIME}"
 
-OUTPUT="$PROJECT_DIR/build/claw-os-wsl-${ARCH_SUFFIX}.wsl"
-WSL_ROOTFS="$PROJECT_DIR/build/claw-os-wsl-rootfs-${ARCH_SUFFIX}"
-WSL_UPPER="$PROJECT_DIR/build/.claw-os-wsl-upper-${ARCH_SUFFIX}"
-WSL_WORK="$PROJECT_DIR/build/.claw-os-wsl-work-${ARCH_SUFFIX}"
+OUTPUT="$PROJECT_DIR/build/yuos-wsl-${ARCH_SUFFIX}.wsl"
+WSL_ROOTFS="$PROJECT_DIR/build/yuos-wsl-rootfs-${ARCH_SUFFIX}"
+WSL_UPPER="$PROJECT_DIR/build/.yuos-wsl-upper-${ARCH_SUFFIX}"
+WSL_WORK="$PROJECT_DIR/build/.yuos-wsl-work-${ARCH_SUFFIX}"
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "error: must run as root (debootstrap, chroot and package creation need it)" >&2
@@ -49,7 +49,7 @@ if [ -d "$SCRIPT_DIR/overlay" ]; then
     echo ":: applying WSL overlay"
     cp -a --no-preserve=ownership "$SCRIPT_DIR/overlay/." "$WSL_ROOTFS/"
 fi
-chmod 0755 "$WSL_ROOTFS/usr/lib/cos/init/wsl-oobe"
+chmod 0755 "$WSL_ROOTFS/usr/lib/yuos/init/wsl-oobe"
 assert_no_human_login_users "$WSL_ROOTFS" "WSL package"
 
 echo ":: packaging $OUTPUT"
@@ -66,5 +66,5 @@ SIZE=$(du -h "$OUTPUT" | cut -f1)
 echo ":: done — $OUTPUT ($SIZE)"
 echo
 echo "To install on Windows:"
-echo "  wsl --install --from-file .\\$(basename "$OUTPUT") --name claw-os --location C:\\WSL\\claw-os --version 2"
+echo "  wsl --install --from-file .\\$(basename "$OUTPUT") --name yuos --location C:\\WSL\\yuos --version 2"
 echo "The first launch prompts for the UNIX username and password."

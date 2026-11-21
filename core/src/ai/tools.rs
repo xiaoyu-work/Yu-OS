@@ -292,7 +292,7 @@ pub(super) fn execute(
     let verb_str = lookup(tool_name)
         .map(|t| t.verb.as_str().to_string())
         .unwrap_or_default();
-    let session_id = std::env::var("COS_SESSION_ID").ok();
+    let session_id = std::env::var("YUOS_SESSION_ID").ok();
     let session_ref = session_id.as_deref();
 
     match &outcome {
@@ -329,15 +329,15 @@ pub(super) fn execute(
 
 /// Resolve `app_id` to its installed manifest and require `tool_name`
 /// to appear in the manifest's `ai.tools[]` allowlist. The kernel
-/// uses `COS_APPS_DIR` (default `/usr/lib/cos/apps`) to discover
+/// uses `YUOS_APPS_DIR` (default `/usr/lib/yuos/apps`) to discover
 /// installed Apps — same convention `yu ai chat` uses.
 ///
 /// Errors remain typed through audit and wire serialization so callers
 /// never infer authorization state from human-readable text.
 fn require_tool_in_app_policy(app_id: &str, tool_name: &str) -> Result<(), ToolExecutionError> {
-    let apps_dir = std::env::var("COS_APPS_DIR")
+    let apps_dir = std::env::var("YUOS_APPS_DIR")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| std::path::PathBuf::from("/usr/lib/cos/apps"));
+        .unwrap_or_else(|_| std::path::PathBuf::from("/usr/lib/yuos/apps"));
     let discovered = apps::discover_verified(&apps_dir);
     let app = discovered
         .get(app_id)

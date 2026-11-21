@@ -61,7 +61,7 @@ hold; old-domain handoffs are not imported.
 Every request receives a small source-labelled background/note/resource prelude,
 not the transcripts of every conversation. Owner notes and Root-Job-bound Agent
 reports keep different provenance. Both are data, not system policy or proof.
-Additional reads use the guarded `cos_workspace`, `cos_recall` and semantic
+Additional reads use the guarded `yu_workspace`, `yu_recall` and semantic
 recall tools through the existing private Root worker channel. The model has no
 Workspace management or sharing controller.
 
@@ -84,7 +84,7 @@ For another page, pass its `next_offset` as `--offset` and its digest as
 `--source-revision`. Changed content requires restarting the read.
 
 The independent personal-file index uses the owner's default
-`~/.local/state/claw-semantic/semantic.db` and the pinned local
+`~/.local/state/yuos-semantic/semantic.db` and the pinned local
 Qwen3-Embedding-0.6B model. Broker reads do not accept a database selector;
 custom indexer XDG stores are not substituted automatically. Registering a
 tag's directory explicitly adds it to the existing owner indexer, including
@@ -166,7 +166,7 @@ same-account programs, unmanaged App internals or manual terminal edits.
 ## Human presentations
 
 - **CLI:** `yu workspace` uses the shared owner broker and exact revisions.
-- **Claw TUI:** `/workspace` is the only name for the model-independent center.
+- **Yu OS TUI:** `/workspace` is the only name for the model-independent center.
   Its picker, context/notes, tags, local search/readiness and Activity assignment
   use owned asynchronous requests. Enter starts another bound conversation.
   Protected approvals retain focus; closing a center does not replay or stop work.

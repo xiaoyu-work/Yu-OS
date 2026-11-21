@@ -1,4 +1,4 @@
-//! Store and isolated App UI adapters; all installation authority stays in clawd.
+//! Store and isolated App UI adapters; all installation authority stays in yuosd.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -7,17 +7,17 @@ use axum::extract::{Path, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
-use clawd_client::system_review::{
+use yuosd_client::system_review::{
     AppReviewDecision, PermissionSelection, ReviewAction, ReviewDecision, ReviewKind, ReviewStatus,
     ReviewSubmission, SystemReview,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use super::clawd::{self, ApiError};
+use super::yuosd::{self, ApiError};
 use crate::agent::web::auth::AuthenticatedToken;
 use crate::agent::web::state::AppState;
-use crate::clawd::routes::Command;
+use crate::yuosd::routes::Command;
 use crate::provenance::runtime::PackageRef;
 use crate::provenance::{PackageKind, VerifyOptions};
 
@@ -58,28 +58,28 @@ fn project_review(mut value: Value) -> Result<Value, ApiError> {
 }
 
 pub async fn catalog() -> Result<Json<Value>, ApiError> {
-    clawd::request(Command::AppStoreList, json!({}))
+    yuosd::request(Command::AppStoreList, json!({}))
         .await
         .map(Json)
         .map_err(|error| error.into_api_error())
 }
 
 pub async fn installed() -> Result<Json<Value>, ApiError> {
-    clawd::request(Command::AppStoreInstalled, json!({}))
+    yuosd::request(Command::AppStoreInstalled, json!({}))
         .await
         .map(Json)
         .map_err(|error| error.into_api_error())
 }
 
 pub async fn requests() -> Result<Json<Value>, ApiError> {
-    clawd::request(Command::AppStoreRequests, json!({}))
+    yuosd::request(Command::AppStoreRequests, json!({}))
         .await
         .map(Json)
         .map_err(|error| error.into_api_error())
 }
 
 pub async fn review(Path(id): Path<String>) -> Result<Json<Value>, ApiError> {
-    let value = clawd::request(Command::SystemReviewShow, json!({"id": id}))
+    let value = yuosd::request(Command::SystemReviewShow, json!({"id": id}))
         .await
         .map_err(|error| error.into_api_error())?;
     project_review(json!({"review": value})).map(Json)
@@ -95,7 +95,7 @@ pub async fn prepare(
     Path(id): Path<String>,
     Json(body): Json<InstallBody>,
 ) -> Result<Json<Value>, ApiError> {
-    clawd::request(
+    yuosd::request(
         Command::AppStorePrepare,
         json!({"app_id": id, "sha256": body.sha256}),
     )
@@ -106,14 +106,14 @@ pub async fn prepare(
 }
 
 pub async fn commit(Path(id): Path<String>) -> Result<Json<Value>, ApiError> {
-    clawd::request(Command::AppStoreCommit, json!({"request_id": id}))
+    yuosd::request(Command::AppStoreCommit, json!({"request_id": id}))
         .await
         .map(Json)
         .map_err(|error| error.into_api_error())
 }
 
 pub async fn cancel(Path(id): Path<String>) -> Result<Json<Value>, ApiError> {
-    clawd::request(Command::AppStoreCancel, json!({"request_id": id}))
+    yuosd::request(Command::AppStoreCancel, json!({"request_id": id}))
         .await
         .map(Json)
         .map_err(|error| error.into_api_error())
@@ -147,7 +147,7 @@ pub async fn authorize(
     Json(body): Json<ConfirmBody>,
 ) -> Result<Json<Value>, ApiError> {
     let origin = super::approvals::authorization::origin(&headers, &state)?;
-    let value = clawd::request(Command::SystemReviewShow, json!({"id": id}))
+    let value = yuosd::request(Command::SystemReviewShow, json!({"id": id}))
         .await
         .map_err(|error| error.into_api_error())?;
     let review: SystemReview = serde_json::from_value(value)
@@ -183,7 +183,7 @@ pub async fn open(
     Extension(caller): Extension<AuthenticatedToken>,
     Path(id): Path<String>,
 ) -> Result<Json<Value>, ApiError> {
-    let value = clawd::request(Command::AppStoreOpen, json!({"app_id": id}))
+    let value = yuosd::request(Command::AppStoreOpen, json!({"app_id": id}))
         .await
         .map_err(|error| error.into_api_error())?;
     if value.get("status").and_then(Value::as_str) == Some("review_required") {
@@ -266,7 +266,7 @@ pub async fn call(
             "Web App messages may call only the owning App's declared tools",
         ));
     }
-    let result = clawd::request(
+    let result = yuosd::request(
         Command::AppServiceCliCall,
         json!({
             "app_id": id, "tool": body.tool, "arguments": body.arguments,

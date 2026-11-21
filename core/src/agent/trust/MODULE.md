@@ -5,8 +5,8 @@
 `core/src/agent/trust/` attaches immutable provenance to every byte a model can
 see, and keeps that provenance separate from chat role.
 
-Claw's agent is kernel-resident: a turn can reach processes, credentials, the
-policy engine and the desktop through gated `cos_*` tools. Its context is
+Yu OS's agent is kernel-resident: a turn can reach processes, credentials, the
+policy engine and the desktop through gated `yu_*` tools. Its context is
 assembled from sources with very different authority — the compiled operator
 scaffold, the owner's message, `MEMORY.md`, a Skill catalogue entry, a remote
 MCP server's tool description, a fetched web page, the model's own prior text.
@@ -119,7 +119,7 @@ gains nothing by doing so.
 
 Depends on `crate::audit_policy` for bounded, secret-safe locators,
 `crate::crypto` for content digests, and `crate::session::journal` types for the
-downward projections in `mod.rs`. Nothing in `caps`, `policy`, `clawd`,
+downward projections in `mod.rs`. Nothing in `caps`, `policy`, `yuosd`,
 `approvals` or `tools::guardrails` depends on this module — that absence is
 enforced by `authority_modules_do_not_read_trust_labels`.
 

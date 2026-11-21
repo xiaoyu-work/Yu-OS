@@ -9,15 +9,15 @@
 //!
 //! Properties:
 //!
-//! * **Root only, terminal only.** Written by `claw-security-floor
+//! * **Root only, terminal only.** Written by `yuos-security-floor
 //!   recover authorize` running as uid 0 with a real controlling
 //!   terminal, after the operator types a confirmation phrase that
 //!   contains the package and version. There is no broker route, no
 //!   tool, no App operation and no MCP surface that reaches it, and
 //!   the command refuses to run inside an agent worker, App runner or
 //!   MCP session.
-//! * **Narrow.** A token for `claw-os-agent` cannot authorize
-//!   `claw-os-base`; a token for one version cannot authorize another;
+//! * **Narrow.** A token for `yuos-agent` cannot authorize
+//!   `yuos-base`; a token for one version cannot authorize another;
 //!   a token whose digest does not match the candidate manifest is
 //!   refused.
 //! * **One use.** Consumption is a `rename` into `consumed/`, which is
@@ -44,7 +44,7 @@ use super::debver;
 use super::floor::FloorStore;
 use super::manifest::require_digest;
 
-pub const FORMAT: &str = "claw.security-recovery/v1";
+pub const FORMAT: &str = "yuos.security-recovery/v1";
 
 /// Longest life an authorization may be given.
 pub const MAX_LIFETIME_HOURS: i64 = 72;

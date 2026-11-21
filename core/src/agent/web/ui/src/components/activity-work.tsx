@@ -34,7 +34,7 @@ export function ActivityWork({
               ...(prompt.trim() ? { prompt } : {}),
               ...(sessionId ? { session_id: sessionId } : {}),
             });
-            window.dispatchEvent(new Event("cos:sessions-changed"));
+            window.dispatchEvent(new Event("yuos:sessions-changed"));
           }, "Work submitted to the durable task queue. Review progress below or in Tasks.")
             .then((ok) => { if (ok) setPrompt(""); });
         }}>

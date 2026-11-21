@@ -13,14 +13,14 @@ import re
 import shutil
 import subprocess
 
-from claw_os_sdk.mcp import App
+from yuos_sdk.mcp import App
 
 
 _HERE = pathlib.Path(__file__).resolve().parent
 
 
 def _qpdf_bin() -> str:
-    explicit = os.environ.get("CLAW_QPDF_BIN")
+    explicit = os.environ.get("YUOS_QPDF_BIN")
     if explicit:
         return explicit
     found = shutil.which("qpdf")

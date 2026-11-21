@@ -2259,7 +2259,7 @@ fn optional_gui_needs_reuse_need_validation_and_reject_null_instead_of_ignoring_
 #[test]
 fn public_gui_conformance_vectors_are_actual_top_level_valid_manifests() {
     let vectors: serde_json::Value = serde_json::from_str(include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"), "/../claw-os-sdk/wire/v1/manifest_extensions.vectors.json",
+        env!("CARGO_MANIFEST_DIR"), "/../yuos-sdk/wire/v1/manifest_extensions.vectors.json",
     ))).unwrap();
     let mut optional_seen = false;
     for case in vectors["cases"].as_array().unwrap() {

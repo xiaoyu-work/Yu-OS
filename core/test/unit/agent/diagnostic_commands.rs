@@ -238,7 +238,7 @@ fn shell_hooks_init_bash_returns_script_with_trap() {
     let v = shell_hooks_cmd(&["init".into(), "bash".into()]).expect("init bash ok");
     assert_eq!(v.get("shell").and_then(|s| s.as_str()), Some("bash"));
     let script = v.get("script").and_then(|s| s.as_str()).expect("script");
-    assert!(script.contains("trap '__cos_pre_exec' DEBUG"));
+    assert!(script.contains("trap '__yuos_pre_exec' DEBUG"));
     assert!(v.get("instructions").and_then(|s| s.as_str()).is_some());
 }
 

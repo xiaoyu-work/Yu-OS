@@ -390,7 +390,7 @@ fn search_mcp_provider_capabilities_are_exact() {
                     tool,
                     &BTreeMap::from([
                         ("provider".to_string(), serde_json::json!(provider)),
-                        ("query".to_string(), serde_json::json!("claw")),
+                        ("query".to_string(), serde_json::json!("yuos")),
                     ]),
                 )
                 .unwrap()

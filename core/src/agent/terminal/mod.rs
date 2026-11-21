@@ -1,4 +1,4 @@
-//! Claw-owned full-screen terminal presentation for the shared Agent backend.
+//! Yu OS-owned full-screen terminal presentation for the shared Agent backend.
 
 mod actions;
 mod approvals;
@@ -70,7 +70,7 @@ impl ChatOptions {
             match arg.as_str() {
                 "--app" => {
                     return Err(
-                        "`yu agent chat` is the Claw Agent UI and does not accept --app. \
+                        "`yu agent chat` is the Yu OS Agent UI and does not accept --app. \
                          For App-gated calls use `yu ai chat --app <id>`."
                             .into(),
                     )
@@ -105,7 +105,7 @@ impl ChatOptions {
                 }
                 "--" => {
                     return Err(
-                        "the Claw TUI does not accept another frontend's command-line arguments"
+                        "the Yu OS TUI does not accept another frontend's command-line arguments"
                             .into(),
                     )
                 }
@@ -133,7 +133,7 @@ impl ChatOptions {
         if !interactive || dumb_terminal {
             if self.mode == Mode::Tui {
                 return Err(
-                    "the Claw Agent TUI needs an interactive terminal; use --plain for pipes or TERM=dumb"
+                    "the Yu OS Agent TUI needs an interactive terminal; use --plain for pipes or TERM=dumb"
                         .into(),
                 );
             }
@@ -171,7 +171,7 @@ pub(super) fn run(options: ChatOptions) -> Result<Value, String> {
 
 #[cfg(not(unix))]
 pub(super) fn run(_options: ChatOptions) -> Result<Value, String> {
-    Err("the Claw Agent TUI requires Linux or WSL".into())
+    Err("the Yu OS Agent TUI requires Linux or WSL".into())
 }
 
 pub(super) fn run_plain(options:ChatOptions)->Result<Value,String>{
@@ -183,7 +183,7 @@ pub(super) fn run_plain(options:ChatOptions)->Result<Value,String>{
 enum InputAction {
     None,
     Spaces(workspaces::Action),
-    Nearby(Option<clawd_client::nearby::NearbyAction>),
+    Nearby(Option<yuosd_client::nearby::NearbyAction>),
     Submit(String),
     Cancel,
     Review(ReviewDecision),
@@ -434,19 +434,19 @@ async fn connect_initial_conversation(
         match backend.initial_conversation(session_id).await {
             Ok(conversation) => {
                 if attempt > 0 {
-                    eprintln!("Claw broker connection restored.");
+                    eprintln!("Yu OS broker connection restored.");
                 }
                 return Ok(conversation);
             }
             Err(InitialConnectionError::Retryable(error)) if attempt < MAX_ATTEMPTS => {
                 if attempt == 0 {
-                    eprintln!("Claw broker is unavailable; retrying for up to 60 seconds: {error}");
+                    eprintln!("Yu OS broker is unavailable; retrying for up to 60 seconds: {error}");
                 }
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
             Err(InitialConnectionError::Retryable(error)) => {
                 return Err(format!(
-                    "Claw broker did not become available after {MAX_ATTEMPTS} retries: {error}"
+                    "Yu OS broker did not become available after {MAX_ATTEMPTS} retries: {error}"
                 ));
             }
             Err(InitialConnectionError::Fatal(error)) => return Err(error),
@@ -1446,9 +1446,9 @@ impl TerminalSession {
 
         let write_result = (|| {
             let mut stdout = io::stdout();
-            writeln!(stdout, "\n--- Claw transcript snapshot ---")?;
+            writeln!(stdout, "\n--- Yu OS transcript snapshot ---")?;
             stdout.write_all(snapshot.as_bytes())?;
-            writeln!(stdout, "--- end Claw transcript snapshot ---\n")?;
+            writeln!(stdout, "--- end Yu OS transcript snapshot ---\n")?;
             stdout.flush()
         })();
 

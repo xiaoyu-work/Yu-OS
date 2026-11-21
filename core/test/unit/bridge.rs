@@ -42,10 +42,10 @@ fn hosted_app_commands_use_the_fixed_child_isolation_wrapper() {
     let home = tempfile::tempdir_in(&scratch).unwrap();
     let app = tempfile::tempdir_in(&scratch).unwrap();
     std::fs::write(app.path().join("main.py"), b"print('ok')").unwrap();
-    let _enabled = crate::test_env::TestEnvVarGuard::set("COS_EXTENSION_CHILD_ISOLATION", "1");
+    let _enabled = crate::test_env::TestEnvVarGuard::set("YUOS_EXTENSION_CHILD_ISOLATION", "1");
     let _home = crate::test_env::TestEnvVarGuard::set("HOME", home.path());
-    let _proc = crate::test_env::TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
-    let _broker = crate::test_env::TestEnvVarGuard::remove("COS_EXTENSION_BROKER_SOCKET");
+    let _proc = crate::test_env::TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
+    let _broker = crate::test_env::TestEnvVarGuard::remove("YUOS_EXTENSION_BROKER_SOCKET");
     let app_metadata = std::fs::metadata(app.path()).unwrap();
     let runner = app_runner_path().canonicalize().unwrap();
     let runner_metadata = std::fs::metadata(&runner).unwrap();
@@ -135,7 +135,7 @@ fn panel_environment_requires_explicit_manifest_opt_in() {
 fn an_absent_package_cannot_be_bound_for_launch() {
     // The launch path starts from a verified snapshot, so a directory
     // that does not exist fails before any runtime selection happens.
-    let tmp = std::env::temp_dir().join("cos-bridge-test-missing");
+    let tmp = std::env::temp_dir().join("yuos-bridge-test-missing");
     let _ = std::fs::remove_dir_all(&tmp);
     let err = crate::test_env::try_app_launch(&tmp, "missing").unwrap_err();
     assert!(
@@ -146,7 +146,7 @@ fn an_absent_package_cannot_be_bound_for_launch() {
 
 #[test]
 fn run_app_rejects_non_main_py_for_python() {
-    let tmp = std::env::temp_dir().join("cos-bridge-test-pyentry");
+    let tmp = std::env::temp_dir().join("yuos-bridge-test-pyentry");
     let _ = std::fs::remove_dir_all(&tmp);
     std::fs::create_dir_all(&tmp).unwrap();
     std::fs::write(
@@ -165,7 +165,7 @@ fn run_app_rejects_non_main_py_for_python() {
 
 #[test]
 fn run_app_errors_on_unknown_runtime() {
-    let tmp = std::env::temp_dir().join("cos-bridge-test-unknown");
+    let tmp = std::env::temp_dir().join("yuos-bridge-test-unknown");
     let _ = std::fs::remove_dir_all(&tmp);
     std::fs::create_dir_all(&tmp).unwrap();
     std::fs::write(
@@ -186,7 +186,7 @@ fn run_app_errors_on_unknown_runtime() {
 
 #[test]
 fn run_app_node_entry_missing_surfaces_clear_error() {
-    let tmp = std::env::temp_dir().join("cos-bridge-test-node-missing");
+    let tmp = std::env::temp_dir().join("yuos-bridge-test-node-missing");
     let _ = std::fs::remove_dir_all(&tmp);
     std::fs::create_dir_all(&tmp).unwrap();
     std::fs::write(
@@ -206,7 +206,7 @@ fn run_app_node_entry_missing_surfaces_clear_error() {
 /// Regression: bridge previously did `child.wait()` BEFORE reading
 /// stdout/stderr. When the child wrote more than the Linux pipe
 /// buffer (~64KB) to stdout, the child blocked on write() while
-/// the parent blocked on wait() — `cos` process hung forever. The
+/// the parent blocked on wait() — `yu` process hung forever. The
 /// fix routes both run_python_app and run_app through
 /// `wait_with_output`, which drains the streams in background
 /// threads.
@@ -227,7 +227,7 @@ fn run_python_app_handles_stdout_larger_than_pipe_buffer() {
     {
         return;
     }
-    let tmp = std::env::temp_dir().join("cos-bridge-test-bigstdout");
+    let tmp = std::env::temp_dir().join("yuos-bridge-test-bigstdout");
     let _ = std::fs::remove_dir_all(&tmp);
     std::fs::create_dir_all(&tmp).unwrap();
     // ~256 KB of payload — comfortably over the 64KB pipe buffer.
@@ -253,8 +253,8 @@ fn run_python_app_handles_stdout_larger_than_pipe_buffer() {
     .unwrap();
     let state = tempfile::tempdir().unwrap();
     let _session = crate::test_env::TestSessionGuard::admin(state.path());
-    let _local_sessions = crate::test_env::TestEnvVarGuard::set("COS_TEST_LOCAL_APP_SESSIONS", "1");
-    let runner = state.path().join("claw-app-runner");
+    let _local_sessions = crate::test_env::TestEnvVarGuard::set("YUOS_TEST_LOCAL_APP_SESSIONS", "1");
+    let runner = state.path().join("yuos-app-runner");
     std::fs::write(
         &runner,
         "#!/usr/bin/python3\nimport os,sys\na=sys.argv[1:]\nassert a[0]=='--launch-gate' and a[2]=='--'\nassert os.read(0,32)==a[1].encode()\nos.execv(a[3],a[3:])\n",
@@ -262,7 +262,7 @@ fn run_python_app_handles_stdout_larger_than_pipe_buffer() {
     .unwrap();
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(&runner, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let _runner = crate::test_env::TestEnvVarGuard::set("CLAW_APP_RUNNER_BIN", &runner);
+    let _runner = crate::test_env::TestEnvVarGuard::set("YUOS_APP_RUNNER_BIN", &runner);
 
     // Hard timeout: any deadlock regresses this into a 10s failure
     // rather than a session-killing hang.
@@ -416,7 +416,7 @@ fn operation_defaults_and_explicit_args_bind_the_same_argv_and_narrow_caps() {
 
 #[test]
 fn approval_request_ids_are_read_only_from_a_typed_approval_denial() {
-    let denial = ClawdCallError {
+    let denial = YuosdCallError {
         code: Some("not_authorized".into()),
         message: "launcher cannot delegate sys.identity:name:accounts; awaiting approval".into(),
         data: Some(serde_json::json!({
@@ -426,7 +426,7 @@ fn approval_request_ids_are_read_only_from_a_typed_approval_denial() {
     };
     assert_eq!(approval_requests(&denial), vec!["ap-1", "ap-2"]);
 
-    let wrong_code = ClawdCallError {
+    let wrong_code = YuosdCallError {
         code: Some("internal_error".into()),
         message: denial.message.clone(),
         data: denial.data.clone(),
@@ -440,7 +440,7 @@ fn approval_request_ids_are_read_only_from_a_typed_approval_denial() {
         Some(serde_json::json!({"status": "approval_required"})),
         Some(serde_json::json!({"status": "other", "approval_requests": ["ap-1"]})),
     ] {
-        let error = ClawdCallError {
+        let error = YuosdCallError {
             code: Some("not_authorized".into()),
             message: "nope".into(),
             data,
@@ -917,8 +917,8 @@ fn explicit_stdin_bytes_reach_python_and_polyglot_children() {
     let _env = crate::test_env::lock_env();
     let state = tempfile::tempdir().unwrap();
     let _session = crate::test_env::TestSessionGuard::admin(state.path());
-    let _local_sessions = crate::test_env::TestEnvVarGuard::set("COS_TEST_LOCAL_APP_SESSIONS", "1");
-    let runner = state.path().join("claw-app-runner");
+    let _local_sessions = crate::test_env::TestEnvVarGuard::set("YUOS_TEST_LOCAL_APP_SESSIONS", "1");
+    let runner = state.path().join("yuos-app-runner");
     std::fs::write(
         &runner,
         "#!/usr/bin/python3\nimport os,sys\na=sys.argv[1:]\nassert a[0]=='--launch-gate' and a[2]=='--'\nassert os.read(0,32)==a[1].encode()\nos.execv(a[3],a[3:])\n",
@@ -926,7 +926,7 @@ fn explicit_stdin_bytes_reach_python_and_polyglot_children() {
     .unwrap();
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(&runner, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let _runner = crate::test_env::TestEnvVarGuard::set("CLAW_APP_RUNNER_BIN", &runner);
+    let _runner = crate::test_env::TestEnvVarGuard::set("YUOS_APP_RUNNER_BIN", &runner);
 
     let python = state.path().join("python-app");
     std::fs::create_dir_all(&python).unwrap();

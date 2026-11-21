@@ -62,7 +62,7 @@ struct PrivateRegistryCgroup {
 
 impl PrivateRegistryCgroup {
     fn new() -> Self {
-        use claw_display_control::workload::{open_directory, write_file};
+        use yuos_display_control::workload::{open_directory, write_file};
 
         assert_eq!(unsafe { libc::geteuid() }, 0);
         let membership = std::fs::read_to_string("/proc/self/cgroup").unwrap();
@@ -74,7 +74,7 @@ impl PrivateRegistryCgroup {
             open_directory(&Path::new("/sys/fs/cgroup").join(relative.trim_start_matches('/')))
                 .unwrap();
         let path = Path::new("/sys/fs/cgroup").join(format!(
-            "claw-display-retirement-{}-{}",
+            "yuos-display-retirement-{}-{}",
             std::process::id(),
             uuid::Uuid::new_v4().simple(),
         ));
@@ -97,12 +97,12 @@ impl PrivateRegistryCgroup {
     fn workload(&mut self, epoch: Epoch) -> Arc<Workload> {
         let anchor = SessionGroup::of(&ProcessIdentity::current().unwrap()).unwrap();
         assert_eq!(anchor.path(), self.path);
-        let path = self.path.join(format!("claw-display-{}", epoch.label()));
+        let path = self.path.join(format!("yuos-display-{}", epoch.label()));
         std::fs::create_dir(&path).unwrap();
         self.workloads.push(path.clone());
         Arc::new(
             Workload::receive(
-                claw_display_control::workload::open_directory(&path).unwrap(),
+                yuos_display_control::workload::open_directory(&path).unwrap(),
                 &anchor,
                 epoch,
             )
@@ -113,7 +113,7 @@ impl PrivateRegistryCgroup {
 
 impl Drop for PrivateRegistryCgroup {
     fn drop(&mut self) {
-        if let Err(error) = claw_display_control::workload::write_file(
+        if let Err(error) = yuos_display_control::workload::write_file(
             self.previous.as_fd(),
             "cgroup.procs",
             std::process::id().to_string().as_bytes(),
@@ -149,7 +149,7 @@ impl RegistrySleeper {
                 .spawn()
                 .unwrap(),
         );
-        claw_display_control::workload::write_file(
+        yuos_display_control::workload::write_file(
             workload.as_fd(),
             "cgroup.procs",
             child.0.id().to_string().as_bytes(),
@@ -309,7 +309,7 @@ fn spontaneous_instance_end_cannot_consume_a_retirement_or_refresh_reply() {
             owner_uid: 62050,
             instance,
             expires_monotonic_ms: 1,
-            command: claw_display_control::desktop::Command::List,
+            command: yuos_display_control::desktop::Command::List,
         }, epoch).unwrap(),
         (instance, 7),
     );
@@ -349,7 +349,7 @@ fn private_registry_process() {
                     .unwrap();
                 let response = control
                     .desktop(
-                        claw_display_control::desktop::Command::List,
+                        yuos_display_control::desktop::Command::List,
                         Instant::now() + Duration::from_secs(2),
                     )
                     .unwrap();
@@ -363,7 +363,7 @@ fn private_registry_process() {
                 println!("private native desktop response: {response}");
                 let missing = control
                     .desktop(
-                        claw_display_control::desktop::Command::Close {
+                        yuos_display_control::desktop::Command::Close {
                             identifier: u64::MAX,
                         },
                         Instant::now() + Duration::from_secs(2),

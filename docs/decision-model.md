@@ -30,7 +30,7 @@ yu agent setup decision test
 synthetic question over the local socket. Reset in Settings, or
 `yu agent setup decision --reset`, clears only `decision`; the other models
 are unaffected. The configuration still lives in `decision.model` in the
-owner's `~/.config/cos/config.json`. Empty or missing configuration leaves
+owner's `~/.config/yuos/config.json`. Empty or missing configuration leaves
 the previous Agent behavior unchanged.
 
 Yu OS doesn't install, launch, or download that server or its weights. The

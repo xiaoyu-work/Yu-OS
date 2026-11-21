@@ -1,6 +1,6 @@
 //! Closed capability-policy projections with bridge-owned identity checks.
 
-use cos_agent_protocol::{ActivityCapabilityPolicy, ActivityCapabilityPolicyResponse};
+use yuos_agent_protocol::{ActivityCapabilityPolicy, ActivityCapabilityPolicyResponse};
 use serde_json::Value;
 
 pub fn get(

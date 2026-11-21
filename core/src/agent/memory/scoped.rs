@@ -105,7 +105,7 @@ fn row_value(
         "content":page.content,"revision":source_revision,"ts_ms":row.ts_ms,
         "offset":page.offset,"next_offset":page.next_offset,"total_chars":page.total_chars,
         "source_complete":page.source_complete,"provenance":row.provenance(),
-        "read":{"tool":"cos_recall","command":"show","message_id":row.id,
+        "read":{"tool":"yu_recall","command":"show","message_id":row.id,
             "session_id":row.session_id,"revision":source_revision,"offset":page.next_offset.unwrap_or(0)}}),
     )
 }

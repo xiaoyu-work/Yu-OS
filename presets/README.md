@@ -14,9 +14,9 @@ wrappers.
 
 | Preset | Command | Produces |
 | --- | --- | --- |
-| **Desktop VM** | `sudo ./presets/desktop.sh` | Bootable COSMIC desktop VM image (`vmdk`, 50G) for VMware. Full graphical Claw OS. |
+| **Desktop VM** | `sudo ./presets/desktop.sh` | Bootable COSMIC desktop VM image (`vmdk`, 50G) for VMware. Full graphical Yu OS. |
 | **WSL** | `sudo ./presets/wsl.sh` | Modern `.wsl` package with first-launch account creation. |
-| **Docker** | `./presets/docker.sh` | Headless Claw OS Docker image (container runtime). |
+| **Docker** | `./presets/docker.sh` | Headless Yu OS Docker image (container runtime). |
 
 Azure is a platform target rather than a local preset:
 `sudo ./build.sh azure` creates a generalized fixed VHD, and

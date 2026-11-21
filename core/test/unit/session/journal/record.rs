@@ -4,7 +4,7 @@ use crate::session::journal::event::{JournalEvent, Label};
 fn event() -> JournalEvent {
     JournalEvent::ToolStarted {
         turn: 1,
-        tool: Label::new("cos_todo"),
+        tool: Label::new("yu_todo"),
         tool_use_id: Label::new("t-1"),
         known: true,
     }
@@ -69,7 +69,7 @@ fn a_body_change_breaks_the_mac() {
     let mut record = record(event(), 1, GENESIS_MAC, &key);
     record.event = JournalEvent::ToolStarted {
         turn: 2,
-        tool: Label::new("cos_todo"),
+        tool: Label::new("yu_todo"),
         tool_use_id: Label::new("t-1"),
         known: true,
     };

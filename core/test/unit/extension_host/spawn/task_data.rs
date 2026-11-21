@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 use std::os::unix::fs::PermissionsExt;
 
 use super::super::app_data::tests::{chown, copy_executable, mount_tmpfs};
-use crate::clawd::client_identity::AuthenticatedExtensionHost;
+use crate::yuosd::client_identity::AuthenticatedExtensionHost;
 use crate::provenance::trust::TrustRootSpec;
 
 const ACTOR_TEST: &str = "extension_host::spawn::task_data::tests::ordinary_task_app_actor";
@@ -29,8 +29,8 @@ const MAIN: &str = r#"
 import os, pathlib, sqlite3
 
 def run(command, args):
-    root = pathlib.Path(os.environ["COS_DATA_DIR"])
-    assert os.environ["COS_APP_ID"] == "task-storage"
+    root = pathlib.Path(os.environ["YUOS_DATA_DIR"])
+    assert os.environ["YUOS_APP_ID"] == "task-storage"
     assert not (root.parent / "foreign-app").exists()
     with sqlite3.connect(root / "state.db") as db:
         db.execute("PRAGMA journal_mode=WAL")
@@ -60,14 +60,14 @@ fn load_trust() {
 #[test]
 #[ignore = "private child of task_app_registration_binds_persistent_data_after_authorization"]
 fn ordinary_task_app_actor() {
-    assert_eq!(std::env::var("COS_TASK_DATA_ACTOR").unwrap(), "1");
+    assert_eq!(std::env::var("YUOS_TASK_DATA_ACTOR").unwrap(), "1");
     assert_ne!(unsafe { libc::geteuid() }, 0);
     load_trust();
     std::io::stdin().read_exact(&mut [0_u8; 1]).unwrap();
-    let apps = PathBuf::from(std::env::var_os("COS_APPS_DIR").unwrap());
+    let apps = PathBuf::from(std::env::var_os("YUOS_APPS_DIR").unwrap());
     let app = crate::apps::find_verified(&apps, APP).unwrap();
     let launch = crate::bridge::AppLaunch::new(app.require_verified().unwrap().clone()).unwrap();
-    let start: i64 = std::env::var("COS_TASK_DATA_EXPECTED")
+    let start: i64 = std::env::var("YUOS_TASK_DATA_EXPECTED")
         .unwrap()
         .parse()
         .unwrap();
@@ -151,7 +151,7 @@ fn session(id: &str, pid: u32, caps: crate::caps::CapSet) -> crate::proc::Sessio
     crate::proc::SessionInfo {
         session_id: id.into(),
         pid,
-        command: vec!["claw-extension-host".into(), "task-data-fixture".into()],
+        command: vec!["yuos-extension-host".into(), "task-data-fixture".into()],
         started_at: chrono::Utc::now().to_rfc3339(),
         stdout_path: String::new(),
         stderr_path: String::new(),
@@ -178,11 +178,11 @@ fn session(id: &str, pid: u32, caps: crate::caps::CapSet) -> crate::proc::Sessio
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "requires Root in private mount/network namespaces and COS_APP_DATA_TEST_COS/RUNNER"]
+#[ignore = "requires Root in private mount/network namespaces and YUOS_APP_DATA_TEST_YU/RUNNER"]
 async fn task_app_registration_binds_persistent_data_after_authorization() {
     use crate::caps::{Cap, CapSet, Scope, Verb};
-    use crate::clawd::transport::{frame::PeerStream, peer, ReadOutcome};
-    use crate::clawd::wire::Request;
+    use crate::yuosd::transport::{frame::PeerStream, peer, ReadOutcome};
+    use crate::yuosd::wire::Request;
 
     let _lock = crate::test_env::lock_env();
     assert_eq!(unsafe { libc::geteuid() }, 0);
@@ -224,12 +224,12 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
     std::fs::set_permissions("/run/lock", std::fs::Permissions::from_mode(0o1777)).unwrap();
     mount_tmpfs(c"/usr/local/bin");
     copy_executable(
-        Path::new(&std::env::var("COS_APP_DATA_TEST_COS").unwrap()),
+        Path::new(&std::env::var("YUOS_APP_DATA_TEST_YU").unwrap()),
         Path::new("/usr/local/bin/yu"),
     );
     copy_executable(
-        Path::new(&std::env::var("COS_APP_DATA_TEST_RUNNER").unwrap()),
-        Path::new("/usr/local/bin/claw-app-runner"),
+        Path::new(&std::env::var("YUOS_APP_DATA_TEST_RUNNER").unwrap()),
+        Path::new("/usr/local/bin/yuos-app-runner"),
     );
     copy_executable(
         &std::env::current_exe().unwrap(),
@@ -244,12 +244,12 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
     ] {
         std::fs::create_dir_all(path).unwrap();
     }
-    let _runtime = crate::test_env::TestEnvVarGuard::set("COS_RUNTIME_DIR", "/run/task-runtime");
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", "/run/task-state");
-    let _caps = crate::test_env::TestEnvVarGuard::set("COS_CAPS_DATA_DIR", "/run/task-state");
-    let _logs = crate::test_env::TestEnvVarGuard::set("COS_LOG_DIR", "/run/task-log");
-    let _user_data = crate::test_env::TestEnvVarGuard::set("COS_USER_DATA_DIR", backing.path());
-    let _apps = crate::test_env::TestEnvVarGuard::set("COS_APPS_DIR", "/run/task-apps");
+    let _runtime = crate::test_env::TestEnvVarGuard::set("YUOS_RUNTIME_DIR", "/run/task-runtime");
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", "/run/task-state");
+    let _caps = crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", "/run/task-state");
+    let _logs = crate::test_env::TestEnvVarGuard::set("YUOS_LOG_DIR", "/run/task-log");
+    let _user_data = crate::test_env::TestEnvVarGuard::set("YUOS_USER_DATA_DIR", backing.path());
+    let _apps = crate::test_env::TestEnvVarGuard::set("YUOS_APPS_DIR", "/run/task-apps");
     let key =
         crate::provenance::sign::SigningKeyFile::generate(Some("private Task data fixture".into()))
             .unwrap();
@@ -305,14 +305,14 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
     crate::approvals::system_review::consume(owner.uid, &review.id, package).unwrap();
     let caps = CapSet::from_caps([Cap::new(Verb::AGENT_INVOKE, Scope::name(APP))]);
     let group = Path::new("/sys/fs/cgroup")
-        .join(format!("cos-task-data-fixture-{}", uuid::Uuid::new_v4().simple()));
+        .join(format!("yuos-task-data-fixture-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir(&group).unwrap();
     let _group = store_custody::RootGroup(group.clone());
-    let _containment = crate::test_env::TestEnvVarGuard::set("CLAWD_EXTENSION_CGROUP_ROOT", &group);
-    let _execution_group = crate::test_env::TestEnvVarGuard::set("COS_EXTENSION_EXEC_GROUP", "nogroup");
-    let state = crate::clawd::state::DaemonState::try_new().unwrap();
-    let admission = crate::clawd::transport::limits::Admission::new(
-        crate::clawd::transport::limits::Limits::default(),
+    let _containment = crate::test_env::TestEnvVarGuard::set("YUOSD_EXTENSION_CGROUP_ROOT", &group);
+    let _execution_group = crate::test_env::TestEnvVarGuard::set("YUOS_EXTENSION_EXEC_GROUP", "nogroup");
+    let state = crate::yuosd::state::DaemonState::try_new().unwrap();
+    let admission = crate::yuosd::transport::limits::Admission::new(
+        crate::yuosd::transport::limits::Limits::default(),
     );
     let primary = PathBuf::from("/run/task-data-broker.sock");
     let _listener = std::os::unix::net::UnixListener::bind(&primary).unwrap();
@@ -341,17 +341,17 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
             .env_clear()
             .env("PATH", "/usr/local/bin:/usr/bin:/bin")
             .env("HOME", &paths.control_dir)
-            .env("COS_DATA_DIR", paths.control_dir.join("data"))
-            .env("COS_LOG_DIR", paths.control_dir.join("log"))
-            .env("COS_CACHE_DIR", paths.control_dir.join("cache"))
-            .env("COS_BIN", "/usr/local/bin/yu")
-            .env("COS_APPS_DIR", "/run/task-apps")
-            .env("COS_PROC_DATA_DIR", format!("/run/cos/caps/{}", owner.uid))
-            .env("COS_SESSION", "task-host")
-            .env("COS_EXTENSION_BROKER_SOCKET", &paths.broker_socket)
+            .env("YUOS_DATA_DIR", paths.control_dir.join("data"))
+            .env("YUOS_LOG_DIR", paths.control_dir.join("log"))
+            .env("YUOS_CACHE_DIR", paths.control_dir.join("cache"))
+            .env("YUOS_BIN", "/usr/local/bin/yu")
+            .env("YUOS_APPS_DIR", "/run/task-apps")
+            .env("YUOS_PROC_DATA_DIR", format!("/run/yuos/caps/{}", owner.uid))
+            .env("YUOS_SESSION", "task-host")
+            .env("YUOS_EXTENSION_BROKER_SOCKET", &paths.broker_socket)
             .env("XDG_RUNTIME_DIR", "/tmp")
-            .env("COS_TASK_DATA_ACTOR", "1")
-            .env("COS_TASK_DATA_EXPECTED", expected.to_string())
+            .env("YUOS_TASK_DATA_ACTOR", "1")
+            .env("YUOS_TASK_DATA_EXPECTED", expected.to_string())
             .current_dir(&paths.control_dir)
             .stdin(Stdio::piped())
             .stdout(Stdio::inherit())
@@ -418,7 +418,7 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
                 "app_id": APP, "kind": "operation", "operation": operation, "args": [],
                 "package": PackageRef::of(package),
             });
-            assert!(crate::clawd::app_sessions::register(request, &client)
+            assert!(crate::yuosd::app_sessions::register(request, &client)
                 .await
                 .is_err());
             assert!(
@@ -430,7 +430,7 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
             "app_id": APP, "kind": "operation", "operation": "bump", "args": [],
             "package": PackageRef::of(package), "task_app_data_dir": "/caller/path",
         });
-        assert!((crate::clawd::routes::Command::AppSessionRegister
+        assert!((crate::yuosd::routes::Command::AppSessionRegister
             .route()
             .decode)(invalid)
         .is_err());
@@ -443,7 +443,7 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
                 let accepted = tokio::select! { _ = &mut stopped => break, accepted = listener.accept() => accepted };
                 let mut stream = PeerStream::new(accepted.unwrap().0).unwrap();
                 let ReadOutcome::Frame(frame) = stream
-                    .read_request(crate::clawd::wire::MAX_REQUEST_BYTES)
+                    .read_request(crate::yuosd::wire::MAX_REQUEST_BYTES)
                     .await
                     .unwrap()
                 else {
@@ -455,23 +455,23 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
                 assert_eq!(process.start_time_ticks, client.start_time_ticks.unwrap());
                 let request: Request = serde_json::from_slice(&frame.body).unwrap();
                 let response = if refuse_bind
-                    && request.command == crate::clawd::routes::Command::AppSessionBind
+                    && request.command == crate::yuosd::routes::Command::AppSessionBind
                 {
                     refuse_bind = false;
                     tokio::time::sleep(Duration::from_millis(150)).await;
-                    crate::clawd::protocol::Response::error(
+                    crate::yuosd::protocol::Response::error(
                         request.id,
-                        crate::clawd::protocol::BrokerErrorKind::Unauthorized.code(),
+                        crate::yuosd::protocol::BrokerErrorKind::Unauthorized.code(),
                         "fixture binding refused",
                     )
                 } else {
-                    crate::clawd::server::dispatch_verified_request(
+                    crate::yuosd::server::dispatch_verified_request(
                         request, &client, &state, &admission,
                     )
                     .await
                 };
                 stream
-                    .write_response(&crate::clawd::protocol::encode_response(&response).unwrap())
+                    .write_response(&crate::yuosd::protocol::encode_response(&response).unwrap())
                     .await
                     .unwrap();
             }
@@ -516,7 +516,7 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
         let metadata = std::fs::metadata(&db_path).unwrap();
         assert_eq!((metadata.uid(), metadata.gid()), (owner.uid, owner.gid));
         let value: i64 = {
-            let _owner = crate::clawd::client_identity::FsIdentityGuard::enter(owner.uid).unwrap();
+            let _owner = crate::yuosd::client_identity::FsIdentityGuard::enter(owner.uid).unwrap();
             rusqlite::Connection::open(db_path)
                 .unwrap()
                 .query_row("SELECT value FROM counter", [], |row| row.get(0))

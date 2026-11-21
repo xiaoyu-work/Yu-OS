@@ -252,7 +252,7 @@ fn standalone_task_notifications_keep_phase_specific_delivery() {
     let (_, completed) = task_notification_draft(&job, "completed").unwrap();
     assert_eq!(completed.session_id.as_deref(), Some(session_id.as_str()));
     assert_eq!(completed.task_id.as_deref(), Some(job.id.as_str()));
-    assert_eq!(completed.actions[0].uri, "clawos://agent/session/background-session");
+    assert_eq!(completed.actions[0].uri, "yuos://agent/session/background-session");
     crate::notifications::set_conversation_view(7, &viewer_id, 4, None).unwrap();
 }
 
@@ -426,7 +426,7 @@ fn job_progress_keeps_metrics_and_only_redacted_failure_preview() {
 
     sink.on_tool_result(
         "tool-success",
-        "cos_sysinfo",
+        "yu_sysinfo",
         true,
         17,
         4096,
@@ -434,7 +434,7 @@ fn job_progress_keeps_metrics_and_only_redacted_failure_preview() {
     );
     let token = ["abcdefgh", "ijklmnop"].concat();
     let failure = format!("request failed with Authorization: Bearer {token}");
-    sink.on_tool_result("tool-failure", "cos_proc", false, 23, 128, &failure);
+    sink.on_tool_result("tool-failure", "yu_proc", false, 23, 128, &failure);
 
     let (_, events) = store.read_stream_events(&job.id, 0).unwrap();
     assert_eq!(events.len(), 2);
@@ -581,16 +581,16 @@ struct EnvGuard {
 impl EnvGuard {
     fn set(dir: &Path) -> Self {
         let _lock = crate::test_env::lock_env();
-        let prev = std::env::var("COS_DATA_DIR").ok();
-        std::env::set_var("COS_DATA_DIR", dir);
+        let prev = std::env::var("YUOS_DATA_DIR").ok();
+        std::env::set_var("YUOS_DATA_DIR", dir);
         Self { prev, _lock }
     }
 }
 impl Drop for EnvGuard {
     fn drop(&mut self) {
         match &self.prev {
-            Some(v) => std::env::set_var("COS_DATA_DIR", v),
-            None => std::env::remove_var("COS_DATA_DIR"),
+            Some(v) => std::env::set_var("YUOS_DATA_DIR", v),
+            None => std::env::remove_var("YUOS_DATA_DIR"),
         }
     }
 }
@@ -675,7 +675,7 @@ fn submit_snapshots_trusted_client_metadata() {
 
 #[test]
 fn legacy_job_file_without_owner_fields_still_loads() {
-    // Older clawd installs wrote Job JSON without owner_uid /
+    // Older yuosd installs wrote Job JSON without owner_uid /
     // owner_home. The new fields are #[serde(default)] so those
     // files must still deserialize.
     let dir = fresh_root();
@@ -1678,7 +1678,7 @@ fn cross_bucket_rename_barrier_failures_never_commit_execution() {
             .unwrap();
         {
             let _guard =
-                crate::test_env::TestEnvVarGuard::set("COS_TEST_PERSISTENCE_FAILPOINT", point);
+                crate::test_env::TestEnvVarGuard::set("YUOS_TEST_PERSISTENCE_FAILPOINT", point);
             let error = store.claim_one().unwrap_err();
             if matches!(
                 point,
@@ -1937,7 +1937,7 @@ fn bounded_aging_runs_old_work_before_new_foreground_work() {
 fn queued_activity_jobs_use_current_policy_without_persisting_priority_in_jobs() {
     let _lock = crate::test_env::lock_env();
     let data = fresh_root();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", data.path());
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
     let service = crate::activities::open_default().unwrap();
     let standard = service
         .create(
@@ -2017,7 +2017,7 @@ fn queued_activity_jobs_use_current_policy_without_persisting_priority_in_jobs()
 fn activity_policy_storage_failure_blocks_activity_claim_but_not_standalone_fifo() {
     let _lock = crate::test_env::lock_env();
     let data = fresh_root();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", data.path());
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
     let store = Store::open_default().unwrap();
     let standalone = store
         .submit("standalone".into(), None, None, None, None)
@@ -2405,7 +2405,7 @@ fn job_preview_truncates_with_ellipsis() {
     assert_eq!(short.preview(10), "hi");
 }
 
-// ----- CLI dispatcher tests (use COS_DATA_DIR via EnvGuard) -----
+// ----- CLI dispatcher tests (use YUOS_DATA_DIR via EnvGuard) -----
 
 #[test]
 fn cmd_help_lists_subcommands() {
@@ -2659,9 +2659,9 @@ fn cmd_list_orders_union_by_created_at_desc() {
 #[tokio::test]
 async fn standalone_worker_hook_registry_records_runtime_audit() {
     let temp = tempfile::tempdir().unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", temp.path());
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", temp.path());
     let hooks = standalone_runtime_hooks();
-    assert!(hooks.names().contains(&"clawd-runtime-audit".to_string()));
+    assert!(hooks.names().contains(&"yuosd-runtime-audit".to_string()));
     let config = crate::config::AgentConfig {
         provider: "mock".into(),
         model: "mock-model".into(),
@@ -2696,8 +2696,8 @@ async fn standalone_worker_hook_registry_records_runtime_audit() {
         .await
         .unwrap();
 
-    let audit = std::fs::read_to_string(temp.path().join("clawd").join("audit.jsonl")).unwrap();
-    assert!(audit.contains("\"event\":\"clawd.agent.tool.started\""));
-    assert!(audit.contains("\"event\":\"clawd.agent.tool.finished\""));
-    assert!(audit.contains("\"event\":\"clawd.agent.turn.finished\""));
+    let audit = std::fs::read_to_string(temp.path().join("yuosd").join("audit.jsonl")).unwrap();
+    assert!(audit.contains("\"event\":\"yuosd.agent.tool.started\""));
+    assert!(audit.contains("\"event\":\"yuosd.agent.tool.finished\""));
+    assert!(audit.contains("\"event\":\"yuosd.agent.turn.finished\""));
 }

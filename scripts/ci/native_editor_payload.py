@@ -6,14 +6,17 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import stat
 import struct
 import subprocess
 import sys
+import tarfile
 
 
 ROOT = Path(__file__).resolve().parents[2]
+PLATFORM_PIN = ROOT / "packaging/app-platform-release.lock.json"
 SPEC = importlib.util.spec_from_file_location("app_sources", ROOT / "scripts/app_sources.py")
 app_sources = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(app_sources)
@@ -26,7 +29,7 @@ PRODUCTS = {
     "store": ("cosmic-store", "com.yuos.Store", ()),
     "desktop-widgets": ("widget-rail", "com.yuos.AppletWidgetRail", ()),
     "clipboard": ("panel-clipboard", "com.yuos.AppletClipboard", ()),
-    "launcher": ("claw-launcher", "com.yuos.Launcher", ()),
+    "launcher": ("yuos-launcher", "com.yuos.Launcher", ()),
     "settings": ("cosmic-settings", "com.yuos.Settings", ()),
     "capture": ("cosmic-screenshot", "com.yuos.Screenshot", ()),
     "notifications": ("cosmic-notifications", "com.yuos.Notifications", ()),
@@ -46,12 +49,12 @@ def product_layout(product):
               for size in (16, 24, 32, 48, 64, 128, 256)),
         )
     if product in ("desktop-widgets", "clipboard"):
-        program = "claw-applet-widget-rail" if product == "desktop-widgets" else "claw-applet-clipboard"
+        program = "yuos-applet-widget-rail" if product == "desktop-widgets" else "yuos-applet-clipboard"
         return app, [f"bin/{program}"], (
             f"resources/usr/share/applications/{desktop_id}.desktop",
         )
     if product == "calendar":
-        return app, ["bin/claw-applet-calendar"], (
+        return app, ["bin/yuos-applet-calendar"], (
             f"resources/usr/share/applications/{desktop_id}.desktop",
             f"resources/usr/share/icons/hicolor/scalable/actions/{desktop_id}-symbolic.svg",
         )
@@ -121,7 +124,52 @@ def executable_elf(path):
             raise ValueError("Native ELF has no executable entry segment")
 
 
-def payload_record(source, payload, lock, product="editor"):
+def platform_contract():
+    return json.loads((ROOT / "packaging/app-platform.json").read_text())
+
+
+def published_platform(source):
+    selected = json.loads((source / "platform.lock.json").read_text())
+    approved = json.loads(PLATFORM_PIN.read_text())
+    contract = platform_contract()
+    version = contract["version"]
+    if selected != approved or not re.fullmatch(r"[0-9a-f]{64}", selected.get("sha256", "")):
+        raise ValueError("Native acceptance requires the approved published platform bytes")
+    if any(selected.get(name) != contract[name] for name in ("version", "runtime_abi", "schema")) or (
+        selected.get("url") != "https://github.com/xiaoyu-work/Yu-OS/releases/download/"
+        f"yuos-app-platform-v{version}/yuos-app-platform-{version}.tar.gz"
+    ):
+        raise ValueError("Native acceptance requires the published Yu OS platform pin")
+    return selected
+
+
+def development_platform():
+    requested = os.environ.get("YUOS_ACCEPTANCE_PLATFORM")
+    if not requested:
+        return None, []
+    contract = platform_contract()
+    version = contract["version"]
+    archive = Path(requested).resolve(strict=True)
+    expected = ROOT / "build/app-platform-acceptance" / f"yuos-app-platform-{version}.tar.gz"
+    if archive != expected or not archive.is_file():
+        raise ValueError("Use only the platform built from this checkout for private acceptance")
+    sha256 = digest(archive).removeprefix("sha256:")
+    checksum, filename = (archive.parent / "SHA256SUMS").read_text().split()
+    if (sha256, archive.name) != (checksum, filename):
+        raise ValueError("Private acceptance platform checksum changed")
+    revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    with tarfile.open(archive, "r:gz") as source:
+        with source.extractfile("platform.json") as manifest:
+            if json.load(manifest)["source_revision"] != revision:
+                raise ValueError("Private acceptance platform is not from this checkout")
+    return {
+        "schema": contract["schema"], "version": version, "runtime_abi": contract["runtime_abi"],
+        "sha256": sha256, "source_revision": revision,
+    }, ["--development-platform", str(archive), "--development-platform-version", version,
+        "--development-platform-sha256", sha256]
+
+
+def payload_record(source, payload, lock, product="editor", *, platform=None):
     app, entries, resources = product_layout(product)
     entry = entries[0]
     manifest_path = source / "products" / product / "apps" / app / "app.json"
@@ -143,21 +191,11 @@ def payload_record(source, payload, lock, product="editor"):
         raise ValueError("Native auxiliary entry must retain its declared GUI binding")
     if (payload / ".provenance.json").exists():
         raise ValueError("The private namespace, not preparation, signs this fixture")
-    platform = json.loads((source / "platform.lock.json").read_text())
-    if platform.get("version") != "0.2.1" or platform.get("runtime_abi") != 1 or (
-        platform.get("url") != (
-            "https://github.com/xiaoyu-work/claw-os/releases/download/"
-            "app-platform-v0.2.1/claw-os-app-platform-0.2.1.tar.gz"
-        )
-    ):
-        raise ValueError("Native acceptance requires the published 0.2.1 platform pin")
-    if product in ("terminal", "calendar", "store", "desktop-widgets", "clipboard", "launcher", "settings", "capture", "notifications", "media-player") and platform.get("sha256") != (
-        "0412f750add06a32c81312c9405338687471249a01dcbf0c9688e66885dde8d8"
-    ):
-        raise ValueError("Native acceptance requires the approved published platform bytes")
+    if platform is None:
+        platform = published_platform(source)
     licenses = [(payload / "LICENSE", source / "products" / product / "native/LICENSE")]
     if product not in ("calendar", "desktop-widgets", "clipboard", "notifications"):
-        licenses.append((payload / "licenses/claw-app-gui-argv/LICENSE", source / "LICENSE"))
+        licenses.append((payload / "licenses/yuos-app-gui-argv/LICENSE", source / "LICENSE"))
     for path, original in licenses:
         if path.read_bytes() != original.read_bytes():
             raise ValueError("Native fixture lost an original product/support license")
@@ -169,7 +207,7 @@ def payload_record(source, payload, lock, product="editor"):
         if resource not in files or files[resource]["size"] == 0:
             raise ValueError(f"Missing original native installer resource: {resource}")
     return {
-        "schema": f"claw.private-native-{product}/v1", "source_lock": lock,
+        "schema": f"yuos.private-native-{product}/v1", "source_lock": lock,
         "platform_lock": platform, "entrypoints": entries,
         "resources": sorted(name for name in files if name.startswith("resources/")),
         "payload_inventory": records,
@@ -189,12 +227,15 @@ def prepare(output, target, product="editor"):
     app_sources.locked_app_paths(lock, source)
     app_sources.write_lock(output / "app-sources.json", lock)
     platform_bytes = (source / "platform.lock.json").read_bytes()
+    platform, platform_arguments = development_platform()
     app, _, _ = product_layout(product)
-    staged = source / "build" / f"native-{product}-acceptance-{os.getpid()}" / app
+    scratch = source / "build/acceptance" if platform is not None else source / "build"
+    staged = scratch / f"native-{product}-acceptance-{os.getpid()}" / app
+    output_flag = "--acceptance-root" if platform is not None else "--app-root"
     subprocess.run(
         [sys.executable, "-B", str(source / "tools/native_build.py"),
          product, "build", "--release", "--target-dir", str(target.resolve()),
-         "--app-root", str(staged)],
+         output_flag, str(staged), *platform_arguments],
         check=True, cwd=source,
     )
     # Reuse the resolved lock: do not resolve a newer main after the build.
@@ -202,7 +243,9 @@ def prepare(output, target, product="editor"):
         (source / "platform.lock.json").read_bytes() != platform_bytes
     ):
         raise ValueError("Native source/platform inputs changed during preparation")
-    record = payload_record(source, staged, lock, product)
+    if platform is not None and development_platform()[0] != platform:
+        raise ValueError("Private acceptance platform changed during the build")
+    record = payload_record(source, staged, lock, product, platform=platform)
     payload = output / app
     shutil.copytree(staged, payload, symlinks=True)
     if inventory(payload) != record["payload_inventory"]:

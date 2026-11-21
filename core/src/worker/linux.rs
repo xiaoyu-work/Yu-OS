@@ -169,7 +169,7 @@ impl PinnedSources {
         use std::io::{Seek, SeekFrom};
 
         let fd = unsafe {
-            libc::memfd_create(c"claw-worker-account".as_ptr(), libc::MFD_CLOEXEC | libc::MFD_ALLOW_SEALING)
+            libc::memfd_create(c"yuos-worker-account".as_ptr(), libc::MFD_CLOEXEC | libc::MFD_ALLOW_SEALING)
         };
         if fd < 0 {
             return Err(format!("create worker account view: {}", std::io::Error::last_os_error()));
@@ -226,12 +226,12 @@ fn open_path_nofollow(path: &Path) -> Result<std::fs::File, String> {
 /// Path the narrow broker endpoint appears at inside the sandbox.
 ///
 /// Deliberately the same path the real broker uses on the host, so
-/// `cos` inside the sandbox needs no special case — and so the real
+/// `yu` inside the sandbox needs no special case — and so the real
 /// socket is *shadowed* rather than merely absent.
-pub const SANDBOX_BROKER_SOCKET: &str = "/run/cos/clawd.sock";
+pub const SANDBOX_BROKER_SOCKET: &str = "/run/yuos/yuosd.sock";
 
 /// Path the egress broker appears at inside the sandbox.
-pub const SANDBOX_EGRESS_SOCKET: &str = "/run/cos/worker-egress.sock";
+pub const SANDBOX_EGRESS_SOCKET: &str = "/run/yuos/worker-egress.sock";
 
 /// Read-only host paths every worker needs to run an interpreter.
 /// `-try` semantics: a host that does not have one simply does not get
@@ -256,11 +256,11 @@ const SYSTEM_PATHS: &[&str] = &[
 
 pub struct LinuxSandbox;
 
-pub(crate) const GUI_WAYLAND_SOCKET: &str = "/run/cos/app-wayland.sock";
+pub(crate) const GUI_WAYLAND_SOCKET: &str = "/run/yuos/app-wayland.sock";
 
 pub(crate) struct GuiPreparation<'a> {
-    pub workload: &'a claw_display_control::workload::Workload,
-    pub instance: claw_display_control::InstanceId,
+    pub workload: &'a yuos_display_control::workload::Workload,
+    pub instance: yuos_display_control::InstanceId,
     pub runtime: &'a mut crate::display_session::runtime::Runtime,
     pub home_metadata: bool,
     pub retained: Option<&'a mut Option<LaunchResources>>,
@@ -362,7 +362,7 @@ impl LinuxSandbox {
             "X_PRIVILEGED_WAYLAND_SOCKET",
             "DBUS_SESSION_BUS_ADDRESS",
             "COSMIC_SESSION_SOCK",
-            "CLAW_DISPLAY_CONTROL_FD",
+            "YUOS_DISPLAY_CONTROL_FD",
         ]
         .iter()
         .any(|name| launch.policy.env.contains_key(*name))
@@ -373,7 +373,7 @@ impl LinuxSandbox {
         }
         for field in ["loginuid", "sessionid"] {
             let identity =
-                claw_display_control::identity::read_bounded(&format!("/proc/self/{field}"), 32)
+                yuos_display_control::identity::read_bounded(&format!("/proc/self/{field}"), 32)
                     .map_err(|error| error.to_string())?;
             if identity.trim() != "4294967295" {
                 return Err("GUI supervisor must not inherit ambient login authority".to_string());
@@ -513,7 +513,7 @@ impl LinuxSandbox {
         } else {
             match super::cgroup::is_available() && !inside_extension_host() {
                 true => Some(super::cgroup::create(
-                    &format!("cos-worker-{id}"),
+                    &format!("yuos-worker-{id}"),
                     &policy.limits,
                 )?),
                 false => None,
@@ -534,7 +534,7 @@ impl LinuxSandbox {
         let custody_gate = launch.root_custody.then(super::app_custody::Gate::new).transpose()?;
         let setup_gate = home_metadata.then(super::app_custody::Gate::new).transpose()?;
         let mut command = if let Some(gate) = custody_gate.as_ref().or(setup_gate.as_ref()) {
-            let runner = Path::new("/usr/local/bin/claw-app-runner");
+            let runner = Path::new("/usr/local/bin/yuos-app-runner");
             let metadata = crate::provenance::fsec::require_secure_location(runner, &[0])
                 .map_err(|error| format!("Root custody requires the protected App runner: {error}"))?;
             if !metadata.is_file || metadata.mode & 0o111 == 0 {
@@ -607,9 +607,9 @@ pub(crate) fn prepare_native_fs_fixture(
     if !availability.is_available() {
         return Err(availability.refusal());
     }
-    let (gid, _) = crate::clawd::client_identity::owner_groups(owner)?;
+    let (gid, _) = crate::yuosd::client_identity::owner_groups(owner)?;
     let gate = super::app_custody::Gate::new()?;
-    let runner = Path::new("/usr/local/bin/claw-app-runner");
+    let runner = Path::new("/usr/local/bin/yuos-app-runner");
     let metadata = crate::provenance::fsec::require_secure_location(runner, &[0])
         .map_err(|error| error.to_string())?;
     if !metadata.is_file || metadata.mode & 0o111 == 0 {
@@ -651,7 +651,7 @@ fn inside_extension_host() -> bool {
         + crate::extension_host::identity::IDENTITY_COUNT
         - 1;
     (crate::extension_host::identity::FIRST_UID..=end).contains(&uid)
-        && std::env::var("COS_EXTENSION_CHILD_ISOLATION").as_deref() == Ok("1")
+        && std::env::var("YUOS_EXTENSION_CHILD_ISOLATION").as_deref() == Ok("1")
         && unsafe { libc::prctl(libc::PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0) } == 1
 }
 
@@ -733,7 +733,7 @@ fn build_bwrap_args_with_seccomp(
     push!("--cap-drop", "ALL");
     push!("--new-session");
     push!("--die-with-parent");
-    push!("--hostname", "claw-worker");
+    push!("--hostname", "yuos-worker");
     push!("--uid", uid);
     push!("--gid", gid);
 

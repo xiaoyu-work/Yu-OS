@@ -25,7 +25,7 @@ fn validate_config_rejects_missing_file() {
 #[test]
 fn validate_config_accepts_existing_file() {
     let tmp = std::env::temp_dir().join(format!(
-        "cos-llama-fake-{}-{}.gguf",
+        "yuos-llama-fake-{}-{}.gguf",
         std::process::id(),
         uuid::Uuid::new_v4()
     ));
@@ -230,7 +230,7 @@ fn engine_construction_returns_not_installed_when_uninstalled() {
 
     // Provide a real GGUF placeholder so validate_config passes.
     let gguf = std::env::temp_dir().join(format!(
-        "cos-llama-not-installed-{}-{}.gguf",
+        "yuos-llama-not-installed-{}-{}.gguf",
         std::process::id(),
         uuid::Uuid::new_v4()
     ));
@@ -274,14 +274,14 @@ fn engine_construction_returns_not_installed_when_uninstalled() {
 /// surprising substring (e.g. `lib`, `bin`, etc.).
 #[test]
 fn engine_version_from_lib_path_handles_layouts() {
-    let lib_layout = PathBuf::from("/var/lib/cos/engines/llama-cpp/b4001/lib/libllama.so");
+    let lib_layout = PathBuf::from("/var/lib/yuos/engines/llama-cpp/b4001/lib/libllama.so");
     assert_eq!(
         super::engine_version_from_lib_path(&lib_layout).as_deref(),
         Some("b4001"),
     );
 
     let bin_layout =
-        PathBuf::from("C:/ProgramData/cos/data/engines/llama-cpp/b4001/bin/llama.dll");
+        PathBuf::from("C:/ProgramData/yuos/data/engines/llama-cpp/b4001/bin/llama.dll");
     assert_eq!(
         super::engine_version_from_lib_path(&bin_layout).as_deref(),
         Some("b4001"),

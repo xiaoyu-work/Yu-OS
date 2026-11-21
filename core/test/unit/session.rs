@@ -12,7 +12,7 @@ use crate::caps::{Cap, CapSet, Scope, Verb};
 
 use super::*;
 
-// All tests in this file mutate the global `COS_DATA_DIR` env var,
+// All tests in this file mutate the global `YUOS_DATA_DIR` env var,
 // so we serialize them on the process-wide `crate::test_env::ENV_LOCK`.
 // (Per-module mutexes are not enough: cargo runs every test module
 // in the same binary on a thread pool, so two modules can race.)
@@ -21,7 +21,7 @@ fn lock_env() -> std::sync::MutexGuard<'static, ()> {
     crate::test_env::lock_env()
 }
 
-/// RAII: redirect `COS_DATA_DIR` to a fresh tempdir, restore on drop.
+/// RAII: redirect `YUOS_DATA_DIR` to a fresh tempdir, restore on drop.
 struct DataDirGuard {
     prev: Option<std::ffi::OsString>,
     _tmp: TempDir,
@@ -30,16 +30,16 @@ struct DataDirGuard {
 impl Drop for DataDirGuard {
     fn drop(&mut self) {
         match self.prev.take() {
-            Some(v) => env::set_var("COS_DATA_DIR", v),
-            None => env::remove_var("COS_DATA_DIR"),
+            Some(v) => env::set_var("YUOS_DATA_DIR", v),
+            None => env::remove_var("YUOS_DATA_DIR"),
         }
     }
 }
 
 fn redirect_data_dir() -> DataDirGuard {
     let tmp = tempfile::tempdir().expect("tempdir");
-    let prev = env::var_os("COS_DATA_DIR");
-    env::set_var("COS_DATA_DIR", tmp.path());
+    let prev = env::var_os("YUOS_DATA_DIR");
+    env::set_var("YUOS_DATA_DIR", tmp.path());
     DataDirGuard { prev, _tmp: tmp }
 }
 
@@ -310,11 +310,11 @@ fn state_per_runtime_isolation() {
     let _data = redirect_data_dir();
 
     let sid = create("state test").unwrap();
-    write_state(&sid, "cos-agent", json!({"step": 1})).unwrap();
+    write_state(&sid, "yuos-agent", json!({"step": 1})).unwrap();
     write_state(&sid, "langchain", json!({"chain": "rag"})).unwrap();
 
     assert_eq!(
-        read_state(&sid, "cos-agent").unwrap(),
+        read_state(&sid, "yuos-agent").unwrap(),
         json!({"step": 1})
     );
     assert_eq!(
@@ -325,16 +325,16 @@ fn state_per_runtime_isolation() {
     assert_eq!(read_state(&sid, "nope").unwrap(), json!(null));
 
     // Updating one runtime preserves the other.
-    write_state(&sid, "cos-agent", json!({"step": 2})).unwrap();
-    assert_eq!(read_state(&sid, "cos-agent").unwrap(), json!({"step": 2}));
+    write_state(&sid, "yuos-agent", json!({"step": 2})).unwrap();
+    assert_eq!(read_state(&sid, "yuos-agent").unwrap(), json!({"step": 2}));
     assert_eq!(
         read_state(&sid, "langchain").unwrap(),
         json!({"chain": "rag"})
     );
 
     // Writing null removes the key.
-    write_state(&sid, "cos-agent", json!(null)).unwrap();
-    assert_eq!(read_state(&sid, "cos-agent").unwrap(), json!(null));
+    write_state(&sid, "yuos-agent", json!(null)).unwrap();
+    assert_eq!(read_state(&sid, "yuos-agent").unwrap(), json!(null));
 }
 
 #[test]
@@ -758,15 +758,15 @@ fn current_lease_is_none_when_session_never_acquired() {
 // Phase 2.4 / 2.5 — promote_to_durable, pause, resume
 // ---------------------------------------------------------------------------
 
-/// Save/restore COS_SESSION around a closure so each promote/resume
+/// Save/restore YUOS_SESSION around a closure so each promote/resume
 /// test starts with a clean env regardless of test order.
 fn with_cleared_session<F: FnOnce()>(f: F) {
-    let prev = env::var_os("COS_SESSION");
-    env::remove_var("COS_SESSION");
+    let prev = env::var_os("YUOS_SESSION");
+    env::remove_var("YUOS_SESSION");
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
     match prev {
-        Some(v) => env::set_var("COS_SESSION", v),
-        None => env::remove_var("COS_SESSION"),
+        Some(v) => env::set_var("YUOS_SESSION", v),
+        None => env::remove_var("YUOS_SESSION"),
     }
     if let Err(p) = result {
         std::panic::resume_unwind(p);
@@ -779,14 +779,14 @@ fn promote_creates_session_acquires_lease_and_sets_env() {
     let _data = redirect_data_dir();
 
     with_cleared_session(|| {
-        let s = promote_to_durable("invoice agent", "cos-agent").unwrap();
+        let s = promote_to_durable("invoice agent", "yuos-agent").unwrap();
         let sid = s.sid().clone();
 
-        assert_eq!(env::var("COS_SESSION").unwrap(), sid.as_str());
+        assert_eq!(env::var("YUOS_SESSION").unwrap(), sid.as_str());
 
         let meta = get_meta(&sid).unwrap();
         assert_eq!(meta.status, Status::Running);
-        assert_eq!(meta.creator_runtime.as_deref(), Some("cos-agent"));
+        assert_eq!(meta.creator_runtime.as_deref(), Some("yuos-agent"));
         assert_eq!(meta.purpose, "invoice agent");
 
         let lease = current_lease(&sid).unwrap().expect("lease.json exists");
@@ -807,7 +807,7 @@ fn promote_creates_session_acquires_lease_and_sets_env() {
             current_lease(&sid).unwrap().is_none(),
             "lease.json removed on finish"
         );
-        assert!(env::var("COS_SESSION").is_err(), "env restored to unset");
+        assert!(env::var("YUOS_SESSION").is_err(), "env restored to unset");
     });
 }
 
@@ -817,7 +817,7 @@ fn promote_drop_without_finish_marks_failed() {
     let _data = redirect_data_dir();
 
     with_cleared_session(|| {
-        let s = promote_to_durable("oops", "cos-agent").unwrap();
+        let s = promote_to_durable("oops", "yuos-agent").unwrap();
         let sid = s.sid().clone();
         drop(s);
 
@@ -833,21 +833,21 @@ fn promote_drop_without_finish_marks_failed() {
 }
 
 #[test]
-fn promote_restores_previous_cos_session_env() {
+fn promote_restores_previous_yu_session_env() {
     let _lock = lock_env();
     let _data = redirect_data_dir();
 
     with_cleared_session(|| {
-        env::set_var("COS_SESSION", "ses_outer_value");
-        let s = promote_to_durable("nested", "cos-agent").unwrap();
+        env::set_var("YUOS_SESSION", "ses_outer_value");
+        let s = promote_to_durable("nested", "yuos-agent").unwrap();
         let sid = s.sid().clone();
-        assert_eq!(env::var("COS_SESSION").unwrap(), sid.as_str());
+        assert_eq!(env::var("YUOS_SESSION").unwrap(), sid.as_str());
 
         s.finish(Status::Done).unwrap();
         assert_eq!(
-            env::var("COS_SESSION").unwrap(),
+            env::var("YUOS_SESSION").unwrap(),
             "ses_outer_value",
-            "outer COS_SESSION restored after finish"
+            "outer YUOS_SESSION restored after finish"
         );
     });
 }
@@ -858,7 +858,7 @@ fn heartbeat_via_durable_session_refreshes_lease_json() {
     let _data = redirect_data_dir();
 
     with_cleared_session(|| {
-        let s = promote_to_durable("hb", "cos-agent").unwrap();
+        let s = promote_to_durable("hb", "yuos-agent").unwrap();
         let sid = s.sid().clone();
         let before = current_lease(&sid).unwrap().unwrap();
 
@@ -885,7 +885,7 @@ fn pause_moves_status_to_paused_and_releases_lease() {
     let _data = redirect_data_dir();
 
     with_cleared_session(|| {
-        let s = promote_to_durable("pausable", "cos-agent").unwrap();
+        let s = promote_to_durable("pausable", "yuos-agent").unwrap();
         let sid = s.sid().clone();
 
         pause(s).unwrap();
@@ -900,7 +900,7 @@ fn pause_moves_status_to_paused_and_releases_lease() {
             current_lease(&sid).unwrap().is_none(),
             "lease.json gone after pause"
         );
-        assert!(env::var("COS_SESSION").is_err(), "env restored on pause");
+        assert!(env::var("YUOS_SESSION").is_err(), "env restored on pause");
 
         // A fresh acquire from the same process must succeed.
         let g = try_acquire(&sid).unwrap();
@@ -914,21 +914,21 @@ fn resume_picks_up_paused_session() {
     let _data = redirect_data_dir();
 
     with_cleared_session(|| {
-        let s = promote_to_durable("hand-off", "cos-agent").unwrap();
+        let s = promote_to_durable("hand-off", "yuos-agent").unwrap();
         let sid = s.sid().clone();
         pause(s).unwrap();
 
         let s2 = resume(&sid, "langchain-py").unwrap();
         assert_eq!(s2.sid(), &sid);
         assert_eq!(s2.runtime(), "langchain-py");
-        assert_eq!(env::var("COS_SESSION").unwrap(), sid.as_str());
+        assert_eq!(env::var("YUOS_SESSION").unwrap(), sid.as_str());
 
         let meta = get_meta(&sid).unwrap();
         assert_eq!(meta.status, Status::Running);
         // creator_runtime was set by the original promote and must NOT
         // change on resume — it is the *creator*, not the *current*
         // runtime.
-        assert_eq!(meta.creator_runtime.as_deref(), Some("cos-agent"));
+        assert_eq!(meta.creator_runtime.as_deref(), Some("yuos-agent"));
 
         s2.finish(Status::Done).unwrap();
     });
@@ -940,7 +940,7 @@ fn resume_rejects_non_paused_status() {
     let _data = redirect_data_dir();
 
     with_cleared_session(|| {
-        let s = promote_to_durable("running", "cos-agent").unwrap();
+        let s = promote_to_durable("running", "yuos-agent").unwrap();
         let sid = s.sid().clone();
 
         // Status is Running and the original holder `s` still owns the
@@ -988,7 +988,7 @@ fn pause_then_resume_preserves_turns_and_mutations() {
     let _data = redirect_data_dir();
 
     with_cleared_session(|| {
-        let s1 = promote_to_durable("with-history", "cos-agent").unwrap();
+        let s1 = promote_to_durable("with-history", "yuos-agent").unwrap();
         let sid = s1.sid().clone();
 
         append_turn(&sid, Turn::text(TurnRole::User, "step 1")).unwrap();
@@ -1043,15 +1043,15 @@ fn pause_then_resume_preserves_turns_and_mutations() {
 // kernel releases the flock on abort; the parent then asserts a fresh
 // try_acquire succeeds.
 
-const ENV_DEATH_CHILD_SID: &str = "COS_LEASE_DEATH_CHILD_SID";
-const ENV_DEATH_CHILD_DATA: &str = "COS_LEASE_DEATH_CHILD_DATA";
+const ENV_DEATH_CHILD_SID: &str = "YUOS_LEASE_DEATH_CHILD_SID";
+const ENV_DEATH_CHILD_DATA: &str = "YUOS_LEASE_DEATH_CHILD_DATA";
 const DEATH_CHILD_SENTINEL: &str = "CHILD-ACQUIRED-SESSION-LEASE";
 
 #[test]
 fn lease_released_when_holder_process_dies() {
     // CHILD MODE — runs in the spawned subprocess.
     if let Ok(sid_str) = env::var(ENV_DEATH_CHILD_SID) {
-        // The parent passed COS_DATA_DIR via env (subprocess inherits).
+        // The parent passed YUOS_DATA_DIR via env (subprocess inherits).
         // Don't touch the global mutex — this is a different process,
         // it has its own copy.
         let sid: SessionId = sid_str.parse().expect("child sid valid");
@@ -1073,7 +1073,7 @@ fn lease_released_when_holder_process_dies() {
 
     with_cleared_session(|| {
         let sid = create("crash-test").unwrap();
-        let data_dir = env::var("COS_DATA_DIR").expect("redirect_data_dir set it");
+        let data_dir = env::var("YUOS_DATA_DIR").expect("redirect_data_dir set it");
 
         let exe = env::current_exe().expect("current_exe");
         let output = std::process::Command::new(&exe)
@@ -1084,10 +1084,10 @@ fn lease_released_when_holder_process_dies() {
             ])
             .env(ENV_DEATH_CHILD_SID, sid.as_str())
             .env(ENV_DEATH_CHILD_DATA, &data_dir)
-            .env("COS_DATA_DIR", &data_dir)
-            // Belt and suspenders: clear COS_SESSION so child's bootstrap
+            .env("YUOS_DATA_DIR", &data_dir)
+            // Belt and suspenders: clear YUOS_SESSION so child's bootstrap
             // (if any) doesn't try to attach to our env's value.
-            .env_remove("COS_SESSION")
+            .env_remove("YUOS_SESSION")
             .output()
             .expect("spawn child");
 
@@ -1451,7 +1451,7 @@ fn rollback_on_empty_session_is_empty_vec() {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 3b — Python `cos-runtime/python/src/cos_runtime/snapshot.py` mirrors into mutations.jsonl
+// Phase 3b — Python `yuos-runtime/python/src/yuos_runtime/snapshot.py` mirrors into mutations.jsonl
 // ---------------------------------------------------------------------------
 //
 // These tests prove that the Python helper and the Rust kernel agree
@@ -1473,29 +1473,29 @@ fn python3_available() -> bool {
 
 fn apps_lib_dir() -> std::path::PathBuf {
     // tests run from the package dir (`core/`); the runtime helper
-    // lives at `<repo>/cos-runtime/python/src/cos_runtime`, two
+    // lives at `<repo>/yuos-runtime/python/src/yuos_runtime`, two
     // levels up.
     let manifest = env!("CARGO_MANIFEST_DIR");
     std::path::PathBuf::from(manifest)
         .parent()
         .unwrap()
-        .join("cos-runtime")
+        .join("yuos-runtime")
         .join("python")
         .join("src")
-        .join("cos_runtime")
+        .join("yuos_runtime")
 }
 
 fn sdk_lib_dir() -> std::path::PathBuf {
     // Public SDK Python package at
-    // `<repo>/claw-os-sdk/python/src/claw_os_sdk`.
+    // `<repo>/yuos-sdk/python/src/yuos_sdk`.
     let manifest = env!("CARGO_MANIFEST_DIR");
     std::path::PathBuf::from(manifest)
         .parent()
         .unwrap()
-        .join("claw-os-sdk")
+        .join("yuos-sdk")
         .join("python")
         .join("src")
-        .join("claw_os_sdk")
+        .join("yuos_sdk")
 }
 
 fn run_python_snapshot(sid: &SessionId, path: &std::path::Path, op: &str) {
@@ -1505,7 +1505,7 @@ fn run_python_snapshot(sid: &SessionId, path: &std::path::Path, op: &str) {
         "snapshot.py missing at {}",
         lib.display()
     );
-    let data_dir = env::var("COS_DATA_DIR").expect("COS_DATA_DIR set");
+    let data_dir = env::var("YUOS_DATA_DIR").expect("YUOS_DATA_DIR set");
     let script = format!(
         "import sys; sys.path.insert(0, {lib:?}); import snapshot; \
          snapshot.snapshot({path:?}, {op:?})",
@@ -1516,9 +1516,9 @@ fn run_python_snapshot(sid: &SessionId, path: &std::path::Path, op: &str) {
     let out = std::process::Command::new("python3")
         .arg("-c")
         .arg(&script)
-        .env("COS_DATA_DIR", &data_dir)
-        .env("COS_SESSION", sid.as_str())
-        .env("COS_SNAPSHOT", "1")
+        .env("YUOS_DATA_DIR", &data_dir)
+        .env("YUOS_SESSION", sid.as_str())
+        .env("YUOS_SNAPSHOT", "1")
         .output()
         .expect("spawn python3");
     assert!(
@@ -1635,7 +1635,7 @@ fn python_snapshot_no_mirror_for_ephemeral_session() {
     let _lock = lock_env();
     let _data = redirect_data_dir();
 
-    // Don't create a durable session — pretend COS_SESSION is the
+    // Don't create a durable session — pretend YUOS_SESSION is the
     // ephemeral CLI session id (`cli-1234-abcd`). Python should still
     // write the trash dir but skip the durable mirror because no
     // <sessions>/<sid>/meta.json exists.
@@ -1644,7 +1644,7 @@ fn python_snapshot_no_mirror_for_ephemeral_session() {
     std::fs::write(&path, b"legacy bytes").unwrap();
 
     let lib = apps_lib_dir();
-    let data_dir = env::var("COS_DATA_DIR").unwrap();
+    let data_dir = env::var("YUOS_DATA_DIR").unwrap();
     let script = format!(
         "import sys; sys.path.insert(0, {lib:?}); import snapshot; \
          snapshot.snapshot({path:?}, 'write')",
@@ -1654,8 +1654,8 @@ fn python_snapshot_no_mirror_for_ephemeral_session() {
     let out = std::process::Command::new("python3")
         .arg("-c")
         .arg(&script)
-        .env("COS_DATA_DIR", &data_dir)
-        .env("COS_SESSION", "cli-9999-abcd-not-durable")
+        .env("YUOS_DATA_DIR", &data_dir)
+        .env("YUOS_SESSION", "cli-9999-abcd-not-durable")
         .output()
         .expect("python");
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
@@ -1677,27 +1677,27 @@ fn python_snapshot_no_mirror_for_ephemeral_session() {
 }
 
 // =====================================================================
-// Phase 6 — cross-runtime handover via the shared `claw_os_session.py`
+// Phase 6 — cross-runtime handover via the shared `yuos_session.py`
 // helper. These tests are the "smoking gun" that the file schema is
 // the only thing two runtimes need to agree on. We:
 //   1. Open a session from Rust, append a turn from Rust.
-//   2. Hand off to a Python "fake agent" via `claw_os_session.py` —
+//   2. Hand off to a Python "fake agent" via `yuos_session.py` —
 //      it lists sessions, reads the turn we wrote, appends one of
 //      its own (with a different `runtime` label).
 //   3. Hand back to Rust: re-read turns.jsonl, confirm both turns
 //      appear in order with their original runtimes preserved.
 // If this passes, an out-of-tree Python / Node / Go agent can pick up
-// where ours left off without ever shelling out to `cos`.
+// where ours left off without ever shelling out to `yu`.
 // =====================================================================
 
 fn run_python(script: &str) -> std::process::Output {
     let lib = sdk_lib_dir();
     assert!(
-        lib.join("claw_os_session.py").is_file(),
-        "claw_os_session.py missing at {}",
+        lib.join("yuos_session.py").is_file(),
+        "yuos_session.py missing at {}",
         lib.display()
     );
-    let data_dir = env::var("COS_DATA_DIR").expect("COS_DATA_DIR set");
+    let data_dir = env::var("YUOS_DATA_DIR").expect("YUOS_DATA_DIR set");
     let preamble = format!(
         "import sys; sys.path.insert(0, {lib:?})\n",
         lib = lib.to_string_lossy(),
@@ -1705,7 +1705,7 @@ fn run_python(script: &str) -> std::process::Output {
     std::process::Command::new("python3")
         .arg("-c")
         .arg(format!("{preamble}{script}"))
-        .env("COS_DATA_DIR", &data_dir)
+        .env("YUOS_DATA_DIR", &data_dir)
         .output()
         .expect("spawn python3")
 }
@@ -1722,20 +1722,20 @@ fn cross_runtime_python_appends_turn_rust_reads_it_back() {
     // Rust: create session + write the first turn (the "system agent" run).
     let sid = create("cross-runtime").unwrap();
     let mut t1 = Turn::text(TurnRole::User, "list my reports");
-    t1.runtime = Some("cos-agent".into());
+    t1.runtime = Some("yuos-agent".into());
     append_turn(&sid, t1).unwrap();
 
     // Python: open the session, read the user turn, append an
     // assistant reply tagged with a *different* runtime label.
     let script = format!(
         r#"
-from claw_os_session import Session
+from yuos_session import Session
 s = Session.open({sid:?})
 turns = s.turns()
 assert len(turns) == 1, f"expected 1 turn, got {{turns}}"
 assert turns[0]["role"] == "user"
 assert turns[0]["content"] == "list my reports"
-assert turns[0]["runtime"] == "cos-agent"
+assert turns[0]["runtime"] == "yuos-agent"
 seq = s.append_turn("assistant", "Sure — opening reports/.", runtime="third-party-bot-py")
 print("py-seq:", seq)
 "#,
@@ -1761,7 +1761,7 @@ print("py-seq:", seq)
     assert_eq!(turns.len(), 2, "got {turns:?}");
     assert_eq!(turns[0].seq, 0);
     assert_eq!(turns[0].role, TurnRole::User);
-    assert_eq!(turns[0].runtime.as_deref(), Some("cos-agent"));
+    assert_eq!(turns[0].runtime.as_deref(), Some("yuos-agent"));
     assert_eq!(turns[1].seq, 1);
     assert_eq!(turns[1].role, TurnRole::Assistant);
     assert_eq!(turns[1].content, "Sure — opening reports/.");
@@ -1800,7 +1800,7 @@ fn cross_runtime_python_records_mutation_rollback_restores_it() {
 
     let script = format!(
         r#"
-from claw_os_session import Session
+from yuos_session import Session
 s = Session.open({sid:?})
 seq = s.record_fs_write({path:?}, prev_bytes=b"{original}", runtime="third-party-bot-py")
 print("py-mut-seq:", seq)
@@ -1864,7 +1864,7 @@ fn cross_runtime_python_lists_only_durable_sessions() {
 
     let script = format!(
         r#"
-from claw_os_session import Session
+from yuos_session import Session
 sids = sorted(s.sid for s in Session.list())
 print("py-listed:", ",".join(sids))
 "#

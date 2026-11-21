@@ -38,8 +38,8 @@ struct PythonPathScope {
 impl PythonPathScope {
     fn stage(source: &Path, root: &Path) -> Self {
         let directory = app_stage::python_runtime(source, root);
-        let previous = std::env::var_os("COS_SDK_PYTHON_DIR");
-        std::env::set_var("COS_SDK_PYTHON_DIR", &directory);
+        let previous = std::env::var_os("YUOS_SDK_PYTHON_DIR");
+        std::env::set_var("YUOS_SDK_PYTHON_DIR", &directory);
         Self { directory, previous }
     }
 }
@@ -47,8 +47,8 @@ impl PythonPathScope {
 impl Drop for PythonPathScope {
     fn drop(&mut self) {
         match &self.previous {
-            Some(value) => std::env::set_var("COS_SDK_PYTHON_DIR", value),
-            None => std::env::remove_var("COS_SDK_PYTHON_DIR"),
+            Some(value) => std::env::set_var("YUOS_SDK_PYTHON_DIR", value),
+            None => std::env::remove_var("YUOS_SDK_PYTHON_DIR"),
         }
     }
 }
@@ -176,7 +176,7 @@ fn published_doc_signed_fixture_preserves_manifest_and_worker_authority() {
             data_dir: data.to_str().unwrap(),
             apps_dir: apps.to_str().unwrap(),
             extra_env: BTreeMap::from([(
-                "COS_APP_MANIFEST".into(),
+                "YUOS_APP_MANIFEST".into(),
                 directory.join("app.json").to_string_lossy().into_owned(),
             )]),
             package_identity: binding.dir_identity(),
@@ -186,10 +186,10 @@ fn published_doc_signed_fixture_preserves_manifest_and_worker_authority() {
     };
     assert!(derive(SessionLifetime::Reusable).is_err());
     let worker = derive(SessionLifetime::SingleCall).unwrap();
-    assert_eq!(worker.env["COS_APP_ID"], "doc");
-    assert_eq!(worker.env["COS_SESSION"], "doc-fixture");
+    assert_eq!(worker.env["YUOS_APP_ID"], "doc");
+    assert_eq!(worker.env["YUOS_SESSION"], "doc-fixture");
     assert_eq!(
-        worker.env["COS_APP_MANIFEST"],
+        worker.env["YUOS_APP_MANIFEST"],
         directory.join("app.json").to_str().unwrap()
     );
     assert!(matches!(worker.network, yu::worker::NetworkPolicy::Denied));
@@ -298,7 +298,7 @@ fn published_net_signed_fixture_preserves_scoped_egress_and_output_authority() {
             data_dir: data.to_str().unwrap(),
             apps_dir: apps.to_str().unwrap(),
             extra_env: BTreeMap::from([(
-                "COS_APP_MANIFEST".into(),
+                "YUOS_APP_MANIFEST".into(),
                 directory.join("app.json").to_string_lossy().into_owned(),
             )]),
             package_identity: binding.dir_identity(),
@@ -308,12 +308,12 @@ fn published_net_signed_fixture_preserves_scoped_egress_and_output_authority() {
     };
     assert!(derive(SessionLifetime::Reusable).is_err());
     let worker = derive(SessionLifetime::SingleCall).unwrap();
-    assert_eq!(worker.env["COS_APP_ID"], "net");
+    assert_eq!(worker.env["YUOS_APP_ID"], "net");
     assert_eq!(
-        worker.env["COS_DATA_DIR"],
+        worker.env["YUOS_DATA_DIR"],
         data.join("apps/net").to_str().unwrap()
     );
-    assert_eq!(worker.env["COS_EGRESS_ENDPOINTS"], "example.test:8080");
+    assert_eq!(worker.env["YUOS_EGRESS_ENDPOINTS"], "example.test:8080");
     assert_eq!(
         worker.network,
         NetworkPolicy::Brokered {
@@ -401,7 +401,7 @@ fn published_db_signed_fixture_preserves_worker_identity_and_existing_namespace(
                 data_dir: data.to_str().unwrap(),
                 apps_dir: apps.to_str().unwrap(),
                 extra_env: BTreeMap::from([(
-                    "COS_APP_MANIFEST".into(),
+                    "YUOS_APP_MANIFEST".into(),
                     directory.join("app.json").to_string_lossy().into_owned(),
                 )]),
                 package_identity: binding.dir_identity(),
@@ -409,9 +409,9 @@ fn published_db_signed_fixture_preserves_worker_identity_and_existing_namespace(
                 transports: &[],
             })
             .unwrap();
-            assert_eq!(worker.env["COS_APP_ID"], "db");
-            assert_eq!(worker.env["COS_SESSION"], "db-fixture");
-            assert_eq!(worker.env["COS_DATA_DIR"], partition.to_str().unwrap());
+            assert_eq!(worker.env["YUOS_APP_ID"], "db");
+            assert_eq!(worker.env["YUOS_SESSION"], "db-fixture");
+            assert_eq!(worker.env["YUOS_DATA_DIR"], partition.to_str().unwrap());
             assert_eq!(worker.workdir, partition);
             assert_eq!(
                 fs::metadata(&partition).unwrap().permissions().mode() & 0o777,
@@ -509,7 +509,7 @@ fn published_kv_signed_fixture_preserves_independent_json_namespace_and_worker_a
                 data_dir: data.to_str().unwrap(),
                 apps_dir: apps.to_str().unwrap(),
                 extra_env: BTreeMap::from([(
-                    "COS_APP_MANIFEST".into(),
+                    "YUOS_APP_MANIFEST".into(),
                     directory.join("app.json").to_string_lossy().into_owned(),
                 )]),
                 package_identity: binding.dir_identity(),
@@ -517,9 +517,9 @@ fn published_kv_signed_fixture_preserves_independent_json_namespace_and_worker_a
                 transports: &[],
             })
             .unwrap();
-            assert_eq!(worker.env["COS_APP_ID"], "kv");
-            assert_eq!(worker.env["COS_SESSION"], "kv-fixture");
-            assert_eq!(worker.env["COS_DATA_DIR"], partition.to_str().unwrap());
+            assert_eq!(worker.env["YUOS_APP_ID"], "kv");
+            assert_eq!(worker.env["YUOS_SESSION"], "kv-fixture");
+            assert_eq!(worker.env["YUOS_DATA_DIR"], partition.to_str().unwrap());
             assert_eq!(worker.workdir, partition);
             assert_eq!(worker.umask, 0o077);
             assert_eq!(
@@ -612,7 +612,7 @@ fn published_summarize_signed_fixture_keeps_ai_and_memory_authority_outside_the_
             data_dir: data.to_str().unwrap(),
             apps_dir: apps.to_str().unwrap(),
             extra_env: BTreeMap::from([(
-                "COS_APP_MANIFEST".into(),
+                "YUOS_APP_MANIFEST".into(),
                 directory.join("app.json").to_string_lossy().into_owned(),
             )]),
             package_identity: binding.dir_identity(),
@@ -620,9 +620,9 @@ fn published_summarize_signed_fixture_keeps_ai_and_memory_authority_outside_the_
             transports: &[],
         })
         .unwrap();
-        assert_eq!(worker.env["COS_APP_ID"], "summarize");
-        assert_eq!(worker.env["COS_SESSION"], "summary-fixture");
-        assert_eq!(worker.env["COS_DATA_DIR"], partition.to_str().unwrap());
+        assert_eq!(worker.env["YUOS_APP_ID"], "summarize");
+        assert_eq!(worker.env["YUOS_SESSION"], "summary-fixture");
+        assert_eq!(worker.env["YUOS_DATA_DIR"], partition.to_str().unwrap());
         assert_eq!(worker.workdir, partition);
         assert_eq!(worker.umask, 0o077);
         assert!(worker.broker);
@@ -672,7 +672,7 @@ fn scratch(label: &str) -> PathBuf {
     let home = std::env::var_os("HOME")
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir);
-    let base = home.join(".cache").join("cos-provenance-it");
+    let base = home.join(".cache").join("yuos-provenance-it");
     let dir = base.join(format!("{label}-{}", uuid::Uuid::new_v4().simple()));
     fs::create_dir_all(&dir).unwrap();
     let _ = fs::set_permissions(&base, fs::Permissions::from_mode(0o700));
@@ -1232,7 +1232,7 @@ fn rollback_only_activates_a_still_verifiable_artifact() {
     let fx = Fixture::new("rollback");
     let data = fx.root.join("data");
     // `provenance_artifacts_dir` hangs off the data dir.
-    std::env::set_var("COS_DATA_DIR", &data);
+    std::env::set_var("YUOS_DATA_DIR", &data);
 
     let trust = fx.store();
     let limits = Limits::default();
@@ -1285,7 +1285,7 @@ fn rollback_only_activates_a_still_verifiable_artifact() {
         install::rollback(PackageKind::Skill, "notes", &v2, &live, &revoked, &limits).unwrap_err();
     assert_eq!(err.code(), "provenance.untrusted_key");
 
-    std::env::remove_var("COS_DATA_DIR");
+    std::env::remove_var("YUOS_DATA_DIR");
 }
 
 // ---------------------------------------------------------------------------
@@ -1322,11 +1322,11 @@ fn environment_cannot_introduce_a_trust_root_or_disable_verification() {
     // Every variable an attacker might reach for. None of them may
     // change the resolved roots or make an unsigned package verify.
     for (key, value) in [
-        ("COS_TRUST_DIR", "/tmp/evil"),
-        ("COS_SKILLS_REQUIRE_SIGNATURE", "0"),
-        ("COS_SKILLS_TRUSTED_KEYS", &"aa".repeat(32)),
-        ("COS_PROVENANCE_DISABLE", "1"),
-        ("COS_CONFIG_DIR", "/tmp/evil"),
+        ("YUOS_TRUST_DIR", "/tmp/evil"),
+        ("YUOS_SKILLS_REQUIRE_SIGNATURE", "0"),
+        ("YUOS_SKILLS_TRUSTED_KEYS", &"aa".repeat(32)),
+        ("YUOS_PROVENANCE_DISABLE", "1"),
+        ("YUOS_CONFIG_DIR", "/tmp/evil"),
     ] {
         std::env::set_var(key, value);
     }
@@ -1334,9 +1334,9 @@ fn environment_cannot_introduce_a_trust_root_or_disable_verification() {
     for root in &roots {
         let display = root.path.display().to_string();
         assert!(
-            display.starts_with("/usr/lib/cos")
-                || display.starts_with("/etc/cos")
-                || display.contains(".config/cos/trust"),
+            display.starts_with("/usr/lib/yuos")
+                || display.starts_with("/etc/yuos")
+                || display.contains(".config/yuos/trust"),
             "environment introduced trust root {display}"
         );
     }
@@ -1357,11 +1357,11 @@ fn environment_cannot_introduce_a_trust_root_or_disable_verification() {
     assert_eq!(err.code(), "provenance.unsigned");
 
     for key in [
-        "COS_TRUST_DIR",
-        "COS_SKILLS_REQUIRE_SIGNATURE",
-        "COS_SKILLS_TRUSTED_KEYS",
-        "COS_PROVENANCE_DISABLE",
-        "COS_CONFIG_DIR",
+        "YUOS_TRUST_DIR",
+        "YUOS_SKILLS_REQUIRE_SIGNATURE",
+        "YUOS_SKILLS_TRUSTED_KEYS",
+        "YUOS_PROVENANCE_DISABLE",
+        "YUOS_CONFIG_DIR",
     ] {
         std::env::remove_var(key);
     }
@@ -1386,7 +1386,7 @@ fn a_signed_entrypoint_executes_the_verified_bytes() {
     fs::create_dir_all(&dir).unwrap();
     write(
         &dir.join("agent-api.json"),
-        r#"{"schema":"claw.agent-api/v1","id":"runner","name":"runner","transport":"mcp+stdio","command":"true"}"#,
+        r#"{"schema":"yuos.agent-api/v1","id":"runner","name":"runner","transport":"mcp+stdio","command":"true"}"#,
     );
     let script = dir.join("run.sh");
     write(&script, "#!/bin/sh\necho verified\n");
@@ -1821,13 +1821,13 @@ use yu::provenance::runtime::{self, InstanceClass, PackageRef};
 
 /// Environment variable that turns a re-execution of this test binary
 /// into "the other process that revokes something".
-const REVOKE_SPEC_ENV: &str = "COS_TEST_REVOKE_SPEC";
+const REVOKE_SPEC_ENV: &str = "YUOS_TEST_REVOKE_SPEC";
 
 /// The revoking process.
 ///
 /// Runs as a normal test when the environment variable is absent, so it
 /// costs nothing in an ordinary run. When the parent re-executes this
-/// binary with `COS_TEST_REVOKE_SPEC` set, this is a *different
+/// binary with `YUOS_TEST_REVOKE_SPEC` set, this is a *different
 /// process* rewriting the owner's trust file and bumping the domain's
 /// durable generation — exactly what `yu provenance trust revoke`
 /// does, and with no channel back to the process under test.
@@ -1879,7 +1879,7 @@ impl Fixture {
         let status = Command::new(exe)
             .args(["--exact", "revoker_helper", "--nocapture"])
             .env(REVOKE_SPEC_ENV, spec.to_string())
-            .env_remove("COS_PROVENANCE_RUNTIME_DIR")
+            .env_remove("YUOS_PROVENANCE_RUNTIME_DIR")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()
@@ -1898,8 +1898,8 @@ struct RuntimeScope {
 impl RuntimeScope {
     fn new(dir: PathBuf) -> Self {
         std::fs::create_dir_all(&dir).expect("runtime dir");
-        let previous = std::env::var_os("COS_PROVENANCE_RUNTIME_DIR");
-        std::env::set_var("COS_PROVENANCE_RUNTIME_DIR", &dir);
+        let previous = std::env::var_os("YUOS_PROVENANCE_RUNTIME_DIR");
+        std::env::set_var("YUOS_PROVENANCE_RUNTIME_DIR", &dir);
         runtime::reset_cache();
         Self { dir, previous }
     }
@@ -1909,8 +1909,8 @@ impl Drop for RuntimeScope {
     fn drop(&mut self) {
         runtime::reset_cache();
         match self.previous.take() {
-            Some(value) => std::env::set_var("COS_PROVENANCE_RUNTIME_DIR", value),
-            None => std::env::remove_var("COS_PROVENANCE_RUNTIME_DIR"),
+            Some(value) => std::env::set_var("YUOS_PROVENANCE_RUNTIME_DIR", value),
+            None => std::env::remove_var("YUOS_PROVENANCE_RUNTIME_DIR"),
         }
         let _ = fs::remove_dir_all(&self.dir);
     }
@@ -2295,7 +2295,7 @@ fn a_marked_instance_stays_denied_until_the_lifecycle_pass_reaches_it() {
 
 /// Environment variable that turns a re-execution of this binary into
 /// "another process registering an instance".
-const REGISTER_SPEC_ENV: &str = "COS_TEST_REGISTER_SPEC";
+const REGISTER_SPEC_ENV: &str = "YUOS_TEST_REGISTER_SPEC";
 
 /// The registering process. Inert in a normal run.
 #[test]
@@ -2326,7 +2326,7 @@ fn concurrent_processes_do_not_clobber_the_running_record() {
             Command::new(&exe)
                 .args(["--exact", "register_helper", "--nocapture"])
                 .env(REGISTER_SPEC_ENV, spec.to_string())
-                .env("COS_PROVENANCE_RUNTIME_DIR", &dir)
+                .env("YUOS_PROVENANCE_RUNTIME_DIR", &dir)
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()
@@ -2405,7 +2405,7 @@ fn a_relay_style_check_cannot_outlive_a_revocation() {
 
 #[test]
 fn the_record_path_is_the_same_from_every_context() {
-    // A direct CLI run, `agentd` and `clawd` acting for one owner must
+    // A direct CLI run, `agentd` and `yuosd` acting for one owner must
     // all address the same file. The path is a pure function of the
     // owner uid, so this holds regardless of which process asks.
     let fx = Fixture::new("record-path");
@@ -2419,8 +2419,8 @@ fn the_record_path_is_the_same_from_every_context() {
     let exe = std::env::current_exe().expect("test binary path");
     let output = Command::new(exe)
         .args(["--exact", "print_record_path_helper", "--nocapture"])
-        .env("COS_TEST_PRINT_RECORD_PATH", "1")
-        .env("COS_PROVENANCE_RUNTIME_DIR", fx.root.join("procdata"))
+        .env("YUOS_TEST_PRINT_RECORD_PATH", "1")
+        .env("YUOS_PROVENANCE_RUNTIME_DIR", fx.root.join("procdata"))
         .output()
         .expect("spawn the path-reporting process");
     let reported = String::from_utf8_lossy(&output.stdout);
@@ -2432,7 +2432,7 @@ fn the_record_path_is_the_same_from_every_context() {
 
 #[test]
 fn print_record_path_helper() {
-    if std::env::var_os("COS_TEST_PRINT_RECORD_PATH").is_none() {
+    if std::env::var_os("YUOS_TEST_PRINT_RECORD_PATH").is_none() {
         return;
     }
     println!("{}", runtime::state_path_for(me()).display());

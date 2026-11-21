@@ -403,15 +403,15 @@ async fn run_turn_inner(request: TurnRequest<'_>) -> Result<TurnReport, super::l
         top_p: None,
         stop_sequences: vec![],
         extra: serde_json::json!({
-            "_cos_turn_index": hook_ctx.map(|context| context.turn_index).unwrap_or(0),
+            "__yuos_turn_index": hook_ctx.map(|context| context.turn_index).unwrap_or(0),
         }),
     };
     if let Some(reasoning_effort) = reasoning_effort {
-        request.extra["_cos_reasoning_effort"] = serde_json::json!(reasoning_effort);
+        request.extra["__yuos_reasoning_effort"] = serde_json::json!(reasoning_effort);
     }
     if let Some(image) = desktop_vision::take(visual_model.as_ref()) {
         request.messages.push(image);
-        request.extra["_cos_desktop_visual"] = serde_json::json!(true);
+        request.extra["__yuos_desktop_visual"] = serde_json::json!(true);
     }
 
     // Prompt-cache markers are no-ops for providers that don't support
@@ -922,7 +922,7 @@ fn extract_text(response: &ChatResponse) -> String {
 }
 
 /// Inject the runtime's real `session_id` into session-scoped tools so
-/// the model can't write to the wrong session file. `cos_todo` persists
+/// the model can't write to the wrong session file. `yu_todo` persists
 /// per-session under `<data>/agent/todos/<session_id>.json`; when the
 /// model omits the id the tool defaults to `"default"` and silently
 /// writes to the wrong list (see `tools::todo`). When the runtime knows
@@ -932,7 +932,7 @@ pub(crate) fn effective_tool_input(
     session_id: Option<&str>,
     exposure: &ToolExposureContext,
 ) -> serde_json::Value {
-    const SESSION_SCOPED_TOOLS: &[&str] = &["cos_todo"];
+    const SESSION_SCOPED_TOOLS: &[&str] = &["yu_todo"];
     let session_id = session_id
         .filter(|value| !value.is_empty())
         .or_else(|| exposure.conversation_session_id())

@@ -40,12 +40,12 @@ async fn copilot_models(config: Arc<AgentConfig>) -> Result<Vec<String>, String>
         )
     })
     .await
-    .map_err(|_| "Claw model catalogue credential resolution failed".to_string())?
-    .map_err(|_| "Configured Claw model catalogue credentials are unavailable".to_string())?;
+    .map_err(|_| "Yu OS model catalogue credential resolution failed".to_string())?
+    .map_err(|_| "Configured Yu OS model catalogue credentials are unavailable".to_string())?;
     let credential = match credentials.pool {
         Some(pool) => pool
             .acquire()
-            .map_err(|_| "No configured Claw catalogue credential is available".to_string())?
+            .map_err(|_| "No configured Yu OS catalogue credential is available".to_string())?
             .value()
             .to_string(),
         None => credentials.api_key.ok_or_else(|| {
@@ -54,7 +54,7 @@ async fn copilot_models(config: Arc<AgentConfig>) -> Result<Vec<String>, String>
     };
     let token = copilot_auth::ensure_copilot_token(&credential)
         .await
-        .map_err(|_| "Claw Copilot catalogue authentication failed".to_string())?;
+        .map_err(|_| "Yu OS Copilot catalogue authentication failed".to_string())?;
     let catalogue = copilot_auth::ensure_copilot_models(&token)
         .await
         .map_err(|_| "The configured Copilot model catalogue is unavailable".to_string())?;
@@ -101,13 +101,13 @@ fn uses_native_catalogue_endpoint(config: &AgentConfig) -> bool {
 
 fn validate_catalog(mut models: Vec<String>, primary: &str) -> Result<Vec<String>, String> {
     if models.len() > 1_000 {
-        return Err("Claw model catalogue exceeds its terminal bound".into());
+        return Err("Yu OS model catalogue exceeds its terminal bound".into());
     }
     let redactor = crate::agent::safety::redact::Redactor::default_set();
     for model in &models {
         crate::agent::service::validate_requested_model(Some(model))?;
         if redactor.redact(model) != *model {
-            return Err("Claw model catalogue contains a sensitive identifier".into());
+            return Err("Yu OS model catalogue contains a sensitive identifier".into());
         }
     }
     models.sort();

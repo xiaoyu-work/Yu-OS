@@ -1,6 +1,6 @@
 # Agent desktop vision
 
-On a signed-in Claw OS desktop, bring the target application window forward
+On a signed-in Yu OS desktop, bring the target application window forward
 and ask the Agent to inspect or click a specific control. The OS prompts for
 the named window before sending any screenshot to the model. Approve that
 request in the desktop review or Agent Web **Approvals**, then leave the

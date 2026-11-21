@@ -69,7 +69,7 @@ pub(super) fn ask_cmd(args: &[String]) -> Result<Value, String> {
                 .into(),
         );
     }
-    let envelope = crate::clawd::agent_client::ask_in_space(
+    let envelope = crate::yuosd::agent_client::ask_in_space(
         &prompt,session_id.as_deref(),workspace_id.as_deref(),timeout_ms.unwrap_or(24*60*60*1000),
     )?;
     if full {
@@ -311,7 +311,7 @@ async fn stream_cmd_async(
     }))
 }
 
-/// Select the Claw-owned full-screen terminal or the compatible line interface.
+/// Select the Yu OS-owned full-screen terminal or the compatible line interface.
 /// App-gated requests remain exclusively under `yu ai chat --app`.
 pub(super) fn chat_cmd(args: &[String]) -> Result<Value, String> {
     let options = super::terminal::ChatOptions::parse(args)?;

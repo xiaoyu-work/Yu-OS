@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # targets/iso-live/build.sh — Build a bootable Live ISO.
 #
-# Output: build/claw-os-live-<arch>.iso  (arch from $ARCH, default = host)
+# Output: build/yuos-live-<arch>.iso  (arch from $ARCH, default = host)
 #
-# Features: base, cos-core, systemd, kernel, live  (browser is omitted —
+# Features: base, yuos-core, systemd, kernel, live  (browser is omitted —
 # saves ~300MB; users can install via apt later).
 #
 # Boot modes:
@@ -19,7 +19,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ROOTFS="$PROJECT_DIR/build/claw-os-rootfs"
+ROOTFS="$PROJECT_DIR/build/yuos-rootfs"
 ISO_BUILD="$PROJECT_DIR/build/iso-build"
 
 source "$PROJECT_DIR/scripts/lib/arch.sh"
@@ -27,7 +27,7 @@ source "$PROJECT_DIR/scripts/lib/image-profiles.sh"
 source "$PROJECT_DIR/targets/common/platform-iso.sh"
 select_iso_platform live "${FEATURES:-$IMAGE_FEATURES_LIVE}"
 
-OUTPUT="$PROJECT_DIR/build/claw-os-live-${ARCH_SUFFIX}${PLATFORM_SUFFIX}.iso"
+OUTPUT="$PROJECT_DIR/build/yuos-live-${ARCH_SUFFIX}${PLATFORM_SUFFIX}.iso"
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "error: must run as root" >&2
@@ -57,13 +57,13 @@ for moddir in "${required_grub_dirs[@]}"; do
 done
 
 # 1. Build the rootfs.
-#    apt-source pre-configures the Claw OS apt repo so users who later
+#    apt-source pre-configures the Yu OS apt repo so users who later
 #    install the system (via M8 installer) get apt upgrade out of the box.
 #
 #    FEATURES is overridable so callers can add `desktop` (and any other
 #    optional feature) without forking this script. Example, build a live
 #    ISO that boots straight into the COSMIC desktop:
-#       FEATURES=base,cos-core,systemd,kernel,desktop,copilot-cli,live,apt-source \
+#       FEATURES=base,yuos-core,systemd,kernel,desktop,copilot-cli,live,apt-source \
 #           ./targets/iso-live/build.sh
 #    Note: rootfs/features/live/install.sh detects whether `desktop` was
 #    already applied and, if so, layers a greetd [initial_session] block
@@ -100,26 +100,26 @@ set default=0
 set timeout=5
 insmod all_video
 
-menuentry "Claw OS Live" {
+menuentry "Yu OS Live" {
     linux  /live/vmlinuz boot=live components quiet splash
     initrd /live/initrd.img
 }
 
-menuentry "Claw OS Live (debug)" {
+menuentry "Yu OS Live (debug)" {
     linux  /live/vmlinuz boot=live components debug
     initrd /live/initrd.img
 }
 
-menuentry "Claw OS Live (failsafe)" {
+menuentry "Yu OS Live (failsafe)" {
     linux  /live/vmlinuz boot=live components noapic noapm acpi=off
     initrd /live/initrd.img
 }
 GRUBCFG
 
 finalize_iso_platform
-if [[ $DEB_ARCH == arm64 && ( -z ${CLAW_PLATFORM:-} || $CLAW_PLATFORM == aarch64-qualcomm ) ]]; then
-    source "$PROJECT_DIR/packaging/deb/claw-os-base/hardware/qualcomm-boot.sh"
-    claw_qcom_iso_menu "$ROOTFS" "$ISO_BUILD" "$KERNEL_VERSION" "Claw OS Live" >> "$ISO_BUILD/boot/grub/grub.cfg"
+if [[ $DEB_ARCH == arm64 && ( -z ${YUOS_PLATFORM:-} || $YUOS_PLATFORM == aarch64-qualcomm ) ]]; then
+    source "$PROJECT_DIR/packaging/deb/yuos-base/hardware/qualcomm-boot.sh"
+    yuos_qcom_iso_menu "$ROOTFS" "$ISO_BUILD" "$KERNEL_VERSION" "Yu OS Live" >> "$ISO_BUILD/boot/grub/grub.cfg"
 fi
 
 # 7. Sanity: verify the squashfs layout before invoking grub-mkrescue.
@@ -137,10 +137,10 @@ done
 echo ":: building $ARCH ISO via grub-mkrescue"
 grub-mkrescue \
     --output="$OUTPUT" \
-    --product-name="Claw OS Live" \
+    --product-name="Yu OS Live" \
     "$ISO_BUILD" \
     -- \
-    -volid "CLAWOS_LIVE"
+    -volid "YUOS_LIVE"
 
 SIZE=$(du -h "$OUTPUT" | cut -f1)
 echo ":: done — $OUTPUT ($SIZE)"

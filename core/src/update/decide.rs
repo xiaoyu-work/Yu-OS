@@ -1,7 +1,7 @@
 //! The refusal policy every enforcement point shares.
 //!
 //! `preinst`, `postinst`, `prerm`, the APT pre-install hook, the
-//! `clawd` startup gate and the worker spawn gate all call into this
+//! `yuosd` startup gate and the worker spawn gate all call into this
 //! module rather than re-implementing comparisons in shell. There is
 //! one ordering rule, one revocation rule and one recovery rule, and
 //! they are tested here rather than five times over in maintainer
@@ -93,7 +93,7 @@ pub struct Candidate {
     pub manifest: Manifest,
     pub signature: Signature,
     pub operation: Operation,
-    /// Versions of the other Claw OS packages currently installed.
+    /// Versions of the other Yu OS packages currently installed.
     pub installed: BTreeMap<String, String>,
 }
 
@@ -518,7 +518,7 @@ pub fn evaluate_incoming_version(
                     format!(
                         "refusing to replace {package} {} with the older {incoming_version}; \
                          the security floor only moves forward. Record an explicit recovery \
-                         authorization with `claw-security-floor recover authorize` if this \
+                         authorization with `yuos-security-floor recover authorize` if this \
                          downgrade is intended.",
                         recorded.version
                     ),

@@ -21,7 +21,7 @@
 //! stored — a byte length plus a per-process keyed digest so repeats
 //! can be correlated without the text being recoverable.
 //!
-//! Consumers: [`crate::clawd::audit`], [`crate::clawd::system_journal`],
+//! Consumers: [`crate::yuosd::audit`], [`crate::yuosd::system_journal`],
 //! [`crate::agent::runtime::hooks`]. They must project through this
 //! module rather than reimplement masking, so no sink can sanitize one
 //! copy of a value while another sink writes it in the clear.
@@ -223,7 +223,7 @@ fn value_kind(value: &Value) -> &'static str {
 // Broker request policy
 // ---------------------------------------------------------------------------
 
-// Every command's safe fields live on its typed `clawd` route
+// Every command's safe fields live on its typed `yuosd` route
 // descriptor. This module owns only the projection rules, so adding a
 // command never requires updating a second name-indexed table.
 //
@@ -250,7 +250,7 @@ pub struct RequestFacts {
 }
 
 pub fn request_facts(command: &str, params: &Value) -> RequestFacts {
-    let Some(route) = crate::clawd::routes::Command::parse(command).map(|command| command.route())
+    let Some(route) = crate::yuosd::routes::Command::parse(command).map(|command| command.route())
     else {
         return unrecognized_request_facts(command, params);
     };
@@ -294,7 +294,7 @@ fn unrecognized_request_facts(command: &str, params: &Value) -> RequestFacts {
 /// `&'static str`, never the caller's string.
 #[derive(Debug, Clone, Serialize)]
 pub struct ProtocolFailureFacts {
-    /// Stable class from `clawd::wire::Fault`.
+    /// Stable class from `yuosd::wire::Fault`.
     pub class: &'static str,
     /// Bytes the daemon had accepted when it refused.
     pub bytes: usize,
@@ -322,7 +322,7 @@ pub fn protocol_failure_facts(
 ///
 /// `code` is broker-generated and stable. `class` is the route's own
 /// classification of the failure, set through
-/// [`crate::clawd::protocol::BrokerError::classified`]; without one the
+/// [`crate::yuosd::protocol::BrokerError::classified`]; without one the
 /// message is treated as caller-derived and only its size and keyed
 /// digest survive.
 #[derive(Debug, Clone, Serialize)]
@@ -369,14 +369,14 @@ pub struct ToolPolicy {
 const TOOL_POLICIES: &[ToolPolicy] = &[
     ToolPolicy { tool: "echo", fields: &[("text", FieldRule::Size)] },
     ToolPolicy { tool: "now", fields: &[] },
-    ToolPolicy { tool: "cos_clarify", fields: &[("options", FieldRule::Size)] },
-    ToolPolicy { tool: "cos_help", fields: &[("path", FieldRule::Size)] },
+    ToolPolicy { tool: "yu_clarify", fields: &[("options", FieldRule::Size)] },
+    ToolPolicy { tool: "yu_help", fields: &[("path", FieldRule::Size)] },
     ToolPolicy {
-        tool: "cos_usage",
+        tool: "yu_usage",
         fields: &[("command", FieldRule::Token), ("args", FieldRule::Size)],
     },
     ToolPolicy {
-        tool: "cos_delegate",
+        tool: "yu_delegate",
         fields: &[
             ("provider", FieldRule::Token),
             ("model", FieldRule::Token),
@@ -385,7 +385,7 @@ const TOOL_POLICIES: &[ToolPolicy] = &[
         ],
     },
     ToolPolicy {
-        tool: "cos_skill",
+        tool: "yu_skill",
         fields: &[
             ("command", FieldRule::Token),
             ("id", FieldRule::Token),
@@ -393,7 +393,7 @@ const TOOL_POLICIES: &[ToolPolicy] = &[
         ],
     },
     ToolPolicy {
-        tool: "cos_todo",
+        tool: "yu_todo",
         fields: &[
             ("command", FieldRule::Token),
             ("session_id", FieldRule::Token),
@@ -403,7 +403,7 @@ const TOOL_POLICIES: &[ToolPolicy] = &[
         ],
     },
     ToolPolicy {
-        tool: "cos_tts",
+        tool: "yu_tts",
         fields: &[
             ("provider", FieldRule::Token),
             ("voice", FieldRule::Token),
@@ -412,7 +412,7 @@ const TOOL_POLICIES: &[ToolPolicy] = &[
         ],
     },
     ToolPolicy {
-        tool: "cos_stt",
+        tool: "yu_stt",
         fields: &[
             ("provider", FieldRule::Token),
             ("language", FieldRule::Token),
@@ -420,7 +420,7 @@ const TOOL_POLICIES: &[ToolPolicy] = &[
         ],
     },
     ToolPolicy {
-        tool: "cos_imagegen",
+        tool: "yu_imagegen",
         fields: &[
             ("provider", FieldRule::Token),
             ("width", FieldRule::Count),
@@ -430,9 +430,9 @@ const TOOL_POLICIES: &[ToolPolicy] = &[
             ("prompt", FieldRule::Size),
         ],
     },
-    ToolPolicy { tool: "cos_memory", fields: &[("command", FieldRule::Token)] },
+    ToolPolicy { tool: "yu_memory", fields: &[("command", FieldRule::Token)] },
     ToolPolicy {
-        tool: "cos_app_memory",
+        tool: "yu_app_memory",
         fields: &[
             ("command", FieldRule::Token),
             ("source", FieldRule::Token),
@@ -440,7 +440,7 @@ const TOOL_POLICIES: &[ToolPolicy] = &[
         ],
     },
     ToolPolicy {
-        tool: "cos_recall",
+        tool: "yu_recall",
         fields: &[
             ("command", FieldRule::Token),
             ("session_id", FieldRule::Token),
@@ -448,7 +448,7 @@ const TOOL_POLICIES: &[ToolPolicy] = &[
         ],
     },
     ToolPolicy {
-        tool: "cos_recall_semantic",
+        tool: "yu_recall_semantic",
         fields: &[
             ("command", FieldRule::Token),
             ("session_id", FieldRule::Token),
@@ -456,7 +456,7 @@ const TOOL_POLICIES: &[ToolPolicy] = &[
         ],
     },
     ToolPolicy {
-        tool: "cos_oauth_login",
+        tool: "yu_oauth_login",
         fields: &[
             ("provider", FieldRule::Enum(&["google", "microsoft"])),
             ("timeout_seconds", FieldRule::Count),

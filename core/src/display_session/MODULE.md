@@ -2,7 +2,7 @@
 
 ## Boundary
 
-The [OS PAM module](../../../crates/claw-display-login/MODULE.md) activates the
+The [OS PAM module](../../../crates/yuos-display-login/MODULE.md) activates the
 display before greetd drops into the user's startup shell. The authenticated
 PAM account must match the real kernel audit login UID/session. A protected
 Root channel registers the exact Root supervisor child, its pidfd and its
@@ -10,7 +10,7 @@ parent/start identity; the request has no owner, session, epoch or executable
 fields. The broker generates a fresh epoch and retains the workload guard
 before the compositor can dispatch protocols.
 
-`host.rs` starts the protected `/usr/libexec/claw-hyprland/Hyprland` with the
+`host.rs` starts the protected `/usr/libexec/yuos-hyprland/Hyprland` with the
 authenticated account's credentials and a cleared environment. The inherited
 control descriptor precedes Wayland dispatch. Bounded locale values come from
 the PAM handle, not a loader environment; the compositor and downstream
@@ -33,15 +33,15 @@ PAM login and submits the just-entered password to greetd once. Installer
 profiles with an account already provisioned can run post-login setup first.
 The installed PAM session client then requests one fixed system shell launch.
 The Root supervisor starts the launcher as the account and reports its exit
-back to the client for normal logout. The [GUI Host](../clawd/gui/MODULE.md)
+back to the client for normal logout. The [GUI Host](../yuosd/gui/MODULE.md)
 retains signature, capability and lifetime checks. The presenter independently
 reads broker reviews for other actions. Confirmation uses polkit; denial
 uses the owner-only cancellation route at the displayed revision.
 
 The shared closed protocol is
-[`claw-display-control`](../../../crates/claw-display-control/MODULE.md), an
+[`yuos-display-control`](../../../crates/yuos-display-control/MODULE.md), an
 unpublished OS dependency, not public SDK 1.0.0. GUI rights and supervised App
-execution belong to [`clawd/gui`](../clawd/gui/MODULE.md).
+execution belong to [`yuosd/gui`](../yuosd/gui/MODULE.md).
 
 Closed native desktop requests use the same live epoch/owner channel, not an
 owner-selected compositor socket. The supervisor retains actual per-message
@@ -60,14 +60,14 @@ owner socket enumeration. The Desktop source path has no old compositor fallback
 
 Desktop-menu effects go from the broker to its authenticated Root display
 supervisor on the same epoch. The live system shell can submit owner
-clicks directly; the OS-started Claw Launcher can only submit App selections.
+clicks directly; the OS-started Yu OS Launcher can only submit App selections.
 Other callers require their normal authorization for signed App launches.
 The supervisor pins the publisher and content digest for `yu app <id> --gui`.
 For genuinely unmanaged Linux entries it starts the fixed `gtk4-launch`
 with a desktop-entry ID instead. In both cases it launches as the logged-in
 user inside the display workload. Native XDG activation uses the ordinary
 user bus and cannot inherit any managed App grant. The
-reserved Claw AI menu entry instead opens the protected `cos-agent-ui` with no
+reserved Yu OS AI menu entry instead opens the protected `yuos-agent-ui` with no
 arguments in that display as the same owner. It does not record audio or send
 an Agent request. Submission does not prove a window appeared.
 
@@ -90,14 +90,14 @@ work; regional persistence/readback does not establish startup consumption.
 
 | Installed path | OS package |
 | --- | --- |
-| `/usr/lib/cos/bin/claw-display-host` | Agent |
-| `/usr/local/bin/claw-display-session` | Agent |
-| `/usr/local/bin/claw-gui-runner` | Agent |
-| `/usr/lib/<GNU-multiarch>/security/pam_claw_display.so` | Agent |
-| `/usr/libexec/claw-hyprland/Hyprland` | Desktop |
-| `/etc/pam.d/claw-desktop` and greetd startup integration | Desktop |
+| `/usr/lib/yuos/bin/yuos-display-host` | Agent |
+| `/usr/local/bin/yuos-display-session` | Agent |
+| `/usr/local/bin/yuos-gui-runner` | Agent |
+| `/usr/lib/<GNU-multiarch>/security/pam_yuos_display.so` | Agent |
+| `/usr/libexec/yuos-hyprland/Hyprland` | Desktop |
+| `/etc/pam.d/yuos-desktop` and greetd startup integration | Desktop |
 
-Agent provides the OS-only `claw-os-display-session-v2` ABI; Desktop requires
+Agent provides the OS-only `yuos-display-session-v2` ABI; Desktop requires
 it. The PAM library is built for the GNU target and requires the system PAM
 development library. Package assembly takes real architecture-checked ELF
 inputs, never an App payload or a source-only substitute.
@@ -134,7 +134,7 @@ installation and logout/re-login, not a hot owner-socket registration. Package
 update controllers must surface that interruption. Independent App replacement
 would need App-scoped retirement through authenticated Root mutation
 coordination and admission fencing. That installer/rollback path is not wired:
-calling a process-local GUI manager from standalone `cos` is not a checked
+calling a process-local GUI manager from standalone `yu` is not a checked
 retirement of the Root broker's instances.
 See the installed update contract in [updating](../../../docs/updating.md).
 
@@ -147,8 +147,8 @@ does not publish either OS package.
 ## Validation and limits
 
 The private process fixture is
-`clawd::server::gui_fixture::private_authenticated_gui`. Its maintained
-[runner](../../../crates/claw-display-login/test/fixtures/bootstrap.sh) requires
+`yuosd::server::gui_fixture::private_authenticated_gui`. Its maintained
+[runner](../../../crates/yuos-display-login/test/fixtures/bootstrap.sh) requires
 Root in private mount/network/IPC/UTS namespaces. It installs actual built
 runtime binaries and PAM, authenticates a disposable NSS account, creates real
 kernel login identities and supervises signed synthetic native Apps. No real
@@ -156,11 +156,11 @@ desktop, user selection/history, provider model or account data is used.
 
 Inputs, in order, are the core libtest executable, display host, private
 compositor, PAM library, compiled PAM C fixture, private scratch directory,
-`cos`, GUI runner, App runner, native protocol probe, display-session client
-and `claw-file-manager`. The fixture also requires `dbus-daemon`.
+`yu`, GUI runner, App runner, native protocol probe, display-session client
+and `yuos-file-manager`. The fixture also requires `dbus-daemon`.
 The separate six-input activation-only mode remains available. Build commands
 and the private fixture entry points are documented in the
-[PAM module guide](../../../crates/claw-display-login/MODULE.md).
+[PAM module guide](../../../crates/yuos-display-login/MODULE.md).
 
 The fixture covers authentication/installation/locale failures, duplicate and
 inherited PAM handles, subscriber reuse, forged display environment, descriptor
@@ -175,10 +175,10 @@ bus alive while a missing entrypoint makes the authenticated subscriber fail; bo
 session and PAM must exit within bounds, retaining the original diagnostic.
 It is not a real greetd/logind/KMS login or an installed-image acceptance test.
 
-`clawd::server::gui_fixture::private_file_manager_session` is the isolated
+`yuosd::server::gui_fixture::private_file_manager_session` is the isolated
 FileManager1 acceptance selection (`--file-manager-only` on the twelve-input
 runner); the full GUI selection includes it. It runs actual PAM, display
-attachment, the session-child facade and protected cos through
+attachment, the session-child facade and protected yu through
 ordinary signed zero-needs GUI hosting. Literal URIs, successful and failed
 checked outcomes, exact kernel login ancestry, no borrowed parent grants,
 cross-UID facade refusal before fork/vfork, raw App bus denial, private logs

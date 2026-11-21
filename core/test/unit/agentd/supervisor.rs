@@ -265,7 +265,7 @@ fn the_grant_the_supervisor_mints_only_carries_worker_channel_routes() {
     assert_eq!(claims.routes, protocol::worker_routes());
     assert!(claims.expires_at_ms > claims.issued_at_ms);
     for route in &claims.routes {
-        assert!(crate::clawd::routes::Command::parse(route).is_none());
+        assert!(crate::yuosd::routes::Command::parse(route).is_none());
     }
 }
 
@@ -527,26 +527,26 @@ fn failed_containment_cleanup_overrides_a_reported_task_result() {
 #[test]
 fn supervision_can_be_disabled_without_disabling_the_broker() {
     let _lock = crate::test_env::lock_env();
-    let previous = std::env::var_os("CLAWD_AGENTD");
-    std::env::set_var("CLAWD_AGENTD", "off");
+    let previous = std::env::var_os("YUOSD_AGENTD");
+    std::env::set_var("YUOSD_AGENTD", "off");
     assert!(!SupervisorConfig::from_env().enabled);
-    std::env::set_var("CLAWD_AGENTD", "on");
+    std::env::set_var("YUOSD_AGENTD", "on");
     assert!(SupervisorConfig::from_env().enabled);
     match previous {
-        Some(value) => std::env::set_var("CLAWD_AGENTD", value),
-        None => std::env::remove_var("CLAWD_AGENTD"),
+        Some(value) => std::env::set_var("YUOSD_AGENTD", value),
+        None => std::env::remove_var("YUOSD_AGENTD"),
     }
 }
 
 #[test]
 fn concurrent_workers_and_spawn_retries_are_bounded() {
     let _lock = crate::test_env::lock_env();
-    let previous = std::env::var_os("CLAWD_AGENTD_MAX_WORKERS");
-    std::env::set_var("CLAWD_AGENTD_MAX_WORKERS", "9999");
+    let previous = std::env::var_os("YUOSD_AGENTD_MAX_WORKERS");
+    std::env::set_var("YUOSD_AGENTD_MAX_WORKERS", "9999");
     assert_eq!(SupervisorConfig::from_env().max_workers, 64);
     match previous {
-        Some(value) => std::env::set_var("CLAWD_AGENTD_MAX_WORKERS", value),
-        None => std::env::remove_var("CLAWD_AGENTD_MAX_WORKERS"),
+        Some(value) => std::env::set_var("YUOSD_AGENTD_MAX_WORKERS", value),
+        None => std::env::remove_var("YUOSD_AGENTD_MAX_WORKERS"),
     }
 
     let mut throttle = SpawnThrottle::default();
@@ -574,8 +574,8 @@ impl ConsentStore {
     fn new() -> Self {
         let lock = crate::test_env::lock_env();
         let dir = tempfile::tempdir().expect("tempdir");
-        let previous = std::env::var_os("COS_DATA_DIR");
-        std::env::set_var("COS_DATA_DIR", dir.path());
+        let previous = std::env::var_os("YUOS_DATA_DIR");
+        std::env::set_var("YUOS_DATA_DIR", dir.path());
         Self {
             _dir: dir,
             _lock: lock,
@@ -598,7 +598,7 @@ impl ConsentStore {
                 .scope_sync(|| crate::session::create("Worker consent fixture"))
                 .unwrap();
                 crate::session::update_meta(&session, |meta| {
-                    meta.creator_runtime = Some("clawd".into());
+                    meta.creator_runtime = Some("yuosd".into());
                     meta.origin = Some(crate::session::SessionOrigin::SystemAgentTask);
                     meta.client = lease.client;
                 })
@@ -629,8 +629,8 @@ impl ConsentStore {
 impl Drop for ConsentStore {
     fn drop(&mut self) {
         match self.previous.take() {
-            Some(value) => std::env::set_var("COS_DATA_DIR", value),
-            None => std::env::remove_var("COS_DATA_DIR"),
+            Some(value) => std::env::set_var("YUOS_DATA_DIR", value),
+            None => std::env::remove_var("YUOS_DATA_DIR"),
         }
     }
 }
@@ -835,7 +835,7 @@ fn worker_authority_rechecks_operation_digest_after_durable_spend() {
     .unwrap()
     .expect("approved consent");
 
-    let error = crate::clawd::authority::authorize_worker_approval(
+    let error = crate::yuosd::authority::authorize_worker_approval(
         lease.owner_uid,
         &lease.task_id,
         &session,
@@ -866,7 +866,7 @@ fn approval_redemption_mints_an_exact_worker_bound_authority_grant() {
     )
     .unwrap()
     .expect("approved consent");
-    let view = crate::clawd::authority::authorize_worker_approval(
+    let view = crate::yuosd::authority::authorize_worker_approval(
         lease.owner_uid,
         &lease.task_id,
         &session,
@@ -879,7 +879,7 @@ fn approval_redemption_mints_an_exact_worker_bound_authority_grant() {
     )
     .expect("worker-bound authority");
 
-    assert_eq!(view.issuer, crate::clawd::authority::Issuer::Approval);
+    assert_eq!(view.issuer, crate::yuosd::authority::Issuer::Approval);
     assert_eq!(view.owner_uid, lease.owner_uid);
     assert_eq!(view.bound_pid, lease.worker_pid);
     assert_eq!(view.subject.session_id.as_deref(), Some(session.as_str()));
@@ -919,7 +919,7 @@ fn revocation_between_durable_spend_and_worker_grant_fails_closed() {
     })
     .unwrap();
 
-    let error = crate::clawd::authority::authorize_worker_approval(
+    let error = crate::yuosd::authority::authorize_worker_approval(
         lease.owner_uid,
         &lease.task_id,
         &session,
@@ -1031,7 +1031,7 @@ fn task_teardown_generation_invalidates_pending_worker_consent() {
     let lease = _store.lease();
     approve_once(&lease, crate::caps::Verb::FS_READ, &scope);
     let session = lease.session_id.as_deref().unwrap();
-    crate::clawd::authority::revoke_session_for_owner(session, lease.owner_uid);
+    crate::yuosd::authority::revoke_session_for_owner(session, lease.owner_uid);
 
     let mut used = 0;
     assert_eq!(
@@ -1068,7 +1068,7 @@ fn task_teardown_invalidates_an_undecided_request() {
         .unwrap(),
         1
     );
-    crate::clawd::authority::revoke_session_for_owner(session, lease.owner_uid);
+    crate::yuosd::authority::revoke_session_for_owner(session, lease.owner_uid);
 
     assert_eq!(
         crate::approvals::status_for_owner(&id, Some(lease.owner_uid)),

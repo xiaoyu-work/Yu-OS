@@ -7,7 +7,7 @@ which tool calls are exposed and executed.
 
 ## Responsibilities
 
-- Register built-in, `cos` proxy, authenticated MCP App, memory, browser, and
+- Register built-in, `yu` proxy, authenticated MCP App, memory, browser, and
   external MCP tools.
 - Use host-backed proxy tools in supervised tasks so dynamic App/MCP code
   never executes in the worker process.
@@ -28,7 +28,7 @@ which tool calls are exposed and executed.
   catalog/invoke gateway.
 - Apply guardrails and session/capability context.
 - Require `memory.read:self:agent` versus `memory.write:self:agent` after
-  validating each `cos_memory` or `cos_todo` command and resource.
+  validating each `yu_memory` or `yu_todo` command and resource.
 - Scope conversation recall to `self:<session>` unless the caller holds the
   system-Agent memory scope; app-memory queries require `self:<app>` before
   source-filtered rows are returned.
@@ -49,13 +49,13 @@ which tool calls are exposed and executed.
 | `registry.rs` | Tool registration, filtering, lookup, and explicit registry resources/paths |
 | `progressive.rs` | Deferred-tool classification, compact catalog, bridge schemas, and envelope validation |
 | `guardrails.rs` | Tool exposure/dispatch policy |
-| `cos_help.rs` | Read-only progressive discovery over the shared public `yu` command tree |
-| `cos_proxy/` | Structured `cos` primitive tools |
-| `cos_proxy/oauth_login.rs` | Agent-initiated trusted OAuth browser flow |
-| `cos_apps_session.rs` | Authenticated MCP App tool registration, task-Host relay, reusable/single-call placement, and calls through the daemon service Host |
+| `yu_help.rs` | Read-only progressive discovery over the shared public `yu` command tree |
+| `yu_proxy/` | Structured `yu` primitive tools |
+| `yu_proxy/oauth_login.rs` | Agent-initiated trusted OAuth browser flow |
+| `yu_apps_session.rs` | Authenticated MCP App tool registration, task-Host relay, reusable/single-call placement, and calls through the daemon service Host |
 | `mcp/` | MCP attachment and proxy tools |
-| `cos_proxy/memory.rs`, `cos_proxy/recall.rs` | Model-selected note/history search and versioned source reads |
-| `cos_proxy/recall_semantic.rs`, `cos_proxy/app_memory.rs` | Semantic/App evidence, bounded coverage and original-source handles |
+| `yu_proxy/memory.rs`, `yu_proxy/recall.rs` | Model-selected note/history search and versioned source reads |
+| `yu_proxy/recall_semantic.rs`, `yu_proxy/app_memory.rs` | Semantic/App evidence, bounded coverage and original-source handles |
 
 The broker and Host share `classify_app_call`: editor filesystem operations
 use controlled providers in a resource-free reusable worker, not file mounts.
@@ -79,7 +79,7 @@ immutable configuration into `RegistryDeps`; assembling
 `default_registry_with_deps(&deps)` performs no environment reads or store
 opens. Registry paths also preserve the system Skill trust origin, exact App
 root, and one notes store shared by prompt reads,
-`cos_memory`, and curation. Deprecated no-argument registry/media constructors
+`yu_memory`, and curation. Deprecated no-argument registry/media constructors
 remain only as compatibility composition wrappers. Projection is rebuilt per
 request and repeated at dispatch; only immutable descriptors may be cached.
 Tools consume stable service/capability definitions and still perform exact

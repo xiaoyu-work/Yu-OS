@@ -32,7 +32,7 @@ fi
 export FEATURES="${FEATURES:-$DEFAULT_FEATURES}"
 export FORMATS=vhd
 export SIZE="${SIZE:-$DEFAULT_SIZE}"
-export IMAGE_BASENAME="${IMAGE_BASENAME:-claw-os-azure}"
+export IMAGE_BASENAME="${IMAGE_BASENAME:-yuos-azure}"
 export IMAGE_PLATFORM=azure
 export IMAGE_ROOTFS_FINALIZER="$SCRIPT_DIR/finalize-rootfs.sh"
 

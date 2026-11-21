@@ -223,7 +223,7 @@ invalidations are queued to the existing observer, never sent while holding
 the effect/dispatcher locks. Observer snapshots cannot overwrite a newer own
 revision. External conflicts still fence rather than follow or grant.
 
-As with the existing bounded `clawd/file_changes.rs` provider, the final
+As with the existing bounded `yuosd/file_changes.rs` provider, the final
 identity check followed by rename is not a filesystem compare-and-swap against
 an uncooperative host writer. No wider external-writer serialization or full
 POSIX metadata/xattr contract is claimed.
@@ -322,7 +322,7 @@ surface cannot satisfy it. Optional metadata does not create a startup prompt.
 The approved Home metadata cap is removed only from raw-bind derivation, never
 from the real GUI authority. The FUSE view replaces Home inside the namespace;
 `HOME`, App data and XDG fallback state remain the private App partition.
-An independent Home content mount is still refused. `COS_OWNER_HOME` remains
+An independent Home content mount is still refused. `YUOS_OWNER_HOME` remains
 context, not a grant. File selection uses existing protected OS review, not
 an App-drawn picker, App-name exception, raw Home bind or alternate approval
 endpoint.
@@ -331,7 +331,7 @@ The existing protected setup runner waits before bubblewrap. Root binds its
 actual PID/start/pidfd and exact checked instance cgroup, validates the live GUI
 grant and installs the metadata lease before releasing sandbox setup. The
 existing inner App gate is held until transport and creator checks finish.
-Metadata admission is not UID-only and never authorizes all `clawd` descendants.
+Metadata admission is not UID-only and never authorizes all `yuosd` descendants.
 
 Cleanup stops metadata admission, checks the process tree dead, then closes
 Root bind-source pins, unmounts without lazy detach and joins the provider.
@@ -372,7 +372,7 @@ bash scripts/ci/test-boundaries.sh native-fs
 
 # The underlying compiler commands:
 cargo test --locked -p yu --bin yu --no-run
-cargo build --locked --manifest-path desktop/comp/test/display-control/Cargo.toml --bin claw-gui-probe
+cargo build --locked --manifest-path desktop/comp/test/display-control/Cargo.toml --bin yuos-gui-probe
 ```
 
 Use compiler-selected Root test and probe ELFs, not a guessed binary filename
@@ -382,12 +382,12 @@ with its additional `--native-fs-only` selector:
 ```sh
 sudo unshare --mount --net --fork bash "$BOOTSTRAP_SCRIPT" \
   "$ROOT_TEST_ELF" "$DISPLAY_HOST_ELF" "$COMPOSITOR_ELF" "$PAM_MODULE_SO" \
-  "$PAM_FIXTURE_ELF" "$PRIVATE_LINUX_DIRECTORY" "$COS_ELF" "$GUI_RUNNER_ELF" \
+  "$PAM_FIXTURE_ELF" "$PRIVATE_LINUX_DIRECTORY" "$YUOS_ELF" "$GUI_RUNNER_ELF" \
   "$APP_RUNNER_ELF" "$PROBE_ELF" "$DISPLAY_SESSION_ELF" "$COSMIC_SESSION_ELF" \
   "$FILE_MANAGER_ELF" "$FILE_MANAGER_AUTOSTART" --native-fs-only
 ```
 
-`BOOTSTRAP_SCRIPT` is `crates/claw-display-login/test/fixtures/bootstrap.sh`.
+`BOOTSTRAP_SCRIPT` is `crates/yuos-display-login/test/fixtures/bootstrap.sh`.
 The private directory must be a fresh, project-owned directory on a Linux
 filesystem. Prerequisites are real `/dev/fuse`, Root mount/network namespace
 privileges, writable delegated cgroup v2 with cpu/memory/pids controllers,
@@ -396,7 +396,7 @@ bootstrap's PAM/NSS/overlay utilities and matching compiler-selected helpers.
 No libfuse development package or fusermount privilege is needed by this
 manual Root mount with `fuser = 0.16.0`, default features disabled.
 
-This selector runs only `clawd::server::gui_fixture::private_native_fs_kernel`;
+This selector runs only `yuosd::server::gui_fixture::private_native_fs_kernel`;
 it does not alter baseline GUI/PAM cases. One existing test exercises metadata
 without content, exact file and directory selection, binary/non-UTF8 names,
 native mmap-before-read and seek, forbidden/alias/owner-permission refusal,

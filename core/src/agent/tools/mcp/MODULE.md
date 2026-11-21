@@ -9,7 +9,7 @@ transports, discovery, and tool-registry integration.
 
 - Implement the validated JSON-RPC/MCP protocol subset.
 - Attach configured or discovered stdio/remote servers.
-- Route attachment and calls through `claw-extension-host` for supervised
+- Route attachment and calls through `yuos-extension-host` for supervised
   tasks; direct CLI/web processes retain the local client path.
 - Register only the fixed locally-authored `mcp_catalog` and `mcp_invoke`
   progressive-disclosure gateways. Remote names and argument-property names
@@ -43,7 +43,7 @@ transports, discovery, and tool-registry integration.
 ## Provenance
 
 Presence in an XDG search path is not authority to execute. A discovered
-agent-API package must be a directory carrying a `claw.provenance/v1`
+agent-API package must be a directory carrying a `yuos.provenance/v1`
 envelope signed by a trusted publisher, root-owned content under an
 approved system package root, or covered by an explicit developer grant.
 Loose `*.json` manifests are honoured only under an approved,
@@ -65,13 +65,13 @@ replay fail closed.
 Descriptor schemas are size/depth/node bounded and retain only structural
 object/property/required/item/combinator/cardinality constraints. `$ref` and
 logical reference cycles fail closed.
-The general `cos_tool_search` / `cos_tool_describe` / `cos_tool_call`
+The general `yu_tool_search` / `yu_tool_describe` / `yu_tool_call`
 schema-budget bridge remains available to other extension descriptors. MCP
 does not register remote descriptors into that catalogue: its internal policy
 registry is reachable only through `mcp_catalog` and `mcp_invoke`, preserving
 one exposure, approval, timeout, audit, and execution path.
 Equivalent first-party MCP failures use the generated codes owned by
-`claw-os-sdk/wire/v1/contract.json`.
+`yuos-sdk/wire/v1/contract.json`.
 
 The inbound core server reserves JSON-RPC code `-32000` for overload after a
 `tools/call` has passed envelope, parameter, registry, and guardrail checks.

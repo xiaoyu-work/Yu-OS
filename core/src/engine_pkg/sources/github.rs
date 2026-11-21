@@ -105,7 +105,7 @@ impl GhClient {
 
     pub fn with_base(base_url: String) -> Self {
         let http = reqwest::Client::builder()
-            .user_agent(concat!("cos/", env!("CARGO_PKG_VERSION"), " (engine-pkg)"))
+            .user_agent(concat!("yuos/", env!("CARGO_PKG_VERSION"), " (engine-pkg)"))
             .timeout(std::time::Duration::from_secs(30))
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());

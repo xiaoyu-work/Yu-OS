@@ -22,7 +22,7 @@ To rebuild:
 
 ```bash
 # one-time
-~/workspace/claw-os/scripts/install-bun.sh
+~/workspace/yuos/scripts/install-bun.sh
 
 # every change
 cd core/src/agent/web/ui
@@ -68,7 +68,7 @@ check is not presented as a successful model request.
 - src/pages/            — Activities, durable chat/tasks, approvals, notification Inbox, raw system events, settings
 - src/app/globals.css   — OA's oklch tokens (light + dark + sidebar)
 
-Chat, conversations, Tasks, approvals, and Inbox use owner-scoped `clawd`
+Chat, conversations, Tasks, approvals, and Inbox use owner-scoped `yuosd`
 routes. A follow-up acknowledgement clears the submitted text only if the
 composer still contains it; a new draft stays in the composer. Stop freezes the
 reply immediately while its stream waits for the task's durable outcome.
@@ -374,7 +374,7 @@ The fixed **Portable Activity continuity** card exports only the currently
 selected Activity. The authenticated server obtains a broker-revalidated
 continuity-v1 document, converts the lineage `u64` revision to a decimal string,
 and the browser revalidates the exact closed shape and SHA-256 snapshot before
-creating a deterministic `claw-os-activity-<continuity-id>.json` Blob. Export
+creating a deterministic `yuos-activity-<continuity-id>.json` Blob. Export
 does not mutate the source Activity or its Jobs.
 
 Import reads one browser-selected JSON file of at most 196608 bytes; no path is

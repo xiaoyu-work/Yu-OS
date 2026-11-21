@@ -19,14 +19,14 @@
 <meta property="og:title" content="Yu OS — The first agent-native operating system">
 <meta property="og:description" content="One built-in agent across the whole system, one AI runtime for every app, and typed app APIs for cross-app workflows.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://xiaoyu-work.github.io/claw-os/">
-<meta property="og:image" content="https://xiaoyu-work.github.io/claw-os/assets/brand/og.png">
+<meta property="og:url" content="https://xiaoyu-work.github.io/Yu-OS/">
+<meta property="og:image" content="https://xiaoyu-work.github.io/Yu-OS/assets/brand/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Yu OS — The first agent-native operating system">
 <meta name="twitter:description" content="One built-in agent across the system and every app.">
-<meta name="twitter:image" content="https://xiaoyu-work.github.io/claw-os/assets/brand/og.png">
+<meta name="twitter:image" content="https://xiaoyu-work.github.io/Yu-OS/assets/brand/og.png">
 </head>
 <body>
 
@@ -46,7 +46,7 @@
       <a href="#safety">safety</a>
       <a href="#architecture">architecture</a>
       <a href="#install">install</a>
-      <a href="https://github.com/xiaoyu-work/claw-os" rel="noopener">github&nbsp;↗</a>
+      <a href="https://github.com/xiaoyu-work/Yu-OS" rel="noopener">github&nbsp;↗</a>
     </nav>
     <a class="nav-cta" href="#install">Install</a>
     <button class="nav-burger" aria-label="Open navigation" aria-expanded="false" id="navBurger">
@@ -77,14 +77,14 @@
             Install Yu OS
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </a>
-          <a class="btn btn-ghost" href="https://github.com/xiaoyu-work/claw-os" rel="noopener">
+          <a class="btn btn-ghost" href="https://github.com/xiaoyu-work/Yu-OS" rel="noopener">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 .1.8 1.7.8 1.7 1.1 1.9 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.4-1.3-5.4-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.1 0 4.5-2.8 5.4-5.4 5.8.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5"/></svg>
             View on GitHub
           </a>
         </div>
         <div class="install-hint mono">
           <span class="install-hint-label">wsl</span>
-          <code id="wslOneLiner">wsl --install --from-file .\claw-os-wsl-amd64.wsl --name claw-os --location C:\WSL\claw-os --version 2</code>
+          <code id="wslOneLiner">wsl --install --from-file .\yuos-wsl-amd64.wsl --name yuos --location C:\WSL\yuos --version 2</code>
           <button class="copy-btn" data-copy="#wslOneLiner" aria-label="Copy install command">copy</button>
         </div>
       </div>
@@ -191,7 +191,7 @@
       <div class="kicker mono"><span class="kicker-dot"></span>primitives</div>
       <h2 class="h2">Eight kernel surfaces. <span class="muted">All speak JSON.</span></h2>
       <p class="section-lede">
-        Every <code>cos &lt;primitive&gt; &lt;command&gt;</code> returns
+        Every <code>yu &lt;primitive&gt; &lt;command&gt;</code> returns
         structured output. Agents reason about state instead of guessing it.
       </p>
 
@@ -208,7 +208,7 @@
           <div class="prim-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="6" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="14" width="18" height="6" rx="1.5" stroke="currentColor" stroke-width="1.6"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="17" r="1" fill="currentColor"/></svg></div>
           <h3>service</h3>
           <p>Lifecycle hooks, credential injection, dependency ordering, graceful drain.</p>
-          <pre class="prim-code mono"><span class="t-prompt">yu</span> service start clawd
+          <pre class="prim-code mono"><span class="t-prompt">yu</span> service start yuosd
 <span class="t-prompt">yu</span> service health --no-restart</pre>
         </article>
 
@@ -275,7 +275,7 @@
           <p>
             Risky scopes (<code>fs.write</code>, <code>net.dial</code>,
             <code>sys.service</code>, <code>secret.read</code>, <code>ai.chat</code>…)
-            are typed. <code>clawd</code> intercepts the call, surfaces a single
+            are typed. <code>yuosd</code> intercepts the call, surfaces a single
             approval with the exact target, and consumes the grant on success.
           </p>
           <div class="flow mono">
@@ -291,7 +291,7 @@
           <h3>Audit &amp; redaction</h3>
           <p>
             Every gated call lands in an append-only journal under
-            <code>/var/lib/cos</code>. Tokens, bearer headers, and provider
+            <code>/var/lib/yuos</code>. Tokens, bearer headers, and provider
             secrets are stripped before they touch disk — replay or inspect a
             task without leaking what it touched.
           </p>
@@ -321,9 +321,9 @@
           <div class="stack-name mono">yu · user-mode primitives</div>
           <div class="stack-detail">sys · service · credential · cron · app · ai · agent · model · engine</div>
         </div>
-        <div class="stack-layer stack-layer-clawd">
-          <div class="stack-name mono">clawd · system broker</div>
-          <div class="stack-detail">/run/cos/clawd.sock · caps · approvals · context · journals</div>
+        <div class="stack-layer stack-layer-yuosd">
+          <div class="stack-name mono">yuosd · system broker</div>
+          <div class="stack-detail">/run/yuos/yuosd.sock · caps · approvals · context · journals</div>
         </div>
         <div class="stack-layer stack-layer-linux">
           <div class="stack-name mono">linux</div>
@@ -340,7 +340,7 @@
       <p class="section-lede">
         Run Yu OS where you already work: install it as a WSL distro on
         Windows, or as a Docker container on macOS or Linux. The
-        <code>yu</code> / <code>clawd</code> agent stack is the same inside
+        <code>yu</code> / <code>yuosd</code> agent stack is the same inside
         either.
       </p>
 
@@ -353,9 +353,9 @@
           <p>Install the latest package and create your UNIX account on first launch.</p>
 <pre class="code-block mono" id="codeWsl"><span class="code-comment"># PowerShell</span>
 <span class="t-prompt">PS&gt;</span> $arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "amd64" }
-<span class="t-prompt">PS&gt;</span> $package = "claw-os-wsl-$arch.wsl"
-<span class="t-prompt">PS&gt;</span> curl.exe -L --fail -C - -o $package "https://github.com/xiaoyu-work/claw-os/releases/download/wsl-latest/$package"
-<span class="t-prompt">PS&gt;</span> wsl --install --from-file ".\$package" --name claw-os --location C:\WSL\claw-os --version 2</pre>
+<span class="t-prompt">PS&gt;</span> $package = "yuos-wsl-$arch.wsl"
+<span class="t-prompt">PS&gt;</span> curl.exe -L --fail -C - -o $package "https://github.com/xiaoyu-work/Yu-OS/releases/download/yuos-wsl-latest/$package"
+<span class="t-prompt">PS&gt;</span> wsl --install --from-file ".\$package" --name yuos --location C:\WSL\yuos --version 2</pre>
           <button class="copy-btn copy-btn-card" data-copy="#codeWsl">copy</button>
         </article>
 
@@ -365,11 +365,11 @@
             <h3>Docker / OrbStack</h3>
           </header>
           <p>Run the full OS image in a privileged container.</p>
-<pre class="code-block mono" id="codeDocker"><span class="t-prompt">$</span> docker pull ghcr.io/xiaoyu-work/claw-os:latest
-<span class="t-prompt">$</span> docker run -d --name claw --privileged \
-    -e CLAW_USER=yourname -v ./workspace:/workspace \
-    ghcr.io/xiaoyu-work/claw-os
-<span class="t-prompt">$</span> docker exec -it claw /usr/local/sbin/claw-container-entrypoint shell</pre>
+<pre class="code-block mono" id="codeDocker"><span class="t-prompt">$</span> docker pull ghcr.io/xiaoyu-work/yu-os:latest
+<span class="t-prompt">$</span> docker run -d --name yuos --privileged \
+    -e YUOS_USER=yourname -v ./workspace:/workspace \
+    ghcr.io/xiaoyu-work/yu-os
+<span class="t-prompt">$</span> docker exec -it yuos /usr/local/sbin/yuos-container-entrypoint shell</pre>
           <button class="copy-btn copy-btn-card" data-copy="#codeDocker">copy</button>
         </article>
       </div>
@@ -432,14 +432,14 @@
         <details class="faq-item">
           <summary>Where does my data live?</summary>
           <p>On disk, inside the WSL distro or Docker volume. State under
-          <code>/var/lib/cos</code>, logs under <code>/var/log/cos</code>, the
-          clawd socket at <code>/run/cos/clawd.sock</code>. Cloud providers are
+          <code>/var/lib/yuos</code>, logs under <code>/var/log/yuos</code>, the
+          yuosd socket at <code>/run/yuos/yuosd.sock</code>. Cloud providers are
           opt-in and credentialed through <code>yu credential</code>.</p>
         </details>
         <details class="faq-item">
           <summary>Is it open source?</summary>
           <p>Yes — original Yu OS components use Apache-2.0. See
-          <a href="https://github.com/xiaoyu-work/claw-os/blob/main/NOTICE" rel="noopener">NOTICE</a>
+          <a href="https://github.com/xiaoyu-work/Yu-OS/blob/main/NOTICE" rel="noopener">NOTICE</a>
           for components that retain their vendored upstream licenses.</p>
         </details>
       </div>
@@ -454,7 +454,7 @@
       </div>
       <div class="cta-row">
         <a class="btn btn-primary" href="#install">Install Yu OS</a>
-        <a class="btn btn-ghost" href="https://github.com/xiaoyu-work/claw-os" rel="noopener">View on GitHub</a>
+        <a class="btn btn-ghost" href="https://github.com/xiaoyu-work/Yu-OS" rel="noopener">View on GitHub</a>
       </div>
     </div>
   </section>
@@ -481,16 +481,16 @@
       </div>
       <div>
         <div class="footer-col-title mono">repo</div>
-        <a href="https://github.com/xiaoyu-work/claw-os" rel="noopener">GitHub</a>
-        <a href="https://github.com/xiaoyu-work/claw-os/releases" rel="noopener">Releases</a>
-        <a href="https://github.com/xiaoyu-work/claw-os/blob/main/CONTRIBUTING.md" rel="noopener">Contributing</a>
-        <a href="https://github.com/xiaoyu-work/claw-os/blob/main/LICENSE" rel="noopener">License</a>
+        <a href="https://github.com/xiaoyu-work/Yu-OS" rel="noopener">GitHub</a>
+        <a href="https://github.com/xiaoyu-work/Yu-OS/releases" rel="noopener">Releases</a>
+        <a href="https://github.com/xiaoyu-work/Yu-OS/blob/main/CONTRIBUTING.md" rel="noopener">Contributing</a>
+        <a href="https://github.com/xiaoyu-work/Yu-OS/blob/main/LICENSE" rel="noopener">License</a>
       </div>
       <div>
         <div class="footer-col-title mono">runtimes</div>
         <a href="#install">WSL</a>
         <a href="#install">Docker · OrbStack</a>
-        <a href="https://github.com/xiaoyu-work/claw-os/releases" rel="noopener">Releases ↗</a>
+        <a href="https://github.com/xiaoyu-work/Yu-OS/releases" rel="noopener">Releases ↗</a>
       </div>
     </div>
   </div>

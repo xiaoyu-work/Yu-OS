@@ -18,15 +18,15 @@ fn copy_tree(src: &Path, dst: &Path) {
 }
 
 fn write_builtin(root: &Path, body: &str) {
-    let dir = root.join("claw-os");
+    let dir = root.join("yuos");
     fs::create_dir_all(&dir).unwrap();
     fs::write(
         dir.join("SKILL.md"),
-        format!("---\nname: claw-os\ndescription: Claw system operations\n---\n{body}\n"),
+        format!("---\nname: yuos\ndescription: Yu OS system operations\n---\n{body}\n"),
     )
     .unwrap();
     fs::write(dir.join("network.md"), "NETWORK_RESOURCE").unwrap();
-    crate::test_env::sign_test_package(&dir, crate::provenance::PackageKind::Skill, "claw-os");
+    crate::test_env::sign_test_package(&dir, crate::provenance::PackageKind::Skill, "yuos");
 }
 
 #[tokio::test]
@@ -41,7 +41,7 @@ async fn list_discloses_metadata_without_body() {
     assert!(!result.is_error);
     assert!(result.content.contains("source=skills_catalog"));
     assert!(result.content.contains("trust=extension-metadata"));
-    assert!(result.content.contains("Claw system operations"));
+    assert!(result.content.contains("Yu OS system operations"));
     assert!(!result.content.contains("INSTRUCTION_BODY"));
 }
 
@@ -52,7 +52,7 @@ async fn read_then_resource_progressively_discloses_content() {
     write_builtin(system.path(), "INSTRUCTION_BODY");
     let tool = SkillDisclosure::with_roots(system.path(), user.path());
 
-    let instructions = tool.exec(json!({"command": "read", "id": "claw-os"})).await;
+    let instructions = tool.exec(json!({"command": "read", "id": "yuos"})).await;
     assert!(!instructions.is_error);
     assert!(instructions.content.contains("INSTRUCTION_BODY"));
     assert!(instructions.content.contains("network.md"));
@@ -61,7 +61,7 @@ async fn read_then_resource_progressively_discloses_content() {
     let resource = tool
         .exec(json!({
             "command": "resource",
-            "id": "claw-os",
+            "id": "yuos",
             "path": "network.md"
         }))
         .await;
@@ -152,7 +152,7 @@ async fn overridden_system_root_remains_local_and_untrusted() {
     );
 
     let result = tool
-        .exec(json!({"command": "read", "id": "claw-os"}))
+        .exec(json!({"command": "read", "id": "yuos"}))
         .await;
 
     assert!(!result.is_error);
@@ -165,38 +165,38 @@ async fn overridden_system_root_remains_local_and_untrusted() {
 async fn repository_builtin_skill_is_readable_progressively() {
     // The repository checkout is not an approved package root, so the
     // in-tree skill is staged into a signed copy first — the same shape
-    // the Debian package produces under /usr/lib/cos/skills.
+    // the Debian package produces under /usr/lib/yuos/skills.
     let source = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("repository root")
         .join("skills")
-        .join("claw-os");
+        .join("yuos");
     let staged = tempdir().unwrap();
     let system_root = staged.path().to_path_buf();
-    copy_tree(&source, &system_root.join("claw-os"));
+    copy_tree(&source, &system_root.join("yuos"));
     crate::test_env::sign_test_package(
-        &system_root.join("claw-os"),
+        &system_root.join("yuos"),
         crate::provenance::PackageKind::Skill,
-        "claw-os",
+        "yuos",
     );
     let user = tempdir().unwrap();
     let tool = SkillDisclosure::with_roots(&system_root, user.path());
 
     let list = tool.exec(json!({"command": "list"})).await;
     assert!(!list.is_error);
-    assert!(list.content.contains("\"id\": \"claw-os\""));
+    assert!(list.content.contains("\"id\": \"yuos\""));
     assert!(!list.content.contains("System Diagnosis Protocol"));
 
-    let instructions = tool.exec(json!({"command": "read", "id": "claw-os"})).await;
+    let instructions = tool.exec(json!({"command": "read", "id": "yuos"})).await;
     assert!(!instructions.is_error);
-    assert!(instructions.content.contains("Claw System Agent"));
+    assert!(instructions.content.contains("Yu OS Agent"));
     assert!(instructions.content.contains("diagnostics.md"));
     assert!(!instructions.content.contains("Establish the symptom"));
 
     let resource = tool
         .exec(json!({
             "command": "resource",
-            "id": "claw-os",
+            "id": "yuos",
             "path": "diagnostics.md"
         }))
         .await;

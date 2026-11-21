@@ -216,7 +216,7 @@ impl Provider for ProviderChain {
                     return Ok(response);
                 }
                 Err(error) => {
-                    if request.extra["_cos_desktop_visual"] == true {
+                    if request.extra["__yuos_desktop_visual"] == true {
                         return Err(error);
                     }
                     let Some(class) = fallback_class(&error) else {
@@ -267,7 +267,7 @@ impl Provider for ProviderChain {
                     return Ok(prefix.chain(provider_stream).boxed());
                 }
                 Err(error) => {
-                    if request.extra["_cos_desktop_visual"] == true {
+                    if request.extra["__yuos_desktop_visual"] == true {
                         return Err(error);
                     }
                     let Some(class) = fallback_class(&error) else {

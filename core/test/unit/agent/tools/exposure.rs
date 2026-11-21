@@ -130,10 +130,10 @@ fn delegated_context_drops_attended_authorization() {
 #[test]
 fn process_environment_cannot_promote_an_exposure_context() {
     let _lock = crate::caps::test_env_lock::env_lock();
-    let previous_session = std::env::var_os("COS_SESSION");
-    let previous_source = std::env::var_os("COS_AGENT_SOURCE");
-    std::env::set_var("COS_SESSION", "forged-session");
-    std::env::set_var("COS_AGENT_SOURCE", "local-cli");
+    let previous_session = std::env::var_os("YUOS_SESSION");
+    let previous_source = std::env::var_os("YUOS_AGENT_SOURCE");
+    std::env::set_var("YUOS_SESSION", "forged-session");
+    std::env::set_var("YUOS_AGENT_SOURCE", "local-cli");
 
     let context = ToolExposureContext::isolated(Guardrails::permissive());
     let rule = ToolExposure::always()
@@ -146,13 +146,13 @@ fn process_environment_cannot_promote_an_exposure_context() {
     assert_eq!(context.client().source, SessionSource::Unknown);
 
     match previous_session {
-        Some(value) => std::env::set_var("COS_SESSION", value),
-        None => std::env::remove_var("COS_SESSION"),
+        Some(value) => std::env::set_var("YUOS_SESSION", value),
+        None => std::env::remove_var("YUOS_SESSION"),
     }
 
     match previous_source {
-        Some(value) => std::env::set_var("COS_AGENT_SOURCE", value),
-        None => std::env::remove_var("COS_AGENT_SOURCE"),
+        Some(value) => std::env::set_var("YUOS_AGENT_SOURCE", value),
+        None => std::env::remove_var("YUOS_AGENT_SOURCE"),
     }
 }
 
@@ -162,17 +162,17 @@ async fn verified_worker_override_supplies_context_without_process_metadata() {
     let session = crate::proc::SessionInfo {
         session_id: "worker-session".to_string(),
         pid: 1,
-        command: vec!["claw-agentd".to_string()],
+        command: vec!["yuos-agentd".to_string()],
         started_at: "2026-01-01T00:00:00Z".to_string(),
         stdout_path: String::new(),
         stderr_path: String::new(),
-        group: Some("clawd".to_string()),
+        group: Some("yuosd".to_string()),
         parent: None,
         workdir: None,
         exit_code: None,
         ended_at: None,
         tier: None,
-        scope: Some("clawd-task".to_string()),
+        scope: Some("yuosd-task".to_string()),
         priority: None,
         caps: Some(capabilities),
         transient_caps: None,

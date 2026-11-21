@@ -4,7 +4,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/git-readonly.sh"
 
 # The release-security epoch is also the Debian epoch.
 #
-# A security epoch that only lives in Claw OS metadata cannot influence
+# A security epoch that only lives in Yu OS metadata cannot influence
 # which candidate APT selects: APT orders by Debian version, and an
 # emergency release with a *lower* upstream version would simply never
 # be chosen. The Debian epoch is the one field that outranks every
@@ -33,7 +33,7 @@ PY
 
 package_version() {
     local project_dir="${1:?project root required}"
-    local version="${COS_PACKAGE_VERSION:-}"
+    local version="${YUOS_PACKAGE_VERSION:-}"
     local epoch
     epoch="$(release_security_epoch "$project_dir")" || return 1
 
@@ -51,12 +51,12 @@ package_version() {
         fi
         if [ "$(git_readonly -C "$project_dir" rev-parse --is-shallow-repository)" = "true" ]; then
             echo "error: shallow checkout cannot produce a monotonic package version" >&2
-            echo "       fetch full history or set COS_PACKAGE_VERSION explicitly" >&2
+            echo "       fetch full history or set YUOS_PACKAGE_VERSION explicitly" >&2
             return 1
         fi
         if [ -n "$(git_readonly -C "$project_dir" status --porcelain --untracked-files=normal)" ]; then
             echo "error: dirty worktree cannot reuse a commit-derived package version" >&2
-            echo "       commit changes or set COS_PACKAGE_VERSION explicitly" >&2
+            echo "       commit changes or set YUOS_PACKAGE_VERSION explicitly" >&2
             return 1
         fi
         count="$(git_readonly -C "$project_dir" rev-list --count HEAD)"
@@ -82,7 +82,7 @@ package_version() {
     if [ "$declared" != "$epoch" ]; then
         echo "error: package version '$version' has Debian epoch '$declared'," >&2
         echo "       but the release-security epoch is '$epoch'. Set" >&2
-        echo "       COS_PACKAGE_VERSION to '${epoch}:<upstream>' so APT orders" >&2
+        echo "       YUOS_PACKAGE_VERSION to '${epoch}:<upstream>' so APT orders" >&2
         echo "       an emergency release above everything published before it." >&2
         return 1
     fi

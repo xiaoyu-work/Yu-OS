@@ -8,23 +8,23 @@ use super::*;
 /// keying material when neither the kernel keyring (Linux) nor
 /// `/etc/machine-id` are available — e.g. inside chroots, minimal containers,
 /// non-Linux dev boxes, or test harnesses. Override the file location with
-/// `COS_CREDENTIAL_ROOT_KEY_PATH` (used by tests).
+/// `YUOS_CREDENTIAL_ROOT_KEY_PATH` (used by tests).
 ///
-/// Lives next to the rest of the per-install state under `$COS_STATE_DIR`
-/// (aliased to `$COS_DATA_DIR` in this codebase via [`crate::paths::data_dir`]).
+/// Lives next to the rest of the per-install state under `$YUOS_STATE_DIR`
+/// (aliased to `$YUOS_DATA_DIR` in this codebase via [`crate::paths::data_dir`]).
 fn credential_root_key_path() -> PathBuf {
-    if let Some(v) = std::env::var_os("COS_CREDENTIAL_ROOT_KEY_PATH") {
+    if let Some(v) = std::env::var_os("YUOS_CREDENTIAL_ROOT_KEY_PATH") {
         return PathBuf::from(v);
     }
     crate::paths::data_dir().join("credential-root.key")
 }
 
 /// Path the code consults for the machine identity. Tests override this with
-/// `COS_MACHINE_ID_PATH` to simulate "no machine-id" environments without
+/// `YUOS_MACHINE_ID_PATH` to simulate "no machine-id" environments without
 /// touching `/etc/machine-id`.
 #[cfg(target_os = "linux")]
 fn machine_id_path() -> PathBuf {
-    if let Some(v) = std::env::var_os("COS_MACHINE_ID_PATH") {
+    if let Some(v) = std::env::var_os("YUOS_MACHINE_ID_PATH") {
         return PathBuf::from(v);
     }
     PathBuf::from("/etc/machine-id")
@@ -450,10 +450,10 @@ pub(super) fn generate_root_key_loser_paused_in_directory_sync(
 /// Resolution order:
 ///   1. Kernel session keyring (Linux only — fast in-memory cache).
 ///   2. `/etc/machine-id` (Linux only — stable per-install identifier).
-///   3. Persistent on-disk root key at `${COS_STATE_DIR}/credential-root.key`,
+///   3. Persistent on-disk root key at `${YUOS_STATE_DIR}/credential-root.key`,
 ///      generated from the OS CSPRNG on first use, mode `0600`.
 ///
-/// The previous behaviour of falling back to `sha256("claw-os-credential-store-key-v1")`
+/// The previous behaviour of falling back to `sha256("yuos-credential-store-key-v1")`
 /// when `/etc/machine-id` was unreadable has been removed — that constant was a
 /// universally known key that decrypted every credential store offline. We
 /// either find / derive a per-install secret or we generate a fresh random one
@@ -534,7 +534,7 @@ pub(super) fn generate_nonce() -> CredentialResult<[u8; 12]> {
 /// Key used by the legacy XOR obfuscation scheme.
 ///
 /// Historically this fell back to the literal string
-/// `"claw-os-credential-store-key-v1"` when `/etc/machine-id` was unreadable,
+/// `"yuos-credential-store-key-v1"` when `/etc/machine-id` was unreadable,
 /// which meant any attacker could trivially decrypt legacy XOR credentials on
 /// any host without a machine-id (containers, chroots, non-Linux). That
 /// hard-coded fallback has been removed: callers now derive the same per-

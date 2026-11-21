@@ -7,7 +7,7 @@
 //! another field's bytes.
 //!
 //! ```text
-//! LP("cos.session.journal")  domain separation
+//! LP("yuos.session.journal")  domain separation
 //! U32(schema)               refuse a version this daemon does not know
 //! LP(partition)             which chain this belongs to
 //! U32(owner_uid)            whose chain it is
@@ -38,7 +38,7 @@ use super::JournalError;
 
 /// Domain separator, so a journal MAC can never be confused with a
 /// grant, an anchor or an audit digest computed elsewhere.
-const DOMAIN: &[u8] = b"cos.session.journal";
+const DOMAIN: &[u8] = b"yuos.session.journal";
 
 /// `prev` for the first record in a partition.
 pub const GENESIS_MAC: &str = "0000000000000000000000000000000000000000000000000000000000000000";

@@ -1,7 +1,7 @@
 //! Human CLI controls for the shared Workspace service.
 
 use super::*;
-use crate::clawd::{client, config, protocol::Request, routes::Command};
+use crate::yuosd::{client, config, protocol::Request, routes::Command};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 

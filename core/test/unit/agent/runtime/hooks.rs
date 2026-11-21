@@ -623,12 +623,12 @@ fn checkpoint_hook_name_is_canonical() {
 #[test]
 fn default_dangerous_tools_includes_expected_set() {
     let s = default_dangerous_tools();
-    assert!(s.contains("cos_sandbox"));
-    assert!(s.contains("cos_proc"));
-    assert!(s.contains("cos_credential"));
-    assert!(s.contains("cos_oauth_login"));
-    assert!(s.contains("cos_cron"));
-    assert!(s.contains("cos_netfilter"));
+    assert!(s.contains("yu_sandbox"));
+    assert!(s.contains("yu_proc"));
+    assert!(s.contains("yu_credential"));
+    assert!(s.contains("yu_oauth_login"));
+    assert!(s.contains("yu_cron"));
+    assert!(s.contains("yu_netfilter"));
 }
 
 #[test]
@@ -639,12 +639,12 @@ fn checkpoint_hook_skips_safe_tool_calls() {
     let h = checkpoint_hook_with(
         creator.clone() as std::sync::Arc<dyn CheckpointCreator>,
         p.clone(),
-        &["cos_sandbox"],
+        &["yu_sandbox"],
     );
 
     let safe = ToolCall {
         id: "call_safe".to_string(),
-        name: "cos_sysinfo".to_string(),
+        name: "yu_sysinfo".to_string(),
         input: serde_json::json!({}),
     };
     let decision = h.pre_tool(&ctx(), &safe);
@@ -664,12 +664,12 @@ fn checkpoint_hook_creates_for_dangerous_tool_calls() {
     let h = checkpoint_hook_with(
         creator.clone() as std::sync::Arc<dyn CheckpointCreator>,
         p.clone(),
-        &["cos_sandbox"],
+        &["yu_sandbox"],
     );
 
     let dangerous = ToolCall {
         id: "call_danger".to_string(),
-        name: "cos_sandbox".to_string(),
+        name: "yu_sandbox".to_string(),
         input: serde_json::json!({"command": "run"}),
     };
     let decision = h.pre_tool(&ctx().with_turn_index(7), &dangerous);
@@ -681,7 +681,7 @@ fn checkpoint_hook_creates_for_dangerous_tool_calls() {
     let calls = creator.calls();
     assert_eq!(calls.len(), 1);
     assert!(
-        calls[0].contains("cos_sandbox") && calls[0].contains("turn=7"),
+        calls[0].contains("yu_sandbox") && calls[0].contains("turn=7"),
         "description should embed tool name and turn: {:?}",
         calls[0]
     );
@@ -691,7 +691,7 @@ fn checkpoint_hook_creates_for_dangerous_tool_calls() {
     let e = &events[0];
     assert_eq!(e["kind"], serde_json::json!("pre_tool_checkpoint"));
     assert_eq!(e["status"], serde_json::json!("ok"));
-    assert_eq!(e["tool_name"], serde_json::json!("cos_sandbox"));
+    assert_eq!(e["tool_name"], serde_json::json!("yu_sandbox"));
     assert_eq!(e["tool_call_id"], serde_json::json!("call_danger"));
     assert_eq!(e["checkpoint_id"], serde_json::json!("cp-1"));
     assert!(e["error"].is_null());
@@ -705,12 +705,12 @@ fn checkpoint_hook_logs_failure_but_still_allows_tool() {
     let h = checkpoint_hook_with(
         creator.clone() as std::sync::Arc<dyn CheckpointCreator>,
         p.clone(),
-        &["cos_sandbox"],
+        &["yu_sandbox"],
     );
 
     let dangerous = ToolCall {
         id: "call_danger".to_string(),
-        name: "cos_sandbox".to_string(),
+        name: "yu_sandbox".to_string(),
         input: serde_json::json!({}),
     };
     let decision = h.pre_tool(&ctx(), &dangerous);
@@ -739,14 +739,14 @@ fn checkpoint_hook_only_fires_on_pre_tool_not_other_callbacks() {
     let h = checkpoint_hook_with(
         creator.clone() as std::sync::Arc<dyn CheckpointCreator>,
         p.clone(),
-        &["cos_sandbox"],
+        &["yu_sandbox"],
     );
     // pre_turn / post_turn / post_tool must all default to no-op.
     let _ = h.pre_turn(&ctx());
     let _ = h.post_turn(&ctx(), &turn_summary_ok());
     let dangerous = ToolCall {
         id: "id".into(),
-        name: "cos_sandbox".into(),
+        name: "yu_sandbox".into(),
         input: serde_json::json!({}),
     };
     let _ = h.post_tool(&ctx(), &dangerous, &tool_result_ok());
@@ -761,11 +761,11 @@ fn checkpoint_hook_is_dangerous_query_reflects_set() {
     let h = checkpoint_hook_with(
         RecordingCreator::ok() as std::sync::Arc<dyn CheckpointCreator>,
         std::env::temp_dir().join("no.jsonl"),
-        &["cos_sandbox", "cos_proc"],
+        &["yu_sandbox", "yu_proc"],
     );
-    assert!(h.is_dangerous("cos_sandbox"));
-    assert!(h.is_dangerous("cos_proc"));
-    assert!(!h.is_dangerous("cos_sysinfo"));
+    assert!(h.is_dangerous("yu_sandbox"));
+    assert!(h.is_dangerous("yu_proc"));
+    assert!(!h.is_dangerous("yu_sysinfo"));
     assert!(!h.is_dangerous("echo"));
 }
 
@@ -780,5 +780,5 @@ fn checkpoint_hook_default_constructors_use_default_set() {
     }
     let h2 = CheckpointHook::with_dangerous(["custom_tool".to_string()].into_iter().collect());
     assert!(h2.is_dangerous("custom_tool"));
-    assert!(!h2.is_dangerous("cos_sandbox"));
+    assert!(!h2.is_dangerous("yu_sandbox"));
 }

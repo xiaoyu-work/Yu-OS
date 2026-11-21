@@ -76,7 +76,7 @@ fn lint_skips_generated_and_hidden_directories_but_reads_nested_python() {
     }
     std::fs::write(
         root.path().join("main.py"),
-        "from claw_os_sdk import ai\n# import anthropic\n",
+        "from yuos_sdk import ai\n# import anthropic\n",
     )
     .unwrap();
     std::fs::write(root.path().join("notes.txt"), "import anthropic\n").unwrap();

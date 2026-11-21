@@ -63,7 +63,7 @@ fn the_worker_channel_exposes_only_job_lifecycle_routes() {
     // The broker socket's own routes must not be reachable from a
     // worker grant: no admin, App-session, scheduler or
     // permission-decision surface exists on this channel.
-    for route in crate::clawd::routes::ROUTES.iter().map(|route| route.name) {
+    for route in crate::yuosd::routes::ROUTES.iter().map(|route| route.name) {
         assert!(
             !WORKER_ROUTES.contains(&route),
             "broker route `{route}` leaked onto the worker channel"
@@ -366,7 +366,7 @@ fn every_worker_frame_names_its_route_and_task() {
             task_id: "task-a".to_string(),
             progress: ProgressRecord::ToolStart {
                 id: "call-1".to_string(),
-                name: "cos_fs".to_string(),
+                name: "yu_fs".to_string(),
             },
         },
         WorkerFrame::Result {
@@ -384,16 +384,16 @@ fn every_worker_frame_names_its_route_and_task() {
 fn progress_is_persisted_in_the_existing_stream_shape() {
     let value = ProgressRecord::ToolStart {
         id: "call-1".to_string(),
-        name: "cos_fs".to_string(),
+        name: "yu_fs".to_string(),
     }
     .to_stream_value();
     assert_eq!(value["kind"], "tool_start");
     assert_eq!(value["id"], "call-1");
-    assert_eq!(value["name"], "cos_fs");
+    assert_eq!(value["name"], "yu_fs");
 
     let value = ProgressRecord::ToolResult {
         id: "call-1".to_string(),
-        name: "cos_fs".to_string(),
+        name: "yu_fs".to_string(),
         ok: true,
         latency_ms: 12,
         bytes_returned: 512,
@@ -444,7 +444,7 @@ async fn completed_run_with_evidence_confidence_round_trips() {
             content: vec![
                 crate::agent::llm::types::ContentBlock::ToolUse {
                     id: "tool-1".into(),
-                    name: "cos_sysinfo".into(),
+                    name: "yu_sysinfo".into(),
                     input: serde_json::json!({}),
                 },
                 crate::agent::llm::types::ContentBlock::ToolResult {

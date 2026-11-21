@@ -7,16 +7,16 @@
 # Environment:
 #   ARCH     amd64 (default on x86_64 hosts) | arm64 (default on aarch64).
 #            See scripts/lib/arch.sh for the full architecture mapping.
-#            claw-os builds natively only — $ARCH must match the host arch.
+#            yuos builds natively only — $ARCH must match the host arch.
 #   FORMATS  Space-separated output formats. Default: "qcow2".
 #            Supported: qcow2, vmdk, vhdx, vhd, raw
 #            vhd is fixed-size and intended for Azure; vhdx is for Hyper-V.
 #   SIZE     Virtual disk size. Default: "8G". Image is sparse, so the
 #            actual file is much smaller (qcow2 typically ~2 GB for an
-#            8 GB disk with stock claw-os contents).
+#            8 GB disk with stock yuos contents).
 #   IMAGE_BASENAME
 #            Output basename without architecture or extension.
-#            Default: "claw-os-vm".
+#            Default: "yuos-vm".
 #   IMAGE_ROOTFS_FINALIZER
 #            Optional script run against the staged filesystem after rsync
 #            and before GRUB installation. Cloud targets use this to remove
@@ -45,7 +45,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ROOTFS="$PROJECT_DIR/build/claw-os-rootfs"
+ROOTFS="$PROJECT_DIR/build/yuos-rootfs"
 BUILD_DIR="$PROJECT_DIR/build"
 
 # Architecture mapping ($ARCH, $DEB_ARCH, $GRUB_EFI_TARGET, …). Defaults
@@ -54,7 +54,7 @@ source "$PROJECT_DIR/scripts/lib/arch.sh"
 
 # Output filenames are arch-suffixed so amd64 + arm64 builds coexist in
 # build/. The intermediate raw image is also suffixed to avoid races.
-IMAGE_BASENAME="${IMAGE_BASENAME:-claw-os-vm}"
+IMAGE_BASENAME="${IMAGE_BASENAME:-yuos-vm}"
 case "$IMAGE_BASENAME" in
     *[!A-Za-z0-9._-]*|"")
         echo "error: IMAGE_BASENAME must contain only letters, digits, '.', '_' or '-'" >&2
@@ -92,16 +92,16 @@ if [ -n "$missing" ]; then
 fi
 
 # 1. Build the rootfs (ARCH propagates via env).
-#    apt-source pre-configures the Claw OS apt repo so users can run
-#    `sudo apt update && sudo apt upgrade` to pull newer claw-os-* packages.
+#    apt-source pre-configures the Yu OS apt repo so users can run
+#    `sudo apt update && sudo apt upgrade` to pull newer yuos-* packages.
 #
 #    FEATURES is selected by the platform target. Example override for a
 #    desktop VMware image:
-#       FEATURES=base,cos-core,systemd,kernel,desktop,vmware,copilot-cli,grub-disk,vm,apt-source,local-user \
+#       FEATURES=base,yuos-core,systemd,kernel,desktop,vmware,copilot-cli,grub-disk,vm,apt-source,local-user \
 #       SIZE=16G FORMATS=vhdx ./build.sh vm
 FEATURES="${FEATURES:?disk-image builder requires a target-selected FEATURES profile}"
 if [ "${SKIP_ROOTFS:-0}" = 1 ]; then
-    # Reuse an existing build/claw-os-rootfs instead of rebuilding it — handy
+    # Reuse an existing build/yuos-rootfs instead of rebuilding it — handy
     # when iterating on the imaging/boot steps below without paying the
     # (desktop: 1–2 h) rootfs rebuild each time.
     [ -d "$ROOTFS" ] || { echo "error: SKIP_ROOTFS=1 but $ROOTFS does not exist — run once without it first" >&2; exit 1; }
@@ -445,23 +445,23 @@ elif [ "$ARCH" = "amd64" ]; then
 
 Test in QEMU (BIOS, default):
   qemu-system-x86_64 -m 2G -nographic \
-      -drive file=build/claw-os-vm-amd64.qcow2,format=qcow2,if=virtio
+      -drive file=build/yuos-vm-amd64.qcow2,format=qcow2,if=virtio
 
 Test in QEMU (UEFI, requires ovmf):
   qemu-system-x86_64 -m 2G -bios /usr/share/ovmf/OVMF.fd \
-      -drive file=build/claw-os-vm-amd64.qcow2,format=qcow2,if=virtio
+      -drive file=build/yuos-vm-amd64.qcow2,format=qcow2,if=virtio
 
 Hyper-V Gen 2 note:
   Gen 2 enables Secure Boot by default. Disable it before first boot:
-    Set-VMFirmware -VMName claw-os -EnableSecureBoot Off
+    Set-VMFirmware -VMName yuos -EnableSecureBoot Off
   Alternatively, attach to a Gen 1 VM (BIOS) — same .vhdx works.
 
 VMware:
   Build with the optional 'vmware' feature for guest resize / clipboard:
-    sudo FEATURES=base,cos-core,systemd,kernel,desktop,vmware,copilot-cli,grub-disk,vm,apt-source,local-user \
+    sudo FEATURES=base,yuos-core,systemd,kernel,desktop,vmware,copilot-cli,grub-disk,vm,apt-source,local-user \
       FORMATS=vmdk ./build.sh vm
   Then create a new VM, choose "I will install the OS later", point the
-  existing virtual disk at build/claw-os-vm-amd64.vmdk.
+  existing virtual disk at build/yuos-vm-amd64.vmdk.
 EOF
 else
     cat <<'EOF'
@@ -469,17 +469,17 @@ else
 Test in QEMU (UEFI, requires AAVMF):
   qemu-system-aarch64 -M virt -cpu max -m 2G \
       -bios /usr/share/AAVMF/AAVMF_CODE.fd \
-      -drive file=build/claw-os-vm-arm64.qcow2,format=qcow2,if=virtio \
+      -drive file=build/yuos-vm-arm64.qcow2,format=qcow2,if=virtio \
       -nographic
 
 UTM (Apple Silicon):
   New → Virtualize → Linux → "Import VHD/QCOW2/IMG/RAW image" →
-  point at build/claw-os-vm-arm64.qcow2. Architecture: ARM64.
+  point at build/yuos-vm-arm64.qcow2. Architecture: ARM64.
   Use UEFI boot (default).
 
 Parallels / VMware Fusion (Apple Silicon):
   For VMware guest resize / clipboard, build with the optional 'vmware' feature:
-    sudo FEATURES=base,cos-core,systemd,kernel,desktop,vmware,copilot-cli,grub-disk,vm,apt-source,local-user \
+    sudo FEATURES=base,yuos-core,systemd,kernel,desktop,vmware,copilot-cli,grub-disk,vm,apt-source,local-user \
       FORMATS=vmdk ./build.sh vm
   Then create a new ARM Linux VM, attach the .vmdk as the existing disk.
 EOF

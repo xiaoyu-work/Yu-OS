@@ -2,18 +2,18 @@
 
 ## Purpose
 
-`core/src/worker/` is the single definition of how Claw OS runs code it
+`core/src/worker/` is the single definition of how Yu OS runs code it
 did not write. Python and polyglot App operations, GUI App surfaces,
 App Mesh services, external MCP servers, adapters and model-authored commands
 are all launched through it, under the same enforceable namespace,
 seccomp, cgroup, filesystem and network policy.
 
 There is no second isolation implementation. `crate::sandbox`
-(`cos_sandbox`), `crate::bridge` (Apps, GUI surfaces and App Mesh
+(`yu_sandbox`), `crate::bridge` (Apps, GUI surfaces and App Mesh
 services) and `crate::agent::tools::mcp::integration` (external MCP servers and
 adapters) are consumers of this module, not peers of it.
 
-The `clawd` service permits Netlink so Bubblewrap can initialize loopback in
+The `yuosd` service permits Netlink so Bubblewrap can initialize loopback in
 the new network namespace. The installed worker and GUI seccomp filters still
 refuse Netlink in App and untrusted worker code.
 
@@ -41,7 +41,7 @@ No product-specific USER/SHELL override or raw host passwd mount is supplied.
 | `AppOperation` | one manifest operation | yes | no | brokered, exact hosts |
 | `DesktopSurface` | one declared default/named GUI entry and its literal selector | yes | yes | brokered, exact hosts |
 | `McpServer` | App Mesh services, configured MCP servers, and adapters | yes | no | denied |
-| `AgentExec` | `cos_sandbox exec` | yes | no | brokered, exact hosts |
+| `AgentExec` | `yu_sandbox exec` | yes | no | brokered, exact hosts |
 | `TrustedDesktopSession` | the fixed vendor App session servers that need the session bus | yes | one exact socket | denied |
 
 The tier is assigned by trusted code from how the worker is
@@ -100,7 +100,7 @@ their separate admission checks.
 ## Protected App registration
 
 All ordinary launchers, including UID 0, and supervised Hosts use the
-authenticated broker. Root cannot run an App independently of `clawd` or
+authenticated broker. Root cannot run an App independently of `yuosd` or
 select a separate local registration backend. A routed owner override cannot
 be forwarded as the launcher's kernel identity and therefore remains refused;
 supervised Hosts retain their private owner-bound broker.
@@ -116,7 +116,7 @@ resource admission. Legacy native registration is retired and cannot mint
 a session; Native Messaging's App child uses the ordinary stdio route.
 
 ```bash
-cargo test -p yu --lib -- bridge::local::tests clawd::client::tests --test-threads=1
+cargo test -p yu --lib -- bridge::local::tests yuosd::client::tests --test-threads=1
 ```
 
 The ignored `root_local_registration_requires_protected_owner_review` fixture
@@ -128,7 +128,7 @@ code and never uses real user state or the installed broker. Use a distinct
 ## Declared App stdio
 
 Captured Python and polyglot ordinary operations also use the trusted
-`claw-app-runner` launch gate. The parent releases its private 32-byte token
+`yuos-app-runner` launch gate. The parent releases its private 32-byte token
 only after the exact child session is bound; a denied or delayed bind cannot
 run App code first. The gate is consumed before exec and is not charged to
 the App input limit. Original stdin bytes and EOF behavior remain unchanged.
@@ -175,8 +175,8 @@ completion blocks Store replacement explicitly.
 The explicit real-runner check is:
 
 ```bash
-cargo build -p yu --bin claw-app-runner --locked
-COS_CAPTURED_TEST_RUNNER="$PWD/target/debug/claw-app-runner" \
+cargo build -p yu --bin yuos-app-runner --locked
+YUOS_CAPTURED_TEST_RUNNER="$PWD/target/debug/yuos-app-runner" \
   cargo test -p yu --lib bridge::captured::tests::process \
   -- --ignored --nocapture --test-threads=1
 ```
@@ -184,8 +184,8 @@ COS_CAPTURED_TEST_RUNNER="$PWD/target/debug/claw-app-runner" \
 `scripts/ci/test-boundaries.sh app-bind` selects both real-runner cases and the
 six ignored `extension_host::spawn::task_data::tests::store_custody` process
 cases. They require Root, private mount/network namespaces, writable cgroup v2,
-ptrace/pidfd support, ACL tools, and `COS_ORDINARY_TEST_COS` /
-`COS_ORDINARY_TEST_RUNNER` pointing at the matching compiled OS binaries.
+ptrace/pidfd support, ACL tools, and `YUOS_ORDINARY_TEST_YU` /
+`YUOS_ORDINARY_TEST_RUNNER` pointing at the matching compiled OS binaries.
 Each case runs in its own process with isolated synthetic NSS accounts, signed
 packages and trust, an empty private dpkg database, and project-local backing
 data. They exercise standalone and Task Host execution through the protected
@@ -233,15 +233,15 @@ from stdio admission. It supplies no unconfined native-host authority.
 
 ## Runtime directories
 
-Per-launch sockets prefer `XDG_RUNTIME_DIR/cos-worker`. Without a usable XDG
+Per-launch sockets prefer `XDG_RUNTIME_DIR/yuos-worker`. Without a usable XDG
 runtime directory, routed/owner-scoped launches use the owner's user data
-directory, not the broker's `COS_DATA_DIR`; ordinary unscoped launches retain
+directory, not the broker's `YUOS_DATA_DIR`; ordinary unscoped launches retain
 their existing data-directory fallback. Runtime directories remain private
 and are removed when the launch ends.
 
 ## Policy derivation
 
-GUI policies require the Root-owned [GUI Host](../clawd/gui/MODULE.md) and its
+GUI policies require the Root-owned [GUI Host](../yuosd/gui/MODULE.md) and its
 explicit instance transport. `app_operation(desktop=true)` is refused before
 creating App state; inherited display, X11, Panel and session-bus environment
 cannot select this authority. `gui_operation` projects only the private Wayland
@@ -264,7 +264,7 @@ user acknowledgement/dismissal, separately from delivery receipts.
 Media Player remains a normal hostile MCP worker, with no session bus or
 GUI transport. Its exact named observation/control grants only admit the
 typed OS media route; the owner/App-bound provider rechecks them at dispatch.
-The real native fixture in `clawd::media_player` exercises derived strict
+The real native fixture in `yuosd::media_player` exercises derived strict
 policy, this module's actual private relay, typed authority and live native
 MPRIS state without touching the user's session.
 
@@ -289,17 +289,17 @@ Mounts come from the capabilities the authority already granted:
   `**/c`, `*.txt`) mount nothing, so a capability check can pass and the
   path still does not exist;
 - a scope resolving into a kernel-owned root or a credential store
-  (`/proc`, `/sys`, `/run/cos`, `/var/lib/cos`, `~/.ssh`, `~/.gnupg`, …)
+  (`/proc`, `/sys`, `/run/yuos`, `/var/lib/yuos`, `~/.ssh`, `~/.gnupg`, …)
   fails the launch instead of being silently skipped.
 
 Protected-root checks also reject canonical aliases of credential stores in
 the submitting owner's home. The shared broker check takes that home from
 authenticated owner identity rather than the root daemon's `HOME`.
-`system.file.replace` has a narrow `fs.write` admission rule; clawd still
+`system.file.replace` has a narrow `fs.write` admission rule; yuosd still
 requires both exact target read/write capabilities. It does the atomic rename
 outside the sandbox, without changing any of the mount rules above.
 The launch endpoint and its local policy/memory clients use the same broker
-protocol version as clawd. Both request version and response correlation are
+protocol version as yuosd. Both request version and response correlation are
 checked; a forwarded successful mutation must not become an unusable v1 reply.
 When the launcher is a leased Agent task, its process-local App-host gateway
 forwards only the closed control methods. Package liveness is checked at root,
@@ -319,7 +319,7 @@ Granted paths are mounted at the *same absolute path* they have on the
 host, so the argument the App receives, the scope the authority granted,
 and the path inside the sandbox are one string.
 
-An operation also gets a writable **App data partition**: `COS_DATA_DIR`
+An operation also gets a writable **App data partition**: `YUOS_DATA_DIR`
 is `<owner-data-root>/apps/<app-id>`, created `0700` and bound at that
 same path. The owner's data root itself — credentials, sessions, the
 journal, every other App's partition — is never mounted.
@@ -335,7 +335,7 @@ requires that returned data binding before deriving either Python or other
 ordinary workers; no Host-private temporary-store fallback is selected.
 
 App-owned common
-support and OS SDK/runtime use the existing read-only `/usr/lib/cos/python`
+support and OS SDK/runtime use the existing read-only `/usr/lib/yuos/python`
 runtime root, with an explicit staged equivalent in integration fixtures.
 The optional sibling `_shared` mounts in `derive.rs` remain legacy installed
 compatibility only; current pinned Apps do not require them, and no OS helper
@@ -370,7 +370,7 @@ Root-owned launchers compare migration files with the authenticated routed
 owner, not Root's execution UID. Marker reads reject aliases, hard links,
 foreign ownership and invalid/oversized versions. Marker publication uses a
 private newly created file and mandatory directory sync; an old predictable
-`.cos-state-version.new` path is never opened or followed.
+`.yuos-state-version.new` path is never opened or followed.
 
 Two owner-private stores stay outside on purpose and are reached through
 the broker instead of a bind:
@@ -395,7 +395,7 @@ capability-derived mount are bound into the call ticket. Session derivation
 must reproduce that exact snapshot, then the provider performs the descriptor
 pin above. A symlink or inode replacement anywhere between authorization and
 `exec` therefore refuses the call instead of changing what enters the sandbox.
-The resource sandbox first runs only the trusted `claw-app-runner`, blocked on
+The resource sandbox first runs only the trusted `yuos-app-runner`, blocked on
 its parent-owned stdin gate. The Host binds that process and consumes the
 single-use daemon ticket before releasing it to `exec` any package code, so
 neither module initialization nor an MCP handshake can race ahead of the
@@ -412,7 +412,7 @@ because it is how the SDK reaches the broker; the domain is checked in
 the BPF program, on both words of the argument.
 
 An operation granted exact hosts receives one Unix-domain socket at
-`COS_EGRESS_SOCKET`. `cos_runtime.egress` is its only client: it issues
+`YUOS_EGRESS_SOCKET`. `yuos_runtime.egress` is its only client: it issues
 a bounded `CONNECT`, and the broker — outside the sandbox — matches the
 request against the grant, resolves the name itself, refuses every
 answer that is not globally routable, and connects to the address it
@@ -457,10 +457,10 @@ an independent shorter query deadline must also terminate its process.
 Bundled consumers use App-owned `shared/python/_shared/safe_http.py` and
 `shared/python/gateway/_shared/safe_egress.py`, the `calendar`, `search` and
 `email` HTTP paths, and both SMTP senders (`email` and `gateway-email`) via
-OS `cos_runtime.smtp`. Each uses the broker
+OS `yuos_runtime.smtp`. Each uses the broker
 inside a sandbox and its ordinary pinned dial outside one.
 `netdiag` never receives a network transport. Its MCP worker submits a
-closed diagnostic request through the per-launch relay; `clawd` reads the
+closed diagnostic request through the per-launch relay; `yuosd` reads the
 host interface and route view, resolves the exact authorized target, and
 performs bounded TCP probes against that one resolution.
 The App repository's `tests/shared/test_no_direct_network.py` contract rejects
@@ -474,7 +474,7 @@ isolation; they mount neither App nor OS source checkouts.
 older than 0.8 (no `--disable-userns`), unprivileged user namespaces
 are disabled, seccomp is unavailable, no resource governor can be
 established, the policy does not validate, or a mount source is a
-symlink, socket, FIFO or device node. `cos` on a non-Linux host refuses
+symlink, socket, FIFO or device node. `yu` on a non-Linux host refuses
 every hostile-worker launch outright.
 
 Resource governance prefers a per-launch cgroup v2 scope, which gives
@@ -487,7 +487,7 @@ is enforced.
 
 ## Authority
 
-A sandboxed worker never sees `/run/cos/clawd.sock`. It sees the
+A sandboxed worker never sees `/run/yuos/yuosd.sock`. It sees the
 per-launch broker endpoint bind-mounted at that path, which:
 
 - accepts only connections whose `SO_PEERCRED` uid is the worker's;
@@ -496,22 +496,22 @@ per-launch broker endpoint bind-mounted at that path, which:
   launchers read their routed registry row. Thus a
   transient capability set for one MCP tool call appears and disappears
   with that call — which is what `yu __policy check`, and therefore
-  `cos_runtime.policy`, needs inside the sandbox;
+  `yuos_runtime.policy`, needs inside the sandbox;
 - refuses identity, consent, journal and scheduler routes outright;
 - refuses every route with no admission rule, and prechecks the rest
   against a verb the launch actually holds;
-- relays what is left through `clawd`'s `app_session.relay` route, one
+- relays what is left through `yuosd`'s `app_session.relay` route, one
   request per connection, with the shared current broker envelope, a bounded
   frame, explicit deadlines, and the inner route's error classification intact.
 
 **The endpoint's checks authorize nothing.** They are a cheap early
 refusal so an obviously unauthorized call costs no round trip. Every
-relayed call is decided by `clawd`: the inner route's typed body is
+relayed call is decided by `yuosd`: the inner route's typed body is
 decoded by the one route registry, the *live* App workload grant is
 resolved, the route's own authority decision is taken, and the owning
 provider spends the exact capability before any effect happens.
 
-The launcher can present that session grant because `clawd` issued it a
+The launcher can present that session grant because `yuosd` issued it a
 **relay grant** when the session was bound — no capabilities of its own,
 `Process`-bound to the launcher, naming one session, in the `AppRelay`
 audience alone, derived from the launch grant so `deregister` revokes it
@@ -525,7 +525,7 @@ its `Process` binding.
 
 ## Dependencies
 
-Depends on `crate::caps` for the capability vocabulary, `crate::clawd`
+Depends on `crate::caps` for the capability vocabulary, `crate::yuosd`
 for the broker wire format, `crate::paths` for kernel-owned locations
 and `crate::audit` for the decision log. Nothing in `worker/` depends
 on a consumer.

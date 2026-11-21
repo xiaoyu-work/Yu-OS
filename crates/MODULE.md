@@ -9,37 +9,37 @@ CLI, semantic, and embedding surfaces.
 
 - Isolate reusable binaries/libraries from the core dispatcher.
 - Maintain explicit Cargo package boundaries.
-- Preserve vendored Obscura internals separately from first-party Claw crates.
+- Preserve vendored Obscura internals separately from first-party Yu OS crates.
 
 ## Key Files
 
 | Path | Role |
 | --- | --- |
-| `claw-embed/` | Reusable embedding, extraction, chunking, walking, and storage contracts |
-| `claw-semantic/` | Filesystem semantic daemon, config, service orchestration, and CLI |
-| `clawd-client/` | Unprivileged typed broker discovery, framing, envelopes, deadlines, and errors |
-| `claw-compositor/` | OS-private native compositor enforcement bridge; no Agent or App capability authority |
-| `cos-cli/` | First-party CLI tooling |
+| `yuos-embed/` | Reusable embedding, extraction, chunking, walking, and storage contracts |
+| `yuos-semantic/` | Filesystem semantic daemon, config, service orchestration, and CLI |
+| `yuosd-client/` | Unprivileged typed broker discovery, framing, envelopes, deadlines, and errors |
+| `yuos-compositor/` | OS-private native compositor enforcement bridge; no Agent or App capability authority |
+| `yuos-cli/` | First-party CLI tooling |
 | `obscura-*/` | Vendored browser-engine internals |
 | `../Cargo.toml` | Workspace membership and shared dependencies |
 
 ## Dependencies
 
-Core and `claw-semantic` depend on `claw-embed`; the primitives crate does not
+Core and `yuos-semantic` depend on `yuos-embed`; the primitives crate does not
 import daemon or core orchestration. Core depends on crate APIs; focused crates
 do not import core orchestration.
-`claw-embed::SemanticStore::get` reads a namespace/key without an embedding call.
+`yuos-embed::SemanticStore::get` reads a namespace/key without an embedding call.
 `SemanticStore::open_read_only` permits owner inspection without creating a
 database, migrating schema or constructing an embedder.
 Its model-backed search checks model identity, dimensions and vector integrity
 before returning similarity-ranked candidates; raw precomputed-vector queries
 retain the caller-managed vector-space contract.
 
-Personal-file indexing uses `claw-semantic/src/indexer.rs` and the same SQLite
+Personal-file indexing uses `yuos-semantic/src/indexer.rs` and the same SQLite
 `SemanticStore`, not the historical `StubEmbedder` JSON corpus. The versioned
-`claw-embed::local` pipe delegates fixed Qwen3 CPU inference to `cos`; these
+`yuos-embed::local` pipe delegates fixed Qwen3 CPU inference to `yu`; these
 leaf crates do not import core or select a cloud provider. The shared
-`claw-embed::file_source` helpers pin every path component without symlinks.
+`yuos-embed::file_source` helpers pin every path component without symlinks.
 Callers still supply owner identity and sharing policy.
 
 Each complete file source is replaced atomically after all embeddings exist
@@ -57,7 +57,7 @@ text is extracted. Effective file chunks are capped at 448 characters for the
 sizes. Missing models, runtime, unsupported sources and watcher errors are
 explicit; there is no cloud or fake-vector fallback.
 
-Desktop broker consumers depend on `clawd-client`; the client contains no
+Desktop broker consumers depend on `yuosd-client`; the client contains no
 desktop UI or privileged broker implementation.
 System-review commands authenticate the connected Unix peer as root before
 sending a request. A socket override or an approved-looking JSON response from

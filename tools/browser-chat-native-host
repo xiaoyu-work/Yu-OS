@@ -54,7 +54,7 @@ def read_endpoint() -> tuple[int, str]:
     runtime = Path(os.environ.get("XDG_RUNTIME_DIR", ""))
     if uid == 0 or runtime.resolve() != Path(f"/run/user/{uid}"):
         raise ValueError("Browser chat requires the current desktop user's runtime directory.")
-    directory = runtime.resolve() / "cos-agent-bridge"
+    directory = runtime.resolve() / "yuos-agent-bridge"
     for path in (directory.parent, directory):
         info = path.lstat()
         if not stat.S_ISDIR(info.st_mode) or info.st_uid != uid or info.st_mode & 0o077:
@@ -156,7 +156,7 @@ def main() -> None:
     try:
         port, token = read_endpoint()
     except FileNotFoundError:
-        raise ValueError("Desktop Agent bridge is not running. Open the Claw Agent desktop app and try again.") from None
+        raise ValueError("Desktop Agent bridge is not running. Open the Yu OS Agent desktop app and try again.") from None
     threading.Thread(target=exit_on_disconnect, daemon=True).start()
     connection = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
     try:

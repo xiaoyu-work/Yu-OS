@@ -42,8 +42,8 @@ fn extension_binding() -> crate::extension_host::protocol::ExtensionBinding {
         host_start_time_ticks: Some(2),
         lease_nonce: "0123456789abcdef0123456789abcdef".to_string(),
         expires_at_ms: u64::MAX,
-        control_socket: "/run/cos/extensions/control.sock".to_string(),
-        broker_socket: "/run/cos/extensions/broker.sock".to_string(),
+        control_socket: "/run/yuos/extensions/control.sock".to_string(),
+        broker_socket: "/run/yuos/extensions/broker.sock".to_string(),
     }
 }
 
@@ -199,7 +199,7 @@ async fn routed_curator_context_survives_detached_spawn() {
     let root = tempfile::tempdir().unwrap();
     let home = root.path().join("owner-home");
     std::fs::create_dir_all(&home).unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", root.path());
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", root.path());
     let owner_uid = 4242;
     let context = crate::paths::with_routed_job(crate::paths::with_user_override(
         owner_uid,
@@ -213,7 +213,7 @@ async fn routed_curator_context_survives_detached_spawn() {
         .join("memory")
         .join("curation_log.json");
     let notes = crate::agent::memory::notes::NotesStore::at(owner_root.join("agent").join("notes"));
-    let mut config = crate::config::CosConfig::default();
+    let mut config = crate::config::YuConfig::default();
     config.agent.provider = "openai".into();
     config.agent.model = "gpt-4o-mini".into();
     config.agent.api_key_env = Some("OPENAI_API_KEY".into());
@@ -255,7 +255,7 @@ async fn routed_curator_context_survives_detached_spawn() {
     assert_eq!(observed.2, owner_root.join("agent").join("notes"));
     assert_eq!(
         observed.3,
-        home.join(".config").join("cos").join("config.json")
+        home.join(".config").join("yuos").join("config.json")
     );
     assert_eq!(observed.4, Some(owner_uid));
     assert!(observed.5);
@@ -429,8 +429,8 @@ fn activity_denial_precedes_consent_and_standing_caps_do_not_bypass_exact_confir
     use crate::activities::CapabilityBoundaryDecision as Boundary;
     let _lock = crate::test_env::lock_env();
     let data = tempfile::tempdir().unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", data.path());
-    let _mode = crate::test_env::TestEnvVarGuard::set("COS_PERMS_MODE", "strict");
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
+    let _mode = crate::test_env::TestEnvVarGuard::set("YUOS_PERMS_MODE", "strict");
     struct ResetGateway;
     impl Drop for ResetGateway {
         fn drop(&mut self) {
@@ -785,7 +785,7 @@ fn losing_the_channel_refuses_every_waiter() {
         }
         std::thread::sleep(Duration::from_millis(5));
     }
-    state.refuse_all("clawd closed the agent worker channel");
+    state.refuse_all("yuosd closed the agent worker channel");
     assert!(handle.join().expect("join").is_err());
 }
 
@@ -1090,7 +1090,7 @@ fn a_hand_started_worker_has_no_channel() {
     let previous = std::env::var_os(protocol::CHANNEL_FD_ENV);
     std::env::remove_var(protocol::CHANNEL_FD_ENV);
     let error = adopt_channel().expect_err("a worker without a channel must refuse to start");
-    assert!(error.contains("must be started by clawd"), "{error}");
+    assert!(error.contains("must be started by yuosd"), "{error}");
 
     // A caller cannot redirect the channel to a descriptor of its own
     // choosing either.

@@ -11,19 +11,19 @@ verified.
 This document describes the format, the trust model, the install
 pipeline and the operator/developer workflows.
 
-## The envelope: `claw.provenance/v1`
+## The envelope: `yuos.provenance/v1`
 
 A package is a directory. Its envelope lives at `.provenance.json`
 inside that directory:
 
 ```json
 {
-  "schema": "claw.provenance/v1",
+  "schema": "yuos.provenance/v1",
   "package": {
     "kind": "app",
     "id": "notes",
     "version": "1.2.0",
-    "manifest_schema": "cos.app-manifest/v1",
+    "manifest_schema": "yuos.app-manifest/v1",
     "manifest_path": "app.json",
     "entrypoints": ["main.py"],
     "resources": [],
@@ -65,7 +65,7 @@ What the signature binds:
 The message is a length-prefixed, domain-separated encoding: every
 field is written as `u32le(key.len()) || key || u64le(value.len()) ||
 value`, preceded by the domain separator
-`claw-provenance/v1\0package-envelope\0`. The encoding is injective —
+`yuos-provenance/v1\0package-envelope\0`. The encoding is injective —
 `id="ab", version="c"` and `id="a", version="bc"` produce different
 bytes — so no value can be shifted across a field boundary.
 
@@ -85,10 +85,10 @@ modes, directories with non-zero size, and any envelope over 8 MiB.
 
 | Tier | Root | Required owner |
 | --- | --- | --- |
-| `vendor` | `/usr/lib/cos/trust/publishers.d` | `root` |
-| `system` | `/etc/cos/trust/publishers.d` | `root` |
-| `user` | `~/.config/cos/trust/publishers.d` | the owner |
-| `developer` | `~/.config/cos/trust/developer.d` | the owner |
+| `vendor` | `/usr/lib/yuos/trust/publishers.d` | `root` |
+| `system` | `/etc/yuos/trust/publishers.d` | `root` |
+| `user` | `~/.config/yuos/trust/publishers.d` | the owner |
+| `developer` | `~/.config/yuos/trust/developer.d` | the owner |
 
 A root contributes nothing unless it *and every ancestor up to `/`* is
 a non-symlink directory owned by the required uid and free of group and
@@ -97,12 +97,12 @@ the sticky bit. A rejected root is reported as a diagnostic
 (`yu provenance trust list`), never skipped silently.
 
 The per-user roots resolve from the **passwd home of the effective
-uid**, not from `HOME` or `COS_USER_CONFIG_DIR`. There is deliberately
+uid**, not from `HOME` or `YUOS_USER_CONFIG_DIR`. There is deliberately
 no environment variable that appends a trust root, relaxes the
 ownership checks or disables verification, and no model-reachable
 surface that can add one.
 
-The vendor and operator roots share `/etc/cos/trust/state.json`. Agent package
+The vendor and operator roots share `/etc/yuos/trust/state.json`. Agent package
 configuration records the system generation after installing vendor keys,
 before starting the broker. After intentionally changing operator publisher
 files, an administrator must run `sudo yu provenance trust record-system`.
@@ -142,7 +142,7 @@ disclosure or attach without restarting.
 `yu provenance trust revoke` writes to the caller's own trust root —
 the uid comes from `geteuid`, the directory from that uid's verified
 passwd home — so one user can never revoke, or restore, another user's
-trust. System-wide roots under `/etc/cos` and `/usr/lib/cos` are
+trust. System-wide roots under `/etc/yuos` and `/usr/lib/yuos` are
 root-owned and managed by the package manager.
 
 ### What happens to something already running
@@ -153,7 +153,7 @@ hours. Authority denial and checked resource retirement are separate outcomes:
 | | Guarantee | Where |
 | --- | --- | --- |
 | **On use** | The *next* authority call fails. Not "soon" — the call in front of it. | `provenance::runtime::assert_live` on the capability path, the worker broker endpoint, `app_session.relay`, and every MCP/App-session tool call |
-| **App retirement** | Root retains ordinary/GUI/MCP/data-view custody and awaits its existing checked barriers. Failure remains pending, not reusable. | `clawd::trust_withdrawal` and the shared App retirement controller |
+| **App retirement** | Root retains ordinary/GUI/MCP/data-view custody and awaits its existing checked barriers. Failure remains pending, not reusable. | `yuosd::trust_withdrawal` and the shared App retirement controller |
 | **Other package resources** | The App reconciliation receipt does not certify their retirement. | Reported separately as unknown unless their own supervisor has checked them |
 
 Neither waits for a grant to expire and neither needs a daemon restart.
@@ -209,9 +209,9 @@ key id it came from and its supporting trust-context UID, plus the owner uid, pi
 and cgroup of the child once it is bound.
 
 The record is addressed by an **explicit owner uid**, never by whatever
-path view the current process happens to be in, so a direct `cos` run,
-the `agentd` supervisor and `clawd` acting for that owner all name the
-same file: `/run/cos/caps/<uid>/provenance-running.json` when the
+path view the current process happens to be in, so a direct `yu` run,
+the `agentd` supervisor and `yuosd` acting for that owner all name the
+same file: `/run/yuos/caps/<uid>/provenance-running.json` when the
 daemon's routed partition exists (root-owned, so a session cannot
 rewrite its own provenance), and an owner-qualified file in the owner's
 own data directory when it does not. Reads and writes both take a
@@ -254,7 +254,7 @@ An out-of-process Agent extension uses package kind `extension`, manifest
 `extension.json`, and only entrypoints declared in the authenticated envelope.
 Activation is explicit through `agent.extensions`; discovery alone never runs
 code. The worker verifies the installed package through the shared
-`VerifiedPackage` API, and `claw-extension-host` independently re-verifies that
+`VerifiedPackage` API, and `yuos-extension-host` independently re-verifies that
 same installed identity and digest before materializing its task-private
 snapshot. Neither process re-reads a mutable manifest after verification.
 
@@ -273,7 +273,7 @@ stdio service. Its package and authority are bound independently:
 
 1. Discovery verifies the complete signed App package before trusting
    `app.json`, tool schemas, access rules, or entrypoint metadata.
-2. The bridge passes the resulting `PackageRef` to `clawd`; the daemon
+2. The bridge passes the resulting `PackageRef` to `yuosd`; the daemon
    independently re-discovers the installed App and requires the id,
    version, digest, publisher, and trust generation to match.
 3. `mcp.entry` must be a declared signed entrypoint. Merely appearing in
@@ -297,11 +297,11 @@ are the JSON-RPC transport rather than captured output. It gets the
 `McpServer` tier: private mount, PID, IPC, UTS, user, and network
 namespaces; strict seccomp; a cgroup or rlimit governor; a read-only
 package; its own App data partition; no direct egress; and a
-per-launch broker endpoint shadowing the real `clawd` socket. A host
+per-launch broker endpoint shadowing the real `yuosd` socket. A host
 that cannot enforce the policy refuses the launch.
 
 The service's at-rest grant cannot perform one tool call's privileged
-work. For each authenticated call, `clawd` installs a separate
+work. For each authenticated call, `yuosd` installs a separate
 deadline-bound `AppGateway` grant derived from that exact tool and
 effective arguments, then clears it on completion, error, timeout,
 cancellation, or teardown. Caller `agent.invoke` authority is never
@@ -370,7 +370,7 @@ the dormant `TrustedDesktopSession` transport implementation.
 
 The retained transport code, if explicitly enabled by a future reviewed kernel
 row, would authenticate an exact socket before binding it at the fixed private
-`/run/cos/session-bus` path. Its existing fail-closed invariants are:
+`/run/yuos/session-bus` path. Its existing fail-closed invariants are:
 
 * the owner uid comes from the launch identity, never from a variable,
   and root is refused outright;
@@ -387,7 +387,7 @@ row, would authenticate an exact socket before binding it at the fixed private
   control bytes are all refused;
 * the resolved path must be `<runtime>/bus`, and `lstat` — never
   following a symlink — must show a Unix socket owned by that uid.
-  Claw OS's own endpoints are refused by name as well as by location;
+  Yu OS's own endpoints are refused by name as well as by location;
 * the socket is pinned by `(dev, ino)` like every other authenticated
   mount, so one replaced between derivation and `execve` fails the
   launch rather than being bound.
@@ -397,7 +397,7 @@ best-effort address.
 
 **A session bus would expand the TCB and would not be filtered.** A
 process holding that socket can talk to every service the owner's
-session exposes, and Claw OS does not inspect method calls inside it.
+session exposes, and Yu OS does not inspect method calls inside it.
 Neither a transport nor the fixed executable classification is something a
 package can ask for. `worker::trusted_desktop::classify` accepts the installed
 executable only when *all* of these
@@ -441,8 +441,8 @@ keep honouring trust that was withdrawn while it was running.
 1. **Publisher signature** — a valid envelope signed by a trusted,
    non-revoked key. This is the only route for user-installed content.
 2. **Vendor (package-manager) trust** — the package sits under an
-   approved root (`/usr/lib/cos`, `/usr/share/cos`, `/usr/lib/claw`,
-   `/usr/share/claw`) where every path component is root-owned,
+   approved root (`/usr/lib/yuos`, `/usr/share/yuos`, `/usr/lib/yuos`,
+   `/usr/share/yuos`) where every path component is root-owned,
    non-symlink and not group/world-writable. The tree digest is still
    computed and pinned in `<data_dir>/provenance/vendor-pins.json`; a
    change rotates the pin and writes a `provenance.vendor_pin_rotated`
@@ -569,8 +569,8 @@ Developer content is additionally refused:
 
 ### Where the ceiling is enforced
 
-`clawd` is the enforcement point, not the launcher.
-`clawd::app_sessions` resolves the ceiling from **its own** verified
+`yuosd` is the enforcement point, not the launcher.
+`yuosd::app_sessions` resolves the ceiling from **its own** verified
 package on every `app_session.register`, `bind` and `set_transient`, and
 clamps the fully resolved capability plan immediately before
 `authorize_plan`, before the session row is written and before any grant
@@ -578,13 +578,13 @@ is minted. The clamp runs *ahead of* the approvals store, so a package
 outside its tier can never consume a user approval for a capability it
 could not hold anyway.
 
-`app_session.register` returns the set `clawd` actually granted. The
+`app_session.register` returns the set `yuosd` actually granted. The
 launcher adopts that answer for its sandbox policy and refuses to launch
 if it is wider than the ceiling it computed independently, so the
 isolation shape and the live grant always describe the same world. The
 launcher applies the same clamp locally as defence in depth, but it does
 so silently: the `provenance.ceiling_applied` audit record is written by
-`clawd`, where authority is actually withheld, rather than by
+`yuosd`, where authority is actually withheld, rather than by
 unprivileged code claiming a restriction it did not enforce.
 
 Whatever the ceiling removes is written to the provenance audit log, so
@@ -613,17 +613,17 @@ rather than dropped:
 
 ```bash
 # One-time: create a signing key. Never commit this file.
-yu provenance keygen --out ~/.secrets/claw-release.json --comment "release 2026"
+yu provenance keygen --out ~/.secrets/yuos-release.json --comment "release 2026"
 
 # Publish the printed `trust_entry` object into a trust root:
-#   packaging/deb/claw-os-agent/trust/publishers.d/<name>.json  (vendor)
-#   /etc/cos/trust/publishers.d/<name>.json                     (operator)
+#   packaging/deb/yuos-agent/trust/publishers.d/<name>.json  (vendor)
+#   /etc/yuos/trust/publishers.d/<name>.json                     (operator)
 #   yu provenance trust add --file <entry.json>                (per-user)
 
 # Sign a package tree.
 yu provenance sign \
   --kind app --id notes --version 1.2.0 \
-  --path ./notes --key ~/.secrets/claw-release.json \
+  --path ./notes --key ~/.secrets/yuos-release.json \
   --entrypoint main.py
 
 # Confirm it authenticates against the active trust store.
@@ -641,7 +641,7 @@ yu provenance trust revoke --key-id sha256:…
 yu provenance trust revoke --digest sha256:…
 yu provenance artifacts --kind app --id notes
 yu provenance rollback --kind app --id notes \
-    --digest sha256:… --dest /usr/lib/cos/apps/notes
+    --digest sha256:… --dest /usr/lib/yuos/apps/notes
 ```
 
 Rollback re-verifies the retained artifact before activating it, so it
@@ -700,7 +700,7 @@ Standalone `yu provenance dev-trust` still demands, in order:
 
 `--yes` does **not** satisfy this and never will; passing it only logs
 that it was ignored. Automation that genuinely needs unsigned content
-uses an **offline signed developer grant**: a `claw.trust-dev/v1` file
+uses an **offline signed developer grant**: a `yuos.trust-dev/v1` file
 produced on a workstation and copied into the developer root. That is a
 deliberate, auditable artifact rather than a runtime flag.
 
@@ -735,7 +735,7 @@ server or a script cannot escalate unsigned code into trusted code, and
 so the human decision is recorded and visible afterwards.
 
 There is no ambient environment flag. The former
-`COS_SKILLS_REQUIRE_SIGNATURE` / `COS_SKILLS_TRUSTED_KEYS` opt-in has
+`YUOS_SKILLS_REQUIRE_SIGNATURE` / `YUOS_SKILLS_TRUSTED_KEYS` opt-in has
 been removed: signature verification is mandatory, and a `signature:`
 block in SKILL.md frontmatter is now a hard parse error pointing at
 `yu provenance sign` (that scheme authenticated the frontmatter but
@@ -755,8 +755,8 @@ grandfathered:
 
 | Content | Behaviour after upgrade |
 | --- | --- |
-| Apps under `/usr/lib/cos/apps` | Continue through vendor trust; digest pinned on first use. |
-| Skills under `/usr/lib/cos/skills` | Same. |
+| Apps under `/usr/lib/yuos/apps` | Continue through vendor trust; digest pinned on first use. |
+| Skills under `/usr/lib/yuos/skills` | Same. |
 | User-installed Apps/Skills/MCP packages | Quarantined with an actionable message: re-install a signed package, or record a developer grant. |
 | Loose `*.json` agent-API manifests outside an approved package root | Refused; install a signed package directory instead. |
 | App data under `<data_dir>/apps/<id>` | Untouched — data is kept separate from the code artifact, so re-installing or rolling back never destroys it. |

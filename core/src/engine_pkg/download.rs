@@ -68,7 +68,7 @@ pub async fn stream_to_temp(opts: &DownloadOpts<'_>) -> Result<DownloadResult, D
     }
 
     let client = reqwest::Client::builder()
-        .user_agent(concat!("cos/", env!("CARGO_PKG_VERSION"), " (engine-pkg)"))
+        .user_agent(concat!("yuos/", env!("CARGO_PKG_VERSION"), " (engine-pkg)"))
         .timeout(std::time::Duration::from_secs(60 * 30))
         // Refuse any redirect that leaves https — a redirect to http://
         // would defeat the scheme guard above.
@@ -99,7 +99,7 @@ pub async fn stream_to_temp(opts: &DownloadOpts<'_>) -> Result<DownloadResult, D
 
     let suffix = url_extension(opts.url).unwrap_or_else(|| ".bin".to_string());
     let mut tmp = tempfile::Builder::new()
-        .prefix("cos-engine-dl-")
+        .prefix("yuos-engine-dl-")
         .suffix(&suffix)
         .tempfile()?;
     let mut hasher = Sha256Stream::new();

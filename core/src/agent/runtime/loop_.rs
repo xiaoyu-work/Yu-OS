@@ -6,7 +6,7 @@
 //!
 //! Every turn's appended messages are also persisted to the SQLite-FTS5
 //! conversation history (when a [`MemoryDb`] is supplied) so the agent can
-//! later recall what was said via the `cos_recall` tool.
+//! later recall what was said via the `yu_recall` tool.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -539,7 +539,7 @@ pub async fn ask_with_stream_scoped(
 /// turn looks like a fresh exchange to the LLM, because
 /// [`ask_with_stream`] only seeds `messages` with the current prompt
 /// (it expects the model to fetch prior context on demand via
-/// `cos_recall`).
+/// `yu_recall`).
 ///
 /// Prior turns are flattened to plain-text [`Message`]s (tool calls
 /// and results are inlined as one-line summaries) so providers that
@@ -2046,7 +2046,7 @@ async fn ask_inner_scoped(request: LifecycleRequest<'_>) -> Result<AskResult, Ag
 
     // Semantic auto-indexer: opt-in via `[embed]` config. Mirrors
     // every recorded message into the semantic store so the LLM can
-    // do similarity search via `cos_recall_semantic`. `None` when
+    // do similarity search via `yu_recall_semantic`. `None` when
     // embedding is disabled — every spawn_index call is then a no-op.
     let semantic_indexer = if recorder.is_some() {
         deps.semantic_indexer()
@@ -2133,7 +2133,7 @@ async fn ask_inner_scoped(request: LifecycleRequest<'_>) -> Result<AskResult, Ag
         tool.name == crate::agent::tools::activity_work::CHECKPOINT_TOOL)
     {
         return Err(AgentError::Internal(
-            "Automatic Activity work requires cos_activity_checkpoint to be allowed by the configured tool policy.".into()
+            "Automatic Activity work requires yu_activity_checkpoint to be allowed by the configured tool policy.".into()
         ));
     }
     let session_id = recorder.map(|(_, sid)| sid.to_string()).unwrap_or_default();
@@ -2735,7 +2735,7 @@ pub async fn ask(user_prompt: &str) -> Result<AskResult, AgentError> {
 }
 
 /// Translate `cfg.mcp_servers` into [`McpServerSpec`]s, optionally
-/// merge in specs discovered from XDG `claw/agent-api/*.json`
+/// merge in specs discovered from XDG `yuos/agent-api/*.json`
 /// manifests, and attach each enabled entry. Returns the live handles
 /// (drop terminates the children).
 ///
@@ -3014,13 +3014,13 @@ pub fn ask_blocking(user_prompt: &str) -> Result<AskResult, AgentError> {
 
 /// Worst-case wait for background tasks (curator + semantic indexer) at the
 /// end of a one-shot `yu agent ask` invocation. Overridable via
-/// `COS_AGENT_BACKGROUND_DRAIN_SECS` for tests / debugging; defaults to 30s
+/// `YUOS_AGENT_BACKGROUND_DRAIN_SECS` for tests / debugging; defaults to 30s
 /// which comfortably covers a slow auxiliary-LLM curator call without
 /// noticeably delaying normal CLI exit (the drain returns as soon as all
 /// registered tasks settle, which is typically sub-second when there's
 /// nothing new to curate).
 pub fn background_drain_timeout() -> std::time::Duration {
-    let secs = std::env::var("COS_AGENT_BACKGROUND_DRAIN_SECS")
+    let secs = std::env::var("YUOS_AGENT_BACKGROUND_DRAIN_SECS")
         .ok()
         .and_then(|s| s.parse::<u64>().ok())
         .unwrap_or(30);

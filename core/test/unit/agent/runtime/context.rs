@@ -61,17 +61,17 @@ fn fixture() -> (
         max_turns: 4,
         ..Default::default()
     };
-    let deps = deps.with_config_snapshot(Arc::new(crate::config::CosConfig {
+    let deps = deps.with_config_snapshot(Arc::new(crate::config::YuConfig {
         agent: config.clone(),
         ..Default::default()
     }));
     let db = MemoryDb::open_in_memory().unwrap();
     let mut tools = crate::agent::tools::registry::builtin_only_registry();
     tools.register(Arc::new(
-        crate::agent::tools::cos_proxy::memory::CosMemoryTool::with_store(deps.notes().clone()),
+        crate::agent::tools::yu_proxy::memory::YuMemoryTool::with_store(deps.notes().clone()),
     ));
     tools.register(Arc::new(
-        crate::agent::tools::cos_proxy::recall::CosRecallTool::new(db.clone()),
+        crate::agent::tools::yu_proxy::recall::YuRecallTool::new(db.clone()),
     ));
     (
         FixtureRoot {
@@ -145,7 +145,7 @@ fn initial_context_does_not_select_knowledge_by_question_keywords() {
     ] {
         assert!(!network.render().contains(absent));
     }
-    assert!(network.render().contains("cos_recall"));
+    assert!(network.render().contains("yu_recall"));
 }
 
 #[test]
@@ -153,7 +153,7 @@ fn denied_memory_is_not_read_or_disclosed() {
     let (_directory, deps, config, mut tools, _db) = fixture();
     std::fs::create_dir_all(deps.notes().dir()).unwrap();
     std::fs::write(deps.notes().dir().join("USER.md"), [0xff]).unwrap();
-    tools.set_guardrails(Guardrails::permissive().with_deny(["cos_memory", "cos_recall"]));
+    tools.set_guardrails(Guardrails::permissive().with_deny(["yu_memory", "yu_recall"]));
     let result = packet(&deps, &config, &tools, "read my profile", None).unwrap();
     assert!(result.sections.is_empty());
     assert!(result.render().is_empty());
@@ -296,7 +296,7 @@ async fn history_is_loaded_only_after_the_model_calls_a_guarded_tool() {
     let provider = Arc::new(MockProvider::new(&config.model, &config));
     provider.push_response(MockResponse::ToolUse(vec![ToolCall {
         id: "read-source".into(),
-        name: "cos_recall".into(),
+        name: "yu_recall".into(),
         input: serde_json::json!({"command": "show", "message_id": id}),
     }]));
     provider.push_response(MockResponse::Text("source inspected".into()));
@@ -320,7 +320,7 @@ async fn history_is_loaded_only_after_the_model_calls_a_guarded_tool() {
     let invocations = db.recent_tool_invocations("current", 10).unwrap();
     assert!(invocations
         .iter()
-        .any(|call| call.tool_name == "cos_recall" && call.success == Some(true)));
+        .any(|call| call.tool_name == "yu_recall" && call.success == Some(true)));
 }
 
 #[tokio::test]
@@ -348,7 +348,7 @@ async fn model_can_refine_an_empty_lookup_then_read_the_original_note() {
     ] {
         provider.push_response(MockResponse::ToolUse(vec![ToolCall {
             id: id.into(),
-            name: "cos_memory".into(),
+            name: "yu_memory".into(),
             input,
         }]));
     }

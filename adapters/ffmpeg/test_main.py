@@ -91,26 +91,26 @@ class FfmpegAdapterTests(unittest.TestCase):
         )
         self.ffprobe_args = root / "ffprobe.log"
         self.ffmpeg_args = root / "ffmpeg.log"
-        os.environ["CLAW_FFMPEG_BIN"] = str(self.bin_dir / "ffmpeg")
-        os.environ["CLAW_FFPROBE_BIN"] = str(self.bin_dir / "ffprobe")
+        os.environ["YUOS_FFMPEG_BIN"] = str(self.bin_dir / "ffmpeg")
+        os.environ["YUOS_FFPROBE_BIN"] = str(self.bin_dir / "ffprobe")
         os.environ["FFMPEG_ARGS_LOG"] = str(self.ffmpeg_args)
         os.environ["FFPROBE_ARGS_LOG"] = str(self.ffprobe_args)
 
         self.main = load_local_module(
             HERE / "main.py",
-            "claw_test_ffmpeg_adapter_main",
+            "yuos_test_ffmpeg_adapter_main",
         )
         self.main.app._initialized = True
 
     def tearDown(self) -> None:
         for k in (
-            "CLAW_FFMPEG_BIN",
-            "CLAW_FFPROBE_BIN",
+            "YUOS_FFMPEG_BIN",
+            "YUOS_FFPROBE_BIN",
             "FFMPEG_ARGS_LOG",
             "FFPROBE_ARGS_LOG",
         ):
             os.environ.pop(k, None)
-        sys.modules.pop("claw_test_ffmpeg_adapter_main", None)
+        sys.modules.pop("yuos_test_ffmpeg_adapter_main", None)
 
     def test_tools_list_reports_four_tools(self) -> None:
         reply = _rpc(self.main.app, "tools/list")

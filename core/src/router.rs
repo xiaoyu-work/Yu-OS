@@ -17,7 +17,7 @@ use crate::audit;
 use crate::bridge;
 use crate::caps;
 use crate::checkpoint;
-use crate::clawd::routes::Command;
+use crate::yuosd::routes::Command;
 use crate::cli_help::{self, builtin_apps, show_help_for, show_overview};
 use crate::credential;
 use crate::cron;
@@ -117,7 +117,7 @@ impl std::error::Error for CommandError {
 pub type CommandResult<T> = Result<T, CommandError>;
 
 fn apps_dir() -> PathBuf {
-    PathBuf::from(env::var("COS_APPS_DIR").unwrap_or_else(|_| "/usr/lib/cos/apps".into()))
+    PathBuf::from(env::var("YUOS_APPS_DIR").unwrap_or_else(|_| "/usr/lib/yuos/apps".into()))
 }
 
 /// Whether this standalone CLI invocation owns opaque process stdin/stdout.
@@ -214,7 +214,7 @@ pub(crate) fn request_with_scheduler_consent(
                 return Err(error.message);
             }
             // Waiting in this process is what keeps the retry
-            // authentic: clawd re-derives the same uid/pid/start-time
+            // authentic: yuosd re-derives the same uid/pid/start-time
             // identity on the follow-up call, so no decision, token or
             // session string has to travel between processes.
             wait_for_scheduler_approvals(&ids)?;
@@ -231,22 +231,22 @@ struct SchedulerCallError {
 }
 
 fn scheduler_route_request(command: Command, params: &Value) -> Result<Value, SchedulerCallError> {
-    let request = crate::clawd::protocol::Request::build(command, params.clone());
+    let request = crate::yuosd::protocol::Request::build(command, params.clone());
     let response =
-        crate::clawd::client::request_blocking(crate::paths::clawd_socket_path(), request)
+        crate::yuosd::client::request_blocking(crate::paths::yuosd_socket_path(), request)
             .map_err(|error| SchedulerCallError {
                 message: error.to_string(),
                 data: None,
             })?;
     if response.ok {
         response.result.ok_or_else(|| SchedulerCallError {
-            message: "clawd scheduler response had no result".to_string(),
+            message: "yuosd scheduler response had no result".to_string(),
             data: None,
         })
     } else {
         let (message, data) = match response.error {
             Some(error) => (error.message, error.data),
-            None => ("clawd scheduler request failed".to_string(), None),
+            None => ("yuosd scheduler request failed".to_string(), None),
         };
         Err(SchedulerCallError { message, data })
     }
@@ -281,7 +281,7 @@ const SCHEDULER_APPROVAL_POLL: std::time::Duration = std::time::Duration::from_m
 fn wait_for_scheduler_approvals(ids: &[String]) -> Result<(), String> {
     let deadline = Instant::now() + SCHEDULER_APPROVAL_WAIT;
     loop {
-        let result = request_clawd(Command::PermissionStatus, json!({ "ids": ids }))?;
+        let result = request_yuosd(Command::PermissionStatus, json!({ "ids": ids }))?;
         let statuses = result
             .get("statuses")
             .and_then(Value::as_array)
@@ -315,55 +315,55 @@ fn wait_for_scheduler_approvals(ids: &[String]) -> Result<(), String> {
     }
 }
 
-fn request_clawd(command: Command, params: Value) -> Result<Value, String> {
-    let response = send_clawd(command, params)?;
+fn request_yuosd(command: Command, params: Value) -> Result<Value, String> {
+    let response = send_yuosd(command, params)?;
     if response.ok {
         response
             .result
-            .ok_or_else(|| format!("clawd {command} response had no result"))
+            .ok_or_else(|| format!("yuosd {command} response had no result"))
     } else {
         Err(response
             .error
             .map(|error| error.message)
-            .unwrap_or_else(|| format!("clawd {command} request failed")))
+            .unwrap_or_else(|| format!("yuosd {command} request failed")))
     }
 }
 
-fn request_browser_clawd(params: Value) -> Result<Value, String> {
-    request_wire_clawd(Command::SystemBrowserControl, params)
+fn request_browser_yuosd(params: Value) -> Result<Value, String> {
+    request_wire_yuosd(Command::SystemBrowserControl, params)
 }
 
-fn request_netdiag_clawd(params: Value) -> Result<Value, String> {
-    request_wire_clawd(Command::SystemNetworkDiagnose, params)
+fn request_netdiag_yuosd(params: Value) -> Result<Value, String> {
+    request_wire_yuosd(Command::SystemNetworkDiagnose, params)
 }
 
-fn send_clawd(
+fn send_yuosd(
     command: Command,
     params: Value,
-) -> Result<crate::clawd::protocol::Response, crate::clawd::client::ClientError> {
-    let request = crate::clawd::protocol::Request::build(command, params);
-    if env::var("COS_APP_GUI").as_deref() == Ok("1")
-        && crate::clawd::app_sessions::gui::provider_route(command).is_ok()
-        && command.route().authority.audience == crate::clawd::authority::Audience::SystemService
+) -> Result<crate::yuosd::protocol::Response, crate::yuosd::client::ClientError> {
+    let request = crate::yuosd::protocol::Request::build(command, params);
+    if env::var("YUOS_APP_GUI").as_deref() == Ok("1")
+        && crate::yuosd::app_sessions::gui::provider_route(command).is_ok()
+        && command.route().authority.audience == crate::yuosd::authority::Audience::SystemService
     {
-        crate::clawd::client::request_gui_provider_blocking(request)
+        crate::yuosd::client::request_gui_provider_blocking(request)
     } else {
-        crate::clawd::client::request_blocking(crate::paths::clawd_socket_path(), request)
+        crate::yuosd::client::request_blocking(crate::paths::yuosd_socket_path(), request)
     }
 }
 
-fn request_wire_clawd(command: Command, params: Value) -> Result<Value, String> {
-    wire_clawd_response(command, send_clawd(command, params))
+fn request_wire_yuosd(command: Command, params: Value) -> Result<Value, String> {
+    wire_yuosd_response(command, send_yuosd(command, params))
 }
 
 fn request_gui_resource(command: Command, params: Value) -> Result<Value, String> {
-    let request = crate::clawd::protocol::Request::build(command, params);
-    wire_clawd_response(command, crate::clawd::client::request_gui_resource_blocking(request))
+    let request = crate::yuosd::protocol::Request::build(command, params);
+    wire_yuosd_response(command, crate::yuosd::client::request_gui_resource_blocking(request))
 }
 
-fn wire_clawd_response(
+fn wire_yuosd_response(
     command: Command,
-    response: Result<crate::clawd::protocol::Response, crate::clawd::client::ClientError>,
+    response: Result<crate::yuosd::protocol::Response, crate::yuosd::client::ClientError>,
 ) -> Result<Value, String> {
     let response = response
             .map_err(|error| {
@@ -378,14 +378,14 @@ fn wire_clawd_response(
         return response.result.ok_or_else(|| {
             system_wire_failure(
                 "indeterminate",
-                &format!("clawd {command} response had no result"),
+                &format!("yuosd {command} response had no result"),
             )
         });
     }
     let error = response.error.ok_or_else(|| {
         system_wire_failure(
             "indeterminate",
-            &format!("clawd {command} request failed without an error"),
+            &format!("yuosd {command} request failed without an error"),
         )
     })?;
     Err(system_wire_failure(&error.code, &error.message))
@@ -416,7 +416,7 @@ fn file_replace_params(input: &[u8], session: &str) -> Result<Value, String> {
         return Err("internal file replacement stdin exceeds 128 KiB".to_string());
     }
     if session.is_empty() {
-        return Err("internal file replacement requires COS_SESSION".to_string());
+        return Err("internal file replacement requires YUOS_SESSION".to_string());
     }
     let mut params: Value = serde_json::from_slice(input)
         .map_err(|_| "internal file replacement requires a JSON object on stdin".to_string())?;
@@ -449,8 +449,8 @@ fn file_replace_bridge(
             "internal file bridge accepts only: yu __file replace < request.json".to_string(),
         );
     }
-    let session = env::var("COS_SESSION")
-        .map_err(|_| "internal file replacement requires COS_SESSION".to_string())?;
+    let session = env::var("YUOS_SESSION")
+        .map_err(|_| "internal file replacement requires YUOS_SESSION".to_string())?;
     let input = match stdin_data {
         Some(input) => input,
         None => {
@@ -470,16 +470,16 @@ fn file_replace_bridge(
         }
     };
     let params = file_replace_params(&input, &session)?;
-    let response = crate::clawd::client::request_blocking(
-        crate::paths::clawd_socket_path(),
-        crate::clawd::protocol::Request::build(Command::SystemFileReplace, params),
+    let response = crate::yuosd::client::request_blocking(
+        crate::paths::yuosd_socket_path(),
+        crate::yuosd::protocol::Request::build(Command::SystemFileReplace, params),
     )
     .map_err(|error| json!({"error": error.to_string(), "indeterminate": true}).to_string())?;
     let value = file_replace_response(response)?;
     Ok(Some(value.to_string()))
 }
 
-fn file_replace_response(response: crate::clawd::protocol::Response) -> Result<Value, String> {
+fn file_replace_response(response: crate::yuosd::protocol::Response) -> Result<Value, String> {
     if response.ok {
         response.result.ok_or_else(|| {
             json!({"error": "file replacement returned no result", "indeterminate": true})
@@ -743,7 +743,7 @@ fn dispatch_with_stdin_impl(
 
     // Top-level help / version flags. Match what every Unix CLI does so
     // muscle memory works: bare `yu --help` / `yu help` is the same
-    // overview as bare `cos`; `yu help <topic>` drills into one
+    // overview as bare `yu`; `yu help <topic>` drills into one
     // primitive/app; `yu --version` prints just the version envelope.
     match name.as_str() {
         "--help" | "-h" => {
@@ -795,9 +795,9 @@ fn dispatch_with_stdin_impl(
             return Err("App event bridge requires `publish` with bounded stdin".into());
         }
         let mut request = parse_internal_request_object(stdin_data.as_deref(), 20 * 1024, "App event")?;
-        let session = env::var("COS_SESSION").map_err(|_| "App events require an authenticated session")?;
+        let session = env::var("YUOS_SESSION").map_err(|_| "App events require an authenticated session")?;
         request.insert("session".into(), json!(session));
-        let value = request_wire_clawd(Command::SystemAppEventPublish, Value::Object(request))?;
+        let value = request_wire_yuosd(Command::SystemAppEventPublish, Value::Object(request))?;
         return Ok(Some(value.to_string()));
     }
     if name == "__channel" {
@@ -805,14 +805,14 @@ fn dispatch_with_stdin_impl(
             return Err("channel bridge requires `control` with bounded stdin".into());
         }
         let mut request = parse_internal_request_object(stdin_data.as_deref(), 20 * 1024, "channel control")?;
-        let session = env::var("COS_SESSION").map_err(|_| "channel control requires an authenticated App session")?;
+        let session = env::var("YUOS_SESSION").map_err(|_| "channel control requires an authenticated App session")?;
         request.insert("session".into(), json!(session));
-        let value = request_wire_clawd(Command::SystemChannelControl, Value::Object(request))?;
+        let value = request_wire_yuosd(Command::SystemChannelControl, Value::Object(request))?;
         return Ok(Some(value.to_string()));
     }
     if name == "channels" {
         if args.len() == 3 && matches!(args[1].as_str(), "status" | "stop") {
-            let value = request_wire_clawd(Command::ChannelManage, json!({"platform":args[2],"action":args[1]}))?;
+            let value = request_wire_yuosd(Command::ChannelManage, json!({"platform":args[2],"action":args[1]}))?;
             return Ok(Some(value.to_string()));
         }
         if args.len() != 3 || args[1] != "configure" {
@@ -821,7 +821,7 @@ fn dispatch_with_stdin_impl(
         let mut request = parse_internal_request_object(stdin_data.as_deref(), 4096, "channel configuration")?;
         if request.contains_key("platform") { return Err("select the channel only in argv".into()); }
         request.insert("platform".into(), json!(args[2]));
-        let value = request_wire_clawd(Command::ChannelConfigure, Value::Object(request))?;
+        let value = request_wire_yuosd(Command::ChannelConfigure, Value::Object(request))?;
         return Ok(Some(value.to_string()));
     }
 
@@ -835,18 +835,18 @@ fn dispatch_with_stdin_impl(
                 (Command::SystemPackageRecover, json!({"request_id": id})),
             _ => return Err("usage: yu package-transactions [request-id | --invocation invocation-id | --recover request-id]".into()),
         };
-        let value = request_wire_clawd(command, params)?;
+        let value = request_wire_yuosd(command, params)?;
         return Ok(Some(value.to_string()));
     }
 
     if name == "__package_intent" {
-        let value = crate::clawd::packages::intent::cli(&args[1..])?;
+        let value = crate::yuosd::packages::intent::cli(&args[1..])?;
         return Ok(Some(value.to_string()));
     }
 
     if name == "__package_query" {
-        let params = crate::clawd::packages::query::cli(&args[1..])?;
-        let value = request_wire_clawd(Command::SystemPackageQuery, params)?;
+        let params = crate::yuosd::packages::query::cli(&args[1..])?;
+        let value = request_wire_yuosd(Command::SystemPackageQuery, params)?;
         return Ok(Some(value.to_string()));
     }
 
@@ -862,11 +862,11 @@ fn dispatch_with_stdin_impl(
                 return Err("internal package batch requires 1..128 packages".into());
             }
             for package in &package_args[1..] {
-                crate::clawd::packages::validate_package_name(package)?;
+                crate::yuosd::packages::validate_package_name(package)?;
             }
-            let session = env::var("COS_SESSION")
-                .map_err(|_| "internal package install requires COS_SESSION".to_string())?;
-            let value = crate::clawd::packages::request_control(json!({
+            let session = env::var("YUOS_SESSION")
+                .map_err(|_| "internal package install requires YUOS_SESSION".to_string())?;
+            let value = crate::yuosd::packages::request_control(json!({
                 "session": session, "action": action, "packages": &package_args[1..],
             }))?;
             return Ok(Some(value.to_string()));
@@ -877,14 +877,14 @@ fn dispatch_with_stdin_impl(
         let package = package_args.get(1).cloned();
         let version = package_args.get(2).cloned();
         if let Some(package) = package.as_deref() {
-            crate::clawd::packages::validate_package_name(package)?;
+            crate::yuosd::packages::validate_package_name(package)?;
         }
         if let Some(version) = version.as_deref() {
-            crate::clawd::packages::validate_version(version)?;
+            crate::yuosd::packages::validate_version(version)?;
         }
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal package install requires COS_SESSION".to_string())?;
-        let value = crate::clawd::packages::request_control(json!({
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal package install requires YUOS_SESSION".to_string())?;
+        let value = crate::yuosd::packages::request_control(json!({
                 "session": session,
                 "action": action,
                 "package": package,
@@ -900,10 +900,10 @@ fn dispatch_with_stdin_impl(
         let unit = args
             .get(2)
             .ok_or_else(|| "internal systemd command requires a unit".to_string())?;
-        crate::clawd::systemd::validate_unit_name(unit)?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal systemd command requires COS_SESSION".to_string())?;
-        let value = request_clawd(
+        crate::yuosd::systemd::validate_unit_name(unit)?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal systemd command requires YUOS_SESSION".to_string())?;
+        let value = request_yuosd(
             Command::SystemServiceControl,
             json!({
                 "session": session,
@@ -918,9 +918,9 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal snapshot command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal snapshot command requires COS_SESSION".to_string())?;
-        let value = request_clawd(
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal snapshot command requires YUOS_SESSION".to_string())?;
+        let value = request_yuosd(
             Command::SystemSnapshotControl,
             json!({
                 "session": session,
@@ -937,23 +937,23 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal network command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal network command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal network command requires YUOS_SESSION".to_string())?;
         if args.get(2).map(String::as_str) == Some("--request-stdin") {
             if args.len() != 3 {
                 return Err("network request-stdin does not accept additional arguments".into());
             }
             let input = parse_internal_request_object(
                 stdin_data.as_deref(),
-                crate::clawd::network::MAX_INPUT,
+                crate::yuosd::network::MAX_INPUT,
                 "network",
             )?;
-            let params = crate::clawd::network::cli_request(
+            let params = crate::yuosd::network::cli_request(
                 &session,
                 action,
                 &Value::Object(input).to_string(),
             )?;
-            let value = request_wire_clawd(Command::SystemNetworkControl, params)?;
+            let value = request_wire_yuosd(Command::SystemNetworkControl, params)?;
             return Ok(Some(value.to_string()));
         }
         let mut target = None;
@@ -973,7 +973,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemNetworkControl,
             json!({
                 "session": session,
@@ -993,10 +993,10 @@ fn dispatch_with_stdin_impl(
             );
         }
         let mut request = parse_netdiag_bridge_request(stdin_data.as_deref())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal network diagnostic command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal network diagnostic command requires YUOS_SESSION".to_string())?;
         request.insert("session".to_string(), Value::String(session));
-        let value = request_netdiag_clawd(Value::Object(request))?;
+        let value = request_netdiag_yuosd(Value::Object(request))?;
         return Ok(Some(value.to_string()));
     }
 
@@ -1004,8 +1004,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal crash command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal crash command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal crash command requires YUOS_SESSION".to_string())?;
         let mut since_minutes = None;
         let mut limit = None;
         let mut id = None;
@@ -1023,7 +1023,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemCrashInspect,
             json!({
                 "session": session,
@@ -1040,8 +1040,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal storage command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal storage command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal storage command requires YUOS_SESSION".to_string())?;
         let mut device = None;
         let mut index = 2;
         while index < args.len() {
@@ -1055,7 +1055,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemStorageControl,
             json!({
                 "session": session,
@@ -1070,8 +1070,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal audio command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal audio command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal audio command requires YUOS_SESSION".to_string())?;
         let mut target = None;
         let mut value_arg = None;
         let mut index = 2;
@@ -1087,7 +1087,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemAudioControl,
             json!({
                 "session": session,
@@ -1111,9 +1111,9 @@ fn dispatch_with_stdin_impl(
         let deadline = args[4]
             .parse::<u64>()
             .map_err(|_| "invalid notification deadline")?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal notification command requires COS_SESSION")?;
-        let value = request_wire_clawd(
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal notification command requires YUOS_SESSION")?;
+        let value = request_wire_yuosd(
             Command::SystemNotificationControl,
             json!({"session": session, "deadline_unix_ms": deadline, "request": request}),
         )?;
@@ -1124,9 +1124,9 @@ fn dispatch_with_stdin_impl(
         if args.len() != 2 || !matches!(args[1].as_str(), "tasks" | "resources") {
             return Err("internal observation bridge requires `tasks` or `resources`".into());
         }
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal observation command requires COS_SESSION")?;
-        let value = request_wire_clawd(
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal observation command requires YUOS_SESSION")?;
+        let value = request_wire_yuosd(
             Command::SystemObservationQuery,
             json!({"session": session, "action": args[1]}),
         )?;
@@ -1140,10 +1140,10 @@ fn dispatch_with_stdin_impl(
         let year = args[2].parse::<i16>().map_err(|_| "invalid Calendar year")?;
         let month = args[3].parse::<u8>().map_err(|_| "invalid Calendar month")?;
         let day = args[4].parse::<u8>().map_err(|_| "invalid Calendar day")?;
-        crate::clawd::calendar::validate_day(year, month, day)?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal Calendar command requires COS_SESSION")?;
-        let value = request_wire_clawd(
+        crate::yuosd::calendar::validate_day(year, month, day)?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal Calendar command requires YUOS_SESSION")?;
+        let value = request_wire_yuosd(
             Command::SystemCalendarDay,
             json!({"session": session, "year": year, "month": month, "day": day}),
         )?;
@@ -1156,14 +1156,14 @@ fn dispatch_with_stdin_impl(
                 "internal Media Player bridge requires `<action> --deadline <unix-ms>`".into(),
             );
         }
-        let action: crate::clawd::wire::requests::MediaPlayerAction =
+        let action: crate::yuosd::wire::requests::MediaPlayerAction =
             serde_json::from_value(json!(args[1])).map_err(|_| "invalid Media Player action")?;
         let deadline = args[3]
             .parse::<u64>()
             .map_err(|_| "invalid Media Player deadline")?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal Media Player command requires COS_SESSION")?;
-        let value = request_wire_clawd(
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal Media Player command requires YUOS_SESSION")?;
+        let value = request_wire_yuosd(
             Command::SystemMediaPlayerControl,
             json!({"session": session, "action": action, "deadline_unix_ms": deadline}),
         )?;
@@ -1175,7 +1175,7 @@ fn dispatch_with_stdin_impl(
             return Err("GUI notifications bridge requires --request-stdin".into());
         }
         let params = parse_internal_request_object(stdin_data.as_deref(), 768 * 1024, "GUI notifications")?;
-        let value = crate::clawd::notifications::gui::cli(params)?;
+        let value = crate::yuosd::notifications::gui::cli(params)?;
         return Ok(Some(value.to_string()));
     }
 
@@ -1184,7 +1184,7 @@ fn dispatch_with_stdin_impl(
             return Err("GUI file picker requires open|status|cancel --request-stdin".into());
         }
         let params = parse_internal_request_object(stdin_data.as_deref(), 4096, "GUI file picker")?;
-        let value = crate::clawd::gui::file_picker::cli(&args[1], params)?;
+        let value = crate::yuosd::gui::file_picker::cli(&args[1], params)?;
         return Ok(Some(value.to_string()));
     }
 
@@ -1192,7 +1192,7 @@ fn dispatch_with_stdin_impl(
         if args.len() != 2 || args[1] != "--pcm-stdin" {
             return Err("GUI audio bridge requires --pcm-stdin".into());
         }
-        crate::clawd::gui::audio::cli()?;
+        crate::yuosd::gui::audio::cli()?;
         return Ok(None);
     }
 
@@ -1201,7 +1201,7 @@ fn dispatch_with_stdin_impl(
             return Err("GUI playback bridge requires --request-stdin".into());
         }
         let params = parse_internal_request_object(stdin_data.as_deref(), 128 * 1024, "GUI playback")?;
-        let value = crate::clawd::media_player::gui::cli(params)?;
+        let value = crate::yuosd::media_player::gui::cli(params)?;
         return Ok(Some(value.to_string()));
     }
 
@@ -1210,7 +1210,7 @@ fn dispatch_with_stdin_impl(
             return Err("GUI Capture bridge requires `request|status|cancel --request-stdin`".into());
         }
         let params = parse_internal_request_object(stdin_data.as_deref(), 4096, "GUI Capture")?;
-        let value = crate::clawd::capture::gui::cli(&args[1], params)?;
+        let value = crate::yuosd::capture::gui::cli(&args[1], params)?;
         return Ok(Some(value.to_string()));
     }
 
@@ -1220,8 +1220,8 @@ fn dispatch_with_stdin_impl(
         }
         let request = parse_internal_request_object(stdin_data.as_deref(), 8192, "capture")?;
         let session =
-            env::var("COS_SESSION").map_err(|_| "internal capture command requires COS_SESSION")?;
-        let value = request_wire_clawd(
+            env::var("YUOS_SESSION").map_err(|_| "internal capture command requires YUOS_SESSION")?;
+        let value = request_wire_yuosd(
             Command::SystemScreenshotCapture,
             json!({"session": session, "request": request}),
         )?;
@@ -1237,7 +1237,7 @@ fn dispatch_with_stdin_impl(
         if parameters.contains_key("session") {
             return Err("GUI selected file derives its session from the bound Host".into());
         }
-        let session = env::var("COS_SESSION").map_err(|_| "GUI selected file requires its bound session")?;
+        let session = env::var("YUOS_SESSION").map_err(|_| "GUI selected file requires its bound session")?;
         parameters.insert("session".into(), json!(session));
         let command = match (name.as_str(), args[1].as_str()) {
             ("__gui-file-read", "request") => Command::GuiFileReadRequest,
@@ -1263,25 +1263,25 @@ fn dispatch_with_stdin_impl(
         }
         let request = parse_internal_bridge_request(
             stdin_data.as_deref(),
-            crate::clawd::wire::bounded::APP_ARGS_STDIN_MAX_BYTES,
+            crate::yuosd::wire::bounded::APP_ARGS_STDIN_MAX_BYTES,
             "filesystem",
         )?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal filesystem command requires COS_SESSION")?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal filesystem command requires YUOS_SESSION")?;
         let command = if args[1] == "read" {
             Command::SystemFilesystemRead
         } else {
             Command::SystemFilesystemWrite
         };
-        let value = request_wire_clawd(command, json!({"session":session,"request":request}))?;
+        let value = request_wire_yuosd(command, json!({"session":session,"request":request}))?;
         return Ok(Some(value.to_string()));
     }
 
     if name == "__desktop" {
         let desktop = parse_desktop_bridge_args(args)?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal desktop command requires COS_SESSION".to_string())?;
-        let value = request_clawd(
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal desktop command requires YUOS_SESSION".to_string())?;
+        let value = request_yuosd(
             Command::SystemDesktopControl,
             json!({
                 "session": session,
@@ -1296,7 +1296,7 @@ fn dispatch_with_stdin_impl(
     }
 
     if name == "__desktop-menu" {
-        let session = env::var("COS_SESSION")
+        let session = env::var("YUOS_SESSION")
             .map_err(|_| "desktop menu requests require a bound GUI session".to_string())?;
         let params = match args {
             [_, action, target] if matches!(action.as_str(), "request" | "run" | "activate") =>
@@ -1305,16 +1305,16 @@ fn dispatch_with_stdin_impl(
                 json!({"session": session, "action": action, "review_id": review}),
             _ => return Err("expected __desktop-menu run|activate|request APP_ID or complete|cancel REVIEW_ID".into()),
         };
-        return Ok(Some(request_wire_clawd(Command::GuiDesktopLaunch, params)?.to_string()));
+        return Ok(Some(request_wire_yuosd(Command::GuiDesktopLaunch, params)?.to_string()));
     }
 
     if name == "__desktop-events" {
-        if args.len() != 1 || env::var("COS_APP_GUI").as_deref() != Ok("1") {
+        if args.len() != 1 || env::var("YUOS_APP_GUI").as_deref() != Ok("1") {
             return Err("desktop events require a managed GUI and take no arguments".into());
         }
         #[cfg(target_os = "linux")]
         {
-            crate::clawd::client::desktop_events()?;
+            crate::yuosd::client::desktop_events()?;
             return Ok(None);
         }
         #[cfg(not(target_os = "linux"))]
@@ -1322,7 +1322,7 @@ fn dispatch_with_stdin_impl(
     }
 
     if name == "__desktop-power" {
-        let session = env::var("COS_SESSION")
+        let session = env::var("YUOS_SESSION")
             .map_err(|_| "desktop power requests require a bound GUI session".to_string())?;
         let params = match args {
             [_, action, target] if matches!(action.as_str(), "request" | "run") =>
@@ -1331,16 +1331,16 @@ fn dispatch_with_stdin_impl(
                 json!({"session": session, "action": action, "review_id": review}),
             _ => return Err("expected __desktop-power run|request ACTION or complete|cancel REVIEW_ID".into()),
         };
-        return Ok(Some(request_wire_clawd(Command::GuiPowerReview, params)?.to_string()));
+        return Ok(Some(request_wire_yuosd(Command::GuiPowerReview, params)?.to_string()));
     }
 
     if name == "__desktop-lock" {
         if args.len() != 1 {
             return Err("desktop lock takes no arguments".into());
         }
-        let session = env::var("COS_SESSION")
+        let session = env::var("YUOS_SESSION")
             .map_err(|_| "desktop lock requires a bound GUI session".to_string())?;
-        let value = request_wire_clawd(Command::GuiDesktopLock, json!({"session": session}))?;
+        let value = request_wire_yuosd(Command::GuiDesktopLock, json!({"session": session}))?;
         return Ok(Some(value.to_string()));
     }
 
@@ -1348,7 +1348,7 @@ fn dispatch_with_stdin_impl(
         let [_, action] = args else {
             return Err("system settings require one closed action".into());
         };
-        let session = env::var("COS_SESSION")
+        let session = env::var("YUOS_SESSION")
             .map_err(|_| "machine settings require the OS-started Settings window")?;
         let mut params = if action == "--request-stdin" {
             parse_internal_request_object(stdin_data.as_deref(), 4096, "account settings")?
@@ -1365,16 +1365,16 @@ fn dispatch_with_stdin_impl(
             let body=parse_internal_request_object(stdin_data.as_deref(),256*1024,"desktop preferences")?;
             vec![Value::Object(body).to_string()]
         } else { args[1..].to_vec() };
-        let params=crate::clawd::desktop_preferences::cli_request(&body)
+        let params=crate::yuosd::desktop_preferences::cli_request(&body)
             .map_err(|error|system_wire_failure(error.kind.code(),&error.message))?;
-        let value=request_wire_clawd(Command::SystemDesktopPreferencesControl,params)?;
+        let value=request_wire_yuosd(Command::SystemDesktopPreferencesControl,params)?;
         return Ok(Some(value.to_string()));
     }
 
     if name == "__regional-settings" {
-        let params = crate::clawd::regional_settings::cli_request(&args[1..])
+        let params = crate::yuosd::regional_settings::cli_request(&args[1..])
             .map_err(|error| system_wire_failure(error.kind.code(), &error.message))?;
-        let value = request_wire_clawd(Command::SystemRegionalSettingsControl, params)?;
+        let value = request_wire_yuosd(Command::SystemRegionalSettingsControl, params)?;
         return Ok(Some(value.to_string()));
     }
 
@@ -1390,13 +1390,13 @@ fn dispatch_with_stdin_impl(
                 "App permission request must be an object without caller-supplied session".into(),
             );
         }
-        let command = if let Ok(session) = env::var("COS_SESSION") {
+        let command = if let Ok(session) = env::var("YUOS_SESSION") {
             params["session"] = json!(session);
             Command::SystemAppPermissions
         } else {
             Command::PermissionApps
         };
-        return Ok(Some(request_clawd(command, params)?.to_string()));
+        return Ok(Some(request_yuosd(command, params)?.to_string()));
     }
 
     if name == "__browser" {
@@ -1404,14 +1404,14 @@ fn dispatch_with_stdin_impl(
             return Err("internal browser bridge requires `request --request-stdin`".to_string());
         }
         let mut request = parse_browser_bridge_request(stdin_data.as_deref())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal browser command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal browser command requires YUOS_SESSION".to_string())?;
         request.insert("session".to_string(), Value::String(session));
         let value = if request.get("action").and_then(Value::as_str) == Some("render") {
             request.remove("action");
-            request_wire_clawd(Command::SystemBrowserRender, Value::Object(request))?
+            request_wire_yuosd(Command::SystemBrowserRender, Value::Object(request))?
         } else {
-            request_browser_clawd(Value::Object(request))?
+            request_browser_yuosd(Value::Object(request))?
         };
         return Ok(Some(value.to_string()));
     }
@@ -1423,10 +1423,10 @@ fn dispatch_with_stdin_impl(
         let mut request = parse_internal_bridge_request(
             stdin_data.as_deref(), 1024 * 1024, "Mail",
         )?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal Mail command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal Mail command requires YUOS_SESSION".to_string())?;
         request.insert("session".to_string(), Value::String(session));
-        let value = request_wire_clawd(Command::SystemMailControl, Value::Object(request))?;
+        let value = request_wire_yuosd(Command::SystemMailControl, Value::Object(request))?;
         return Ok(Some(value.to_string()));
     }
 
@@ -1434,8 +1434,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal Bluetooth command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal Bluetooth command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal Bluetooth command requires YUOS_SESSION".to_string())?;
         let mut adapter = None;
         let mut device = None;
         let mut state = None;
@@ -1477,7 +1477,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemBluetoothControl,
             json!({
                 "session": session,
@@ -1497,8 +1497,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal power command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal power command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal power command requires YUOS_SESSION".to_string())?;
         let mut confirm = false;
         for flag in &args[2..] {
             match flag.as_str() {
@@ -1506,7 +1506,7 @@ fn dispatch_with_stdin_impl(
                 other => return Err(format!("unknown internal power flag: {other}")),
             }
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemPowerControl,
             json!({
                 "session": session,
@@ -1524,9 +1524,9 @@ fn dispatch_with_stdin_impl(
         if args.len() != 2 {
             return Err("internal hardware commands do not accept arguments".to_string());
         }
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal hardware command requires COS_SESSION".to_string())?;
-        let value = request_clawd(
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal hardware command requires YUOS_SESSION".to_string())?;
+        let value = request_yuosd(
             Command::SystemHardwareInspect,
             json!({
                 "session": session,
@@ -1543,9 +1543,9 @@ fn dispatch_with_stdin_impl(
         if args.len() != 2 {
             return Err("internal security commands do not accept arguments".to_string());
         }
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal security command requires COS_SESSION".to_string())?;
-        let value = request_clawd(
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal security command requires YUOS_SESSION".to_string())?;
+        let value = request_yuosd(
             Command::SystemSecurityInspect,
             json!({
                 "session": session,
@@ -1559,8 +1559,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal container command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal container command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal container command requires YUOS_SESSION".to_string())?;
         let mut runtime = None;
         let mut target = None;
         let mut namespace = None;
@@ -1591,7 +1591,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemContainerControl,
             json!({
                 "session": session,
@@ -1611,8 +1611,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal config command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal config command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal config command requires YUOS_SESSION".to_string())?;
         let mut target = None;
         let mut source = None;
         let mut token = None;
@@ -1639,7 +1639,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemConfigControl,
             json!({
                 "session": session,
@@ -1657,8 +1657,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal event command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal event command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal event command requires YUOS_SESSION".to_string())?;
         let mut source = None;
         let mut limit = None;
         let mut pid = None;
@@ -1676,7 +1676,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemEventsControl,
             json!({
                 "session": session,
@@ -1693,8 +1693,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal backup command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal backup command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal backup command requires YUOS_SESSION".to_string())?;
         let mut repo = None;
         let mut source = None;
         let mut destination = None;
@@ -1733,7 +1733,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemBackupControl,
             json!({
                 "session": session,
@@ -1757,8 +1757,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal firewall command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal firewall command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal firewall command requires YUOS_SESSION".to_string())?;
         let mut rule_action = None;
         let mut direction = None;
         let mut protocol = None;
@@ -1795,7 +1795,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemFirewallControl,
             json!({
                 "session": session,
@@ -1818,8 +1818,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal user command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal user command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal user command requires YUOS_SESSION".to_string())?;
         let mut user = None;
         let mut uid = None;
         let mut new_name = None;
@@ -1883,7 +1883,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_wire_clawd(
+        let value = request_wire_yuosd(
             Command::SystemUsersControl,
             json!({
                 "session": session,
@@ -1909,8 +1909,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal printer command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal printer command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal printer command requires YUOS_SESSION".to_string())?;
         let mut printer = None;
         let mut source = None;
         let mut job_id = None;
@@ -1945,7 +1945,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemPrinterControl,
             json!({
                 "session": session,
@@ -1967,8 +1967,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal clipboard command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal clipboard command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal clipboard command requires YUOS_SESSION".to_string())?;
         if action.starts_with("history-") {
             let mut identity = None;
             let mut deadline = None;
@@ -1997,8 +1997,8 @@ fn dispatch_with_stdin_impl(
                 "confirm": confirm,
                 "deadline_unix_ms": deadline.ok_or("clipboard history requires --deadline")?,
             });
-            crate::clawd::clipboard::validate_history_request(&params)?;
-            let value = request_wire_clawd(Command::SystemClipboardControl, params)?;
+            crate::yuosd::clipboard::validate_history_request(&params)?;
+            let value = request_wire_yuosd(Command::SystemClipboardControl, params)?;
             return Ok(Some(value.to_string()));
         }
         let mut mime = None;
@@ -2031,7 +2031,7 @@ fn dispatch_with_stdin_impl(
                 other => return Err(format!("unknown internal clipboard flag: {other}")),
             }
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemClipboardControl,
             json!({
                 "session": session,
@@ -2049,8 +2049,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal camera command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal camera command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal camera command requires YUOS_SESSION".to_string())?;
         let mut node_id = None;
         let mut expected_serial = None;
         let mut destination = None;
@@ -2074,7 +2074,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemCameraControl,
             json!({
                 "session": session,
@@ -2094,8 +2094,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal accessibility command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal accessibility command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal accessibility command requires YUOS_SESSION".to_string())?;
         let mut value_arg = None;
         let mut index = 2;
         while index < args.len() {
@@ -2109,7 +2109,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemAccessibilityControl,
             json!({
                 "session": session,
@@ -2124,8 +2124,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal display command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal display command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal display command requires YUOS_SESSION".to_string())?;
         let mut output = None;
         let mut from = None;
         let mut width = None;
@@ -2174,7 +2174,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemDisplayControl,
             json!({
                 "session": session,
@@ -2203,8 +2203,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal USB command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal USB command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal USB command requires YUOS_SESSION".to_string())?;
         let mut device = None;
         let mut state = None;
         let mut rule_id = None;
@@ -2233,7 +2233,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemUsbControl,
             json!({
                 "session": session,
@@ -2252,8 +2252,8 @@ fn dispatch_with_stdin_impl(
         let action = args
             .get(1)
             .ok_or_else(|| "internal location command required".to_string())?;
-        let session = env::var("COS_SESSION")
-            .map_err(|_| "internal location command requires COS_SESSION".to_string())?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "internal location command requires YUOS_SESSION".to_string())?;
         let mut accuracy = None;
         let mut index = 2;
         while index < args.len() {
@@ -2268,7 +2268,7 @@ fn dispatch_with_stdin_impl(
             }
             index += 2;
         }
-        let value = request_clawd(
+        let value = request_yuosd(
             Command::SystemLocationQuery,
             json!({
                 "session": session,
@@ -2454,7 +2454,7 @@ fn run_app_mcp_command(
         }
     }
 
-    let request = crate::clawd::protocol::Request::build(
+    let request = crate::yuosd::protocol::Request::build(
         Command::AppServiceCliCall,
         json!({
             "app_id": app_name,
@@ -2463,11 +2463,11 @@ fn run_app_mcp_command(
         }),
     );
     let response =
-        crate::clawd::client::request_blocking(crate::paths::clawd_socket_path(), request)?;
+        crate::yuosd::client::request_blocking(crate::paths::yuosd_socket_path(), request)?;
     if response.ok {
         let result = response
             .result
-            .ok_or_else(|| "clawd app_service.cli_call response had no result".to_string())?;
+            .ok_or_else(|| "yuosd app_service.cli_call response had no result".to_string())?;
         let rendered = render_call_tool_result(&result);
         let status = if rendered.is_err() { "error" } else { "ok" };
         let error_msg = rendered.as_ref().err().map(String::as_str);
@@ -2486,7 +2486,7 @@ fn run_app_mcp_command(
         // (e.g. the approval request ids an App launch is waiting on).
         let error = response
             .error
-            .ok_or_else(|| "clawd app_service.cli_call request failed".to_string())?;
+            .ok_or_else(|| "yuosd app_service.cli_call request failed".to_string())?;
         audit::log_entry(
             &audit,
             app_name,
@@ -2510,7 +2510,7 @@ fn bind_mcp_command_arguments(
     args: &[String],
     stdin_data: Option<&[u8]>,
 ) -> Result<Value, String> {
-    use crate::clawd::wire::bounded::{McpArguments, APP_ARGS_STDIN_MAX_BYTES};
+    use crate::yuosd::wire::bounded::{McpArguments, APP_ARGS_STDIN_MAX_BYTES};
 
     let tool = apps::mcp_tool_for_command(manifest, command)?;
     let json_requested = args
@@ -2635,7 +2635,7 @@ fn launch_app_gui(
     let package = app.require_verified()?;
     #[cfg(target_os = "linux")]
     {
-        use claw_display_control::wire::{MENU_LAUNCH_DIGEST, MENU_LAUNCH_PUBLISHER};
+        use yuos_display_control::wire::{MENU_LAUNCH_DIGEST, MENU_LAUNCH_PUBLISHER};
         use std::ffi::OsStr;
         let digest = env::var_os(MENU_LAUNCH_DIGEST);
         let publisher = env::var_os(MENU_LAUNCH_PUBLISHER);

@@ -46,9 +46,9 @@ fn record_owned(
         .activity_id
         .as_deref()
         .ok_or_else(|| "leased task has no Activity association".to_string())?;
-    let receipt = crate::clawd::activity_receipts::record_for_owner(owner_uid, activity_id, report)
+    let receipt = crate::yuosd::activity_receipts::record_for_owner(owner_uid, activity_id, report)
         .map_err(|error| error.to_string())?;
-    crate::clawd::activity_receipts::link_to_task(store, task_id, &receipt)?;
+    crate::yuosd::activity_receipts::link_to_task(store, task_id, &receipt)?;
     Ok(receipt.id)
 }
 

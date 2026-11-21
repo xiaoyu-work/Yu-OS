@@ -8,7 +8,7 @@ struct EnginesDirGuard {
 impl EnginesDirGuard {
     fn new() -> Self {
         let td = tempfile::Builder::new()
-            .prefix("cos-engines-install-")
+            .prefix("yuos-engines-install-")
             .tempdir()
             .unwrap();
         super::super::paths::set_engines_dir_override(Some(td.path().to_path_buf()));
@@ -24,7 +24,7 @@ impl Drop for EnginesDirGuard {
 
 fn make_zip(wrap: bool) -> tempfile::NamedTempFile {
     let f = tempfile::Builder::new()
-        .prefix("cos-engine-archive-")
+        .prefix("yuos-engine-archive-")
         .suffix(".zip")
         .tempfile()
         .unwrap();
@@ -47,7 +47,7 @@ fn make_zip(wrap: bool) -> tempfile::NamedTempFile {
 
 fn make_tar_gz(wrap: bool) -> tempfile::NamedTempFile {
     let f = tempfile::Builder::new()
-        .prefix("cos-engine-archive-")
+        .prefix("yuos-engine-archive-")
         .suffix(".tar.gz")
         .tempfile()
         .unwrap();
@@ -89,7 +89,7 @@ fn append_tar_file<W: Write>(tar: &mut tar::Builder<W>, path: &str, body: &[u8],
 
 fn make_bad_zip() -> tempfile::NamedTempFile {
     let f = tempfile::Builder::new()
-        .prefix("cos-engine-bad-")
+        .prefix("yuos-engine-bad-")
         .suffix(".zip")
         .tempfile()
         .unwrap();
@@ -168,7 +168,7 @@ fn install_rejects_bad_layout() {
 fn install_rejects_unsupported_format() {
     let _g = EnginesDirGuard::new();
     let f = tempfile::Builder::new()
-        .prefix("cos-engine-unsup-")
+        .prefix("yuos-engine-unsup-")
         .suffix(".txt")
         .tempfile()
         .unwrap();

@@ -10,7 +10,7 @@
 //!
 //! | Module | Responsibility |
 //! | --- | --- |
-//! | [`envelope`] | The versioned `claw.provenance/v1` format and its canonical signing bytes |
+//! | [`envelope`] | The versioned `yuos.provenance/v1` format and its canonical signing bytes |
 //! | [`trust`] | Trust roots, key ids, revocation/rotation, developer grants |
 //! | [`verify`] | Signature + content verification, verified snapshots |
 //! | [`sign`] | Publisher/developer signing workflow |
@@ -56,7 +56,7 @@ fn trust_cell() -> &'static Mutex<Option<TrustCache>> {
 
 /// Process-wide trust store, kept current for long-lived daemons.
 ///
-/// `clawd` and `claw-agentd` run for days. A store cached once at
+/// `yuosd` and `yuos-agentd` run for days. A store cached once at
 /// startup would keep honouring a key the operator revoked minutes
 /// ago, so every call re-checks the durable per-domain state before
 /// handing the store back. The check is a handful of `lstat` calls

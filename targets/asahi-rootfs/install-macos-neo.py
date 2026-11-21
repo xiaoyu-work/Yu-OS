@@ -1,4 +1,4 @@
-"""Use the pinned Neo restore support with Claw OS's Asahi installer."""
+"""Use the pinned Neo restore support with Yu OS's Asahi installer."""
 
 import os
 from pathlib import Path
@@ -140,4 +140,4 @@ def check_startup_disk(disk, group_uuid):
     try:
         asahi.verify_default_boot(disk, group_uuid)
     except asahi.AsahiAdapterError:
-        raise ValueError("the new Claw OS volume was not confirmed as the startup disk") from None
+        raise ValueError("the new Yu OS volume was not confirmed as the startup disk") from None

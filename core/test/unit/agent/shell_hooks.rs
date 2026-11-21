@@ -2,7 +2,7 @@ use super::*;
 
 fn tempdir(label: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
-        "cos-shell-hooks-{label}-{}",
+        "yuos-shell-hooks-{label}-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&dir).unwrap();
@@ -25,18 +25,18 @@ fn shell_parse_errs_on_unknown() {
 #[test]
 fn render_bash_includes_trap_and_prompt_command() {
     let s = render_init(Shell::Bash);
-    assert!(s.contains("trap '__cos_pre_exec' DEBUG"));
+    assert!(s.contains("trap '__yuos_pre_exec' DEBUG"));
     assert!(s.contains("PROMPT_COMMAND"));
-    // Hooks route through the `__cos_call` helper, so the literal
-    // call site reads `__cos_call agent shell-hooks record-pre`.
+    // Hooks route through the `__yuos_call` helper, so the literal
+    // call site reads `__yuos_call agent shell-hooks record-pre`.
     assert!(s.contains("agent shell-hooks record-pre"));
     assert!(s.contains("agent shell-hooks record-post"));
 }
 
 #[test]
 fn render_init_uses_timeout_wrapper_in_all_dialects() {
-    // Regression for the "stalled cos blocks the user's shell"
-    // bug. Every dialect must guard its `cos` invocation with
+    // Regression for the "stalled yu blocks the user's shell"
+    // bug. Every dialect must guard its `yu` invocation with
     // a timeout wrapper.
     for shell in [Shell::Bash, Shell::Zsh, Shell::Fish] {
         let s = render_init(shell);
@@ -56,8 +56,8 @@ fn render_init_uses_timeout_wrapper_in_all_dialects() {
 #[test]
 fn render_zsh_uses_add_zsh_hook() {
     let s = render_init(Shell::Zsh);
-    assert!(s.contains("add-zsh-hook preexec __cos_preexec"));
-    assert!(s.contains("add-zsh-hook precmd __cos_precmd"));
+    assert!(s.contains("add-zsh-hook preexec __yuos_preexec"));
+    assert!(s.contains("add-zsh-hook precmd __yuos_precmd"));
 }
 
 #[test]

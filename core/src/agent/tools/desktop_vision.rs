@@ -10,7 +10,7 @@ use super::{Tool, ToolResult};
 use crate::agent::llm::{self, ContentBlock, Message};
 use crate::agent::trust::{self, LabeledSegment, PromptProjection, SourceKind};
 
-pub(crate) const TOOL: &str = "cos_desktop_vision";
+pub(crate) const TOOL: &str = "yu_desktop_vision";
 pub(crate) const REQUEST_TIMEOUT: Duration = Duration::from_secs(80);
 pub(crate) const REQUEST_LIMIT: u32 = 48;
 
@@ -158,7 +158,7 @@ impl Tool for DesktopVision {
     }
 
     fn description(&self) -> &str {
-        "Operate one foreground Claw OS window with the user's local approval. Prefer structured \
+        "Operate one foreground Yu OS window with the user's local approval. Prefer structured \
          App or browser DOM tools when available. List returns application IDs and active state. \
          Observe sends only the selected active window to this model. A reduced preview cannot \
          be clicked: use observe with a region in the full window's physical pixels for a \

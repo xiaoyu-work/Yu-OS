@@ -63,7 +63,7 @@ pub async fn generate_title(aux: Option<&AuxiliaryClient>, seed: &str) -> String
             }
             Err(e) => {
                 tracing::warn!(
-                    target: "cos.agent.title",
+                    target: "yuos.agent.title",
                     "auxiliary title generation failed: {e}; using heuristic"
                 );
             }

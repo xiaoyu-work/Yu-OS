@@ -20,7 +20,7 @@ pub(super) async fn read(
             message: "task context is cancelled or its exchange budget is exhausted".into(),
         });
     }
-    let read = crate::clawd::workspaces::reads::for_job(job, request.operation.clone());
+    let read = crate::yuosd::workspaces::reads::for_job(job, request.operation.clone());
     tokio::pin!(read);
     let result = loop {
         tokio::select! {

@@ -1,4 +1,4 @@
-//! `GET /api/tasks` and friends — the durable `clawd` task queue.
+//! `GET /api/tasks` and friends — the durable `yuosd` task queue.
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -7,7 +7,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::agent::web::state::AppState;
-use crate::clawd::routes::Command;
+use crate::yuosd::routes::Command;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -18,7 +18,7 @@ pub struct FollowUpRequest {
     #[serde(default = "default_true")]
     use_memory: bool,
     #[serde(default)]
-    notification_viewer: Option<crate::clawd::wire::requests::NotificationViewer>,
+    notification_viewer: Option<crate::yuosd::wire::requests::NotificationViewer>,
 }
 
 fn default_true() -> bool {
@@ -28,9 +28,9 @@ fn default_true() -> bool {
 pub async fn list(
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let result = super::clawd::request(Command::TaskList, json!({ "summary": true, "limit": 50 }))
+    let result = super::yuosd::request(Command::TaskList, json!({ "summary": true, "limit": 50 }))
         .await
-        .map_err(super::clawd::RpcError::into_api_error)?;
+        .map_err(super::yuosd::RpcError::into_api_error)?;
     let mut tasks = result
         .get("jobs")
         .and_then(Value::as_array)
@@ -52,30 +52,30 @@ pub async fn show(
     State(_state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    super::clawd::request(Command::TaskGet, json!({ "id": id }))
+    super::yuosd::request(Command::TaskGet, json!({ "id": id }))
         .await
         .map(Json)
-        .map_err(super::clawd::RpcError::into_api_error)
+        .map_err(super::yuosd::RpcError::into_api_error)
 }
 
 pub async fn stop(
     State(_state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    super::clawd::request(Command::TaskCancel, json!({ "id": id }))
+    super::yuosd::request(Command::TaskCancel, json!({ "id": id }))
         .await
         .map(Json)
-        .map_err(super::clawd::RpcError::into_api_error)
+        .map_err(super::yuosd::RpcError::into_api_error)
 }
 
 pub async fn resume(
     State(_state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    super::clawd::request(Command::TaskRetry, json!({ "id": id }))
+    super::yuosd::request(Command::TaskRetry, json!({ "id": id }))
         .await
         .map(Json)
-        .map_err(super::clawd::RpcError::into_api_error)
+        .map_err(super::yuosd::RpcError::into_api_error)
 }
 
 pub async fn follow_up(
@@ -91,14 +91,14 @@ pub async fn follow_up(
     }
     crate::agent::attachments::normalize(request.attachments.clone())
         .map_err(|error| (StatusCode::BAD_REQUEST, Json(json!({ "error": error }))))?;
-    let predecessor = super::clawd::request(Command::TaskGet, json!({ "id": predecessor_id }))
+    let predecessor = super::yuosd::request(Command::TaskGet, json!({ "id": predecessor_id }))
         .await
-        .map_err(super::clawd::RpcError::into_api_error)?;
+        .map_err(super::yuosd::RpcError::into_api_error)?;
     let params = follow_up_params(&predecessor, request).map_err(invalid_task_response)?;
-    super::clawd::request(Command::TaskSubmit, params)
+    super::yuosd::request(Command::TaskSubmit, params)
         .await
         .map(Json)
-        .map_err(super::clawd::RpcError::into_api_error)
+        .map_err(super::yuosd::RpcError::into_api_error)
 }
 
 fn follow_up_params(predecessor: &Value, request: FollowUpRequest) -> Result<Value, String> {
@@ -130,9 +130,9 @@ fn follow_up_params(predecessor: &Value, request: FollowUpRequest) -> Result<Val
 }
 
 pub async fn queue(Path(id): Path<String>) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let current = super::clawd::request(Command::TaskGet, json!({"id":id}))
+    let current = super::yuosd::request(Command::TaskGet, json!({"id":id}))
         .await
-        .map_err(super::clawd::RpcError::into_api_error)?;
+        .map_err(super::yuosd::RpcError::into_api_error)?;
     if current.get("id").and_then(Value::as_str) != Some(id.as_str()) {
         return Err(invalid_task_response(
             "queue belongs to a different task".into(),
@@ -142,12 +142,12 @@ pub async fn queue(Path(id): Path<String>) -> Result<Json<Value>, (StatusCode, J
         .get("session_id")
         .and_then(Value::as_str)
         .ok_or_else(|| invalid_task_response("task has no conversation".into()))?;
-    let value = super::clawd::request(
+    let value = super::yuosd::request(
         Command::AgentConversationGet,
         json!({"id":session,"limit":1}),
     )
     .await
-    .map_err(super::clawd::RpcError::into_api_error)?;
+    .map_err(super::yuosd::RpcError::into_api_error)?;
     let conversation = value
         .get("conversation")
         .ok_or_else(|| invalid_task_response("missing conversation queue".into()))?;
@@ -193,7 +193,7 @@ fn queue_projection(
 fn invalid_task_response(message: String) -> (StatusCode, Json<Value>) {
     (
         StatusCode::BAD_GATEWAY,
-        Json(json!({ "error": format!("invalid clawd task: {message}") })),
+        Json(json!({ "error": format!("invalid yuosd task: {message}") })),
     )
 }
 

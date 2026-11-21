@@ -1,14 +1,14 @@
-# Claw Agent terminal
+# Yu OS Agent terminal
 
-`yu agent chat` provides a Claw-owned full-screen terminal UI. Its renderer,
+`yu agent chat` provides a Yu OS-owned full-screen terminal UI. Its renderer,
 state machine, key handling, broker client and stream projection live under
-`core/src/agent/terminal/` and compile into `cos`. There is no downloaded or
+`core/src/agent/terminal/` and compile into `yu`. There is no downloaded or
 separately packaged TUI executable, compatibility app server, or second Agent
 backend.
 
 ## Launch
 
-Run as the ordinary account that configured the Claw Agent:
+Run as the ordinary account that configured the Yu OS Agent:
 
 ```bash
 yu agent chat
@@ -35,14 +35,14 @@ printf 'Explain the current task\n/quit\n' | yu agent chat
 ```
 
 `--no-stream` and `--show-tools` retain their line-interface behavior. They
-cannot be combined with `--tui`. The Claw UI does not accept another
+cannot be combined with `--tui`. The Yu OS UI does not accept another
 frontend's flags after `--`.
 
 ## Presentation
 
 The UI has five stable regions while work is active:
 
-1. A Claw header with canonical conversation title, model, session and task
+1. A Yu OS header with canonical conversation title, model, session and task
    state.
 2. A scrollable transcript with separate user, assistant, reasoning, tool,
    approval, system and error entries.
@@ -94,7 +94,7 @@ Controls:
 - `PageUp` / `PageDown` scroll the transcript.
 - `Up` / `Down` navigate multiline input, prompt history, command suggestions
   or an active picker according to focus.
-- `Ctrl-K` or typing `/` opens the supported Claw command palette; `Tab`
+- `Ctrl-K` or typing `/` opens the supported Yu OS command palette; `Tab`
   completes the selected match.
 - `Ctrl-O` prepares `/attach`; enter or drag a PNG, JPEG, GIF or WebP path
   beneath the verified owner home. `/attach clear` removes pending images.
@@ -110,7 +110,7 @@ Controls:
 - Appearance key `k` switches the composer between default bindings and
   bounded Vim NORMAL/INSERT modes. `/vim` is a direct compatible toggle;
   active-task `Esc` always cancels rather than being captured by Vim.
-- `/agents` shows actual `cos_delegate` calls and their visible status from
+- `/agents` shows actual `yu_delegate` calls and their visible status from
   the parent transcript. Delegate children are currently ephemeral and cannot
   be switched as if they were durable sessions.
 - `/side` creates a checked durable fork while idle; `/side return` archives
@@ -124,16 +124,16 @@ Controls:
   refused while tasks are active and preserves conversations and execution
   evidence.
   Press `h` for Hooks Center: `l`, `a` and `c` toggle the closed built-in
-  logging, supplemental audit and checkpoint hooks for future tasks. Claw
+  logging, supplemental audit and checkpoint hooks for future tasks. Yu OS
   accepts no command/env hook payload through this panel.
   Press `c` for MCP Center. It lists bounded configured/verified server
   metadata without starting or probing a server and hides command, args, env,
   cwd, URL and credentials.
   Press `e` for Extensions Center. It shows verified, disabled and quarantined
-  Apps, Skills and selected Agent extensions under Claw's single extension
+  Apps, Skills and selected Agent extensions under Yu OS's single extension
   model; installation and activation remain separate OS-reviewed operations.
   Press `u` for Usage Center. `d`, `w` and `c` select daily, weekly and
-  cumulative owner-ledger totals. Claw shows recorded token/cache/duration
+  cumulative owner-ledger totals. Yu OS shows recorded token/cache/duration
   values and does not infer monetary cost.
   Press `d` for Debug Center. It combines narrow broker health with safe
   effective runtime switches while omitting credentials, headers, URLs, MCP
@@ -142,7 +142,7 @@ Controls:
   Copilot credential and retains provider config/history. The panel reports
   foreign-agent import unavailable rather than scanning other App data without
   an authenticated OS import service.
-- `Super+Shift+A` opens Voice Center and shows the configured Claw STT/TTS models,
+- `Super+Shift+A` opens Voice Center and shows the configured Yu OS STT/TTS models,
   voice and output format. It does not substitute a Codex voice backend.
   Desktop consumes the global shortcut first and already owns bounded
   recording/transcription; terminal-only sessions use enhanced keyboard
@@ -157,7 +157,7 @@ Controls:
   highlighted action; `a` / `d` remain direct shortcuts. `Esc` or `Ctrl-C`
   stops the task without deciding. Decision keys act only on key press, never
   auto-repeat. Both choices remain inside the full-screen TUI: no `pkexec`,
-  polkit or OS password prompt is opened. `clawd` derives the owner and local
+  polkit or OS password prompt is opened. `yuosd` derives the owner and local
   terminal presence from the kernel peer; **Authorize once** is restricted to
   that exact request and cannot become a session or reusable grant. **Deny**
   grants nothing.
@@ -209,11 +209,11 @@ to the shared worker capacity, and shows up in `/tasks`; its completion
 notification links the originating conversation and the Job. Normal follow-up
 messages still queue in order and do not enter a turn already in progress.
 
-A transient `clawd` disconnect keeps the exact active task and stream cursor.
+A transient `yuosd` disconnect keeps the exact active task and stream cursor.
 The header shows `RECONNECTING`; recovery resumes the same durable stream
 without resubmitting the prompt or inventing task failure.
 
-If `clawd` is still starting, terminal launch retries for up to 60 seconds.
+If `yuosd` is still starting, terminal launch retries for up to 60 seconds.
 Conversation reads are replay-safe; creation is retried only when the client
 proves the request was never dispatched. An ambiguous creation fails explicitly
 instead of creating duplicate conversations.
@@ -227,7 +227,7 @@ never treated as the user's model selection.
 
 ## Commands
 
-The completion palette stays limited to Claw entry points and common
+The completion palette stays limited to Yu OS entry points and common
 conversation actions. Object-specific actions belong in the panel opened by
 the entry point rather than appearing as separate top-level commands:
 
@@ -270,7 +270,7 @@ terminal view without deleting canonical history. The terminal deliberately
 does not present a permanent-delete action unless the backend can provide that
 exact contract.
 
-`/archive` and `/rewind` open a Claw-owned confirmation panel that states the
+`/archive` and `/rewind` open a Yu OS-owned confirmation panel that states the
 durability and external-effect consequences before any broker mutation.
 
 `/model` without an ID opens a searchable configured-provider picker. `/resume`
@@ -380,7 +380,7 @@ permission, or creates a receipt.
 ## Backend ownership
 
 ```text
-Claw ratatui renderer
+Yu OS ratatui renderer
   -> canonical agent.conversation.* broker routes
   -> durable task submit/stream/list/get/cancel/retry routes
   -> protected pending/recent approval reads and root-owned decisions
@@ -388,12 +388,12 @@ Claw ratatui renderer
   -> shared Activity lifecycle, execution and attention routes
   -> revision-bound Activity control routes
   -> read-only Activity object, preview, receipt and object-state evidence
-  -> claw-agentd and the shared guarded Agent runtime
+  -> yuos-agentd and the shared guarded Agent runtime
 ```
 
 The renderer owns only transient display state, the current composer, local
-prompt history and bounded stream handles for queued Jobs. `clawd` owns conversation identity, queue order and
-mutation; `claw-agentd` owns model/tool execution; the existing capability,
+prompt history and bounded stream handles for queued Jobs. `yuosd` owns conversation identity, queue order and
+mutation; `yuos-agentd` owns model/tool execution; the existing capability,
 approval, audit and Activity boundaries remain authoritative.
 
 Conversation creation and resume use canonical `ses_*` IDs directly. History
@@ -401,7 +401,7 @@ is the bounded owner-scoped view returned by the conversation service. Fork
 and rewind reuse its verified task/message bindings and fail closed for active,
 legacy, partial or clipped history.
 
-Per-task model selection is constrained to the configured Claw provider's
+Per-task model selection is constrained to the configured Yu OS provider's
 catalogue. It does not rewrite provider choice, credentials, fallback policy,
 capabilities or another task's configuration.
 
@@ -427,14 +427,14 @@ The real authorization fixture needs `pkexec`, `polkitd`, D-Bus, OpenSSL and
 PAM. From the repository root, after building the binaries:
 
 ```bash
-cargo build -p yu --bin yu --bin clawd --bin claw-approval-helper
+cargo build -p yu --bin yu --bin yuosd --bin yuos-approval-helper
 original_mount="$(readlink /proc/self/ns/mnt)"
 original_pid="$(readlink /proc/self/ns/pid)"
 sudo unshare --mount --pid --fork --mount-proc --net \
   python3 -B core/tests/approval_polkit_process.py \
   --yu target/debug/yu \
-  --clawd target/debug/clawd \
-  --helper target/debug/claw-approval-helper \
+  --yuosd target/debug/yuosd \
+  --helper target/debug/yuos-approval-helper \
   --policy rootfs/overlay/usr/share/polkit-1/actions/org.yuos.approval.policy \
   --original-mount-namespace "$original_mount" \
   --original-pid-namespace "$original_pid"
@@ -516,7 +516,7 @@ The debug-center scenario uses narrow daemon health and verifies the safe
 diagnostic panel without reading broad daemon context or configuration secrets.
 The account-center scenario requires confirmation before fixed Copilot logout
 and never scans foreign-agent configuration roots.
-The voice-settings scenario proves the TUI projects the configured Claw
+The voice-settings scenario proves the TUI projects the configured Yu OS
 STT/TTS models while leaving realtime microphone capture unavailable.
 The review scenario renders only authenticated Activity plan references and
 App-reported receipt diffs, with no workspace scan or apply action.

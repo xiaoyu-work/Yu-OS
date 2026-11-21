@@ -22,7 +22,7 @@ fn build_auto_returns_none_when_local_missing_and_no_cloud_agent() {
     let mut c = EmbedConfig::default();
     c.model_dir = Some(
         std::env::temp_dir()
-            .join("cos-test-missing-qwen3-embedding-stack")
+            .join("yuos-test-missing-qwen3-embedding-stack")
             .display()
             .to_string(),
     );
@@ -39,7 +39,7 @@ fn build_auto_falls_back_to_cloud_agent_when_local_missing() {
     let mut c = EmbedConfig::default();
     c.model_dir = Some(
         std::env::temp_dir()
-            .join("cos-test-missing-qwen3-embedding-stack")
+            .join("yuos-test-missing-qwen3-embedding-stack")
             .display()
             .to_string(),
     );
@@ -283,7 +283,7 @@ async fn spawn_one_shot_mock(
 
 #[tokio::test]
 async fn end_to_end_embed_round_trip() {
-    std::env::set_var("COS_TEST_EMBED_KEY", "sk-test-embed");
+    std::env::set_var("YUOS_TEST_EMBED_KEY", "sk-test-embed");
     let body = serde_json::json!({
         "object": "list",
         "model": "text-embedding-3-small",
@@ -299,7 +299,7 @@ async fn end_to_end_embed_round_trip() {
     c.provider = "openai".into();
     c.model = "text-embedding-3-small".into();
     c.base_url = Some(base_url);
-    c.api_key_env = Some("COS_TEST_EMBED_KEY".into());
+    c.api_key_env = Some("YUOS_TEST_EMBED_KEY".into());
 
     let embedder = OpenAICompatEmbedder::from_config(&c);
     let resp = embedder
@@ -320,7 +320,7 @@ async fn end_to_end_embed_round_trip() {
     assert!(req.contains("\"model\":\"text-embedding-3-small\""));
     assert!(req.contains("alpha"));
 
-    std::env::remove_var("COS_TEST_EMBED_KEY");
+    std::env::remove_var("YUOS_TEST_EMBED_KEY");
 }
 
 #[tokio::test]
@@ -330,7 +330,7 @@ async fn end_to_end_embed_401_maps_to_auth() {
     let mut c = EmbedConfig::default();
     c.provider = "openai".into();
     c.base_url = Some(base_url);
-    c.api_key_env = Some("COS_NONEXISTENT_KEY_1933".into());
+    c.api_key_env = Some("YUOS_NONEXISTENT_KEY_1933".into());
     let embedder = OpenAICompatEmbedder::from_config(&c);
     let err = embedder
         .embed(EmbedRequest {
@@ -343,7 +343,7 @@ async fn end_to_end_embed_401_maps_to_auth() {
 
 #[tokio::test]
 async fn azure_alias_sends_api_key_header_not_bearer() {
-    std::env::set_var("COS_TEST_AZURE_KEY", "azure-secret-1234");
+    std::env::set_var("YUOS_TEST_AZURE_KEY", "azure-secret-1234");
     let body = serde_json::json!({
         "object": "list",
         "model": "text-embedding-3-small",
@@ -356,7 +356,7 @@ async fn azure_alias_sends_api_key_header_not_bearer() {
     c.provider = "azure".into();
     c.model = "text-embedding-3-small".into();
     c.base_url = Some(base_url);
-    c.api_key_env = Some("COS_TEST_AZURE_KEY".into());
+    c.api_key_env = Some("YUOS_TEST_AZURE_KEY".into());
 
     let e = OpenAICompatEmbedder::from_config(&c);
     let resp = e
@@ -377,7 +377,7 @@ async fn azure_alias_sends_api_key_header_not_bearer() {
         "azure alias must NOT send bearer auth, got:\n{req}"
     );
 
-    std::env::remove_var("COS_TEST_AZURE_KEY");
+    std::env::remove_var("YUOS_TEST_AZURE_KEY");
 }
 
 #[test]

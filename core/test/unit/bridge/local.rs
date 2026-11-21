@@ -75,7 +75,7 @@ fn ordinary_registration_refuses_old_or_disabled_root_custody() {
         if let Some(value) = response.get("root_custody") {
             complete["root_custody"] = value.clone();
         }
-        let result = AppIdentitySession::from_clawd_registration(
+        let result = AppIdentitySession::from_yuosd_registration(
             "ordinary-fixture", complete, None, None, &package, true,
         );
         let error = match result {
@@ -115,9 +115,9 @@ fn review_id(error: &str, app_id: &str) -> String {
 fn local_registration_checks_root_and_review_before_deriving_capabilities() {
     let _lock = crate::test_env::lock_env();
     let root = crate::test_env::secure_scratch_dir("local-registration-review");
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", &root);
-    let _caps = TestEnvVarGuard::set("COS_CAPS_DATA_DIR", &root);
-    let _fixture = TestEnvVarGuard::remove("COS_TEST_LOCAL_APP_SESSIONS");
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", &root);
+    let _caps = TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", &root);
+    let _fixture = TestEnvVarGuard::remove("YUOS_TEST_LOCAL_APP_SESSIONS");
     let _parent = TestSessionGuard::admin(&root);
     let launch = launch(&root, "local-review", None);
     let parent = crate::proc::current_session_info_for_caps().unwrap();
@@ -152,15 +152,15 @@ fn local_registration_checks_root_and_review_before_deriving_capabilities() {
 #[test]
 fn all_launchers_keep_the_broker_and_cannot_select_local_owner_authority() {
     let _lock = crate::test_env::lock_env();
-    let _fixture = TestEnvVarGuard::remove("COS_TEST_LOCAL_APP_SESSIONS");
+    let _fixture = TestEnvVarGuard::remove("YUOS_TEST_LOCAL_APP_SESSIONS");
     let root = tempfile::tempdir().unwrap();
     let _private = TestEnvVarGuard::remove(crate::extension_host::protocol::BROKER_SOCKET_ENV);
-    assert!(use_clawd_backend().unwrap());
+    assert!(use_yuosd_backend().unwrap());
     let _host = TestEnvVarGuard::set(
         crate::extension_host::protocol::BROKER_SOCKET_ENV,
         root.path().join("private.sock"),
     );
-    assert!(use_clawd_backend().unwrap());
+    assert!(use_yuosd_backend().unwrap());
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -169,21 +169,21 @@ fn all_launchers_keep_the_broker_and_cannot_select_local_owner_authority() {
         42_424,
         root.path().to_path_buf(),
         async {
-            let error = use_clawd_backend().unwrap_err();
+            let error = use_yuosd_backend().unwrap_err();
             assert!(error.contains("owner-overridden App launches"), "{error}");
         },
     ));
-    let _local_fixture = TestEnvVarGuard::set("COS_TEST_LOCAL_APP_SESSIONS", "1");
-    assert!(!use_clawd_backend().unwrap());
+    let _local_fixture = TestEnvVarGuard::set("YUOS_TEST_LOCAL_APP_SESSIONS", "1");
+    assert!(!use_yuosd_backend().unwrap());
 }
 
 #[test]
 fn registration_cannot_review_one_package_and_name_a_different_app() {
     let _lock = crate::test_env::lock_env();
     let root = crate::test_env::secure_scratch_dir("local-review-identity");
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", &root);
-    let _caps = TestEnvVarGuard::set("COS_CAPS_DATA_DIR", &root);
-    let _fixture = TestEnvVarGuard::set("COS_TEST_LOCAL_APP_SESSIONS", "1");
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", &root);
+    let _caps = TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", &root);
+    let _fixture = TestEnvVarGuard::set("YUOS_TEST_LOCAL_APP_SESSIONS", "1");
     let launch = launch(&root, "local-review", None);
     for error in [
         refused(AppIdentitySession::for_operation(
@@ -207,12 +207,12 @@ fn local_review_refusal_keeps_the_broker_code_and_private_payload() {
         "system_review_id": "rv-0123456789abcdef0123456789abcdef",
         "app_id": "local-review",
     });
-    let error = crate::clawd::protocol::BrokerError::authorization_required(
+    let error = crate::yuosd::protocol::BrokerError::authorization_required(
         "waiting for OS review",
         details.clone(),
     )
     .classified("system_review_required");
-    let error = ClawdCallError::from(error);
+    let error = YuosdCallError::from(error);
     assert_eq!(error.code.as_deref(), Some("not_authorized"));
     assert_eq!(error.data.as_ref(), Some(&details));
     let encoded: Value = serde_json::from_str(&error.to_string()).unwrap();
@@ -222,9 +222,9 @@ fn local_review_refusal_keeps_the_broker_code_and_private_payload() {
 
 #[cfg(target_os = "linux")]
 fn check_root_broker_registration(root: &Path, parent_caps: &CapSet) {
-    use crate::clawd::protocol::{BrokerError, Request, Response};
-    use crate::clawd::routes::Command;
-    use crate::clawd::{transport::frame, wire};
+    use crate::yuosd::protocol::{BrokerError, Request, Response};
+    use crate::yuosd::routes::Command;
+    use crate::yuosd::{transport::frame, wire};
     use std::io::{Read, Write};
     use std::os::unix::net::UnixListener;
     use std::time::{Duration, Instant};
@@ -235,17 +235,17 @@ fn check_root_broker_registration(root: &Path, parent_caps: &CapSet) {
     for private in [false, true] {
         let directory = root.join(if private { "private" } else { "ordinary" });
         std::fs::create_dir(&directory).unwrap();
-        let _runtime = TestEnvVarGuard::set("COS_RUNTIME_DIR", &directory);
+        let _runtime = TestEnvVarGuard::set("YUOS_RUNTIME_DIR", &directory);
         let _no_private =
             TestEnvVarGuard::remove(crate::extension_host::protocol::BROKER_SOCKET_ENV);
-        let public_socket = crate::paths::clawd_socket_path();
+        let public_socket = crate::paths::yuosd_socket_path();
         let _private = private.then(|| {
             TestEnvVarGuard::set(
                 crate::extension_host::protocol::BROKER_SOCKET_ENV,
                 directory.join("host.sock"),
             )
         });
-        let socket = crate::paths::clawd_socket_path();
+        let socket = crate::paths::yuosd_socket_path();
         assert_eq!(socket != public_socket, private);
         let public_listener = private.then(|| UnixListener::bind(&public_socket).unwrap());
         let listener = UnixListener::bind(&socket).unwrap();
@@ -359,7 +359,7 @@ fn check_root_broker_registration(root: &Path, parent_caps: &CapSet) {
             assert!(registrations.windows(2).all(|pair| pair[0] == pair[1]));
         });
         let register = || {
-            AppIdentitySession::register_with_clawd(
+            AppIdentitySession::register_with_yuosd(
                 launch.app_id(),
                 &LaunchRequest::Operation {
                     operation: "probe",
@@ -434,22 +434,22 @@ fn root_local_registration_requires_protected_owner_review() {
         std::io::Error::last_os_error()
     );
     let root = tempfile::Builder::new()
-        .prefix("claw-local-review-")
+        .prefix("yuos-local-review-")
         .tempdir_in("/run")
         .unwrap();
     let _home = TestEnvVarGuard::set("HOME", root.path());
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", root.path().join("data"));
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().join("data"));
     let caps_root = root.path().join("caps");
-    let _caps = TestEnvVarGuard::set("COS_CAPS_DATA_DIR", &caps_root);
-    let _runtime = TestEnvVarGuard::set("COS_RUNTIME_DIR", root.path().join("no-daemon"));
+    let _caps = TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", &caps_root);
+    let _runtime = TestEnvVarGuard::set("YUOS_RUNTIME_DIR", root.path().join("no-daemon"));
     let _broker = TestEnvVarGuard::set(
         crate::extension_host::protocol::BROKER_SOCKET_ENV,
         root.path().join("no-broker.sock"),
     );
-    let _fixture = TestEnvVarGuard::remove("COS_TEST_LOCAL_APP_SESSIONS");
+    let _fixture = TestEnvVarGuard::remove("YUOS_TEST_LOCAL_APP_SESSIONS");
     let owner = 42_424;
     let other_owner = 42_425;
-    let _parent = TestSessionGuard::admin(&Path::new("/run/cos/caps").join(owner.to_string()));
+    let _parent = TestSessionGuard::admin(&Path::new("/run/yuos/caps").join(owner.to_string()));
     let original = launch(root.path(), "local-review", None);
     let before = crate::proc::registry_sessions().len();
     let parent = crate::proc::current_session_info_for_caps().unwrap();
@@ -481,7 +481,7 @@ fn root_local_registration_requires_protected_owner_review() {
         owner,
         root.path().join("owner-home"),
         async {
-            assert!(!use_clawd_backend().unwrap());
+            assert!(!use_yuosd_backend().unwrap());
             let operation =
                 || AppIdentitySession::for_operation(&original, original.app_id(), "probe", &[]);
             let error = refused(operation());

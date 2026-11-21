@@ -21,7 +21,7 @@ fn approval_parser_projects_catalog_text_and_human_scope() {
         "reason": "Inspect file details: path:/**",
         "session": "session-1",
         "requested_at": 42,
-        "requester": "Claw Agent",
+        "requester": "Yu OS Agent",
         "risk": "low"
     });
 
@@ -39,7 +39,7 @@ fn approval_parser_projects_catalog_text_and_human_scope() {
             status: "pending".into(),
             session: "session-1".into(),
             requested_at: 42,
-            requester: Some("Claw Agent".into()),
+            requester: Some("Yu OS Agent".into()),
             risk: Some("low".into()),
             decided_at: None,
             duration: None,

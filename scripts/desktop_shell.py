@@ -1,4 +1,4 @@
-"""Embed the immutable signed App payload into claw-os-desktop."""
+"""Embed the immutable signed App payload into yuos-desktop."""
 
 import argparse
 import json
@@ -13,18 +13,14 @@ from app_packages import DESKTOP_SHELL_ROOT, ROOT, run, sha256, work_root
 
 
 APP = "desktop-shell"
-ENTRY = "bin/claw-desktop-shell"
-SHELL_QML = "resources/usr/share/claw-desktop-shell/shell.qml"
+ENTRY = "bin/yuos-desktop-shell"
+SHELL_QML = "resources/usr/share/yuos-desktop-shell/shell.qml"
 BUILD_FORMAT = "yuos.desktop-shell-build/v1"
 MAX_BYTES = 264 * 1024 * 1024
 MAX_FILES = 20_001
-PUBLISHER = ROOT / "packaging/deb/claw-os-agent/trust/publishers.d/clawos-app.json"
-RELEASE = "https://github.com/xiaoyu-work/clawos-app/releases/download"
-VERIFIER = "https://github.com/xiaoyu-work/claw-os/releases/download/sdk-v0.2.1"
-VERIFIER_SHA256 = {
-    "amd64": "df30cf7d57fe3dc81532e2c5599ce61de91ad3a625d1305b2f848640f5ed2a9b",
-    "arm64": "613a592f1c03602853b15d4316d425bfa17c60fba1a3a757e4c43535e3d0be70",
-}
+PUBLISHER = ROOT / "packaging/deb/yuos-agent/trust/publishers.d/yuos-app.json"
+RELEASE = "https://github.com/xiaoyu-work/yuos-app/releases/download"
+VERIFIER_LOCK = ROOT / "packaging/provenance-tools.lock.json"
 
 
 def download(url, limit, destination=None):
@@ -44,17 +40,33 @@ def host_architecture():
 
 
 def verifier(architecture):
-    return work_root() / f"cos-provenance-linux-{architecture}"
+    return work_root() / f"yu-provenance-linux-{architecture}"
+
+
+def verifier_pin(architecture):
+    pin = json.loads(VERIFIER_LOCK.read_text())
+    version = pin["version"]
+    digest = pin["sha256"][architecture]
+    if not re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)", version) or (
+        not re.fullmatch(r"[0-9a-f]{64}", digest)
+    ):
+        raise ValueError("Invalid approved Yu OS provenance tool pin")
+    url = (
+        "https://github.com/xiaoyu-work/Yu-OS/releases/download/"
+        f"yuos-sdk-v{version}/yu-provenance-linux-{architecture}"
+    )
+    return url, digest
 
 
 def verify(root, architecture, pin):
     host = host_architecture()
     tool = verifier(host)
-    if not tool.is_file() or sha256(tool) != VERIFIER_SHA256[host]:
+    _, digest = verifier_pin(host)
+    if not tool.is_file() or sha256(tool) != digest:
         raise ValueError("Missing or changed public Desktop Shell verifier")
     publisher = json.loads(PUBLISHER.read_text())["keys"][0]["key_id"]
     # The pinned verifier uses passwd, not $HOME, to find its trust store.
-    with tempfile.TemporaryDirectory(prefix="claw-desktop-shell-trust-") as scratch:
+    with tempfile.TemporaryDirectory(prefix="yuos-desktop-shell-trust-") as scratch:
         publisher_file = Path(scratch) / PUBLISHER.name
         shutil.copyfile(PUBLISHER, publisher_file)
         publisher_file.chmod(0o644)
@@ -142,9 +154,9 @@ def extract(archive, root, checksum):
 def prepare(architecture, version):
     if not re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)", version):
         raise ValueError("Select an approved MAJOR.MINOR.PATCH Desktop Shell release")
-    tag = f"desktop-shell-v{version}"
+    tag = f"yuos-desktop-shell-v{version}"
     asset = f"desktop-shell-linux-{architecture}.tar.gz"
-    release = json.loads(download(f"https://api.github.com/repos/xiaoyu-work/clawos-app/releases/tags/{tag}", 2**20))
+    release = json.loads(download(f"https://api.github.com/repos/xiaoyu-work/yuos-app/releases/tags/{tag}", 2**20))
     if release["immutable"] is not True or release["draft"] or release["tag_name"] != tag:
         raise ValueError("Desktop Shell release must be published and immutable")
     expected = [entry["digest"] for entry in release["assets"] if entry["name"] == asset]
@@ -160,11 +172,12 @@ def prepare(architecture, version):
         scratch = Path(scratch)
         for arch in {architecture, host_architecture()}:
             tool = verifier(arch)
-            if tool.is_file() and sha256(tool) == VERIFIER_SHA256[arch]:
+            url, digest = verifier_pin(arch)
+            if tool.is_file() and sha256(tool) == digest:
                 continue
             candidate = scratch / tool.name
-            download(f"{VERIFIER}/{tool.name}", 128 * 1024 * 1024, candidate)
-            if sha256(candidate) != VERIFIER_SHA256[arch]:
+            download(url, 128 * 1024 * 1024, candidate)
+            if sha256(candidate) != digest:
                 raise ValueError("Public Desktop Shell verifier SHA256 mismatch")
             candidate.chmod(0o755)
             candidate.replace(tool)

@@ -1,4 +1,4 @@
-//! `claw-security-floor` — the helper every enforcement point calls.
+//! `yuos-security-floor` — the helper every enforcement point calls.
 //!
 //! Maintainer scripts, the APT pre-install hook and operators all go
 //! through this one binary instead of re-deriving version comparisons
@@ -38,12 +38,12 @@ pub const EXIT_INTERNAL: i32 = 1;
 pub const EXIT_USAGE: i32 = 2;
 pub const EXIT_REFUSED: i32 = 10;
 
-/// Entry point for the `claw-security-floor` binary.
+/// Entry point for the `yuos-security-floor` binary.
 pub fn main(args: &[String]) -> i32 {
     match run(args) {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("claw-security-floor: {error}");
+            eprintln!("yuos-security-floor: {error}");
             EXIT_INTERNAL
         }
     }
@@ -72,7 +72,7 @@ fn run(args: &[String]) -> Result<i32, String> {
         "apt-hook" => apt_hook_command(rest),
         "recover" => recover_command(rest),
         other => {
-            eprintln!("claw-security-floor: unknown command `{other}`");
+            eprintln!("yuos-security-floor: unknown command `{other}`");
             print_help();
             Ok(EXIT_USAGE)
         }
@@ -82,30 +82,30 @@ fn run(args: &[String]) -> Result<i32, String> {
 fn print_help() {
     println!(
         "\
-claw-security-floor — Claw OS update downgrade protection
+yuos-security-floor — Yu OS update downgrade protection
 
 Usage:
-  claw-security-floor policy
-  claw-security-floor show [--root DIR]
-  claw-security-floor check-candidate --package NAME --version VERSION
+  yuos-security-floor policy
+  yuos-security-floor show [--root DIR]
+  yuos-security-floor check-candidate --package NAME --version VERSION
                                       --manifest FILE [--signature FILE]
                                       [--operation install|upgrade|configure|plan]
                                       [--installed NAME=VERSION]... [--root DIR]
-  claw-security-floor check-incoming --package NAME --version VERSION [--root DIR]
-  claw-security-floor commit --package NAME --version VERSION --manifest FILE
+  yuos-security-floor check-incoming --package NAME --version VERSION [--root DIR]
+  yuos-security-floor commit --package NAME --version VERSION --manifest FILE
                              [--signature FILE] [--installed NAME=VERSION]...
                              [--reason TEXT] [--root DIR]
-  claw-security-floor project [--root DIR]
-  claw-security-floor runtime-check [--scope critical|epoch] [--root DIR]
-  claw-security-floor verify-installed [--scope critical|epoch] [--root DIR]
-  claw-security-floor service-gate --package NAME --manifest FILE
+  yuos-security-floor project [--root DIR]
+  yuos-security-floor runtime-check [--scope critical|epoch] [--root DIR]
+  yuos-security-floor verify-installed [--scope critical|epoch] [--root DIR]
+  yuos-security-floor service-gate --package NAME --manifest FILE
                                    [--installed NAME=VERSION]... [--root DIR]
-  claw-security-floor apt-hook [--root DIR]
-  claw-security-floor recover authorize --package NAME --version VERSION
+  yuos-security-floor apt-hook [--root DIR]
+  yuos-security-floor recover authorize --package NAME --version VERSION
                                         --epoch N --manifest-sha256 SHA256
                                         --reason TEXT --expires-in HOURS [--root DIR]
-  claw-security-floor recover list [--root DIR]
-  claw-security-floor recover revoke --id ID [--root DIR]
+  yuos-security-floor recover list [--root DIR]
+  yuos-security-floor recover revoke --id ID [--root DIR]
 
 Exit codes: 0 allowed, 10 refused, 2 usage, 1 internal error.
 "
@@ -267,7 +267,7 @@ fn show_command(args: &[String]) -> Result<i32, String> {
             Ok(EXIT_ALLOWED)
         }
         Err(error) => {
-            eprintln!("claw-security-floor: {error}");
+            eprintln!("yuos-security-floor: {error}");
             Ok(EXIT_REFUSED)
         }
     }
@@ -439,9 +439,9 @@ fn project_command(args: &[String]) -> Result<i32, String> {
     Ok(EXIT_ALLOWED)
 }
 
-/// What an unprivileged Claw OS binary sees, and nothing else.
+/// What an unprivileged Yu OS binary sees, and nothing else.
 ///
-/// This is the exact code path `cos`, `claw-agentd`, the approval
+/// This is the exact code path `yu`, `yuos-agentd`, the approval
 /// helper and the App runner take at startup, so it never repairs
 /// anything: an operator running it is asking what those processes
 /// would decide.
@@ -463,7 +463,7 @@ fn runtime_check_command(args: &[String]) -> Result<i32, String> {
             Ok(EXIT_ALLOWED)
         }
         Err(refusal) => {
-            eprintln!("claw-security-floor: {}", refusal.message);
+            eprintln!("yuos-security-floor: {}", refusal.message);
             Ok(EXIT_REFUSED)
         }
     }
@@ -487,7 +487,7 @@ fn verify_installed_command(args: &[String]) -> Result<i32, String> {
     if let Err(refusal) =
         super::runtime::enforce_broker_startup_in(&store, &projection, &options.root)
     {
-        eprintln!("claw-security-floor: {}", refusal.message);
+        eprintln!("yuos-security-floor: {}", refusal.message);
         return Ok(EXIT_REFUSED);
     }
     match super::runtime::enforce_startup_in(&projection, &options.root, scope) {
@@ -496,7 +496,7 @@ fn verify_installed_command(args: &[String]) -> Result<i32, String> {
             Ok(EXIT_ALLOWED)
         }
         Err(refusal) => {
-            eprintln!("claw-security-floor: {}", refusal.message);
+            eprintln!("yuos-security-floor: {}", refusal.message);
             Ok(EXIT_REFUSED)
         }
     }
@@ -520,7 +520,7 @@ fn service_gate_command(args: &[String]) -> Result<i32, String> {
     match decide::installed_set_is_compatible(&manifest, &installed) {
         Ok(()) => Ok(EXIT_ALLOWED),
         Err(reason) => {
-            eprintln!("claw-security-floor: {reason}");
+            eprintln!("yuos-security-floor: {reason}");
             Ok(EXIT_REFUSED)
         }
     }
@@ -531,7 +531,7 @@ fn service_gate_command(args: &[String]) -> Result<i32, String> {
 ///
 /// This is the one check that sees the *whole* candidate set, so it
 /// catches the case no maintainer script can: `apt install
-/// claw-os-agent=<old>` where the old package's own scripts predate
+/// yuos-agent=<old>` where the old package's own scripts predate
 /// this protection, and a reinstall after the package was removed.
 fn apt_hook_command(args: &[String]) -> Result<i32, String> {
     let options = parse_options(args)?;
@@ -550,7 +550,7 @@ fn apt_hook_command(args: &[String]) -> Result<i32, String> {
                 Ok(FloorState::Uninitialized) => Ok(EXIT_ALLOWED),
                 _ => {
                     eprintln!(
-                        "claw-security-floor: refusing this transaction: {reason}. This system \
+                        "yuos-security-floor: refusing this transaction: {reason}. This system \
                          has recorded update-security state, so a candidate set that cannot be \
                          inspected cannot be allowed."
                     );
@@ -562,7 +562,7 @@ fn apt_hook_command(args: &[String]) -> Result<i32, String> {
             return match store.load() {
                 Ok(FloorState::Uninitialized) => Ok(EXIT_ALLOWED),
                 _ => {
-                    eprintln!("claw-security-floor: refusing this transaction: {reason}");
+                    eprintln!("yuos-security-floor: refusing this transaction: {reason}");
                     Ok(EXIT_REFUSED)
                 }
             }
@@ -570,7 +570,7 @@ fn apt_hook_command(args: &[String]) -> Result<i32, String> {
     };
 
     // Nothing of ours in this transaction: succeed without reading any
-    // Claw OS state at all, so an unrelated `apt install` can never be
+    // Yu OS state at all, so an unrelated `apt install` can never be
     // blocked by this hook.
     if plan.is_empty() {
         return Ok(EXIT_ALLOWED);
@@ -595,7 +595,7 @@ fn apt_hook_command(args: &[String]) -> Result<i32, String> {
             Ok(None) => {
                 if matches!(state, FloorState::Present { .. }) {
                     eprintln!(
-                        "claw-security-floor: refusing {} {}: the package carries no release-security manifest",
+                        "yuos-security-floor: refusing {} {}: the package carries no release-security manifest",
                         entry.package, entry.version
                     );
                     refused = true;
@@ -604,7 +604,7 @@ fn apt_hook_command(args: &[String]) -> Result<i32, String> {
             }
             Err(error) => {
                 eprintln!(
-                    "claw-security-floor: cannot inspect {}: {error}",
+                    "yuos-security-floor: cannot inspect {}: {error}",
                     entry.package
                 );
                 refused = true;
@@ -674,7 +674,7 @@ fn recover_authorize(args: &[String]) -> Result<i32, String> {
         return Err(format!("`{version}` is not a Debian version"));
     }
     if !super::GATED_PACKAGES.contains(&package.as_str()) {
-        return Err(format!("`{package}` is not a Claw OS security package"));
+        return Err(format!("`{package}` is not a Yu OS security package"));
     }
 
     require_operator_terminal()?;
@@ -691,7 +691,7 @@ fn recover_authorize(args: &[String]) -> Result<i32, String> {
     let _ = writeln!(
         stderr,
         "\n\
-         ── Claw OS security floor recovery ───────────────────────────\n\
+         ── Yu OS security floor recovery ───────────────────────────\n\
          You are authorizing ONE installation of a release this system\n\
          has already moved past. It cannot authorize any other package,\n\
          version or artifact, and it can be used once.\n\
@@ -715,7 +715,7 @@ fn recover_authorize(args: &[String]) -> Result<i32, String> {
         .read_line(&mut answer)
         .map_err(|error| format!("failed to read the confirmation: {error}"))?;
     if answer.trim() != phrase {
-        eprintln!("claw-security-floor: recovery authorization was not confirmed");
+        eprintln!("yuos-security-floor: recovery authorization was not confirmed");
         return Ok(EXIT_REFUSED);
     }
 
@@ -793,7 +793,7 @@ fn recover_revoke(args: &[String]) -> Result<i32, String> {
         println!("recovery authorization {id} revoked");
         Ok(EXIT_ALLOWED)
     } else {
-        eprintln!("claw-security-floor: no pending authorization {id}");
+        eprintln!("yuos-security-floor: no pending authorization {id}");
         Ok(EXIT_REFUSED)
     }
 }
@@ -876,7 +876,7 @@ fn read_manifest(path: &Path) -> Result<Manifest, String> {
     Manifest::parse(&bytes)
 }
 
-/// Installed Claw OS package versions.
+/// Installed Yu OS package versions.
 ///
 /// `--installed` overrides the query entirely so a test — or a
 /// maintainer script that already knows the answer — does not depend
@@ -956,13 +956,13 @@ fn report(options: &Options, stage: &str, package: &str, version: &str, decision
         println!("{}: {}", decision.class, decision.message);
     } else {
         eprintln!(
-            "claw-security-floor: refusing {package} {version}\n  reason: {}\n  class:  {}",
+            "yuos-security-floor: refusing {package} {version}\n  reason: {}\n  class:  {}",
             decision.message, decision.class
         );
     }
     if options.root != Path::new("/") {
         eprintln!(
-            "claw-security-floor: note: evaluated against alternate root {}",
+            "yuos-security-floor: note: evaluated against alternate root {}",
             options.root.display()
         );
     }
@@ -990,8 +990,8 @@ fn require_operator_terminal() -> Result<(), String> {
         );
     }
     for marker in [
-        "COS_SESSION",
-        "COS_APP_ID",
+        "YUOS_SESSION",
+        "YUOS_APP_ID",
         crate::agentd::protocol::CHANNEL_FD_ENV,
     ] {
         if std::env::var_os(marker).is_some() {

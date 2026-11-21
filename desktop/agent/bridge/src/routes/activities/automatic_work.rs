@@ -1,4 +1,4 @@
-//! Authenticated transport only; all scheduling and state remain in clawd.
+//! Authenticated transport only; all scheduling and state remain in yuosd.
 
 use super::{body, invalid, upstream_error, with_id};
 use crate::{
@@ -12,8 +12,8 @@ use axum::{
         rejection::{JsonRejection, QueryRejection},
     },
 };
-use clawd_client::Command;
-use cos_agent_protocol::{
+use yuosd_client::Command;
+use yuos_agent_protocol::{
     ActivityAutoWork, ActivityAutoWorkResponse, AutoWorkEnabledRequest, AutoWorkQuery,
     AutoWorkSetRequest,
 };
@@ -30,7 +30,7 @@ pub async fn get(
 ) -> Result<Json<ActivityAutoWorkResponse>, ApiError> {
     query.map_err(|_| invalid("Automatic work accepts no owner or state selectors"))?;
     let value = state
-        .clawd
+        .yuosd
         .call(Command::ActivityWorkGet, with_id(&id, json!({}))?)
         .await
         .map_err(upstream_error)?;
@@ -52,7 +52,7 @@ pub async fn set(
     let request = body(request)?;
     request.validate().map_err(invalid)?;
     let value = state
-        .clawd
+        .yuosd
         .call(Command::ActivityWorkSet, with_id(&id, &request)?)
         .await
         .map_err(upstream_error)?;
@@ -78,7 +78,7 @@ pub async fn enabled(
     let request = body(request)?;
     request.validate().map_err(invalid)?;
     let value = state
-        .clawd
+        .yuosd
         .call(Command::ActivityWorkEnabled, with_id(&id, &request)?)
         .await
         .map_err(upstream_error)?;

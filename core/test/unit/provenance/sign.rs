@@ -7,7 +7,7 @@ use crate::provenance::envelope::{Envelope, ENVELOPE_FILE};
 
 fn tmpdir(label: &str) -> PathBuf {
     let p = std::env::temp_dir().join(format!(
-        "cos-prov-sign-{label}-{}",
+        "yuos-prov-sign-{label}-{}",
         uuid::Uuid::new_v4().simple()
     ));
     fs::create_dir_all(&p).unwrap();
@@ -24,7 +24,7 @@ fn request(id: &str) -> SignRequest {
         kind: PackageKind::App,
         id: id.to_string(),
         version: "0.1.0".to_string(),
-        manifest_schema: "cos.app-manifest/v1".to_string(),
+        manifest_schema: "yuos.app-manifest/v1".to_string(),
         manifest_path: "app.json".to_string(),
         entrypoints: vec!["main.py".to_string()],
         resources: vec![],

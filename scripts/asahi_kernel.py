@@ -30,7 +30,7 @@ def build_asahi_kernel(release, source, work, stage):
     subprocess.run([sys.executable, tree / "tools/aurora-bindgen/build.py", "--output-dir", tools, "--jobs", "2"],
                    env=env, check=True)
     env = rust_toolchain(work, "1.85.0", "--component", "rust-src", llvm=18)
-    env.update(LIBCLANG_PATH=libclang, RUSTFMT=str(rustfmt), KBUILD_BUILD_HOST="clawos", KBUILD_BUILD_USER="clawos",
+    env.update(LIBCLANG_PATH=libclang, RUSTFMT=str(rustfmt), KBUILD_BUILD_HOST="yuos", KBUILD_BUILD_USER="yuos",
                AURORA_BINDGEN_REAL=str(tools / "rust-bindgen-0.73.2/target/release/bindgen"))
     make = ["make", "-C", tree, f"O={build}", "ARCH=arm64", f"LLVM={clang}", f"BINDGEN={wrapper}", "LOCALVERSION="]
 

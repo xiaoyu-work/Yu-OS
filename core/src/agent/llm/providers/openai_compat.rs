@@ -628,7 +628,7 @@ fn build_wire_request_body(
     wire_api: super::copilot_auth::CopilotWireApi,
     compatibility: AliasCompatibility,
 ) -> Result<serde_json::Value> {
-    if request.extra.get("_cos_reasoning_effort").is_some()
+    if request.extra.get("__yuos_reasoning_effort").is_some()
         && wire_api != super::copilot_auth::CopilotWireApi::Responses
     {
         return Err(LlmError::InvalidRequest(
@@ -652,7 +652,7 @@ fn build_wire_request_body(
 fn copilot_initiator(request: &ChatRequest) -> &'static str {
     if request
         .extra
-        .get("_cos_initiator")
+        .get("__yuos_initiator")
         .and_then(|value| value.as_str())
         == Some("agent")
     {

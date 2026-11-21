@@ -7,8 +7,8 @@ async fn routed_runtime_uses_owner_storage_not_the_broker_data_root() {
     let directory = tempfile::tempdir().unwrap();
     let broker = directory.path().join("broker");
     let owner = directory.path().join("owner");
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", &broker);
-    let _user = TestEnvVarGuard::set("COS_USER_DATA_DIR", &owner);
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", &broker);
+    let _user = TestEnvVarGuard::set("YUOS_USER_DATA_DIR", &owner);
     let _xdg = TestEnvVarGuard::set("XDG_RUNTIME_DIR", directory.path().join("absent"));
     assert_eq!(root(), broker.join("worker"));
     crate::paths::with_routed_job(crate::paths::with_user_override(
@@ -32,7 +32,7 @@ async fn user_runtime_directory_keeps_precedence_for_routed_launches() {
     std::fs::create_dir(&xdg).unwrap();
     let _xdg = TestEnvVarGuard::set("XDG_RUNTIME_DIR", &xdg);
     crate::paths::with_routed_job(async {
-        assert_eq!(root(), xdg.join("cos-worker"));
+        assert_eq!(root(), xdg.join("yuos-worker"));
     })
     .await;
 }

@@ -2,7 +2,7 @@ use super::*;
 
 fn temp_dir(name: &str) -> PathBuf {
     let p = std::env::temp_dir().join(format!(
-        "cos-context-engine-{}-{}",
+        "yuos-context-engine-{}-{}",
         name,
         uuid::Uuid::new_v4().simple()
     ));

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # targets/iso-installer/build.sh — Build an installable ISO.
 #
-# Output: build/claw-os-installer-<arch>.iso  (arch from $ARCH).
+# Output: build/yuos-installer-<arch>.iso  (arch from $ARCH).
 #
 # Differs from iso-live in three ways:
 #  1. Adds `installer` feature → Calamares + minimal X + autostart-on-login.
 #  2. Adds `apt-source` feature → installed system gets `apt upgrade` repo.
-#  3. GRUB menu entry text is "Install Claw OS" (vs "Claw OS Live").
+#  3. GRUB menu entry text is "Install Yu OS" (vs "Yu OS Live").
 #
 # Both ISOs share the same Live-boot mechanism. After install completes,
 # Calamares writes a fresh /etc/fstab and grub.cfg, then reboots — the
@@ -25,19 +25,19 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ROOTFS="$PROJECT_DIR/build/claw-os-rootfs"
+ROOTFS="$PROJECT_DIR/build/yuos-rootfs"
 ISO_BUILD="$PROJECT_DIR/build/iso-installer-build"
 
 source "$PROJECT_DIR/scripts/lib/arch.sh"
 source "$PROJECT_DIR/scripts/lib/image-profiles.sh"
 source "$PROJECT_DIR/targets/common/platform-iso.sh"
-if [[ $DEB_ARCH == amd64 || ${CLAW_PLATFORM:-} == aarch64-qualcomm ]]; then
+if [[ $DEB_ARCH == amd64 || ${YUOS_PLATFORM:-} == aarch64-qualcomm ]]; then
     select_iso_platform installer "$IMAGE_FEATURES_DESKTOP_INSTALLER"
 else
     select_iso_platform installer "$IMAGE_FEATURES_INSTALLER"
 fi
 
-OUTPUT="$PROJECT_DIR/build/claw-os-installer-${ARCH_SUFFIX}${PLATFORM_SUFFIX}.iso"
+OUTPUT="$PROJECT_DIR/build/yuos-installer-${ARCH_SUFFIX}${PLATFORM_SUFFIX}.iso"
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "error: must run as root" >&2
@@ -96,8 +96,8 @@ mksquashfs "$ROOTFS" "$ISO_BUILD/live/filesystem.squashfs" \
     -comp zstd -Xcompression-level 19 \
     -noappend
 
-if [[ ,$ISO_FEATURES, == *,surface-drivers,* || ${CLAW_PLATFORM:-} == @(x86-surface-laptop-7-intel|aarch64-qualcomm) ]]; then
-    bash "$SCRIPT_DIR/surface-input/build.sh" "$ROOTFS" "$ISO_BUILD/live" "${CLAW_PLATFORM:-amd64}"
+if [[ ,$ISO_FEATURES, == *,surface-drivers,* || ${YUOS_PLATFORM:-} == @(x86-surface-laptop-7-intel|aarch64-qualcomm) ]]; then
+    bash "$SCRIPT_DIR/surface-input/build.sh" "$ROOTFS" "$ISO_BUILD/live" "${YUOS_PLATFORM:-amd64}"
 fi
 
 cp "$KERNEL" "$ISO_BUILD/live/vmlinuz"
@@ -109,30 +109,30 @@ set default=0
 set timeout=10
 insmod all_video
 
-menuentry "Install Claw OS" {
+menuentry "Install Yu OS" {
     linux  /live/vmlinuz boot=live components quiet splash
     initrd /live/initrd.img
 }
 
-menuentry "Install Claw OS (debug)" {
+menuentry "Install Yu OS (debug)" {
     linux  /live/vmlinuz boot=live components debug
     initrd /live/initrd.img
 }
 
-menuentry "Try Claw OS Live (skip installer)" {
+menuentry "Try Yu OS Live (skip installer)" {
     linux  /live/vmlinuz boot=live components quiet splash systemd.unit=multi-user.target
     initrd /live/initrd.img
 }
 
-menuentry "Install Claw OS (failsafe)" {
+menuentry "Install Yu OS (failsafe)" {
     linux  /live/vmlinuz boot=live components noapic noapm acpi=off
     initrd /live/initrd.img
 }
 GRUBCFG
 
-if [[ $DEB_ARCH == arm64 && ( -z ${CLAW_PLATFORM:-} || $CLAW_PLATFORM == aarch64-qualcomm ) ]]; then
-    source "$PROJECT_DIR/packaging/deb/claw-os-base/hardware/qualcomm-boot.sh"
-    claw_qcom_iso_menu "$ROOTFS" "$ISO_BUILD" "$KERNEL_VERSION" "Install Claw OS" >> "$ISO_BUILD/boot/grub/grub.cfg"
+if [[ $DEB_ARCH == arm64 && ( -z ${YUOS_PLATFORM:-} || $YUOS_PLATFORM == aarch64-qualcomm ) ]]; then
+    source "$PROJECT_DIR/packaging/deb/yuos-base/hardware/qualcomm-boot.sh"
+    yuos_qcom_iso_menu "$ROOTFS" "$ISO_BUILD" "$KERNEL_VERSION" "Install Yu OS" >> "$ISO_BUILD/boot/grub/grub.cfg"
 fi
 finalize_iso_platform installer
 
@@ -157,33 +157,33 @@ fi
 echo ":: building $ARCH ISO via grub-mkrescue"
 grub-mkrescue \
     --output="$OUTPUT" \
-    --product-name="Claw OS Installer" \
+    --product-name="Yu OS Installer" \
     "$ISO_BUILD" \
     -- \
-    -volid "CLAWOS_INST"
+    -volid "YUOS_INST"
 
 SIZE=$(du -h "$OUTPUT" | cut -f1)
 echo ":: done — $OUTPUT ($SIZE)"
 echo
 if [ "$ARCH" = "amd64" ]; then
     echo "Test (BIOS, with an attached blank disk to install into):"
-    echo "  qemu-img create -f qcow2 build/claw-os-target.qcow2 16G"
+    echo "  qemu-img create -f qcow2 build/yuos-target.qcow2 16G"
     echo "  qemu-system-x86_64 -m 4G \\"
     echo "      -cdrom $OUTPUT \\"
-    echo "      -drive file=build/claw-os-target.qcow2,format=qcow2,if=virtio \\"
+    echo "      -drive file=build/yuos-target.qcow2,format=qcow2,if=virtio \\"
     echo "      -boot d"
     echo
     echo "Test (UEFI, requires ovmf):"
     echo "  qemu-system-x86_64 -m 4G \\"
     echo "      -bios /usr/share/ovmf/OVMF.fd \\"
     echo "      -cdrom $OUTPUT \\"
-    echo "      -drive file=build/claw-os-target.qcow2,format=qcow2,if=virtio"
+    echo "      -drive file=build/yuos-target.qcow2,format=qcow2,if=virtio"
 else
     echo "Test (UEFI, requires AAVMF):"
-    echo "  qemu-img create -f qcow2 build/claw-os-target.qcow2 16G"
+    echo "  qemu-img create -f qcow2 build/yuos-target.qcow2 16G"
     echo "  qemu-system-aarch64 -M virt -cpu max -m 4G \\"
     echo "      -bios /usr/share/AAVMF/AAVMF_CODE.fd \\"
     echo "      -cdrom $OUTPUT \\"
-    echo "      -drive file=build/claw-os-target.qcow2,format=qcow2,if=virtio \\"
+    echo "      -drive file=build/yuos-target.qcow2,format=qcow2,if=virtio \\"
     echo "      -nographic"
 fi

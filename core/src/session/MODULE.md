@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`session/` stores and validates Claw OS session identity, capability context,
+`session/` stores and validates Yu OS session identity, capability context,
 and lifecycle state used across broker and agent operations.
 
 ## Responsibilities
@@ -33,7 +33,7 @@ Persistent format changes require migration and recovery coverage.
 owner-private *content* stores. Ordering and lifecycle authority belong
 to [`journal/`](journal/MODULE.md), which records their immutable
 content-addressed references rather than a second copy of their bytes.
-Only the broker process journals; a `claw-agentd` worker reaches the
+Only the broker process journals; a `yuos-agentd` worker reaches the
 chain through the private channel the supervisor validates.
 
 `SessionMeta::origin` is a typed provenance marker, not a role: it names the

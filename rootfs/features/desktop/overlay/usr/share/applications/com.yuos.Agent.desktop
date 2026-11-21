@@ -4,7 +4,7 @@ Version=1.5
 Name=Yu OS Agent
 GenericName=AI Assistant
 Comment=Chat with the Yu OS system Agent
-Exec=/usr/local/bin/cos-agent-ui
+Exec=/usr/local/bin/yuos-agent-ui
 Icon=yuos-agent
 Terminal=false
 Categories=Utility;Office;Network;
@@ -16,5 +16,5 @@ Actions=Nearby;
 
 [Desktop Action Nearby]
 Name=Nearby Sharing
-Exec=/usr/local/bin/cos-agent-ui --nearby
+Exec=/usr/local/bin/yuos-agent-ui --nearby
 Icon=network-transmit-receive

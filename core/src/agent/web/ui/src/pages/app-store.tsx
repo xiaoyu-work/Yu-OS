@@ -108,7 +108,7 @@ export function AppStorePage() {
         throw new Error("Installation was not confirmed. Refresh installed Apps before retrying.");
       }
       setNotice(`${result.app.name} installed. Its declared tools are discoverable by the Agent's next task.`);
-      window.dispatchEvent(new CustomEvent("cos:apps-changed"));
+      window.dispatchEvent(new CustomEvent("yuos:apps-changed"));
       await load();
     } catch (failure) {
       setNotice(failure instanceof Error ? failure.message : "Installation was not confirmed. Refresh before retrying.");

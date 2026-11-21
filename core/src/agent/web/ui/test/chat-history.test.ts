@@ -21,7 +21,7 @@ describe("restoreHistoryMessages", () => {
         id: 3,
         role: "assistant",
         text: "",
-        tool_calls: [{ name: "cos_sysinfo" }],
+        tool_calls: [{ name: "yu_sysinfo" }],
       },
       {
         id: 4,
@@ -42,7 +42,7 @@ describe("restoreHistoryMessages", () => {
     expect(messages[1].tools).toEqual([
       {
         id: "3-0",
-        name: "cos_sysinfo",
+        name: "yu_sysinfo",
         finished: false,
         phase: "unconfirmed",
       },
@@ -64,7 +64,7 @@ describe("live chat presentation", () => {
         available: true, reasoning: ["Retained reasoning"],
         usage: { input_tokens: 130, output_tokens: 30, cache_read_tokens: 40, cache_write_tokens: 5 },
         tools: [{
-          id: "tool-1", name: "cos_sysinfo", started: true, ok: true,
+          id: "tool-1", name: "yu_sysinfo", started: true, ok: true,
           latency_ms: 42, bytes_returned: 2048, error_preview: null,
         }],
         attachments: [{ name: "screen.png", media_type: "image/png", bytes: 32, sha256: "digest" }],
@@ -95,7 +95,7 @@ describe("live chat presentation", () => {
           role: "assistant",
           text: "",
           task_id: "job-live",
-          tool_calls: [{ id: "tool-live", name: "cos_sysinfo" }],
+          tool_calls: [{ id: "tool-live", name: "yu_sysinfo" }],
         },
         {
           id: 5,

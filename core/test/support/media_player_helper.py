@@ -1,8 +1,8 @@
 """Exercise the real dropped-owner helper in a private mount namespace.
 
-Run after native fixture and clawd builds:
+Run after native fixture and yuosd builds:
 sudo unshare --mount --propagation private python3 core/test/support/media_player_helper.py \
-  --clawd target/debug/clawd --fixture <media-player-mpris-fixture> --owner <uid>
+  --yuosd target/debug/yuosd --fixture <media-player-mpris-fixture> --owner <uid>
 No user's bus, installed executable or media state is changed.
 """
 
@@ -21,14 +21,14 @@ import time
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--clawd", required=True, type=Path)
+    parser.add_argument("--yuosd", required=True, type=Path)
     parser.add_argument("--fixture", required=True, type=Path)
     parser.add_argument("--owner", required=True, type=int)
     args = parser.parse_args()
     assert os.geteuid() == 0 and args.owner != 0, "requires root and a non-root owner"
     assert os.readlink("/proc/self/ns/mnt") != os.readlink("/proc/1/ns/mnt"), "requires a private mount namespace"
     owner = pwd.getpwuid(args.owner)
-    clawd = args.clawd.resolve()
+    yuosd = args.yuosd.resolve()
     native = args.fixture.resolve()
     root = Path.cwd() / "build/player-helper-fixture"
     root.mkdir()
@@ -102,7 +102,7 @@ def main():
             parent, child = socket.socketpair()
             try:
                 helper = start(
-                    [str(clawd), "--media-player-helper", action,
+                    [str(yuosd), "--media-player-helper", action,
                      str(int(time.time() * 1000) + timeout_ms), str(child.fileno())],
                     pass_fds=(child.fileno(),),
                 )

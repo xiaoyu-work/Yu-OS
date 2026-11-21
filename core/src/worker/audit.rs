@@ -10,7 +10,7 @@
 //! * limits are the numbers the kernel enforced;
 //! * outcomes are exit code, timeout and cancel flags.
 //!
-//! Mutation and event authority stay with `clawd`: this appends to the
+//! Mutation and event authority stay with `yuosd`: this appends to the
 //! capability audit log the rest of the caps subsystem already owns.
 
 use serde_json::Value;

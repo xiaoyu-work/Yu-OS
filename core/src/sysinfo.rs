@@ -221,7 +221,7 @@ fn info_from_os_release(raw: Option<&str>, agent_version: &str) -> Value {
         .cloned()
         .unwrap_or_else(|| "unknown".to_string());
     let id_like = release.get("ID_LIKE").cloned().unwrap_or_default();
-    let is_claw_os = matches!(distribution_id.as_str(), "clawos" | "claw-os");
+    let is_yuos = distribution_id == "yuos";
 
     json!({
         "name": distribution_id,
@@ -230,11 +230,11 @@ fn info_from_os_release(raw: Option<&str>, agent_version: &str) -> Value {
         "arch": std::env::consts::ARCH,
         "hostname": hostname(),
         "pid": std::process::id(),
-        "claw_os": is_claw_os,
-        "environment": if is_claw_os { "claw-os" } else { "claw-agent-on-host" },
-        "cos_version": agent_version,
+        "yuos": is_yuos,
+        "environment": if is_yuos { "yuos" } else { "yu-agent-on-host" },
+        "yuos_version": agent_version,
         "agent": {
-            "name": "claw-os-agent",
+            "name": "yuos-agent",
             "version": agent_version,
             "system_level": true,
         },
@@ -368,7 +368,7 @@ fn cmd_resources() -> Result<Value, String> {
     #[cfg(unix)]
     {
         use std::ffi::CString;
-        let workspace = env::var("COS_HOME")
+        let workspace = env::var("YUOS_HOME")
             .or_else(|_| env::var("HOME"))
             .unwrap_or_else(|_| "/root".into());
         let c_path = CString::new(workspace.as_bytes())
@@ -520,7 +520,7 @@ fn cmd_proc() -> Result<Value, String> {
     }
 }
 
-/// Inspect arbitrary host PIDs without confusing them with cos-managed
+/// Inspect arbitrary host PIDs without confusing them with yuos-managed
 /// process-session ids.
 fn cmd_process(args: &[String]) -> Result<Value, String> {
     #[cfg(target_os = "linux")]

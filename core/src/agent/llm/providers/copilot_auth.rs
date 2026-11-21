@@ -94,7 +94,7 @@ pub const COPILOT_INTERACTION_TYPE: &str = "conversation-agent";
 const REFRESH_SAFETY_MARGIN: Duration = Duration::from_secs(5 * 60);
 const MODEL_CATALOG_TTL: Duration = Duration::from_secs(5 * 60);
 
-/// Copilot wire protocols that `cos` can speak.
+/// Copilot wire protocols that `yu` can speak.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CopilotWireApi {
     ChatCompletions,

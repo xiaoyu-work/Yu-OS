@@ -15,7 +15,7 @@ set -euo pipefail
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../../.." && pwd)
 
-CONTROL="$PROJECT_DIR/packaging/deb/claw-os-agent/control"
+CONTROL="$PROJECT_DIR/packaging/deb/yuos-agent/control"
 PROVIDER="$PROJECT_DIR/core/src/worker/linux.rs"
 
 fail() {
@@ -34,7 +34,7 @@ assert_contains() {
 # which bubblewrap grew in 0.8. A package that depends on an older one
 # would install an agent that cannot run an App.
 assert_contains "$CONTROL" 'bubblewrap (>= 0.8.0)' \
-    "claw-os-agent must depend on a bubblewrap that can disable nested user namespaces"
+    "yuos-agent must depend on a bubblewrap that can disable nested user namespaces"
 
 # The flags the dependency exists for.
 for flag in --disable-userns --assert-userns-disabled --unshare-pid --unshare-net --seccomp; do

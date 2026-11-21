@@ -1,6 +1,6 @@
 //! Per-user aggregate AI token budget.
 //!
-//! Lives at `$HOME/.config/cos/ai/budget.json`. Independent of the
+//! Lives at `$HOME/.config/yuos/ai/budget.json`. Independent of the
 //! per-app budget declared in each App's manifest. The kernel reads
 //! this file on every AI call and reserves the same number of units
 //! against a single shared `__user__` row in the existing budget
@@ -51,7 +51,7 @@ use crate::paths;
 /// convention as `SYSTEM_AGENT_BUCKET` in `ai::gate`).
 pub const USER_BUDGET_BUCKET: &str = "__user__";
 
-/// On-disk shape of `$HOME/.config/cos/ai/budget.json`.
+/// On-disk shape of `$HOME/.config/yuos/ai/budget.json`.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct UserBudget {
     /// Cap on total tokens used across every App per calendar month.

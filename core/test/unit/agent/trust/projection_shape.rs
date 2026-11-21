@@ -52,7 +52,7 @@ fn the_policy_channel_holds_only_policy_bytes() {
     assert!(system.contains("OPERATOR_RULES"));
     assert!(!system.contains(HOSTILE));
     assert!(!crate::agent::trust::envelope::looks_enveloped(&system));
-    assert!(!system.contains("[[cos-data:"));
+    assert!(!system.contains("[[yuos-data:"));
     assert!(projection.channels_are_separated());
 }
 
@@ -116,8 +116,8 @@ fn each_prelude_segment_gets_its_own_message() {
             ContentBlock::Text { text } => text,
             other => panic!("expected text, got {other:?}"),
         };
-        assert_eq!(text.matches("[[cos-data:").count(), 1);
-        assert_eq!(text.matches("[[/cos-data:").count(), 1);
+        assert_eq!(text.matches("[[yuos-data:").count(), 1);
+        assert_eq!(text.matches("[[/yuos-data:").count(), 1);
     }
 }
 

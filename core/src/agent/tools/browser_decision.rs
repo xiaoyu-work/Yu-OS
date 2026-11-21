@@ -10,7 +10,7 @@ use crate::model::tasks::decision::{Answer, DecisionModel, DecisionRequest, Ques
 
 use super::{
     app_gateway,
-    cos_apps_session::{AppSessionTool, RegisteredAppSession},
+    yu_apps_session::{AppSessionTool, RegisteredAppSession},
     delegate::PARENT_APPROVAL,
     exposure::{self, ToolExposure, ToolExposureContext, ToolTransport},
     mcp::protocol::ContentItem,

@@ -1,6 +1,6 @@
 //! App manifest — declarative capability requirements.
 //!
-//! Every app on Claw OS ships an `app.json` in this shape. Apps speak
+//! Every app on Yu OS ships an `app.json` in this shape. Apps speak
 //! the same vocabulary as the kernel: each operation lists the
 //! [`Cap`](super::cap::Cap)s it needs, and the kernel mediates every
 //! invocation through that list. There is no implicit access path; if
@@ -173,7 +173,7 @@ pub struct Manifest {
 /// manifest, the kernel rejects every `ai.*` need at validation time.
 ///
 /// **Apps do not pick the model.** The OS owns the AI provider; the
-/// machine owner configures it once in `/etc/cos/agent.toml`. Every
+/// machine owner configures it once in `/etc/yuos/agent.toml`. Every
 /// app's call runs through that same provider/model. Apps declare
 /// *capability* (which verbs they need), *budget* (how many tokens
 /// they may spend), *safety* profile, and *origin* — never which model
@@ -595,7 +595,7 @@ pub struct McpService {
     #[serde(default)]
     pub lifecycle: McpLifecycle,
 
-    /// Which authenticated Claw principals may address this service.
+    /// Which authenticated Yu OS principals may address this service.
     /// This is a restriction only; callers still need exact invoke
     /// authority and every tool's capabilities.
     #[serde(default)]
@@ -702,14 +702,14 @@ pub struct McpTool {
 ///
 /// The generated launcher's `Exec` is
 /// `yu app <id> <exec> %F`, so the GUI is kernel-spawned and inherits
-/// the same `COS_APP_ID` identity, audit, and consent machinery as the
+/// the same `YUOS_APP_ID` identity, audit, and consent machinery as the
 /// headless operation path. A hand-written `.desktop` that ran the app
 /// binary directly would bypass that — hence generation is mandatory.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Desktop {
     /// Argument the kernel passes to the app entry when launched from
     /// the desktop. Defaults to `--gui`. The app's entry inspects this
-    /// (or the `COS_APP_GUI=1` env the bridge sets) to enter its GUI
+    /// (or the `YUOS_APP_GUI=1` env the bridge sets) to enter its GUI
     /// event loop instead of running a one-shot operation.
     #[serde(default = "default_desktop_exec")]
     pub exec: String,
@@ -751,7 +751,7 @@ pub struct Desktop {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
 
-    /// Freedesktop menu categories. `ClawOS` is prepended automatically
+    /// Freedesktop menu categories. `YuOS` is prepended automatically
     /// at generation time, so apps only list their own (`Utility`,
     /// `Development`, ...).
     #[serde(default)]

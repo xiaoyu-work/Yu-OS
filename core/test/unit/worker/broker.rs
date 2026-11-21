@@ -74,7 +74,7 @@ fn filesystem_write_admission_does_not_follow_read_authority() {
 
 #[test]
 fn every_admissible_route_is_explicitly_mapped() {
-    // A route with no rule is refused, so a newly added `clawd` route
+    // A route with no rule is refused, so a newly added `yuosd` route
     // is closed to workers until somebody decides otherwise.
     let wide = relaying_authority(vec![Cap::new(Verb::SYS_OBSERVE, Scope::Wild)]);
     let unmapped: Vec<&str> = Command::ALL
@@ -372,16 +372,16 @@ fn the_endpoint_answers_a_policy_check_and_refuses_identity_control() {
         });
         let encoded = serde_json::to_vec(&body).unwrap();
         stream
-            .write_all(&crate::clawd::transport::frame::encode_frame(
-                crate::clawd::wire::KIND_REQUEST,
+            .write_all(&crate::yuosd::transport::frame::encode_frame(
+                crate::yuosd::wire::KIND_REQUEST,
                 &encoded,
             ))
             .expect("write");
-        let mut header = [0_u8; crate::clawd::wire::HEADER_BYTES];
+        let mut header = [0_u8; crate::yuosd::wire::HEADER_BYTES];
         stream.read_exact(&mut header).expect("header");
-        let len = crate::clawd::transport::frame::parse_header(
+        let len = crate::yuosd::transport::frame::parse_header(
             &header,
-            crate::clawd::wire::KIND_RESPONSE,
+            crate::yuosd::wire::KIND_RESPONSE,
             1024 * 1024,
         )
         .expect("parse");
@@ -401,7 +401,7 @@ fn the_endpoint_answers_a_policy_check_and_refuses_identity_control() {
     assert_eq!(allowed["v"], PROTOCOL_VERSION);
     assert_eq!(allowed["id"], "test");
     assert_eq!(allowed["ok"], true);
-    assert_eq!(allowed["v"], crate::clawd::wire::PROTOCOL_VERSION);
+    assert_eq!(allowed["v"], crate::yuosd::wire::PROTOCOL_VERSION);
     assert_eq!(allowed["result"]["decision"], "allow");
 
     let refused = ask(
@@ -448,9 +448,9 @@ fn the_standard_broker_client_accepts_worker_responses() {
     let uid = unsafe { libc::geteuid() };
     let endpoint =
         BrokerEndpoint::start(socket, authority(Vec::new()), uid).expect("start endpoint");
-    let response = crate::clawd::client::request_blocking(
+    let response = crate::yuosd::client::request_blocking(
         endpoint.socket_path(),
-        crate::clawd::protocol::Request::build(
+        crate::yuosd::protocol::Request::build(
             Command::SystemBrowserControl,
             serde_json::json!({}),
         ),
@@ -463,7 +463,7 @@ fn the_standard_broker_client_accepts_worker_responses() {
 
 #[test]
 fn relay_error_bodies_keep_their_broker_classification() {
-    let error = broker_error_from_body(crate::clawd::protocol::ErrorBody {
+    let error = broker_error_from_body(crate::yuosd::protocol::ErrorBody {
         code: "indeterminate".to_string(),
         message: "response lost after dispatch".to_string(),
         data: None,
@@ -471,7 +471,7 @@ fn relay_error_bodies_keep_their_broker_classification() {
     });
     assert_eq!(
         error.kind,
-        crate::clawd::protocol::BrokerErrorKind::Indeterminate
+        crate::yuosd::protocol::BrokerErrorKind::Indeterminate
     );
     assert_eq!(error.message, "response lost after dispatch");
 }
@@ -486,8 +486,8 @@ fn sandbox_responses_must_match_the_protocol_and_request() {
     let _private = TestEnvVarGuard::remove(crate::extension_host::protocol::BROKER_SOCKET_ENV);
     for mode in ["matching", "version", "request", "missing-id"] {
         let root = tempfile::tempdir().unwrap();
-        let _runtime = TestEnvVarGuard::set("COS_RUNTIME_DIR", root.path());
-        let listener = UnixListener::bind(crate::paths::clawd_socket_path()).unwrap();
+        let _runtime = TestEnvVarGuard::set("YUOS_RUNTIME_DIR", root.path());
+        let listener = UnixListener::bind(crate::paths::yuosd_socket_path()).unwrap();
         listener.set_nonblocking(true).unwrap();
         let server = std::thread::spawn(move || {
             let deadline = std::time::Instant::now() + Duration::from_secs(5);
@@ -509,7 +509,7 @@ fn sandbox_responses_must_match_the_protocol_and_request() {
                 .unwrap();
             let mut header = [0; HEADER_BYTES];
             stream.read_exact(&mut header).unwrap();
-            let size = crate::clawd::transport::frame::parse_header(
+            let size = crate::yuosd::transport::frame::parse_header(
                 &header,
                 KIND_REQUEST,
                 MAX_REQUEST_BYTES,
@@ -554,31 +554,31 @@ fn dropping_the_endpoint_removes_the_socket() {
 #[cfg(target_os = "linux")]
 #[tokio::test(flavor = "multi_thread")]
 async fn settings_request_crosses_the_private_worker_proxy_without_exposing_approval() {
-    use crate::clawd::protocol::{encode_response, Request, Response};
-    use crate::clawd::transport::{frame::PeerStream, peer, ReadOutcome};
+    use crate::yuosd::protocol::{encode_response, Request, Response};
+    use crate::yuosd::transport::{frame::PeerStream, peer, ReadOutcome};
     use std::os::fd::AsRawFd;
     let _lock = crate::test_env::lock_env();
     let dir = tempfile::tempdir().unwrap();
-    let _runtime = crate::test_env::TestEnvVarGuard::set("COS_RUNTIME_DIR", dir.path());
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", dir.path().join("data"));
+    let _runtime = crate::test_env::TestEnvVarGuard::set("YUOS_RUNTIME_DIR", dir.path());
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", dir.path().join("data"));
     let _proxy = crate::test_env::TestEnvVarGuard::remove(
         crate::extension_host::protocol::BROKER_SOCKET_ENV,
     );
-    let listener = tokio::net::UnixListener::bind(dir.path().join("clawd.sock")).unwrap();
+    let listener = tokio::net::UnixListener::bind(dir.path().join("yuosd.sock")).unwrap();
     peer::enable_credential_passing(listener.as_raw_fd()).unwrap();
     let uid = unsafe { libc::geteuid() };
     let server = tokio::spawn(async move {
         let (stream, _) = listener.accept().await.unwrap();
         let mut stream = PeerStream::new(stream).unwrap();
         let ReadOutcome::Frame(frame) = stream
-            .read_request(crate::clawd::wire::MAX_REQUEST_BYTES)
+            .read_request(crate::yuosd::wire::MAX_REQUEST_BYTES)
             .await
             .unwrap()
         else {
             panic!("framed worker relay expected");
         };
         assert_eq!(frame.credentials.uid, uid);
-        let request: crate::clawd::wire::InboundRequest =
+        let request: crate::yuosd::wire::InboundRequest =
             serde_json::from_slice(&frame.body).unwrap();
         assert_eq!(request.command.as_str(), Command::AppSessionRelay.as_str());
         assert_eq!(request.params["session_id"], "app-settings-test");
@@ -610,7 +610,7 @@ async fn settings_request_crosses_the_private_worker_proxy_without_exposing_appr
     let endpoint = BrokerEndpoint::start(dir.path().join("worker.sock"), authority, uid).unwrap();
     let socket = endpoint.socket_path().to_path_buf();
     let response = tokio::task::spawn_blocking(move || {
-        crate::clawd::client::request_blocking(
+        crate::yuosd::client::request_blocking(
             socket,
             Request::build(
                 Command::SystemAppPermissions,
@@ -629,7 +629,7 @@ async fn settings_request_crosses_the_private_worker_proxy_without_exposing_appr
     server.await.unwrap();
     let socket = endpoint.socket_path().to_path_buf();
     let refused = tokio::task::spawn_blocking(move || {
-        crate::clawd::client::request_blocking(
+        crate::yuosd::client::request_blocking(
             socket,
             Request::build(
                 Command::PermissionDecide,

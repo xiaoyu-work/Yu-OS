@@ -14,7 +14,7 @@ fn sample_draft(suggested_id: &str) -> SkillDraft {
 
 fn tmp_path(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
-        "cos-curator-drafts-{label}-{}.json",
+        "yuos-curator-drafts-{label}-{}.json",
         uuid::Uuid::new_v4().simple()
     ))
 }

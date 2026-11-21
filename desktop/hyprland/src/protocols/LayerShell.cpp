@@ -1,5 +1,5 @@
 #include "LayerShell.hpp"
-#include "../../../hyprland-claw/Claw.hpp"
+#include "../../../hyprland-yuos/YuOs.hpp"
 #include "../Compositor.hpp"
 #include "../desktop/view/LayerSurface.hpp"
 #include "XDGShell.hpp"
@@ -42,7 +42,7 @@ CLayerShellResource::CLayerShellResource(SP<CZwlrLayerSurfaceV1> resource_, SP<C
     m_listeners.unmapSurface = surf_->m_events.unmap.listen([this] { m_events.unmap.emit(); });
 
     m_listeners.commitSurface = surf_->m_events.commit.listen([this] {
-        if (!Claw::permitted(m_resource->client(), CLAW_PANEL)) {
+        if (!YuOs::permitted(m_resource->client(), YUOS_PANEL)) {
             sendClosed();
             return;
         }
@@ -212,7 +212,7 @@ CLayerShellProtocol::CLayerShellProtocol(const wl_interface* iface, const int& v
 }
 
 void CLayerShellProtocol::bindManager(wl_client* client, void* data, uint32_t ver, uint32_t id) {
-    if (!Claw::permitted(client, CLAW_PANEL)) {
+    if (!YuOs::permitted(client, YUOS_PANEL)) {
         wl_client_post_implementation_error(client, "No live Root panel authority");
         return;
     }
@@ -264,7 +264,7 @@ void CLayerShellProtocol::onGetLayerSurface(CZwlrLayerShellV1* pMgr, uint32_t id
         return;
     }
 
-    if (!Claw::permitted(CLIENT, CLAW_PANEL)) {
+    if (!YuOs::permitted(CLIENT, YUOS_PANEL)) {
         wl_client_post_implementation_error(CLIENT, "No live Root panel authority");
         return;
     }

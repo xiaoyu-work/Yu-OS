@@ -1,8 +1,8 @@
 Light (
     (
         name: "cosmic-light",
-        // Claw brand blue (#005CFE) — the single accent across the whole
-        // "Claw Glass" design language (from the logo claw-dot). Replaces the
+        // Yu OS brand blue (#005CFE) — the single accent across the whole
+        // "Yu OS Glass" design language (from the logo yuos-dot). Replaces the
         // macOS Aqua system blue; the sibling semantic colors
         // (red/green/yellow) follow the macOS system palette so destructive /
         // success / warning surfaces feel native.
@@ -18,7 +18,7 @@ Light (
         yellow: (
             c: "#FFCC00",
         ),
-        // Claw Glass: surface seeds carry a faint cool-blue cast (not flat
+        // Yu OS Glass: surface seeds carry a faint cool-blue cast (not flat
         // gray) at the original luminance so bright frosted surfaces read as
         // blue glass while preserving text contrast.
         gray_1: (

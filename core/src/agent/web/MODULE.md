@@ -87,12 +87,12 @@ web UI.
 - Serve built UI assets without exposing credentials.
 - Provide the official App Store, retained installation/review status and
   installed App navigation without a model request. Catalogs and immutable
-  snapshots come only from `xiaoyu-work/clawos-app`; `clawd` verifies freshness,
+  snapshots come only from `xiaoyu-work/yuos-app`; `yuosd` verifies freshness,
   digests and publisher provenance and publishes only after protected owner
   confirmation.
   Individual and bundled APT App reviews retain full-width display revisions
   as decimal strings; package-impact decisions remain in OS Approvals.
-- Host each product's signed `claw.web-app/v1` resources in a script-enabled
+- Host each product's signed `yuos.web-app/v1` resources in a script-enabled
   sandbox without same-origin access. View-bound nonces relay only the owning
   App's declared MCP tools through the existing CLI App-service path, including
   an exact package binding. App frames receive no Agent Web token or task API.
@@ -111,11 +111,11 @@ web UI.
 | `routes/approvals/{presentation,authorization}.rs` | Separate Root package-impact projection, revision-only authorization start and non-grant cancellation; never an App-install confirmation |
 | `authorization.rs`, `authorization/polkit.rs`, `routes/approvals/authorization.rs` | Ephemeral browser-bound polkit/PAM conversation, fixed OS helpers, deadlines/cancellation and root-broker outcome reconciliation |
 | `ui/src/components/os-authorization.tsx` | Password-only dialog outside untrusted Markdown; no secret React state, storage or automatic response replay |
-| `routes/notifications.rs` | Notification list, SSE, state, preferences and owner-scoped conversation-view bridge to `clawd` |
+| `routes/notifications.rs` | Notification list, SSE, state, preferences and owner-scoped conversation-view bridge to `yuosd` |
 | `routes/activities.rs` | Activity and object-reference HTTP adapters using the broker's bounded request DTOs and existing authenticated transport |
 | `routes/activities/work.rs`, `ui/src/components/activity-auto-work.tsx` | Shared automatic-work controls and bounded reported handoffs, without local scheduling or permission authority |
 | `ui/` | TypeScript/React source and generated distribution assets |
-| `ui/src/components/cos-sidebar.tsx` | New chat and conversation history alongside OS navigation, without duplicate Chat or primary Tasks entries |
+| `ui/src/components/yuos-sidebar.tsx` | New chat and conversation history alongside OS navigation, without duplicate Chat or primary Tasks entries |
 | `ui/src/pages/tasks.tsx` | Contextual global execution inspection and stop/retry controls through existing Chat/Activity links and `/tasks`; not a primary sidebar entry |
 | `ui/src/pages/notifications.tsx`, `ui/src/components/notification-settings.tsx` | Notification-first bounded Inbox, compact browser controls and grouped delivery-settings dialog; original permission and preference contracts remain unchanged |
 | `ui/src/lib/chat-stream.ts` | Terminal-event validation and bounded same-Job transport recovery through verified history replay |
@@ -212,7 +212,7 @@ Main's protocol-11 worker keeps PREPARE/COMMIT admission and bound approvals;
 dynamic App/MCP execution stays in the isolated extension Host. Web adapters
 do not restore retired worker AppHost control or weaken nonce/digest/context
 binding when presenting Activity work.
-Activities always cross `clawd`; they have no private fallback if a read or
+Activities always cross `yuosd`; they have no private fallback if a read or
 mutation fails. Resources are inert text, boundaries do not grant permissions,
 and successful jobs never imply completed goals. The shared contract is in
 [`docs/activities.md`](../../../../docs/activities.md).

@@ -76,7 +76,7 @@ fn tool_payloads_are_removed_from_visible_events() {
     });
     sink.on_event(&StreamEvent::ToolUse(ToolCall {
         id: "call-1".into(),
-        name: "cos_sysinfo".into(),
+        name: "yu_sysinfo".into(),
         input: serde_json::json!({"secret": "value"}),
     }));
 
@@ -84,7 +84,7 @@ fn tool_payloads_are_removed_from_visible_events() {
     assert_eq!(events.len(), 1);
     match &events[0] {
         StreamEvent::ToolUse(call) => {
-            assert_eq!(call.name, "cos_sysinfo");
+            assert_eq!(call.name, "yu_sysinfo");
             assert!(call.input.is_null());
         }
         other => panic!("expected visible tool call, got {other:?}"),
@@ -104,7 +104,7 @@ fn bridged_tool_is_presented_as_underlying_tool() {
         id: "call-1".into(),
         name: crate::agent::tools::progressive::TOOL_CALL.into(),
         input: serde_json::json!({
-            "name": "cos_app_mail",
+            "name": "yu_app_mail",
             "arguments": {"command": "list"},
         }),
     }));
@@ -113,7 +113,7 @@ fn bridged_tool_is_presented_as_underlying_tool() {
     assert_eq!(events.len(), 1);
     match &events[0] {
         StreamEvent::ToolUse(call) => {
-            assert_eq!(call.name, "cos_app_mail");
+            assert_eq!(call.name, "yu_app_mail");
             assert!(call.input.is_null());
         }
         other => panic!("expected visible underlying tool call, got {other:?}"),
@@ -127,12 +127,12 @@ fn tool_progress_hides_inputs_and_result_previews() {
 
     sink.on_tool_start(
         "call-1",
-        "cos_sysinfo",
+        "yu_sysinfo",
         &serde_json::json!({"path": "/private"}),
     );
     sink.on_tool_result(
         "call-1",
-        "cos_sysinfo",
+        "yu_sysinfo",
         true,
         12,
         128,
@@ -150,7 +150,7 @@ fn tool_progress_shows_redacted_failure_previews() {
 
     sink.on_tool_result(
         "call-1",
-        "cos_proc",
+        "yu_proc",
         false,
         12,
         128,

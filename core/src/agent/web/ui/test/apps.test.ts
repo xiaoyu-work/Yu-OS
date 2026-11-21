@@ -7,7 +7,7 @@ const app = { id: "kv", name: "Key-value", state: "installed" as const, web_read
   tools: [{ name: "kv.get", command: "get" }] };
 
 test("isolated App messages cannot invoke another App or a system API", () => {
-  const message = { protocol: "claw.web-app/v1", type: "call", nonce, id: "web-1", tool: "kv.get", arguments: { key: "one" } };
+  const message = { protocol: "yuos.web-app/v1", type: "call", nonce, id: "web-1", tool: "kv.get", arguments: { key: "one" } };
   expect(appMessage(message, nonce, app)?.tool).toBe("kv.get");
   expect(appMessage({ ...message, tool: "email.send" }, nonce, app)).toBeNull();
   expect(appMessage({ ...message, type: "task.submit" }, nonce, app)).toBeNull();
@@ -19,7 +19,7 @@ test("isolated App messages cannot invoke another App or a system API", () => {
 
 test("App views bind the exact local resource route and owning identity", () => {
   const view = { status: "ready", view_id: nonce, nonce, src: `/app-ui/${nonce}/index.html`,
-    app: { ...app, protocol: "claw.web-app/v1" } };
+    app: { ...app, protocol: "yuos.web-app/v1" } };
   expect(readAppView(view, "kv").app.id).toBe("kv");
   expect(() => readAppView(view, "email")).toThrow();
   expect(() => readAppView({ ...view, src: "https://external.example/index.html" }, "kv")).toThrow();
@@ -50,12 +50,12 @@ test("official Store Apps bind the exact APT package rather than a snapshot inst
   const checksum = "b".repeat(64);
   const delivery = "c".repeat(64);
   const value = { architecture: "amd64", installed: [], catalog: {
-    schema: "claw.app-store/v2", repository: "xiaoyu-work/clawos-app", runtime_abi: 1,
+    schema: "yuos.app-store/v2", repository: "xiaoyu-work/yuos-app", runtime_abi: 1,
     generation: "1", expires_at: new Date(Date.now() + 86_400_000).toISOString(),
-    packages: [{ package: "claw-cap-storage-sdk", version: "0.2.1", architecture: "all",
+    packages: [{ package: "yuos-cap-storage-sdk", version: "0.2.1", architecture: "all",
       size: 8192, sha256: delivery, apps: ["db", "kv"] }],
     apps: [{ app_id: "kv", app_version: "1.0.0", release_version: "0.2.1", architecture: "all",
-      artifact: { file: `claw-app-snapshot-${checksum}.tar.gz`, size: 4096,
+      artifact: { file: `yuos-app-snapshot-${checksum}.tar.gz`, size: 4096,
         sha256: checksum, media_type: "application/gzip" },
       provenance: { content_digest: `sha256:${checksum}` },
       display: { name: "Key-value", description: "", source_name: "storage-sdk", source_kind: "capability" },
@@ -71,5 +71,5 @@ test("official Store Apps bind the exact APT package rather than a snapshot inst
   const wrongOwner = structuredClone(value);
   wrongOwner.catalog.packages[0].apps = ["db"];
   expect(() => readStore(wrongOwner)).toThrow();
-  expect(() => readStore({ ...value, catalog: { ...value.catalog, schema: "claw.app-store/v1" } })).toThrow();
+  expect(() => readStore({ ...value, catalog: { ...value.catalog, schema: "yuos.app-store/v1" } })).toThrow();
 });

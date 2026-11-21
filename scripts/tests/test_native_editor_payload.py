@@ -18,7 +18,7 @@ SPEC.loader.exec_module(editor)
 
 
 @pytest.fixture(params=list(editor.PRODUCTS))
-def payload(tmp_path, request):
+def payload(tmp_path, request, monkeypatch):
     if platform.machine() not in ("x86_64", "AMD64") or not Path("/bin/true").is_file():
         pytest.skip("This payload parser test uses an existing real amd64 Linux ELF")
     source, prepared = tmp_path / "source", tmp_path / "prepared"
@@ -91,18 +91,19 @@ def payload(tmp_path, request):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content)
     if product not in ("calendar", "desktop-widgets", "clipboard", "notifications"):
-        support = prepared / "licenses/claw-app-gui-argv/LICENSE"
+        support = prepared / "licenses/yuos-app-gui-argv/LICENSE"
         support.parent.mkdir(parents=True)
         support.write_text("synthetic support license\n")
-    (source / "platform.lock.json").write_text(json.dumps({
-        "version": "0.2.1", "runtime_abi": 1,
-        "sha256": (
-            "0412f750add06a32c81312c9405338687471249a01dcbf0c9688e66885dde8d8"
-            if product in ("terminal", "calendar", "store", "desktop-widgets", "clipboard", "launcher", "settings", "capture", "notifications", "media-player") else "a" * 64
-        ),
-        "url": "https://github.com/xiaoyu-work/claw-os/releases/download/"
-               "app-platform-v0.2.1/claw-os-app-platform-0.2.1.tar.gz",
-    }))
+    pin = json.dumps({
+        "schema": "yuos.app-platform/v1", "version": "0.1.0", "runtime_abi": 1,
+        "sha256": "b" * 64,
+        "url": "https://github.com/xiaoyu-work/Yu-OS/releases/download/"
+               "yuos-app-platform-v0.1.0/yuos-app-platform-0.1.0.tar.gz",
+    })
+    (source / "platform.lock.json").write_text(pin)
+    approved = tmp_path / "approved-platform.json"
+    approved.write_text(pin)
+    monkeypatch.setattr(editor, "PLATFORM_PIN", approved)
     (prepared / "bin").mkdir()
     for entry in entries:
         shutil.copy2("/bin/true", prepared / entry)

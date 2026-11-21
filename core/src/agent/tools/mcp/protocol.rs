@@ -291,7 +291,7 @@ pub struct CallToolParams {
 pub struct CallToolMetadata {
     #[serde(
         default,
-        rename = "claw-os.dev/call-context",
+        rename = "yuos.dev/call-context",
         skip_serializing_if = "Option::is_none"
     )]
     pub call_context: Option<McpCallContext>,

@@ -99,7 +99,7 @@ pub(in crate::extension_host::spawn) fn copy_executable(source: &Path, target: &
 const SERVER: &str = r#"
 import json, os, pathlib, socket, sqlite3, sys
 
-root = pathlib.Path(os.environ["COS_DATA_DIR"])
+root = pathlib.Path(os.environ["YUOS_DATA_DIR"])
 for line in sys.stdin:
     request = json.loads(line)
     if "id" not in request:
@@ -132,13 +132,13 @@ for line in sys.stdin:
 #[test]
 #[ignore = "private subprocess of persistent_service_data_survives_uid_and_host_replacement"]
 fn isolated_service_data_worker_probe() {
-    assert_eq!(std::env::var("COS_APP_DATA_TEST_PROBE").unwrap(), "1");
+    assert_eq!(std::env::var("YUOS_APP_DATA_TEST_PROBE").unwrap(), "1");
     assert_ne!(unsafe { libc::geteuid() }, 0);
-    let app = std::env::var("COS_APP_DATA_TEST_APP").unwrap();
-    let package = PathBuf::from(std::env::var("COS_APP_DATA_TEST_PACKAGE").unwrap());
-    let foreign = std::env::var("COS_APP_DATA_TEST_FOREIGN").unwrap();
-    let owner_state = std::env::var("COS_APP_DATA_TEST_OWNER_STATE").unwrap();
-    let expected: u64 = std::env::var("COS_APP_DATA_TEST_EXPECTED")
+    let app = std::env::var("YUOS_APP_DATA_TEST_APP").unwrap();
+    let package = PathBuf::from(std::env::var("YUOS_APP_DATA_TEST_PACKAGE").unwrap());
+    let foreign = std::env::var("YUOS_APP_DATA_TEST_FOREIGN").unwrap();
+    let owner_state = std::env::var("YUOS_APP_DATA_TEST_OWNER_STATE").unwrap();
+    let expected: u64 = std::env::var("YUOS_APP_DATA_TEST_EXPECTED")
         .unwrap()
         .parse()
         .unwrap();
@@ -146,7 +146,7 @@ fn isolated_service_data_worker_probe() {
     assert_eq!(root, crate::paths::user_data_dir());
     let home = PathBuf::from(std::env::var_os("HOME").unwrap());
     assert_ne!(root, home);
-    for key in ["COS_LOG_DIR", "COS_CACHE_DIR"] {
+    for key in ["YUOS_LOG_DIR", "YUOS_CACHE_DIR"] {
         assert!(PathBuf::from(std::env::var_os(key).unwrap()).starts_with(&home));
     }
     assert!(crate::worker::derive::app_partition(&root, "foreign-app").is_err());
@@ -224,7 +224,7 @@ fn isolated_service_data_worker_probe() {
 }
 
 #[test]
-#[ignore = "requires Root in a private mount namespace and COS_APP_DATA_TEST_COS"]
+#[ignore = "requires Root in a private mount namespace and YUOS_APP_DATA_TEST_YU"]
 fn persistent_service_data_survives_uid_and_host_replacement() {
     let _lock = crate::test_env::lock_env();
     assert_eq!(unsafe { libc::geteuid() }, 0);
@@ -238,12 +238,12 @@ fn persistent_service_data_survives_uid_and_host_replacement() {
     let source = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
     chown(source.path(), owner.uid, owner.gid);
     let data_root = source.path().join("owner-data");
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_USER_DATA_DIR", &data_root);
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_USER_DATA_DIR", &data_root);
     let canonical = crate::paths::RoutedPathContext::for_owner(owner.uid, owner.home.clone())
         .scope_sync(|| crate::worker::derive::app_partition(&data_root, APP))
         .unwrap();
     {
-        let _owner = crate::clawd::client_identity::FsIdentityGuard::enter(owner.uid).unwrap();
+        let _owner = crate::yuosd::client_identity::FsIdentityGuard::enter(owner.uid).unwrap();
         let db = rusqlite::Connection::open(canonical.join("state.db")).unwrap();
         db.execute_batch(
             "CREATE TABLE counter (id INTEGER PRIMARY KEY, value INTEGER);
@@ -259,14 +259,14 @@ fn persistent_service_data_survives_uid_and_host_replacement() {
     std::fs::set_permissions("/run/lock", std::fs::Permissions::from_mode(0o1777)).unwrap();
     mount_tmpfs(c"/usr/local/bin");
     copy_executable(
-        Path::new(&std::env::var("COS_APP_DATA_TEST_COS").unwrap()),
+        Path::new(&std::env::var("YUOS_APP_DATA_TEST_YU").unwrap()),
         Path::new("/usr/local/bin/yu"),
     );
     copy_executable(
         &std::env::current_exe().unwrap(),
         Path::new("/run/data-probe"),
     );
-    let _runtime = crate::test_env::TestEnvVarGuard::set("COS_RUNTIME_DIR", "/run/data-runtime");
+    let _runtime = crate::test_env::TestEnvVarGuard::set("YUOS_RUNTIME_DIR", "/run/data-runtime");
     std::fs::create_dir("/run/data-runtime").unwrap();
     for (execution_uid, expected) in [(300001, 41), (300003, 42)] {
         let execution_gid = execution_uid + 1;
@@ -300,21 +300,21 @@ fn persistent_service_data_survives_uid_and_host_replacement() {
             .env("PATH", "/usr/local/bin:/usr/bin:/bin")
             .env("HOME", &paths.control_dir)
             .env("XDG_RUNTIME_DIR", "/tmp")
-            .env("COS_LOG_DIR", paths.control_dir.join("log"))
-            .env("COS_CACHE_DIR", paths.control_dir.join("cache"))
-            .env("COS_BIN", "/usr/local/bin/yu")
-            .env("COS_APP_DATA_TEST_PROBE", "1")
-            .env("COS_APP_DATA_TEST_APP", APP)
-            .env("COS_APP_DATA_TEST_PACKAGE", &package)
+            .env("YUOS_LOG_DIR", paths.control_dir.join("log"))
+            .env("YUOS_CACHE_DIR", paths.control_dir.join("cache"))
+            .env("YUOS_BIN", "/usr/local/bin/yu")
+            .env("YUOS_APP_DATA_TEST_PROBE", "1")
+            .env("YUOS_APP_DATA_TEST_APP", APP)
+            .env("YUOS_APP_DATA_TEST_PACKAGE", &package)
             .env(
-                "COS_APP_DATA_TEST_FOREIGN",
+                "YUOS_APP_DATA_TEST_FOREIGN",
                 data_root.join("apps/foreign-app/canary"),
             )
             .env(
-                "COS_APP_DATA_TEST_OWNER_STATE",
+                "YUOS_APP_DATA_TEST_OWNER_STATE",
                 data_root.join("owner-secret"),
             )
-            .env("COS_APP_DATA_TEST_EXPECTED", expected.to_string())
+            .env("YUOS_APP_DATA_TEST_EXPECTED", expected.to_string())
             .stdin(Stdio::piped())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
@@ -374,7 +374,7 @@ fn persistent_service_data_survives_uid_and_host_replacement() {
         let metadata = std::fs::metadata(canonical.join("state.db")).unwrap();
         assert_eq!((metadata.uid(), metadata.gid()), (owner.uid, owner.gid));
         let value: i64 = {
-            let _owner = crate::clawd::client_identity::FsIdentityGuard::enter(owner.uid).unwrap();
+            let _owner = crate::yuosd::client_identity::FsIdentityGuard::enter(owner.uid).unwrap();
             rusqlite::Connection::open(canonical.join("state.db"))
                 .unwrap()
                 .query_row("SELECT value FROM counter WHERE id=1", [], |row| row.get(0))
@@ -410,8 +410,8 @@ fn service_data_refuses_aliases_foreign_owners_submounts_and_replaced_bindings()
     let data_root = source.path().join("owner-data");
     let runtime = source.path().join("runtime");
     std::fs::create_dir(&runtime).unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_USER_DATA_DIR", &data_root);
-    let _runtime = crate::test_env::TestEnvVarGuard::set("COS_RUNTIME_DIR", &runtime);
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_USER_DATA_DIR", &data_root);
+    let _runtime = crate::test_env::TestEnvVarGuard::set("YUOS_RUNTIME_DIR", &runtime);
     let canonical = crate::paths::RoutedPathContext::for_owner(owner.uid, owner.home.clone())
         .scope_sync(|| crate::worker::derive::app_partition(&data_root, APP))
         .unwrap();
@@ -464,7 +464,7 @@ fn service_data_refuses_aliases_foreign_owners_submounts_and_replaced_bindings()
 
     std::fs::rename(&canonical, &saved).unwrap();
     {
-        let _owner = crate::clawd::client_identity::FsIdentityGuard::enter(owner.uid).unwrap();
+        let _owner = crate::yuosd::client_identity::FsIdentityGuard::enter(owner.uid).unwrap();
         std::fs::create_dir(&canonical).unwrap();
     }
     assert!(binding.require_current().is_err());

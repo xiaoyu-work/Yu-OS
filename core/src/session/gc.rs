@@ -67,7 +67,7 @@ pub struct GcStats {
     pub errors: Vec<(SessionId, String)>,
 }
 
-/// Root for archived session zips, e.g. `/var/lib/cos/sessions/.archive`.
+/// Root for archived session zips, e.g. `/var/lib/yuos/sessions/.archive`.
 pub fn archive_root() -> PathBuf {
     store::sessions_root().join(ARCHIVE_DIRNAME)
 }

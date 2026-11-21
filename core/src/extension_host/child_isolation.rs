@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use super::protocol::{ApprovedPath, ExtensionBinding};
 
-const ENABLE_ENV: &str = "COS_EXTENSION_CHILD_ISOLATION";
+const ENABLE_ENV: &str = "YUOS_EXTENSION_CHILD_ISOLATION";
 const MAX_SNAPSHOT_FILES: usize = 4_096;
 const MAX_SNAPSHOT_BYTES: u64 = 256 * 1024 * 1024;
 const MAX_SNAPSHOT_DEPTH: usize = 32;
@@ -137,8 +137,8 @@ impl IsolationAuthority {
 
 fn is_root_owned_system_extension_root(path: &Path) -> Result<bool, String> {
     if !path.starts_with("/opt")
-        && !path.starts_with("/usr/lib/cos")
-        && !path.starts_with("/usr/share/cos")
+        && !path.starts_with("/usr/lib/yuos")
+        && !path.starts_with("/usr/share/yuos")
     {
         return Ok(false);
     }
@@ -285,9 +285,9 @@ fn prepare_impl(
         initial_args[1] = inner.as_os_str().to_os_string();
         runtime_programs.push(inner);
     }
-    if let Some(cos_bin) = std::env::var_os("COS_BIN").map(PathBuf::from) {
-        if cos_bin.starts_with("/usr/local/bin") {
-            runtime_programs.push(resolve_runtime_program(&cos_bin, None, authority)?);
+    if let Some(yu_bin) = std::env::var_os("YUOS_BIN").map(PathBuf::from) {
+        if yu_bin.starts_with("/usr/local/bin") {
+            runtime_programs.push(resolve_runtime_program(&yu_bin, None, authority)?);
         }
     }
 
@@ -379,7 +379,7 @@ fn prepare_impl(
         roots.push(root.to_path_buf());
     }
     if options.expose_provider_authority {
-        if let Some(paths) = std::env::var_os("COS_SDK_PYTHON_DIR") {
+        if let Some(paths) = std::env::var_os("YUOS_SDK_PYTHON_DIR") {
             for path in std::env::split_paths(&paths).filter(|path| !path.as_os_str().is_empty()) {
                 if path.exists() {
                     roots.push(path);
@@ -428,12 +428,12 @@ fn prepare_impl(
     }
 
     if options.expose_provider_authority {
-        if let Some(path) = std::env::var_os("COS_PROC_DATA_DIR").map(PathBuf::from) {
+        if let Some(path) = std::env::var_os("YUOS_PROC_DATA_DIR").map(PathBuf::from) {
             if path.exists() {
                 bind_live_read_only(&path, &mut args)?;
             }
         }
-        if let Some(path) = std::env::var_os("COS_EXTENSION_BROKER_SOCKET").map(PathBuf::from) {
+        if let Some(path) = std::env::var_os("YUOS_EXTENSION_BROKER_SOCKET").map(PathBuf::from) {
             if path.exists() {
                 bind_live_read_only(&path, &mut args)?;
             }
@@ -441,11 +441,11 @@ fn prepare_impl(
     }
     for (key, value) in [
         ("HOME", "/state/home"),
-        ("COS_HOME", "/state/home"),
-        ("COS_DATA_DIR", "/state/data"),
-        ("COS_CACHE_DIR", "/state/cache"),
-        ("COS_LOG_DIR", "/state/log"),
-        ("COS_EXTENSION_CHILD_ISOLATION", "1"),
+        ("YUOS_HOME", "/state/home"),
+        ("YUOS_DATA_DIR", "/state/data"),
+        ("YUOS_CACHE_DIR", "/state/cache"),
+        ("YUOS_LOG_DIR", "/state/log"),
+        ("YUOS_EXTENSION_CHILD_ISOLATION", "1"),
         ("TMPDIR", "/tmp"),
         ("TMP", "/tmp"),
         ("TEMP", "/tmp"),
@@ -542,7 +542,7 @@ fn resolve_runtime_program(
         || candidate.starts_with("/bin")
         || matches!(
             candidate.to_str(),
-            Some("/usr/local/bin/claw-app-runner" | "/usr/local/bin/yu")
+            Some("/usr/local/bin/yuos-app-runner" | "/usr/local/bin/yu")
         );
     if metadata.file_type().is_symlink() && !system_candidate {
         return Err("custom extension executable must not be a symlink".to_string());
@@ -831,7 +831,7 @@ fn is_system_runtime_path(path: &Path) -> bool {
         || path.starts_with("/usr/lib")
         || matches!(
             path.to_str(),
-            Some("/usr/local/bin/claw-app-runner" | "/usr/local/bin/yu")
+            Some("/usr/local/bin/yuos-app-runner" | "/usr/local/bin/yu")
         )
 }
 

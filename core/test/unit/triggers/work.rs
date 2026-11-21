@@ -172,7 +172,7 @@ fn automatic_handoff_refuses_a_mismatched_scheduler_session() {
             "owner" => meta.owner_uid = Some(state.uid.wrapping_add(1)),
             "activity" => meta.activity_id = Some(uuid::Uuid::new_v4().to_string()),
             "system-agent" => {
-                meta.creator_runtime = Some("clawd".into());
+                meta.creator_runtime = Some("yuosd".into());
                 meta.origin = Some(crate::session::SessionOrigin::SystemAgentTask);
                 meta.client = crate::session::SessionClient::new(
                     crate::session::SessionSource::BrokerTask,

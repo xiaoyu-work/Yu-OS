@@ -86,7 +86,7 @@ impl Fixture {
         if matches!(runtime, Runtime::Binary) {
             fs::set_permissions(app.join(entry), fs::Permissions::from_mode(0o755)).unwrap();
         }
-        let data_env = TestEnvVarGuard::set("COS_DATA_DIR", &data);
+        let data_env = TestEnvVarGuard::set("YUOS_DATA_DIR", &data);
         Self {
             root,
             apps,
@@ -217,23 +217,23 @@ fn runtime_integrity_is_separate_from_app_signature_admission() {
 #[test]
 fn inherited_runtime_overrides_cannot_expose_caller_code_or_private_directories() {
     let _lock = crate::test_env::lock_env();
-    let _cos = TestEnvVarGuard::remove("COS_BIN");
-    let _sdk = TestEnvVarGuard::remove("COS_SDK_PYTHON_DIR");
+    let _cos = TestEnvVarGuard::remove("YUOS_BIN");
+    let _sdk = TestEnvVarGuard::remove("YUOS_SDK_PYTHON_DIR");
     validate_runtime_overrides().unwrap();
     for (name, bad) in [
-        ("COS_BIN", "/home/example/fake-cos"),
-        ("COS_BIN", "/usr/bin/bash"),
-        ("COS_SDK_PYTHON_DIR", "/home/example/.ssh"),
+        ("YUOS_BIN", "/home/example/fake-yu"),
+        ("YUOS_BIN", "/usr/bin/bash"),
+        ("YUOS_SDK_PYTHON_DIR", "/home/example/.ssh"),
         (
-            "COS_SDK_PYTHON_DIR",
-            "/usr/lib/cos/python:/home/example/private",
+            "YUOS_SDK_PYTHON_DIR",
+            "/usr/lib/yuos/python:/home/example/private",
         ),
     ] {
         let _override = TestEnvVarGuard::set(name, bad);
         assert!(validate_runtime_overrides().unwrap_err().contains(name));
     }
-    let _cos = TestEnvVarGuard::set("COS_BIN", "/usr/local/bin/yu");
-    let _sdk = TestEnvVarGuard::set("COS_SDK_PYTHON_DIR", "/usr/lib/cos/python");
+    let _cos = TestEnvVarGuard::set("YUOS_BIN", "/usr/local/bin/yu");
+    let _sdk = TestEnvVarGuard::set("YUOS_SDK_PYTHON_DIR", "/usr/lib/yuos/python");
     validate_runtime_overrides().unwrap();
 }
 
@@ -350,7 +350,7 @@ fn broker_requests_preserve_declared_arguments_without_manufacturing_a_parent() 
 #[test]
 fn operation_authorization_never_borrows_another_tools_permissions() {
     let _lock = crate::test_env::lock_env();
-    let _local = TestEnvVarGuard::set("COS_TEST_LOCAL_APP_SESSIONS", "1");
+    let _local = TestEnvVarGuard::set("YUOS_TEST_LOCAL_APP_SESSIONS", "1");
     let fixture = Fixture::new(Runtime::Python, "host.py", b"pass\n", true);
     let _parent = TestSessionGuard::admin(&fixture.data);
     let launch = fixture.launch();
@@ -407,24 +407,24 @@ fn launch_gate_does_not_buffer_away_native_message_bytes() {
 fn nonlisted_app_preserves_native_frames_inside_the_complete_sandbox() {
     let _lock = crate::test_env::lock_env();
     let _runner = crate::test_env::use_stripped_app_runner();
-    let _local = TestEnvVarGuard::set("COS_TEST_LOCAL_APP_SESSIONS", "1");
+    let _local = TestEnvVarGuard::set("YUOS_TEST_LOCAL_APP_SESSIONS", "1");
     let source = format!(
         r#"import os, pathlib, socket, struct, sys
-assert os.environ["COS_APP_ID"] == "{APP}"
-assert os.environ["COS_SESSION"].startswith("app-")
-assert os.environ["COS_COMMAND"] == "{OPERATION}"
-assert os.environ["COS_ARGS_JSON"] == "[]"
-assert os.environ["CLAW_COS_BIN"] == "/usr/local/bin/yu"
-assert os.environ["COS_WORKER_SANDBOX"] == "1"
+assert os.environ["YUOS_APP_ID"] == "{APP}"
+assert os.environ["YUOS_SESSION"].startswith("app-")
+assert os.environ["YUOS_COMMAND"] == "{OPERATION}"
+assert os.environ["YUOS_ARGS_JSON"] == "[]"
+assert os.environ["YUOS_KERNEL_BIN"] == "/usr/local/bin/yu"
+assert os.environ["YUOS_WORKER_SANDBOX"] == "1"
 assert "NoNewPrivs:\t1" in pathlib.Path("/proc/self/status").read_text()
-data = pathlib.Path(os.environ["COS_DATA_DIR"])
+data = pathlib.Path(os.environ["YUOS_DATA_DIR"])
 assert data.name == "{APP}" and data.parent.name == "apps"
 assert data.stat().st_mode & 0o777 == 0o700
 assert pathlib.Path.cwd() == data
 assert not (data.parent / "sibling" / "secret").exists()
 assert not (data.parent.parent / "credentials").exists()
 for name in ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "XAUTHORITY",
-             "COS_PROC_DATA_DIR", "CLAW_APP_RUNNER_BIN"):
+             "YUOS_PROC_DATA_DIR", "YUOS_APP_RUNNER_BIN"):
     assert name not in os.environ, name
 try:
     socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -434,7 +434,7 @@ else:
     raise AssertionError("host network is available")
 socket.socket(socket.AF_UNIX, socket.SOCK_STREAM).close()
 with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as broker:
-    broker.connect("/run/cos/clawd.sock")
+    broker.connect("/run/yuos/yuosd.sock")
     _, peer_uid, _ = struct.unpack("3i", broker.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
     assert peer_uid == os.getuid(), "worker reached the primary root broker"
 while True:
@@ -497,7 +497,7 @@ while True:
 fn package_local_binary_uses_the_same_authorized_stdio_sandbox() {
     let _lock = crate::test_env::lock_env();
     let _runner = crate::test_env::use_stripped_app_runner();
-    let _local = TestEnvVarGuard::set("COS_TEST_LOCAL_APP_SESSIONS", "1");
+    let _local = TestEnvVarGuard::set("YUOS_TEST_LOCAL_APP_SESSIONS", "1");
     let fixture = Fixture::new(Runtime::Binary, "program", b"", true);
     let source = fixture.root.join("stdio-fixture.rs");
     fs::write(
@@ -553,7 +553,7 @@ fn package_local_binary_uses_the_same_authorized_stdio_sandbox() {
 fn denied_process_binding_never_releases_package_code() {
     let _lock = crate::test_env::lock_env();
     let _runner = crate::test_env::use_stripped_app_runner();
-    let _local = TestEnvVarGuard::set("COS_TEST_LOCAL_APP_SESSIONS", "1");
+    let _local = TestEnvVarGuard::set("YUOS_TEST_LOCAL_APP_SESSIONS", "1");
     let fixture = Fixture::new(
         Runtime::Python,
         "host.py",
@@ -585,7 +585,7 @@ fn denied_process_binding_never_releases_package_code() {
 fn changed_package_bytes_are_rechecked_before_gate_release() {
     let _lock = crate::test_env::lock_env();
     let _runner = crate::test_env::use_stripped_app_runner();
-    let _local = TestEnvVarGuard::set("COS_TEST_LOCAL_APP_SESSIONS", "1");
+    let _local = TestEnvVarGuard::set("YUOS_TEST_LOCAL_APP_SESSIONS", "1");
     let fixture = Fixture::new(Runtime::Python, "host.py", b"print('original')\n", true);
     let _parent = TestSessionGuard::admin(&fixture.data);
     let launch = fixture.launch();

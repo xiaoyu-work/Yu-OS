@@ -303,7 +303,7 @@ impl Anchor {
 
     fn preimage(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(320);
-        push(&mut out, b"cos.session.journal.anchor");
+        push(&mut out, b"yuos.session.journal.anchor");
         out.extend_from_slice(&self.v.to_be_bytes());
         push(&mut out, self.partition.as_bytes());
         out.extend_from_slice(&self.owner_uid.to_be_bytes());

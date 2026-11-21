@@ -115,8 +115,8 @@ fn propose_rejects_without_user_acceptance() {
     let c = Curator::with_default_config();
     let turns = vec![
         user("extract metadata from pdf", false),
-        assistant("ok", vec!["cos_fs"]),
-        assistant("done", vec!["cos_fs"]),
+        assistant("ok", vec!["yu_fs"]),
+        assistant("done", vec!["yu_fs"]),
     ];
     match c.propose(&turns) {
         CuratorOutcome::NotEnough { reason } => assert!(reason.contains("user-acceptance")),
@@ -129,8 +129,8 @@ fn propose_emits_draft_when_thresholds_met() {
     let c = Curator::with_default_config();
     let turns = vec![
         user("extract metadata from this pdf file", false),
-        assistant("checking", vec!["cos_fs"]),
-        assistant("here it is: ...", vec!["cos_fs"]),
+        assistant("checking", vec!["yu_fs"]),
+        assistant("here it is: ...", vec!["yu_fs"]),
         user("perfect, thanks", true),
     ];
     match c.propose(&turns) {
@@ -138,7 +138,7 @@ fn propose_emits_draft_when_thresholds_met() {
             assert_eq!(d.suggested_id, "extract-metadata-from-this-pdf-file");
             assert_eq!(d.title, "Extract metadata from this pdf file");
             assert!(d.description.starts_with("extract metadata"));
-            assert_eq!(d.allowed_tools, vec!["cos_fs".to_string()]);
+            assert_eq!(d.allowed_tools, vec!["yu_fs".to_string()]);
             assert_eq!(d.turns_used, 4);
             // 1 distinct tool + accepted -> Medium.
             assert_eq!(d.confidence, SkillConfidence::Medium);
@@ -152,10 +152,10 @@ fn high_confidence_requires_two_tools_and_four_assistants_and_acceptance() {
     let c = Curator::with_default_config();
     let turns = vec![
         user("research topic X", false),
-        assistant("scan", vec!["cos_web"]),
-        assistant("read", vec!["cos_fs"]),
-        assistant("synth", vec!["cos_fs"]),
-        assistant("write", vec!["cos_fs"]),
+        assistant("scan", vec!["yu_web"]),
+        assistant("read", vec!["yu_fs"]),
+        assistant("synth", vec!["yu_fs"]),
+        assistant("write", vec!["yu_fs"]),
         user("perfect", true),
     ];
     match c.propose(&turns) {
@@ -172,8 +172,8 @@ fn config_can_disable_acceptance_requirement() {
     });
     let turns = vec![
         user("extract", false),
-        assistant("ok", vec!["cos_fs"]),
-        assistant("done", vec!["cos_fs"]),
+        assistant("ok", vec!["yu_fs"]),
+        assistant("done", vec!["yu_fs"]),
     ];
     assert!(matches!(c.propose(&turns), CuratorOutcome::Drafted(_)));
 }
@@ -192,8 +192,8 @@ fn max_turns_caps_inspection_window() {
         user("first earlier message", false),
         user("second earlier message", false),
         user("recent task message", false),
-        assistant("ok", vec!["cos_fs"]),
-        assistant("done", vec!["cos_fs"]),
+        assistant("ok", vec!["yu_fs"]),
+        assistant("done", vec!["yu_fs"]),
     ];
     match c.propose(&turns) {
         CuratorOutcome::Drafted(d) => {
@@ -209,8 +209,8 @@ fn distinct_tools_dedupe_across_turns() {
     let c = Curator::with_default_config();
     let turns = vec![
         user("do work", false),
-        assistant("a", vec!["cos_fs", "cos_fs"]),
-        assistant("b", vec!["cos_fs"]),
+        assistant("a", vec!["yu_fs", "yu_fs"]),
+        assistant("b", vec!["yu_fs"]),
         user("ok", true),
     ];
     if let CuratorOutcome::Drafted(d) = c.propose(&turns) {
@@ -222,16 +222,16 @@ fn distinct_tools_dedupe_across_turns() {
 
 #[test]
 fn extract_tool_calls_from_content_pulls_names() {
-    let body = "[tool_use:cos_fs] {\"path\":\"/etc\"}\n[tool_use:cos_proc] {}";
+    let body = "[tool_use:yu_fs] {\"path\":\"/etc\"}\n[tool_use:yu_proc] {}";
     let names = extract_tool_calls_from_content(body);
-    assert_eq!(names, vec!["cos_fs", "cos_proc"]);
+    assert_eq!(names, vec!["yu_fs", "yu_proc"]);
 }
 
 #[test]
 fn extract_tool_calls_ignores_lines_without_marker() {
-    let body = "Plain assistant text\n[tool_result] something\n[tool_use:cos_log] {}";
+    let body = "Plain assistant text\n[tool_result] something\n[tool_use:yu_log] {}";
     let names = extract_tool_calls_from_content(body);
-    assert_eq!(names, vec!["cos_log"]);
+    assert_eq!(names, vec!["yu_log"]);
 }
 
 #[test]
@@ -246,11 +246,11 @@ fn extract_tool_calls_skips_malformed_marker() {
 fn message_to_turn_assistant_extracts_tool_calls() {
     let t = message_to_turn(
         "assistant",
-        "[tool_use:cos_fs] {\"path\":\"/x\"}\n[tool_use:cos_proc] {}",
+        "[tool_use:yu_fs] {\"path\":\"/x\"}\n[tool_use:yu_proc] {}",
     )
     .unwrap();
     assert_eq!(t.role, TurnRole::Assistant);
-    assert_eq!(t.tool_calls, vec!["cos_fs", "cos_proc"]);
+    assert_eq!(t.tool_calls, vec!["yu_fs", "yu_proc"]);
     assert!(!t.user_acceptance);
 }
 

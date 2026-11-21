@@ -2,7 +2,7 @@
 //!
 //! When a gated operation is denied (or when an agent wants to
 //! pre-emptively ask before attempting one), it writes a request to
-//! `$COS_DATA_DIR/approvals/pending/<id>.json`. The Agent or desktop consent
+//! `$YUOS_DATA_DIR/approvals/pending/<id>.json`. The Agent or desktop consent
 //! surface presents the request in context and records the user's decision by
 //! moving the file to `approved/` or `denied/`. The requester polls until the
 //! file moves or the deadline passes.
@@ -10,7 +10,7 @@
 //! Layout:
 //!
 //! ```text
-//! $COS_DATA_DIR/approvals/
+//! $YUOS_DATA_DIR/approvals/
 //!     pending/<id>.json    # full Request
 //!     approved/<id>.json   # Request + Outcome
 //!     consumed/<id>.json   # approved once-grants after use
@@ -19,7 +19,7 @@
 //!
 //! Rendering and notification are owned by the Agent UX. This module stores
 //! durable consent evidence and atomically spends it. For supervised Agent
-//! work, `clawd` then redeems that evidence into a one-use in-memory authority
+//! work, `yuosd` then redeems that evidence into a one-use in-memory authority
 //! grant bound to the live task and worker.
 
 use std::fs;
@@ -221,7 +221,7 @@ pub struct ApprovalExecutionBinding {
 
 /// A durable approval use that has been atomically spent.
 ///
-/// For an Agent worker this is not yet execution authority. `clawd`
+/// For an Agent worker this is not yet execution authority. `yuosd`
 /// redeems it into a one-shot in-memory capability grant bound to the
 /// authenticated task and worker before returning success to the gate.
 #[derive(Debug, Clone)]
@@ -263,7 +263,7 @@ const FOREVER_GRANT_SECS: u64 = 30 * 24 * 60 * 60;
 const REPEATABLE_GRANT_USES: u32 = 512;
 /// A local attended process has this long to approve and retry.
 const LOCAL_EXECUTION_SECS: u64 = 15 * 60;
-/// Matches the maximum accepted `claw-agentd` lease.
+/// Matches the maximum accepted `yuos-agentd` lease.
 const MAX_EXECUTION_BINDING_SECS: u64 = 24 * 60 * 60;
 
 tokio::task_local! {
@@ -1272,7 +1272,7 @@ fn submit_owned_with_execution_for_operation(
     let path = pending_dir().join(format!("{}.json", req.id));
     let data = serde_json::to_string_pretty(&req).map_err(|e| e.to_string())?;
     write_atomic(&path, data.as_bytes()).map_err(|e| format!("write pending: {e}"))?;
-    crate::clawd::system_journal::record_approval_request(&req);
+    crate::yuosd::system_journal::record_approval_request(&req);
     Ok(req.id)
 }
 
@@ -1572,7 +1572,7 @@ fn invalidate_claimed_request(
 }
 
 fn journal_decision(resolved: &Resolved) -> Result<(), String> {
-    let result = crate::clawd::system_journal::record_approval_decision(resolved);
+    let result = crate::yuosd::system_journal::record_approval_decision(resolved);
     if resolved
         .request
         .session
@@ -1829,7 +1829,7 @@ pub fn consume_matching_grant_for_owner(
 ///
 /// The returned record is consent evidence, not execution authority.
 /// The `agentd` broker must redeem it into a process-bound
-/// `clawd::authority` grant before the worker may proceed.
+/// `yuosd::authority` grant before the worker may proceed.
 pub fn redeem_matching_grant_for_owner(
     session: &str,
     verb: Verb,

@@ -9,7 +9,7 @@
 //!
 //! Models are user-provided files registered via `yu model import <path>`,
 //! cached at the system-level path returned by `paths::models_dir()`
-//! (default `/var/lib/cos/models/` — see `core/src/paths.rs`).
+//! (default `/var/lib/yuos/models/` — see `core/src/paths.rs`).
 //!
 //! Phase 0.5 ships the skeleton + dispatcher + paths/registry module shells.
 //! Engines (`engines::ort`, `engines::llama`) are added when the user supplies
@@ -482,7 +482,7 @@ fn run_embed(args: &[String]) -> Result<Value, String> {
 
 /// `yu model image <prompt> [--out PATH] [--size 1024x1024] [--quality medium] [--n 1] [--format png]`
 ///
-/// Saves the first generated image to `--out` (default `cos-image.<ext>`)
+/// Saves the first generated image to `--out` (default `yuos-image.<ext>`)
 /// and prints metadata. If the provider returns a URL instead of base64,
 /// the URL is returned in the JSON without download.
 fn run_imagegen(args: &[String]) -> Result<Value, String> {
@@ -606,7 +606,7 @@ fn run_imagegen(args: &[String]) -> Result<Value, String> {
                 let path = match (&out_path, idx) {
                     (Some(p), 0) if resp.images.len() == 1 => p.clone(),
                     (Some(p), n) => insert_index_in_path(p, n, &ext),
-                    (None, n) => format!("cos-image-{n}.{ext}"),
+                    (None, n) => format!("yuos-image-{n}.{ext}"),
                 };
                 std::fs::write(&path, &bytes).map_err(|e| format!("write {path}: {e}"))?;
                 saved_paths.push(path);
@@ -629,7 +629,7 @@ fn insert_index_in_path(p: &str, idx: usize, ext: &str) -> String {
     let stem = path
         .file_stem()
         .and_then(|s| s.to_str())
-        .unwrap_or("cos-image");
+        .unwrap_or("yuos-image");
     let parent = path.parent();
     let new_name = format!("{stem}-{idx}.{ext}");
     match parent {
@@ -891,7 +891,7 @@ fn run_speak(args: &[String]) -> Result<Value, String> {
         }))
         .map_err(|e| e.to_string())?;
 
-    let path = out_path.unwrap_or_else(|| format!("cos-speech.{chosen_format}"));
+    let path = out_path.unwrap_or_else(|| format!("yuos-speech.{chosen_format}"));
     std::fs::write(&path, &resp.audio).map_err(|e| format!("write {path}: {e}"))?;
     Ok(json!({
         "saved": path,

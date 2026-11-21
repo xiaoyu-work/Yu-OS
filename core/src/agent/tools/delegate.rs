@@ -1,4 +1,4 @@
-//! `cos_delegate` — spawn a sub-agent with a scoped tool subset.
+//! `yu_delegate` — spawn a sub-agent with a scoped tool subset.
 //!
 //! Lets a parent agent fan a focused sub-task out to a child agent that has
 //! a different (usually narrower) set of tools, and optionally a different
@@ -8,9 +8,9 @@
 //! Why a scoped sub-agent matters:
 //!
 //!   * **Blast radius**: parent picks the subset of action tools the child can
-//!     use (e.g. only `echo` + `cos_sysinfo`), so an over-eager child can't
+//!     use (e.g. only `echo` + `yu_sysinfo`), so an over-eager child can't
 //!     touch credentials or the sandbox unless explicitly allowed. Read-only
-//!     `cos_skill` and read-only `cos_help` remain available unless parent
+//!     `yu_skill` and read-only `yu_help` remain available unless parent
 //!     guardrails deny them.
 //!   * **Context isolation**: the child has a fresh trajectory, so its
 //!     turns don't pollute the parent's prompt window. Useful for
@@ -23,7 +23,7 @@
 //! ## Recursion bounding
 //!
 //! Each call increments a [`DELEGATE_DEPTH`] tokio task-local. If a
-//! delegated child also calls `cos_delegate`, depth = 2; once depth would
+//! delegated child also calls `yu_delegate`, depth = 2; once depth would
 //! exceed `max_depth` (default 3, cap 5) the call is refused with a tool
 //! error. This prevents runaway delegation trees.
 //!
@@ -69,7 +69,7 @@ pub const DEFAULT_TIMEOUT_SECS: u64 = 600;
 
 tokio::task_local! {
     /// Depth of the current delegate call stack. 0 = top-level agent (no
-    /// delegate active). Each `cos_delegate.exec` reads this, refuses if
+    /// delegate active). Each `yu_delegate.exec` reads this, refuses if
     /// `>= max_depth`, then runs the child inside `scope(depth + 1, ...)`.
     static DELEGATE_DEPTH: u32;
 
@@ -107,7 +107,7 @@ pub fn current_depth() -> u32 {
     DELEGATE_DEPTH.try_with(|d| *d).ok().unwrap_or(0)
 }
 
-/// `cos_delegate` tool — spawn a child agent with a scoped tool subset.
+/// `yu_delegate` tool — spawn a child agent with a scoped tool subset.
 pub struct Delegate {
     deps: RegistryDeps,
 }
@@ -124,7 +124,7 @@ struct DelegateInput {
     task: String,
 
     /// Names of tools the child is permitted to call. Required (may be
-    /// empty for pure-LLM tasks). `cos_delegate` is silently filtered out
+    /// empty for pure-LLM tasks). `yu_delegate` is silently filtered out
     /// even if the parent listed it — the parent must reduce depth via
     /// `max_depth` rather than re-listing the tool.
     #[serde(default)]
@@ -157,7 +157,7 @@ struct DelegateInput {
 #[async_trait]
 impl Tool for Delegate {
     fn name(&self) -> &str {
-        "cos_delegate"
+        "yu_delegate"
     }
 
     fn description(&self) -> &str {
@@ -178,7 +178,7 @@ impl Tool for Delegate {
                 "allowed_tools": {
                     "type": "array",
                     "items": { "type": "string" },
-                    "description": "Action-tool names the child may call. Empty leaves only read-only cos_skill and cos_help when parent guardrails permit them. cos_delegate is always filtered out to prevent recursion."
+                    "description": "Action-tool names the child may call. Empty leaves only read-only yu_skill and yu_help when parent guardrails permit them. yu_delegate is always filtered out to prevent recursion."
                 },
                 "provider": {
                     "type": "string",
@@ -351,9 +351,9 @@ where
 fn child_guardrails(parent: Option<&Guardrails>, allowed: &[String]) -> Guardrails {
     let allowed = allowed
         .iter()
-        .filter(|name| !matches!(name.as_str(), "cos_delegate" | "cos_oauth_login"))
+        .filter(|name| !matches!(name.as_str(), "yu_delegate" | "yu_oauth_login"))
         .cloned()
-        .chain(["cos_skill".to_string(), "cos_help".to_string()])
+        .chain(["yu_skill".to_string(), "yu_help".to_string()])
         .collect::<std::collections::HashSet<_>>();
     let mut guardrails = parent.cloned().unwrap_or_default();
     guardrails.allow = Some(match guardrails.allow.take() {
@@ -365,7 +365,7 @@ fn child_guardrails(parent: Option<&Guardrails>, allowed: &[String]) -> Guardrai
 
 /// Build a registry that contains only the tools the parent allow-listed,
 /// plus read-only progressive Skill disclosure when the parent permits it.
-/// `cos_delegate` is always filtered out (depth-counter handles recursion;
+/// `yu_delegate` is always filtered out (depth-counter handles recursion;
 /// we additionally never pass the tool to children to keep the surface
 /// minimal). Unknown names are silently dropped — the child sees only the
 /// tools that actually exist.
@@ -395,7 +395,7 @@ fn build_child_registry(
         child.set_approval(a.clone());
     }
 
-    for discovery_tool in ["cos_skill", "cos_help"] {
+    for discovery_tool in ["yu_skill", "yu_help"] {
         if parent_guardrails
             .map(|guardrails| guardrails.permits(discovery_tool))
             .unwrap_or(true)
@@ -409,7 +409,7 @@ fn build_child_registry(
     for name in allowed {
         if matches!(
             name.as_str(),
-            "cos_delegate" | "cos_skill" | "cos_help" | "cos_oauth_login"
+            "yu_delegate" | "yu_skill" | "yu_help" | "yu_oauth_login"
         ) {
             continue;
         }

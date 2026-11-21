@@ -12,7 +12,7 @@ References are portable data locators, never authority or cached object data.
 | `mod.rs` | `ObjectCatalog` definition, verified installed-App provider, and invocation descriptions |
 | `../caps/manifest/objects.rs` | Optional manifest object types and resolver validation |
 | `../router/object_commands.rs` | Terminal discovery/reference formatting and ordinary App resolution |
-| `../clawd/activity_objects.rs` | Owner-scoped Activity attachment and description |
+| `../yuosd/activity_objects.rs` | Owner-scoped Activity attachment and description |
 | `../../test/unit/objects/` | Provenance, identity, and non-execution regressions |
 
 ## Dependencies and Invariants

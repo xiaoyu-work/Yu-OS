@@ -89,7 +89,7 @@ pub fn validate_owner_storage(owner_uid: u32) -> Result<(), String> {
                 || before.uid() != owner_uid
             {
                 return Err(format!(
-                    "{} must be a directory owned by uid {owner_uid}; choose per-user COS_DATA_DIR and COS_CAPS_DATA_DIR",
+                    "{} must be a directory owned by uid {owner_uid}; choose per-user YUOS_DATA_DIR and YUOS_CAPS_DATA_DIR",
                     path.display()
                 ));
             }

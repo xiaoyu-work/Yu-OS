@@ -34,7 +34,7 @@ fn round_trip_with_tool_calls() {
         at: "2026-01-01T00:00:00Z".into(),
         role: TurnRole::Assistant,
         content: "let me check".into(),
-        runtime: Some("cos-agent".into()),
+        runtime: Some("yuos-agent".into()),
         tool_calls: vec![serde_json::json!({
             "id": "call_1",
             "name": "fs.read",
@@ -53,7 +53,7 @@ fn round_trip_with_tool_calls() {
 
 #[test]
 fn unknown_runtime_can_round_trip_minimal_turn() {
-    // Simulate a minimal turn a non-claw runtime might produce.
+    // Simulate a minimal turn a non-yuos runtime might produce.
     let raw = r#"{"role":"user","content":"hi"}"#;
     let t: Turn = serde_json::from_str(raw).unwrap();
     assert_eq!(t.role, TurnRole::User);

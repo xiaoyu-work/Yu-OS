@@ -3,7 +3,7 @@
 //!
 //! Single source of truth for:
 //!   - which engines are installed (per-engine list of versions)
-//!   - which version is `active` (loaded by cos at runtime)
+//!   - which version is `active` (loaded by yu at runtime)
 //!   - which version was `previous` (rollback target)
 //!   - whether the engine is `pinned` (refuse auto-update)
 //!   - install metadata (when, from where, sha256)

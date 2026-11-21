@@ -11,7 +11,7 @@ use crate::cli_catalog;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn apps_dir() -> PathBuf {
-    PathBuf::from(env::var("COS_APPS_DIR").unwrap_or_else(|_| "/usr/lib/cos/apps".into()))
+    PathBuf::from(env::var("YUOS_APPS_DIR").unwrap_or_else(|_| "/usr/lib/yuos/apps".into()))
 }
 
 pub(crate) fn show_overview() -> Result<Option<String>, String> {
@@ -605,7 +605,7 @@ pub(crate) fn command_schemas() -> Vec<(&'static str, &'static str, Vec<CommandS
                         false,
                         "Filter pattern",
                     )],
-                    example: "yu sys env COS",
+                    example: "yu sys env YUOS",
                 },
                 CommandSchema {
                     command: "proc",

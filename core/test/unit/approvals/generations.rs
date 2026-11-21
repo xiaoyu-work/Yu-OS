@@ -3,7 +3,7 @@ use super::*;
 use std::ffi::OsString;
 
 /// Every test drives the real generation state, so they share one
-/// process-wide `COS_DATA_DIR` and must not overlap.
+/// process-wide `YUOS_DATA_DIR` and must not overlap.
 struct IsolatedEnv {
     _dir: tempfile::TempDir,
     previous: Option<OsString>,
@@ -13,8 +13,8 @@ struct IsolatedEnv {
 impl Drop for IsolatedEnv {
     fn drop(&mut self) {
         match self.previous.take() {
-            Some(value) => std::env::set_var("COS_DATA_DIR", value),
-            None => std::env::remove_var("COS_DATA_DIR"),
+            Some(value) => std::env::set_var("YUOS_DATA_DIR", value),
+            None => std::env::remove_var("YUOS_DATA_DIR"),
         }
     }
 }
@@ -26,8 +26,8 @@ fn isolated_env() -> IsolatedEnv {
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     let dir = tempfile::tempdir().unwrap();
-    let previous = std::env::var_os("COS_DATA_DIR");
-    std::env::set_var("COS_DATA_DIR", dir.path());
+    let previous = std::env::var_os("YUOS_DATA_DIR");
+    std::env::set_var("YUOS_DATA_DIR", dir.path());
     IsolatedEnv {
         _dir: dir,
         previous,

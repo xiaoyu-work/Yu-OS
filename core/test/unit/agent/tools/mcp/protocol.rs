@@ -56,11 +56,11 @@ fn initialize_result_has_required_fields() {
     let body = serde_json::json!({
         "protocolVersion": "2025-06-18",
         "capabilities": {"tools": {"listChanged": true}},
-        "serverInfo": {"name": "cos", "version": "0.1.0"}
+        "serverInfo": {"name": "yu", "version": "0.1.0"}
     });
     let init: InitializeResult = serde_json::from_value(body).unwrap();
     assert_eq!(init.protocol_version, "2025-06-18");
-    assert_eq!(init.server_info.name, "cos");
+    assert_eq!(init.server_info.name, "yu");
     assert!(init.capabilities.tools.is_some());
 }
 

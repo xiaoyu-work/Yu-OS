@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-platform="${CLAW_PLATFORM:?kernel-platform requires CLAW_PLATFORM}"
+platform="${YUOS_PLATFORM:?kernel-platform requires YUOS_PLATFORM}"
 builder="$PROJECT_DIR/scripts/platform_kernels.py"
 mode=()
 if [[ $platform == aarch64-qualcomm && ,${FEATURES:-}, == *,installer,* ]]; then
@@ -20,7 +20,7 @@ if [[ ! -x "$ROOTFS/usr/sbin/update-initramfs" ]]; then
     exit 1
 fi
 
-stage=$(mktemp -d "$ROOTFS/tmp/claw-platform.XXXXXX")
+stage=$(mktemp -d "$ROOTFS/tmp/yuos-platform.XXXXXX")
 trap 'rm -rf -- "$stage"' EXIT
 if [[ $platform == aarch64-qualcomm || $platform == aarch64-n1x || $platform == aarch64-gb10 ]]; then
     install -d "$stage"/{scripts,packaging}
@@ -52,8 +52,8 @@ elif [[ ${mode[0]:-} == --apple-tools ]]; then
     install -m0644 "$PROJECT_DIR"/scripts/{platform_kernels,surface_laptop7,asahi_boot,asahi_kernel,asahi_audio,asahi_touch_id,asahi_mesa}.py \
         "$stage/scripts/"
     install -m0644 "$PROJECT_DIR/packaging/platform-kernels.json" "$stage/packaging/"
-    install -m0644 "$apple"/{claw-asahi-audio,claw-asahi-fprintd,claw-asahi-touch-id,claw-asahi-touch-id.service} "$assets/"
-    install -m0644 "$apple"/{70-claw-asahi-fprintd.conf,80-claw-asahi-touch-id.conf,70-claw-asahi-touch-id.rules,99-claw-asahi-neo.conf} "$assets/"
+    install -m0644 "$apple"/{yuos-asahi-audio,yuos-asahi-fprintd,yuos-asahi-touch-id,yuos-asahi-touch-id.service} "$assets/"
+    install -m0644 "$apple"/{70-yuos-asahi-fprintd.conf,80-yuos-asahi-touch-id.conf,70-yuos-asahi-touch-id.rules,99-yuos-asahi-neo.conf} "$assets/"
     chroot "$ROOTFS" apt-get update -qq
     chroot "$ROOTFS" env DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Use-Pty=0 \
         install -y --no-install-recommends build-essential pkg-config zstd patch meson ninja-build \
@@ -79,45 +79,45 @@ fi
 chmod 0755 "$stage"
 inside="${artifacts#"$ROOTFS"}"
 packages=()
-for file in "$artifacts"/linux-image-*.deb "$artifacts"/claw-os-nvidia-platform_*.deb; do
+for file in "$artifacts"/linux-image-*.deb "$artifacts"/yuos-nvidia-platform_*.deb; do
     [[ -f $file ]] && packages+=("$inside/${file##*/}")
 done
 if [[ $platform == x86-t2 ]]; then
-    t2=("$artifacts"/claw-os-t2-support_*.deb)
+    t2=("$artifacts"/yuos-t2-support_*.deb)
     test -f "${t2[0]}"
     packages+=("$inside/${t2[0]##*/}")
 fi
 if [[ $platform == x86-surface-laptop-7-intel ]]; then
-    for file in "$artifacts"/{claw-os-surface-laptop-7,libcamera*,gstreamer1.0-libcamera}_*.deb; do
+    for file in "$artifacts"/{yuos-surface-laptop-7,libcamera*,gstreamer1.0-libcamera}_*.deb; do
         test -f "$file"
         packages+=("$inside/${file##*/}")
     done
     packages+=("alsa-ucm-conf/$SUITE-backports" "libspa-0.2-libcamera/$SUITE-backports")
 fi
 if [[ $platform == aarch64-qualcomm ]]; then
-    radio=("$artifacts"/claw-os-surface-snapdragon-radio_*.deb)
+    radio=("$artifacts"/yuos-surface-snapdragon-radio_*.deb)
     test -f "${radio[0]}"
     packages+=("$inside/${radio[0]##*/}")
     if (( ${#mode[@]} )); then
-        index=("$artifacts"/claw-os-qualcomm-firmware-index_*.deb)
+        index=("$artifacts"/yuos-qualcomm-firmware-index_*.deb)
         test -f "${index[0]}"
         packages+=("$inside/${index[0]##*/}")
-        cache="$ROOTFS/usr/share/cos/driver-cache/surface-laptop-7-snapdragon"
+        cache="$ROOTFS/usr/share/yuos/driver-cache/surface-laptop-7-snapdragon"
         install -d "$cache"
-        install -m0644 "$artifacts"/{claw-os-surface-snapdragon-iptsd,claw-os-surface-snapdragon-touchpad,alsa-ucm-conf}_*.deb "$cache/"
-        cache="$ROOTFS/usr/share/cos/driver-cache/surface-laptop-8-snapdragon"
+        install -m0644 "$artifacts"/{yuos-surface-snapdragon-iptsd,yuos-surface-snapdragon-touchpad,alsa-ucm-conf}_*.deb "$cache/"
+        cache="$ROOTFS/usr/share/yuos/driver-cache/surface-laptop-8-snapdragon"
         install -d "$cache"
-        install -m0644 "$artifacts"/{claw-os-surface-laptop-8-snapdragon,alsa-ucm-conf}_*.deb "$cache/"
-        cache="$ROOTFS/usr/share/cos/driver-cache/surface-pro-11-snapdragon"
+        install -m0644 "$artifacts"/{yuos-surface-laptop-8-snapdragon,alsa-ucm-conf}_*.deb "$cache/"
+        cache="$ROOTFS/usr/share/yuos/driver-cache/surface-pro-11-snapdragon"
         install -d "$cache"
-        install -m0644 "$artifacts"/{claw-os-surface-snapdragon-iptsd,claw-os-surface-pro-11-snapdragon,claw-os-surface-pro-11-sensors,alsa-ucm-conf}_*.deb "$cache/"
-        cache="$ROOTFS/usr/share/cos/driver-cache/qualcomm-model-audio"
+        install -m0644 "$artifacts"/{yuos-surface-snapdragon-iptsd,yuos-surface-pro-11-snapdragon,yuos-surface-pro-11-sensors,alsa-ucm-conf}_*.deb "$cache/"
+        cache="$ROOTFS/usr/share/yuos/driver-cache/qualcomm-model-audio"
         install -d "$cache"
-        install -m0644 "$artifacts"/{claw-os-qualcomm-model-audio,alsa-ucm-conf}_*.deb "$cache/"
+        install -m0644 "$artifacts"/{yuos-qualcomm-model-audio,alsa-ucm-conf}_*.deb "$cache/"
     fi
 fi
 if [[ $platform == aarch64-apple ]]; then
-    for file in "$artifacts"/{claw-os-asahi-audio,claw-os-asahi-touch-id,claw-os-asahi-vulkan,claw-os-asahi-opengl}_*.deb; do
+    for file in "$artifacts"/{yuos-asahi-audio,yuos-asahi-touch-id,yuos-asahi-vulkan,yuos-asahi-opengl}_*.deb; do
         test -f "$file"
         packages+=("$inside/${file##*/}")
     done
@@ -126,7 +126,7 @@ if [[ $platform == aarch64-apple ]]; then
         "libegl-mesa0/$SUITE-backports" "libglx-mesa0/$SUITE-backports" "libgbm1/$SUITE-backports")
 fi
 if [[ $platform == aarch64-n1x ]]; then
-    audio=("$artifacts"/claw-os-proart-p14-audio_*.deb)
+    audio=("$artifacts"/yuos-proart-p14-audio_*.deb)
     test -f "${audio[0]}"
     packages+=("$inside/${audio[0]##*/}")
 fi
@@ -136,20 +136,20 @@ chroot "$ROOTFS" env DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Use-Pty=0 \
 chroot "$ROOTFS" apt-get clean
 
 if [[ $platform == x86-t2 ]]; then
-    chroot "$ROOTFS" /usr/bin/systemctl enable claw-t2-fan.service
+    chroot "$ROOTFS" /usr/bin/systemctl enable yuos-t2-fan.service
 fi
 
 if [[ $platform == aarch64-apple ]]; then
     apple="$PROJECT_DIR/rootfs/features/kernel-platform/apple"
-    install -d "$ROOTFS/usr/lib/cos/asahi"
-    install -m0644 "$artifacts"/boot{,-j700}.bin "$artifacts/platform-sources.json" "$ROOTFS/usr/lib/cos/asahi/"
-    cp -a "$artifacts/boot-licenses" "$ROOTFS/usr/lib/cos/asahi/"
-    install -Dm0755 "$apple/claw-asahi-import-firmware" "$ROOTFS/usr/sbin/claw-asahi-import-firmware"
-    install -Dm0755 "$apple/claw-asahi-vendor-initramfs" "$ROOTFS/usr/share/initramfs-tools/hooks/claw-asahi-vendor"
-    chroot "$ROOTFS" /usr/bin/systemctl enable claw-asahi-audio.service
+    install -d "$ROOTFS/usr/lib/yuos/asahi"
+    install -m0644 "$artifacts"/boot{,-j700}.bin "$artifacts/platform-sources.json" "$ROOTFS/usr/lib/yuos/asahi/"
+    cp -a "$artifacts/boot-licenses" "$ROOTFS/usr/lib/yuos/asahi/"
+    install -Dm0755 "$apple/yuos-asahi-import-firmware" "$ROOTFS/usr/sbin/yuos-asahi-import-firmware"
+    install -Dm0755 "$apple/yuos-asahi-vendor-initramfs" "$ROOTFS/usr/share/initramfs-tools/hooks/yuos-asahi-vendor"
+    chroot "$ROOTFS" /usr/bin/systemctl enable yuos-asahi-audio.service
     if [[ ,${FEATURES:-}, == *,local-user,* ]]; then
-        install -m0644 "$artifacts/stage1-j700.bin" "$ROOTFS/usr/lib/cos/asahi/"
-        service=claw-asahi-vendor-firmware.service
+        install -m0644 "$artifacts/stage1-j700.bin" "$ROOTFS/usr/lib/yuos/asahi/"
+        service=yuos-asahi-vendor-firmware.service
         install -Dm0644 "$apple/$service" "$ROOTFS/usr/lib/systemd/system/$service"
         chroot "$ROOTFS" /usr/bin/systemctl enable "$service"
     fi
@@ -157,24 +157,24 @@ fi
 
 if [[ $platform == aarch64-n1x ]]; then
     n1x="$PROJECT_DIR/rootfs/features/kernel-platform/n1x"
-    install -Dm0644 "$n1x/n1x-boot.sh" "$ROOTFS/usr/lib/cos/hw/n1x-boot.sh"
-    install -Dm0755 "$n1x/claw-n1x-setup" "$ROOTFS/usr/lib/cos/hw/claw-n1x-setup"
-    install -Dm0755 "$n1x/claw-n1x-gpu-memory" "$ROOTFS/usr/lib/cos/hw/claw-n1x-gpu-memory"
-    install -Dm0755 "$n1x/claw-n1x-backlight" "$ROOTFS/usr/share/initramfs-tools/scripts/init-premount/claw-n1x-backlight"
-    install -Dm0644 "$n1x/70-claw-n1x-cppc.rules" "$ROOTFS/usr/lib/udev/rules.d/70-claw-n1x-cppc.rules"
-    install -Dm0644 "$n1x/claw-n1x-cppc.service" "$ROOTFS/usr/lib/systemd/system/claw-n1x-cppc.service"
-    chroot "$ROOTFS" /usr/bin/systemctl enable claw-n1x-cppc.service
+    install -Dm0644 "$n1x/n1x-boot.sh" "$ROOTFS/usr/lib/yuos/hw/n1x-boot.sh"
+    install -Dm0755 "$n1x/yuos-n1x-setup" "$ROOTFS/usr/lib/yuos/hw/yuos-n1x-setup"
+    install -Dm0755 "$n1x/yuos-n1x-gpu-memory" "$ROOTFS/usr/lib/yuos/hw/yuos-n1x-gpu-memory"
+    install -Dm0755 "$n1x/yuos-n1x-backlight" "$ROOTFS/usr/share/initramfs-tools/scripts/init-premount/yuos-n1x-backlight"
+    install -Dm0644 "$n1x/70-yuos-n1x-cppc.rules" "$ROOTFS/usr/lib/udev/rules.d/70-yuos-n1x-cppc.rules"
+    install -Dm0644 "$n1x/yuos-n1x-cppc.service" "$ROOTFS/usr/lib/systemd/system/yuos-n1x-cppc.service"
+    chroot "$ROOTFS" /usr/bin/systemctl enable yuos-n1x-cppc.service
     chroot "$ROOTFS" /usr/sbin/update-initramfs -u -k "$release"
 fi
 
 if [[ $platform == aarch64-gb10 ]]; then
     gb10="$PROJECT_DIR/rootfs/features/kernel-platform/gb10"
-    install -Dm0755 "$gb10/claw-gb10-cpuidle" "$ROOTFS/usr/lib/cos/hw/claw-gb10-cpuidle"
-    install -Dm0644 "$gb10/70-claw-gb10-cpuidle.rules" "$ROOTFS/usr/lib/udev/rules.d/70-claw-gb10-cpuidle.rules"
-    install -Dm0644 "$gb10/claw-gb10-cpuidle.service" "$ROOTFS/usr/lib/systemd/system/claw-gb10-cpuidle.service"
-    chroot "$ROOTFS" /usr/bin/systemctl enable claw-gb10-cpuidle.service
+    install -Dm0755 "$gb10/yuos-gb10-cpuidle" "$ROOTFS/usr/lib/yuos/hw/yuos-gb10-cpuidle"
+    install -Dm0644 "$gb10/70-yuos-gb10-cpuidle.rules" "$ROOTFS/usr/lib/udev/rules.d/70-yuos-gb10-cpuidle.rules"
+    install -Dm0644 "$gb10/yuos-gb10-cpuidle.service" "$ROOTFS/usr/lib/systemd/system/yuos-gb10-cpuidle.service"
+    chroot "$ROOTFS" /usr/bin/systemctl enable yuos-gb10-cpuidle.service
     install -d "$ROOTFS/etc/systemd/sleep.conf.d"
-    cat > "$ROOTFS/etc/systemd/sleep.conf.d/60-claw-os-gb10.conf" <<'EOF'
+    cat > "$ROOTFS/etc/systemd/sleep.conf.d/60-yuos-gb10.conf" <<'EOF'
 [Sleep]
 AllowSuspend=no
 AllowHibernation=no
@@ -184,19 +184,19 @@ EOF
 fi
 
 install -d "$ROOTFS/etc/default/grub.d"
-printf 'GRUB_TOP_LEVEL="/boot/vmlinuz-%s"\n' "$release" >"$ROOTFS/etc/default/grub.d/60-claw-os-platform.cfg"
+printf 'GRUB_TOP_LEVEL="/boot/vmlinuz-%s"\n' "$release" >"$ROOTFS/etc/default/grub.d/60-yuos-platform.cfg"
 if [[ ${mode[0]:-} == --board-tools ]]; then
     # Only the matching Surface entries can write or restore a hibernation image.
-    printf '%s\n' 'export CLAW_QCOM_LINUX="${GRUB_CMDLINE_LINUX:-}"' \
-        'GRUB_CMDLINE_LINUX="$CLAW_QCOM_LINUX noresume nohibernate"' \
-        >>"$ROOTFS/etc/default/grub.d/60-claw-os-platform.cfg"
+    printf '%s\n' 'export YUOS_QCOM_LINUX="${GRUB_CMDLINE_LINUX:-}"' \
+        'GRUB_CMDLINE_LINUX="$YUOS_QCOM_LINUX noresume nohibernate"' \
+        >>"$ROOTFS/etc/default/grub.d/60-yuos-platform.cfg"
 fi
 if [[ -n $boot_args ]]; then
-    printf 'GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX %s"\n' "$boot_args" >>"$ROOTFS/etc/default/grub.d/60-claw-os-platform.cfg"
+    printf 'GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX %s"\n' "$boot_args" >>"$ROOTFS/etc/default/grub.d/60-yuos-platform.cfg"
 fi
 test -s "$ROOTFS/boot/vmlinuz-$release"
 test -s "$ROOTFS/boot/initrd.img-$release"
 if [[ $platform == x86-surface-laptop-7-intel ]]; then
     chroot "$ROOTFS" lsinitramfs "/boot/initrd.img-$release" |
-        grep -E '/updates/claw-surface/surface_aggregator_registry\.ko$' >/dev/null
+        grep -E '/updates/yuos-surface/surface_aggregator_registry\.ko$' >/dev/null
 fi

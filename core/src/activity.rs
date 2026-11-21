@@ -3,7 +3,7 @@
 use serde_json::{json, Value};
 
 use crate::activities::{ActivityDraft, ActivityPatch};
-use crate::clawd::{client, config, protocol::Request, routes::Command};
+use crate::yuosd::{client, config, protocol::Request, routes::Command};
 
 mod capability_policy;
 mod continuity;
@@ -43,12 +43,12 @@ pub fn run(command: &str, args: &[String]) -> Result<Value, String> {
     if !response.ok {
         return Err(match response.error {
             Some(error) => format!("{}: {}", error.code, error.message),
-            None => "clawd refused the Activity request without an error".to_string(),
+            None => "yuosd refused the Activity request without an error".to_string(),
         });
     }
     response
         .result
-        .ok_or_else(|| "clawd returned no Activity result".to_string())
+        .ok_or_else(|| "yuosd returned no Activity result".to_string())
 }
 
 fn parse(command: &str, args: &[String]) -> Result<(Command, Value), String> {

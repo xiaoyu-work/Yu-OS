@@ -224,7 +224,7 @@ async fn wait_for_drops(drops: &AtomicUsize, expected: usize) {
 #[tokio::test]
 async fn initialize_returns_tools_capability() {
     let (client_t, server_t) = in_memory_pair();
-    let server = McpServer::new("cos-test", "0.0.1", registry_with_echo());
+    let server = McpServer::new("yuos-test", "0.0.1", registry_with_echo());
     let server_handle = tokio::spawn(server.serve(server_t));
 
     let client = McpClient::new(client_t);
@@ -240,7 +240,7 @@ async fn initialize_returns_tools_capability() {
         .await
         .unwrap();
     assert_eq!(init.protocol_version, PROTOCOL_VERSION);
-    assert_eq!(init.server_info.name, "cos-test");
+    assert_eq!(init.server_info.name, "yuos-test");
     assert!(init.capabilities.tools.is_some());
     drop(client);
     let _ = server_handle.await;
@@ -291,7 +291,7 @@ async fn large_catalog_is_listed_and_called_through_stable_bridge() {
         crate::agent::tools::guardrails::Guardrails::permissive(),
     )
     .with_tool_schema_budget_tokens(0);
-    let server = McpServer::new_with_context("cos", "0", Arc::new(registry), context);
+    let server = McpServer::new_with_context("yu", "0", Arc::new(registry), context);
     let server_handle = tokio::spawn(server.serve(server_t));
 
     let client = McpClient::new(client_t);
@@ -350,7 +350,7 @@ async fn unavailable_tools_are_neither_listed_nor_callable() {
     let context = crate::agent::tools::exposure::ToolExposureContext::isolated(
         crate::agent::tools::guardrails::Guardrails::permissive(),
     );
-    let server = McpServer::new_with_context("cos", "0", Arc::new(registry), context);
+    let server = McpServer::new_with_context("yu", "0", Arc::new(registry), context);
     let server_handle = tokio::spawn(server.serve(server_t));
 
     let client = McpClient::new(client_t);

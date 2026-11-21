@@ -1,5 +1,5 @@
 [package]
-name = "cos-agent-ui"
+name = "yuos-agent-ui"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ repository.workspace = true
 description = "Yu OS Agent — native libcosmic UI (replaces the React + WebView app)."
 
 [[bin]]
-name = "cos-agent-ui"
+name = "yuos-agent-ui"
 path = "src/main.rs"
 
 [dependencies]
@@ -29,8 +29,8 @@ async-stream = "0.3"
 bytes = "1"
 uuid = { version = "1", features = ["v4"] }
 url = "2"
-cos-agent-protocol = { workspace = true }
-cos-runtime = { path = "../../../cos-runtime/rust" }
+yuos-agent-protocol = { workspace = true }
+yuos-runtime = { path = "../../../yuos-runtime/rust" }
 
 # Microphone capture (replaces React's MediaRecorder + getUserMedia).
 # cpal is the standard cross-platform audio crate; on Linux it talks

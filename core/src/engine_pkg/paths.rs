@@ -3,7 +3,7 @@
 //!
 //! In production these all delegate to `crate::paths::*`. In tests we
 //! redirect to a per-test temp directory **without touching the
-//! `COS_DATA_DIR` env var**, which would otherwise race with other
+//! `YUOS_DATA_DIR` env var**, which would otherwise race with other
 //! integration tests that read it (notably `ipc::*`).
 
 use std::path::PathBuf;

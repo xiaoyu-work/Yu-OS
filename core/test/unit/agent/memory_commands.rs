@@ -20,7 +20,7 @@ fn note_search_validates_missing_queries_and_extra_arguments() {
 fn note_search_cli_reports_literal_scope_and_read_revision() {
     let _lock = crate::test_env::lock_env();
     let directory = tempfile::tempdir().unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", directory.path());
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", directory.path());
     let store = memory::notes::NotesStore::system_default();
     store.write("deploy.md", "us-west-2 first, us-west-2 second").unwrap();
     store.write("other.md", "unrelated").unwrap();
@@ -58,9 +58,9 @@ fn semantic_no_subcommand_errs_with_usage() {
 // -----------------------------------------------------------------
 
 /// Pin the curator default log under a per-test temp dir so we
-/// don't trample the real machine's `%ProgramData%\cos\` state.
+/// don't trample the real machine's `%ProgramData%\yuos\` state.
 /// Returns a guard that holds the crate-wide env lock for the
-/// test's lifetime: each call mutates `COS_DATA_DIR`, and two
+/// test's lifetime: each call mutates `YUOS_DATA_DIR`, and two
 /// tests running in parallel would otherwise observe each
 /// other's data directory (cargo test runs many threads).
 /// The guard derefs to `&Path` so existing `dir.join(...)`
@@ -83,10 +83,10 @@ impl LearnDataDir {
     }
 }
 
-fn isolate_cos_data_dir(tag: &str) -> LearnDataDir {
+fn isolate_yu_data_dir(tag: &str) -> LearnDataDir {
     let env = crate::test_env::lock_env();
     let dir = std::env::temp_dir().join(format!(
-        "cos-learn-cli-{tag}-{}-{}",
+        "yuos-learn-cli-{tag}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -94,7 +94,7 @@ fn isolate_cos_data_dir(tag: &str) -> LearnDataDir {
             .subsec_nanos()
     ));
     std::fs::create_dir_all(&dir).unwrap();
-    std::env::set_var("COS_DATA_DIR", &dir);
+    std::env::set_var("YUOS_DATA_DIR", &dir);
     LearnDataDir {
         path: dir,
         _env: env,
@@ -103,7 +103,7 @@ fn isolate_cos_data_dir(tag: &str) -> LearnDataDir {
 
 #[test]
 fn learn_cmd_extract_requires_session_flag() {
-    let _dir = isolate_cos_data_dir("missing-session");
+    let _dir = isolate_yu_data_dir("missing-session");
     let err = learn_cmd(&["extract".into()]).unwrap_err();
     assert!(err.contains("--session"), "got {err}");
 }
@@ -152,7 +152,7 @@ fn learn_cmd_extract_dry_run_with_unknown_session_succeeds() {
     // dry-run skips both LLM and dedupe, and an unknown session
     // simply has zero recent messages — should be a clean
     // success envelope with empty facts.
-    let _dir = isolate_cos_data_dir("dry-run-empty");
+    let _dir = isolate_yu_data_dir("dry-run-empty");
     let v = learn_cmd(&[
         "extract".into(),
         "--session".into(),
@@ -171,7 +171,7 @@ fn learn_cmd_extract_dry_run_with_unknown_session_succeeds() {
 
 #[test]
 fn learn_cmd_status_default_is_empty_when_log_missing() {
-    let _dir = isolate_cos_data_dir("status-empty");
+    let _dir = isolate_yu_data_dir("status-empty");
     let v = learn_cmd(&["status".into()]).expect("ok");
     assert_eq!(v["session_count"], serde_json::json!(0));
     assert_eq!(v["log_exists"], serde_json::Value::Bool(false));
@@ -179,14 +179,14 @@ fn learn_cmd_status_default_is_empty_when_log_missing() {
 
 #[test]
 fn learn_cmd_default_subcommand_is_status() {
-    let _dir = isolate_cos_data_dir("status-default");
+    let _dir = isolate_yu_data_dir("status-default");
     let v = learn_cmd(&[]).expect("ok");
     assert!(v.get("session_count").is_some(), "got {v}");
 }
 
 #[test]
 fn learn_cmd_clear_log_requires_session_or_all() {
-    let _dir = isolate_cos_data_dir("clear-needs-flag");
+    let _dir = isolate_yu_data_dir("clear-needs-flag");
     let err = learn_cmd(&["clear-log".into()]).unwrap_err();
     assert!(
         err.contains("--session") || err.contains("--all"),
@@ -196,7 +196,7 @@ fn learn_cmd_clear_log_requires_session_or_all() {
 
 #[test]
 fn learn_cmd_clear_log_all_writes_empty_log() {
-    let dir = isolate_cos_data_dir("clear-all");
+    let dir = isolate_yu_data_dir("clear-all");
     let v = learn_cmd(&["clear-log".into(), "--all".into()]).expect("ok");
     assert_eq!(v["ok"], serde_json::Value::Bool(true));
     // log file is now created on disk under the isolated dir.
@@ -206,7 +206,7 @@ fn learn_cmd_clear_log_all_writes_empty_log() {
 
 #[test]
 fn learn_cmd_clear_log_for_unknown_session_reports_zero_removed() {
-    let _dir = isolate_cos_data_dir("clear-unknown");
+    let _dir = isolate_yu_data_dir("clear-unknown");
     let v = learn_cmd(&["clear-log".into(), "--session".into(), "ghost".into()]).expect("ok");
     assert_eq!(v["removed_entries"], serde_json::json!(0));
 }

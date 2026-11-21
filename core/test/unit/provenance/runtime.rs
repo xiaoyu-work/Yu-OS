@@ -155,7 +155,7 @@ fn developer_liveness_requires_the_exact_retained_path_kind_and_digest() {
 fn register_assert_and_sweep_round_trip() {
     let _guard = crate::test_env::lock_env();
     let data = tmpdir("procdata");
-    let _env = crate::test_env::TestEnvVarGuard::set("COS_PROVENANCE_RUNTIME_DIR", &data);
+    let _env = crate::test_env::TestEnvVarGuard::set("YUOS_PROVENANCE_RUNTIME_DIR", &data);
 
     let me = crate::provenance::fsec::effective_uid();
     let digest = format!("sha256:{}", "c".repeat(64));
@@ -202,7 +202,7 @@ fn register_assert_and_sweep_round_trip() {
 fn state_survives_a_process_restart() {
     let _guard = crate::test_env::lock_env();
     let data = tmpdir("persist");
-    let _env = crate::test_env::TestEnvVarGuard::set("COS_PROVENANCE_RUNTIME_DIR", &data);
+    let _env = crate::test_env::TestEnvVarGuard::set("YUOS_PROVENANCE_RUNTIME_DIR", &data);
 
     let me = crate::provenance::fsec::effective_uid();
     let digest = format!("sha256:{}", "d".repeat(64));
@@ -225,7 +225,7 @@ fn state_survives_a_process_restart() {
 fn an_instance_records_its_class_and_its_exact_process() {
     let _guard = crate::test_env::lock_env();
     let data = tmpdir("identity");
-    let _env = crate::test_env::TestEnvVarGuard::set("COS_PROVENANCE_RUNTIME_DIR", &data);
+    let _env = crate::test_env::TestEnvVarGuard::set("YUOS_PROVENANCE_RUNTIME_DIR", &data);
 
     let me = crate::provenance::fsec::effective_uid();
     register_operator_mcp(me, "mcp:local");
@@ -282,7 +282,7 @@ fn an_instance_records_its_class_and_its_exact_process() {
 fn a_marked_session_is_denied_before_it_is_stopped() {
     let _guard = crate::test_env::lock_env();
     let data = tmpdir("window");
-    let _env = crate::test_env::TestEnvVarGuard::set("COS_PROVENANCE_RUNTIME_DIR", &data);
+    let _env = crate::test_env::TestEnvVarGuard::set("YUOS_PROVENANCE_RUNTIME_DIR", &data);
 
     let me = crate::provenance::fsec::effective_uid();
     let digest = format!("sha256:{}", "b".repeat(64));
@@ -306,7 +306,7 @@ fn a_marked_session_is_denied_before_it_is_stopped() {
 fn an_app_without_a_process_is_not_a_checked_retirement_receipt() {
     let _guard = crate::test_env::lock_env();
     let data = tmpdir("release");
-    let _env = crate::test_env::TestEnvVarGuard::set("COS_PROVENANCE_RUNTIME_DIR", &data);
+    let _env = crate::test_env::TestEnvVarGuard::set("YUOS_PROVENANCE_RUNTIME_DIR", &data);
 
     let me = crate::provenance::fsec::effective_uid();
     let digest = format!("sha256:{}", "c".repeat(64));
@@ -328,7 +328,7 @@ fn an_app_without_a_process_is_not_a_checked_retirement_receipt() {
 #[cfg(unix)]
 #[test]
 fn every_context_addresses_the_same_owner_routed_record() {
-    // The CLI running as the owner, `agentd` and `clawd` acting for
+    // The CLI running as the owner, `agentd` and `yuosd` acting for
     // that owner must name one file. If they did not, a revocation
     // recorded by one would be invisible to the others — which is the
     // hole the record exists to close.
@@ -357,7 +357,7 @@ fn every_context_addresses_the_same_owner_routed_record() {
 fn a_corrupt_or_insecure_record_denies_instead_of_reading_as_empty() {
     let _guard = crate::test_env::lock_env();
     let data = tmpdir("corrupt");
-    let _env = crate::test_env::TestEnvVarGuard::set("COS_PROVENANCE_RUNTIME_DIR", &data);
+    let _env = crate::test_env::TestEnvVarGuard::set("YUOS_PROVENANCE_RUNTIME_DIR", &data);
     let me = crate::provenance::fsec::effective_uid();
     let clean = store_with(&[], &[], None);
 
@@ -392,7 +392,7 @@ fn a_corrupt_or_insecure_record_denies_instead_of_reading_as_empty() {
 fn a_missing_record_denies_a_package_backed_session_but_not_a_shell() {
     let _guard = crate::test_env::lock_env();
     let data = tmpdir("missing");
-    let _env = crate::test_env::TestEnvVarGuard::set("COS_PROVENANCE_RUNTIME_DIR", &data);
+    let _env = crate::test_env::TestEnvVarGuard::set("YUOS_PROVENANCE_RUNTIME_DIR", &data);
     let me = crate::provenance::fsec::effective_uid();
     let clean = store_with(&[], &[], None);
 
@@ -419,7 +419,7 @@ fn concurrent_writers_do_not_clobber_each_other() {
     // of them.
     let _guard = crate::test_env::lock_env();
     let data = tmpdir("concurrent");
-    let _env = crate::test_env::TestEnvVarGuard::set("COS_PROVENANCE_RUNTIME_DIR", &data);
+    let _env = crate::test_env::TestEnvVarGuard::set("YUOS_PROVENANCE_RUNTIME_DIR", &data);
     let me = crate::provenance::fsec::effective_uid();
     let digest = format!("sha256:{}", "9".repeat(64));
 
@@ -451,7 +451,7 @@ fn concurrent_writers_do_not_clobber_each_other() {
 fn a_pure_read_does_not_rewrite_the_record() {
     let _guard = crate::test_env::lock_env();
     let data = tmpdir("readonly");
-    let _env = crate::test_env::TestEnvVarGuard::set("COS_PROVENANCE_RUNTIME_DIR", &data);
+    let _env = crate::test_env::TestEnvVarGuard::set("YUOS_PROVENANCE_RUNTIME_DIR", &data);
     let me = crate::provenance::fsec::effective_uid();
     let digest = format!("sha256:{}", "8".repeat(64));
     seed(me, "sess-read", &digest);

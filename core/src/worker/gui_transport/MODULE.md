@@ -5,7 +5,7 @@ Root-managed GUI execution. A private network namespace or a read-only socket
 bind alone is insufficient: Unix pathname sockets and hardlink aliases can
 still reach the host.
 
-`claw-gui-runner` inherits a private stdin packet socket only during trusted
+`yuos-gui-runner` inherits a private stdin packet socket only during trusted
 bootstrap. It installs the mandatory seccomp notification filter, transfers
 exactly one listener FD to the retained Root endpoint, receives a read-only
 stdin FIFO and replaces the socket before the existing App runner executes.
@@ -19,7 +19,7 @@ bound and emulated by Root; the Host never inspects memory and then uses
 `SECCOMP_USER_NOTIF_FLAG_CONTINUE` on a mutable request.
 
 Only the fixed instance Wayland, private broker and prepared egress targets are
-connectable. The [GUI relay](../../clawd/gui/MODULE.md) checks every App-written
+connectable. The [GUI relay](../../yuosd/gui/MODULE.md) checks every App-written
 segment's kernel credentials against the exact instance cgroup. Static
 `SO_PEERCRED` from Root-emulated `connect` is not an App identity.
 Socket/directory/pidfd transfers are refused, and egress carries no FDs.
@@ -32,7 +32,7 @@ instance cgroup; SDK, provider and `yu` executable names grant no exception.
 Private probes create separate process groups, check denied raw-socket and
 allowed instance connections, and retain transfer descriptors through checked
 retirement. This generic containment coverage is not acceptance of an Applet
-provider's owner-data view or its complete SDK/helper/`cos` call chain.
+provider's owner-data view or its complete SDK/helper/`yu` call chain.
 
 Required facilities include cgroup v2 with delegated CPU/memory/PID controllers,
 checked cgroup killing, pidfds, seccomp user notification, `pidfd_getfd`, `kcmp`,

@@ -2,16 +2,16 @@ use super::*;
 
 fn with_tmp_config_dir<R>(label: &str, f: impl FnOnce() -> R) -> R {
     let tmp = std::env::temp_dir().join(format!(
-        "cos-user-budget-test-{label}-{}",
+        "yuos-user-budget-test-{label}-{}",
         std::process::id()
     ));
     let _ = fs::remove_dir_all(&tmp);
-    let prev = std::env::var_os("COS_USER_CONFIG_DIR");
-    std::env::set_var("COS_USER_CONFIG_DIR", &tmp);
+    let prev = std::env::var_os("YUOS_USER_CONFIG_DIR");
+    std::env::set_var("YUOS_USER_CONFIG_DIR", &tmp);
     let out = f();
     match prev {
-        Some(v) => std::env::set_var("COS_USER_CONFIG_DIR", v),
-        None => std::env::remove_var("COS_USER_CONFIG_DIR"),
+        Some(v) => std::env::set_var("YUOS_USER_CONFIG_DIR", v),
+        None => std::env::remove_var("YUOS_USER_CONFIG_DIR"),
     }
     let _ = fs::remove_dir_all(&tmp);
     out

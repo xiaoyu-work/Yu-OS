@@ -24,8 +24,8 @@ SECURITY_EPOCH="__SECURITY_EPOCH__"
 
 DPKG_ROOT="${DPKG_ROOT:-}"
 ROOT_ARG="${DPKG_ROOT:-/}"
-STATE_DIR="$DPKG_ROOT/var/lib/cos/security"
-HELPER="$DPKG_ROOT/usr/lib/cos/bin/claw-security-floor"
+STATE_DIR="$DPKG_ROOT/var/lib/yuos/security"
+HELPER="$DPKG_ROOT/usr/lib/yuos/bin/yuos-security-floor"
 STAGING="$STATE_DIR/staging"
 
 case "$1" in
@@ -51,13 +51,13 @@ esac
 MANIFEST="$STAGING/candidate-$PACKAGE.json"
 SIGNATURE="$STAGING/candidate-$PACKAGE.json.asc"
 rm -f "$MANIFEST" "$SIGNATURE"
-cat > "$MANIFEST" <<'CLAW_OS_RELEASE_MANIFEST'
+cat > "$MANIFEST" <<'YUOS_RELEASE_MANIFEST'
 __RELEASE_SECURITY_MANIFEST__
-CLAW_OS_RELEASE_MANIFEST
+YUOS_RELEASE_MANIFEST
 
-cat > "$SIGNATURE" <<'CLAW_OS_RELEASE_SIGNATURE'
+cat > "$SIGNATURE" <<'YUOS_RELEASE_SIGNATURE'
 __RELEASE_SECURITY_SIGNATURE__
-CLAW_OS_RELEASE_SIGNATURE
+YUOS_RELEASE_SIGNATURE
 
 if [ ! -s "$SIGNATURE" ]; then
     rm -f "$SIGNATURE"
@@ -67,11 +67,11 @@ if [ ! -x "$HELPER" ]; then
     if [ -e "$STATE_DIR/floor.json" ]; then
         echo "error: $PACKAGE $VERSION (security epoch $SECURITY_EPOCH) cannot be" >&2
         echo "       installed: this system has recorded update-security state but" >&2
-        echo "       the verifier $HELPER is missing. Reinstall claw-os-agent from" >&2
+        echo "       the verifier $HELPER is missing. Reinstall yuos-agent from" >&2
         echo "       the signed repository before continuing." >&2
         exit 1
     fi
-    # First install on a machine that has never had Claw OS: there is
+    # First install on a machine that has never had Yu OS: there is
     # nothing to be newer than, and the postinst seeds the floor from
     # this release.
     exit 0

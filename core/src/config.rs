@@ -1,6 +1,6 @@
-/// Configuration loading for Claw OS.
+/// Configuration loading for Yu OS.
 ///
-/// Reads `~/.config/cos/config.json` (or `COS_CONFIG_PATH` override)
+/// Reads `~/.config/yuos/config.json` (or `YUOS_CONFIG_PATH` override)
 /// and provides typed access to settings. Falls back to sensible
 /// defaults if the config file is missing or malformed. The file is
 /// per-user; `yu agent setup` (and the cosmic-settings agent page)
@@ -12,11 +12,11 @@ use std::future::Future;
 use std::path::Path;
 use std::sync::{Arc, OnceLock};
 
-static CONFIG: OnceLock<CosConfig> = OnceLock::new();
-static CONFIG_SNAPSHOT: OnceLock<Arc<CosConfig>> = OnceLock::new();
+static CONFIG: OnceLock<YuConfig> = OnceLock::new();
+static CONFIG_SNAPSHOT: OnceLock<Arc<YuConfig>> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CosConfig {
+pub struct YuConfig {
     #[serde(default = "default_version")]
     pub version: String,
     #[serde(default = "default_home")]
@@ -66,7 +66,7 @@ pub struct WebConfig {
 }
 
 /// Agent runtime configuration. Reads from `[agent]` block of
-/// `~/.config/cos/config.json`. All fields have sensible defaults so the agent
+/// `~/.config/yuos/config.json`. All fields have sensible defaults so the agent
 /// can run without explicit configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
@@ -199,7 +199,7 @@ pub struct AgentConfig {
     /// from messages BEFORE they are persisted to the SQLite-FTS5
     /// memory database. Default `true`. Rationale: memory is searchable
     /// forever; once a secret lands in `memory.db` it stays in the
-    /// FTS5 index and is fair game for future `cos_recall` calls. The
+    /// FTS5 index and is fair game for future `yu_recall` calls. The
     /// regex pass is the same one used by `safety::redact::Redactor`,
     /// targeted at high-value low-FP patterns (`sk-…`, `ghp_…`,
     /// `AKIA…`, JWT-shaped tokens, PEM keys, `Bearer …`, URL creds).
@@ -219,7 +219,7 @@ pub struct AgentConfig {
     /// Tool guardrails: explicit deny-list. Always wins over `tool_allow`.
     /// Useful for shipping the same agent loop in different security
     /// contexts (e.g. prevent prompt-injection from invoking
-    /// `cos_sandbox` exec by adding it here).
+    /// `yu_sandbox` exec by adding it here).
     #[serde(default)]
     pub tool_deny: Vec<String>,
 
@@ -248,7 +248,7 @@ pub struct AgentConfig {
 
     /// Approval gate: tools that always pass approval without prompting,
     /// even if listed in `dangerous_tools`. Useful for explicit
-    /// per-context overrides (e.g. allow `cos_proc kill` in an
+    /// per-context overrides (e.g. allow `yu_proc kill` in an
     /// orchestrator context but require approval everywhere else).
     #[serde(default)]
     pub auto_approve_tools: Vec<String>,
@@ -278,7 +278,7 @@ pub struct AgentConfig {
 
     /// Monthly token-unit budget for the kernel-resident **system
     /// agent** — i.e. the user's authorised agent reachable via
-    /// `yu agent ask`, `yu agent chat`, the cos-agent-bridge HTTP
+    /// `yu agent ask`, `yu agent chat`, the yuos-agent-bridge HTTP
     /// service, and friends. The system agent is not an installed
     /// app but it still flows through the same gate as real apps;
     /// usage rolls up under the pseudo-app id `system.agent` and is
@@ -353,18 +353,18 @@ pub struct AgentConfig {
     #[serde(default)]
     pub mcp_servers: Vec<McpServerConfig>,
 
-    /// Whether to scan XDG directories for `claw.agent-api/v1` manifests
+    /// Whether to scan XDG directories for `yuos.agent-api/v1` manifests
     /// and attach them alongside `mcp_servers` at startup. Defaults to
     /// `true` so an adapter package dropped under
-    /// `/usr/share/claw/agent-api/` Just Works without an extra config
+    /// `/usr/share/yuos/agent-api/` Just Works without an extra config
     /// edit. Set to `false` to lock the agent down to only the
     /// servers explicitly listed in `mcp_servers`.
     #[serde(default = "default_true")]
     pub agent_api_discovery_enabled: bool,
 
     /// Override the discovery search dirs. Empty / unset falls back
-    /// to the standard XDG lookup (`$XDG_DATA_HOME/claw/agent-api/`
-    /// + each `$XDG_DATA_DIRS/claw/agent-api/`). Used by tests and
+    /// to the standard XDG lookup (`$XDG_DATA_HOME/yuos/agent-api/`
+    /// + each `$XDG_DATA_DIRS/yuos/agent-api/`). Used by tests and
     /// for in-repo development where adapters live next to the source.
     #[serde(default)]
     pub agent_api_paths: Vec<String>,
@@ -853,7 +853,7 @@ impl Default for WebConfig {
     }
 }
 
-impl Default for CosConfig {
+impl Default for YuConfig {
     fn default() -> Self {
         Self {
             version: default_version(),
@@ -994,32 +994,32 @@ impl Default for AgentConfig {
 /// Read or parse failures are surfaced via `tracing::error!` rather
 /// than silently falling back to defaults. The previous silent-default
 /// behaviour meant an operator who hand-edited
-/// `~/.config/cos/config.json` and introduced a JSON syntax error
+/// `~/.config/yuos/config.json` and introduced a JSON syntax error
 /// would get a fully default config (different shell, no AI provider,
 /// network outbound enabled, etc.) with no indication anything was
 /// wrong. The audit explicitly called out "we never silently keep
 /// stale config on a parse failure" — when the on-disk file is
-/// unreadable we still return defaults so cos can boot, but we log
+/// unreadable we still return defaults so yu can boot, but we log
 /// the underlying error at ERROR severity so it shows up in logs and
 /// observability dashboards.
-fn load_from_disk() -> CosConfig {
-    let path = std::env::var_os("COS_CONFIG_PATH")
+fn load_from_disk() -> YuConfig {
+    let path = std::env::var_os("YUOS_CONFIG_PATH")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(crate::paths::user_config_path);
 
     load_from_path(path.as_ref())
 }
 
-/// Load a `CosConfig` from a specific path on disk. Missing file
+/// Load a `YuConfig` from a specific path on disk. Missing file
 /// returns defaults silently (matches `load_from_disk` semantics).
 /// Read/parse errors log at ERROR severity and fall back to defaults.
 ///
-/// Public for clawd, which resolves the requesting peer's `$HOME` from
-/// `SO_PEERCRED` and reads *their* `<home>/.config/cos/config.json`
+/// Public for yuosd, which resolves the requesting peer's `$HOME` from
+/// `SO_PEERCRED` and reads *their* `<home>/.config/yuos/config.json`
 /// rather than its own root-owned file.
-pub fn load_from_path(path: &Path) -> CosConfig {
+pub fn load_from_path(path: &Path) -> YuConfig {
     if !path.is_file() {
-        return CosConfig::default();
+        return YuConfig::default();
     }
 
     let data = match fs::read_to_string(path) {
@@ -1029,20 +1029,20 @@ pub fn load_from_path(path: &Path) -> CosConfig {
                 "config: failed to read {}: {e} — falling back to defaults",
                 path.display()
             );
-            return CosConfig::default();
+            return YuConfig::default();
         }
     };
 
-    match serde_json::from_str::<CosConfig>(&data) {
+    match serde_json::from_str::<YuConfig>(&data) {
         Ok(cfg) => cfg,
         Err(e) => {
             tracing::error!(
                 "config: failed to parse {} as JSON: {e} — falling back to defaults. \
-                 Check the file with `jq . {}` and re-run cos.",
+                 Check the file with `jq . {}` and re-run yu.",
                 path.display(),
                 path.display()
             );
-            CosConfig::default()
+            YuConfig::default()
         }
     }
 }
@@ -1050,21 +1050,21 @@ pub fn load_from_path(path: &Path) -> CosConfig {
 // ---------------------------------------------------------------------------
 // Per-task config override
 //
-// clawd is the system-level agent daemon. It runs as root with
+// yuosd is the system-level agent daemon. It runs as root with
 // `HOME=/root` under systemd, so its own `config::get()` reads
-// `/root/.config/cos/config.json` — empty by default. But the agent
+// `/root/.config/yuos/config.json` — empty by default. But the agent
 // jobs it executes were submitted by *user* shells (uid != 0), whose
-// per-user `~/.config/cos/config.json` carries the provider config the
+// per-user `~/.config/yuos/config.json` carries the provider config the
 // user actually set up via `yu agent setup text`.
 //
-// To bridge the two we install a per-async-task override: clawd's
+// To bridge the two we install a per-async-task override: yuosd's
 // worker resolves the job's owner home, loads that user's config, and
 // wraps the entire job execution in `with_snapshot(...)`. Every
 // `config::current_snapshot()` call from within that task — including ones deep
 // inside the LLM gate, model task helpers, and tool implementations —
-// transparently sees the user's config instead of clawd's.
+// transparently sees the user's config instead of yuosd's.
 //
-// Overrides own an immutable `Arc<CosConfig>`. A request can pass the
+// Overrides own an immutable `Arc<YuConfig>`. A request can pass the
 // snapshot explicitly to lower layers while compatibility callers retain the
 // original static `get()` API. The allocation is reclaimed when the
 // request scope and its explicit consumers finish.
@@ -1073,29 +1073,29 @@ pub fn load_from_path(path: &Path) -> CosConfig {
 tokio::task_local! {
     /// Optional override for `config::current_snapshot()`. Set by
     /// `with_snapshot(...)` for the duration of a single
-    /// clawd-dispatched agent job; absent everywhere else.
-    static CONFIG_SNAPSHOT_OVERRIDE: Arc<CosConfig>;
-    static CONFIG_OVERRIDE: &'static CosConfig;
+    /// yuosd-dispatched agent job; absent everywhere else.
+    static CONFIG_SNAPSHOT_OVERRIDE: Arc<YuConfig>;
+    static CONFIG_OVERRIDE: &'static YuConfig;
 }
 
-/// Load an immutable snapshot of `<home>/.config/cos/config.json`.
-pub fn load_for_home(home: &Path) -> Arc<CosConfig> {
+/// Load an immutable snapshot of `<home>/.config/yuos/config.json`.
+pub fn load_for_home(home: &Path) -> Arc<YuConfig> {
     let path = crate::paths::user_config_path_for(home);
     Arc::new(load_from_path(&path))
 }
 
-/// Re-read the standard user config (`~/.config/cos/config.json` or
-/// `$COS_CONFIG_PATH`) into an immutable request snapshot.
+/// Re-read the standard user config (`~/.config/yuos/config.json` or
+/// `$YUOS_CONFIG_PATH`) into an immutable request snapshot.
 ///
 /// Long-running daemons like `yu agent serve` cache the process-wide
-/// `CONFIG: OnceLock<CosConfig>` at startup and never observe later
+/// `CONFIG: OnceLock<YuConfig>` at startup and never observe later
 /// writes — including writes the daemon itself makes via
 /// `yu agent setup apply`. Wrap each request handler in
 /// `with_snapshot(load_user_config(), ...)` so every
 /// `config::current_snapshot()`
 /// call in the handler sees the current on-disk state.
-pub fn load_user_config() -> Arc<CosConfig> {
-    let path = std::env::var_os("COS_CONFIG_PATH")
+pub fn load_user_config() -> Arc<YuConfig> {
+    let path = std::env::var_os("YUOS_CONFIG_PATH")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(crate::paths::user_config_path);
     Arc::new(load_from_path(&path))
@@ -1106,7 +1106,7 @@ pub fn load_user_config() -> Arc<CosConfig> {
 /// tasks do not inherit task-local values and must capture the `Arc` or
 /// establish their own scope. Outside the scope [`current_snapshot`] returns
 /// the process-wide snapshot.
-pub async fn with_snapshot<Fut, R>(cfg: Arc<CosConfig>, fut: Fut) -> R
+pub async fn with_snapshot<Fut, R>(cfg: Arc<YuConfig>, fut: Fut) -> R
 where
     Fut: Future<Output = R>,
 {
@@ -1114,7 +1114,7 @@ where
 }
 
 /// Return the immutable config snapshot for explicit runtime composition.
-pub fn current_snapshot() -> Arc<CosConfig> {
+pub fn current_snapshot() -> Arc<YuConfig> {
     if let Ok(cfg) = CONFIG_SNAPSHOT_OVERRIDE.try_with(Arc::clone) {
         return cfg;
     }
@@ -1128,8 +1128,8 @@ pub fn current_snapshot() -> Arc<CosConfig> {
 ///
 /// Dynamic production scopes must use [`with_snapshot`]; obtaining a new
 /// `'static` config without leaking is intentionally unsupported.
-#[deprecated(note = "use with_snapshot(Arc<CosConfig>, ...) for request-scoped config")]
-pub async fn with_override<Fut, R>(cfg: &'static CosConfig, fut: Fut) -> R
+#[deprecated(note = "use with_snapshot(Arc<YuConfig>, ...) for request-scoped config")]
+pub async fn with_override<Fut, R>(cfg: &'static YuConfig, fut: Fut) -> R
 where
     Fut: Future<Output = R>,
 {
@@ -1140,7 +1140,7 @@ where
 ///
 /// New runtime composition should use [`current_snapshot`] so ownership is
 /// explicit and request-scoped snapshots are visible.
-pub fn get() -> &'static CosConfig {
+pub fn get() -> &'static YuConfig {
     if let Ok(cfg) = CONFIG_OVERRIDE.try_with(|cfg| *cfg) {
         return cfg;
     }
@@ -1151,19 +1151,19 @@ pub fn get() -> &'static CosConfig {
 pub fn as_env_vars() -> Vec<(String, String)> {
     let cfg = current_snapshot();
     vec![
-        ("COS_EXEC_TIMEOUT".into(), cfg.exec.timeout.to_string()),
-        ("COS_EXEC_SHELL".into(), cfg.exec.shell.clone()),
-        ("COS_NET_TIMEOUT".into(), cfg.net.timeout.to_string()),
+        ("YUOS_EXEC_TIMEOUT".into(), cfg.exec.timeout.to_string()),
+        ("YUOS_EXEC_SHELL".into(), cfg.exec.shell.clone()),
+        ("YUOS_NET_TIMEOUT".into(), cfg.net.timeout.to_string()),
         (
-            "COS_NET_ALLOW_OUTBOUND".into(),
+            "YUOS_NET_ALLOW_OUTBOUND".into(),
             cfg.net.allow_outbound.to_string(),
         ),
-        ("COS_WEB_TIMEOUT".into(), cfg.web.timeout.to_string()),
+        ("YUOS_WEB_TIMEOUT".into(), cfg.web.timeout.to_string()),
         (
-            "COS_WEB_MAX_CONTENT_LENGTH".into(),
+            "YUOS_WEB_MAX_CONTENT_LENGTH".into(),
             cfg.web.max_content_length.to_string(),
         ),
-        ("COS_HOME".into(), cfg.home.clone()),
+        ("YUOS_HOME".into(), cfg.home.clone()),
     ]
 }
 

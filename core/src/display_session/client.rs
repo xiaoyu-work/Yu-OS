@@ -4,9 +4,9 @@ use std::path::Path;
 use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 
-pub use claw_display_control::session::Subscription;
-use claw_display_control::wire::SessionEvent;
-use claw_display_control::Error;
+pub use yuos_display_control::session::Subscription;
+use yuos_display_control::wire::SessionEvent;
+use yuos_display_control::Error;
 
 pub fn run() -> Result<(), Error> {
     let mut arguments = std::env::args_os().skip(1);
@@ -71,7 +71,7 @@ fn session_command(subscription: &Subscription, executable: impl AsRef<OsStr>) -
         .env_remove("DISPLAY")
         .env_remove("XAUTHORITY")
         .env_remove("X_PRIVILEGED_WAYLAND_SOCKET")
-        .env_remove("CLAW_DISPLAY_CONTROL_FD");
+        .env_remove("YUOS_DISPLAY_CONTROL_FD");
     command
 }
 
@@ -84,7 +84,7 @@ fn desktop_session(subscription: &Subscription) -> Result<(), Error> {
             .env("GDK_BACKEND", "wayland")
             .env("QT_QPA_PLATFORM", "wayland")
             .env("MOZ_ENABLE_WAYLAND", "1")
-            .env_remove("COS_SESSION");
+            .env_remove("YUOS_SESSION");
         command
     };
     if !command("/usr/bin/dbus-update-activation-environment")
@@ -102,7 +102,7 @@ fn desktop_session(subscription: &Subscription) -> Result<(), Error> {
             "could not initialize the authenticated desktop user environment",
         ));
     }
-    let presenter = "/usr/libexec/claw-desktop-reviews";
+    let presenter = "/usr/libexec/yuos-desktop-reviews";
     if !Path::new(presenter).try_exists()? {
         eprintln!("Graphical reviews are unavailable until the Desktop package is updated");
         return run_desktop(&command, subscription);
@@ -117,8 +117,8 @@ fn run_desktop(
     command: &impl Fn(&str) -> Command,
     subscription: &Subscription,
 ) -> Result<(), Error> {
-    if Path::new("/etc/cos/first-run").is_file() {
-        let entrypoint = "/usr/libexec/claw-oobe";
+    if Path::new("/etc/yuos/first-run").is_file() {
+        let entrypoint = "/usr/libexec/yuos-oobe";
         let mut setup = command(entrypoint).spawn()?;
         wait_for_entrypoint(subscription, &mut setup)?;
         if !command(entrypoint)
@@ -129,7 +129,7 @@ fn run_desktop(
             return Err(Error::Protocol("first-run setup did not record completion"));
         }
     }
-    let target = "claw-desktop-session.target";
+    let target = "yuos-desktop-session.target";
     if !command("/usr/bin/systemctl")
         .args(["--user", "start", target])
         .status()?
@@ -140,7 +140,7 @@ fn run_desktop(
         ));
     }
     let result = (|| {
-        let mut files = command("/usr/lib/cos/bin/claw-file-manager").spawn()?;
+        let mut files = command("/usr/lib/yuos/bin/yuos-file-manager").spawn()?;
         let result = subscription.run_shell();
         stop_child(&mut files)?;
         result

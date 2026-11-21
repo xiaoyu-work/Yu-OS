@@ -2,7 +2,7 @@
 
 use std::io::{BufRead, Write};
 
-use claw_embed::{local::*, EmbedRequest, Embedder};
+use yuos_embed::{local::*, EmbedRequest, Embedder};
 
 pub fn serve() -> Result<(), String> {
     authorize_parent()?;
@@ -102,8 +102,8 @@ fn authorize_parent() -> Result<(), String> {
     let executable = std::fs::read_link(format!("/proc/{parent}/exe"))
         .map_err(|e| format!("verify embedding caller: {e}"))?;
     if ![
-        "/usr/local/bin/claw-semantic",
-        "/usr/local/bin/claw-semantic-daemon",
+        "/usr/local/bin/yuos-semantic",
+        "/usr/local/bin/yuos-semantic-daemon",
     ]
     .iter()
     .any(|path| executable == std::path::Path::new(path))

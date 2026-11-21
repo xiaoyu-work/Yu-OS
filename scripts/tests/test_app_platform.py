@@ -32,13 +32,13 @@ def source(tmp_path):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("must not enter an App SDK release\n")
     for relative in (
-        "claw-os-sdk/rust/src/applet/mod.rs",
-        "claw-os-sdk/rust/src/applet/client.rs",
-        "claw-os-sdk/rust/src/applet/protocol.rs",
-        "claw-os-sdk/wire/v1/applet-services.md",
-        "claw-os-sdk/wire/v1/applet-services.cases.json",
-        "desktop/services/claw-applet-services/src/service.rs",
-        "desktop/services/claw-applet-services/src/bin/claw-os-applet-provider.rs",
+        "yuos-sdk/rust/src/applet/mod.rs",
+        "yuos-sdk/rust/src/applet/client.rs",
+        "yuos-sdk/rust/src/applet/protocol.rs",
+        "yuos-sdk/wire/v1/applet-services.md",
+        "yuos-sdk/wire/v1/applet-services.cases.json",
+        "desktop/services/yuos-applet-services/src/service.rs",
+        "desktop/services/yuos-applet-services/src/bin/yuos-applet-provider.rs",
     ):
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -59,7 +59,7 @@ def test_platform_exports_are_complete_and_source_reproducible(source, tmp_path)
     assert first.read_bytes() == second.read_bytes()
     with tarfile.open(first) as archive:
         manifest = json.load(archive.extractfile("platform.json"))
-        assert manifest["schema"] == "claw.app-platform/v1"
+        assert manifest["schema"] == "yuos.app-platform/v1"
         assert manifest["version"] == "0.1.0"
         assert manifest["runtime_abi"] == 1
         assert set(manifest["exports"]) == platform.EXPORT_NAMES
@@ -84,18 +84,18 @@ def test_applet_export_contains_public_client_and_contract_but_no_os_provider(so
     archive_path = platform.build(tmp_path / "applet-client", "0.1.0", source)
     with tarfile.open(archive_path) as archive:
         for relative in (
-            "claw-os-sdk/rust/src/applet/mod.rs",
-            "claw-os-sdk/rust/src/applet/client.rs",
-            "claw-os-sdk/rust/src/applet/protocol.rs",
-            "claw-os-sdk/wire/v1/applet-services.md",
-            "claw-os-sdk/wire/v1/applet-services.cases.json",
+            "yuos-sdk/rust/src/applet/mod.rs",
+            "yuos-sdk/rust/src/applet/client.rs",
+            "yuos-sdk/rust/src/applet/protocol.rs",
+            "yuos-sdk/wire/v1/applet-services.md",
+            "yuos-sdk/wire/v1/applet-services.cases.json",
         ):
             assert archive.extractfile(relative).read() == (ROOT / relative).read_bytes()
         assert not any(name.startswith(("desktop/services/", "usr/libexec/")) for name in archive.getnames())
 
 
 def test_modified_export_is_not_published(source, tmp_path):
-    (source / "cos-runtime/rust/library.txt").write_text("uncommitted change\n")
+    (source / "yuos-runtime/rust/library.txt").write_text("uncommitted change\n")
     with pytest.raises(ValueError, match="Commit the SDK"):
         platform.build(tmp_path / "release", "0.1.0", source)
 
@@ -123,7 +123,7 @@ def test_noncanonical_export_path_is_rejected(path):
 
 
 def test_symlink_cannot_smuggle_private_os_sources(source, tmp_path):
-    link = source / "cos-runtime/rust/private"
+    link = source / "yuos-runtime/rust/private"
     link.symlink_to("../../core")
     subprocess.run(["git", "-C", str(source), "add", str(link)], check=True)
     subprocess.run(

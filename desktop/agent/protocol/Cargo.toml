@@ -1,13 +1,13 @@
 [package]
-name = "cos-agent-protocol"
+name = "yuos-agent-protocol"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Versioned presentation protocol shared by the ClawOS desktop Agent UI and bridge."
+description = "Versioned presentation protocol shared by the YuOS desktop Agent UI and bridge."
 
 [dependencies]
-clawd-client = { path = "../../../crates/clawd-client" }
+yuosd-client = { path = "../../../crates/yuosd-client" }
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

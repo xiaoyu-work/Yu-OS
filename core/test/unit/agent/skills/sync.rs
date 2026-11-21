@@ -194,18 +194,18 @@ fn install_rejects_existing_destination_without_force() {
 #[test]
 fn default_install_rejects_builtin_id_collision() {
     let tmp = TempDir::new().unwrap();
-    let archive = tmp.path().join("claw-os.zip");
-    make_signed_zip(&archive, "claw-os", None, &[]);
+    let archive = tmp.path().join("yuos.zip");
+    make_signed_zip(&archive, "yuos", None, &[]);
     let user_root = tmp.path().join("user-skills");
     let system_root = tmp.path().join("system-skills");
-    fs::create_dir_all(system_root.join("claw-os")).unwrap();
-    fs::write(system_root.join("claw-os").join("SKILL.md"), "built in").unwrap();
+    fs::create_dir_all(system_root.join("yuos")).unwrap();
+    fs::write(system_root.join("yuos").join("SKILL.md"), "built in").unwrap();
 
     let error = install_into_reserved(&archive, &user_root, false, None, Some(&system_root))
         .expect_err("built-in id must be reserved");
 
     assert!(matches!(error, SyncError::BuiltInConflict { .. }));
-    assert!(!user_root.join("claw-os").exists());
+    assert!(!user_root.join("yuos").exists());
 }
 
 #[test]
@@ -440,7 +440,7 @@ fn install_verifies_sha256_when_provided() {
 #[test]
 fn install_rejects_unsigned_bundle_by_default() {
     // There is no environment variable that relaxes this: the old
-    // COS_SKILLS_REQUIRE_SIGNATURE opt-in is gone and unsigned bundles
+    // YUOS_SKILLS_REQUIRE_SIGNATURE opt-in is gone and unsigned bundles
     // fail closed.
     let tmp = TempDir::new().unwrap();
     let archive = tmp.path().join("unsigned.zip");

@@ -1,7 +1,7 @@
 //! Disk layout + IO primitives for durable sessions.
 //!
 //! This module is the **only** place that knows where session files
-//! live on disk. Every other layer (`cos-apid`, agent runtimes, future
+//! live on disk. Every other layer (`yuos-apid`, agent runtimes, future
 //! GUI) goes through these functions so we can rearrange the layout
 //! later without touching callers.
 //!
@@ -54,7 +54,7 @@ use super::turn::Turn;
 // ---------------------------------------------------------------------------
 
 /// Root directory holding every session subdir. Resolves via
-/// [`crate::paths::data_dir`] so `COS_DATA_DIR` overrides apply.
+/// [`crate::paths::data_dir`] so `YUOS_DATA_DIR` overrides apply.
 pub fn sessions_root() -> PathBuf {
     paths::data_dir().join("sessions")
 }
@@ -332,7 +332,7 @@ pub fn get_meta(sid: &SessionId) -> Result<SessionMeta> {
 ///
 /// Session directories are created `0700`, so a root-owned record can
 /// only have been produced by a privileged writer — in practice
-/// `clawd`. That is the whole authentication behind
+/// `yuosd`. That is the whole authentication behind
 /// [`SessionOrigin`](super::meta::SessionOrigin): a consumer may act on
 /// a delegation marker only when the record carrying it could not have
 /// been authored by the account it would delegate authority to.
@@ -533,7 +533,7 @@ pub fn append_turn(sid: &SessionId, mut turn: Turn) -> Result<u64> {
 /// will see again — whether that producer is trusted. No conversation
 /// text crosses this boundary.
 ///
-/// Only the broker journals. A `claw-agentd` worker runs as the owner
+/// Only the broker journals. A `yuos-agentd` worker runs as the owner
 /// and holds no descriptor on the root chain, so it appends through the
 /// private channel the supervisor validates instead.
 fn journal_turn(

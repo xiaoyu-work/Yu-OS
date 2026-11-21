@@ -1,0 +1,36 @@
+# Yu OS branding for Calamares. The installer feature supplies the images.
+
+---
+componentName:  yuos
+welcomeStyleCalamares:     true
+welcomeExpandingLogo:      false
+
+windowExpanding:    normal
+windowSize:         800px,520px
+windowPlacement:    center
+
+strings:
+    productName:         "Yu OS"
+    shortProductName:    "Yu OS"
+    version:             "0.1"
+    shortVersion:        "0.1"
+    versionedName:       "Yu OS 0.1"
+    shortVersionedName:  "Yu OS 0.1"
+    bootloaderEntryName: "Yu OS"
+    productUrl:          "https://github.com/xiaoyu-work/Yu-OS"
+    supportUrl:          "https://github.com/xiaoyu-work/Yu-OS/issues"
+    releaseNotesUrl:     "https://github.com/xiaoyu-work/Yu-OS/releases"
+    knownIssuesUrl:      "https://github.com/xiaoyu-work/Yu-OS/issues"
+
+images:
+    productLogo:      "logo.png"
+    productIcon:      "logo.png"
+    productWelcome:   "welcome.svg"
+
+slideshow: "show.qml"
+
+style:
+    sidebarBackground:    "#2c3e50"
+    sidebarText:          "#ffffff"
+    sidebarTextSelect:    "#1abc9c"
+    sidebarTextHighlight: "#34495e"

@@ -13,9 +13,9 @@
 #   │       ├── binary-amd64/Packages{,.gz}    (if amd64 .debs present)
 #   │       ├── binary-arm64/Packages{,.gz}    (if arm64 .debs present)
 #   │       └── binary-all/Packages{,.gz}      (always — Architecture: all)
-#   └── pool/main/c/claw-os-agent/claw-os-agent_<v>_<arch>.deb
-#       pool/main/c/claw-os-base/claw-os-base_<v>_all.deb
-#       pool/main/c/claw-os-desktop/claw-os-desktop_<v>_<arch>.deb
+#   └── pool/main/c/yuos-agent/yuos-agent_<v>_<arch>.deb
+#       pool/main/c/yuos-base/yuos-base_<v>_all.deb
+#       pool/main/c/yuos-desktop/yuos-desktop_<v>_<arch>.deb
 #
 # Dual-arch: the script auto-discovers every Architecture: in build/debs/
 # and emits one binary-<arch>/ tree per architecture, so an admin can run
@@ -30,8 +30,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 source "$PROJECT_DIR/scripts/lib/git-readonly.sh"
 
-DEBS_DIR="${COS_DEBS_DIR:-$PROJECT_DIR/build/debs}"
-REPO_DIR="${COS_APT_REPO_DIR:-$PROJECT_DIR/build/apt-repo}"
+DEBS_DIR="${YUOS_DEBS_DIR:-$PROJECT_DIR/build/debs}"
+REPO_DIR="${YUOS_APT_REPO_DIR:-$PROJECT_DIR/build/apt-repo}"
 BRAND_ASSETS_DIR="$PROJECT_DIR/assets/brand"
 SUITE="${SUITE:-trixie}"
 COMPONENT="main"
@@ -66,7 +66,7 @@ declare -a binary_arches=()
 arch_seen=""
 for deb in "$DEBS_DIR"/*.deb; do
     name="$(basename "$deb")"
-    # claw-os-agent_0.1.0_amd64.deb -> amd64
+    # yuos-agent_0.1.0_amd64.deb -> amd64
     deb_arch="${name##*_}"
     deb_arch="${deb_arch%.deb}"
     # Architecture: all packages are surfaced under every binary-<arch>
@@ -103,7 +103,7 @@ fi
 # Move each .deb into pool/main/c/<package-name>/.
 for deb in "$DEBS_DIR"/*.deb; do
     name="$(basename "$deb")"
-    # claw-os-agent_0.1.0_amd64.deb -> claw-os-agent
+    # yuos-agent_0.1.0_amd64.deb -> yuos-agent
     pkg="${name%%_*}"
     pool_dir="$REPO_DIR/pool/$COMPONENT/c/$pkg"
     mkdir -p "$pool_dir"
@@ -115,9 +115,9 @@ done
 # release-security metadata is verified against exactly the keyring the
 # repository publishes, not against whatever happens to be in the
 # builder's keyring.
-gpg --batch --export "$GPG_KEY_ID" > "$REPO_DIR/claw-os-archive-keyring.gpg"
-gpg --batch --armor --export "$GPG_KEY_ID" > "$REPO_DIR/claw-os-archive-keyring.asc"
-test -s "$REPO_DIR/claw-os-archive-keyring.gpg"
+gpg --batch --export "$GPG_KEY_ID" > "$REPO_DIR/yuos-archive-keyring.gpg"
+gpg --batch --armor --export "$GPG_KEY_ID" > "$REPO_DIR/yuos-archive-keyring.asc"
+test -s "$REPO_DIR/yuos-archive-keyring.gpg"
 
 # Freshness metadata. Refuses to publish a set that regresses a
 # security epoch or version, replaces a published version with
@@ -125,8 +125,8 @@ test -s "$REPO_DIR/claw-os-archive-keyring.gpg"
 echo ":: verifying release-security metadata"
 "$PROJECT_DIR/packaging/apt-repo/verify-release-security.sh" \
     "$REPO_DIR" "$SUITE" "$COMPONENT" \
-    "$REPO_DIR/claw-os-archive-keyring.gpg" \
-    "${COS_PREVIOUS_RELEASE_SECURITY_DIR:-$PROJECT_DIR/build/release-security-previous}"
+    "$REPO_DIR/yuos-archive-keyring.gpg" \
+    "${YUOS_PREVIOUS_RELEASE_SECURITY_DIR:-$PROJECT_DIR/build/release-security-previous}"
 
 # The verifier reports, in a structured file, whether it actually
 # produced and verified a signed baseline marker. `Release` advertises
@@ -186,13 +186,13 @@ fi
 release_date="$(date -u -R)"
 
 cat > "$REPO_DIR/apt-ftparchive-release.conf" <<EOF
-APT::FTPArchive::Release::Origin "Claw OS";
-APT::FTPArchive::Release::Label "Claw OS";
+APT::FTPArchive::Release::Origin "Yu OS";
+APT::FTPArchive::Release::Label "Yu OS";
 APT::FTPArchive::Release::Suite "$SUITE";
 APT::FTPArchive::Release::Codename "$SUITE";
 APT::FTPArchive::Release::Architectures "$arch_list";
 APT::FTPArchive::Release::Components "$COMPONENT";
-APT::FTPArchive::Release::Description "Claw OS apt repository";
+APT::FTPArchive::Release::Description "Yu OS apt repository";
 APT::FTPArchive::Release::Date "$release_date";
 APT::FTPArchive::Release::Acquire-By-Hash "yes";
 EOF
@@ -218,11 +218,11 @@ rm -f "$REPO_DIR/apt-ftparchive-release.conf"
 # the baseline advertisement to the metadata actually verified above.
 awk -v baseline="$baseline_published" '
     /^Valid-Until:/ { next }
-    /^Claw-Os-Release-Security-Baseline:/ { next }
+    /^YuOS-Release-Security-Baseline:/ { next }
     { print }
     /^Date:/ {
         if (baseline == "1") {
-            print "Claw-Os-Release-Security-Baseline: 1"
+            print "YuOS-Release-Security-Baseline: 1"
         }
     }
 ' "dists/$SUITE/Release" > "dists/$SUITE/Release.tmp"
@@ -231,7 +231,7 @@ mv "dists/$SUITE/Release.tmp" "dists/$SUITE/Release"
 # repository already guarantees release-security metadata, so a fetch
 # failure can never be mistaken for a fresh repository. It is asserted
 # to match what was really published, in both directions.
-baseline_fields="$(grep -c '^Claw-Os-Release-Security-Baseline: 1$' \
+baseline_fields="$(grep -c '^YuOS-Release-Security-Baseline: 1$' \
     "dists/$SUITE/Release" || true)"
 if [ "$baseline_fields" != "$baseline_published" ]; then
     echo "error: Release advertises $baseline_fields baseline marker(s) but" >&2
@@ -293,25 +293,25 @@ PY
 fi
 
 # Sign Release in both formats and publish the exact binary keyring that
-# Claw OS images pin with signed-by=.
+# Yu OS images pin with signed-by=.
 #
-# The passphrase never reaches argv: `claw_gpg_*` hands it to gpg on a
+# The passphrase never reaches argv: `yuos_gpg_*` hands it to gpg on a
 # pipe under --passphrase-fd 0.
 echo ":: signing with GPG key $GPG_KEY_ID"
 source "$PROJECT_DIR/packaging/release-security/gpg-sign.sh"
-claw_gpg_sign_detached "$GPG_KEY_ID" "dists/$SUITE/Release" "dists/$SUITE/Release.gpg"
-claw_gpg_sign_clear "$GPG_KEY_ID" "dists/$SUITE/Release" "dists/$SUITE/InRelease"
+yuos_gpg_sign_detached "$GPG_KEY_ID" "dists/$SUITE/Release" "dists/$SUITE/Release.gpg"
+yuos_gpg_sign_clear "$GPG_KEY_ID" "dists/$SUITE/Release" "dists/$SUITE/InRelease"
 test -s "dists/$SUITE/InRelease"
 test -s "dists/$SUITE/Release.gpg"
-test -s "$REPO_DIR/claw-os-archive-keyring.gpg"
-echo "  :: signed; public key at $REPO_DIR/claw-os-archive-keyring.gpg"
+test -s "$REPO_DIR/yuos-archive-keyring.gpg"
+echo "  :: signed; public key at $REPO_DIR/yuos-archive-keyring.gpg"
 
 # GitHub Pages homepage. Keep this at the repo root so the APT paths remain
 # stable: /dists/... and /pool/... are still served beside the marketing page.
 #
 # The React/Vite desktop lives under web/. CI builds it before repository
 # assembly; its dist/ output includes the desktop and the embedded site.
-SITE_DIR="${CLAW_OS_WEB_DIST_DIR:-$PROJECT_DIR/web/dist}"
+SITE_DIR="${YUOS_WEB_DIST_DIR:-$PROJECT_DIR/web/dist}"
 if [ -f "$SITE_DIR/index.html" ]; then
     echo ":: copying built website from web/dist/"
     find "$SITE_DIR" -mindepth 1 -maxdepth 1 \

@@ -1,0 +1,258 @@
+package yuossdk
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestAppEventPayloadUsesStdinWithoutIdentitySelectors(t *testing.T) {
+	bin, argv := fakeCos(t, wireSuccess(`{"accepted":true}`), 0)
+	captured := bin + ".stdin"
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argv +
+		"\ncat > " + captured + "\nprintf '%s\\n' '" + wireSuccess(`{"accepted":true}`) + "'\n"
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	withCos(t, bin, nil, func() {
+		result, err := PublishEvent("changed", "stable", map[string]any{"value": "reported"}, "object")
+		if err != nil || result["accepted"] != true {
+			t.Fatalf("publication failed: %v %v", result, err)
+		}
+	})
+	data, err := os.ReadFile(captured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var request map[string]any
+	if err := json.Unmarshal(data, &request); err != nil {
+		t.Fatal(err)
+	}
+	if request["event_type"] != "changed" || request["key"] != "stable" || request["owner_uid"] != nil || request["app_id"] != nil {
+		t.Fatalf("invalid request: %v", request)
+	}
+	if got := strings.Join(readArgv(t, argv), " "); got != "--wire=1 __app_event publish" {
+		t.Fatalf("business payload reached argv: %s", got)
+	}
+}
+
+func TestChannelReplyUsesVerifiedEventAndExplicitConfirmationOnStdin(t *testing.T) {
+	bin, argv := fakeCos(t, wireSuccess(`{"submitted":true,"delivery_confirmed":false}`), 0)
+	captured := bin + ".stdin"
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argv +
+		"\ncat > " + captured + "\nprintf '%s\\n' '" + wireSuccess(`{"submitted":true,"delivery_confirmed":false}`) + "'\n"
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	confirm := true
+	withCos(t, bin, nil, func() {
+		result, err := ControlChannel("reply", "channel-event-synthetic", "Synthetic reply", &confirm)
+		if err != nil || result["submitted"] != true {
+			t.Fatalf("reply failed: %v %v", result, err)
+		}
+	})
+	data, err := os.ReadFile(captured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var request map[string]any
+	if err := json.Unmarshal(data, &request); err != nil {
+		t.Fatal(err)
+	}
+	if request["event_id"] != "channel-event-synthetic" || request["confirm"] != true || request["owner_uid"] != nil || request["recipient"] != nil {
+		t.Fatalf("invalid reply request: %v", request)
+	}
+	if got := strings.Join(readArgv(t, argv), " "); got != "--wire=1 __channel control" {
+		t.Fatalf("business data reached argv: %s", got)
+	}
+}
+
+func wireSuccess(data string) string {
+	return `{"ok":true,"wire_version":1,"data":` + data + `}`
+}
+
+func wireErrorEnvelope(message, code string) string {
+	return fmt.Sprintf(
+		`{"ok":false,"wire_version":1,"error":%q,"code":%q}`,
+		message,
+		code,
+	)
+}
+
+// fakeCos writes an executable that prints stdout and exits with
+// exitCode, recording the argv it received (one per line) to a sidecar
+// file. It returns the binary path and the argv-record path.
+func fakeCos(t *testing.T, stdout string, exitCode int) (bin, argvOut string) {
+	t.Helper()
+	dir := t.TempDir()
+	bin = filepath.Join(dir, "yu")
+	argvOut = filepath.Join(dir, "argv.txt")
+	payload := filepath.Join(dir, "stdout.json")
+	if err := os.WriteFile(payload, []byte(stdout), 0o644); err != nil {
+		t.Fatalf("write payload: %v", err)
+	}
+	script := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$@\" > " + argvOut + "\n" +
+		"cat " + payload + "\n" +
+		"exit " + itoa(exitCode) + "\n"
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake yu: %v", err)
+	}
+	return bin, argvOut
+}
+
+func itoa(i int) string {
+	if i == 0 {
+		return "0"
+	}
+	neg := i < 0
+	if neg {
+		i = -i
+	}
+	var b []byte
+	for i > 0 {
+		b = append([]byte{byte('0' + i%10)}, b...)
+		i /= 10
+	}
+	if neg {
+		b = append([]byte{'-'}, b...)
+	}
+	return string(b)
+}
+
+// withCos points YUOS_KERNEL_BIN at the fake and runs fn, restoring env.
+func withCos(t *testing.T, bin string, env map[string]string, fn func()) {
+	t.Helper()
+	t.Setenv("YUOS_KERNEL_BIN", bin)
+	for k, v := range env {
+		if v == "" {
+			os.Unsetenv(k)
+		} else {
+			t.Setenv(k, v)
+		}
+	}
+	fn()
+}
+
+func readArgv(t *testing.T, path string) []string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read argv: %v", err)
+	}
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	if len(lines) == 1 && lines[0] == "" {
+		return nil
+	}
+	return lines
+}
+
+func TestYuBinaryResolution(t *testing.T) {
+	t.Setenv("YUOS_KERNEL_BIN", "/x/yuos")
+	if got := YuBinary(); got != "/x/yuos" {
+		t.Fatalf("YUOS_KERNEL_BIN should win, got %q", got)
+	}
+	os.Unsetenv("YUOS_KERNEL_BIN")
+	t.Setenv("YUOS_BIN", "/x/cosbin")
+	if got := YuBinary(); got != "yu" {
+		t.Fatalf("YUOS_BIN must not affect SDK transport, got %q", got)
+	}
+	os.Unsetenv("YUOS_BIN")
+	if got := YuBinary(); got != "yu" {
+		t.Fatalf("default should be yu, got %q", got)
+	}
+}
+
+func TestCosCallJSONNonJSON(t *testing.T) {
+	bin, _ := fakeCos(t, "not json at all", 0)
+	withCos(t, bin, nil, func() {
+		_, err := yuCallJSON("test", []string{"x"})
+		if _, ok := err.(*UnavailableError); !ok {
+			t.Fatalf("expected UnavailableError, got %T %v", err, err)
+		}
+	})
+}
+
+func TestCosCallJSONRejectsTrailingData(t *testing.T) {
+	for _, body := range []string{
+		`{"ok":true} {"second":true}`,
+		`{"ok":true} trailing`,
+	} {
+		bin, _ := fakeCos(t, body, 0)
+		withCos(t, bin, nil, func() {
+			_, err := yuCallJSON("test", []string{"x"})
+			if _, ok := err.(*UnavailableError); !ok {
+				t.Fatalf("body %q: expected UnavailableError, got %T %v", body, err, err)
+			}
+		})
+	}
+}
+
+func TestCosCallJSONRejectsFlatAndScalarResponses(t *testing.T) {
+	for _, body := range []string{`{"value":1}`, "null"} {
+		bin, _ := fakeCos(t, body, 0)
+		withCos(t, bin, nil, func() {
+			_, err := yuCallJSON("test", []string{"x"})
+			if _, ok := err.(*UnavailableError); !ok {
+				t.Fatalf("body %q: expected UnavailableError, got %T %v", body, err, err)
+			}
+		})
+	}
+}
+
+func TestCosCallJSONExtractsDataAndPrependsWireFlag(t *testing.T) {
+	bin, argvOut := fakeCos(t, wireSuccess(`{"value":1}`), 0)
+	withCos(t, bin, nil, func() {
+		out, err := yuCallJSON("test", []string{"x"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if asUint64(asMap(out.Data)["value"]) != 1 {
+			t.Fatalf("data = %#v", out.Data)
+		}
+	})
+	if argv := readArgv(t, argvOut); len(argv) != 2 || argv[0] != "--wire=1" || argv[1] != "x" {
+		t.Fatalf("argv = %v", argv)
+	}
+}
+
+func TestCosCallJSONEnforcesStatusConsistency(t *testing.T) {
+	for _, test := range []struct {
+		body   string
+		status int
+	}{
+		{wireSuccess(`{"value":1}`), 1},
+		{wireErrorEnvelope("denied", "PERMISSION_DENIED"), 0},
+	} {
+		bin, _ := fakeCos(t, test.body, test.status)
+		withCos(t, bin, nil, func() {
+			_, err := yuCallJSON("test", []string{"x"})
+			if _, ok := err.(*UnavailableError); !ok {
+				t.Fatalf("expected UnavailableError, got %T %v", err, err)
+			}
+		})
+	}
+}
+
+func TestCosCallJSONReturnsTypedDenied(t *testing.T) {
+	bin, _ := fakeCos(t, wireErrorEnvelope("denied", "PERMISSION_DENIED"), 1)
+	withCos(t, bin, nil, func() {
+		_, err := yuCallJSON("test", []string{"x"})
+		if denied, ok := err.(*DeniedError); !ok ||
+			asString(denied.Payload["code"]) != "PERMISSION_DENIED" {
+			t.Fatalf("expected DeniedError, got %T %v", err, err)
+		}
+	})
+}
+
+func TestCosCallJSONMissingBinary(t *testing.T) {
+	withCos(t, "/nonexistent/yuos-xyz", nil, func() {
+		_, err := yuCallJSON("test", []string{"x"})
+		if _, ok := err.(*UnavailableError); !ok {
+			t.Fatalf("expected UnavailableError for missing binary, got %T %v", err, err)
+		}
+	})
+}

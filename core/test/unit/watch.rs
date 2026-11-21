@@ -10,9 +10,9 @@ static HISTORY_LOCK: Mutex<()> = Mutex::new(());
 
 fn setup_shared_dir() {
     INIT.call_once(|| {
-        let dir = std::env::temp_dir().join(format!("cos-test-shared-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("yuos-test-shared-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
-        std::env::set_var("COS_DATA_DIR", &dir);
+        std::env::set_var("YUOS_DATA_DIR", &dir);
     });
 }
 
@@ -20,7 +20,7 @@ fn setup_shared_dir() {
 fn unique_test_dir(prefix: &str) -> PathBuf {
     let n = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
-    std::env::temp_dir().join(format!("cos-watch-{prefix}-{pid}-{n}"))
+    std::env::temp_dir().join(format!("yuos-watch-{prefix}-{pid}-{n}"))
 }
 
 #[test]
@@ -169,7 +169,7 @@ fn test_watch_history_empty() {
     let _lock = HISTORY_LOCK.lock().unwrap();
 
     // Clean the watch subdir so we get a fresh history.
-    let watch_dir = PathBuf::from(std::env::var("COS_DATA_DIR").unwrap()).join("watch");
+    let watch_dir = PathBuf::from(std::env::var("YUOS_DATA_DIR").unwrap()).join("watch");
     let _ = fs::remove_dir_all(&watch_dir);
 
     let result = cmd_watch_history(&[]);
@@ -184,7 +184,7 @@ fn test_watch_history_write_and_read() {
     let _lock = HISTORY_LOCK.lock().unwrap();
 
     // Clean the watch subdir so we get a fresh history.
-    let data_dir = PathBuf::from(std::env::var("COS_DATA_DIR").unwrap());
+    let data_dir = PathBuf::from(std::env::var("YUOS_DATA_DIR").unwrap());
     let watch_dir = data_dir.join("watch");
     let _ = fs::remove_dir_all(&watch_dir);
     fs::create_dir_all(&watch_dir).unwrap();
@@ -200,7 +200,7 @@ fn test_watch_history_write_and_read() {
         writeln!(
             f,
             "{}",
-            json!({"timestamp": "2026-03-25T10:00:00Z", "source": "file", "path": "/home/cos/main.py", "event": "modified"})
+            json!({"timestamp": "2026-03-25T10:00:00Z", "source": "file", "path": "/home/yuos/main.py", "event": "modified"})
         )
         .unwrap();
         writeln!(
@@ -218,7 +218,7 @@ fn test_watch_history_write_and_read() {
     // Filter by source.
     let result = cmd_watch_history(&["--source".into(), "file".into()]).unwrap();
     assert_eq!(result["count"], 1);
-    assert_eq!(result["events"][0]["path"], "/home/cos/main.py");
+    assert_eq!(result["events"][0]["path"], "/home/yuos/main.py");
 
     // Filter by --since.
     let result = cmd_watch_history(&["--since".into(), "2026-03-25T10:00:03Z".into()]).unwrap();
@@ -238,11 +238,11 @@ fn test_log_watch_event() {
     let _lock = HISTORY_LOCK.lock().unwrap();
 
     // Clean the watch subdir so we get a fresh history.
-    let data_dir = PathBuf::from(std::env::var("COS_DATA_DIR").unwrap());
+    let data_dir = PathBuf::from(std::env::var("YUOS_DATA_DIR").unwrap());
     let watch_dir = data_dir.join("watch");
     let _ = fs::remove_dir_all(&watch_dir);
 
-    let event = json!({"path": "/home/cos/test.rs", "event": "created"});
+    let event = json!({"path": "/home/yuos/test.rs", "event": "created"});
     log_watch_event("file", &event);
 
     let hist_file = watch_dir.join("history.jsonl");
@@ -251,7 +251,7 @@ fn test_log_watch_event() {
     let content = fs::read_to_string(&hist_file).unwrap();
     let parsed: Value = serde_json::from_str(content.trim()).unwrap();
     assert_eq!(parsed["source"], "file");
-    assert_eq!(parsed["path"], "/home/cos/test.rs");
+    assert_eq!(parsed["path"], "/home/yuos/test.rs");
     assert_eq!(parsed["event"], "created");
     assert!(
         parsed["timestamp"].as_str().is_some(),

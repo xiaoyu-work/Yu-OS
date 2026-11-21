@@ -19,15 +19,15 @@ def package_attempt(stage):
     version = json.loads((ROOT / "packaging/app-platform.json").read_text())["version"]
     return subprocess.run(
         ["bash", str(ROOT / "packaging/deb/build-desktop-deb.sh"), str(stage)],
-        env={**os.environ, "ARCH": ARCH, "COS_PACKAGE_VERSION": f"{epoch}:{version}",
-             "CLAW_DESKTOP_RUNTIME_DEPS": "libc6"},
+        env={**os.environ, "ARCH": ARCH, "YUOS_PACKAGE_VERSION": f"{epoch}:{version}",
+             "YUOS_DESKTOP_RUNTIME_DEPS": "libc6"},
         capture_output=True, text=True, timeout=10,
     )
 
 
 @pytest.mark.parametrize("kind", ["missing", "script", "nonexecutable", "symlink", "truncated", "wrong-architecture"])
 def test_invalid_provider_is_rejected_before_packaging(tmp_path, kind):
-    binary = tmp_path / "usr/libexec/claw-os-applet-provider"
+    binary = tmp_path / "usr/libexec/yuos-applet-provider"
     binary.parent.mkdir(parents=True)
     if kind not in ("missing", "symlink"):
         binary.write_bytes(b"#!/bin/sh\nexit 0\n")
@@ -43,24 +43,24 @@ def test_invalid_provider_is_rejected_before_packaging(tmp_path, kind):
             output.write(b"\xb7\x00" if ARCH == "amd64" else b"\x3e\x00")
     result = package_attempt(tmp_path)
     assert result.returncode != 0
-    assert "claw-os-applet-provider" in result.stderr
+    assert "yuos-applet-provider" in result.stderr
     assert not (tmp_path / "DEBIAN").exists()
 
 
 def test_native_provider_passes_abi_guard_without_bypassing_other_package_requirements(tmp_path):
-    binary = tmp_path / "usr/libexec/claw-os-applet-provider"
+    binary = tmp_path / "usr/libexec/yuos-applet-provider"
     binary.parent.mkdir(parents=True)
-    shutil.copy2(os.environ.get("CLAW_APPLET_TEST_BINARY", "/bin/true"), binary)
-    compositor = tmp_path / "usr/libexec/claw-hyprland/Hyprland"
+    shutil.copy2(os.environ.get("YUOS_APPLET_TEST_BINARY", "/bin/true"), binary)
+    compositor = tmp_path / "usr/libexec/yuos-hyprland/Hyprland"
     compositor.parent.mkdir()
     shutil.copy2("/bin/true", compositor)
     missing_locker = package_attempt(tmp_path)
     assert missing_locker.returncode != 0
-    assert "claw-lockscreen" in missing_locker.stderr
+    assert "yuos-lockscreen" in missing_locker.stderr
     assert not (tmp_path / "DEBIAN").exists()
-    shutil.copy2("/bin/true", compositor.with_name("claw-lockscreen"))
+    shutil.copy2("/bin/true", compositor.with_name("yuos-lockscreen"))
     result = package_attempt(tmp_path)
     assert result.returncode != 0
     assert "required desktop Agent binary missing" in result.stderr
-    assert "claw-os-applet-provider" not in result.stderr
+    assert "yuos-applet-provider" not in result.stderr
     assert not (tmp_path / "DEBIAN").exists()

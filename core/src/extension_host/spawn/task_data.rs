@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::sync::{Mutex, OnceLock};
 
 use super::*;
-use crate::clawd::client_identity::ClientIdentity;
+use crate::yuosd::client_identity::ClientIdentity;
 
 const MAX_APP_VIEWS: usize = 64;
 const MOUNT_HELPER_TIMEOUT: Duration = Duration::from_secs(3);
@@ -96,13 +96,13 @@ impl TaskAppData {
         client: &ClientIdentity,
         package: &crate::provenance::VerifiedPackage,
     ) -> Result<PathBuf, String> {
-        crate::clawd::trust_withdrawal::check_package(self.owner.uid, package)?;
+        crate::yuosd::trust_withdrawal::check_package(self.owner.uid, package)?;
         let package_ref = PackageRef::of(package);
         if package_ref.kind != crate::provenance::PackageKind::App {
             return Err("Task App data requires a verified App package".to_string());
         }
         let view = self.bind_app(client, &package_ref)?;
-        crate::clawd::trust_withdrawal::check_package(self.owner.uid, package)?;
+        crate::yuosd::trust_withdrawal::check_package(self.owner.uid, package)?;
         Ok(view)
     }
 
@@ -110,7 +110,7 @@ impl TaskAppData {
         let app = package.id.as_str();
         self.require_client(client)?;
         crate::worker::derive::validate_app_id(app)?;
-        let _admission = crate::clawd::app_mutation::admit_for_owner(app, self.owner.uid)?;
+        let _admission = crate::yuosd::app_mutation::admit_for_owner(app, self.owner.uid)?;
         let mut views = self
             .views
             .lock()
@@ -226,12 +226,12 @@ impl TaskAppData {
 
     pub(crate) fn retained_trust_bindings(
         owner: Option<u32>,
-    ) -> Result<Vec<crate::clawd::trust_withdrawal::Binding>, String> {
+    ) -> Result<Vec<crate::yuosd::trust_withdrawal::Binding>, String> {
         let retained = retained_views().lock().map_err(|_| "Task App custody lock poisoned")?.clone();
         let mut bindings = Vec::new();
         for data in retained.into_iter().filter(|data| owner.is_none_or(|owner| data.owner.uid == owner)) {
             let views = data.views.lock().map_err(|_| "Task App data lock poisoned")?;
-            bindings.extend(views.iter().map(|(app, view)| crate::clawd::trust_withdrawal::Binding {
+            bindings.extend(views.iter().map(|(app, view)| crate::yuosd::trust_withdrawal::Binding {
                 owner: data.owner.uid, app: app.clone(), package: Some(view.package.clone()),
                 trust_context_uid: Some(0),
                 context_generation_invalidated: false,

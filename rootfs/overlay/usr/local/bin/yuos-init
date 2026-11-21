@@ -1,0 +1,20 @@
+#!/bin/bash
+# yuos-init — compatibility helper for non-systemd shells.
+# Normal Yu OS images boot systemd, which starts yuosd.service and
+# yuos-home-setup.service. This helper is kept for recovery/debug shells that
+# intentionally bypass system boot.
+
+set -e
+
+# Source YU profile
+[ -f /etc/yuos/profile.sh ] && . /etc/yuos/profile.sh
+
+# Agent-home OverlayFS setup. Shared with yuos-home-setup.service on normal
+# system targets; the helper is idempotent and always exits 0
+# (overlay failure is non-fatal — see the helper for details). The
+# script resolves its target from $HOME (set by Docker for the running
+# user — typically /root).
+/usr/lib/yuos/init/setup-home.sh "$HOME"
+
+# Execute the requested command (default: bash --login)
+exec "${@:-/bin/bash --login}"

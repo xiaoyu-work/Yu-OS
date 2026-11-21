@@ -1,15 +1,15 @@
 # Semantic Search Architecture
 
-Claw OS currently has three related but distinct local-search surfaces. They
+Yu OS currently has three related but distinct local-search surfaces. They
 do not yet form one unified document-search pipeline.
 
 | Surface | Implementation | Storage | Current consumer | Status |
 | --- | --- | --- | --- | --- |
 | Document keyword search | Recoll / Xapian | `~/.recoll/` | Files product's `docs` App | Shipped |
-| Filesystem semantic prototype | `claw-semantic` orchestration + `claw-embed` primitives | JSON-backed `MemoryStore` | `claw-semantic` CLI only | Experimental |
-| Agent semantic memory | `crates/claw-embed` + core memory adapter | SQLite `SemanticStore` | Agent indexing and `cos_recall_semantic` | Shipped when embedding is configured |
+| Filesystem semantic prototype | `yuos-semantic` orchestration + `yuos-embed` primitives | JSON-backed `MemoryStore` | `yuos-semantic` CLI only | Experimental |
+| Agent semantic memory | `crates/yuos-embed` + core memory adapter | SQLite `SemanticStore` | Agent indexing and `yu_recall_semantic` | Shipped when embedding is configured |
 
-The Recoll and `claw-semantic` user units are enabled under
+The Recoll and `yuos-semantic` user units are enabled under
 `default.target`, so they can run in headless user sessions. Each unit uses
 `ConditionPathIsExecutable` and skips cleanly when its optional binary is not
 installed.
@@ -17,7 +17,7 @@ installed.
 ## Document Search: Recoll
 
 The `docs` App, owned by
-[`clawos-app/products/files/apps/docs`](https://github.com/xiaoyu-work/clawos-app/tree/main/products/files/apps/docs),
+[`yuos-app/products/files/apps/docs`](https://github.com/xiaoyu-work/yuos-app/tree/main/products/files/apps/docs),
 currently uses Recoll only. OS builds consume its fixed revision through
 `packaging/apps.lock.json`; Recoll binaries and background service installation
 remain system responsibilities.
@@ -32,17 +32,17 @@ index data live under `~/.recoll/`.
 The current `docs.search` MCP tool does **not** query either semantic
 store and does not perform result fusion.
 
-## Filesystem Semantic Prototype: `claw-semantic`
+## Filesystem Semantic Prototype: `yuos-semantic`
 
-`crates/claw-semantic` remains a Phase-1 daemon and CLI:
+`crates/yuos-semantic` remains a Phase-1 daemon and CLI:
 
 ```text
-watched files (`claw-semantic` orchestration)
-  -> claw_embed::TextExtractor
-  -> claw_embed::chunks_for
-  -> claw_embed::StubEmbedder (384 dimensions)
-  -> claw_embed::MemoryStore persisted as JSON
-  -> claw-semantic CLI queries
+watched files (`yuos-semantic` orchestration)
+  -> yuos_embed::TextExtractor
+  -> yuos_embed::chunks_for
+  -> yuos_embed::StubEmbedder (384 dimensions)
+  -> yuos_embed::MemoryStore persisted as JSON
+  -> yuos-semantic CLI queries
 ```
 
 The daemon watches configured directories with notify/inotify. Its
@@ -52,14 +52,14 @@ semantic embeddings.
 
 This prototype is not connected to the `docs` App.
 
-`claw-embed` is the sole owner of the chunk, embedder, extractor, filesystem
-walker, and store contracts. `claw-semantic` retains compatibility re-exports
+`yuos-embed` is the sole owner of the chunk, embedder, extractor, filesystem
+walker, and store contracts. `yuos-semantic` retains compatibility re-exports
 for its former library module paths, but new callers should import
-`claw_embed` directly.
+`yuos_embed` directly.
 
-## Agent Semantic Memory: `claw-embed`
+## Agent Semantic Memory: `yuos-embed`
 
-The production semantic-memory path lives in `crates/claw-embed` and
+The production semantic-memory path lives in `crates/yuos-embed` and
 `core/src/agent/memory/semantic.rs`:
 
 ```text
@@ -67,7 +67,7 @@ agent message or memory item
   -> configured embedding task
   -> SemanticStore (SQLite)
   -> cosine search
-  -> cos_recall_semantic
+  -> yu_recall_semantic
 ```
 
 The default local embedding task uses the bundled Qwen3-Embedding-0.6B model
@@ -77,7 +77,7 @@ OpenAI-compatible provider when configured.
 
 `SemanticStore` records the embedding model identity with stored vectors and
 rejects incompatible model changes instead of silently mixing vector spaces.
-The default database is the Agent semantic store below the Claw OS data
+The default database is the Agent semantic store below the Yu OS data
 directory.
 
 This path provides real semantic recall for Agent memory, but it does not
@@ -87,15 +87,15 @@ index the user's document directories for the `docs` App.
 
 The consolidation does not migrate or rewrite filesystem semantic data.
 `MemoryStore` still reads and writes the same JSON array at
-`$XDG_STATE_HOME/claw-semantic/store.json` (falling back to
-`~/.local/state/claw-semantic/store.json`), with the same row fields and
+`$XDG_STATE_HOME/yuos-semantic/store.json` (falling back to
+`~/.local/state/yuos-semantic/store.json`), with the same row fields and
 384-dimensional `stub-sha256` vectors. Existing indexes therefore open in
 place.
 
-The `claw-semantic` and `claw-semantic-daemon` executable names, command JSON,
+The `yuos-semantic` and `yuos-semantic-daemon` executable names, command JSON,
 configuration path, and systemd user unit remain unchanged. Existing Rust
-imports through `claw_semantic::{chunk, embed, extract, store, watch}` remain
-available as compatibility re-exports; callers can migrate to `claw_embed`
+imports through `yuos_semantic::{chunk, embed, extract, store, watch}` remain
+available as compatibility re-exports; callers can migrate to `yuos_embed`
 without a coordinated data or service cutover.
 
 The re-exported `VectorStore` methods and `MemoryStore::open` retain their
@@ -104,17 +104,17 @@ callers remain source-compatible. The shared implementation constructs typed
 `DocumentStoreError` causes internally; callers that need structured handling
 can downcast the returned `anyhow::Error`.
 
-The former `claw_semantic::Embedder::embed(&[String])` contract is the one
+The former `yuos_semantic::Embedder::embed(&[String])` contract is the one
 source-level change: implementers and direct trait callers migrate to the
-shared async `claw_embed::Embedder` request/response API by constructing
+shared async `yuos_embed::Embedder` request/response API by constructing
 `EmbedRequest` and awaiting `embed`. The shipped daemon and CLI already use
 that path; persisted vectors and service protocols are unchanged.
 
 ## Why the Search Paths Are Separate
 
 - Recoll is an external document-indexing system with broad format support.
-- `claw-semantic` is a standalone filesystem-watching prototype.
-- `claw-embed` is a reusable embedding/storage library integrated with Agent
+- `yuos-semantic` is a standalone filesystem-watching prototype.
+- `yuos-embed` is a reusable embedding/storage library integrated with Agent
   memory.
 
 Keeping these boundaries explicit prevents the prototype daemon from being
@@ -136,7 +136,7 @@ score(doc) = sum over each source S of:
 Before implementing fusion, the filesystem daemon must be upgraded from the
 compatibility stub embedder and JSON store to a real embedding provider and a
 production-scale document store. Those implementations belong behind the
-contracts in `claw-embed`; daemon lifecycle remains in `claw-semantic`.
+contracts in `yuos-embed`; daemon lifecycle remains in `yuos-semantic`.
 
 Only after that decision should the `docs` App gain semantic queries and RRF
 fusion.
@@ -144,7 +144,7 @@ fusion.
 ## Current Status
 
 - `docs`: Recoll keyword search only.
-- `claw-semantic`: optional filesystem daemon/CLI using `claw-embed`
+- `yuos-semantic`: optional filesystem daemon/CLI using `yuos-embed`
   primitives with compatibility JSON persistence and stub embeddings.
 - Agent semantic recall: real embeddings and SQLite storage when configured.
 - Document semantic fusion: not implemented.

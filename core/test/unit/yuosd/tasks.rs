@@ -1,0 +1,807 @@
+use super::*;
+use crate::activities::{Activity, ActivityService, ActivityState};
+use crate::test_env::{lock_env, TestEnvVarGuard};
+use base64::Engine;
+
+fn activity_task_root() -> tempfile::TempDir {
+    tempfile::Builder::new()
+        .prefix(".activity-tasks-test-")
+        .tempdir_in(".")
+        .unwrap()
+}
+
+fn activity_task_client(uid: u32) -> ClientIdentity {
+    ClientIdentity {
+        pid: Some(std::process::id()),
+        uid: Some(uid),
+        gid: Some(unsafe { libc::getegid() } as u32),
+        start_time_ticks: crate::proc::read_start_time_ticks_pub(std::process::id()),
+        ..ClientIdentity::unknown()
+    }
+}
+
+fn activity_task_fixture(owner_uid: u32) -> Activity {
+    crate::activities::open_default()
+        .unwrap()
+        .create(
+            owner_uid,
+            serde_json::from_value(json!({
+                "title": "Prepare a release",
+                "goal": "Prepare release notes",
+                "completion_criteria": "The user accepts the notes",
+                "boundaries": "Do not publish",
+                "resources": [],
+            }))
+            .unwrap(),
+        )
+        .unwrap()
+}
+
+fn finish_activity_task(store: &Store, id: &str) {
+    let claimed = store.claim_one().unwrap().unwrap();
+    assert_eq!(claimed.id, id);
+    store
+        .finish(
+            claimed,
+            crate::agent::service::FinishOutcome::Error("test worker ended".to_string()),
+        )
+        .unwrap();
+}
+
+#[test]
+fn task_list_summary_omits_heavy_and_private_fields() {
+    let summary = task_summary_value(&json!({
+        "id": "task-a",
+        "prompt": "summarize this report",
+        "status": "ok",
+        "session_id": "session-a",
+        "activity_id": "activity-a",
+        "created_at": "2026-01-01T00:00:00Z",
+        "response": "large response",
+        "evidence": {"large": true},
+        "owner_home": "/home/alice",
+        "owner_uid": 1000,
+    }));
+    assert_eq!(summary["title"], "summarize this report");
+    assert_eq!(summary["session_id"], "session-a");
+    assert_eq!(summary["activity_id"], "activity-a");
+    for hidden in ["prompt", "response", "evidence", "owner_home", "owner_uid"] {
+        assert!(
+            summary.get(hidden).is_none(),
+            "{hidden} leaked into summary"
+        );
+    }
+}
+
+#[tokio::test]
+async fn image_attachments_are_verified_persisted_retried_and_redacted_from_results() {
+    let owner_uid = unsafe { libc::geteuid() } as u32;
+    if owner_uid == 0 {
+        return;
+    }
+    let _lock = lock_env();
+    let root = activity_task_root();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().canonicalize().unwrap());
+    let client = activity_task_client(owner_uid);
+    let mut image = b"\x89PNG\r\n\x1a\n".to_vec();
+    image.resize(2 * 1024 * 1024, 0);
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&image);
+    let viewer_id = uuid::Uuid::new_v4().to_string();
+    let submitted = submit(
+        json!({
+            "prompt": "inspect the screenshot",
+            "attachments": [{
+                "name": "screen.png",
+                "media_type": "image/png",
+                "data": encoded,
+            }],
+            "reasoning_effort": "high",
+            "plan_only": true,
+            "notification_viewer": { "id": viewer_id, "revision": 1, "visible": true },
+        }),
+        &client,
+    )
+    .await
+    .unwrap();
+    assert_eq!(submitted["attachments"][0]["name"], "screen.png");
+    assert!(submitted["attachments"][0].get("data").is_none());
+    assert_eq!(submitted["attachments"][0]["bytes"], image.len());
+
+    let store = Store::open_default().unwrap();
+    let id = submitted["id"].as_str().unwrap();
+    let (_, stored) = store
+        .locate_for_owner(id, Some(owner_uid))
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.attachments.len(), 1);
+    assert_eq!(stored.attachments[0].data, encoded);
+    assert_eq!(stored.requested_reasoning_effort.as_deref(), Some("high"));
+    assert!(stored.plan_only);
+    assert!(crate::notifications::conversation_is_viewed(
+        owner_uid, stored.session_id.as_deref().unwrap()
+    ).unwrap());
+    assert!(!stored.client.attended, "notification visibility never supplies attendance");
+    let digest = stored.attachments[0].sha256.clone();
+    store.cancel_pending(id).unwrap().unwrap();
+
+    let retried = retry(json!({ "id": id }), &client).unwrap();
+    let (_, stored_retry) = store
+        .locate_for_owner(retried["id"].as_str().unwrap(), Some(owner_uid))
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored_retry.attachments[0].sha256, digest);
+    assert_eq!(
+        stored_retry.requested_reasoning_effort.as_deref(),
+        Some("high")
+    );
+    assert!(stored_retry.plan_only);
+    assert_eq!(retried["attachments"][0]["sha256"], digest);
+    assert!(retried["attachments"][0].get("data").is_none());
+}
+
+#[tokio::test]
+async fn requested_model_is_validated_before_any_session_or_queue_side_effects() {
+    let owner_uid = unsafe { libc::geteuid() } as u32;
+    if owner_uid == 0 {
+        return;
+    }
+    let _lock = lock_env();
+    let root = activity_task_root();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().canonicalize().unwrap());
+    let client = activity_task_client(owner_uid);
+    let too_long = "m".repeat(257);
+    for model in [
+        "",
+        " ",
+        "invalid model",
+        "invalid\nmodel",
+        "model\tname",
+        too_long.as_str(),
+    ] {
+        let error = submit(json!({"prompt": "never queued", "model": model}), &client)
+            .await
+            .unwrap_err();
+        assert!(error.contains("model"), "{error}");
+        assert!(!session::sessions_root().exists());
+        assert!(!crate::paths::agent_jobs_dir().exists());
+        assert!(!crate::paths::yuosd_user_agent_state_dir(owner_uid).exists());
+    }
+    for effort in ["", "default", "HIGH", "extreme"] {
+        let error = submit(
+            json!({"prompt": "never queued", "reasoning_effort": effort}),
+            &client,
+        )
+        .await
+        .unwrap_err();
+        assert!(error.contains("reasoning_effort"), "{error}");
+        assert!(!session::sessions_root().exists());
+        assert!(!crate::paths::agent_jobs_dir().exists());
+        assert!(!crate::paths::yuosd_user_agent_state_dir(owner_uid).exists());
+    }
+}
+
+#[tokio::test]
+async fn task_workspace_is_owner_scoped_canonical_and_persisted_before_execution() {
+    let owner_uid = unsafe { libc::geteuid() } as u32;
+    if owner_uid == 0 {
+        return;
+    }
+    let _lock = lock_env();
+    let root = activity_task_root();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().canonicalize().unwrap());
+    let home = crate::paths::verified_home_for_uid(owner_uid).unwrap();
+    let directory = tempfile::tempdir_in(&home).unwrap();
+    let relative = directory.path().strip_prefix(&home).unwrap();
+    let client = activity_task_client(owner_uid);
+    let resolved = workspace(json!({"path": relative.to_string_lossy()}), &client).unwrap();
+    let expected = directory.path().canonicalize().unwrap();
+    assert_eq!(resolved["workspace"], expected.to_string_lossy().as_ref());
+
+    let submitted = submit(
+        json!({"prompt": "work here", "workspace": relative.to_string_lossy()}),
+        &client,
+    )
+    .await
+    .unwrap();
+    assert_eq!(submitted["workspace"], expected.to_string_lossy().as_ref());
+    assert!(workspace(json!({"path": "/"}), &client).is_err());
+}
+
+#[tokio::test]
+async fn queued_submission_binds_to_an_owned_predecessor_in_the_same_conversation() {
+    let owner_uid = unsafe { libc::geteuid() } as u32;
+    if owner_uid == 0 {
+        return;
+    }
+    let _lock = lock_env();
+    let root = activity_task_root();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().canonicalize().unwrap());
+    let client = activity_task_client(owner_uid);
+    let first = submit(json!({"prompt": "first"}), &client).await.unwrap();
+    let second = submit(
+        json!({
+            "prompt": "second",
+            "session_id": first["session_id"],
+            "after_task_id": first["id"],
+        }),
+        &client,
+    )
+    .await
+    .unwrap();
+    assert_eq!(second["after_task_id"], first["id"]);
+    assert_eq!(second["session_id"], first["session_id"]);
+    assert!(submit(
+        json!({
+            "prompt": "foreign",
+            "session_id": first["session_id"],
+            "after_task_id": "missing-task",
+        }),
+        &client,
+    )
+    .await
+    .is_err());
+}
+
+#[tokio::test]
+async fn foreground_delegation_queues_independent_work_without_widening_caps() {
+    let owner_uid = unsafe { libc::geteuid() } as u32;
+    if owner_uid == 0 {
+        return;
+    }
+    let _lock = lock_env();
+    let root = activity_task_root();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().canonicalize().unwrap());
+    let client = activity_task_client(owner_uid);
+    let submitted = submit(json!({"prompt": "Prepare a report", "use_memory": false}), &client)
+        .await
+        .unwrap();
+    let store = Store::open_default().unwrap();
+    let parent = store.claim_one().unwrap().unwrap();
+    assert_eq!(submitted["id"], parent.id);
+
+    let caps = CapSet::from_caps([crate::caps::Cap::new(
+        crate::caps::Verb::MEMORY_READ,
+        crate::caps::Scope::self_ref("agent"),
+    )]);
+    let id = delegate_background(&store, &parent, &caps, "Summarize the source notes").unwrap();
+    let follow_up = submit(
+        json!({
+            "prompt": "Different question",
+            "session_id": parent.session_id,
+            "after_task_id": parent.id,
+        }),
+        &client,
+    )
+    .await
+    .unwrap();
+
+    let (child, presence) = claim_job_with_presence(&store, Duration::from_secs(30))
+        .unwrap()
+        .unwrap();
+    assert_eq!(child.id, id);
+    assert_ne!(child.session_id, parent.session_id);
+    assert_eq!(child.delegated_from_session_id, parent.session_id);
+    assert!(child.after_task_id.is_none());
+    assert!(presence.is_none());
+    assert!(!child.use_memory);
+    assert_eq!(child.workspace, parent.workspace);
+    let session_id = child.session_id.as_deref().unwrap().parse().unwrap();
+    assert_eq!(session::get_caps(&session_id).unwrap(), caps);
+    assert!(delegate_background(&store, &child, &caps, "Do not recurse").is_err());
+    assert!(store.claim_one().unwrap().is_none());
+    assert_eq!(
+        store.locate(follow_up["id"].as_str().unwrap()).unwrap().unwrap().1.status,
+        JobStatus::Pending
+    );
+}
+
+#[tokio::test]
+async fn requested_model_is_persisted_with_existing_activity_and_session_contracts() {
+    let owner_uid = unsafe { libc::geteuid() } as u32;
+    if owner_uid == 0 {
+        return;
+    }
+    let _lock = lock_env();
+    let root = activity_task_root();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().canonicalize().unwrap());
+    let client = activity_task_client(owner_uid);
+    let activity = activity_task_fixture(owner_uid);
+    let submitted = submit(
+        json!({
+            "prompt": "  keep the existing normalization  ",
+            "context": "  retained context  ",
+            "branch_context": "  retained branch  ",
+            "activity_id": activity.id,
+            "max_turns": 4,
+            "use_memory": false,
+            "model": "chosen-model",
+        }),
+        &client,
+    )
+    .await
+    .unwrap();
+    assert_eq!(submitted["requested_model"], "chosen-model");
+    assert_eq!(submitted["prompt"], "keep the existing normalization");
+    assert_eq!(submitted["context"], "retained context");
+    assert_eq!(submitted["branch_context"], "retained branch");
+    assert_eq!(submitted["max_turns"], 4);
+    assert_eq!(submitted["use_memory"], false);
+    assert_eq!(submitted["activity_id"], activity.id);
+    let sid = submitted["session_id"].as_str().unwrap();
+    let meta = session::get_meta(&sid.parse().unwrap()).unwrap();
+    assert_eq!(meta.owner_uid, Some(owner_uid));
+    assert_eq!(meta.activity_id.as_deref(), Some(activity.id.as_str()));
+    assert_eq!(meta.origin, Some(SessionOrigin::SystemAgentTask));
+    let store = Store::open_default().unwrap();
+    let saved = store
+        .locate(submitted["id"].as_str().unwrap())
+        .unwrap()
+        .unwrap()
+        .1;
+    assert_eq!(saved.requested_model.as_deref(), Some("chosen-model"));
+}
+
+#[test]
+fn task_session_reuse_requires_owner_and_refreshes_caps() {
+    let _lock = lock_env();
+    let temp = tempfile::tempdir().unwrap();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", temp.path());
+    let home = temp.path().join("home-owner");
+    std::fs::create_dir_all(&home).unwrap();
+
+    let session_id = create_task_session("test", 1001, &home).unwrap();
+    prepare_task_session(&session_id, 1001, &home)
+        .expect("an empty task session must be reusable after an early worker failure");
+    let db = crate::agent::memory::sqlite_fts::MemoryDb::open(
+        crate::paths::yuosd_user_memory_db_path(1001),
+    )
+    .unwrap();
+    db.record_message(&session_id, "user", "hello").unwrap();
+
+    let sid = session_id.parse::<session::SessionId>().unwrap();
+    // Provenance is stamped by the issuer, never by a request field.
+    assert_eq!(
+        session::get_meta(&sid).unwrap().origin,
+        Some(SessionOrigin::SystemAgentTask)
+    );
+    session::set_caps(&sid, &crate::caps::CapSet::new()).unwrap();
+    // A session that acquired a delegation marker is re-stamped as
+    // ambient when it is resumed, so it can never be replayed as one.
+    session::update_meta(&sid, |meta| {
+        meta.origin = Some(SessionOrigin::TriggerDelegation);
+    })
+    .unwrap();
+    prepare_task_session(&session_id, 1001, &home).unwrap();
+    assert_eq!(
+        session::get_meta(&sid).unwrap().origin,
+        Some(SessionOrigin::SystemAgentTask)
+    );
+    let refreshed = session::get_caps(&sid).unwrap();
+    assert!(refreshed.covers(&crate::caps::Cap::new(
+        crate::caps::Verb::FS_READ,
+        crate::caps::Scope::path(home.join("notes.md").to_string_lossy().into_owned())
+    )));
+    // The refresh restores daemon policy, not ambient authority.
+    assert!(!refreshed.covers(&crate::caps::Cap::new(
+        crate::caps::Verb::NET_DIAL,
+        crate::caps::Scope::host("example.com")
+    )));
+    assert!(!refreshed.covers(&crate::caps::Cap::new(
+        crate::caps::Verb::FS_READ,
+        crate::caps::Scope::path("/etc/shadow")
+    )));
+
+    let error = prepare_task_session(&session_id, 1002, &home).unwrap_err();
+    assert!(error.contains("not owned"));
+    // Root is not exempt: resuming a task re-derives capabilities for
+    // the resuming account, so it may not adopt another owner's.
+    let error = prepare_task_session(&session_id, 0, &home).unwrap_err();
+    assert!(error.contains("not owned"));
+}
+
+#[tokio::test]
+async fn a_root_peer_cannot_submit_an_agent_task() {
+    // The agent runtime runs unprivileged in `yuos-agentd`, and root has
+    // no account to drop to, so a root-owned task is refused where it is
+    // submitted rather than becoming a queued task that can only fail.
+    let root = ClientIdentity {
+        pid: Some(std::process::id()),
+        uid: Some(0),
+        gid: Some(0),
+        execution_uid: None,
+        start_time_ticks: Some(1),
+        attended_local: false,
+        extension_host: None,
+    };
+    let error = submit(json!({ "prompt": "hello" }), &root)
+        .await
+        .expect_err("a root-owned task must be refused");
+    assert_eq!(error, crate::agentd::spawn::ROOT_OWNER_REFUSAL);
+    assert!(error.contains("non-root"), "{error}");
+}
+
+#[test]
+fn retry_creates_a_new_pending_task_for_the_same_session() {
+    let _lock = lock_env();
+    let temp = tempfile::tempdir().unwrap();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", temp.path());
+    let owner_uid = unsafe { libc::geteuid() } as u32;
+    if owner_uid == 0 {
+        return;
+    }
+    let owner_home = crate::yuosd::system_caps::verified_owner_home(owner_uid).unwrap();
+    let session_id = create_task_session("retry test", owner_uid, &owner_home).unwrap();
+    let db = crate::agent::memory::sqlite_fts::MemoryDb::open(
+        crate::paths::yuosd_user_memory_db_path(owner_uid),
+    )
+    .unwrap();
+    db.record_message(&session_id, "user", "retry me").unwrap();
+
+    let store = Store::open_default().unwrap();
+    let original = store
+        .submit(
+            "retry me".to_string(),
+            Some(session_id.clone()),
+            None,
+            Some(owner_uid),
+            Some(owner_home.to_string_lossy().into_owned()),
+        )
+        .unwrap();
+    let claimed = store.claim_one().unwrap().unwrap();
+    store
+        .finish(
+            claimed,
+            crate::agent::service::FinishOutcome::Error("failed".into()),
+        )
+        .unwrap();
+    let client = ClientIdentity {
+        pid: Some(std::process::id()),
+        uid: Some(owner_uid),
+        gid: Some(unsafe { libc::getegid() } as u32),
+        execution_uid: None,
+        start_time_ticks: crate::proc::read_start_time_ticks_pub(std::process::id()),
+        attended_local: true,
+        extension_host: None,
+    };
+
+    let retried = retry(json!({ "id": original.id }), &client).unwrap();
+    assert_ne!(retried["id"], original.id);
+    assert_eq!(retried["status"], "pending");
+    assert_eq!(retried["session_id"], session_id);
+    assert_eq!(retried["prompt"], "retry me");
+    assert!(retried.get("activity_id").is_none());
+}
+
+#[tokio::test]
+async fn activity_continuation_and_retry_preserve_identity_without_relabeling_old_jobs() {
+    let owner_uid = unsafe { libc::geteuid() } as u32;
+    if owner_uid == 0 {
+        return;
+    }
+    let _lock = lock_env();
+    let root = activity_task_root();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().canonicalize().unwrap());
+    let client = activity_task_client(owner_uid);
+    let activity = activity_task_fixture(owner_uid);
+    let old = submit(json!({"prompt": "old unassociated turn"}), &client)
+        .await
+        .unwrap();
+    let store = Store::open_default().unwrap();
+    finish_activity_task(&store, old["id"].as_str().unwrap());
+    let session_id = old["session_id"].as_str().unwrap();
+
+    let attached = submit(
+        json!({
+            "prompt": "associated turn",
+            "context": "original app context",
+            "session_id": session_id,
+            "activity_id": activity.id.to_ascii_uppercase(),
+            "use_memory": false,
+        }),
+        &client,
+    )
+    .await
+    .unwrap();
+    assert_eq!(attached["activity_id"], activity.id);
+    assert_eq!(
+        session::get_meta(&session_id.parse().unwrap())
+            .unwrap()
+            .activity_id
+            .as_deref(),
+        Some(activity.id.as_str())
+    );
+    assert!(store
+        .locate(old["id"].as_str().unwrap())
+        .unwrap()
+        .unwrap()
+        .1
+        .activity_id
+        .is_none());
+    assert_eq!(
+        store
+            .list_for_activity(owner_uid, &activity.id, 100)
+            .unwrap()
+            .len(),
+        1
+    );
+    finish_activity_task(&store, attached["id"].as_str().unwrap());
+
+    let continuation = submit(
+        json!({"prompt": "continue", "session_id": session_id}),
+        &client,
+    )
+    .await
+    .unwrap();
+    assert_eq!(continuation["activity_id"], activity.id);
+    store
+        .cancel_pending(continuation["id"].as_str().unwrap())
+        .unwrap()
+        .unwrap();
+    let retried = retry(json!({"id": attached["id"]}), &client).unwrap();
+    assert_eq!(retried["activity_id"], activity.id);
+    assert_eq!(retried["session_id"], session_id);
+    assert_eq!(retried["context"], "original app context");
+    assert_eq!(retried["use_memory"], false);
+    assert_ne!(retried["id"], attached["id"]);
+    assert_eq!(
+        crate::activities::open_default()
+            .unwrap()
+            .get(owner_uid, &activity.id)
+            .unwrap()
+            .state,
+        ActivityState::Active
+    );
+}
+
+#[tokio::test]
+async fn invalid_or_foreign_activity_submission_has_no_session_or_job_side_effects() {
+    let owner_uid = unsafe { libc::geteuid() } as u32;
+    if owner_uid == 0 {
+        return;
+    }
+    let _lock = lock_env();
+    let root = activity_task_root();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().canonicalize().unwrap());
+    let client = activity_task_client(owner_uid);
+    let foreign = activity_task_fixture(owner_uid + 1);
+    for activity_id in [
+        json!(""),
+        json!(" "),
+        json!("../invalid"),
+        json!(uuid::Uuid::new_v4().to_string()),
+        json!(foreign.id),
+        json!(17),
+    ] {
+        assert!(submit(
+            json!({"prompt": "refused", "activity_id": activity_id}),
+            &client
+        )
+        .await
+        .is_err());
+        assert!(!session::sessions_root().exists());
+    }
+    let activity = activity_task_fixture(owner_uid);
+    let sid = session::create("foreign session").unwrap();
+    session::update_meta(&sid, |meta| {
+        meta.owner_uid = Some(owner_uid + 1);
+        meta.creator_runtime = Some("yuosd".to_string());
+    })
+    .unwrap();
+    let before = session::get_meta(&sid).unwrap();
+    let error = submit(
+        json!({"prompt": "refused", "activity_id": activity.id, "session_id": sid}),
+        &client,
+    )
+    .await
+    .unwrap_err();
+    assert!(error.contains("not owned"), "{error}");
+    assert_eq!(session::get_meta(&sid).unwrap(), before);
+    assert_eq!(
+        Store::open_default().unwrap().counts().unwrap(),
+        (0, 0, 0, 0)
+    );
+}
+
+#[tokio::test]
+async fn activity_mismatch_is_rejected_before_refreshing_session_authority() {
+    let owner_uid = unsafe { libc::geteuid() } as u32;
+    if owner_uid == 0 {
+        return;
+    }
+    let _lock = lock_env();
+    let root = activity_task_root();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().canonicalize().unwrap());
+    let client = activity_task_client(owner_uid);
+    let activity = activity_task_fixture(owner_uid);
+    let other = activity_task_fixture(owner_uid);
+    let original = submit(
+        json!({"prompt": "first", "activity_id": activity.id}),
+        &client,
+    )
+    .await
+    .unwrap();
+    let store = Store::open_default().unwrap();
+    finish_activity_task(&store, original["id"].as_str().unwrap());
+    let sid = original["session_id"]
+        .as_str()
+        .unwrap()
+        .parse::<session::SessionId>()
+        .unwrap();
+    session::set_caps(&sid, &crate::caps::CapSet::new()).unwrap();
+    session::update_meta(&sid, |meta| {
+        meta.origin = Some(SessionOrigin::TriggerDelegation);
+    })
+    .unwrap();
+    let before = session::get_meta(&sid).unwrap();
+    let error = submit(
+        json!({"prompt": "move", "session_id": sid, "activity_id": other.id}),
+        &client,
+    )
+    .await
+    .unwrap_err();
+    assert!(error.contains("different Activity"), "{error}");
+    assert_eq!(session::get_meta(&sid).unwrap(), before);
+    assert_eq!(session::get_caps(&sid).unwrap(), crate::caps::CapSet::new());
+    assert_eq!(store.counts().unwrap(), (0, 0, 0, 1));
+
+    session::update_meta(&sid, |meta| meta.activity_id = Some(other.id.clone())).unwrap();
+    let before = session::get_meta(&sid).unwrap();
+    let error = retry(json!({"id": original["id"]}), &client).unwrap_err();
+    assert!(error.contains("different Activity"), "{error}");
+    assert_eq!(session::get_meta(&sid).unwrap(), before);
+    assert_eq!(store.counts().unwrap(), (0, 0, 0, 1));
+}
+
+#[tokio::test]
+async fn inactive_activity_refuses_explicit_inherited_and_retry_admission_before_mutation() {
+    let owner_uid = unsafe { libc::geteuid() } as u32;
+    if owner_uid == 0 {
+        return;
+    }
+    let _lock = lock_env();
+    let root = activity_task_root();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().canonicalize().unwrap());
+    let client = activity_task_client(owner_uid);
+    let service = crate::activities::open_default().unwrap();
+    let store = Store::open_default().unwrap();
+    for state in [
+        ActivityState::Paused,
+        ActivityState::Completed,
+        ActivityState::Cancelled,
+    ] {
+        let activity = activity_task_fixture(owner_uid);
+        let original = submit(
+            json!({"prompt": "first", "activity_id": activity.id}),
+            &client,
+        )
+        .await
+        .unwrap();
+        finish_activity_task(&store, original["id"].as_str().unwrap());
+        let sid = original["session_id"]
+            .as_str()
+            .unwrap()
+            .parse::<session::SessionId>()
+            .unwrap();
+        session::set_caps(&sid, &crate::caps::CapSet::new()).unwrap();
+        session::update_meta(&sid, |meta| {
+            meta.origin = Some(SessionOrigin::TriggerDelegation);
+        })
+        .unwrap();
+        let before = session::get_meta(&sid).unwrap();
+        let counts = store.counts().unwrap();
+        let sessions = session::list().unwrap().len();
+        service
+            .transition(
+                owner_uid,
+                &activity.id,
+                state,
+                (state == ActivityState::Completed).then(|| "User confirmed".to_string()),
+            )
+            .unwrap();
+        for params in [
+            json!({"prompt": "new", "activity_id": activity.id}),
+            json!({"prompt": "continue", "session_id": sid}),
+        ] {
+            let error = submit(params, &client).await.unwrap_err();
+            assert!(error.contains(state.as_str()), "{error}");
+            assert_eq!(session::get_meta(&sid).unwrap(), before);
+            assert_eq!(session::get_caps(&sid).unwrap(), crate::caps::CapSet::new());
+            assert_eq!(session::list().unwrap().len(), sessions);
+        }
+        let error = retry(json!({"id": original["id"]}), &client).unwrap_err();
+        assert!(error.contains(state.as_str()), "{error}");
+        assert_eq!(session::get_meta(&sid).unwrap(), before);
+        assert_eq!(store.counts().unwrap(), counts);
+    }
+}
+
+#[tokio::test]
+async fn associated_task_retry_does_not_grant_root_or_other_owners_activity_access() {
+    let owner_uid = unsafe { libc::geteuid() } as u32;
+    if owner_uid == 0 {
+        return;
+    }
+    let _lock = lock_env();
+    let root = activity_task_root();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().canonicalize().unwrap());
+    let activity = activity_task_fixture(owner_uid);
+    let original = submit(
+        json!({"prompt": "first", "activity_id": activity.id}),
+        &activity_task_client(owner_uid),
+    )
+    .await
+    .unwrap();
+    let store = Store::open_default().unwrap();
+    finish_activity_task(&store, original["id"].as_str().unwrap());
+    for uid in [0, owner_uid + 1] {
+        assert!(retry(json!({"id": original["id"]}), &activity_task_client(uid)).is_err());
+    }
+    assert_eq!(store.counts().unwrap(), (0, 0, 0, 1));
+}
+
+#[test]
+fn activity_task_list_filters_status_before_limit_and_preserves_owner_boundary() {
+    let _lock = lock_env();
+    let root = activity_task_root();
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().canonicalize().unwrap());
+    let activity = activity_task_fixture(1001);
+    let other = activity_task_fixture(1001);
+    let store = Store::open_default().unwrap();
+    let failed = store
+        .submit_with_activity(
+            "first".to_string(),
+            None,
+            None,
+            None,
+            None,
+            true,
+            Some(1001),
+            None,
+            Some(activity.id.clone()),
+        )
+        .unwrap();
+    finish_activity_task(&store, &failed.id);
+    for activity_id in [&activity.id, &other.id] {
+        store
+            .submit_with_activity(
+                "newer".to_string(),
+                None,
+                None,
+                None,
+                None,
+                true,
+                Some(1001),
+                None,
+                Some(activity_id.clone()),
+            )
+            .unwrap();
+    }
+    let client = activity_task_client(1001);
+    let params = json!({
+        "activity_id": activity.id.to_ascii_uppercase(),
+        "status": "error",
+        "summary": true,
+        "limit": 1,
+    });
+    let result = list(params.clone(), &client).unwrap();
+    assert_eq!(result["jobs"].as_array().unwrap().len(), 1);
+    assert_eq!(result["jobs"][0]["id"], failed.id);
+    assert_eq!(result["jobs"][0]["activity_id"], activity.id);
+    assert_eq!(
+        get(json!({"id": failed.id}), &client).unwrap()["activity_id"],
+        activity.id
+    );
+    for uid in [0, 1002] {
+        assert!(list(params.clone(), &activity_task_client(uid)).is_err());
+    }
+    crate::activities::open_default()
+        .unwrap()
+        .transition(
+            1001,
+            &activity.id,
+            ActivityState::Completed,
+            Some("User confirmed".to_string()),
+        )
+        .unwrap();
+    assert_eq!(list(params, &client).unwrap()["jobs"][0]["id"], failed.id);
+}

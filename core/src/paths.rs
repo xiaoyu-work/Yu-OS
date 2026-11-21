@@ -1,24 +1,24 @@
-//! System-level path resolution for cos primitives.
+//! System-level path resolution for Yu OS primitives.
 //!
-//! Follows the cos FHS convention established in `cron.rs:89`:
-//!   - State (user CLI): `$HOME/.local/share/cos` (overridable via `COS_DATA_DIR` or `COS_USER_DATA_DIR`)
-//!   - State (clawd):    `/var/lib/cos`            (clawd's systemd unit pins `COS_DATA_DIR=/var/lib/cos`)
-//!   - Cache:            `/var/cache/cos`          (overridable via `COS_CACHE_DIR`)
-//!   - Runtime:          `/run/cos`                (overridable via `COS_RUNTIME_DIR`)
-//!   - Config:           `/etc/cos`                (overridable via `COS_CONFIG_DIR`)
-//!   - Logs:             `/var/log/cos`            (overridable via `COS_LOG_DIR`)
+//! Resolves Yu OS paths using the filesystem hierarchy:
+//!   - State (user CLI): `$HOME/.local/share/yuos` (overridable via `YUOS_DATA_DIR` or `YUOS_USER_DATA_DIR`)
+//!   - State (yuosd):    `/var/lib/yuos`            (yuosd's systemd unit pins `YUOS_DATA_DIR=/var/lib/yuos`)
+//!   - Cache:            `/var/cache/yuos`          (overridable via `YUOS_CACHE_DIR`)
+//!   - Runtime:          `/run/yuos`                (overridable via `YUOS_RUNTIME_DIR`)
+//!   - Config:           `/etc/yuos`                (overridable via `YUOS_CONFIG_DIR`)
+//!   - Logs:             `/var/log/yuos`            (overridable via `YUOS_LOG_DIR`)
 //!
-//! `cos` is a user-level CLI: no subcommand should require root to
+//! `yu` is a user-level CLI: no subcommand should require root to
 //! create or write its on-disk state. We therefore default
 //! [`data_dir`] to the per-user XDG-style location and reserve the
-//! system tree (`/var/lib/cos`) for the clawd daemon, which sets
-//! `COS_DATA_DIR=/var/lib/cos` in its systemd unit. Anything that
+//! system tree (`/var/lib/yuos`) for the yuosd daemon, which sets
+//! `YUOS_DATA_DIR=/var/lib/yuos` in its systemd unit. Anything that
 //! genuinely modifies the system goes through the approval gate and
-//! is executed by clawd on the caller's behalf, not by writing to
+//! is executed by yuosd on the caller's behalf, not by writing to
 //! root-owned paths from the CLI process.
 //!
-//! On Windows, defaults map to `%APPDATA%\cos\data` (per-user) or
-//! `%ProgramData%\cos\` (system) subdirectories. All environment
+//! On Windows, defaults map to `%APPDATA%\yuos\data` (per-user) or
+//! `%ProgramData%\yuos\` (system) subdirectories. All environment
 //! variables still apply on every platform.
 //!
 //! Models, agent state, audit logs, etc. should resolve their paths through
@@ -34,13 +34,13 @@ use std::path::{Path, PathBuf};
 // ---------------------------------------------------------------------------
 // Per-task HOME override (mirrors `config::with_override`).
 //
-// `yu agent ask` from a non-root user lands at the clawd socket; clawd
+// `yu agent ask` from a non-root user lands at the yuosd socket; yuosd
 // runs as root with `HOME=/root`. Every per-user resolver in this file
-// reads the `HOME` env var directly, so without an override clawd
+// reads the `HOME` env var directly, so without an override yuosd
 // looks for the user's config / credentials / consents under `/root/...`
 // rather than `/home/<user>/...`.
 //
-// Callers (the agent service worker) wrap each clawd-routed job in
+// Callers (the agent service worker) wrap each yuosd-routed job in
 // [`with_home_override`] with the requesting peer's resolved home
 // directory. Inside that scope, [`user_config_dir`] / [`user_data_dir`]
 // — and every helper transitively built on top of them
@@ -50,12 +50,12 @@ use std::path::{Path, PathBuf};
 // `with_home_override` scope the resolvers fall back to the `HOME`
 // env var exactly as before.
 //
-// The override does NOT defeat the existing `COS_USER_CONFIG_DIR` /
-// `COS_USER_DATA_DIR` env vars for the general per-user resolvers:
+// The override does NOT defeat the existing `YUOS_USER_CONFIG_DIR` /
+// `YUOS_USER_DATA_DIR` env vars for the general per-user resolvers:
 // those still take precedence so tests and multi-tenant overlays
 // continue to work. Agent conversation memory is the exception:
 // [`agent_memory_db_path`] must stay bound to the routed user's home
-// even when clawd sets the machine-wide `COS_DATA_DIR`.
+// even when yuosd sets the machine-wide `YUOS_DATA_DIR`.
 // ---------------------------------------------------------------------------
 
 tokio::task_local! {
@@ -238,7 +238,7 @@ fn windows_program_data() -> PathBuf {
     env::var_os("ProgramData")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(r"C:\ProgramData"))
-        .join("cos")
+        .join("yuos")
 }
 
 fn from_env_or_default(env_key: &str, unix_default: &str, subdir: &str) -> PathBuf {
@@ -259,130 +259,130 @@ fn from_env_or_default(env_key: &str, unix_default: &str, subdir: &str) -> PathB
 
 /// Resolve the on-disk state directory for this process.
 ///
-/// * If `COS_DATA_DIR` is set, honour it verbatim. This is the
+/// * If `YUOS_DATA_DIR` is set, honour it verbatim. This is the
 ///   escape hatch tests use to redirect state into a tempdir, and
-///   the mechanism clawd uses to pin its state under `/var/lib/cos`
+///   the mechanism yuosd uses to pin its state under `/var/lib/yuos`
 ///   (see the `Environment=` line in its systemd unit).
 /// * Otherwise default to the per-user data dir
-///   ([`user_data_dir`]): `$HOME/.local/share/cos` on Linux,
-///   `%APPDATA%\cos\data` on Windows. The `yu` CLI is a user-level
+///   ([`user_data_dir`]): `$HOME/.local/share/yuos` on Linux,
+///   `%APPDATA%\yuos\data` on Windows. The `yu` CLI is a user-level
 ///   command; it must never need root to write its own state.
 ///
 /// Callers should treat this as opaque — anything that genuinely
 /// requires system-wide visibility (audit logs, machine-shared model
-/// registries, …) is clawd's job, and clawd already runs with
-/// `COS_DATA_DIR` pointing at `/var/lib/cos`.
+/// registries, …) is yuosd's job, and yuosd already runs with
+/// `YUOS_DATA_DIR` pointing at `/var/lib/yuos`.
 pub fn data_dir() -> PathBuf {
-    if let Some(v) = env::var_os("COS_DATA_DIR") {
+    if let Some(v) = env::var_os("YUOS_DATA_DIR") {
         return PathBuf::from(v);
     }
     user_data_dir()
 }
 
 pub fn caps_data_dir() -> PathBuf {
-    std::env::var_os("COS_CAPS_DATA_DIR")
+    std::env::var_os("YUOS_CAPS_DATA_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(data_dir)
 }
 
 pub fn proc_data_dir() -> PathBuf {
-    if let Some(path) = std::env::var_os("COS_PROC_DATA_DIR") {
+    if let Some(path) = std::env::var_os("YUOS_PROC_DATA_DIR") {
         return PathBuf::from(path);
     }
     if let Some(uid) = current_owner_uid_override() {
-        return PathBuf::from("/run/cos/caps").join(uid.to_string());
+        return PathBuf::from("/run/yuos/caps").join(uid.to_string());
     }
     data_dir()
 }
 
 pub fn cache_dir() -> PathBuf {
-    from_env_or_default("COS_CACHE_DIR", "/var/cache/cos", "cache")
+    from_env_or_default("YUOS_CACHE_DIR", "/var/cache/yuos", "cache")
 }
 
 pub fn runtime_dir() -> PathBuf {
-    from_env_or_default("COS_RUNTIME_DIR", "/run/cos", "run")
+    from_env_or_default("YUOS_RUNTIME_DIR", "/run/yuos", "run")
 }
 
-pub fn clawd_socket_path() -> PathBuf {
+pub fn yuosd_socket_path() -> PathBuf {
     if let Some(path) = env::var_os(crate::extension_host::protocol::BROKER_SOCKET_ENV) {
         return PathBuf::from(path);
     }
-    runtime_dir().join("clawd.sock")
+    runtime_dir().join("yuosd.sock")
 }
 
 pub fn config_dir() -> PathBuf {
-    from_env_or_default("COS_CONFIG_DIR", "/etc/cos", "etc")
+    from_env_or_default("YUOS_CONFIG_DIR", "/etc/yuos", "etc")
 }
 
-/// Per-user config root. System config (`/etc/cos`) belongs to the
+/// Per-user config root. System config (`/etc/yuos`) belongs to the
 /// machine owner; this is the per-user overlay each `$HOME` writes.
-/// On Linux: `$HOME/.config/cos` (XDG). On Windows: `%APPDATA%\cos`.
-/// Override with `COS_USER_CONFIG_DIR` for tests / multi-tenant setups.
+/// On Linux: `$HOME/.config/yuos` (XDG). On Windows: `%APPDATA%\yuos`.
+/// Override with `YUOS_USER_CONFIG_DIR` for tests / multi-tenant setups.
 pub fn user_config_dir() -> PathBuf {
-    if let Some(v) = std::env::var_os("COS_USER_CONFIG_DIR") {
+    if let Some(v) = std::env::var_os("YUOS_USER_CONFIG_DIR") {
         return PathBuf::from(v);
     }
     #[cfg(windows)]
     {
         if let Some(v) = std::env::var_os("APPDATA") {
-            return PathBuf::from(v).join("cos");
+            return PathBuf::from(v).join("yuos");
         }
         return windows_program_data();
     }
     #[cfg(not(windows))]
     {
-        PathBuf::from(effective_home()).join(".config").join("cos")
+        PathBuf::from(effective_home()).join(".config").join("yuos")
     }
 }
 
 /// Path to the per-user agent config:
-/// `$HOME/.config/cos/config.json`. This is where `yu agent setup`
+/// `$HOME/.config/yuos/config.json`. This is where `yu agent setup`
 /// writes the `[agent]`/`[tts]`/`[stt]`/`[imagegen]`/`[embed]` blocks
 /// when the user picks providers, models, and keys from the wizard
 /// or the cosmic-settings agent page. System-wide defaults live in
-/// `CosConfig::default()`; there is no read-only `/etc/cos/config.json`
+/// `YuConfig::default()`; there is no read-only `/etc/yuos/config.json`
 /// overlay any more.
 ///
-/// Override the directory with `COS_USER_CONFIG_DIR`, or the file
-/// directly with `COS_CONFIG_PATH` (used by tests).
+/// Override the directory with `YUOS_USER_CONFIG_DIR`, or the file
+/// directly with `YUOS_CONFIG_PATH` (used by tests).
 pub fn user_config_path() -> PathBuf {
     user_config_dir().join("config.json")
 }
 
 /// Path to a specific user's agent config given their `$HOME` directory.
-/// Used by clawd (running as root) to read the requesting peer's
-/// `~/.config/cos/config.json` rather than its own — without this,
+/// Used by yuosd (running as root) to read the requesting peer's
+/// `~/.config/yuos/config.json` rather than its own — without this,
 /// every `yu agent ask` from a non-root user would silently fall back
-/// to clawd's default (empty) provider config and fail with
+/// to yuosd's default (empty) provider config and fail with
 /// "no LLM provider configured".
 ///
-/// On Linux this is `<home>/.config/cos/config.json`. On Windows the
+/// On Linux this is `<home>/.config/yuos/config.json`. On Windows the
 /// concept doesn't apply (no peer-credential socket); callers there
 /// should keep using [`user_config_path`].
 pub fn user_config_path_for(home: &Path) -> PathBuf {
-    home.join(".config").join("cos").join("config.json")
+    home.join(".config").join("yuos").join("config.json")
 }
 
 /// Per-user data root. Follows XDG_DATA_HOME on Linux
-/// (`$HOME/.local/share/cos`) and `%APPDATA%\cos\data` on Windows.
+/// (`$HOME/.local/share/yuos`) and `%APPDATA%\yuos\data` on Windows.
 /// Holds per-user secrets and large blobs that don't belong in the
 /// config tree: encrypted credentials, future per-user model caches,
 /// etc.
 ///
-/// Override with `COS_USER_DATA_DIR` for tests / multi-tenant setups.
+/// Override with `YUOS_USER_DATA_DIR` for tests / multi-tenant setups.
 ///
-/// When `COS_DATA_DIR` is unset, [`data_dir`] resolves to the same
+/// When `YUOS_DATA_DIR` is unset, [`data_dir`] resolves to the same
 /// path. Code that wants the user dir specifically — independent of
-/// any `COS_DATA_DIR` override that might point at `/var/lib/cos`
-/// for clawd — should call `user_data_dir` directly.
+/// any `YUOS_DATA_DIR` override that might point at `/var/lib/yuos`
+/// for yuosd — should call `user_data_dir` directly.
 pub fn user_data_dir() -> PathBuf {
-    if let Some(v) = std::env::var_os("COS_USER_DATA_DIR") {
+    if let Some(v) = std::env::var_os("YUOS_USER_DATA_DIR") {
         return PathBuf::from(v);
     }
     #[cfg(windows)]
     {
         if let Some(v) = std::env::var_os("APPDATA") {
-            return PathBuf::from(v).join("cos").join("data");
+            return PathBuf::from(v).join("yuos").join("data");
         }
         return windows_program_data().join("data");
     }
@@ -391,25 +391,25 @@ pub fn user_data_dir() -> PathBuf {
         PathBuf::from(effective_home())
             .join(".local")
             .join("share")
-            .join("cos")
+            .join("yuos")
     }
 }
 
 /// Per-user encrypted credential store root:
-/// `$HOME/.local/share/cos/credentials`. Each `yu agent setup` API
+/// `$HOME/.local/share/yuos/credentials`. Each `yu agent setup` API
 /// key, plus any other secret a user stores via `yu credential
 /// store`, lands under here as `<namespace>/<name>.json` (AES-256-GCM
 /// encrypted). Per-user so non-root users can save API keys without
-/// touching `/var/lib/cos`. Override with `COS_CREDENTIALS_DIR`.
+/// touching `/var/lib/yuos`. Override with `YUOS_CREDENTIALS_DIR`.
 pub fn user_credentials_dir() -> PathBuf {
-    if let Some(v) = std::env::var_os("COS_CREDENTIALS_DIR") {
+    if let Some(v) = std::env::var_os("YUOS_CREDENTIALS_DIR") {
         return PathBuf::from(v);
     }
     user_data_dir().join("credentials")
 }
 
 /// Per-app user override file:
-/// `$HOME/.config/cos/apps/<app_id>.json`. Missing is normal and
+/// `$HOME/.config/yuos/apps/<app_id>.json`. Missing is normal and
 /// means "no overrides, inherit the manifest verbatim". See
 /// [`crate::ai::overrides`] for the schema and merge semantics.
 pub fn user_app_override_path(app_id: &str) -> PathBuf {
@@ -419,7 +419,7 @@ pub fn user_app_override_path(app_id: &str) -> PathBuf {
 }
 
 /// Per-app user consent file:
-/// `$HOME/.config/cos/consents/<app_id>.json`. Records the user's
+/// `$HOME/.config/yuos/consents/<app_id>.json`. Records the user's
 /// explicit approval of an App's declared AI policy, snapshotted at
 /// the moment of approval. Missing means "the user has never seen the
 /// app's AI block", which the gate treats as `consent_required`. See
@@ -431,7 +431,7 @@ pub fn user_app_consent_path(app_id: &str) -> PathBuf {
 }
 
 /// Per-user aggregate AI budget config:
-/// `$HOME/.config/cos/ai/budget.json`. Holds a single
+/// `$HOME/.config/yuos/ai/budget.json`. Holds a single
 /// `monthly_units` field which caps the **total** token spend across
 /// every installed App for the current calendar month. A missing
 /// file (or `monthly_units == 0`) means "no cap" — the user has
@@ -442,7 +442,7 @@ pub fn user_budget_config_path() -> PathBuf {
 }
 
 pub fn log_dir() -> PathBuf {
-    from_env_or_default("COS_LOG_DIR", "/var/log/cos", "logs")
+    from_env_or_default("YUOS_LOG_DIR", "/var/log/yuos", "logs")
 }
 
 pub fn models_dir() -> PathBuf {
@@ -483,7 +483,7 @@ pub fn agent_state_dir() -> PathBuf {
 
 fn routed_agent_state_dir() -> PathBuf {
     current_owner_uid_override()
-        .map(clawd_user_agent_state_dir)
+        .map(yuosd_user_agent_state_dir)
         .unwrap_or_else(agent_state_dir)
 }
 
@@ -494,13 +494,13 @@ pub fn agent_notes_dir() -> PathBuf {
 }
 
 /// Path to the agent's SQLite FTS5 conversation history database.
-/// A clawd-routed user job uses an owner-owned, UID-partitioned database under
+/// A yuosd-routed user job uses an owner-owned, UID-partitioned database under
 /// `data_dir/users/<uid>/agent/`; a non-daemon home-only override uses the
 /// user's XDG data directory. Otherwise it remains under `data_dir/agent/`.
 /// Created on first write.
 pub fn agent_memory_db_path() -> PathBuf {
     if let Some(uid) = current_owner_uid_override() {
-        return clawd_user_memory_db_path(uid);
+        return yuosd_user_memory_db_path(uid);
     }
     if let Some(home) = current_home_override() {
         return agent_memory_db_path_for_home(&home);
@@ -511,44 +511,44 @@ pub fn agent_memory_db_path() -> PathBuf {
 pub fn agent_memory_db_path_for_home(home: &Path) -> PathBuf {
     home.join(".local")
         .join("share")
-        .join("cos")
+        .join("yuos")
         .join("agent")
         .join("memory.db")
 }
 
-pub fn clawd_user_memory_db_path(uid: u32) -> PathBuf {
-    clawd_user_agent_state_dir(uid).join("memory.db")
+pub fn yuosd_user_memory_db_path(uid: u32) -> PathBuf {
+    yuosd_user_agent_state_dir(uid).join("memory.db")
 }
 
 /// Owner-readable system-agent memory from a non-daemon process.
 ///
-/// Tests that redirect `COS_DATA_DIR` keep using that explicit root;
+/// Tests that redirect `YUOS_DATA_DIR` keep using that explicit root;
 /// installed user processes otherwise address the daemon partition at
-/// `/var/lib/cos/users/<uid>/agent`.
+/// `/var/lib/yuos/users/<uid>/agent`.
 pub fn system_agent_memory_db_path(uid: u32) -> PathBuf {
     #[cfg(test)]
-    let root = std::env::var_os("COS_DATA_DIR")
+    let root = std::env::var_os("YUOS_DATA_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/var/lib/cos"));
+        .unwrap_or_else(|| PathBuf::from("/var/lib/yuos"));
     #[cfg(not(test))]
-    let root = PathBuf::from("/var/lib/cos");
+    let root = PathBuf::from("/var/lib/yuos");
     root.join("users")
         .join(uid.to_string())
         .join("agent")
         .join("memory.db")
 }
 
-pub fn clawd_user_agent_state_dir(uid: u32) -> PathBuf {
-    clawd_user_state_dir(uid).join("agent")
+pub fn yuosd_user_agent_state_dir(uid: u32) -> PathBuf {
+    yuosd_user_state_dir(uid).join("agent")
 }
 
-/// Per-owner state root for clawd-routed agent work.
+/// Per-owner state root for yuosd-routed agent work.
 ///
 /// Owned by that account and `0700`, because the agent runtime now
-/// executes as the task owner in `claw-agentd` and has to be able to
+/// executes as the task owner in `yuos-agentd` and has to be able to
 /// write its own conversation memory, notes and budget counters. The
 /// user-owned Web surfaces can read it; no other unprivileged account can.
-pub fn clawd_user_state_dir(uid: u32) -> PathBuf {
+pub fn yuosd_user_state_dir(uid: u32) -> PathBuf {
     data_dir().join("users").join(uid.to_string())
 }
 
@@ -556,7 +556,7 @@ pub fn clawd_user_state_dir(uid: u32) -> PathBuf {
 /// routed job, the process data dir everywhere else.
 pub fn routed_data_dir() -> PathBuf {
     match current_owner_uid_override() {
-        Some(uid) => clawd_user_state_dir(uid),
+        Some(uid) => yuosd_user_state_dir(uid),
         None => data_dir(),
     }
 }
@@ -609,38 +609,38 @@ pub fn agent_audit_log_path() -> PathBuf {
 ///
 /// Lives at `log_dir()/caps.jsonl`. Recording is unconditional and
 /// cannot be suppressed. The destination is not fixed here: it
-/// follows the deployment-controlled `COS_LOG_DIR`/[`log_dir`]
+/// follows the deployment-controlled `YUOS_LOG_DIR`/[`log_dir`]
 /// configuration, which a trusted deployment is responsible for
 /// setting.
 pub fn caps_audit_log_path() -> PathBuf {
     log_dir().join("caps.jsonl")
 }
 
-/// Central system-operation journal owned by `clawd`.
+/// Central system-operation journal owned by `yuosd`.
 ///
 /// This is the persistent machine-level timeline AI and system UIs read
 /// when they need to understand what happened recently. It receives
 /// normalized events from the daemon API, capability enforcement, and
 /// other system integration points as they are wired in.
 pub fn system_operations_log_path() -> PathBuf {
-    data_dir().join("clawd").join("system-operations.jsonl")
+    data_dir().join("yuosd").join("system-operations.jsonl")
 }
 
-/// Append-only context-event journal owned by `clawd`.
+/// Append-only context-event journal owned by `yuosd`.
 ///
 /// Providers (apps, desktop integrations, shell/WSL collectors, browser
 /// bridges, etc.) write source-scoped time-series events here. The daemon
 /// exposes query APIs for source/app/time-range/order lookups and derives
 /// recent activity snapshots from this same journal.
 pub fn context_events_log_path() -> PathBuf {
-    data_dir().join("clawd").join("context-events.jsonl")
+    data_dir().join("yuosd").join("context-events.jsonl")
 }
 
 /// Root of the authoritative session event journal.
 ///
 /// Root-owned and never written by an unprivileged process: the MAC
 /// keys, the writer lease and every partition chain live here, and
-/// `clawd` is the only writer. See [`crate::session::journal`] for the
+/// `yuosd` is the only writer. See [`crate::session::journal`] for the
 /// layout and the integrity rules.
 pub fn session_journal_dir() -> PathBuf {
     data_dir().join("journal")
@@ -649,11 +649,11 @@ pub fn session_journal_dir() -> PathBuf {
 /// Durable, daemon-owned notification state.
 ///
 /// Notifications are partitioned by `owner_uid` inside the database and are
-/// exposed only through owner-scoped `clawd` routes. Keeping the database
+/// exposed only through owner-scoped `yuosd` routes. Keeping the database
 /// under the daemon tree prevents an unprivileged Agent worker from rewriting
 /// delivery, acknowledgement, or preference state.
 pub fn notifications_db_path() -> PathBuf {
-    data_dir().join("clawd").join("notifications.db")
+    data_dir().join("yuosd").join("notifications.db")
 }
 
 /// Directory for agent's per-session todo lists. Lives under
@@ -674,11 +674,11 @@ pub fn agent_skills_dir() -> PathBuf {
 
 /// Read-only skills bundled with the installed Agent package.
 ///
-/// Debian packages place these under `/usr/lib/cos/skills`. The
+/// Debian packages place these under `/usr/lib/yuos/skills`. The
 /// environment override supports development checkouts and tests without
 /// changing the writable user skill root returned by [`agent_skills_dir`].
 pub fn system_skills_dir() -> PathBuf {
-    from_env_or_default("COS_SYSTEM_SKILLS_DIR", "/usr/lib/cos/skills", "skills")
+    from_env_or_default("YUOS_SYSTEM_SKILLS_DIR", "/usr/lib/yuos/skills", "skills")
 }
 
 /// Root for extension-provenance state.
@@ -772,10 +772,10 @@ pub fn agent_runtime_socket() -> PathBuf {
 /// invocation; one CLI call may produce many run-record lines.
 pub fn ai_run_log_path() -> PathBuf {
     if let Some(uid) = current_owner_uid_override() {
-        // A routed job runs unprivileged in `claw-agentd`, which cannot
+        // A routed job runs unprivileged in `yuos-agentd`, which cannot
         // write the daemon's `0700` log dir. Its run records land in the
         // same owner partition as the rest of that task's state.
-        return clawd_user_state_dir(uid).join("logs").join("ai.jsonl");
+        return yuosd_user_state_dir(uid).join("logs").join("ai.jsonl");
     }
     log_dir().join("ai.jsonl")
 }

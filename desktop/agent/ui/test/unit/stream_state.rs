@@ -1,6 +1,6 @@
 use super::*;
 use crate::session::TokenUsage;
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     DeltaPayload, DonePayload, ReasoningPayload, TaskStarted, ToolResultPayload, ToolStartPayload,
     TurnDonePayload, Usage,
 };
@@ -240,7 +240,7 @@ fn cancellation_freezes_text_until_the_job_confirms_it_stopped() {
     assert!(!stream.cancel_finished(generation, Ok(()), &mut sessions));
     assert!(stream.is_cancelling());
 
-    let mut stopped = cos_agent_protocol::StreamError::new("agent task was cancelled");
+    let mut stopped = yuos_agent_protocol::StreamError::new("agent task was cancelled");
     stopped.task_status = Some("cancelled".into());
     assert_eq!(
         stream.reduce(generation, StreamEvent::Error(stopped), &mut sessions),
@@ -255,7 +255,7 @@ fn cancellation_freezes_text_until_the_job_confirms_it_stopped() {
 #[test]
 fn provider_preparation_and_runtime_dispatch_have_distinct_truthful_phases() {
     let (mut stream, mut sessions, generation) = active_stream();
-    stream.reduce(generation, StreamEvent::ToolUseStart(cos_agent_protocol::ToolUseStartPayload {
+    stream.reduce(generation, StreamEvent::ToolUseStart(yuos_agent_protocol::ToolUseStartPayload {
         id:"tool-1".into(), name:"observe".into(),
     }), &mut sessions);
     assert_eq!(sessions.active().unwrap().messages.last().unwrap().tool_calls[0].phase, Some(ToolPhase::Preparing));

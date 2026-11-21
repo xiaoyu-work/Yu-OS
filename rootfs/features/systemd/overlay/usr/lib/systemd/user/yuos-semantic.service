@@ -1,0 +1,21 @@
+[Unit]
+Description=YuOS: semantic (embedding) document index daemon
+Documentation=man:yuos-semantic(1)
+After=yuos-recoll-index.service
+ConditionPathIsExecutable=/usr/local/bin/yuos-semantic-daemon
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/yuos-semantic-daemon
+MemoryHigh=6G
+MemoryMax=8G
+CPUWeight=40
+IOWeight=40
+Nice=12
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

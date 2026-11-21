@@ -1,6 +1,6 @@
 (
     name: "Web search",
-    description: "Syntax: { ddg | google | ... } <keywords>\nExample: ddg how to install ClawOS",
+    description: "Syntax: { ddg | google | ... } <keywords>\nExample: ddg how to install YuOS",
     category: Commands,
     query: (help: "ddg ", priority: High),
     bin: (path: "web"),

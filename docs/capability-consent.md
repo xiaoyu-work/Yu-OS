@@ -20,7 +20,7 @@ may run.
 5. An approval creates a time-bounded, use-bounded, generation-bound consent
    record. Critical Agent requests are one-shot; high-risk Agent requests may
    be one-shot or session-limited, but not `forever`.
-6. When `claw-agentd` retries the operation, `clawd` atomically spends the
+6. When `yuos-agentd` retries the operation, `yuosd` atomically spends the
    exact consent record and redeems it into an in-memory one-use capability
    grant bound to the owner, session, task, worker pid/start time, verb, scope,
    approval expiry, and revocation generation.
@@ -34,10 +34,10 @@ Tokio task-local identity for each Agent invocation. Web identities include the
 conversation and a fresh turn ID; every invocation also receives a fresh
 nonce. There is no process-wide fallback identity.
 
-For example, `cos_proc status <session>` derives low-risk
-`proc.observe:self:<session>`, while `cos_proc kill <session>` derives
+For example, `yu_proc status <session>` derives low-risk
+`proc.observe:self:<session>`, while `yu_proc kill <session>` derives
 high-risk `proc.signal:self:<session>`. They share one proxy tool name but not
-one consent decision. `cos_proc spawn` remains on the legacy tool-name gate
+one consent decision. `yu_proc spawn` remains on the legacy tool-name gate
 until its whole command surface is mapped. Independently of that compatibility
 gate, spawn resolves the executable to a canonical path, requires both
 `proc.spawn:self:children` and `fs.exec:path:<executable>`, and binds both
@@ -58,11 +58,11 @@ accepts only host-architecture, fixed-address ELF executables with an
 executable load segment and no `PT_INTERP`, `PT_DYNAMIC`, or executable stack.
 Shebang files, shells, language runtimes, script/module arguments, dynamically
 linked programs, and existing file arguments fail before an approval request
-is created and direct the caller to `cos_sandbox`. Non-Linux platforms also
+is created and direct the caller to `yu_sandbox`. Non-Linux platforms also
 fail closed until they provide an equivalent handle-pinned execution path.
 
 Static ELF shape is necessary but not sufficient. Every unsandboxed command
-must also match `/etc/cos/proc-spawn-allowlist.json`, a regular version-1
+must also match `/etc/yuos/proc-spawn-allowlist.json`, a regular version-1
 manifest owned by root and not writable by group or other users. Each entry
 binds:
 
@@ -130,7 +130,7 @@ handles or secret scope values.
 
 `dangerous_tools` is retained only as a compatibility prompt for tools that do
 not expose a capability-aware execution boundary. Capability-aware core
-`cos_*` primitive proxies may contain both read and write commands, so their
+`yu_*` primitive proxies may contain both read and write commands, so their
 tool name is too coarse and no longer intercepts execution.
 
 - Use `auto_deny_tools` for a hard operator block on an entire tool.
@@ -139,9 +139,9 @@ tool name is too coarse and no longer intercepts execution.
 - Remove capability-aware core proxy names from `dangerous_tools`; exact
   capability risk and scope now drive their consent requests.
 - Keep mixed or incomplete proxies on `dangerous_tools` until every sensitive
-  branch has an exact mapping. `cos_proc` remains legacy-filtered while spawn
+  branch has an exact mapping. `yu_proc` remains legacy-filtered while spawn
   additionally enforces exact executable and invocation-bound capabilities.
-  `cos_sysinfo` also remains legacy-filtered, and its `env --include-secrets`
+  `yu_sysinfo` also remains legacy-filtered, and its `env --include-secrets`
   branch separately requires
   `secret.read:name:environment`; a low-risk `sys.observe` grant is
   insufficient.

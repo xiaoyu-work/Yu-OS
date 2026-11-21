@@ -3,9 +3,9 @@ use std::os::unix::fs::{DirBuilderExt, FileTypeExt, MetadataExt, PermissionsExt}
 use std::os::unix::net::UnixListener;
 use std::path::{Path, PathBuf};
 
-use claw_display_control::{Epoch, Error, InstanceId};
+use yuos_display_control::{Epoch, Error, InstanceId};
 
-const ROOT: &str = "/run/cos/gui";
+const ROOT: &str = "/run/yuos/gui";
 
 #[derive(Clone, Copy)]
 pub(crate) enum Socket {
@@ -41,7 +41,7 @@ impl Runtime {
         if unsafe { libc::geteuid() } != 0 {
             return Err(Error::Identity);
         }
-        for parent in [Path::new("/run"), Path::new("/run/cos")] {
+        for parent in [Path::new("/run"), Path::new("/run/yuos")] {
             check_root_directory(parent, false)?;
         }
         match std::fs::DirBuilder::new().mode(0o700).create(ROOT) {

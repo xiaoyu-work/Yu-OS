@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # tools/install-browser-agent.sh
 #
-# Install the Claw Agent WebExtension and its Native Messaging host system-wide.
+# Install the Yu OS Agent WebExtension and its Native Messaging host system-wide.
 #
-#   - WebExtension source       → /usr/share/claw/extensions/claw-agent-browser/
-#   - OS transport (Python)     → /usr/lib/cos/browser-native-host.py
-#   - Chromium managed policy   → /etc/chromium/policies/managed/claw-agent.json
+#   - WebExtension source       → /usr/share/yuos/extensions/yuos-agent-browser/
+#   - OS transport (Python)     → /usr/lib/yuos/browser-native-host.py
+#   - Chromium managed policy   → /etc/chromium/policies/managed/yuos-agent.json
 #   - Chromium NM host manifest → /etc/chromium/native-messaging-hosts/com.yuos.browser.json
-#   - Native host launcher      → /usr/lib/cos/claw-browser-host
+#   - Native host launcher      → /usr/lib/yuos/yuos-browser-host
 #   - Separate chat NM manifest → /etc/chromium/native-messaging-hosts/com.yuos.browser_chat.json
 #
 # Run as root.  Re-run is idempotent (overwrites).
@@ -22,21 +22,21 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-EXT_DEST="/usr/share/claw/extensions/claw-agent-browser"
-HOST_LAUNCHER="/usr/lib/cos/claw-browser-host"
-HOST_IMPL="/usr/lib/cos/browser-native-host.py"
-CHAT_HOST="/usr/lib/cos/browser-chat-native-host"
+EXT_DEST="/usr/share/yuos/extensions/yuos-agent-browser"
+HOST_LAUNCHER="/usr/lib/yuos/yuos-browser-host"
+HOST_IMPL="/usr/lib/yuos/browser-native-host.py"
+CHAT_HOST="/usr/lib/yuos/browser-chat-native-host"
 NM_MANIFEST="/etc/chromium/native-messaging-hosts/com.yuos.browser.json"
 CHAT_MANIFEST="/etc/chromium/native-messaging-hosts/com.yuos.browser_chat.json"
-POLICY_FILE="/etc/chromium/policies/managed/claw-agent.json"
+POLICY_FILE="/etc/chromium/policies/managed/yuos-agent.json"
 
 # Extension ID is deterministic when packed with a known key, but for the MVP
 # we install the unpacked extension for the administrator to load explicitly.
-# Callers can override CLAW_EXT_ID once they generate a stable packed CRX.
-EXT_ID="${CLAW_EXT_ID:-}"
+# Callers can override YUOS_EXT_ID once they generate a stable packed CRX.
+EXT_ID="${YUOS_EXT_ID:-}"
 
 if [[ -n "${EXT_ID}" && ! "${EXT_ID}" =~ ^[a-p]{32}$ ]]; then
-  echo "CLAW_EXT_ID must be the Chromium extension's 32-letter ID" >&2
+  echo "YUOS_EXT_ID must be the Chromium extension's 32-letter ID" >&2
   exit 1
 fi
 
@@ -47,7 +47,7 @@ if [[ -e "${CHAT_HOST}" || -L "${CHAT_HOST}" ]]; then
 fi
 for file in "${files[@]}"; do
   if [[ ! -f "${file}" || -L "${file}" ]]; then
-    echo "missing installed Browser asset: ${file}; install claw-app-browser and the matching claw-os-agent first" >&2
+    echo "missing installed Browser asset: ${file}; install yuos-app-browser and the matching yuos-agent first" >&2
     exit 1
   fi
   mode="$(stat -c %a "${file}")"
@@ -65,7 +65,7 @@ if [[ -f "${CHAT_HOST}" && ! -x "${CHAT_HOST}" ]]; then
   exit 1
 fi
 
-echo "[claw] installing Native Messaging for Helium → ${NM_MANIFEST}"
+echo "[yuos] installing Native Messaging for Helium → ${NM_MANIFEST}"
 install -d -m 0755 "$(dirname "${NM_MANIFEST}")"
 if [[ -n "${EXT_ID}" ]]; then
   ALLOWED_ORIGINS=$(printf '"chrome-extension://%s/"' "${EXT_ID}")
@@ -78,7 +78,7 @@ fi
 cat > "${NM_MANIFEST}" <<EOF
 {
   "name": "com.yuos.browser",
-  "description": "Claw Agent — bridge between Chromium and the yu kernel",
+  "description": "Yu OS Agent — bridge between Chromium and the yu kernel",
   "path": "${HOST_LAUNCHER}",
   "type": "stdio",
   "allowed_origins": [${ALLOWED_ORIGINS}]
@@ -90,7 +90,7 @@ if [[ -x "${CHAT_HOST}" ]]; then
   cat > "${CHAT_MANIFEST}" <<EOF
 {
   "name": "com.yuos.browser_chat",
-  "description": "Claw Agent chat for Helium",
+  "description": "Yu OS Agent chat for Helium",
   "path": "${CHAT_HOST}",
   "type": "stdio",
   "allowed_origins": [${ALLOWED_ORIGINS}]
@@ -99,13 +99,13 @@ EOF
   chmod 0644 "${CHAT_MANIFEST}"
 fi
 
-echo "[claw] installing Chromium managed policy → ${POLICY_FILE}"
+echo "[yuos] installing Chromium managed policy → ${POLICY_FILE}"
 install -d -m 0755 "$(dirname "${POLICY_FILE}")"
 # Pin force-install / allowlist to the specific extension ID. If the
 # caller has not yet generated a stable ID, we ship an empty allowlist
 # (which disables *all* extension installs via policy) — strictly safer
 # than the previous "*" wildcard, which let any side-loaded extension
-# in. The admin re-runs the script with CLAW_EXT_ID=<id> once known.
+# in. The admin re-runs the script with YUOS_EXT_ID=<id> once known.
 if [[ -n "${EXT_ID}" ]]; then
   POLICY_ALLOWLIST=$(printf '"%s"' "${EXT_ID}")
   POLICY_EXT_SETTINGS=$(printf '"%s": { "installation_mode": "allowed" }' "${EXT_ID}")
@@ -125,19 +125,19 @@ chmod 0644 "${POLICY_FILE}"
 
 cat <<MSG
 
-[claw] install complete.
+[yuos] install complete.
 
 Next steps:
   1. Launch Helium.
   2. helium://extensions → Developer mode ON → Load unpacked → ${EXT_DEST}
   3. Note the assigned Extension ID (32 lowercase letters).
-  4. Re-run this script with CLAW_EXT_ID=<id> to pin Native Messaging
+  4. Re-run this script with YUOS_EXT_ID=<id> to pin Native Messaging
      and the extension allowlist to that ID:
-       CLAW_EXT_ID=<id> sudo ${BASH_SOURCE[0]}
-  5. Reload the extension or restart Helium; pin Claw Agent to open chat with one click.
+       YUOS_EXT_ID=<id> sudo ${BASH_SOURCE[0]}
+  5. Reload the extension or restart Helium; pin Yu OS Agent to open chat with one click.
 
 To verify the bridge:
-  ls -l \$XDG_RUNTIME_DIR/claw-browser.sock     # socket should exist
+  ls -l \$XDG_RUNTIME_DIR/yuos-browser.sock     # socket should exist
   yu app browser-attached tabs.list            # approval-gated tab list
 
 MSG

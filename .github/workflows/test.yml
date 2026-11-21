@@ -3,6 +3,12 @@ name: Test (clippy + cargo test + pytest)
 on:
   pull_request:
   workflow_dispatch:
+    inputs:
+      app_candidate_revision:
+        description: "Exact App commit for private validation against this checkout's unpublished SDK"
+        required: false
+        type: string
+        default: ""
   workflow_call:
     inputs:
       app_source_artifact:
@@ -60,7 +66,7 @@ jobs:
       # Every App operation, GUI surface, MCP server and adapter runs
       # inside bubblewrap, and the launcher fails closed without it. The
       # runner image does not ship it, so it is installed here — and
-      # `COS_WORKER_SANDBOX_REQUIRED` makes the isolation suite *fail*
+      # `YUOS_WORKER_SANDBOX_REQUIRED` makes the isolation suite *fail*
       # rather than skip if it is somehow still unavailable, so a
       # missing dependency cannot turn those tests into a no-op.
       - name: Install worker sandbox dependencies
@@ -89,7 +95,7 @@ jobs:
       # ~530 dependency crates a second time into
       # `target/x86_64-unknown-linux-musl/` for no extra signal: the only
       # target-conditional code in the crate is the `RlimitResource` type
-      # alias in `clawd/crash.rs`, and the image workflows still compile the
+      # alias in `yuosd/crash.rs`, and the image workflows still compile the
       # real musl release binary, so a musl-only break is still caught.
       - name: Clippy lint (yu)
         run: cd core && cargo clippy -- -D warnings
@@ -104,30 +110,26 @@ jobs:
       - name: Resolve App main into immutable test inputs
         env:
           APP_SOURCE_ARTIFACT: ${{ inputs.app_source_artifact }}
-        run: |
-          if [ -n "$APP_SOURCE_ARTIFACT" ]; then
-            export CLAW_APP_SOURCE_LOCK="$GITHUB_WORKSPACE/build/release/app-sources.json"
-            echo "CLAW_APP_SOURCE_LOCK=$CLAW_APP_SOURCE_LOCK" >> "$GITHUB_ENV"
-          fi
-          python3 scripts/app_sources.py
+          APP_CANDIDATE_REVISION: ${{ inputs.app_candidate_revision }}
+        run: bash scripts/ci/prepare-app-validation.sh
 
       - name: Run privileged extension boundaries
         run: bash scripts/ci/test-boundaries.sh extensions
 
       - name: Run Yu OS core tests
         # `--test-threads=1` because many tests in `yu` mutate process-wide
-        # env vars (`COS_DATA_DIR`, `COS_SESSION`, `COS_PERMS_MODE`, …).
+        # env vars (`YUOS_DATA_DIR`, `YUOS_SESSION`, `YUOS_PERMS_MODE`, …).
         # Each module guards its own state with a per-module `Mutex<()>`,
         # but the env vars themselves are shared, so two modules racing on
         # separate locks still trample each other. Running serially is the
         # cheapest fix; the lib test binary finishes in ~70s.
         #
-        # `COS_WORKER_SANDBOX_REQUIRED` turns an unavailable worker
+        # `YUOS_WORKER_SANDBOX_REQUIRED` turns an unavailable worker
         # sandbox into a failure here: the previous step installed the
         # prerequisites, so a skip would mean they are broken rather
         # than absent.
         env:
-          COS_WORKER_SANDBOX_REQUIRED: "1"
+          YUOS_WORKER_SANDBOX_REQUIRED: "1"
         run: cd core && cargo test -- --test-threads=1
 
       - name: Test ordinary App bind gate
@@ -150,14 +152,14 @@ jobs:
       # tests and discarded with them, so these steps need no secret.
       - name: Test update downgrade protection packaging
         run: |
-          cd core && cargo build --bin claw-security-floor
+          cd core && cargo build --bin yuos-security-floor
           cd "$GITHUB_WORKSPACE"
-          COS_SECURITY_FLOOR_BIN="$GITHUB_WORKSPACE/target/debug/claw-security-floor" \
+          YUOS_SECURITY_FLOOR_BIN="$GITHUB_WORKSPACE/target/debug/yuos-security-floor" \
             bash packaging/deb/tests/test-security-floor-packaging.sh
 
       - name: Test update downgrade protection installation
         run: |
-          COS_SECURITY_FLOOR_BIN="$GITHUB_WORKSPACE/target/debug/claw-security-floor" \
+          YUOS_SECURITY_FLOOR_BIN="$GITHUB_WORKSPACE/target/debug/yuos-security-floor" \
             bash packaging/deb/tests/test-security-floor-install.sh
 
       - name: Run App data SDK and provider contracts
@@ -168,11 +170,11 @@ jobs:
 
       - name: Run Python tests
         env:
-          PYTHONPATH: claw-os-sdk/python/src:cos-runtime/python/src
-          CLAW_APPLET_TEST_BINARY: ${{ github.workspace }}/target/debug/claw-os-applet-provider
+          PYTHONPATH: yuos-sdk/python/src:yuos-runtime/python/src
+          YUOS_APPLET_TEST_BINARY: ${{ github.workspace }}/target/debug/yuos-applet-provider
         run: >-
-          python3 -m pytest -q adapters claw-os-sdk/python/src cos-runtime/python/src
-          packaging/deb/tests/test_app_sources.py rootfs/features/claw-mail-ai/test_install.py
+          python3 -m pytest -q adapters yuos-sdk/python/src yuos-runtime/python/src
+          packaging/deb/tests/test_app_sources.py rootfs/features/yuos-mail-ai/test_install.py
           scripts/tests/test_app_platform.py packaging/deb/tests/test_applet_provider.py
           scripts/tests/test_native_editor_payload.py core/tests/test_app_apt_metadata.py
 
@@ -184,8 +186,8 @@ jobs:
           root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
           selected = set()
           helpers = {
-              "yu", "claw-agentd", "claw-extension-host", "claw-app-runner",
-              "claw-app-apt-hook", "claw-file-manager",
+              "yu", "yuos-agentd", "yuos-extension-host", "yuos-app-runner",
+              "yuos-app-apt-hook", "yuos-file-manager",
               "extension_host_boundary", "agentd_process_boundary",
           }
           for report in pathlib.Path(os.environ["RUNNER_TEMP"]).glob("*-tests.jsonl"):
@@ -293,12 +295,9 @@ jobs:
       - name: Resolve immutable App fixture inputs
         env:
           APP_SOURCE_ARTIFACT: ${{ inputs.app_source_artifact }}
-        run: |
-          if [ -n "$APP_SOURCE_ARTIFACT" ]; then
-            export CLAW_APP_SOURCE_LOCK="$GITHUB_WORKSPACE/build/release/app-sources.json"
-            echo "CLAW_APP_SOURCE_LOCK=$CLAW_APP_SOURCE_LOCK" >> "$GITHUB_ENV"
-          fi
-          python3 scripts/app_sources.py
+          APP_CANDIDATE_REVISION: ${{ inputs.app_candidate_revision }}
+          ACCEPTANCE_MODE: ${{ matrix.mode }}
+        run: bash scripts/ci/prepare-app-validation.sh "$ACCEPTANCE_MODE"
       - name: Test authenticated OS display and GUI lifetime
         if: matrix.mode == 'display'
         run: bash scripts/ci/test-boundaries.sh display
@@ -381,28 +380,28 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-          cache-dependency-path: claw-os-sdk/node/package-lock.json
+          cache-dependency-path: yuos-sdk/node/package-lock.json
       - uses: actions/setup-go@v5
         with:
-          go-version-file: claw-os-sdk/go/go.mod
+          go-version-file: yuos-sdk/go/go.mod
           cache: false
       - uses: dtolnay/rust-toolchain@stable
       - name: Verify generated public bindings
         run: |
-          python3 claw-os-sdk/wire/codegen.py
+          python3 yuos-sdk/wire/codegen.py
           git diff --exit-code -- \
-            claw-os-sdk/rust/src/generated.rs \
-            claw-os-sdk/python/src/claw_os_sdk/generated.py \
-            claw-os-sdk/node/src/generated.ts \
-            claw-os-sdk/go/generated.go
+            yuos-sdk/rust/src/generated.rs \
+            yuos-sdk/python/src/yuos_sdk/generated.py \
+            yuos-sdk/node/src/generated.ts \
+            yuos-sdk/go/generated.go
       - name: Install existing SDK test dependencies
         run: |
           python3 -m pip install --disable-pip-version-check pytest
-          npm ci --prefix claw-os-sdk/node
+          npm ci --prefix yuos-sdk/node
       - name: Test all four public SDK bindings
         run: |
-          PYTHONPATH=claw-os-sdk/python/src \
-            python3 -m pytest -q claw-os-sdk/python/src
-          npm test --prefix claw-os-sdk/node
-          cargo test --locked -p claw-os-sdk -- --test-threads=1
-          (cd claw-os-sdk/go && go test ./...)
+          PYTHONPATH=yuos-sdk/python/src \
+            python3 -m pytest -q yuos-sdk/python/src
+          npm test --prefix yuos-sdk/node
+          cargo test --locked -p yuos-sdk -- --test-threads=1
+          (cd yuos-sdk/go && go test ./...)

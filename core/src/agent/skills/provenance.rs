@@ -34,7 +34,7 @@ use crate::provenance::TrustSource;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Provenance {
-    /// Bundled with cos itself (clawos/skills/).
+    /// Bundled with Yu OS in `skills/`.
     Vendor,
     /// Synced from a public hub (github.com/agentskills/...).
     Hub,
@@ -60,7 +60,7 @@ impl Provenance {
     }
 
     /// True if this provenance is considered "trusted" — bundled
-    /// with cos, or user-authored. Hub + Unknown go through the
+    /// with Yu OS, or user-authored. Hub + Unknown go through the
     /// stricter guard checks.
     pub fn is_trusted(self) -> bool {
         matches!(self, Self::Vendor | Self::User)
@@ -278,7 +278,7 @@ fn manifest_allowed_tools_empty(m: &SkillManifest) -> bool {
 }
 
 // The skill-local ed25519 stack (a manifest-only signature plus the
-// `COS_SKILLS_REQUIRE_SIGNATURE` / `COS_SKILLS_TRUSTED_KEYS` env
+// `YUOS_SKILLS_REQUIRE_SIGNATURE` / `YUOS_SKILLS_TRUSTED_KEYS` env
 // opt-in) is gone. It authenticated the frontmatter but not the skill
 // body, its scripts or its resources, and it let an environment
 // variable decide whether verification happened at all.

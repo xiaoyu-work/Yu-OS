@@ -1,7 +1,7 @@
 //! The App–AI Gate. Single entry point Apps use to reach a model.
 //!
 //! ```text
-//!     yu ai chat --app …       claw-os-sdk/python/src/claw_os_sdk/ai.py
+//!     yu ai chat --app …       yuos-sdk/python/src/yuos_sdk/ai.py
 //!          │                          │
 //!          ▼                          ▼
 //!   ai::gate::chat_blocking ─── caps::require(ai.*, name(model))
@@ -15,13 +15,13 @@
 //!          │                          │   │   origins = M ∩ U
 //!          │                          │   │
 //!          │                          │   └─ user override
-//!          │                          │      ($HOME/.config/cos/apps/<id>.json)
+//!          │                          │      ($HOME/.config/yuos/apps/<id>.json)
 //!          │                          │
 //!          │                          ▼
 //!          │                  user consent (snapshot of manifest AI block)
 //!          │                          │   missing  → ConsentRequired
 //!          │                          │   drifted  → ConsentStale
-//!          │                          │   ($HOME/.config/cos/consents/<id>.json)
+//!          │                          │   ($HOME/.config/yuos/consents/<id>.json)
 //!          │                          ▼
 //!          │                  OS-level model from agent.toml
 //!          │                          │
@@ -29,7 +29,7 @@
 //!          │                  budget::reserve (hard-deny overcap)
 //!          │                          │   per-app cap from manifest
 //!          │                          │   user cap from
-//!          │                          │   $HOME/.config/cos/ai/budget.json
+//!          │                          │   $HOME/.config/yuos/ai/budget.json
 //!          │                          │   (0 = unlimited)
 //!          │                          ▼
 //!          │                  safety::redact (Strict / Standard)
@@ -47,11 +47,11 @@
 //! `ai.*` need. This file is the runtime defence on top of that:
 //! even if a session somehow carries an AI verb, the gate still
 //! re-checks the manifest's origin allowlist and uses the OS-owned
-//! provider/model from `/etc/cos/agent.toml`. **Apps never pick the
+//! provider/model from `/etc/yuos/agent.toml`. **Apps never pick the
 //! model** — the machine owner does, once, in agent config.
 //!
 //! On top of the manifest, the kernel reads a per-user override file
-//! at `$HOME/.config/cos/apps/<id>.json` (written by the Cosmic
+//! at `$HOME/.config/yuos/apps/<id>.json` (written by the Cosmic
 //! Settings UI). The override can only **tighten** the manifest:
 //! lower the budget, raise the safety profile, shrink the origin
 //! allowlist, or kill-switch the App entirely. See
@@ -98,7 +98,7 @@ use super::user_budget;
 // Public request / response shapes
 // ---------------------------------------------------------------------------
 
-/// One-shot AI request handed in by the CLI / `claw_os_sdk`. The gate
+/// One-shot AI request handed in by the CLI / `yuos_sdk`. The gate
 /// auto-derives the [`Modality`] (and therefore the caps `Verb` to
 /// require) from the **shape** of this request — callers never pass a
 /// verb directly. See [`Modality::derive`] for the rules.
@@ -107,7 +107,7 @@ pub struct ChatRequest {
     /// App id this call is attributed to. The gate looks up the app's
     /// manifest to honour its `ai` policy (prompt origin allowlist,
     /// monthly budget, safety profile). The model is **not** under app
-    /// control — the OS picks it from `/etc/cos/agent.toml`.
+    /// control — the OS picks it from `/etc/yuos/agent.toml`.
     pub app_id: String,
     /// Where the prompt text originated — `"trusted"`, `"user-input"`,
     /// or `"external-content"`. `external-content` automatically
@@ -193,7 +193,7 @@ pub struct ProposedToolCall {
 // Modality
 // ---------------------------------------------------------------------------
 
-/// What the gate is being asked to do. The CLI / `claw_os_sdk` never names
+/// What the gate is being asked to do. The CLI / `yuos_sdk` never names
 /// this directly — the gate derives it from the request shape (which
 /// of `prompt` / `image_input` / `audio_output` / … are set) and then
 /// requires the corresponding caps verb.
@@ -374,7 +374,7 @@ pub struct ReviewReport {
 
 #[derive(Debug, thiserror::Error)]
 pub enum AiError {
-    #[error("unknown app `{0}` — not present in COS_APPS_DIR")]
+    #[error("unknown app `{0}` — not present in YUOS_APPS_DIR")]
     UnknownApp(String),
 
     #[error("app `{app}` has no `ai` block in its manifest — AI is disabled for it")]
@@ -382,7 +382,7 @@ pub enum AiError {
 
     #[error(
         "app `{0}` is disabled by the user (set `disabled: true` in \
-         $HOME/.config/cos/apps/{0}.json)"
+         $HOME/.config/yuos/apps/{0}.json)"
     )]
     AppDisabled(String),
 
@@ -521,7 +521,7 @@ pub async fn chat(req: ChatRequest) -> Result<ChatResult, AiError> {
 
 pub(crate) async fn chat_authorized(
     req: ChatRequest,
-    authority: &crate::clawd::authority::Decision,
+    authority: &crate::yuosd::authority::Decision,
 ) -> Result<ChatResult, AiError> {
     authority
         .require_app(&req.app_id)
@@ -536,7 +536,7 @@ pub(crate) async fn chat_authorized(
 
 async fn chat_with_authority(
     req: ChatRequest,
-    authority: Option<&crate::clawd::authority::Decision>,
+    authority: Option<&crate::yuosd::authority::Decision>,
 ) -> Result<ChatResult, AiError> {
     let started = std::time::Instant::now();
     // Best-effort verb derivation up-front so audit records carry it
@@ -759,7 +759,7 @@ impl Drop for BudgetReservation {
 /// stream before the caller sees them.
 async fn chat_inner(
     req: &ChatRequest,
-    authority: Option<&crate::clawd::authority::Decision>,
+    authority: Option<&crate::yuosd::authority::Decision>,
 ) -> Result<ChatResult, AiError> {
     let modality = Modality::derive(req)?;
     if !modality.is_chat_like() {
@@ -770,9 +770,9 @@ async fn chat_inner(
     let app = if authority.is_some() {
         // A long-lived broker must reverify, not keep a stale cached policy
         // after package replacement or publisher revocation.
-        let dir = std::env::var_os("COS_APPS_DIR")
+        let dir = std::env::var_os("YUOS_APPS_DIR")
             .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("/usr/lib/cos/apps"));
+            .unwrap_or_else(|| PathBuf::from("/usr/lib/yuos/apps"));
         apps::discover_verified(&dir)
             .remove(&req.app_id)
             .ok_or_else(|| AiError::UnknownApp(req.app_id.clone()))?
@@ -844,7 +844,7 @@ async fn chat_inner(
 
     // 5. Resolve the model. Apps don't get to pick — the OS owner
     //    configures one provider and one model in
-    //    `/etc/cos/agent.toml`, and every app call uses that.
+    //    `/etc/yuos/agent.toml`, and every app call uses that.
     let config = config::current_snapshot();
     let cfg = &config.agent;
     let model = cfg.model.clone();
@@ -1052,7 +1052,7 @@ async fn chat_inner(
 /// Observe live transient authority while awaiting a potentially slow provider.
 /// The route's absolute timeout also drops this future and its reservation.
 pub(crate) async fn await_authorized(
-    authority: &crate::clawd::authority::Decision,
+    authority: &crate::yuosd::authority::Decision,
     pending: impl std::future::Future<Output = LlmResult<LlmChatResponse>>,
 ) -> Result<LlmChatResponse, AiError> {
     authority
@@ -1122,11 +1122,11 @@ fn validate_inputs(req: &ChatRequest, m: Modality) -> Result<(), AiError> {
 /// re-parses every manifest on every call — that's fine for a CLI
 /// invocation but pathological inside the gate, which is on the hot
 /// path of every AI request. We cache the discovered map for up to
-/// 60 seconds; this is short enough that `claw-os apps add` is visible
+/// 60 seconds; this is short enough that `yuos apps add` is visible
 /// within an interactive session and long enough to avoid re-walking
 /// the disk on tight request loops.
 ///
-/// `COS_APPS_DIR` is read as part of the cache key so test setups
+/// `YUOS_APPS_DIR` is read as part of the cache key so test setups
 /// that flip the env between cases (and `setup`/`teardown` blocks)
 /// still see fresh results when they override the dir.
 fn lookup_app(app_id: &str) -> Result<apps::App, AiError> {
@@ -1143,9 +1143,9 @@ fn lookup_app(app_id: &str) -> Result<apps::App, AiError> {
     static CACHE: OnceLock<Mutex<Option<Entry>>> = OnceLock::new();
     const TTL: Duration = Duration::from_secs(60);
 
-    let apps_dir = std::env::var("COS_APPS_DIR")
+    let apps_dir = std::env::var("YUOS_APPS_DIR")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| std::path::PathBuf::from("/usr/lib/cos/apps"));
+        .unwrap_or_else(|_| std::path::PathBuf::from("/usr/lib/yuos/apps"));
 
     let cache = CACHE.get_or_init(|| Mutex::new(None));
     // Fast path: read the cache and clone the requested app out.
@@ -1239,7 +1239,7 @@ fn build_chat_request(
         temperature: None,
         top_p: None,
         stop_sequences: Vec::new(),
-        extra: serde_json::json!({"_cos_initiator": "agent"}),
+        extra: serde_json::json!({"__yuos_initiator": "agent"}),
     }
 }
 
@@ -1252,7 +1252,7 @@ fn _ensure_arc_send<T: ?Sized + Send + Sync>(_: &Arc<T>) {}
 // System-agent provider wrapper.
 //
 // The kernel-resident agent (everything reachable via `yu agent ask`,
-// `yu agent chat`, the cos-agent-bridge HTTP service, the doctor,
+// `yu agent chat`, the yuos-agent-bridge HTTP service, the doctor,
 // the vision/author/delegate paths, …) is NOT an installed app — it
 // has no manifest, no `ai` block, no per-app allowlist. But it still
 // spends real tokens against real providers, so it deserves the same
@@ -1262,7 +1262,7 @@ fn _ensure_arc_send<T: ?Sized + Send + Sync>(_: &Arc<T>) {}
 //     check AND structured audit emission to `caps.jsonl`.
 //   * `budget::reserve/settle` against the stable pseudo-app id
 //     `system.agent`, capped by `agent.system_budget_monthly_units`
-//     in `~/.config/cos/config.json`.
+//     in `~/.config/yuos/config.json`.
 //
 // Implemented as a Provider decorator so call sites need only wrap
 // the result of `llm::registry::build(...)`. The wrapper transparently

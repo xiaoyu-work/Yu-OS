@@ -10,7 +10,7 @@ fn nonzero_cli_result_is_never_treated_as_a_legacy_error_envelope() {
     )
     .expect_err("nonzero status must fail");
 
-    assert_eq!(error, "cos failed (exit status: 7): tool call failed");
+    assert_eq!(error, "yu failed (exit status: 7): tool call failed");
 }
 
 #[test]
@@ -34,5 +34,5 @@ fn successful_empty_output_is_an_error() {
     let error =
         decode_search_output(true, "exit status: 0", b" \n", b"").expect_err("missing result");
 
-    assert_eq!(error, "cos produced no output");
+    assert_eq!(error, "yu produced no output");
 }

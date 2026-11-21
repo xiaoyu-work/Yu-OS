@@ -86,7 +86,7 @@ fn package(mut mutate: impl FnMut(&mut serde_json::Value)) -> crate::provenance:
             kind: crate::provenance::PackageKind::AgentExtension,
             id: "observer".to_string(),
             version: "1.0.0".to_string(),
-            manifest_schema: "claw.agent-extension/v1".to_string(),
+            manifest_schema: "yuos.agent-extension/v1".to_string(),
             manifest_path: MANIFEST_FILE.to_string(),
             entrypoints: vec!["bin/observer".to_string()],
             resources: Vec::new(),

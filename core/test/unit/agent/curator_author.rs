@@ -7,7 +7,7 @@ fn sample_draft() -> SkillDraft {
         suggested_id: "summarise-csv".into(),
         title: "Summarise CSV".into(),
         description: "Take a CSV file and produce a one-page summary.".into(),
-        allowed_tools: vec!["cos_fs".into(), "cos_exec".into()],
+        allowed_tools: vec!["yu_fs".into(), "yu_exec".into()],
         turns_used: 6,
         confidence: SkillConfidence::High,
     }
@@ -24,7 +24,7 @@ fn sample_turns() -> Vec<ConversationTurn> {
         ConversationTurn {
             role: TurnRole::Assistant,
             content: "I'll read the file first.".into(),
-            tool_calls: vec!["cos_fs".into()],
+            tool_calls: vec!["yu_fs".into()],
             user_acceptance: false,
         },
         ConversationTurn {
@@ -78,8 +78,8 @@ fn yaml_escape_quotes_when_needed() {
 fn fallback_body_includes_tools() {
     let body = fallback_body(&sample_draft());
     assert!(body.contains("Summarise CSV"));
-    assert!(body.contains("cos_fs"));
-    assert!(body.contains("cos_exec"));
+    assert!(body.contains("yu_fs"));
+    assert!(body.contains("yu_exec"));
     assert!(body.contains("auto-drafted"));
 }
 

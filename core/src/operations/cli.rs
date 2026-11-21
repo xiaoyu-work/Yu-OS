@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use crate::clawd::{client, config, protocol::Request, routes::Command};
+use crate::yuosd::{client, config, protocol::Request, routes::Command};
 
 pub fn run(command: &str, args: &[String]) -> Result<Value, String> {
     let (route, params) = parse(command, args)?;

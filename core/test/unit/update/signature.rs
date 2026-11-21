@@ -43,7 +43,7 @@ fn only_a_status_line_with_a_good_signature_yields_a_key() {
         Some("ABCDEF0123456789ABCDEF0123456789ABCDEF01".to_string())
     );
     assert_eq!(
-        good_signature_key("[GNUPG:] GOODSIG ABCDEF0123456789 Claw OS\n"),
+        good_signature_key("[GNUPG:] GOODSIG ABCDEF0123456789 Yu OS\n"),
         Some("ABCDEF0123456789".to_string())
     );
     assert_eq!(

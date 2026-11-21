@@ -33,22 +33,22 @@ pub fn set_private_file(path: &Path) -> io::Result<()> {
     }
 }
 
-pub fn harden_clawd_runtime() -> io::Result<()> {
+pub fn harden_yuosd_runtime() -> io::Result<()> {
     let runtime = crate::paths::runtime_dir();
-    validate_clawd_root(&runtime)?;
+    validate_yuosd_root(&runtime)?;
     harden_trusted_root(&runtime, 0o751)
 }
 
-pub fn harden_clawd_state() -> io::Result<()> {
+pub fn harden_yuosd_state() -> io::Result<()> {
     let data = crate::paths::data_dir();
     let logs = crate::paths::log_dir();
 
-    validate_clawd_root(&data)?;
-    validate_clawd_root(&logs)?;
+    validate_yuosd_root(&data)?;
+    validate_yuosd_root(&logs)?;
     harden_trusted_root(&data, 0o711)?;
     harden_trusted_root(&logs, 0o700)?;
     // Traversable, never listable. The per-owner agent state each
-    // `claw-agentd` worker runs against lives at `<data>/users/<uid>`
+    // `yuos-agentd` worker runs against lives at `<data>/users/<uid>`
     // and is owned by that account, so both the daemon root and the
     // `users/` level must let a non-root worker walk *through* them.
     // Every other subtree below stays `0700 root`.
@@ -65,7 +65,7 @@ pub fn harden_clawd_state() -> io::Result<()> {
         data.join("approvals"),
         data.join("sessions"),
         data.join("proc"),
-        data.join("clawd"),
+        data.join("yuosd"),
         // The session event journal: chains, head anchors, the writer
         // lease and the MAC keys. Nothing below this is ever readable
         // or writable by a worker, an App or an MCP server.
@@ -134,7 +134,7 @@ fn harden_trusted_root(path: &Path, mode: u32) -> io::Result<()> {
 /// through: conversation memory, notes, todos and AI budget counters.
 ///
 /// The leaf is owned by the account the task belongs to and stays
-/// `0700`, so no other user can read it and `clawd` (root) can still
+/// `0700`, so no other user can read it and `yuosd` (root) can still
 /// audit it. `<data>` and `<data>/users` are `0711`: a worker can walk
 /// to its own directory but cannot enumerate the daemon's state or
 /// discover other accounts' partitions by listing.
@@ -155,7 +155,7 @@ pub fn ensure_owner_agent_state_dir(uid: u32, gid: u32) -> io::Result<()> {
             ));
         }
         let data = crate::paths::data_dir();
-        validate_clawd_root(&data)?;
+        validate_yuosd_root(&data)?;
         ensure_traversable_dir(&data)?;
         let users = data.join("users");
         reject_symlink(&users)?;
@@ -165,7 +165,7 @@ pub fn ensure_owner_agent_state_dir(uid: u32, gid: u32) -> io::Result<()> {
         }
         fs::set_permissions(&users, fs::Permissions::from_mode(0o711))?;
 
-        let owner_root = crate::paths::clawd_user_state_dir(uid);
+        let owner_root = crate::paths::yuosd_user_state_dir(uid);
         reject_symlink(&owner_root)?;
         fs::create_dir_all(&owner_root)?;
         if euid == 0 {
@@ -190,7 +190,7 @@ pub fn ensure_owner_agent_state_dir(uid: u32, gid: u32) -> io::Result<()> {
     #[cfg(not(unix))]
     {
         let _ = gid;
-        ensure_private_dir(&crate::paths::clawd_user_state_dir(uid))
+        ensure_private_dir(&crate::paths::yuosd_user_state_dir(uid))
     }
 }
 
@@ -341,7 +341,7 @@ fn harden_owner_partitioned_tree(root: &Path) -> io::Result<()> {
 pub fn ensure_routed_caps_dir(path: &Path, uid: u32) -> io::Result<()> {
     #[cfg(unix)]
     {
-        let expected = Path::new("/run/cos/caps").join(uid.to_string());
+        let expected = Path::new("/run/yuos/caps").join(uid.to_string());
         if path != expected {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -359,11 +359,11 @@ pub fn ensure_routed_caps_dir(path: &Path, uid: u32) -> io::Result<()> {
                 format!("cannot prepare routed caps storage as uid {euid}"),
             ));
         }
-        let runtime_root = Path::new("/run/cos");
+        let runtime_root = Path::new("/run/yuos");
         reject_symlink(runtime_root)?;
         fs::create_dir_all(runtime_root)?;
         fs::set_permissions(runtime_root, fs::Permissions::from_mode(0o751))?;
-        let caps_root = Path::new("/run/cos/caps");
+        let caps_root = Path::new("/run/yuos/caps");
         reject_symlink(caps_root)?;
         fs::create_dir_all(caps_root)?;
         fs::set_permissions(caps_root, fs::Permissions::from_mode(0o711))?;
@@ -461,7 +461,7 @@ pub fn remove_routed_extension_reader(owner_uid: u32, execution_uid: u32) -> Res
 
 #[cfg(target_os = "linux")]
 pub fn purge_routed_extension_reader(execution_uid: u32) -> Result<(), String> {
-    let root = Path::new("/run/cos/caps");
+    let root = Path::new("/run/yuos/caps");
     if !root.exists() {
         return Ok(());
     }
@@ -507,7 +507,7 @@ pub fn purge_routed_extension_reader(_execution_uid: u32) -> Result<(), String> 
 
 #[cfg(target_os = "linux")]
 fn refresh_routed_acl(owner_uid: u32) -> Result<(), String> {
-    let root = Path::new("/run/cos/caps").join(owner_uid.to_string());
+    let root = Path::new("/run/yuos/caps").join(owner_uid.to_string());
     if !root.exists() {
         return Ok(());
     }
@@ -558,7 +558,7 @@ fn set_dir_mode(path: &Path) -> io::Result<()> {
 
 /// `0711`: walkable by any account, listable by none. Used for the
 /// daemon state root and the `users/` level so an unprivileged
-/// `claw-agentd` worker can reach its own owner partition without being
+/// `yuos-agentd` worker can reach its own owner partition without being
 /// able to enumerate the daemon's state.
 fn ensure_traversable_dir(path: &Path) -> io::Result<()> {
     fs::create_dir_all(path)?;
@@ -570,7 +570,7 @@ fn ensure_traversable_dir(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
-fn validate_clawd_root(path: &Path) -> io::Result<()> {
+fn validate_yuosd_root(path: &Path) -> io::Result<()> {
     if !path.is_absolute()
         || matches!(
             path.to_str(),
@@ -618,7 +618,7 @@ fn validate_clawd_root(path: &Path) -> io::Result<()> {
                 return Err(io::Error::new(
                     io::ErrorKind::PermissionDenied,
                     format!(
-                        "daemon storage root is not owned by clawd: {}",
+                        "daemon storage root is not owned by yuosd: {}",
                         path.display()
                     ),
                 ));

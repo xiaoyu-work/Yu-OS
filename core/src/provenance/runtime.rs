@@ -13,7 +13,7 @@
 //! [`PackageRef`] it came from (kind, id, content digest, publisher key
 //! id) and, once the child is bound, the exact process identity —
 //! owner uid, pid, `/proc` start-time ticks and cgroup line. Under
-//! `clawd` that file lives in `/run/cos/caps/<uid>`, which is
+//! `yuosd` that file lives in `/run/yuos/caps/<uid>`, which is
 //! root-owned, so a session's package cannot be rewritten by the
 //! session itself.
 //!
@@ -368,25 +368,25 @@ struct RuntimeState {
 /// The canonical location of an owner's running-instance record.
 ///
 /// One location, whoever is asking. The CLI running as the owner, the
-/// `agentd` supervisor and `clawd` acting for that owner must all name
+/// `agentd` supervisor and `yuosd` acting for that owner must all name
 /// the same file, or a revocation recorded by one would be invisible to
 /// the others — which is exactly the hole this record exists to close.
 /// So the path is derived from an *explicit* owner uid rather than from
 /// whatever `proc_data_dir()` happens to resolve to in the current
 /// process or inside a `with_user_override` block.
 ///
-/// `/run/cos/caps/<uid>` is the owner's root-owned routed partition:
-/// `clawd` creates it `0750` owned by root with the owner's group, so
+/// `/run/yuos/caps/<uid>` is the owner's root-owned routed partition:
+/// `yuosd` creates it `0750` owned by root with the owner's group, so
 /// the owner can read their own record but cannot forge another's, and
 /// cannot rewrite their own session's provenance. When that partition
-/// does not exist — a developer running `cos` with no daemon — the
+/// does not exist — a developer running `yu` with no daemon — the
 /// record falls back to the owner's own data directory, which only they
 /// can write anyway.
 pub fn state_path_for(owner: u32) -> PathBuf {
     if let Some(path) = std::env::var_os(STATE_DIR_ENV) {
         return PathBuf::from(path).join(STATE_FILE);
     }
-    let routed = PathBuf::from("/run/cos/caps").join(owner.to_string());
+    let routed = PathBuf::from("/run/yuos/caps").join(owner.to_string());
     if routed.is_dir() {
         return routed.join(STATE_FILE);
     }
@@ -407,12 +407,12 @@ fn lock_path_for(owner: u32) -> PathBuf {
 /// may run*. Redirecting it can lose track of an instance, which fails
 /// closed at every authority check that expects one, but it cannot make
 /// an untrusted package trusted.
-const STATE_DIR_ENV: &str = "COS_PROVENANCE_RUNTIME_DIR";
+const STATE_DIR_ENV: &str = "YUOS_PROVENANCE_RUNTIME_DIR";
 const STATE_FILE: &str = "provenance-running.json";
 
 /// The owner this process is acting for.
 ///
-/// Either the process's own euid, or — inside `clawd` — the uid the
+/// Either the process's own euid, or — inside `yuosd` — the uid the
 /// daemon derived from the peer's kernel credentials and installed for
 /// the duration of one authenticated request. Callers that already hold
 /// an authenticated uid pass it explicitly instead of calling this.
@@ -1140,7 +1140,7 @@ pub fn enforce_shutdowns(owner: u32, grace: Duration) -> LifecycleReport {
 
 /// One bounded lifecycle pass: re-check every instance, then act.
 ///
-/// Called from the `clawd` authority sweep and the `agentd` reconcile
+/// Called from the `yuosd` authority sweep and the `agentd` reconcile
 /// pass — loops that already exist and already tick. An instance that
 /// never makes an authority call is caught here; one that does is
 /// caught immediately by [`assert_live`], which is the stronger of the

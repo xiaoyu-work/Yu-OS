@@ -10,10 +10,10 @@
 <p align="center"><strong>The world’s first agent-native operating system from the future.</strong></p>
 
 <p align="center">
-  <a href="https://xiaoyu-work.github.io/claw-os"><img alt="Website" src="https://img.shields.io/badge/website-xiaoyu--work.github.io%2Fclaw--os-2563eb?style=flat-square"></a>
-  <a href="https://github.com/xiaoyu-work/claw-os/actions/workflows/release.yml"><img alt="Release pipeline" src="https://img.shields.io/github/actions/workflow/status/xiaoyu-work/claw-os/release.yml?branch=main&style=flat-square"></a>
+  <a href="https://xiaoyu-work.github.io/Yu-OS"><img alt="Website" src="https://img.shields.io/badge/website-xiaoyu--work.github.io%2FYu--OS-2563eb?style=flat-square"></a>
+  <a href="https://github.com/xiaoyu-work/Yu-OS/actions/workflows/release.yml"><img alt="Release pipeline" src="https://img.shields.io/github/actions/workflow/status/xiaoyu-work/Yu-OS/release.yml?branch=main&style=flat-square"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-D22128?style=flat-square"></a>
-  <a href="https://github.com/xiaoyu-work/claw-os/releases"><img alt="Release" src="https://img.shields.io/github/v/release/xiaoyu-work/claw-os?include_prereleases&style=flat-square"></a>
+  <a href="https://github.com/xiaoyu-work/Yu-OS/releases"><img alt="Release" src="https://img.shields.io/github/v/release/xiaoyu-work/Yu-OS?include_prereleases&style=flat-square"></a>
 </p>
 
 > **Yu OS is under active development; its architecture, APIs, and behavior may change significantly.**
@@ -54,7 +54,7 @@ that means:
   hardware can handle it and falls back to cloud AI APIs where it can't —
   without changing how you use it.
 - **Apps open up to the agent.** Every app publishes what it can do and the
-  permissions it needs through the [`claw-os-sdk`](claw-os-sdk/) (Rust, Python,
+  permissions it needs through the [`yuos-sdk`](yuos-sdk/) (Rust, Python,
   Node, Go). The agent can discover and call those APIs, then combine operations
   from multiple apps into complex workflows.
 - **Safe by construction.** Every privileged action goes through a capability
@@ -70,7 +70,7 @@ scoped permission model, cross-app session store, audit trail, and app SDK form
 one integrated agent-native OS layer.
 
 Application products are developed in
-[`clawos-app`](https://github.com/xiaoyu-work/clawos-app) and composed into signed
+[`yuos-app`](https://github.com/xiaoyu-work/yuos-app) and composed into signed
 OS packages from an immutable source pin. Native Notifications now lives there
 with its complete UI/MCP/config/util source; Yu OS retains notification
 authority, durable state and delivery. The [migration plan](docs/app-product-redesign.md)
@@ -81,28 +81,28 @@ distinguishes source ownership from pending legacy data and visual cutovers.
 <details>
 <summary><strong>Ubuntu — install the Agent layer without replacing Ubuntu</strong></summary>
 
-Install the signed `claw-os-agent` package on an existing Ubuntu system:
+Install the signed `yuos-agent` package on an existing Ubuntu system:
 
 ```bash
 sudo install -d -m 0755 /usr/share/keyrings
 
-curl -fsSL https://xiaoyu-work.github.io/claw-os/claw-os-archive-keyring.gpg \
-  | sudo tee /usr/share/keyrings/claw-os-archive-keyring.gpg >/dev/null
+curl -fsSL https://xiaoyu-work.github.io/Yu-OS/apt/yuos-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/yuos-archive-keyring.gpg >/dev/null
 
 ARCH="$(dpkg --print-architecture)"
-echo "deb [arch=$ARCH signed-by=/usr/share/keyrings/claw-os-archive-keyring.gpg] https://xiaoyu-work.github.io/claw-os trixie main" \
-  | sudo tee /etc/apt/sources.list.d/claw-os.list >/dev/null
+echo "deb [arch=$ARCH signed-by=/usr/share/keyrings/yuos-archive-keyring.gpg] https://xiaoyu-work.github.io/Yu-OS/apt trixie main" \
+  | sudo tee /etc/apt/sources.list.d/yuos.list >/dev/null
 
 sudo apt update
-sudo apt install claw-os-agent
+sudo apt install yuos-agent
 ```
 
 Verify the daemon:
 
 ```bash
-systemctl is-enabled clawd.service
-systemctl is-active clawd.service
-sudo systemctl status clawd.service --no-pager
+systemctl is-enabled yuosd.service
+systemctl is-active yuosd.service
+sudo systemctl status yuosd.service --no-pager
 ```
 
 </details>
@@ -110,17 +110,17 @@ sudo systemctl status clawd.service --no-pager
 <details>
 <summary><strong>WSL — recommended</strong></summary>
 
-Install the latest successfully published `main` WSL distribution (`wsl-latest`,
+Install the latest successfully published `main` WSL distribution (`yuos-wsl-latest`,
 rolling pre-release):
 
 ```powershell
 $arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "amd64" }
-$package = "claw-os-wsl-$arch.wsl"
-$url = "https://github.com/xiaoyu-work/claw-os/releases/download/wsl-latest/$package"
-$installPath = "C:\WSL\claw-os"
+$package = "yuos-wsl-$arch.wsl"
+$url = "https://github.com/xiaoyu-work/Yu-OS/releases/download/yuos-wsl-latest/$package"
+$installPath = "C:\WSL\yuos"
 
 curl.exe -L --fail --retry 5 --retry-delay 3 -C - --output $package $url
-wsl --install --from-file ".\$package" --name claw-os --location $installPath --version 2
+wsl --install --from-file ".\$package" --name yuos --location $installPath --version 2
 ```
 
 </details>
@@ -131,17 +131,17 @@ wsl --install --from-file ".\$package" --name claw-os --location $installPath --
 Run the container:
 
 ```bash
-docker pull ghcr.io/xiaoyu-work/claw-os:latest
+docker pull ghcr.io/xiaoyu-work/yu-os:latest
 mkdir -p ./workspace
-docker run -d --name claw --privileged \
-  -e CLAW_USER=yourname \
+docker run -d --name yuos --privileged \
+  -e YUOS_USER=yourname \
   -v ./workspace:/workspace \
-  ghcr.io/xiaoyu-work/claw-os:latest
-docker exec -it claw /usr/local/sbin/claw-container-entrypoint shell
+  ghcr.io/xiaoyu-work/yu-os:latest
+docker exec -it yuos /usr/local/sbin/yuos-container-entrypoint shell
 ```
 
 Replace `yourname` with the UNIX username to create. The default UID/GID is
-1000; set `CLAW_UID` and `CLAW_GID` when a Linux host needs numeric ownership
+1000; set `YUOS_UID` and `YUOS_GID` when a Linux host needs numeric ownership
 to match a bind mount.
 
 </details>
@@ -154,12 +154,12 @@ Build and boot the default headless QEMU image:
 ```bash
 sudo ./build.sh vm
 qemu-system-x86_64 -m 2G -nographic \
-  -drive file=build/claw-os-vm-amd64.qcow2,format=qcow2,if=virtio
+  -drive file=build/yuos-vm-amd64.qcow2,format=qcow2,if=virtio
 ```
 
 On first boot, the serial console requires you to set a password for the
-locked `cos` account before it starts the normal login prompt. The image ships
-with no default password. Then log in as `cos` with the password you just set;
+locked `yu` account before it starts the normal login prompt. The image ships
+with no default password. Then log in as `yu` with the password you just set;
 `sudo` uses the same password.
 
 </details>
@@ -191,7 +191,7 @@ desktop builds and publishing commands.
 <details>
 <summary><strong>Updating an existing installation</strong></summary>
 
-Package-level fixes to `cos`, `clawd`, bundled apps, browser automation, and
+Package-level fixes to `yu`, `yuosd`, bundled apps, browser automation, and
 systemd units do **not** require reinstalling the operating system or replacing
 its image. Yu OS uses the same signed APT update path across WSL, installed
 desktop/VM systems, Azure instances, and long-running containers:
@@ -213,7 +213,7 @@ Call structured system primitives directly, or ask the built-in agent to choose
 and combine them:
 
 ```bash
-cos  # list primitives
+yu  # list primitives
 yu app web read https://example.com  # fetch URL → {url, title, text, links}
 yu agent setup text  # configure the conversational text model
 yu agent ask "why is my network so slow right now?"

@@ -28,13 +28,13 @@ fn session(id: &str, parent: &str, group: &str) -> crate::proc::SessionInfo {
 
 #[test]
 fn child_proxy_is_an_explicit_session_route_allowlist() {
-    for route in crate::clawd::routes::ROUTES {
+    for route in crate::yuosd::routes::ROUTES {
         let expected = route.access == Access::User
-            && route.authority.audience != crate::clawd::authority::Audience::GuiResource
+            && route.authority.audience != crate::yuosd::authority::Audience::GuiResource
             && matches!(
                 route.authority.subject,
-                crate::clawd::authority::SubjectSource::Session
-                    | crate::clawd::authority::SubjectSource::PeerSession
+                crate::yuosd::authority::SubjectSource::Session
+                    | crate::yuosd::authority::SubjectSource::PeerSession
             );
         assert_eq!(child_route(route), expected, "route {}", route.name);
     }
@@ -176,7 +176,7 @@ fn activity_boundary_is_root_pinned_and_heartbeat_cannot_adopt_a_new_policy() {
     use crate::test_env::TestEnvVarGuard;
     let _lock = crate::test_env::lock_env();
     let data = tempfile::tempdir().unwrap();
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", data.path());
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
     for introduce in [false, true] {
         let service = crate::activities::open_default().unwrap();
         let activity = service
@@ -235,7 +235,7 @@ fn disabled_and_foreign_activity_boundaries_refuse_extension_admission() {
     use crate::test_env::TestEnvVarGuard;
     let _lock = crate::test_env::lock_env();
     let data = tempfile::tempdir().unwrap();
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", data.path());
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
     let service = crate::activities::open_default().unwrap();
     let activity = service
         .create(
@@ -294,7 +294,7 @@ fn extension_identity_preserves_owner_and_execution_uid_as_distinct_principals()
         61_000,
         65_534,
         start,
-        crate::clawd::client_identity::AuthenticatedExtensionHost {
+        crate::yuosd::client_identity::AuthenticatedExtensionHost {
             purpose: super::super::protocol::HostPurpose::Task,
             lease_id: "task-a".into(),
             authority_session_id: Some("session-a".into()),

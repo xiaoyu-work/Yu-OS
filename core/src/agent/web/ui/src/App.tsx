@@ -1,5 +1,5 @@
 /**
- * Top-level shell. SidebarProvider + cos sidebar + main inset that
+ * Top-level shell. SidebarProvider + yu sidebar + main inset that
  * route-switches between pages. Same layout pattern as
  * `open-agents/apps/web/app/inbox-shell.tsx`.
  */
@@ -8,7 +8,7 @@ import { Bell } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { TokenGate } from "@/components/token-gate";
-import { CosSidebar } from "@/components/cos-sidebar";
+import { YuSidebar } from "@/components/yuos-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -38,7 +38,7 @@ export default function App() {
       <TokenGate onMeta={setMeta}>
         <NotificationProvider>
           <SidebarProvider>
-            <CosSidebar meta={meta} />
+            <YuSidebar meta={meta} />
             <SidebarInset>
               <Header />
               <main className="flex-1 overflow-hidden">

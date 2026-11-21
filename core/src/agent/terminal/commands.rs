@@ -19,7 +19,7 @@ pub(super) struct WorkspaceFiles {
 // Keep object-specific mutations in their panels instead of turning the
 // completion palette into a list of backend operations.
 pub(super) const PALETTE_COMMANDS: &[(&str, &str)] = &[
-    ("/help", "show Claw terminal commands"),
+    ("/help", "show Yu OS terminal commands"),
     ("/new", "start a new canonical conversation"),
     ("/sessions", "list recent conversations"),
     ("/resume", "resume a conversation by session id"),
@@ -43,7 +43,7 @@ pub(super) const PALETTE_COMMANDS: &[(&str, &str)] = &[
     ("/agents", "show scoped delegate calls in this task"),
     ("/side", "start or return from a side conversation"),
     ("/platform", "show verified Skills, MCP, Apps, and usage"),
-    ("/skills", "list enabled Claw Skills"),
+    ("/skills", "list enabled Yu OS Skills"),
     ("/tasks", "browse durable Agent tasks"),
     ("/task", "open a durable task by id"),
     ("/approvals", "browse pending and recent approvals"),
@@ -57,7 +57,7 @@ pub(super) const PALETTE_COMMANDS: &[(&str, &str)] = &[
     ("/activity", "browse, open, or create an Activity"),
     ("/share", "nearby AirDrop sharing, independent of Agent tasks"),
     ("/workspace", "Workspace: shared context, read-only sources and independent conversations"),
-    ("/session", "show current Claw identity and model"),
+    ("/session", "show current Yu OS identity and model"),
     ("/clear", "clear only the terminal transcript view"),
     ("/cancel", "cancel the exact current task"),
     ("/quit", "close the terminal without inventing task success"),
@@ -327,7 +327,7 @@ pub(super) fn parse(value: &str) -> Option<Command> {
                     request["next_task"] = json!(options.next_task);
                     request["review_note"] = json!(options.review_note);
                 }
-                serde_json::from_value::<crate::clawd::wire::requests::ActivityWorkEnabled>(
+                serde_json::from_value::<crate::yuosd::wire::requests::ActivityWorkEnabled>(
                     request.clone(),
                 )
                 .ok()?;
@@ -584,7 +584,7 @@ pub(super) fn execute(
                 async move { backend.fork_conversation(&id, None).await },
                 |app, conversation| {
                     app.replace_conversation(conversation);
-                    app.push_system("Forked into a new canonical Claw conversation.");
+                    app.push_system("Forked into a new canonical Yu OS conversation.");
                     Ok(())
                 },
             ).mutation()));
@@ -751,7 +751,7 @@ pub(super) fn execute(
                 async move { backend.skills().await },
                 |app, skills| {
                     if skills.is_empty() {
-                        app.push_system("No enabled Claw Skills.");
+                        app.push_system("No enabled Yu OS Skills.");
                     } else {
                         app.push_system(&skills.into_iter().map(|skill| {
                             format!("{} [{}]{}", skill.id, skill.origin,
@@ -1419,7 +1419,7 @@ pub(super) fn confirm(
     match action {
         ConfirmationAction::WorkspaceDelete {id,revision} => {
             Request::new("Deleting Workspace",async move {
-                let value=backend.workspace_request(clawd_client::Command::WorkspaceControl,serde_json::json!({
+                let value=backend.workspace_request(yuosd_client::Command::WorkspaceControl,serde_json::json!({
                     "request":{"action":"delete","id":id,"expected_revision":revision,"confirm":true},
                 })).await?;
                 let view:crate::workspaces::WorkspaceView=serde_json::from_value(value).map_err(|e|e.to_string())?;

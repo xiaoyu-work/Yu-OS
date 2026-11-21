@@ -12,11 +12,11 @@ fn protocol_refusals_advertise_current_version() {
     assert_eq!(response.status(), StatusCode::UPGRADE_REQUIRED);
     assert_eq!(
         response.headers()[PROTOCOL_VERSION_HEADER],
-        cos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE
+        yuos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE
     );
     assert_eq!(
         response.headers()[PROTOCOL_MIN_VERSION_HEADER],
-        cos_agent_protocol::MIN_SUPPORTED_PROTOCOL_VERSION_HEADER_VALUE
+        yuos_agent_protocol::MIN_SUPPORTED_PROTOCOL_VERSION_HEADER_VALUE
     );
 }
 
@@ -71,14 +71,14 @@ async fn selected_version_is_echoed_on_success_and_api_error() {
             .uri(path)
             .header(
                 PROTOCOL_VERSION_HEADER,
-                cos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
+                yuos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
             )
             .body(Body::empty())
             .unwrap();
         let response = app.clone().oneshot(request).await.unwrap();
         assert_eq!(
             response.headers()[PROTOCOL_VERSION_HEADER],
-            cos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE
+            yuos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE
         );
     }
 }

@@ -7,7 +7,7 @@
 //! Two integration points:
 //! - Request context selects current entries from `MEMORY.md` and `USER.md`.
 //!   Notes are data, never part of the session's frozen system instructions.
-//! - The `cos_memory` LLM tool exposes read / write / append / list so the
+//! - The `yu_memory` LLM tool exposes read / write / append / list so the
 //!   model itself can update its own memory after a task. (Auto-curator
 //!   in Phase 8 will do this for the model.)
 
@@ -306,7 +306,7 @@ impl NotesStore {
     ///   every projected entry is kept; over budget only the entries most
     ///   relevant to `query` are kept (or, when `query` is `None`, the
     ///   earliest entries), with a marker noting how many were dropped. The
-    ///   full append-only file remains available via `cos_memory read`.
+    ///   full append-only file remains available via `yu_memory read`.
     ///
     /// Replacing blind truncation with relevance selection means a large,
     /// long-lived `MEMORY.md` no longer silently drops potentially-relevant
@@ -369,7 +369,7 @@ pub const ALWAYS_TAG: &str = "[always]";
 ///
 /// The file is the store and this is the view: only the newest current,
 /// non-conflicting tail is projected. Superseded and expired entries stay on
-/// disk and remain readable via `cos_memory read MEMORY.md`.
+/// disk and remain readable via `yu_memory read MEMORY.md`.
 ///
 /// Unstructured lines have no key and are always kept — we cannot tell
 /// whether two prose sentences describe the same slot, which is exactly
@@ -728,7 +728,7 @@ fn select_memory_for_prompt(content: &str, query: Option<&str>, cap_chars: usize
     }
     if dropped > 0 {
         out.push_str(&format!(
-            "\n[\u{2026}] ({dropped} less-relevant memory entries omitted for this turn; full memory via `cos_memory read MEMORY.md`)\n"
+            "\n[\u{2026}] ({dropped} less-relevant memory entries omitted for this turn; full memory via `yu_memory read MEMORY.md`)\n"
         ));
     }
 

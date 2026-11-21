@@ -32,8 +32,8 @@ fn state() -> HostState {
         host_start_time_ticks: crate::proc::read_start_time_ticks_pub(pid),
         lease_nonce: "0123456789abcdef0123456789abcdef".to_string(),
         expires_at_ms: crate::agentd::grant::now_ms() + 60_000,
-        control_socket: "/run/cos/test/control.sock".to_string(),
-        broker_socket: "/run/cos/test/broker.sock".to_string(),
+        control_socket: "/run/yuos/test/control.sock".to_string(),
+        broker_socket: "/run/yuos/test/broker.sock".to_string(),
     };
     HostState {
         isolation: super::super::child_isolation::IsolationAuthority::for_test(
@@ -103,11 +103,11 @@ fn abi_binding(state: &HostState, extension_id: &str) -> super::super::abi::AbiB
 async fn exchange(path: &std::path::Path, request: &ControlRequest) -> ControlResponse {
     let mut stream = UnixStream::connect(path).await.unwrap();
     let body = serde_json::to_vec(request).unwrap();
-    crate::clawd::transport::frame::write_request_async(&mut stream, &body)
+    crate::yuosd::transport::frame::write_request_async(&mut stream, &body)
         .await
         .unwrap();
     let body =
-        crate::clawd::transport::frame::read_response_async(&mut stream, MAX_CONTROL_FRAME_BYTES)
+        crate::yuosd::transport::frame::read_response_async(&mut stream, MAX_CONTROL_FRAME_BYTES)
             .await
             .unwrap();
     serde_json::from_slice(&body).unwrap()
@@ -481,7 +481,7 @@ async fn daemon_authorized_calls_cannot_execute_in_the_model_workers_task_host()
 async fn persistent_service_cannot_change_app_identity_or_fall_back_to_unverified_code() {
     let _lock = crate::test_env::lock_env();
     let root = tempfile::tempdir().unwrap();
-    let _apps = crate::test_env::TestEnvVarGuard::set("COS_APPS_DIR", root.path());
+    let _apps = crate::test_env::TestEnvVarGuard::set("YUOS_APPS_DIR", root.path());
     let mut service = state();
     service.binding.purpose = super::super::protocol::HostPurpose::AppService;
     service.binding.app_id = Some("notes".into());

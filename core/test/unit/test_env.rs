@@ -1,7 +1,7 @@
 // Process-wide test utilities. cfg(test)-only.
 //
-// Several modules' tests mutate global env vars (`COS_DATA_DIR`,
-// `COS_SESSION`, etc.). cargo runs all tests in the same binary on
+// Several modules' tests mutate global env vars (`YUOS_DATA_DIR`,
+// `YUOS_SESSION`, etc.). cargo runs all tests in the same binary on
 // a thread pool, so each test module owning its *own* `Mutex<()>`
 // is not enough — two modules can race. Anything that touches
 // env vars in tests must take this single shared lock.
@@ -41,12 +41,12 @@ pub(crate) fn use_stripped_app_runner() -> TestEnvVarGuard {
         // The prerequisite builds the final dev binary; test executables use Cargo's private layout.
         let source = std::path::Path::new(metadata["target_directory"].as_str().unwrap())
             .join("debug")
-            .join("claw-app-runner")
+            .join("yuos-app-runner")
             .canonicalize()
-            .expect("resolve the current claw-app-runner");
+            .expect("resolve the current yuos-app-runner");
         let dir = secure_scratch_dir("app-runner");
-        let target = dir.join("claw-app-runner");
-        std::fs::copy(&source, &target).expect("copy claw-app-runner for tests");
+        let target = dir.join("yuos-app-runner");
+        std::fs::copy(&source, &target).expect("copy yuos-app-runner for tests");
         let status = std::process::Command::new("strip")
             .arg(&target)
             .status()
@@ -60,7 +60,7 @@ pub(crate) fn use_stripped_app_runner() -> TestEnvVarGuard {
         }
         target
     });
-    TestEnvVarGuard::set("CLAW_APP_RUNNER_BIN", runner)
+    TestEnvVarGuard::set("YUOS_APP_RUNNER_BIN", runner)
 }
 
 // ---------------------------------------------------------------------------
@@ -87,7 +87,7 @@ pub(crate) fn secure_scratch_dir(label: &str) -> std::path::PathBuf {
     let home = std::env::var_os("HOME")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(std::env::temp_dir);
-    let base = home.join(".cache").join("cos-test-scratch");
+    let base = home.join(".cache").join("yuos-test-scratch");
     let dir = base.join(format!("{label}-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&dir).expect("create secure scratch dir");
     #[cfg(unix)]
@@ -105,7 +105,7 @@ pub(crate) fn test_signing_key() -> &'static crate::provenance::sign::SigningKey
     static KEY: std::sync::OnceLock<crate::provenance::sign::SigningKeyFile> =
         std::sync::OnceLock::new();
     KEY.get_or_init(|| {
-        crate::provenance::sign::SigningKeyFile::generate(Some("cos test key".to_string()))
+        crate::provenance::sign::SigningKeyFile::generate(Some("yu test key".to_string()))
             .expect("generate test signing key")
     })
 }
@@ -505,7 +505,7 @@ pub(crate) fn signed_web_app(id: &str) -> std::sync::Arc<crate::provenance::Veri
     std::fs::write(
         dir.join("web-ui.json"),
         serde_json::to_vec(&serde_json::json!({
-            "schema": "claw.web-app/v1", "app_id": id, "source_kind": "product",
+            "schema": "yuos.web-app/v1", "app_id": id, "source_kind": "product",
             "source_name": "fixture", "title": "Web fixture", "description": "Signed fixture",
             "entry": "web/index.html",
         }))
@@ -600,7 +600,7 @@ fn normalise_modes(dir: &std::path::Path) {
     }
 }
 
-/// RAII guard that sets `COS_PERMS_MODE=permissive` while held and
+/// RAII guard that sets `YUOS_PERMS_MODE=permissive` while held and
 /// restores the previous value (including "unset") on drop. Use this
 /// in tool/runtime tests that do not bootstrap a real session but
 /// still call into capability-gated code paths (`ai.chat`,
@@ -612,8 +612,8 @@ pub(crate) struct PermissiveModeGuard {
 
 impl PermissiveModeGuard {
     pub(crate) fn new() -> Self {
-        let prev = std::env::var_os("COS_PERMS_MODE");
-        std::env::set_var("COS_PERMS_MODE", "permissive");
+        let prev = std::env::var_os("YUOS_PERMS_MODE");
+        std::env::set_var("YUOS_PERMS_MODE", "permissive");
         Self { prev }
     }
 }
@@ -621,8 +621,8 @@ impl PermissiveModeGuard {
 impl Drop for PermissiveModeGuard {
     fn drop(&mut self) {
         match self.prev.take() {
-            Some(v) => std::env::set_var("COS_PERMS_MODE", v),
-            None => std::env::remove_var("COS_PERMS_MODE"),
+            Some(v) => std::env::set_var("YUOS_PERMS_MODE", v),
+            None => std::env::remove_var("YUOS_PERMS_MODE"),
         }
     }
 }
@@ -670,9 +670,9 @@ impl TestSessionGuard {
         proc_dir: &Path,
         extra_caps: impl IntoIterator<Item = Cap>,
     ) -> Self {
-        let previous_session = std::env::var_os("COS_SESSION");
-        let previous_proc_dir = std::env::var_os("COS_PROC_DATA_DIR");
-        std::env::set_var("COS_PROC_DATA_DIR", proc_dir);
+        let previous_session = std::env::var_os("YUOS_SESSION");
+        let previous_proc_dir = std::env::var_os("YUOS_PROC_DATA_DIR");
+        std::env::set_var("YUOS_PROC_DATA_DIR", proc_dir);
 
         let session_id = format!("test-parent-{}", uuid::Uuid::new_v4().simple());
         let role = Role::Admin;
@@ -706,7 +706,7 @@ impl TestSessionGuard {
             client: crate::session::SessionClient::default(),
         })
         .expect("register test parent session");
-        std::env::set_var("COS_SESSION", &session_id);
+        std::env::set_var("YUOS_SESSION", &session_id);
 
         Self {
             session_id,
@@ -720,12 +720,12 @@ impl Drop for TestSessionGuard {
     fn drop(&mut self) {
         crate::proc::deregister_session(&self.session_id);
         match self.previous_session.take() {
-            Some(value) => std::env::set_var("COS_SESSION", value),
-            None => std::env::remove_var("COS_SESSION"),
+            Some(value) => std::env::set_var("YUOS_SESSION", value),
+            None => std::env::remove_var("YUOS_SESSION"),
         }
         match self.previous_proc_dir.take() {
-            Some(value) => std::env::set_var("COS_PROC_DATA_DIR", value),
-            None => std::env::remove_var("COS_PROC_DATA_DIR"),
+            Some(value) => std::env::set_var("YUOS_PROC_DATA_DIR", value),
+            None => std::env::remove_var("YUOS_PROC_DATA_DIR"),
         }
     }
 }

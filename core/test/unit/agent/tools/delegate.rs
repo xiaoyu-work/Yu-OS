@@ -1,10 +1,10 @@
 use super::*;
 
 fn delegate() -> Delegate {
-    let root = std::env::temp_dir().join(format!("cos-delegate-deps-{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("yuos-delegate-deps-{}", std::process::id()));
     Delegate::new(
         super::super::registry::RegistryDeps::without_optional_resources(
-            Arc::new(crate::config::CosConfig::default()),
+            Arc::new(crate::config::YuConfig::default()),
             super::super::registry::RegistryPaths {
                 apps_dir: root.join("apps"),
                 todos_dir: root.join("todos"),
@@ -53,7 +53,7 @@ fn input_schema_has_required_fields() {
 
 #[test]
 fn tool_metadata() {
-    assert_eq!(delegate().name(), "cos_delegate");
+    assert_eq!(delegate().name(), "yu_delegate");
     assert!(delegate().description().contains("sub-agent"));
 }
 
@@ -67,11 +67,11 @@ fn build_child_registry_keeps_only_allowed() {
 }
 
 #[test]
-fn build_child_registry_strips_cos_delegate() {
+fn build_child_registry_strips_yu_delegate() {
     let parent = test_registry();
-    let allowed = vec!["cos_delegate".to_string(), "echo".to_string()];
+    let allowed = vec!["yu_delegate".to_string(), "echo".to_string()];
     let child = build_child_registry(None, None, parent, &allowed);
-    assert!(child.get("cos_delegate").is_none());
+    assert!(child.get("yu_delegate").is_none());
     assert!(child.get("echo").is_some());
 }
 
@@ -79,13 +79,13 @@ fn build_child_registry_strips_cos_delegate() {
 fn build_child_registry_strips_attended_oauth_tool() {
     let mut source = ToolRegistry::new();
     source.register(Arc::new(
-        super::super::cos_proxy::oauth_login::CosOauthLoginTool::new(),
+        super::super::yu_proxy::oauth_login::YuOauthLoginTool::new(),
     ));
-    let allowed = vec!["cos_oauth_login".to_string()];
+    let allowed = vec!["yu_oauth_login".to_string()];
 
     let child = build_child_registry(None, None, source, &allowed);
 
-    assert!(child.get("cos_oauth_login").is_none());
+    assert!(child.get("yu_oauth_login").is_none());
 }
 
 #[test]
@@ -111,39 +111,39 @@ fn build_child_registry_keeps_progressive_skill_disclosure() {
 
     let child = build_child_registry(None, None, source, &[]);
 
-    assert!(child.get("cos_skill").is_some());
+    assert!(child.get("yu_skill").is_some());
 }
 
 #[test]
 fn build_child_registry_keeps_progressive_cli_discovery() {
     let mut source = ToolRegistry::new();
-    source.register(Arc::new(super::super::cos_help::CosHelp));
+    source.register(Arc::new(super::super::yu_help::YuHelp));
 
     let child = build_child_registry(None, None, source, &[]);
 
-    assert!(child.get("cos_help").is_some());
+    assert!(child.get("yu_help").is_some());
 }
 
 #[test]
 fn build_child_registry_respects_parent_help_denial() {
     let mut source = ToolRegistry::new();
-    source.register(Arc::new(super::super::cos_help::CosHelp));
-    let guardrails = Guardrails::default().deny_tool("cos_help");
+    source.register(Arc::new(super::super::yu_help::YuHelp));
+    let guardrails = Guardrails::default().deny_tool("yu_help");
 
     let child = build_child_registry(Some(&guardrails), None, source, &[]);
 
-    assert!(child.get_unfiltered("cos_help").is_none());
+    assert!(child.get_unfiltered("yu_help").is_none());
 }
 
 #[test]
 fn build_child_registry_respects_parent_skill_denial() {
     let mut source = ToolRegistry::new();
     source.register(Arc::new(super::super::skills::SkillDisclosure::new()));
-    let guardrails = Guardrails::default().deny_tool("cos_skill");
+    let guardrails = Guardrails::default().deny_tool("yu_skill");
 
     let child = build_child_registry(Some(&guardrails), None, source, &[]);
 
-    assert!(child.get_unfiltered("cos_skill").is_none());
+    assert!(child.get_unfiltered("yu_skill").is_none());
 }
 
 #[test]
@@ -292,7 +292,7 @@ async fn run_delegate_unknown_provider_returns_error() {
 ///
 /// We can't seed the mock through `registry::build` (which constructs a
 /// fresh `MockProvider` per call). Instead we wire the parent up so its
-/// MockProvider is configured to respond ToolUse(cos_delegate) → which
+/// MockProvider is configured to respond ToolUse(yu_delegate) → which
 /// forces our delegate to be reached via the real loop, then the
 /// child's MockProvider (also fresh) needs to respond. The mock's
 /// default `Text` echo behaviour is what the child uses.

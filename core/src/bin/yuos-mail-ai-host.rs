@@ -1,0 +1,42 @@
+fn python_arguments(
+    mut native_args: impl Iterator<Item = std::ffi::OsString>,
+) -> Result<Vec<std::ffi::OsString>, &'static str> {
+    let caller = native_args.next();
+    if caller.as_deref() != Some(std::ffi::OsStr::new("yu-mail-ai@yuos.io"))
+        || native_args.next().is_some()
+    {
+        return Err("expected only the trusted Thunderbird extension identity");
+    }
+    Ok(vec![
+        std::ffi::OsString::from("-I"),
+        std::ffi::OsString::from("/usr/lib/yuos/apps/mail-ai/native_host.py"),
+    ])
+}
+
+fn main() {
+    let args = match python_arguments(std::env::args_os().skip(1)) {
+        Ok(args) => args,
+        Err(error) => {
+            eprintln!("yuos-mail-ai-host: {error}");
+            std::process::exit(1);
+        }
+    };
+    if let Err(error) = yu::bridge::run_native_app_host_with_stdio(
+        "mail-ai",
+        std::path::Path::new("/usr/lib/yuos/apps/mail-ai"),
+        std::ffi::OsStr::new("/usr/bin/python3"),
+        &args,
+        yu::mail_native::run,
+    ) {
+        eprintln!("yuos-mail-ai-host: {error}");
+        std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/test/unit/bin/yuos-mail-ai-host.rs"
+    ));
+}

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 fn tmp(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
-        "cos-nudge-{label}-{}.json",
+        "yuos-nudge-{label}-{}.json",
         Uuid::new_v4().simple()
     ))
 }

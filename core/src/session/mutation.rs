@@ -7,7 +7,7 @@
 //!
 //! ## Why typed mutations and not just an audit log
 //!
-//! The audit log (`/var/log/cos/{audit,caps}.jsonl`) already records
+//! The audit log (`/var/log/yuos/{audit,caps}.jsonl`) already records
 //! *that* an action happened, with enough detail to investigate. But
 //! audit lines are opaque: a human reading "fs.write /etc/passwd"
 //! cannot ask the OS to undo it without knowing what the file
@@ -121,7 +121,7 @@ pub struct MutationRecord {
     pub turn_seq: Option<u64>,
 
     /// Optional label for the runtime that recorded this mutation
-    /// (`"cos-agent"`, `"langchain-py"`, …). Mirrors `Turn::runtime`
+    /// (`"yuos-agent"`, `"langchain-py"`, …). Mirrors `Turn::runtime`
     /// so a cross-runtime session's mutation log shows which agent
     /// owned each change.
     #[serde(default, skip_serializing_if = "Option::is_none")]

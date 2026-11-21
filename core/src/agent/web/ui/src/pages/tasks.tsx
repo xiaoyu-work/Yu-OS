@@ -1,5 +1,5 @@
 /**
- * Tasks page. Lists the durable clawd queue from `/api/tasks`.
+ * Tasks page. Lists the durable yuosd queue from `/api/tasks`.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -55,10 +55,10 @@ export function TasksPage() {
     void load();
     const refresh = () => void load(false);
     const timer = window.setInterval(refresh, 3_000);
-    window.addEventListener("cos:notifications-changed", refresh);
+    window.addEventListener("yuos:notifications-changed", refresh);
     return () => {
       window.clearInterval(timer);
-      window.removeEventListener("cos:notifications-changed", refresh);
+      window.removeEventListener("yuos:notifications-changed", refresh);
     };
   }, [load]);
 

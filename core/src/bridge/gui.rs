@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use claw_display_control::{Epoch, InstanceId};
+use yuos_display_control::{Epoch, InstanceId};
 
 use crate::caps::{manifest::Runtime, CapSet};
-use crate::clawd::gui::inputs::Presentation;
+use crate::yuosd::gui::inputs::Presentation;
 use crate::worker::{StdioPlan, WorkerLaunch};
 
 use super::{gui_args, AppLaunch, LaunchBindingRef};
@@ -16,7 +16,7 @@ pub(crate) fn launch(
     args: &[String],
     data_dir: &str,
 ) -> Result<(), String> {
-    use crate::clawd::gui::inputs::{LaunchReply, PresentationKey, StopReply, WaitReply};
+    use crate::yuosd::gui::inputs::{LaunchReply, PresentationKey, StopReply, WaitReply};
     use std::io::Write;
 
     let selected = launch.manifest().gui_entry(gui_entry)?;
@@ -24,7 +24,7 @@ pub(crate) fn launch(
         return Err("GUI selector differs from the verified desktop declaration".into());
     }
     gui_args::prepare(launch.manifest().runtime, selector, args)?;
-    if !super::use_clawd_app_session_backend()? {
+    if !super::use_yuosd_app_session_backend()? {
         return Err("GUI launch requires an authenticated login and Root GUI custody; local execution is unavailable".to_string());
     }
     let mut presentation = Presentation::new();
@@ -33,7 +33,7 @@ pub(crate) fn launch(
             Ok(value) => {
                 key.validate_value(&value)
                     .map_err(|error| format!("invalid GUI presentation value: {error}"))?;
-                let value = crate::clawd::wire::bounded::Text::parse(&value)
+                let value = crate::yuosd::wire::bounded::Text::parse(&value)
                     .map_err(|error| format!("invalid GUI presentation value: {error}"))?;
                 presentation.insert(key, value);
             }
@@ -53,7 +53,7 @@ pub(crate) fn launch(
         if Path::new(data_dir) != expected {
             return Err("GUI data directory differs from the OS owner binding; caller-owned path overrides are not supported".to_string());
         }
-        let super::AppSessionBackend::Clawd { handle, .. } = &session.backend else {
+        let super::AppSessionBackend::Yuosd { handle, .. } = &session.backend else {
             return Err("GUI launch has no authenticated Root registration".to_string());
         };
         let parameters = serde_json::json!({
@@ -62,7 +62,7 @@ pub(crate) fn launch(
         let deadline = std::time::Instant::now() + super::gui_approval_wait(launch.app_id());
         let mut waited = std::collections::BTreeSet::new();
         let started = loop {
-            match super::clawd_request(super::ClawdCommand::AppGuiLaunch, parameters.clone()) {
+            match super::yuosd_request(super::YuosdCommand::AppGuiLaunch, parameters.clone()) {
                 Ok(started) => break started,
                 Err(error) => {
                     let ids = super::approval_requests(&error);
@@ -80,8 +80,8 @@ pub(crate) fn launch(
             return Err("Root GUI launch was not acknowledged".to_string());
         }
         loop {
-            let response = super::clawd_request(
-                super::ClawdCommand::AppGuiWait,
+            let response = super::yuosd_request(
+                super::YuosdCommand::AppGuiWait,
                 serde_json::json!({ "session_id": session.id() }),
             )
             .map_err(String::from)?;
@@ -121,8 +121,8 @@ pub(crate) fn launch(
         }
     })();
     if !session.gui_retired {
-        let cleanup = super::clawd_request(
-            super::ClawdCommand::AppGuiStop,
+        let cleanup = super::yuosd_request(
+            super::YuosdCommand::AppGuiStop,
             serde_json::json!({ "session_id": session.id() }),
         )
         .map_err(String::from)
@@ -198,7 +198,7 @@ pub(crate) fn plan(
     };
     argv.extend(arguments.entry_argv);
     let app_runner = super::app_runner_path();
-    let runner = app_runner.with_file_name("claw-gui-runner");
+    let runner = app_runner.with_file_name("yuos-gui-runner");
     for executable in [&runner, &app_runner] {
         crate::display_session::protected_executable(
             executable.to_str().ok_or("GUI runner path is not UTF-8")?,
@@ -217,12 +217,12 @@ pub(crate) fn plan(
     gated.extend(argv);
     let panel = selected.panel_applet;
     let mut environment = BTreeMap::from([
-        ("COS_APP_GUI".to_string(), "1".to_string()),
-        ("COS_COMMAND".to_string(), selector.to_string()),
-        ("COS_ARGS_JSON".to_string(), arguments.user_args_json),
+        ("YUOS_APP_GUI".to_string(), "1".to_string()),
+        ("YUOS_COMMAND".to_string(), selector.to_string()),
+        ("YUOS_ARGS_JSON".to_string(), arguments.user_args_json),
     ]);
     if !selected.optional_needs.is_empty() {
-        environment.insert("COS_APP_OPTIONAL_NEEDS_UNGRANTED_JSON".to_string(),
+        environment.insert("YUOS_APP_OPTIONAL_NEEDS_UNGRANTED_JSON".to_string(),
             serde_json::to_string(optional_needs_ungranted)
                 .map_err(|error| format!("encode optional GUI startup state: {error}"))?);
     }
@@ -252,7 +252,7 @@ pub(crate) fn plan(
         display,
         &program,
     )?;
-    if !presentation.contains_key(&crate::clawd::gui::inputs::PresentationKey::LocaleAll) {
+    if !presentation.contains_key(&crate::yuosd::gui::inputs::PresentationKey::LocaleAll) {
         policy.env.remove("LC_ALL");
     }
     policy

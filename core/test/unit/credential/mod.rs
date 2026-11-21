@@ -3,14 +3,14 @@ use super::*;
 use std::sync::Once;
 static PERMS_INIT: Once = Once::new();
 fn perms_init() {
-    PERMS_INIT.call_once(|| std::env::set_var("COS_PERMS_MODE", "permissive"));
+    PERMS_INIT.call_once(|| std::env::set_var("YUOS_PERMS_MODE", "permissive"));
 }
 use std::sync::atomic::{AtomicU32, Ordering};
 
 static INIT: Once = Once::new();
 static COUNTER: AtomicU32 = AtomicU32::new(0);
 
-/// All tests share one COS_CREDENTIALS_DIR (set once). Each test uses unique
+/// All tests share one YUOS_CREDENTIALS_DIR (set once). Each test uses unique
 /// credential names so there is no cross-test interference.
 fn unique_name(prefix: &str) -> String {
     let n = COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -19,15 +19,15 @@ fn unique_name(prefix: &str) -> String {
 
 fn setup() {
     INIT.call_once(|| {
-        let dir = std::env::temp_dir().join(format!("cos-test-shared-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("yuos-test-shared-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
-        // credentials_dir() now reads COS_CREDENTIALS_DIR (per-user
-        // store moved out of $COS_DATA_DIR). Tests still set
-        // COS_DATA_DIR for other modules that share this dir.
-        std::env::set_var("COS_DATA_DIR", &dir);
-        std::env::set_var("COS_CREDENTIALS_DIR", dir.join("credentials"));
+        // credentials_dir() now reads YUOS_CREDENTIALS_DIR (per-user
+        // store moved out of $YUOS_DATA_DIR). Tests still set
+        // YUOS_DATA_DIR for other modules that share this dir.
+        std::env::set_var("YUOS_DATA_DIR", &dir);
+        std::env::set_var("YUOS_CREDENTIALS_DIR", dir.join("credentials"));
     });
-    std::env::remove_var("COS_SESSION");
+    std::env::remove_var("YUOS_SESSION");
 }
 
 // ---- SHA-256 ----------------------------------------------------------
@@ -469,7 +469,7 @@ fn store_with_refresh_cmd() {
 }
 
 #[test]
-fn store_rejects_non_cos_refresh_cmd() {
+fn store_rejects_non_yu_refresh_cmd() {
     perms_init();
     setup();
     let name = unique_name("bad-refresh");
@@ -484,7 +484,7 @@ fn store_rejects_non_cos_refresh_cmd() {
 }
 
 #[test]
-fn execute_refresh_rejects_non_cos() {
+fn execute_refresh_rejects_non_yu() {
     perms_init();
     let r = execute_refresh("rm -rf /");
     assert!(r.is_err());
@@ -497,7 +497,7 @@ fn load_auto_refresh_on_expiry() {
     setup();
     let name = unique_name("auto-refresh");
 
-    // Store with expired TTL and a cos refresh command that will fail.
+    // Store with expired TTL and a yu refresh command that will fail.
     // We write the credential file directly to bypass store validation.
     let dir = namespace_dir("default");
     let _ = fs::create_dir_all(&dir);
@@ -527,12 +527,12 @@ fn load_auto_refresh_on_expiry() {
     // Load should attempt auto-refresh but fail
     let r = cmd_load(&[name.clone()]);
     // The yu binary may or may not be in PATH, but either way the refresh should fail:
-    // - If cos is not in PATH: "failed to execute refresh command"
-    // - If cos is in PATH but exits non-zero: "refresh command failed"
-    // - If cos is in PATH and exits 0 with error JSON: we get a JSON string as value
+    // - If yu is not in PATH: "failed to execute refresh command"
+    // - If yu is in PATH but exits non-zero: "refresh command failed"
+    // - If yu is in PATH and exits 0 with error JSON: we get a JSON string as value
     //   (which is still technically valid but the credential gets refreshed with error JSON)
     // In any case, we verify the refresh path is exercised by checking the result.
-    // If it succeeds, the value will be error JSON from cos, not "old-value".
+    // If it succeeds, the value will be error JSON from yu, not "old-value".
     match r {
         Err(e) => {
             assert!(
@@ -541,7 +541,7 @@ fn load_auto_refresh_on_expiry() {
             );
         }
         Ok(v) => {
-            // Refresh "succeeded" with error JSON from cos — value is not "old-value"
+            // Refresh "succeeded" with error JSON from yu — value is not "old-value"
             assert_eq!(v["refreshed"], true);
             assert_ne!(v["value"], "old-value");
         }
@@ -640,7 +640,7 @@ fn broker_oauth_refresh_accepts_only_matching_builtin_command() {
 /// `credential-root.key` exists yet, the store must generate a random
 /// 32-byte key via the OS CSPRNG, persist it with mode 0600, and reuse it
 /// on subsequent calls. The previous behaviour was to silently fall back
-/// to `sha256("claw-os-credential-store-key-v1")` — a universally-known
+/// to `sha256("yuos-credential-store-key-v1")` — a universally-known
 /// key that decrypts every credential store offline.
 #[test]
 fn test_machine_id_missing_falls_back_to_persistent_random_key() {
@@ -651,7 +651,7 @@ fn test_machine_id_missing_falls_back_to_persistent_random_key() {
     // NOT mutate any process-global env vars (which would race the other
     // ~80 credential tests).
     let dir = std::env::temp_dir().join(format!(
-        "cos-cred-rootkey-{}-{}",
+        "yuos-cred-rootkey-{}-{}",
         std::process::id(),
         COUNTER.fetch_add(1, Ordering::SeqCst)
     ));
@@ -711,7 +711,7 @@ fn test_machine_id_missing_falls_back_to_persistent_random_key() {
 #[test]
 fn malformed_persistent_root_key_is_not_silently_replaced() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-cred-malformed-rootkey-{}-{}",
+        "yuos-cred-malformed-rootkey-{}-{}",
         std::process::id(),
         COUNTER.fetch_add(1, Ordering::SeqCst)
     ));
@@ -730,7 +730,7 @@ fn malformed_persistent_root_key_is_not_silently_replaced() {
 #[test]
 fn random_failure_is_typed_and_preserves_its_source() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-cred-random-failure-{}-{}",
+        "yuos-cred-random-failure-{}-{}",
         std::process::id(),
         COUNTER.fetch_add(1, Ordering::SeqCst)
     ));
@@ -749,7 +749,7 @@ fn random_failure_is_typed_and_preserves_its_source() {
 #[test]
 fn root_key_write_failure_leaves_no_final_or_temporary_file() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-cred-rootkey-write-failure-{}-{}",
+        "yuos-cred-rootkey-write-failure-{}-{}",
         std::process::id(),
         COUNTER.fetch_add(1, Ordering::SeqCst)
     ));
@@ -774,7 +774,7 @@ fn root_key_write_failure_leaves_no_final_or_temporary_file() {
 #[test]
 fn concurrent_root_key_publishers_only_observe_a_complete_winner() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-cred-rootkey-race-{}-{}",
+        "yuos-cred-rootkey-race-{}-{}",
         std::process::id(),
         COUNTER.fetch_add(1, Ordering::SeqCst)
     ));
@@ -809,7 +809,7 @@ fn concurrent_root_key_publishers_only_observe_a_complete_winner() {
 #[test]
 fn race_loser_completes_directory_fsync_before_returning() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-cred-rootkey-durability-race-{}-{}",
+        "yuos-cred-rootkey-durability-race-{}-{}",
         std::process::id(),
         COUNTER.fetch_add(1, Ordering::SeqCst)
     ));
@@ -944,7 +944,7 @@ fn encrypted_record_json_shape_is_stable() {
 
 #[test]
 fn keyring_master_key_label_is_stable() {
-    assert_eq!(MASTER_KEY_LABEL, b"cos-credential-key");
+    assert_eq!(MASTER_KEY_LABEL, b"yuos-credential-key");
 }
 
 #[cfg(unix)]
@@ -953,7 +953,7 @@ fn atomic_write_replaces_content_with_mode_0600() {
     use std::os::unix::fs::PermissionsExt;
 
     let dir = std::env::temp_dir().join(format!(
-        "cos-cred-atomic-{}-{}",
+        "yuos-cred-atomic-{}-{}",
         std::process::id(),
         COUNTER.fetch_add(1, Ordering::SeqCst)
     ));
@@ -982,12 +982,12 @@ fn scheduled_load_rejects_symlinked_credential() {
     use std::os::unix::fs::MetadataExt;
 
     let root = std::env::temp_dir().join(format!(
-        "cos-cred-symlink-{}-{}",
+        "yuos-cred-symlink-{}-{}",
         std::process::id(),
         COUNTER.fetch_add(1, Ordering::SeqCst)
     ));
     let home = root.join("home");
-    let credential_dir = home.join(".local/share/cos/credentials/default");
+    let credential_dir = home.join(".local/share/yuos/credentials/default");
     fs::create_dir_all(&credential_dir).unwrap();
     let outside = root.join("outside.json");
     fs::write(&outside, "{}").unwrap();

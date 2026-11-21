@@ -4,7 +4,7 @@ use std::os::fd::{AsRawFd, OwnedFd};
 use std::os::unix::process::CommandExt;
 use std::time::Duration;
 
-use claw_notification_presentation::{Card as PresentationCard, Preferences, PRESENTER_FD_ENV};
+use yuos_notification_presentation::{Card as PresentationCard, Preferences, PRESENTER_FD_ENV};
 use futures_util::StreamExt;
 use serde_json::{json, Value};
 use tokio::io::AsyncBufReadExt;
@@ -51,13 +51,13 @@ trait Closed {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if unsafe { libc::geteuid() } == 0
-        || std::env::var("CLAW_NOTIFICATION_PRIVATE_FIXTURE").as_deref() != Ok("1")
+        || std::env::var("YUOS_NOTIFICATION_PRIVATE_FIXTURE").as_deref() != Ok("1")
     {
         return Err("run only as a synthetic owner in the isolated native fixture".into());
     }
     let (mine, theirs) = std::os::unix::net::UnixStream::pair()?;
     let raw = theirs.as_raw_fd();
-    let mut command = std::process::Command::new("/usr/lib/cos/bin/claw-notification-panel");
+    let mut command = std::process::Command::new("/usr/lib/yuos/bin/yuos-notification-panel");
     command
         .env(PRESENTER_FD_ENV, raw.to_string())
         .stdin(std::process::Stdio::null())
@@ -128,15 +128,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let result = match request["action"].as_str() {
                     Some("claim") | Some("availability") => {
                         let (command, params) = if request["action"] == "claim" {
-                            (yu::clawd::routes::Command::NotificationDeliveryClaim,
+                            (yu::yuosd::routes::Command::NotificationDeliveryClaim,
                                 json!({"channel":"desktop","limit":1}))
                         } else {
-                            (yu::clawd::routes::Command::parse("notification.presentation.control")
+                            (yu::yuosd::routes::Command::parse("notification.presentation.control")
                                 .ok_or("Root notification panel route is unavailable")?,
                                 json!({"action":"snapshot","after":0}))
                         };
-                        let response = yu::clawd::client::request(yu::clawd::config::socket_path(),
-                            yu::clawd::protocol::Request::new(command, params)).await?;
+                        let response = yu::yuosd::client::request(yu::yuosd::config::socket_path(),
+                            yu::yuosd::protocol::Request::new(command, params)).await?;
                         json!({"ok":response.ok,"result":response.result,"error":response.error})
                     }
                     Some("preferences") => json!({"preferences":Preferences::from_json(&proxy.preferences().await?)?}),

@@ -117,13 +117,13 @@ fn env_vars_are_not_expanded() {
     // We deliberately removed `$VAR` expansion from `Scope::path`
     // (audit: caps/scope.rs HIGH) because untrusted manifest /
     // SDK callers shouldn't be able to read process env. The
-    // literal `$COS_TEST_PFX` segment must be matched as-is.
-    std::env::set_var("COS_TEST_PFX", "/var/tmp/cos-test");
-    let granted = Scope::path("$COS_TEST_PFX/**");
-    assert!(!granted.covers(&Scope::path("/var/tmp/cos-test/file.txt")));
-    // It DOES still match a literal `$COS_TEST_PFX` directory.
-    assert!(granted.covers(&Scope::path("$COS_TEST_PFX/file.txt")));
-    std::env::remove_var("COS_TEST_PFX");
+    // literal `$YUOS_TEST_PFX` segment must be matched as-is.
+    std::env::set_var("YUOS_TEST_PFX", "/var/tmp/yuos-test");
+    let granted = Scope::path("$YUOS_TEST_PFX/**");
+    assert!(!granted.covers(&Scope::path("/var/tmp/yuos-test/file.txt")));
+    // It DOES still match a literal `$YUOS_TEST_PFX` directory.
+    assert!(granted.covers(&Scope::path("$YUOS_TEST_PFX/file.txt")));
+    std::env::remove_var("YUOS_TEST_PFX");
 }
 
 /// Audit fix (caps/scope.rs HIGH "path scope rejects symlink
@@ -138,7 +138,7 @@ fn env_vars_are_not_expanded() {
 fn path_scope_rejects_symlink_outside() {
     use std::os::unix::fs::symlink;
     let root = std::env::temp_dir().join(format!(
-        "cos-scope-symlink-{}-{}",
+        "yuos-scope-symlink-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

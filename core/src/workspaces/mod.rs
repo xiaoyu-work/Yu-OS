@@ -1,6 +1,6 @@
 //! Workspace context domains above Activities. Persistence is shared with goals.
 
-pub use clawd_client::workspaces::*;
+pub use yuosd_client::workspaces::*;
 
 use crate::activities::{ActivityError, SqliteActivityService};
 

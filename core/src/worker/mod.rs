@@ -1,6 +1,6 @@
 //! Hostile-worker isolation.
 //!
-//! Everything Claw OS executes that it did not write — Python and
+//! Everything Yu OS executes that it did not write — Python and
 //! polyglot App operations, GUI App surfaces, MCP servers, adapters,
 //! and model-authored commands — runs through this module. There is
 //! one definition of what such a process may do ([`policy`]), one
@@ -14,7 +14,7 @@
 //! | `AppOperation` | `yu app fs read` | yes | no | brokered, exact hosts |
 //! | `DesktopSurface` | `yu app notes --gui` | yes | yes | brokered, exact hosts |
 //! | `McpServer` | a configured stdio MCP server, an adapter, an App session server | yes | no | denied |
-//! | `AgentExec` | `cos_sandbox exec` | yes | no | brokered, exact hosts |
+//! | `AgentExec` | `yu_sandbox exec` | yes | no | brokered, exact hosts |
 //! | `TrustedDesktopSession` | a vendor App session server that needs the session bus | yes | one exact socket | denied |
 //!
 //! Every tier is sandboxed. Native Messaging uses the ordinary declared
@@ -26,7 +26,7 @@
 //! missing, unprivileged user namespaces are disabled, seccomp is
 //! unavailable, no resource governor can be established, the policy
 //! does not validate, or a granted path resolves into a kernel-owned
-//! root. `cos` on a non-Linux host cannot isolate anything and refuses
+//! root. `yu` on a non-Linux host cannot isolate anything and refuses
 //! every hostile-worker launch outright.
 
 pub mod audit;
@@ -64,13 +64,13 @@ pub use provider::{
 };
 
 /// Set inside every sandboxed worker. Its presence is what tells the
-/// in-sandbox `cos` to ask the launch broker for capability decisions
+/// in-sandbox `yu` to ask the launch broker for capability decisions
 /// instead of reading a session registry that is not mounted.
 ///
 /// It is not a security boundary: a worker can unset it, which only
 /// makes its own advisory checks fail closed. The real boundary is the
 /// mount, network and syscall policy around it.
-pub const SANDBOX_MARKER_ENV: &str = "COS_WORKER_SANDBOX";
+pub const SANDBOX_MARKER_ENV: &str = "YUOS_WORKER_SANDBOX";
 
 /// Path the brokered egress endpoint appears at inside the sandbox.
 pub fn linux_egress_socket() -> &'static str {
@@ -80,7 +80,7 @@ pub fn linux_egress_socket() -> &'static str {
     }
     #[cfg(not(target_os = "linux"))]
     {
-        "/run/cos/worker-egress.sock"
+        "/run/yuos/worker-egress.sock"
     }
 }
 

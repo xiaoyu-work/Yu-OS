@@ -200,7 +200,7 @@ impl HostedAgentExtension {
             &entry,
             launch_guard.root(),
             vec![(
-                OsString::from("CLAW_EXTENSION_ABI"),
+                OsString::from("YUOS_EXTENSION_ABI"),
                 OsString::from(ABI_VERSION.to_string()),
             )],
             isolation,

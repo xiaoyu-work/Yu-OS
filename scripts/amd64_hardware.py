@@ -32,13 +32,13 @@ def framework(source, provenance, work, out):
     dest.mkdir(parents=True, exist_ok=True)
     tree = work / QMK
     stage = work / "framework"
-    name = "claw-os-framework-qmk-hid"
+    name = "yuos-framework-qmk-hid"
     extract(source[QMK], tree)
     env = dict(os.environ, CARGO_TARGET_DIR=str(tree / "target"))
     subprocess.run(["cargo", "build", "--locked", "--release", "--jobs", "4"], env=env, cwd=tree, check=True)
     stage_file(tree / "target/release/qmk_hid", stage / "usr/bin/qmk_hid", 0o755)
     stage_file(tree / "LICENSE.md", stage / "usr/share/doc" / name / "copyright")
-    package(stage, dest, name, "0.1.13-2+clawos1", "amd64", "libc6, libcap2, libgcc-s1, libudev1",
+    package(stage, dest, name, "0.1.13-2+yuos1", "amd64", "libc6, libcap2, libgcc-s1, libudev1",
             "Framework Laptop 16 QMK HID utility", {QMK: provenance[QMK]}, None)
 
 
@@ -49,14 +49,14 @@ def dell(source, provenance, work, out):
     prefix = "pkgbuilds/dell-xps-touchpad-haptics/"
     extract(source[RECIPES], upstream, prefixes=("LICENSE", prefix))
     stage = work / "dell"
-    name = "claw-os-dell-xps-haptics"
+    name = "yuos-dell-xps-haptics"
     files = upstream / prefix
     utility = stage / "usr/bin/dell-xps-touchpad-haptics"
-    daemon = stage / "usr/lib/cos/hw/dell-xps-touchpad-haptics-daemon"
+    daemon = stage / "usr/lib/yuos/hw/dell-xps-touchpad-haptics-daemon"
     stage_file(files / utility.name, utility, 0o755)
     stage_file(files / daemon.name, daemon, 0o755)
     stage_file(upstream / "LICENSE", stage / "usr/share/doc" / name / "copyright")
-    replace(utility, 'CONFIG_PATH="$HOME/.config/omarchy/dell-haptic.conf"', "CONFIG_PATH=/etc/claw-dell-haptics.conf")
+    replace(utility, 'CONFIG_PATH="$HOME/.config/omarchy/dell-haptic.conf"', "CONFIG_PATH=/etc/yuos-dell-haptics.conf")
     replace(utility, "  previous_level=$(level_for_intensity", """  if (( EUID != 0 )); then
     echo "Setting haptic intensity requires root." >&2
     exit 1
@@ -70,7 +70,7 @@ def dell(source, provenance, work, out):
   printf '# Dell XPS touchpad haptic intensity.\\n# Presets: low=10, mid=50, high=100.\\nINTENSITY=%s\\n' "$intensity" >"$CONFIG_PATH"
 }""", """write_config() (
   local intensity=$1 staged
-  staged=$(mktemp /etc/.claw-dell-haptics.XXXXXX)
+  staged=$(mktemp /etc/.yuos-dell-haptics.XXXXXX)
   trap 'rm -f -- "$staged"' EXIT
   printf 'INTENSITY=%s\\n' "$intensity" >"$staged"
   chmod 0644 "$staged"
@@ -81,7 +81,7 @@ def dell(source, provenance, work, out):
     replace(daemon, 'USER_HOME = Path(\n'
             '    os.environ.get("DELL_XPS_TOUCHPAD_HAPTICS_HOME", str(Path.home()))\n'
             ')\nCONFIG_PATH = USER_HOME / ".config/omarchy/dell-haptic.conf"',
-            'CONFIG_PATH = Path("/etc/claw-dell-haptics.conf")\n'
+            'CONFIG_PATH = Path("/etc/yuos-dell-haptics.conf")\n'
             'TOUCHPAD = Path("/sys/bus/i2c/devices/i2c-VEN_06CB:00")')
     replace(daemon, "def find_hidraw():", """def is_touchpad(path):
     try:
@@ -117,7 +117,7 @@ ConditionPathExists=/sys/bus/i2c/devices/i2c-VEN_06CB:00
 After=systemd-udev-trigger.service
 
 [Service]
-ExecStart=/usr/lib/cos/hw/dell-xps-touchpad-haptics-daemon
+ExecStart=/usr/lib/yuos/hw/dell-xps-touchpad-haptics-daemon
 Restart=on-failure
 RestartSec=2
 NoNewPrivileges=yes
@@ -127,11 +127,11 @@ ProtectSystem=strict
 [Install]
 WantedBy=multi-user.target
 """)
-    write_file(stage / "usr/lib/udev/rules.d/99-claw-dell-xps-haptics.rules",
+    write_file(stage / "usr/lib/udev/rules.d/99-yuos-dell-xps-haptics.rules",
                'ACTION=="add", SUBSYSTEM=="i2c", KERNEL=="i2c-VEN_06CB:00", '
                'ATTR{[dmi/id]sys_vendor}=="Dell Inc.", TAG+="systemd", '
                'ENV{SYSTEMD_WANTS}+="dell-xps-touchpad-haptics.service"\n')
-    package(stage, dest, name, "1.0.0-5+clawos1", "amd64", "python3, bash, systemd, udev",
+    package(stage, dest, name, "1.0.0-5+yuos1", "amd64", "python3, bash, systemd, udev",
             "Model-matched Dell XPS Synaptics haptic touchpad support",
             {RECIPES: provenance[RECIPES]}, None)
 
@@ -175,7 +175,7 @@ case "$1" in
         ;;
 esac
 """, 0o755)
-    version = f"{module}-1+clawos1"
+    version = f"{module}-1+yuos1"
     package(loopback, dest, "v4l2loopback-dkms", version, "all", "dkms (>= 3.0.11)",
             "V4L2 loopback module compatible with Debian Linux 7.2", {LOOPBACK: provenance[LOOPBACK]},
             f"""[ "$1" = configure ] || exit 0
@@ -183,14 +183,14 @@ esac
 """)
 
     stage = work / "camlink"
-    name = "claw-os-elgato-camlink"
+    name = "yuos-elgato-camlink"
     stage_relay(relay, source, stage, name, "usr/bin/v4l2-relayd")
     stage_file(stage / "usr/share/doc" / name / "v4l2-relayd.LICENSE", stage / "usr/share/doc" / name / "copyright")
     assets = PACKAGING / "camlink"
-    stage_file(assets / "71-claw-camlink.rules", stage / "usr/lib/udev/rules.d/71-claw-camlink.rules")
-    for unit in ("claw-camlink-loopback.service", "claw-camlink-relay.service"):
+    stage_file(assets / "71-yuos-camlink.rules", stage / "usr/lib/udev/rules.d/71-yuos-camlink.rules")
+    for unit in ("yuos-camlink-loopback.service", "yuos-camlink-relay.service"):
         stage_file(assets / unit, stage / "usr/lib/systemd/system" / unit)
-    package(stage, dest, name, "0.2.0-3+clawos2", "amd64",
+    package(stage, dest, name, "0.2.0-3+yuos2", "amd64",
             f"v4l2loopback-dkms (>= {version}), v4l2loopback-utils, gstreamer1.0-plugins-base, "
             "gstreamer1.0-plugins-good, libgstreamer1.0-0, libgstreamer-plugins-base1.0-0, libglib2.0-0t64, libc6, kmod, systemd, udev",
             "Fixed-aspect virtual camera for the Elgato Cam Link 4K",
@@ -207,7 +207,7 @@ def intel_ipu7(source, provenance, work, out, relay):
     extract(source[RECIPES], work / "ipu7-recipes", prefixes=(recipes,))
     fixes = work / "ipu7-recipes" / recipes
     stage = work / "ipu7-camera"
-    name = "claw-os-intel-ipu7-camera"
+    name = "yuos-intel-ipu7-camera"
     doc = stage / "usr/share/doc" / name
     driver = "ipu7-drivers"
     version = "1.0.6"
@@ -279,7 +279,7 @@ def intel_ipu7(source, provenance, work, out, relay):
     subprocess.run(["make", "-j4"], cwd=gst, env=env, check=True)
     subprocess.run(["make", "install"], cwd=gst, env=dict(env, DESTDIR=str(sdk)), check=True)
 
-    runtime = stage / "usr/lib/cos/ipu7"
+    runtime = stage / "usr/lib/yuos/ipu7"
     runtime.mkdir(parents=True)
     for pattern in ("libia*.so.*", "libcamhal.so.*", "libgsticamerainterface-1.0.so.*"):
         for file in lib.glob(pattern):
@@ -292,14 +292,14 @@ def intel_ipu7(source, provenance, work, out, relay):
                                                  for path in sorted(config.rglob("*")) if path.is_file()))
     for firmware in ("ipu7_fw.bin", "ipu7ptl_fw.bin"):
         stage_file(bins / "lib/firmware/intel/ipu" / firmware, stage / "usr/lib/firmware/updates/intel/ipu" / firmware)
-    stage_relay(relay, source, stage, name, "usr/lib/cos/ipu7/v4l2-relayd")
+    stage_relay(relay, source, stage, name, "usr/lib/yuos/ipu7/v4l2-relayd")
     assets = PACKAGING / "ipu7"
-    for unit in ("claw-ipu7-init.service", "claw-ipu7-camera.service"):
+    for unit in ("yuos-ipu7-init.service", "yuos-ipu7-camera.service"):
         stage_file(assets / unit, stage / "usr/lib/systemd/system" / unit)
-    stage_file(assets / "claw-ipu7-camera", runtime / "claw-ipu7-camera", 0o755)
-    stage_file(assets / "claw-ipu7-sleep", stage / "usr/lib/systemd/system-sleep/claw-ipu7-sleep", 0o755)
-    stage_file(assets / "71-claw-ipu7.rules", stage / "usr/lib/udev/rules.d/71-claw-ipu7.rules")
-    write_file(stage / "usr/lib/tmpfiles.d/claw-ipu7.conf", "d /run/camera 0700 root root -\n")
+    stage_file(assets / "yuos-ipu7-camera", runtime / "yuos-ipu7-camera", 0o755)
+    stage_file(assets / "yuos-ipu7-sleep", stage / "usr/lib/systemd/system-sleep/yuos-ipu7-sleep", 0o755)
+    stage_file(assets / "71-yuos-ipu7.rules", stage / "usr/lib/udev/rules.d/71-yuos-ipu7.rules")
+    write_file(stage / "usr/lib/tmpfiles.d/yuos-ipu7.conf", "d /run/camera 0700 root root -\n")
     write_file(stage / "DEBIAN/prerm", f"""#!/bin/sh
 set -e
 case "$1" in
@@ -310,8 +310,8 @@ case "$1" in
         ;;
 esac
 """, 0o755)
-    package(stage, dest, name, f"{version}-3+clawos2", "amd64",
-            "dkms (>= 3.0.11), v4l2loopback-dkms (>= 0.15.4-1+clawos1), v4l2loopback-utils, "
+    package(stage, dest, name, f"{version}-3+yuos2", "amd64",
+            "dkms (>= 3.0.11), v4l2loopback-dkms (>= 0.15.4-1+yuos1), v4l2loopback-utils, "
             "gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, libgstreamer1.0-0, libgstreamer-plugins-base1.0-0, "
             "libglib2.0-0t64, libstdc++6, libgcc-s1, libexpat1, libdrm2, libdrm-intel1, libjsoncpp26, libc6, "
             "kmod, systemd, udev, init-system-helpers",
@@ -319,9 +319,9 @@ esac
             {key: provenance[key] for key in (*IPU7_INPUTS, RECIPES, RELAY)},
             f"""[ "$1" = configure ] || exit 0
 /usr/lib/dkms/common.postinst {driver} '{version}' /usr/share/{driver} "" "${{2:-}}"
-deb-systemd-helper enable claw-ipu7-init.service >/dev/null
+deb-systemd-helper enable yuos-ipu7-init.service >/dev/null
 """, """[ "$1" = purge ] || exit 0
-deb-systemd-helper purge claw-ipu7-init.service >/dev/null
+deb-systemd-helper purge yuos-ipu7-init.service >/dev/null
 """)
 
 
@@ -330,7 +330,7 @@ def intel_power(source, provenance, work, out):
     dest.mkdir(parents=True, exist_ok=True)
     tree = work / LPMD
     stage = work / "lpmd-package"
-    name = "claw-os-intel-lpmd"
+    name = "yuos-intel-lpmd"
     extract(source[LPMD], tree)
     replace(tree / "configure.ac", "GTK_DOC_CHECK([1.11],[--flavour no-tmpl])\n", "")
     replace(tree / "Makefile.am", 'install-data-hook:\n\tgzip -f -k "$(DESTDIR)$(mandir)/man8/intel_lpmd.8";\n\tmandb || true\n', "")
@@ -354,7 +354,7 @@ def intel_power(source, provenance, work, out):
     stage_file(source[LPMD], doc / "intel-lpmd-0.1.0.tar.gz")
     conf = stage / "etc/intel_lpmd"
     write_file(stage / "DEBIAN/conffiles", "".join(f"/etc/intel_lpmd/{path.name}\n" for path in sorted(conf.glob("*.xml"))))
-    package(stage, dest, name, "0.1.0-1+clawos1", "amd64",
+    package(stage, dest, name, "0.1.0-1+yuos1", "amd64",
             "libc6, libglib2.0-0t64, libxml2, libnl-3-200, libnl-genl-3-200, libsystemd0, "
             "libupower-glib3, upower, dbus, systemd, init-system-helpers",
             "Intel low-power mode daemon for supported hybrid laptops", {LPMD: provenance[LPMD]},
@@ -370,7 +370,7 @@ def rog(source, provenance, work, out):
     dest.mkdir(parents=True, exist_ok=True)
     tree = work / "asusctl"
     stage = work / "rog-package"
-    name = "claw-os-asus-rog"
+    name = "yuos-asus-rog"
     extract(source[ROG], tree)
     env = dict(os.environ, CARGO_TARGET_DIR=str(tree / "target"))
     subprocess.run(["cargo", "build", "--locked", "--release", "--jobs", "4", "-p", "asusctl",
@@ -382,7 +382,7 @@ def rog(source, provenance, work, out):
         text = (tree / "data" / filename).read_text()
         text = text.replace("[Unit]\n", '[Unit]\nConditionFirmware=smbios-field(sys_vendor = "ASUSTeK COMPUTER INC.")\n', 1)
         write_file(unit, text)
-    rule = stage / "usr/lib/udev/rules.d/99-claw-asusd.rules"
+    rule = stage / "usr/lib/udev/rules.d/99-yuos-asusd.rules"
     write_file(rule, 'ACTION=="add", DRIVER=="asus-nb-wmi", '
                'ATTR{[dmi/id]sys_vendor}=="ASUSTeK COMPUTER INC.", ATTR{[dmi/id]product_family}=="*ROG*", '
                'TAG+="systemd", ENV{SYSTEMD_WANTS}+="asusd.service asus-shutdown.service"\n')
@@ -397,7 +397,7 @@ def rog(source, provenance, work, out):
     stage_file(tree / "rog-aura/data/aura_support.ron", stage / "usr/share/asusd/aura_support.ron")
     doc = stage / "usr/share/doc" / name
     stage_file(tree / "LICENSE", doc / "copyright")
-    package(stage, dest, name, "6.5.0-1+clawos1", "amd64",
+    package(stage, dest, name, "6.5.0-1+yuos1", "amd64",
             "libc6, libgcc-s1, libusb-1.0-0, libudev1, dbus, systemd, udev",
             "ASUS ROG notebook control daemon, shutdown service and CLI", {ROG: provenance[ROG]}, None)
 
@@ -425,7 +425,7 @@ def tuxedo(source, provenance, work, out):
         if path.is_file():
             stage_file(path, stage / path.relative_to(upstream / "files"))
     stage_file(upstream / "LICENSE", stage / "usr/share/doc" / name / "copyright")
-    write_file(stage / "usr/lib/modprobe.d/60-claw-tuxedo-backlight.conf", "blacklist clevo_xsm_wmi\n")
+    write_file(stage / "usr/lib/modprobe.d/60-yuos-tuxedo-backlight.conf", "blacklist clevo_xsm_wmi\n")
     write_file(stage / "DEBIAN/prerm", f"""#!/bin/sh
 set -e
 case "$1" in
@@ -436,7 +436,7 @@ case "$1" in
         ;;
 esac
 """, 0o755)
-    package(stage, dest, name, f"{version}-1+clawos1", "amd64", "dkms (>= 3.0.11), udev",
+    package(stage, dest, name, f"{version}-1+yuos1", "amd64", "dkms (>= 3.0.11), udev",
             "Upstream compatibility-checked TUXEDO laptop modules", {TUXEDO: provenance[TUXEDO]},
             f"""[ "$1" = configure ] || exit 0
 /usr/lib/dkms/common.postinst '{TUXEDO}' '{version}' /usr/share/{name} "" "${{2:-}}"

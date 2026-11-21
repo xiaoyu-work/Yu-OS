@@ -30,7 +30,7 @@ fi
 if [ "$desktop" = true ]; then
     : "${DESKTOP_SHELL_RELEASE:?an approved Desktop Shell build version is required for a Desktop release}"
 fi
-export CLAW_APP_PACKAGE_ROOT="$GITHUB_WORKSPACE/build/release/app-packages"
+export YUOS_APP_PACKAGE_ROOT="$GITHUB_WORKSPACE/build/release/app-packages"
 for variant in agent desktop; do
     if [ "$variant" = agent ] && [ "$agent" != true ]; then continue; fi
     if [ "$variant" = desktop ] && [ "$desktop" != true ]; then continue; fi

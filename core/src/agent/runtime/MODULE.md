@@ -71,7 +71,7 @@ trusted tool-exposure context, prompt/memory services, and an explicit
 paths, clock, and semantic indexing before entering the lifecycle. Delegated
 children inherit the parent's runtime hooks, clock, and paths while retaining
 their own provider and narrowed tool registry, and their hook context is marked
-delegated. Detached curator work reinstalls both the captured `Arc<CosConfig>`
+delegated. Detached curator work reinstalls both the captured `Arc<YuConfig>`
 and typed routed-path context (owner home, owner UID, routed-job marker); its
 curation log is an explicit composition-time path. It never executes a
 model-emitted tool call outside `turn.rs` dispatch. Dispatch repeats exposure

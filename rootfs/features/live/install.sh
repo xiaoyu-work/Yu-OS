@@ -10,9 +10,9 @@
 #  - Configure tty1 autologin for the live-config "user" account so headless
 #    boots (qemu -nographic, USB keyboard) reach a shell without a password
 #    prompt.
-#  - Set the hostname to `claw-os-live` so terminals / mDNS announce as
+#  - Set the hostname to `yuos-live` so terminals / mDNS announce as
 #    something recognisable.
-#  - Install Claw OS branding in /etc/issue (pre-login) and /etc/motd
+#  - Install Yu OS branding in /etc/issue (pre-login) and /etc/motd
 #    (post-login).
 #  - Suppress `apt-daily.timer` / `apt-daily-upgrade.timer` while booted
 #    from the live medium — they have nothing useful to do on a
@@ -59,26 +59,26 @@ EOF
 
 for path in etc/hostname etc/issue etc/motd; do
     if [ -e "$ROOTFS/$path" ]; then
-        cp -a "$ROOTFS/$path" "$ROOTFS/$path.claw-installed"
+        cp -a "$ROOTFS/$path" "$ROOTFS/$path.yuos-installed"
     fi
 done
 
-echo "claw-os-live" > "$ROOTFS/etc/hostname"
+echo "yuos-live" > "$ROOTFS/etc/hostname"
 
 cat > "$ROOTFS/etc/issue" <<'EOF'
 
-  Welcome to Claw OS Live — \n \l
+  Welcome to Yu OS Live — \n \l
 
   Default credentials: user / live
-  Run `sudo calamares` (or click "Install Claw OS") to install.
+  Run `sudo calamares` (or click "Install Yu OS") to install.
 
 EOF
 
 cat > "$ROOTFS/etc/motd" <<'EOF'
 
-  Claw OS Live — running from memory.
+  Yu OS Live — running from memory.
   Changes are not preserved. Run `sudo calamares` (or click the
-  "Install Claw OS" icon on the desktop) to install permanently.
+  "Install Yu OS" icon on the desktop) to install permanently.
 
 EOF
 
@@ -101,6 +101,6 @@ EOF
 done
 
 echo "  :: NetworkManager enabled, tty1 autologin configured"
-echo "  :: hostname=claw-os-live, /etc/issue + /etc/motd installed"
+echo "  :: hostname=yuos-live, /etc/issue + /etc/motd installed"
 echo "  :: apt-daily / apt-daily-upgrade skipped while on live medium"
 echo "  :: ssh installed but NOT enabled (run 'systemctl enable --now ssh' to expose it)"

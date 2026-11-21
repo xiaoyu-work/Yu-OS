@@ -2,10 +2,10 @@
 //!
 //! # Why a projection at all
 //!
-//! The authoritative floor lives inside `/var/lib/cos/security`, which
+//! The authoritative floor lives inside `/var/lib/yuos/security`, which
 //! is `0700 root:root` because it holds the recovery authorizations and
 //! the generation history that make rollback detectable. Widening that
-//! tree so an ordinary `cos` process could read it would trade a real
+//! tree so an ordinary `yu` process could read it would trade a real
 //! secret for a convenience.
 //!
 //! Instead the authoritative commit publishes a **minimal, read-only
@@ -13,7 +13,7 @@
 //! ([`RUNTIME_STATE_DIR`](super::RUNTIME_STATE_DIR)):
 //!
 //! ```text
-//! /var/lib/cos-security/            0755 root:root   traversable
+//! /var/lib/yuos-security/            0755 root:root   traversable
 //! └── runtime-floor.json            0644 root:root   world readable
 //! ```
 //!
@@ -34,8 +34,8 @@
 //! succeeded, that is reported as an **indeterminate** state rather
 //! than a success: the private floor has already moved forward
 //! (monotonically, so nothing is weakened), but the machine's
-//! unprivileged view has not. `claw-security-floor project` — which
-//! `clawd` also runs at startup — repairs it, and repeating the commit
+//! unprivileged view has not. `yuos-security-floor project` — which
+//! `yuosd` also runs at startup — repairs it, and repeating the commit
 //! repairs it too.
 //!
 //! # Ratchet
@@ -44,7 +44,7 @@
 //! signal, and only root can create it because `/var/lib` is
 //! root-owned. Once it exists, a missing, corrupt, wrongly owned,
 //! wrongly moded, symlinked or hardlinked projection fails closed for
-//! every unprivileged Claw OS binary. `clawd` additionally compares the
+//! every unprivileged Yu OS binary. `yuosd` additionally compares the
 //! projection against the private floor, so a *stale* projection is
 //! caught by the one process that can see both.
 
@@ -61,7 +61,7 @@ use super::canonical;
 use super::floor::{ComponentFloor, Floor};
 use super::manifest::require_digest;
 
-pub const FORMAT: &str = "claw.security-runtime-floor/v1";
+pub const FORMAT: &str = "yuos.security-runtime-floor/v1";
 
 const MAX_PROJECTION_BYTES: u64 = 1024 * 1024;
 
@@ -80,12 +80,12 @@ pub enum ProjectionError {
     #[error(
         "the security floor was committed but its unprivileged runtime view could not be \
          published ({0}); the update is INDETERMINATE. Re-run the package configuration, or \
-         repair it with `claw-security-floor project`."
+         repair it with `yuos-security-floor project`."
     )]
     Indeterminate(String),
 }
 
-/// What an unprivileged Claw OS process is allowed to know.
+/// What an unprivileged Yu OS process is allowed to know.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeFloor {
     pub security_epoch: u64,
@@ -476,7 +476,7 @@ fn write_new_file(path: &Path, bytes: &[u8], mode: u32) -> std::io::Result<()> {
         .open(path)?;
     file.write_all(bytes)?;
     file.sync_all()?;
-    // `open(2)` applies the caller's umask, and every Claw OS binary
+    // `open(2)` applies the caller's umask, and every Yu OS binary
     // that writes this file runs with a private one. The projection has
     // to be world readable — that is its whole purpose — so the mode is
     // set explicitly rather than requested.

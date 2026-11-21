@@ -11,14 +11,14 @@ static TEST_LOCK: Mutex<()> = Mutex::new(());
 fn setup() -> std::sync::MutexGuard<'static, ()> {
     let guard = TEST_LOCK.lock().unwrap();
     INIT.call_once(|| {
-        let dir = std::env::temp_dir().join(format!("cos-test-shared-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("yuos-test-shared-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
-        std::env::set_var("COS_DATA_DIR", &dir);
-        // Tests don't set COS_SESSION; flip caps to permissive so the
+        std::env::set_var("YUOS_DATA_DIR", &dir);
+        // Tests don't set YUOS_SESSION; flip caps to permissive so the
         // gated dispatchers don't deny every call.
-        std::env::set_var("COS_PERMS_MODE", "permissive");
+        std::env::set_var("YUOS_PERMS_MODE", "permissive");
     });
-    std::env::remove_var("COS_SESSION");
+    std::env::remove_var("YUOS_SESSION");
     let _ = cmd_reset(&vec![]);
     guard
 }

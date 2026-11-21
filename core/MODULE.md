@@ -2,57 +2,57 @@
 
 ## Purpose
 
-`core/` builds the `yu` CLI/library, the `clawd` system broker, the
-unprivileged `claw-agentd` agent worker, the task-owned
-`claw-extension-host`, and small OS helper binaries.
+`core/` builds the `yu` CLI/library, the `yuosd` system broker, the
+unprivileged `yuos-agentd` agent worker, the task-owned
+`yuos-extension-host`, and small OS helper binaries.
 It owns system authority, capability enforcement, agent orchestration,
 persistence, and structured primitive dispatch.
 
 ## Responsibilities
 
 - Parse and route `yu` commands.
-- Broker privileged and session-scoped operations through `clawd`.
+- Broker privileged and session-scoped operations through `yuosd`.
 - Run the multi-turn agent, tool registry, memory, and provider integrations.
 - Discover app manifests and bridge bundled app execution.
 - Verify signed extension packages and run selected Agent observers through
   the out-of-process ABI.
 - Enforce capability scopes and write audit/session records.
-- Refuse to install, activate or run a Claw OS release older than the one this
+- Refuse to install, activate or run a Yu OS release older than the one this
   machine has already accepted.
 
 ## Key Files
 
 | Path | Role |
 | --- | --- |
-| `src/main.rs` | `cos` process entry and output format selection |
-| `src/lib.rs` | Shared build identity: compiled `COS_PACKAGE_VERSION`, or Cargo package version for unstamped source builds; used by system info and Agent Web metadata |
+| `src/main.rs` | `yu` process entry and output format selection |
+| `src/lib.rs` | Shared build identity: compiled `YUOS_PACKAGE_VERSION`, or Cargo package version for unstamped source builds; used by system info and Agent Web metadata |
 | `CHANGELOG.md` | Versioned core API migrations and compatibility transitions |
 | `src/router.rs` | Top-level command and hidden bridge dispatch |
-| `src/bin/clawd.rs` | System daemon entry |
-| `src/bin/claw-agentd.rs` | Unprivileged agent worker entry |
-| `src/bin/claw-mail-ai-host.rs` | Trusted Thunderbird launcher for the canonical `/usr/lib/cos/apps/mail-ai` implementation |
-| `src/bin/claw-file-manager.rs` | Unprivileged, same-owner FileManager1 URI intents through the ordinary authenticated `yu app --gui` path |
-| `src/bin/claw-notification-panel.rs` | Unprivileged OS shell descriptor/public presentation proxy; native App and durable delivery remain Root-supervised |
-| `src/bin/claw-security-floor.rs` | Update downgrade-protection verifier used by maintainer scripts |
+| `src/bin/yuosd.rs` | System daemon entry |
+| `src/bin/yuos-agentd.rs` | Unprivileged agent worker entry |
+| `src/bin/yuos-mail-ai-host.rs` | Trusted Thunderbird launcher for the canonical `/usr/lib/yuos/apps/mail-ai` implementation |
+| `src/bin/yuos-file-manager.rs` | Unprivileged, same-owner FileManager1 URI intents through the ordinary authenticated `yu app --gui` path |
+| `src/bin/yuos-notification-panel.rs` | Unprivileged OS shell descriptor/public presentation proxy; native App and durable delivery remain Root-supervised |
+| `src/bin/yuos-security-floor.rs` | Update downgrade-protection verifier used by maintainer scripts |
 | `src/display_session/` | Root PAM/display activation, private compositor control, kernel login identity and checked display teardown |
-| `src/clawd/gui/` | Verified native GUI argv, instance-bound transport/authority and checked resource/process retirement |
-| `src/clawd/capture.rs`, `src/clawd/capture/` | Exact-scope non-interactive screenshots, per-window interactive custody and private OS-owned portal helpers; no App-executable or raw App-bus dependency |
+| `src/yuosd/gui/` | Verified native GUI argv, instance-bound transport/authority and checked resource/process retirement |
+| `src/yuosd/capture.rs`, `src/yuosd/capture/` | Exact-scope non-interactive screenshots, per-window interactive custody and private OS-owned portal helpers; no App-executable or raw App-bus dependency |
 | `src/update/` | Signed release manifest, monotonic security floor, recovery authorizations, runtime gates |
-| `src/clawd/server.rs` | IPC broker, identity checks, RPC dispatch, audit hook |
+| `src/yuosd/server.rs` | IPC broker, identity checks, RPC dispatch, audit hook |
 | `src/agentd/` | Broker/runtime process split: privilege drop, job grants, worker supervision, consent mediation |
 | `src/extension_host/` | Isolated App/MCP process host, task-bound control channel, route-filtered broker proxy, cleanup |
 | `src/agent_extensions/` | Verified manifest registry, event fanout, capability references, and proposed-action mediation |
 | `src/provenance/` | Compiled-root signature verification and immutable package snapshots |
-| `src/activities/`, `src/clawd/activities.rs`, `src/clawd/activity_attention.rs`, `src/activity.rs` | Shared Activity service/provider, owner-scoped lifecycle and attention projections, and terminal presentation; also consumed by Web/native desktop |
-| `src/workspaces/`, `src/activities/sqlite/workspaces.rs`, `src/clawd/workspaces.rs` | Shared owner context domains, recursive read-only source tags, sourced notes and Activity membership |
-| `src/activities/continuity.rs`, `src/activities/sqlite/continuity.rs`, `src/clawd/activity_continuity.rs`, `src/activity/continuity.rs` | Closed portable Activity intent/reference/safe-rule document, schema-8 lineage, owner-scoped broker routes and terminal file/stdin controls |
-| `src/activities/monetary_budget.rs`, `src/clawd/activity_monetary_budget.rs`, `src/agent/runtime/monetary_budget.rs` | Shared Activity USD policy accounting, owner controls and per-turn enforcement |
-| `src/activities/scheduling_policy.rs`, `src/clawd/activity_scheduling_policy.rs`, `src/agent/service.rs` | Owner-controlled Activity pending admission priority, terminal/broker controls and bounded-aging shared queue ordering |
-| `src/caps/activity_boundary.rs`, `src/clawd/activity_capability_policy.rs` | Live Activity capability constraints, root-held policy bindings and owner-scoped controls |
-| `src/triggers.rs`, `src/clawd/scheduler.rs` | Deterministic event-driven work, existing scheduler authority and bounded Activity task/session associations |
-| `src/activities/work.rs`, `src/triggers/work.rs`, `src/clawd/activity_work.rs` | Explicit owner-controlled automatic Activity progression, durable handoffs, existing scheduler delegation and conservative recovery |
+| `src/activities/`, `src/yuosd/activities.rs`, `src/yuosd/activity_attention.rs`, `src/activity.rs` | Shared Activity service/provider, owner-scoped lifecycle and attention projections, and terminal presentation; also consumed by Web/native desktop |
+| `src/workspaces/`, `src/activities/sqlite/workspaces.rs`, `src/yuosd/workspaces.rs` | Shared owner context domains, recursive read-only source tags, sourced notes and Activity membership |
+| `src/activities/continuity.rs`, `src/activities/sqlite/continuity.rs`, `src/yuosd/activity_continuity.rs`, `src/activity/continuity.rs` | Closed portable Activity intent/reference/safe-rule document, schema-8 lineage, owner-scoped broker routes and terminal file/stdin controls |
+| `src/activities/monetary_budget.rs`, `src/yuosd/activity_monetary_budget.rs`, `src/agent/runtime/monetary_budget.rs` | Shared Activity USD policy accounting, owner controls and per-turn enforcement |
+| `src/activities/scheduling_policy.rs`, `src/yuosd/activity_scheduling_policy.rs`, `src/agent/service.rs` | Owner-controlled Activity pending admission priority, terminal/broker controls and bounded-aging shared queue ordering |
+| `src/caps/activity_boundary.rs`, `src/yuosd/activity_capability_policy.rs` | Live Activity capability constraints, root-held policy bindings and owner-scoped controls |
+| `src/triggers.rs`, `src/yuosd/scheduler.rs` | Deterministic event-driven work, existing scheduler authority and bounded Activity task/session associations |
+| `src/activities/work.rs`, `src/triggers/work.rs`, `src/yuosd/activity_work.rs` | Explicit owner-controlled automatic Activity progression, durable handoffs, existing scheduler delegation and conservative recovery |
 | `src/objects/`, `src/router/object_commands.rs` | Verified App object catalogue and explicit resolution through ordinary App dispatch |
-| `src/operations/`, `src/clawd/operation_previews.rs` | Shared, non-executing previews of App-declared effects and requested targets |
+| `src/operations/`, `src/yuosd/operation_previews.rs` | Shared, non-executing previews of App-declared effects and requested targets |
 | `src/agent/` | Agent CLI, runtime, tools, LLM providers, memory, and web UI |
 | `src/agent/workspace.rs` | Owner-home-bounded canonical task workspace contract |
 | `src/caps/` | Capability catalog, scopes, manifests, and enforcement |
@@ -61,8 +61,8 @@ persistence, and structured primitive dispatch.
 | `src/apps.rs` | `app.json` discovery and side-effect-free schema generation |
 | `src/apps/installation.rs` | Reusable directory-install source preparation, verified preview, review-before-publication, in-place validation and atomic replacement/recovery |
 | `src/apps/debian.rs` | Bounded final App Debian-byte/control/resource inspection and common-Host export checks; never package execution authority |
-| `src/clawd/app_store/apt.rs`, `src/bin/claw-app-apt-hook.rs` | Official APT plan preparation, separately confirmed bundle reviews, tracked pre-dpkg gate and installed-outcome checks |
-| `src/clawd/app_install.rs` | Root-peer-only signed directory publisher; shared checked retirement, fenced review consumption and durable pending admission |
+| `src/yuosd/app_store/apt.rs`, `src/bin/yuos-app-apt-hook.rs` | Official APT plan preparation, separately confirmed bundle reviews, tracked pre-dpkg gate and installed-outcome checks |
+| `src/yuosd/app_install.rs` | Root-peer-only signed directory publisher; shared checked retirement, fenced review consumption and durable pending admission |
 | `../tools/app_apt_metadata.py` | OS-owned read-only exact-hash APT index/source classification through python3-apt, never App-supplied resolver code |
 | `src/apps/lint.rs` | Shared static provider-import and MCP-entry checks for installation and CLI lint; never executes App code |
 | `src/bridge/local.rs` | Protected in-process Root App registration; held package review and owner/App deny checks before session creation |
@@ -72,8 +72,8 @@ persistence, and structured primitive dispatch.
 | `src/apps/permission_review.rs` | OS-catalog permission disclosure and comparison contract; not authorization |
 | `src/approvals/system_review.rs` | Private owner-bound review records, revocation generations and single-use confirmation; never capability grants |
 | `src/approvals/presentation.rs` | Protected monotonic display revisions and strict owner-scoped reads of existing capability requests; never authorization |
-| `src/clawd/system_review.rs` | Root-broker review preparation, pending/show, privileged decisions and confirmation consumption |
-| `src/clawd/system_review/presentation.rs` | Authenticated App/capability projection into the shared terminal and native desktop DTO |
+| `src/yuosd/system_review.rs` | Root-broker review preparation, pending/show, privileged decisions and confirmation consumption |
+| `src/yuosd/system_review/presentation.rs` | Authenticated App/capability projection into the shared terminal and native desktop DTO |
 | `src/router/system_review.rs` | Terminal review presentation and trusted-helper decisions; no local approval state |
 | `src/router/app_commands.rs` | App CLI flags/output, trusted OS review, separate developer/AI consent and post-publication audit/desktop registration |
 | `src/audit.rs` | Hash-chained audit persistence |
@@ -86,17 +86,17 @@ persistence, and structured primitive dispatch.
 
 Entry points and orchestration depend on stable service/capability definitions.
 Providers implement those definitions; consumers must not import around them.
-`clawd` is the privileged boundary, and it does not run the model/tool loop:
-that executes in `claw-agentd` — see [`src/agentd/MODULE.md`](src/agentd/MODULE.md).
+`yuosd` is the privileged boundary, and it does not run the model/tool loop:
+that executes in `yuos-agentd` — see [`src/agentd/MODULE.md`](src/agentd/MODULE.md).
 App code and model output are untrusted inputs at this layer.
 
 The core review controllers depend on the renderer-independent
-[`clawd-client` review contract](../crates/clawd-client/MODULE.md), not the
+[`yuosd-client` review contract](../crates/yuosd-client/MODULE.md), not the
 desktop component. A displayed revision is comparison state only. Root
 controllers validate every decision and then delegate to the existing App
 confirmation or capability authority; installation never implies Allow All.
 The OS's exact preinstall selection is a separate, bounded default policy in
-[`src/clawd/preinstalled.rs`](src/clawd/preinstalled.rs).
+[`src/yuosd/preinstalled.rs`](src/yuosd/preinstalled.rs).
 
 The App directory-install backend consumes provenance verification and the
 shared App lint provider, never router or broker orchestration. Its review
@@ -132,7 +132,7 @@ available. It never consults those rows or acquires a native exemption.
 The legacy native-host API, authority routes and Mail compatibility executable
 remain unchanged until their paired App/package cutover is consumable.
 
-`claw-file-manager` owns only the standard `org.freedesktop.FileManager1`
+`yuos-file-manager` owns only the standard `org.freedesktop.FileManager1`
 desktop transport. It authenticates every method sender with the bus daemon's
 kernel UID, bounds literal URL arguments and pending launches, and runs only
 `/usr/local/bin/yu app <configured-id> --gui [URIs...]`. The default
@@ -170,7 +170,7 @@ Agent-memory mounts. `test/support/app_stage.rs` reuses the declared staging CLI
 checks the prepared cache's exact Git revision/cleanliness without downloads,
 and stages App-owned common support through public `--shared`, separately
 from App payloads and OS SDK/runtime. Both occupy the canonical
-`usr/lib/cos/python` import root; no OS Apps source or sibling helper copy is
+`usr/lib/yuos/python` import root; no OS Apps source or sibling helper copy is
 available to the fixture. Source paths use canonical declared roots, so a
 cache-directory symlink retains the same source-kind and pin checks.
 The shared URL corpus is read from the pinned
@@ -194,7 +194,7 @@ These pinned integration inputs are not production core build dependencies.
 cargo test -p yu <test-filter> -- --test-threads=1
 
 # Shared App/capability review projection, controllers, terminal and bounded helper
-cargo test -p yu --lib --bin claw-approval-helper system_review -- --test-threads=1
+cargo test -p yu --lib --bin yuos-approval-helper system_review -- --test-threads=1
 
 # App directory-install backend, shared lint and CLI presentation contracts
 cargo test -p yu --lib -- apps::installation:: apps::lint:: router::app_commands::tests:: --test-threads=1
@@ -208,8 +208,8 @@ cargo test -p yu --test app_source_fixtures -- --test-threads=1
 # Update downgrade protection, including the dpkg ordering cross-check
 cargo test -p yu --test security_floor_process -- --test-threads=1
 
-# Same-owner FileManager1 methods and fake-cos/private-bus process fixtures
-cargo test -p yu --bin claw-file-manager -- --test-threads=1
+# Same-owner FileManager1 methods and fake-yu/private-bus process fixtures
+cargo test -p yu --bin yuos-file-manager -- --test-threads=1
 
 # CI lint
 (cd core && cargo clippy -- -D warnings)

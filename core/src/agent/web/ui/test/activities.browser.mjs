@@ -132,7 +132,7 @@ let runtimeProgressObserved = false;
 let inlineApprovalDecided = false;
 const memoryNotes = new Map([["USER.md", "Prefer concise replies."], ["MEMORY.md", "OS and Agent experience."]]);
 const nearby = {
-  schema: 1, owner_uid: 1000, inbox: "/home/user/Downloads/Claw Nearby", uploads: [],
+  schema: 1, owner_uid: 1000, inbox: "/home/user/Downloads/Yu OS Nearby", uploads: [],
   probe: { available: true, mode: "exclusive", driver: "synthetic-radio", diagnostics: [] }, session: null,
 };
 let providerReady = true;
@@ -164,7 +164,7 @@ function completeOsAuthorization(id) {
 const evidenceFixture = {
   status: "verified", required: true, verified_claims: 1, total_claims: 1,
   source_count: 1, sources: [{
-    tool_call_id: "reattach-tool", tool_name: "cos_sysinfo", is_error: false,
+    tool_call_id: "reattach-tool", tool_name: "yu_sysinfo", is_error: false,
     result_sha256: "0".repeat(64), result_bytes: 2048,
   }],
   warnings: [], interpretation: "One citation is bound to its retained tool result.", truncated: false,
@@ -277,7 +277,7 @@ function continuityJson(document, includeSnapshot = true) {
       + `"expires_at":${JSON.stringify(limits.expires_at)}}`},`
     + `"scheduling":${scheduling === null ? "null"
       : `{"priority":${JSON.stringify(scheduling.priority)}}`}}`;
-  return `{"kind":"claw_os.activity_continuity","schema_version":1,"lineage":${lineage},`
+  return `{"kind":"yuos.activity_continuity","schema_version":1,"lineage":${lineage},`
     + `${includeSnapshot ? `"snapshot":${JSON.stringify(document.snapshot)},` : ""}`
     + `"intent":${intent},"references":${references},"rules":${rules}}`;
 }
@@ -294,7 +294,7 @@ function portableDocument({
   scheduling = null,
 } = {}) {
   const document = {
-    kind: "claw_os.activity_continuity", schema_version: 1,
+    kind: "yuos.activity_continuity", schema_version: 1,
     lineage: { id, revision }, snapshot: "",
     intent: { title, goal, completion_criteria, boundaries },
     references: clone(references),
@@ -309,7 +309,7 @@ function checkedContinuityDocument(document) {
   assert.deepEqual(Object.keys(document), [
     "kind", "schema_version", "lineage", "snapshot", "intent", "references", "rules",
   ]);
-  assert.equal(document.kind, "claw_os.activity_continuity");
+  assert.equal(document.kind, "yuos.activity_continuity");
   assert.equal(document.schema_version, 1);
   assert.deepEqual(Object.keys(document.lineage), ["id", "revision"]);
   assert.match(document.lineage.id, /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/);
@@ -615,7 +615,7 @@ async function fixture(req, res) {
       ["task", { task_id: "job-chat", session_id: "chat-browser" }],
       ["session", { session_id: "chat-browser" }],
       ["reasoning", { summary: ["Compared the available Agent context."] }],
-      ["tool_use_start", { id: "live-tool", name: "cos_sysinfo" }],
+      ["tool_use_start", { id: "live-tool", name: "yu_sysinfo" }],
       ["text", { delta: "Presentation complete." }],
       ["turn_done", {
         finish: "stop",
@@ -632,11 +632,11 @@ async function fixture(req, res) {
     const deadline = Date.now() + 12_000;
     while (!chatFollowUpQueued && Date.now() < deadline) await delay(20);
     assert.equal(chatFollowUpQueued, true, "busy Chat submitted a durable follow-up");
-    res.write('event: tool_start\ndata: {"id":"live-tool","name":"cos_sysinfo"}\n\n');
+    res.write('event: tool_start\ndata: {"id":"live-tool","name":"yu_sysinfo"}\n\n');
     const progressDeadline = Date.now() + 12_000;
     while (!runtimeProgressObserved && Date.now() < progressDeadline) await delay(20);
     assert.equal(runtimeProgressObserved, true, "runtime execution was rendered separately from provider preparation");
-    res.write('event: tool_result\ndata: {"id":"live-tool","name":"cos_sysinfo","ok":true,"latency_ms":42,"bytes_returned":128}\n\n');
+    res.write('event: tool_result\ndata: {"id":"live-tool","name":"yu_sysinfo","ok":true,"latency_ms":42,"bytes_returned":128}\n\n');
     res.write(`event: done\ndata: ${JSON.stringify({ session_id: "chat-browser" })}\n\n`);
     chatPrimaryDone = true;
     res.end();
@@ -774,14 +774,14 @@ async function fixture(req, res) {
       ["task", { task_id: "job-reattach", session_id: "session-reattach", reattached: true }],
       ["session", { session_id: "session-reattach" }],
       ["reasoning", { summary: ["Recovered the durable task stream."] }],
-      ["tool_start", { id: "reattach-tool", name: "cos_sysinfo" }],
+      ["tool_start", { id: "reattach-tool", name: "yu_sysinfo" }],
       ["tool_result", {
-        id: "reattach-tool", name: "cos_sysinfo", ok: true,
+        id: "reattach-tool", name: "yu_sysinfo", ok: true,
         latency_ms: 42, bytes_returned: 2048, error_preview: null,
       }],
-      ["tool_start", { id: "failed-tool", name: "cos_proc" }],
+      ["tool_start", { id: "failed-tool", name: "yu_proc" }],
       ["tool_result", {
-        id: "failed-tool", name: "cos_proc", ok: false,
+        id: "failed-tool", name: "yu_proc", ok: false,
         latency_ms: 17, bytes_returned: 64,
         error_preview: "permission denied: [REDACTED:bearer]",
       }],
@@ -852,7 +852,7 @@ async function fixture(req, res) {
               available: true, reasoning: ["Recovered the durable task stream."],
               usage: { input_tokens: 9, output_tokens: 4, cache_read_tokens: 0, cache_write_tokens: 0 },
               tools: [{
-                id: "reattach-tool", name: "cos_sysinfo", started: true, ok: true,
+                id: "reattach-tool", name: "yu_sysinfo", started: true, ok: true,
                 latency_ms: 42, bytes_returned: 2048, error_preview: null,
               }],
               attachments: [{ name: "retained-screen.png", media_type: "image/png", bytes: 32, sha256: "digest" }],
@@ -1887,7 +1887,7 @@ try {
   assert.equal(reattachStreamRequests, 2);
   assert.equal(await evaluate("document.body.innerText.includes('UNCONFIRMED_STREAM_FRAGMENT')"), false);
   assert.equal(await evaluate("(document.body.innerText.match(/Continue after refresh/g) || []).length"), 1);
-  assert.equal(await evaluate("(document.body.innerText.match(/cos_sysinfo/g) || []).length"), 1);
+  assert.equal(await evaluate("(document.body.innerText.match(/yu_sysinfo/g) || []).length"), 1);
   assert.equal(await evaluate("document.body.innerText.includes('persisted_duplicate')"), false);
   await wait("document.body.innerText.includes('42 ms') && document.body.innerText.includes('2.0 KiB')", "generic tool metrics");
   await click(`Array.from(document.querySelectorAll('details summary')).find(el => el.textContent.trim() === 'Error details')`);
@@ -2861,7 +2861,7 @@ try {
   await expectContinuity("not live sync or backup/restore");
   await clickText("Export selected Activity");
   await expectContinuity(`Exported continuity v1 revision ${exported.lineage.revision}.`);
-  const exportName = `claw-os-activity-${exported.lineage.id}.json`;
+  const exportName = `yuos-activity-${exported.lineage.id}.json`;
   assert.equal(await downloaded(exportName), `${continuityJson(exported)}\n`);
   assert.deepEqual(activities.get("activity-1"), sourceBeforeContinuity);
   assert.deepEqual([...jobs.values()], workBeforeContinuity);
@@ -2887,8 +2887,8 @@ try {
   });
   const portableJson = continuityJson(portable);
   await uploadContinuity(portableJson.replace(
-    '"kind":"claw_os.activity_continuity"',
-    '"kind":"claw_os.activity_continuity","kind":"claw_os.activity_continuity"',
+    '"kind":"yuos.activity_continuity"',
+    '"kind":"yuos.activity_continuity","kind":"yuos.activity_continuity"',
   ), "duplicate.json");
   await expectContinuity("Duplicate Activity continuity JSON key");
   await uploadContinuity(portableJson.replace('"schema_version":1', '"schema_version":2'), "v2.json");
@@ -3028,7 +3028,7 @@ try {
         : "The background work finished. Open the result whenever you're ready.",
       delivery_policy: "immediate", state, occurrences: 1,
       created_at_ms: Date.now() - 300000, updated_at_ms: Date.now() - 300000,
-      actions: id === "inbox-result" ? [{ id: "open", label: "Open result", uri: "clawos://agent/session/session-budget" }] : [],
+      actions: id === "inbox-result" ? [{ id: "open", label: "Open result", uri: "yuos://agent/session/session-budget" }] : [],
       deliveries: [{ channel: "web", state: "delivered" }],
     });
   }
@@ -3050,10 +3050,10 @@ try {
   await cdp.send("Browser.setPermission", { permission: { name: "notifications" }, setting: "granted", origin });
   await clickText("Enable");
   await wait("!!Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === 'Disable')", "browser notifications enabled explicitly");
-  assert.equal(await evaluate("localStorage.getItem('cos.browser-notifications.enabled')"), "true");
+  assert.equal(await evaluate("localStorage.getItem('yuos.browser-notifications.enabled')"), "true");
   await clickText("Disable");
   await wait("!!Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === 'Enable')", "browser notifications disabled");
-  assert.equal(await evaluate("localStorage.getItem('cos.browser-notifications.enabled')"), null);
+  assert.equal(await evaluate("localStorage.getItem('yuos.browser-notifications.enabled')"), null);
 
   await clickLabel("Notification settings");
   await wait("document.querySelector('[role=\"dialog\"]')?.innerText.includes('Notification settings')", "bounded settings dialog");
@@ -3072,7 +3072,7 @@ try {
       input.dispatchEvent(new Event('input', {bubbles: true}));
     })()`);
   };
-  await fillNotificationField("ntfy topic", "claw-inbox-fixture");
+  await fillNotificationField("ntfy topic", "yuos-inbox-fixture");
   await fillNotificationField("Quiet hours start", "22:30");
   await fillNotificationField("Quiet hours end", "07:15");
   await click(`document.querySelector('#critical-alerts')`);
@@ -3082,13 +3082,13 @@ try {
   rejectNotificationPreferencesOnce = true;
   await clickText("Save changes");
   await wait("document.body.innerText.includes('Notification settings fixture rejected the save.')", "failed preference save preserves the dialog");
-  assert.equal(await evaluate("document.querySelector('[aria-label=\"ntfy topic\"]').value"), "claw-inbox-fixture");
+  assert.equal(await evaluate("document.querySelector('[aria-label=\"ntfy topic\"]').value"), "yuos-inbox-fixture");
   assert.equal(await evaluate("document.querySelector('[aria-label=\"Quiet hours start\"]').value"), "22:30");
   await clickText("Save changes");
   await wait("!document.querySelector('[role=\"dialog\"]') && document.body.innerText.includes('Notification settings saved.')", "checked settings save");
   assert.equal(notificationPreferences.desktop_min_severity, "error");
   assert.equal(notificationPreferences.ntfy_enabled, true);
-  assert.equal(notificationPreferences.ntfy_topic, "claw-inbox-fixture");
+  assert.equal(notificationPreferences.ntfy_topic, "yuos-inbox-fixture");
   assert.equal(notificationPreferences.dnd_start_minute_utc, 1350);
   assert.equal(notificationPreferences.dnd_end_minute_utc, 435);
   assert.equal(notificationPreferences.critical_bypasses_dnd, false);

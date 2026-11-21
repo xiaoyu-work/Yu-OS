@@ -3,7 +3,7 @@
 # installed system must be able to authenticate extension packages.
 #
 # Apps, Skills and MCP/adapter packages are only trusted after their
-# `claw.provenance/v1` envelope verifies against a trusted publisher
+# `yuos.provenance/v1` envelope verifies against a trusted publisher
 # key, or after they are recognised as root-owned package content. That
 # turns two things into packaging contracts:
 #
@@ -23,7 +23,7 @@ PROJECT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../../.." && pwd)
 BUILD="$PROJECT_DIR/packaging/deb/build-debs.sh"
 TRUST_MODULE="$PROJECT_DIR/core/src/provenance/trust.rs"
 VERIFY_MODULE="$PROJECT_DIR/core/src/provenance/verify.rs"
-VENDOR_TRUST_DIR="$PROJECT_DIR/packaging/deb/claw-os-agent/trust/publishers.d"
+VENDOR_TRUST_DIR="$PROJECT_DIR/packaging/deb/yuos-agent/trust/publishers.d"
 
 fail() {
     printf 'not ok - %s\n' "$*" >&2
@@ -38,16 +38,16 @@ assert_contains() {
 }
 
 # The roots the verifier reads must be the roots the package creates.
-for root in /usr/lib/cos/trust/publishers.d /etc/cos/trust/publishers.d; do
+for root in /usr/lib/yuos/trust/publishers.d /etc/yuos/trust/publishers.d; do
     assert_contains "$TRUST_MODULE" "$root" \
         "the trust loader must know about $root"
     assert_contains "$BUILD" "$root" \
-        "claw-os-agent must create $root"
+        "yuos-agent must create $root"
 done
 
 # Vendor package roots the verifier accepts must be the ones the package
 # actually installs into.
-for root in /usr/lib/cos /usr/share/claw; do
+for root in /usr/lib/yuos /usr/share/yuos; do
     assert_contains "$VERIFY_MODULE" "\"$root\"" \
         "the verifier must list $root as an approved package root"
 done
@@ -133,15 +133,15 @@ done < <(grep -rlZ --include='*.json' '"schema"[[:space:]]*:[[:space:]]*"claw.si
 
 # Verification must not be reachable from the environment: a packaged
 # system has to fail closed regardless of what is exported to it.
-if grep -Eq 'env::var[^)]*"COS_(TRUST|PROVENANCE)' "$TRUST_MODULE" "$VERIFY_MODULE"; then
+if grep -Eq 'env::var[^)]*"YUOS_(TRUST|PROVENANCE)' "$TRUST_MODULE" "$VERIFY_MODULE"; then
     fail "no environment variable may add a trust root or disable verification"
 fi
 
 # Long-lived daemons must be able to notice a revocation. The durable
 # per-domain state file is what makes that cheap; without it a running
-# clawd would keep honouring a key the operator revoked.
+# yuosd would keep honouring a key the operator revoked.
 STATE_MODULE="$PROJECT_DIR/core/src/provenance/state.rs"
-assert_contains "$STATE_MODULE" 'claw.trust-state/v1' \
+assert_contains "$STATE_MODULE" 'yuos.trust-state/v1' \
     "the durable trust generation format must be versioned"
 assert_contains "$TRUST_MODULE" 'pub fn is_current' \
     "the trust store must expose a cheap staleness check for daemons"

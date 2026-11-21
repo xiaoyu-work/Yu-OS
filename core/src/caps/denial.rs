@@ -63,7 +63,7 @@ pub enum DenialReason {
     VerbNotGranted,
     /// Session holds the verb but at scopes that don't cover the request.
     ScopeOutOfRange,
-    /// Session does not exist or no `COS_SESSION` is set. Strict policy
+    /// Session does not exist or no `YUOS_SESSION` is set. Strict policy
     /// mode rejects rather than implicitly allowing.
     NoSession,
     /// Caller process is not the session's process tree (anti-spoofing).

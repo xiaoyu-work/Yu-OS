@@ -6,11 +6,11 @@ on:
       version:
         description: "Version declared in packaging/app-platform.json"
         required: true
-        default: "0.2.1"
+        default: "0.1.0"
         type: string
 
 concurrency:
-  group: claw-os-app-platform-release
+  group: yuos-app-platform-release
   cancel-in-progress: false
 
 permissions:
@@ -49,23 +49,23 @@ jobs:
       - name: Retain development artifact
         uses: actions/upload-artifact@v4
         with:
-          name: claw-os-app-platform-${{ inputs.version }}
+          name: yuos-app-platform-${{ inputs.version }}
           path: build/app-platform-release/*
           if-no-files-found: error
       - name: Publish versioned SDK libraries
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="app-platform-v$PLATFORM_VERSION"
+          tag="yuos-app-platform-v$PLATFORM_VERSION"
           if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
             echo "error: App platform version is already published" >&2
             exit 1
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$tag" -m "Claw OS App development platform $PLATFORM_VERSION"
+          git tag -a "$tag" -m "Yu OS App development platform $PLATFORM_VERSION"
           git push origin "refs/tags/$tag"
           gh release create "$tag" build/app-platform-release/* \
             --verify-tag --latest=false \
-            --title "App development platform $PLATFORM_VERSION" \
+            --title "Yu OS App development platform $PLATFORM_VERSION" \
             --notes "Versioned SDK/runtime/toolkit development libraries. This is not an OS image or an installed App update."

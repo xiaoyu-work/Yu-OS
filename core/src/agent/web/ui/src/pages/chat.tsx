@@ -1,7 +1,7 @@
 /**
  * Chat surface. Replaces OA's `useChat` (which is tied to `@ai-sdk/react`
  * and Vercel's edge runtime) with a small custom hook that streams from
- * cos's `/api/chat` SSE endpoint.
+ * yu's `/api/chat` SSE endpoint.
  *
  * Visual structure mirrors OA's `session-chat-content.tsx`:
  *   - centered column with max-width
@@ -495,7 +495,7 @@ export function ChatPage({ meta }: { meta: any }) {
               }
               // Tell the sidebar to refresh its session list so the
               // brand-new chat shows up immediately.
-              window.dispatchEvent(new CustomEvent("cos:sessions-changed"));
+              window.dispatchEvent(new CustomEvent("yuos:sessions-changed"));
             }
             return copy;
           });

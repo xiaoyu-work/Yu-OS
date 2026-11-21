@@ -31,7 +31,7 @@ def audio_packages(source, provenance, work, out, package):
                    cwd=work, check=True)
     ucm_deb, = work.glob("alsa-ucm-conf_*.deb")
     _, base_version, _ = ucm_deb.name.split("_")
-    version = f"{base_version}+clawos3"
+    version = f"{base_version}+yuos3"
     ucm_stage = work / "combined-ucm"
     subprocess.run(["dpkg-deb", "--raw-extract", ucm_deb, ucm_stage], check=True)
     ucm2 = ucm_stage / "usr/share/alsa/ucm2"
@@ -66,7 +66,7 @@ def audio_packages(source, provenance, work, out, package):
     firmware = work / "debian-qcom-firmware"
     subprocess.run(["dpkg-deb", "-x", firmware_deb, firmware], check=True)
     stage = work / "qualcomm-model-audio"
-    name = "claw-os-qualcomm-model-audio"
+    name = "yuos-qualcomm-model-audio"
     for family, model, stock, expected in TOPOLOGIES:
         topology = firmware / "usr/lib/firmware/qcom" / family / f"{stock}-tplg.bin"
         if hashlib.sha256(topology.read_bytes()).hexdigest() != expected:
@@ -121,7 +121,7 @@ def laptop8_audio_package(release, source, provenance, work, out, package):
     write_file(stage / "usr/lib/udev/rules.d" / rules, (profile / rules).read_text().replace(
         'ATTR{power/control}="auto"', f'ATTR{{[dmi/id]modalias}}=="{modalias}", ATTR{{power/control}}="auto"'))
     stage_file(profile / "99-surface-laptop8.quirks", stage / "usr/share/libinput/99-surface-laptop8.quirks")
-    name = "claw-os-surface-laptop-8-snapdragon"
+    name = "yuos-surface-laptop-8-snapdragon"
     docs = stage / "usr/share/doc" / name
     stage_file(profile / "LICENSE", docs / "copyright")
     stage_file(audioreach / "LICENSE.BSD-3-Clause", docs / "audioreach.LICENSE")

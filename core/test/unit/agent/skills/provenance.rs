@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 fn tmpdir(label: &str) -> PathBuf {
     let p = std::env::temp_dir().join(format!(
-        "cos-skills-prov-{label}-{}",
+        "yuos-skills-prov-{label}-{}",
         Uuid::new_v4().simple()
     ));
     fs::create_dir_all(&p).unwrap();
@@ -234,7 +234,7 @@ fn provenance_as_str_stable() {
 }
 
 // The ed25519 stack that used to live here (manifest-only signatures,
-// `COS_SKILLS_REQUIRE_SIGNATURE`, `COS_SKILLS_TRUSTED_KEYS`) is gone.
+// `YUOS_SKILLS_REQUIRE_SIGNATURE`, `YUOS_SKILLS_TRUSTED_KEYS`) is gone.
 // Skills authenticate through `crate::provenance`, which is covered by
 // `test/unit/provenance/*`. What remains here is the mapping from a
 // verified trust source onto the guard's provenance classes.

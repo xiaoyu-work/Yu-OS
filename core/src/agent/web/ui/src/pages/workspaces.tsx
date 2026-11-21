@@ -89,7 +89,7 @@ export function WorkspacesPage() {
         if (action.action === "update") dirty.current = false;
         adopt(next); setSearch(null); setSource(null); setOrigin(null); setNoteIds([]); setSelectedSources([]);
         setSourcePreview(null); setNotePreview(null);
-        window.dispatchEvent(new CustomEvent("cos:workspaces-changed"));
+        window.dispatchEvent(new CustomEvent("yuos:workspaces-changed"));
         setDeleteView(null); setDeleteConfirmed(false);
         setNotice(next.workspace.cleanup_pending ? "Sharing is deleted. Exact Job retirement is pending, not proven complete. Refresh and explicitly repeat cleanup."
           : "Workspace change acknowledged. Original files and conversation/execution evidence remain.");
@@ -118,7 +118,7 @@ export function WorkspacesPage() {
   async function newConversation() {
     if (!view || pending.current) return;
     pending.current = true; setBusy(true);
-    try { const id = await workspaceApi.conversation(view.workspace.id); window.dispatchEvent(new CustomEvent("cos:sessions-changed")); navigate(`/chat/${id}`); }
+    try { const id = await workspaceApi.conversation(view.workspace.id); window.dispatchEvent(new CustomEvent("yuos:sessions-changed")); navigate(`/chat/${id}`); }
     catch (cause) { if (alive.current) setError(`${message(cause)} Creation is not retried automatically.`); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }

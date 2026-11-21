@@ -6,7 +6,7 @@ use super::{
     state::{App, Confirmation, ConfirmationAction},
     InputAction,
 };
-use clawd_client::{workspaces::*, Command};
+use yuosd_client::{workspaces::*, Command};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
     layout::Rect,

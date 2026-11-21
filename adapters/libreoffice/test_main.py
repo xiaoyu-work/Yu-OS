@@ -88,21 +88,21 @@ class LibreofficeAdapterTests(unittest.TestCase):
         self.args_log = root / "soffice.log"
         os.environ["SOFFICE_ARGS_LOG"] = str(self.args_log)
         self.stub = _write_stub(self.bin_dir, "soffice", _SOFFICE_STUB)
-        os.environ["CLAW_SOFFICE_BIN"] = str(self.stub)
+        os.environ["YUOS_SOFFICE_BIN"] = str(self.stub)
 
         self.docx = root / "report.docx"
         self.docx.write_bytes(b"PK\x03\x04 fake docx")
 
         self.main = load_local_module(
             HERE / "main.py",
-            "claw_test_libreoffice_adapter_main",
+            "yuos_test_libreoffice_adapter_main",
         )
         self.main.app._initialized = True
 
     def tearDown(self) -> None:
-        for k in ("CLAW_SOFFICE_BIN", "SOFFICE_ARGS_LOG", "SOFFICE_EXIT"):
+        for k in ("YUOS_SOFFICE_BIN", "SOFFICE_ARGS_LOG", "SOFFICE_EXIT"):
             os.environ.pop(k, None)
-        sys.modules.pop("claw_test_libreoffice_adapter_main", None)
+        sys.modules.pop("yuos_test_libreoffice_adapter_main", None)
 
     def test_tools_list_reports_both_tools(self) -> None:
         reply = _rpc(self.main.app, "tools/list")

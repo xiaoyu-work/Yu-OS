@@ -1,6 +1,6 @@
 //! Trusted invocation policy for manifest-declared App MCP services.
 //!
-//! This module owns the boundary between an authenticated Claw caller and an
+//! This module owns the boundary between an authenticated Yu OS caller and an
 //! App service. Tool arguments select work; they never supply identity or
 //! authority.
 
@@ -14,7 +14,7 @@ use crate::caps::{Cap, Scope, Verb};
 use crate::extension_host::protocol::ExtensionBinding;
 use crate::session::SessionSource;
 
-pub const CALL_CONTEXT_META_KEY: &str = "claw-os.dev/call-context";
+pub const CALL_CONTEXT_META_KEY: &str = "yuos.dev/call-context";
 pub const CALL_CONTEXT_WIRE_VERSION: u8 = 1;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

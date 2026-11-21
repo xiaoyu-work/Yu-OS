@@ -5,7 +5,7 @@ use axum::{
     http::{Method, Request, StatusCode},
     middleware,
 };
-use cos_agent_protocol::{ErrorCode, ErrorEnvelope, PROTOCOL_VERSION_HEADER};
+use yuos_agent_protocol::{ErrorCode, ErrorEnvelope, PROTOCOL_VERSION_HEADER};
 use serde_json::Value;
 use tower::ServiceExt as _;
 
@@ -16,7 +16,7 @@ fn router() -> Router {
     let state = AppState {
         port: 0,
         auth_token: TOKEN.into(),
-        clawd: clawd_client::Client::new("missing-monetary-budget-test.sock"),
+        yuosd: yuosd_client::Client::new("missing-monetary-budget-test.sock"),
     };
     crate::routes::api()
         .route_layer(middleware::from_fn_with_state(
@@ -47,7 +47,7 @@ async fn request(method: Method, path: &str, body: Option<Value>) -> axum::respo
                 .uri(path)
                 .header(
                     PROTOCOL_VERSION_HEADER,
-                    cos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
+                    yuos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
                 )
                 .header("authorization", format!("Bearer {TOKEN}"))
                 .header("content-type", "application/json")
@@ -75,7 +75,7 @@ async fn monetary_budget_routes_require_authentication_and_version() {
                     .uri(&path)
                     .header(
                         PROTOCOL_VERSION_HEADER,
-                        cos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
+                        yuos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
                     )
                     .body(Body::empty())
                     .unwrap(),

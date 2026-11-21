@@ -5,7 +5,7 @@ use axum::{
     http::{Method, Request, StatusCode},
     middleware,
 };
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     ActivityContinuityDocument, ActivityContinuityImportRequest, ActivityExecutionPlacement,
     PROTOCOL_VERSION_HEADER,
 };
@@ -18,7 +18,7 @@ const SNAPSHOT: &str = "sha256:6d8c822b0519a02e7ab1ebeab48392cb83756fa9cc8b6d39e
 
 fn document_value() -> Value {
     json!({
-        "kind": "claw_os.activity_continuity",
+        "kind": "yuos.activity_continuity",
         "schema_version": 1,
         "lineage": {"id": "00000000-0000-4000-8000-000000000123", "revision": 7},
         "snapshot": SNAPSHOT,
@@ -48,7 +48,7 @@ fn router() -> Router {
     let state = AppState {
         port: 0,
         auth_token: TOKEN.into(),
-        clawd: clawd_client::Client::new("missing-continuity-route-test.sock"),
+        yuosd: yuosd_client::Client::new("missing-continuity-route-test.sock"),
     };
     crate::routes::api()
         .route_layer(middleware::from_fn_with_state(
@@ -67,7 +67,7 @@ async fn request(method: Method, path: &str, body: Body) -> axum::response::Resp
                 .uri(path)
                 .header(
                     PROTOCOL_VERSION_HEADER,
-                    cos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
+                    yuos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
                 )
                 .header("authorization", format!("Bearer {TOKEN}"))
                 .header("content-type", "application/json")
@@ -94,7 +94,7 @@ async fn continuity_routes_require_authentication_and_protocol_version() {
                     .uri(&path)
                     .header(
                         PROTOCOL_VERSION_HEADER,
-                        cos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
+                        yuos_agent_protocol::CURRENT_PROTOCOL_VERSION_HEADER_VALUE,
                     )
                     .body(Body::empty())
                     .unwrap(),
@@ -167,8 +167,8 @@ async fn continuity_routes_reject_selectors_authority_duplicates_versions_and_bo
         );
     }
     let duplicate_document = document.replacen(
-        r#""kind":"claw_os.activity_continuity""#,
-        r#""kind":"claw_os.activity_continuity","kind":"claw_os.activity_continuity""#,
+        r#""kind":"yuos.activity_continuity""#,
+        r#""kind":"yuos.activity_continuity","kind":"yuos.activity_continuity""#,
         1,
     );
     let value = ActivityContinuityImportRequest {

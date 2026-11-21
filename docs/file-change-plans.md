@@ -6,7 +6,7 @@ path. A plan is App-owned data, not write authority.
 
 ## Prepare and inspect
 
-Inside Linux or WSL Claw OS:
+Inside Linux or WSL Yu OS:
 
 ```bash
 yu app fs plan_write /home/user/project/config.txt \

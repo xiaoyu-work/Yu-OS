@@ -447,12 +447,12 @@ fn looks_like_live_system_request(prompt: &str) -> bool {
 fn tool_requires_binding(name: &str, input: &serde_json::Value) -> bool {
     if matches!(
         name,
-        "cos_diagnose" | "cos_sysinfo" | "cos_doctor" | "cos_usage"
+        "yu_diagnose" | "yu_sysinfo" | "yu_doctor" | "yu_usage"
     ) {
         return true;
     }
     if name.starts_with("app_")
-        || (name == "cos_tool_call"
+        || (name == "yu_tool_call"
             && input
                 .get("name")
                 .and_then(serde_json::Value::as_str)
@@ -465,16 +465,16 @@ fn tool_requires_binding(name: &str, input: &serde_json::Value) -> bool {
         .and_then(serde_json::Value::as_str)
         .unwrap_or_default();
     let read_commands: &[&str] = match name {
-        "cos_proc" => &["status", "output", "list", "wait", "result", "stats"],
-        "cos_service" => &["status", "health", "list", "logs"],
-        "cos_netfilter" => &["list", "check", "export", "rate-limits"],
-        "cos_cron" => &["list", "status", "logs"],
-        "cos_checkpoint" => &["diff", "list", "status", "quota-status", "namespaces"],
-        "cos_credential" => &["list"],
-        "cos_trace" => &["show", "list"],
-        "cos_watch" => &["history"],
-        "cos_ipc" => &["list", "locks"],
-        "cos_model" => &["list", "status", "info"],
+        "yu_proc" => &["status", "output", "list", "wait", "result", "stats"],
+        "yu_service" => &["status", "health", "list", "logs"],
+        "yu_netfilter" => &["list", "check", "export", "rate-limits"],
+        "yu_cron" => &["list", "status", "logs"],
+        "yu_checkpoint" => &["diff", "list", "status", "quota-status", "namespaces"],
+        "yu_credential" => &["list"],
+        "yu_trace" => &["show", "list"],
+        "yu_watch" => &["history"],
+        "yu_ipc" => &["list", "locks"],
+        "yu_model" => &["list", "status", "info"],
         _ => &[],
     };
     read_commands.contains(&command)

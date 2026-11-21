@@ -10,7 +10,7 @@ const sanitizer = createDOMPurify(window);
 describe("renderSafeMarkdown", () => {
   test("does not turn malicious HTML or URLs into executable markup", () => {
     const html = renderSafeMarkdown(`
-<script>window.stolen = localStorage.getItem("cos.token")</script>
+<script>window.stolen = localStorage.getItem("yuos.token")</script>
 <img src=x onerror="window.stolen = true">
 <a href="javascript:alert(1)" onclick="window.stolen = true">raw link</a>
 <a href="java&#x0a;script:alert(1)">encoded link</a>

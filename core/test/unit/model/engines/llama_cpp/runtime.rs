@@ -18,7 +18,7 @@ pub fn set_test_override(rt: Option<Arc<LlamaRuntime>>) -> Option<Arc<LlamaRunti
 #[test]
 fn load_missing_file_returns_not_installed() {
     let p = std::env::temp_dir().join(format!(
-        "cos-llama-runtime-missing-{}-{}.dll",
+        "yuos-llama-runtime-missing-{}-{}.dll",
         std::process::id(),
         uuid::Uuid::new_v4()
     ));
@@ -35,7 +35,7 @@ fn load_missing_file_returns_not_installed() {
 #[test]
 fn load_garbage_file_returns_library_load_failed() {
     let p = std::env::temp_dir().join(format!(
-        "cos-llama-runtime-garbage-{}-{}.dll",
+        "yuos-llama-runtime-garbage-{}-{}.dll",
         std::process::id(),
         uuid::Uuid::new_v4()
     ));

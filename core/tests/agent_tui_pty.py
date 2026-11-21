@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the Claw-owned Agent TUI through a Linux PTY."""
+"""Exercise the Yu OS-owned Agent TUI through a Linux PTY."""
 
 import argparse
 import contextlib
@@ -27,8 +27,8 @@ import uuid
 SESSION_ID = "ses_001953abcdef0_123456789abc"
 FORK_SESSION_ID = "ses_001953abcdef1_abcdef123456"
 PRESENTATION_ID = "01234567-89ab-8cde-8123-456789abcdef"
-ANSWER = "CLAW_TUI_PTY_COMPLETED_9F43"
-RUNNING = "CLAW_TUI_PTY_RUNNING_3A91"
+ANSWER = "YUOS_TUI_PTY_COMPLETED_9F43"
+RUNNING = "YUOS_TUI_PTY_RUNNING_3A91"
 PENDING_APPROVAL_ID = "approval-center-pending"
 RECENT_APPROVAL_ID = "approval-center-recent"
 ACTIVITY_ID = "00000000-0000-4000-8000-000000000001"
@@ -252,7 +252,7 @@ class FixtureBroker:
             "actions": [{
                 "id": "open-task",
                 "label": "Open task",
-                "uri": f"clawos://task/{self.history_failed_id}",
+                "uri": f"yuos://task/{self.history_failed_id}",
             }],
             "deliveries": [{
                 "channel": "web",
@@ -301,10 +301,10 @@ class FixtureBroker:
             if not self.request_release.wait(timeout=10):
                 raise AssertionError("delayed request fixture was not released")
         if method == "daemon.status":
-            return {"daemon": "clawd", "status": "running"}
+            return {"daemon": "yuosd", "status": "running"}
         if method == "daemon.health":
             return {
-                "daemon": "clawd",
+                "daemon": "yuosd",
                 "status": "ok",
                 "started_at": "2026-01-01T00:00:00Z",
                 "uptime_ms": 1000,
@@ -445,9 +445,9 @@ class FixtureBroker:
                     "scope": {
                         "kind": "path",
                         "value": (
-                            "/home/claw/" + "long-directory/" * 20 + " report-tail.txt"
+                            "/home/yuos/" + "long-directory/" * 20 + " report-tail.txt"
                             if self.case == "approval-narrow"
-                            else "/**" if metadata else "/home/claw/report.md"
+                            else "/**" if metadata else "/home/yuos/report.md"
                         ),
                     },
                     "session": self.session_id,
@@ -458,7 +458,7 @@ class FixtureBroker:
                     ),
                     "requested_at": 1767225600,
                     "risk": "low" if metadata else "high",
-                    "requester": "Claw Agent",
+                    "requester": "Yu OS Agent",
                 }]
             }
         if method == "permission.recent" and self.case == "approval-center":
@@ -471,7 +471,7 @@ class FixtureBroker:
                     "reason": "Fetch public release metadata",
                     "requested_at": 1767225500,
                     "risk": "medium",
-                    "requester": "Claw Agent",
+                    "requester": "Yu OS Agent",
                     "decision": {
                         "outcome": "approved",
                         "decided_at": 1767225550,
@@ -899,7 +899,7 @@ class FixtureBroker:
                 }
             events = []
             if params.get("cursor", 0) == 0:
-                tool_name = "cos_delegate" if self.case == "agents" else "cos_sysinfo"
+                tool_name = "yu_delegate" if self.case == "agents" else "yu_sysinfo"
                 events = [
                     {"event": {"kind": "text_delta", "text": RUNNING + "\n"}},
                     {"event": {"kind": "tool_use_start", "id": "tool-1", "name": tool_name}},
@@ -996,7 +996,7 @@ class FixtureBroker:
                     raise AssertionError("slow progress fixture was not released")
                 events = [
                     {"progress": {
-                        "kind": "tool_result", "id": "tool-1", "name": "cos_sysinfo",
+                        "kind": "tool_result", "id": "tool-1", "name": "yu_sysinfo",
                         "ok": True, "latency_ms": 1234,
                     }},
                     {"event": {"kind": "text_delta", "text": "\n## Result\n\n" + ANSWER}},
@@ -1225,7 +1225,7 @@ def complete_inline_approval(master, output, broker, case):
         master, output, settled + 2,
         lambda _: time.monotonic() >= settled,
     )
-    if b"Claw OS authorization" in output:
+    if b"Yu OS authorization" in output:
         raise AssertionError("TUI approval opened the password prompt")
 
 
@@ -1262,11 +1262,11 @@ def process_diagnostics(pid):
     return records
 
 
-def run(cos, case, transcript, original_namespace, trace):
+def run(yu, case, transcript, original_namespace, trace):
     if os.geteuid() == 0:
         raise RuntimeError("run this fixture as a non-root account, like ordinary Agent chat")
     output = bytearray()
-    with tempfile.TemporaryDirectory(prefix="claw-tui-pty-") as temporary, contextlib.ExitStack() as cleanup:
+    with tempfile.TemporaryDirectory(prefix="yuos-tui-pty-") as temporary, contextlib.ExitStack() as cleanup:
         root = Path(temporary)
         if (
             not re.fullmatch(r"mnt:\[\d+\]", original_namespace)
@@ -1322,12 +1322,12 @@ def run(cos, case, transcript, original_namespace, trace):
                 "tts": {
                     "provider": "none",
                     "model": "system-tts",
-                    "default_voice": "claw",
+                    "default_voice": "yuos",
                     "default_format": "wav",
                 },
             })
         config.write_text(json.dumps(config_document))
-        broker_path = root / "clawd.sock"
+        broker_path = root / "yuosd.sock"
         broker = None if case == "startup-reconnect" else FixtureBroker(broker_path, case)
         master, slave = pty.openpty()
         dimensions = (12, 40) if case == "approval-narrow" else (36, 110)
@@ -1335,16 +1335,16 @@ def run(cos, case, transcript, original_namespace, trace):
         environment = {
             **os.environ,
             "TERM": "xterm-256color",
-            "CLAWD_SOCKET": str(broker_path),
-            "COS_CONFIG_PATH": str(config),
-            "COS_DATA_DIR": str(root / "data"),
-            "COS_USER_DATA_DIR": str(home / ".local" / "share" / "cos"),
-            "COS_APPS_DIR": str(root / "apps"),
-            "COS_AGENT_EXTENSIONS_DIR": str(root / "extensions"),
+            "YUOSD_SOCKET": str(broker_path),
+            "YUOS_CONFIG_PATH": str(config),
+            "YUOS_DATA_DIR": str(root / "data"),
+            "YUOS_USER_DATA_DIR": str(home / ".local" / "share" / "yuos"),
+            "YUOS_APPS_DIR": str(root / "apps"),
+            "YUOS_AGENT_EXTENSIONS_DIR": str(root / "extensions"),
         }
-        command = [str(cos), "agent", "chat", "--tui"]
+        command = [str(yu), "agent", "chat", "--tui"]
         if case == "plain":
-            command = [str(cos), "agent", "chat", "--plain", "--no-memory"]
+            command = [str(yu), "agent", "chat", "--plain", "--no-memory"]
         elif case in ("resume", "resume-running"):
             command.extend(["--session", PRESENTATION_ID])
         if trace:
@@ -1360,7 +1360,7 @@ def run(cos, case, transcript, original_namespace, trace):
                 master,
                 output,
                 time.monotonic() + 10,
-                lambda data: b"Claw broker is unavailable; retrying" in data,
+                lambda data: b"Yu OS broker is unavailable; retrying" in data,
             )
             broker = FixtureBroker(broker_path, case)
         broker.thread.start()
@@ -1391,7 +1391,7 @@ def run(cos, case, transcript, original_namespace, trace):
                     )
                     for request in broker.requests
                 )
-                if opened and b"CLAW" in data:
+                if opened and b"YU OS AGENT" in data:
                     if ready_at is None:
                         ready_at = time.monotonic()
                     return time.monotonic() - ready_at >= 0.5
@@ -1476,7 +1476,7 @@ def run(cos, case, transcript, original_namespace, trace):
                     master,
                     output,
                     time.monotonic() + 15,
-                    lambda data: b"Claw - Terminal integration fixture" in data,
+                    lambda data: b"Yu OS - Terminal integration fixture" in data,
                 )
                 settled = time.monotonic() + 0.4
                 read_terminal(
@@ -1607,7 +1607,7 @@ def run(cos, case, transcript, original_namespace, trace):
                     output,
                     time.monotonic() + 15,
                     lambda data: b"Extensions Center" in data
-                    and b"One authenticated Claw extension model" in data,
+                    and b"One authenticated Yu OS extension model" in data,
                 )
                 os.write(master, b"\x1b")
                 time.sleep(0.4)
@@ -2415,7 +2415,7 @@ def run(cos, case, transcript, original_namespace, trace):
                     time.monotonic() + 15,
                     lambda data: broker.slow_progress_waiting.is_set()
                     and b"Running" in data
-                    and b"cos_sysinfo" in data,
+                    and b"yu_sysinfo" in data,
                 )
                 animated_at = len(output)
                 first_tick_due = time.monotonic() + 0.35
@@ -2473,9 +2473,9 @@ def run(cos, case, transcript, original_namespace, trace):
                     master,
                     output,
                     time.monotonic() + 15,
-                    lambda data: b"--- Claw transcript snapshot ---" in data
+                    lambda data: b"--- Yu OS transcript snapshot ---" in data
                     and ANSWER.encode() in data
-                    and b"--- end Claw transcript snapshot ---" in data,
+                    and b"--- end Yu OS transcript snapshot ---" in data,
                 )
             if case == "agents":
                 send_prompt(master, output, "/agents")

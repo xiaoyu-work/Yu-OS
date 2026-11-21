@@ -117,12 +117,12 @@ fn object_commands_describe_and_resolve_without_creating_a_generic_model_tool() 
 fn agent_usage_is_discoverable_and_model_callable() {
     let namespace = namespace_help("agent").expect("agent namespace");
     assert!(namespace["commands"].get("usage").is_some());
-    assert_eq!(namespace["model_tools"]["usage"], "cos_usage");
+    assert_eq!(namespace["model_tools"]["usage"], "yu_usage");
 
     let command = command_help("agent", "usage").expect("usage command");
     assert_eq!(command["command"], "yu agent usage");
     assert_eq!(command["model_callable"], true);
-    assert_eq!(command["model_tool"], "cos_usage");
+    assert_eq!(command["model_tool"], "yu_usage");
 }
 
 #[test]

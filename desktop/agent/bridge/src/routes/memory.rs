@@ -1,7 +1,7 @@
 use crate::{api_error::ApiError, state::AppState};
 use axum::{Json, extract::State};
-use clawd_client::Command;
-use cos_agent_protocol::{
+use yuosd_client::Command;
+use yuos_agent_protocol::{
     MemoryEntry, MemoryForgetRequest, MemoryInspectRequest, MemoryInventory, MemoryReadRequest,
     MemoryUpdateRequest,
 };
@@ -14,7 +14,7 @@ async fn request<T: serde::Serialize, R: serde::de::DeserializeOwned>(
     let params =
         serde_json::to_value(body).map_err(|error| ApiError::bad_gateway(error.to_string()))?;
     let value = state
-        .clawd
+        .yuosd
         .call(command, params)
         .await
         .map_err(|error| ApiError::bad_gateway(error.to_string()))?;

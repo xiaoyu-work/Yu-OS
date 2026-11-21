@@ -47,7 +47,7 @@ Version: $version
 Section: misc
 Priority: optional
 Architecture: $architecture
-Maintainer: Claw OS Tests <tests@example.invalid>
+Maintainer: Yu OS Tests <tests@example.invalid>
 Description: APT synchronization test fixture
 EOF
     printf '%s\n' "$origin" > "$stage/usr/share/$package/fixture-origin"
@@ -172,7 +172,7 @@ mkdir -p "$TEST_ROOT/bodies"
 write_inrelease() {
     local target="$1" date="$2" valid_until="$3"
     cat > "$target" <<EOF
-Origin: Claw OS
+Origin: Yu OS
 Suite: trixie
 Codename: trixie
 Architectures: amd64 arm64 all
@@ -197,7 +197,7 @@ run_sync() {
         EXISTING_APT_REPO_URL="https://apt.example.invalid" \
         APT_PUBLIC_KEYRING="$scenario/keyring.gpg" \
         DEBS_DIR="$scenario/debs" \
-        COS_PREVIOUS_RELEASE_SECURITY_DIR="$scenario/release-security-previous" \
+        YUOS_PREVIOUS_RELEASE_SECURITY_DIR="$scenario/release-security-previous" \
         TMPDIR="$scenario/tmp" \
         bash "$SYNC_SCRIPT"
 }
@@ -211,37 +211,37 @@ test_out_of_order_publication() {
     printf 'fixture keyring\n' > "$scenario/keyring.gpg"
     : > "$scenario/calls"
 
-    make_deb "$scenario" claw-os-agent 2.0 amd64 remote "$remote"
-    make_deb "$scenario" claw-os-agent 1.0+git9 arm64 remote "$remote"
-    make_deb "$scenario" claw-os-base 2.0 all remote "$remote"
-    make_deb "$scenario" claw-os-desktop 2.0 amd64 remote "$remote"
+    make_deb "$scenario" yuos-agent 2.0 amd64 remote "$remote"
+    make_deb "$scenario" yuos-agent 1.0+git9 arm64 remote "$remote"
+    make_deb "$scenario" yuos-base 2.0 all remote "$remote"
+    make_deb "$scenario" yuos-desktop 2.0 amd64 remote "$remote"
     cat > "$candidates" <<EOF
-claw-os-agent:amd64|2.0|$remote/claw-os-agent_2.0_amd64.deb
-claw-os-agent:arm64|1.0+git9|$remote/claw-os-agent_1.0+git9_arm64.deb
-claw-os-base|2.0|$remote/claw-os-base_2.0_all.deb
-claw-os-desktop:amd64|2.0|$remote/claw-os-desktop_2.0_amd64.deb
+yuos-agent:amd64|2.0|$remote/yuos-agent_2.0_amd64.deb
+yuos-agent:arm64|1.0+git9|$remote/yuos-agent_1.0+git9_arm64.deb
+yuos-base|2.0|$remote/yuos-base_2.0_all.deb
+yuos-desktop:amd64|2.0|$remote/yuos-desktop_2.0_amd64.deb
 EOF
 
-    make_deb "$scenario" claw-os-agent 2.0~rc1 amd64 older-build "$debs"
-    make_deb "$scenario" claw-os-agent 1.0+git10 arm64 newer-build "$debs"
-    make_deb "$scenario" claw-os-base 2.0 all equal-build "$debs"
-    make_deb "$scenario" claw-os-desktop 1.0 arm64 first-build "$debs"
-    cmp -s "$debs/claw-os-base_2.0_all.deb" \
-        "$remote/claw-os-base_2.0_all.deb" \
+    make_deb "$scenario" yuos-agent 2.0~rc1 amd64 older-build "$debs"
+    make_deb "$scenario" yuos-agent 1.0+git10 arm64 newer-build "$debs"
+    make_deb "$scenario" yuos-base 2.0 all equal-build "$debs"
+    make_deb "$scenario" yuos-desktop 1.0 arm64 first-build "$debs"
+    cmp -s "$debs/yuos-base_2.0_all.deb" \
+        "$remote/yuos-base_2.0_all.deb" \
         && fail "equal-version fixtures must have different contents"
 
     run_sync "$scenario" 200
 
-    assert_absent "$debs/claw-os-agent_2.0~rc1_amd64.deb"
-    assert_same "$remote/claw-os-agent_2.0_amd64.deb" \
-        "$debs/claw-os-agent_2.0_amd64.deb"
-    assert_file "$debs/claw-os-agent_1.0+git10_arm64.deb"
-    assert_absent "$debs/claw-os-agent_1.0+git9_arm64.deb"
-    assert_same "$remote/claw-os-base_2.0_all.deb" \
-        "$debs/claw-os-base_2.0_all.deb"
-    assert_same "$remote/claw-os-desktop_2.0_amd64.deb" \
-        "$debs/claw-os-desktop_2.0_amd64.deb"
-    assert_file "$debs/claw-os-desktop_1.0_arm64.deb"
+    assert_absent "$debs/yuos-agent_2.0~rc1_amd64.deb"
+    assert_same "$remote/yuos-agent_2.0_amd64.deb" \
+        "$debs/yuos-agent_2.0_amd64.deb"
+    assert_file "$debs/yuos-agent_1.0+git10_arm64.deb"
+    assert_absent "$debs/yuos-agent_1.0+git9_arm64.deb"
+    assert_same "$remote/yuos-base_2.0_all.deb" \
+        "$debs/yuos-base_2.0_all.deb"
+    assert_same "$remote/yuos-desktop_2.0_amd64.deb" \
+        "$debs/yuos-desktop_2.0_amd64.deb"
+    assert_file "$debs/yuos-desktop_1.0_arm64.deb"
 
     local package_count
     package_count="$(find "$debs" -maxdepth 1 -type f -name '*.deb' | wc -l)"
@@ -257,12 +257,12 @@ test_first_publication() {
     : > "$scenario/candidates"
     : > "$scenario/calls"
 
-    make_deb "$scenario" claw-os-agent 1.0 amd64 first-build "$debs"
-    cp "$debs/claw-os-agent_1.0_amd64.deb" "$scenario/expected.deb"
+    make_deb "$scenario" yuos-agent 1.0 amd64 first-build "$debs"
+    cp "$debs/yuos-agent_1.0_amd64.deb" "$scenario/expected.deb"
 
     run_sync "$scenario" 404
 
-    assert_same "$scenario/expected.deb" "$debs/claw-os-agent_1.0_amd64.deb"
+    assert_same "$scenario/expected.deb" "$debs/yuos-agent_1.0_amd64.deb"
     [ ! -s "$scenario/calls" ] \
         || fail "first publication must not query a repository that does not exist"
 }
@@ -277,13 +277,13 @@ test_repair_incomplete_baseline() {
     printf 'fixture keyring\n' > "$scenario/keyring.gpg"
     : > "$scenario/calls"
 
-    make_deb "$scenario" claw-os-base 1.0 all remote "$remote"
-    make_deb "$scenario" claw-os-base 2.0 all protected-local "$debs"
+    make_deb "$scenario" yuos-base 1.0 all remote "$remote"
+    make_deb "$scenario" yuos-base 2.0 all protected-local "$debs"
     cat > "$candidates" <<EOF
-claw-os-base|1.0|$remote/claw-os-base_1.0_all.deb
+yuos-base|1.0|$remote/yuos-base_1.0_all.deb
 EOF
 
-    printf '{"format":"claw.release-security-baseline/v1"}\n' \
+    printf '{"format":"yuos.release-security-baseline/v1"}\n' \
         > "$bodies/baseline.json"
     printf 'fixture signature\n' > "$bodies/baseline.json.asc"
     baseline_hash="$(sha256sum "$bodies/baseline.json" | cut -d' ' -f1)"
@@ -291,14 +291,14 @@ EOF
     signature_hash="$(sha256sum "$bodies/baseline.json.asc" | cut -d' ' -f1)"
     signature_size="$(stat -c %s "$bodies/baseline.json.asc")"
     cat > "$bodies/InRelease" <<EOF
-Origin: Claw OS
+Origin: Yu OS
 Suite: trixie
 Codename: trixie
 Architectures: amd64 arm64 all
 Components: main
 Date: $(date -u -R)
 Valid-Until: $(date -u -R -d '+30 days')
-Claw-Os-Release-Security-Baseline: 1
+YuOS-Release-Security-Baseline: 1
 SHA256:
  $baseline_hash $baseline_size release-security/baseline.json
  $signature_hash $signature_size release-security/baseline.json.asc
@@ -306,8 +306,8 @@ EOF
 
     run_sync "$scenario" 200 "$bodies"
 
-    assert_file "$debs/claw-os-base_2.0_all.deb"
-    assert_absent "$debs/claw-os-base_1.0_all.deb"
+    assert_file "$debs/yuos-base_2.0_all.deb"
+    assert_absent "$debs/yuos-base_1.0_all.deb"
     [ -f "$scenario/release-security-previous/.baseline-established" ] \
         || fail "the repair path did not preserve the established baseline"
 }

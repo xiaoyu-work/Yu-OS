@@ -1,0 +1,149 @@
+//! yuos-cli — interactive REPL / TUI front-end for the yu kernel
+//! agent (Phase 7 scaffold).
+//!
+//! Today this binary forwards subcommands to the `yu` binary via
+//! a child process. Phase 7 will replace that with an in-process
+//! handle once the agent runtime exposes an embeddable API surface
+//! (issue tracked under p7-cli-subcommands).
+//!
+//! Usage shape (all aspirational; today only `ask` works, and only
+//! by re-shelling out to `yu agent ask`):
+//!
+//! ```text
+//! yuos-cli                          # enter REPL
+//! yuos-cli ask "what's the time?"   # one-shot
+//! yuos-cli skill list               # delegate to yu agent skill list
+//! ```
+
+use std::io::{self, BufRead, Write};
+use std::process::Command;
+
+use anyhow::{anyhow, Result};
+use clap::{Parser, Subcommand};
+
+#[derive(Debug, Parser)]
+#[command(
+    name = "yuos-cli",
+    version,
+    about = "Interactive shell for the yu agent (Phase 7 scaffold)"
+)]
+struct Cli {
+    #[command(subcommand)]
+    cmd: Option<CliCmd>,
+
+    /// Override the path to the `yu` binary (default: `yu`).
+    #[arg(long, env = "YUOS_BIN", default_value = "yu")]
+    yu_bin: String,
+}
+
+#[derive(Debug, Subcommand)]
+enum CliCmd {
+    /// One-shot ask — equivalent to `yu agent ask "<prompt>"`.
+    Ask {
+        /// Joined into one prompt string.
+        #[arg(num_args = 1..)]
+        prompt: Vec<String>,
+    },
+    /// Print agent status — equivalent to `yu agent status`.
+    Status,
+    /// Forward arbitrary args to `yu agent ...`.
+    Agent {
+        #[arg(num_args = 1.., trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+}
+
+fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+    let cli = Cli::parse();
+    match cli.cmd {
+        None => repl(&cli.yu_bin),
+        Some(CliCmd::Ask { prompt }) => one_shot_ask(&cli.yu_bin, prompt),
+        Some(CliCmd::Status) => forward(&cli.yu_bin, &["agent", "status"]),
+        Some(CliCmd::Agent { args }) => {
+            let mut cmd: Vec<&str> = vec!["agent"];
+            cmd.extend(args.iter().map(String::as_str));
+            forward(&cli.yu_bin, &cmd)
+        }
+    }
+}
+
+fn one_shot_ask(yu_bin: &str, prompt: Vec<String>) -> Result<()> {
+    let prompt = prompt.join(" ");
+    if prompt.trim().is_empty() {
+        return Err(anyhow!("ask requires a non-empty prompt"));
+    }
+    // Pass `--` so prompts that start with a dash (e.g. `--help` or
+    // `-foo`) are not interpreted as flags by `yu agent ask`. Without
+    // the separator, `yu cli ask -- --version` and similar inputs
+    // would be parsed as version requests instead of prompts.
+    forward(yu_bin, &["agent", "ask", "--", &prompt])
+}
+
+fn forward(yu_bin: &str, args: &[&str]) -> Result<()> {
+    let status = Command::new(yu_bin)
+        .args(args)
+        .status()
+        .map_err(|e| anyhow!("failed to spawn `{yu_bin}`: {e}"))?;
+    if !status.success() {
+        std::process::exit(status.code().unwrap_or(1));
+    }
+    Ok(())
+}
+
+/// Minimal REPL: read a line, treat it as the prompt, forward to
+/// `yu agent ask`. `exit` / `quit` / EOF exit cleanly. Slash
+/// commands (`/status`, `/help`) trigger the matching subcommand.
+fn repl(yu_bin: &str) -> Result<()> {
+    let stdin = io::stdin();
+    let mut stdout = io::stdout();
+    println!("yuos-cli {} — type /help for commands, EOF or /quit to exit", env!("CARGO_PKG_VERSION"));
+    loop {
+        write!(stdout, "yu> ")?;
+        stdout.flush()?;
+        let mut line = String::new();
+        let n = stdin.lock().read_line(&mut line)?;
+        if n == 0 {
+            println!();
+            return Ok(());
+        }
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        match trimmed {
+            "/quit" | "/exit" | "exit" | "quit" => return Ok(()),
+            "/help" => {
+                println!("commands:");
+                println!("  /status   — show agent status");
+                println!("  /quit     — exit");
+                println!("  <text>    — send as prompt to `yu agent ask`");
+            }
+            "/status" => {
+                let _ = forward(yu_bin, &["agent", "status"]);
+            }
+            other if other.starts_with('/') => {
+                eprintln!("unknown slash command: {other}");
+            }
+            prompt => {
+                // Same `--` separator as `one_shot_ask`: keep
+                // REPL-typed prompts that happen to start with `-`
+                // from being parsed as flags by `yu agent ask`.
+                let _ = forward(yu_bin, &["agent", "ask", "--", prompt]);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/test/unit/main.rs"
+    ));
+}

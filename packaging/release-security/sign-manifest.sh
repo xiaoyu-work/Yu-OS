@@ -17,16 +17,16 @@
 #     upload.
 #
 # Defines:
-#   claw_resolve_signing_key            -> echoes the key id, or empty
-#   claw_write_release_manifest ...     -> manifest.json{,.asc}
+#   yuos_resolve_signing_key            -> echoes the key id, or empty
+#   yuos_write_release_manifest ...     -> manifest.json{,.asc}
 
 # Resolve and validate the requested release-security signing key.
 #
 # Echoes the key id when one was requested and its secret key is
 # usable, echoes nothing when none was requested, and returns non-zero
 # when one was requested but cannot be used.
-claw_resolve_signing_key() {
-    local key_id="${CLAW_OS_RELEASE_SECURITY_KEY_ID:-${GPG_KEY_ID:-}}"
+yuos_resolve_signing_key() {
+    local key_id="${YUOS_RELEASE_SECURITY_KEY_ID:-${GPG_KEY_ID:-}}"
     if [ -z "$key_id" ]; then
         echo "  :: no release-security signing key requested;" >&2
         echo "     THIS IS AN UNSIGNED LOCAL BUILD and cannot be published" >&2
@@ -37,20 +37,20 @@ claw_resolve_signing_key() {
         echo "error: release-security signing key $key_id was requested but its" >&2
         echo "       secret key is unavailable. Refusing to emit an unsigned" >&2
         echo "       package under a signed build. Unset" >&2
-        echo "       CLAW_OS_RELEASE_SECURITY_KEY_ID/GPG_KEY_ID for an" >&2
+        echo "       YUOS_RELEASE_SECURITY_KEY_ID/GPG_KEY_ID for an" >&2
         echo "       explicitly unsigned local build." >&2
         return 1
     fi
     printf '%s\n' "$key_id"
 }
 
-# claw_write_release_manifest KEY_ID PASSPHRASE MAKE_MANIFEST PACKAGE \
+# yuos_write_release_manifest KEY_ID PASSPHRASE MAKE_MANIFEST PACKAGE \
 #                             VERSION ARCH SUITE STAGE POLICY OUTPUT
 #
 # An empty KEY_ID means an unsigned build. Otherwise the detached
 # signature must exist and verify, and any failure removes both files so
 # no later step can package a half-written or unsigned manifest.
-claw_write_release_manifest() {
+yuos_write_release_manifest() {
     local key_id="$1" passphrase="$2" make_manifest="$3" package="$4"
     local version="$5" arch="$6" suite="$7" stage="$8" policy="$9" output="${10}"
     local sign_args=()

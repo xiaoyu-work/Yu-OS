@@ -7,7 +7,7 @@ struct EnginesDirGuard {
 impl EnginesDirGuard {
     fn new() -> Self {
         let td = tempfile::Builder::new()
-            .prefix("cos-engines-test-")
+            .prefix("yuos-engines-test-")
             .tempdir()
             .unwrap();
         super::super::paths::set_engines_dir_override(Some(td.path().to_path_buf()));

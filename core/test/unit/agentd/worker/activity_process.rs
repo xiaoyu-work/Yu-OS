@@ -11,7 +11,7 @@ use crate::agent::tools::app_gateway::{
 use serde::Deserialize;
 use serde_json::json;
 
-const CONTEXT_ENV: &str = "COS_ACTIVITY_EXTENSION_PROCESS_CONTEXT";
+const CONTEXT_ENV: &str = "YUOS_ACTIVITY_EXTENSION_PROCESS_CONTEXT";
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]

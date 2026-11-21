@@ -13,7 +13,7 @@ import pathlib
 import shutil
 import subprocess
 
-from claw_os_sdk.mcp import App
+from yuos_sdk.mcp import App
 
 
 _HERE = pathlib.Path(__file__).resolve().parent
@@ -32,11 +32,11 @@ def _bin(env_name: str, default_name: str) -> str:
 
 
 def _ffmpeg() -> str:
-    return _bin("CLAW_FFMPEG_BIN", "ffmpeg")
+    return _bin("YUOS_FFMPEG_BIN", "ffmpeg")
 
 
 def _ffprobe() -> str:
-    return _bin("CLAW_FFPROBE_BIN", "ffprobe")
+    return _bin("YUOS_FFPROBE_BIN", "ffprobe")
 
 
 def _run(cmd: list[str]) -> str:

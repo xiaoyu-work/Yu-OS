@@ -1,7 +1,7 @@
 # Command-line tool adapters
 
-Each directory wraps one external command-line tool as a Claw OS App. Adapters
-use the same signed `app.json` contract, public `claw-os-sdk`, authenticated
+Each directory wraps one external command-line tool as a Yu OS App. Adapters
+use the same signed `app.json` contract, public `yuos-sdk`, authenticated
 MCP Gateway, capability derivation, sandbox, and audit path as every other App.
 There is no separate adapter or generic MCP registration format.
 
@@ -11,7 +11,7 @@ There is no separate adapter or generic MCP registration format.
 adapters/
   <id>/
     app.json       # App identity, MCP tools, dependencies, and exact needs
-    main.py        # name-only handler bindings through claw_os_sdk.mcp
+    main.py        # name-only handler bindings through yuos_sdk.mcp
     test_main.py   # command mapping and error tests
 ```
 
@@ -20,7 +20,7 @@ arguments, defaults, caller access, and capability needs. Runtime code binds
 only implementation functions:
 
 ```python
-from claw_os_sdk.mcp import App
+from yuos_sdk.mcp import App
 
 app = App.from_manifest()
 
@@ -31,7 +31,7 @@ def list_archive(path: str) -> list[str]:
 app.serve()
 ```
 
-The App Host points `COS_APP_MANIFEST` at the verified package snapshot and
+The App Host points `YUOS_APP_MANIFEST` at the verified package snapshot and
 injects authenticated call context outside business arguments. Direct
 code-authored schemas and unauthenticated calls are rejected.
 
@@ -50,6 +50,6 @@ Production packages require publisher provenance; see
 From the repository root:
 
 ```bash
-PYTHONPATH=claw-os-sdk/python/src:cos-runtime/python/src \
+PYTHONPATH=yuos-sdk/python/src:yuos-runtime/python/src \
   python3 -m pytest -q adapters
 ```

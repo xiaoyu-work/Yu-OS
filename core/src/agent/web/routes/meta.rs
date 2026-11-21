@@ -29,7 +29,7 @@ pub async fn handler(State(state): State<AppState>) -> Json<Value> {
         "owner_uid": state.inner.owner_uid,
         "started_at": state.inner.started_at_unix,
         "ui": {
-            "title": format!("claw-os agent — {hostname}"),
+            "title": format!("yuos agent — {hostname}"),
             "subtitle": format!("{} · {}", cfg.provider, cfg.model),
         },
     }))

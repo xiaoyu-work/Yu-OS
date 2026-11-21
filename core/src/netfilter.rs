@@ -10,10 +10,10 @@
 ///   - An HTTP proxy that calls `yu netfilter check` before forwarding
 ///   - The agent's sandbox tool, which can run subprocesses with
 ///     `--no-network` for complete isolation (see
-///     `crate::agent::tools::cos_proxy::cos_sandbox`)
+///     `crate::agent::tools::yu_proxy::yu_sandbox`)
 ///
-/// Storage: `$COS_DATA_DIR/netfilter/rules.json`
-///            `$COS_DATA_DIR/netfilter/rate-state.json`
+/// Storage: `$YUOS_DATA_DIR/netfilter/rules.json`
+///            `$YUOS_DATA_DIR/netfilter/rate-state.json`
 ///
 /// Commands:
 ///   add --allow <domain> [--port N]  — allow outbound to a domain

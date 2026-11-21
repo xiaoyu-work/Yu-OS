@@ -232,7 +232,7 @@ fn load() -> Result<Generations, String> {
         use std::os::unix::fs::MetadataExt;
         use std::os::unix::fs::PermissionsExt;
         // The daemon writes this as root. A test harness runs
-        // unprivileged against its own `COS_DATA_DIR`, so the check is
+        // unprivileged against its own `YUOS_DATA_DIR`, so the check is
         // "not writable by anyone but the file's owner", plus a root
         // requirement when the daemon itself is root.
         if metadata.permissions().mode() & 0o022 != 0 {
@@ -361,7 +361,7 @@ pub fn revoke_session_best_effort(uid: Option<u32>, session: &str) {
     };
     match revoke(&scope) {
         Ok(generation) => {
-            crate::clawd::audit::record_approval_revocation(&scope, session, generation);
+            crate::yuosd::audit::record_approval_revocation(&scope, session, generation);
         }
         Err(error) => {
             tracing::error!(

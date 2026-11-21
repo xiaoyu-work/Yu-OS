@@ -12,7 +12,7 @@ conversation sessions. It is not a renamed job or a second agent runtime.
 ## One backend, different presentations
 
 Terminal-only and desktop installations use the same service in
-[`core/src/activities/`](../core/src/activities/MODULE.md). `clawd` derives the
+[`core/src/activities/`](../core/src/activities/MODULE.md). `yuosd` derives the
 owner from authenticated peer credentials and owns the persistent Activity
 database. The terminal command, Agent Web, and native desktop Agent are
 clients of the same `activity.*` broker routes.
@@ -23,14 +23,14 @@ Activity database, perform lifecycle transitions locally, or infer goal
 achievement from a successful model response.
 
 Associated work uses Main's durable PREPARE/COMMIT task admission. Model
-orchestration stays in `claw-agentd`; dynamic App/MCP execution belongs to the
+orchestration stays in `yuos-agentd`; dynamic App/MCP execution belongs to the
 isolated extension Host, not a worker-local AppHost fallback. Existing
 nonce-, digest- and context-bound approval checks remain authoritative.
 
 ## Terminal use
 
-Run these commands in an installed Linux or WSL Claw OS environment with
-`clawd` available. Activity management does not require a configured model;
+Run these commands in an installed Linux or WSL Yu OS environment with
+`yuosd` available. Activity management does not require a configured model;
 starting Agent work requires the normal Agent setup and a non-root task owner.
 
 The full-screen `yu agent chat` TUI exposes the same backend through
@@ -99,7 +99,7 @@ that execution. `yu activity run ID --session SESSION_ID` continues a related
 conversation. The Activity association is also available through
 `yu agent service submit --activity ID` and `list --activity ID`.
 
-Outputs follow the normal `cos` JSON/pretty-printing behavior, including
+Outputs follow the normal `yu` JSON/pretty-printing behavior, including
 `--compact` and `--pretty`. `yu activity --help` and
 `yu activity <command> --schema` are available without connecting to a
 desktop or starting a model.
@@ -235,7 +235,7 @@ below.
 ## Portable continuity
 
 Activity continuity v1 is a small deterministic JSON document with the exact
-kind `claw_os.activity_continuity`, schema version 1, a stable continuity UUID,
+kind `yuos.activity_continuity`, schema version 1, a stable continuity UUID,
 a positive snapshot revision, and a SHA-256 snapshot digest. It carries:
 
 - title, goal, completion criteria, and free-text planning boundaries;

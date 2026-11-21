@@ -1,7 +1,7 @@
 //! Literal GUI arguments, validated before App session authorization.
 
 use crate::caps::manifest::Runtime;
-use crate::clawd::wire::bounded::{Text, MAX_STRUCTURED_STRING_BYTES};
+use crate::yuosd::wire::bounded::{Text, MAX_STRUCTURED_STRING_BYTES};
 
 const MAX_ARGUMENTS: usize = 128;
 const ARGUMENT_BYTES: usize = 4096;

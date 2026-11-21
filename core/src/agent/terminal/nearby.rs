@@ -2,7 +2,7 @@
 
 use super::{backend::Backend, requests::Request};
 use super::{state::App, InputAction};
-use clawd_client::nearby::*;
+use yuosd_client::nearby::*;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
     layout::Rect,

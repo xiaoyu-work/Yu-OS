@@ -2,27 +2,27 @@
 //! manager was bypassed entirely.
 //!
 //! Maintainer scripts only run when `dpkg` runs. Someone who copies an
-//! old `clawd` over `/usr/local/bin/clawd`, restores a component from
+//! old `yuosd` over `/usr/local/bin/yuosd`, restores a component from
 //! a backup, or reinstalls an old package after `apt remove` never
 //! passes through them — but the floor survives removal, so the
 //! binaries themselves can still refuse.
 //!
 //! # Two views, two privileges
 //!
-//! The authoritative floor is `0700 root:root`, so an ordinary `cos`
+//! The authoritative floor is `0700 root:root`, so an ordinary `yu`
 //! process cannot read it and must not need to. Enforcement therefore
 //! comes in two shapes:
 //!
-//! * [`enforce_startup`] — every unprivileged Claw OS binary compares
+//! * [`enforce_startup`] — every unprivileged Yu OS binary compares
 //!   its compiled epoch and protocol epochs against the **runtime
-//!   projection** in `/var/lib/cos-security`, which is root-owned,
+//!   projection** in `/var/lib/yuos-security`, which is root-owned,
 //!   world-readable and carries no recovery or history data.
-//! * [`enforce_broker_startup`] — `clawd` runs as root, so it reads the
+//! * [`enforce_broker_startup`] — `yuosd` runs as root, so it reads the
 //!   authoritative floor, re-measures the critical component set on
 //!   disk, and cross-checks the projection against the authority,
 //!   repairing a stale or missing projection before it serves anything.
 //!
-//! Plus [`enforce_worker_binary`]: `clawd` measures the `claw-agentd`
+//! Plus [`enforce_worker_binary`]: `yuosd` measures the `yuos-agentd`
 //! executable before spawning it, so a replaced worker is refused
 //! before it exists as a process rather than being asked politely over
 //! its own channel.
@@ -68,14 +68,14 @@ pub enum Scope {
     /// visible cost.
     CompiledEpoch,
     /// Also re-measure every security-critical component on disk. Used
-    /// by `clawd`, which starts once and supervises everything else.
+    /// by `yuosd`, which starts once and supervises everything else.
     CriticalComponents,
 }
 
 /// Gate an **unprivileged** process against the runtime projection.
 ///
 /// Returns `Ok(())` when this machine has never been protected (no
-/// `/var/lib/cos-security`, i.e. a source build or an unsealed image),
+/// `/var/lib/yuos-security`, i.e. a source build or an unsealed image),
 /// or when the projection is satisfied. Returns a [`Refusal`] when the
 /// projection is missing, unreadable, insecure or ahead of this build.
 pub fn enforce_startup(scope: Scope) -> Result<(), Refusal> {
@@ -96,8 +96,8 @@ pub fn enforce_startup_in(
             return Err(refuse(
                 super::decide::class::FLOOR_UNAVAILABLE,
                 format!(
-                    "{error}. Claw OS refuses to run against unreadable update-security state; \
-                     reinstall claw-os-agent from the signed repository, or recover the state \
+                    "{error}. Yu OS refuses to run against unreadable update-security state; \
+                     reinstall yuos-agent from the signed repository, or recover the state \
                      described in docs/updating.md."
                 ),
             ))
@@ -108,9 +108,9 @@ pub fn enforce_startup_in(
         return Err(refuse(
             super::decide::class::EPOCH_REGRESSION,
             format!(
-                "this binary belongs to Claw OS security epoch {}, but this system has already \
+                "this binary belongs to Yu OS security epoch {}, but this system has already \
                  accepted epoch {}. Refusing to run a superseded build; reinstall the current \
-                 claw-os-agent package.",
+                 yuos-agent package.",
                 super::SECURITY_EPOCH,
                 projection.security_epoch
             ),
@@ -126,7 +126,7 @@ pub fn enforce_startup_in(
                 super::decide::class::ABI_INCOMPATIBLE,
                 format!(
                     "this binary speaks {name} protocol v{mine}, but this system requires \
-                     v{epoch}. Finish the upgrade so every Claw OS binary comes from the same \
+                     v{epoch}. Finish the upgrade so every Yu OS binary comes from the same \
                      release."
                 ),
             ));
@@ -169,8 +169,8 @@ pub fn enforce_broker_startup_in(
         refuse(
             super::decide::class::FLOOR_UNAVAILABLE,
             format!(
-                "{error}. Claw OS refuses to run against unreadable update-security state; \
-                 reinstall claw-os-agent from the signed repository, or recover the state \
+                "{error}. Yu OS refuses to run against unreadable update-security state; \
+                 reinstall yuos-agent from the signed repository, or recover the state \
                  described in docs/updating.md."
             ),
         )
@@ -182,7 +182,7 @@ pub fn enforce_broker_startup_in(
             return Err(refuse(
                 super::decide::class::FLOOR_UNAVAILABLE,
                 "this system publishes an update-security runtime view but has no authoritative \
-                 floor state; refusing to start. Reinstall claw-os-agent from the signed \
+                 floor state; refusing to start. Reinstall yuos-agent from the signed \
                  repository."
                     .to_string(),
             ));
@@ -194,9 +194,9 @@ pub fn enforce_broker_startup_in(
         return Err(refuse(
             super::decide::class::EPOCH_REGRESSION,
             format!(
-                "this binary belongs to Claw OS security epoch {}, but this system has already \
+                "this binary belongs to Yu OS security epoch {}, but this system has already \
                  accepted epoch {}. Refusing to run a superseded build; reinstall the current \
-                 claw-os-agent package.",
+                 yuos-agent package.",
                 super::SECURITY_EPOCH,
                 floor.security_epoch
             ),
@@ -212,7 +212,7 @@ pub fn enforce_broker_startup_in(
                 super::decide::class::ABI_INCOMPATIBLE,
                 format!(
                     "this binary speaks {name} protocol v{mine}, but this system requires \
-                     v{epoch}. Finish the upgrade so every Claw OS binary comes from the same \
+                     v{epoch}. Finish the upgrade so every Yu OS binary comes from the same \
                      release."
                 ),
             ));
@@ -269,7 +269,7 @@ fn verify_components(
                 format!(
                     "`{}` does not match the content this system recorded for the installed \
                      release. Refusing to start against a replaced security component; \
-                     reinstall claw-os-agent from the signed repository.",
+                     reinstall yuos-agent from the signed repository.",
                     component.path
                 ),
             ));
@@ -280,15 +280,15 @@ fn verify_components(
 
 /// Measure the agent worker before it is spawned.
 ///
-/// `clawd` is the authority here: the worker never gets to vouch for
+/// `yuosd` is the authority here: the worker never gets to vouch for
 /// itself, because the check happens before `execve`.
 pub fn enforce_worker_binary(binary: &Path) -> Result<(), Refusal> {
-    enforce_component_binary("claw-agentd", binary)
+    enforce_component_binary("yuos-agentd", binary)
 }
 
 /// [`enforce_worker_binary`] against a specific store.
 pub fn enforce_worker_binary_in(store: &FloorStore, binary: &Path) -> Result<(), Refusal> {
-    enforce_component_binary_in(store, "claw-agentd", binary)
+    enforce_component_binary_in(store, "yuos-agentd", binary)
 }
 
 pub fn enforce_component_binary(component: &str, binary: &Path) -> Result<(), Refusal> {
@@ -349,8 +349,8 @@ pub fn check_peer_epoch(peer: &str, declared: u64) -> Result<(), Refusal> {
     Err(refuse(
         super::decide::class::EPOCH_REGRESSION,
         format!(
-            "{peer} reports Claw OS security epoch {declared} but this build is epoch {}; \
-             reinstall claw-os-agent so every binary comes from the same release",
+            "{peer} reports Yu OS security epoch {declared} but this build is epoch {}; \
+             reinstall yuos-agent so every binary comes from the same release",
             super::SECURITY_EPOCH
         ),
     ))

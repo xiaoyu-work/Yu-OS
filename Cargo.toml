@@ -2,24 +2,24 @@
 resolver = "2"
 members = [
     "core",
-    "claw-os-sdk/rust",
-    "claw-os-sdk/rust/notification-presentation",
-    "cos-runtime/rust",
-    "crates/clawd-client",
-    "crates/claw-display-control",
-    "crates/claw-compositor",
-    "crates/claw-display-login",
-    "crates/cos-cli",
-    "crates/claw-semantic",
-    "crates/claw-embed",
+    "yuos-sdk/rust",
+    "yuos-sdk/rust/notification-presentation",
+    "yuos-runtime/rust",
+    "crates/yuosd-client",
+    "crates/yuos-display-control",
+    "crates/yuos-compositor",
+    "crates/yuos-display-login",
+    "crates/yuos-cli",
+    "crates/yuos-semantic",
+    "crates/yuos-embed",
 ]
-exclude = ["build/app-sources", "crates/claw-nearby"]
+exclude = ["build/app-sources", "crates/yuos-nearby"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/xiaoyu-work/claw-os"
+repository = "https://github.com/xiaoyu-work/Yu-OS"
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }

@@ -305,8 +305,8 @@ fn providers_cmd_surfaces_bedrock_with_aws_access_key_env() {
 
 #[test]
 fn provider_build_status_surfaces_unresolved_pool_without_secret_values() {
-    const LEGACY_ENV: &str = "__COS_TEST_PROVIDER_STATUS_LEGACY__";
-    const MISSING_POOL_ENV: &str = "__COS_TEST_PROVIDER_STATUS_POOL_MISSING__";
+    const LEGACY_ENV: &str = "__YUOS_TEST_PROVIDER_STATUS_LEGACY__";
+    const MISSING_POOL_ENV: &str = "__YUOS_TEST_PROVIDER_STATUS_POOL_MISSING__";
     const LEGACY_VALUE: &str = "legacy-status-secret-must-not-leak";
     std::env::set_var(LEGACY_ENV, LEGACY_VALUE);
     std::env::remove_var(MISSING_POOL_ENV);
@@ -388,7 +388,7 @@ async fn provider_doctor_skips_probe_for_unconfigured_provider() {
     // Verify --probe-network is gracefully skipped without hitting the
     // network, independent of the developer's process-global config.
     let v = crate::config::with_snapshot(
-        std::sync::Arc::new(crate::config::CosConfig::default()),
+        std::sync::Arc::new(crate::config::YuConfig::default()),
         async { provider_doctor_cmd(&["--probe-network".into()]) },
     )
     .await
@@ -445,7 +445,7 @@ fn provider_doctor_filter_excluding_active_marks_out_of_scope() {
 #[test]
 fn provider_doctor_surfaces_effective_timeout_min_of_two() {
     // probe_timeout 9999 + provider request_timeout (default = some
-    // smaller value from CosConfig) → effective is the smaller one.
+    // smaller value from YuConfig) → effective is the smaller one.
     let v = provider_doctor_cmd(&["--timeout".into(), "9999".into()]).expect("doctor ok");
     let doctor = v.get("doctor").unwrap();
     let probe_t = doctor

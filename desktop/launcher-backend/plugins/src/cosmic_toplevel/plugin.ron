@@ -1,6 +1,6 @@
 (
-    name: "ClawOS Windows",
-    description: "Active windows controllable via ClawOS",
+    name: "YuOS Windows",
+    description: "Active windows controllable via YuOS",
     category: Apps,
     query: (persistent: true, priority: High),
     bin: (path: "cosmic-toplevel"),

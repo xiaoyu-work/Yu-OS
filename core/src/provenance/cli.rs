@@ -5,7 +5,7 @@
 //! | Command | Purpose |
 //! | --- | --- |
 //! | `keygen` | Create a publisher signing key (mode `0600`) plus its trust entry |
-//! | `sign` | Build and sign a package's `claw.provenance/v1` envelope |
+//! | `sign` | Build and sign a package's `yuos.provenance/v1` envelope |
 //! | `verify` | Authenticate a package directory against the active trust store |
 //! | `trust list` | Show trusted keys, revocations and developer grants |
 //! | `trust add` | Install a publisher trust entry into the per-user root |
@@ -142,10 +142,10 @@ fn sign_cmd(args: &[String]) -> Result<Value, String> {
     let version = flag(args, "version").unwrap_or_else(|| "0.0.0".to_string());
     let manifest_path = flag(args, "manifest").unwrap_or_else(|| kind.manifest_file().to_string());
     let manifest_schema = flag(args, "manifest-schema").unwrap_or_else(|| match kind {
-        PackageKind::App => "cos.app-manifest/v1".to_string(),
+        PackageKind::App => "yuos.app-manifest/v1".to_string(),
         PackageKind::Skill => "agentskills.io/skill-md/v1".to_string(),
-        PackageKind::Mcp => "claw.agent-api/v1".to_string(),
-        PackageKind::AgentExtension => "claw.agent-extension/v1".to_string(),
+        PackageKind::Mcp => "yuos.agent-api/v1".to_string(),
+        PackageKind::AgentExtension => "yuos.agent-extension/v1".to_string(),
     });
     let key = SigningKeyFile::load(&key_path).map_err(|e| e.to_string())?;
     let request = sign::SignRequest {
@@ -299,15 +299,15 @@ fn read_trust_file(path: &Path) -> Value {
 /// `geteuid`, the directory from that uid's verified passwd home, and
 /// `write_owner_file` refuses a path the caller does not own. There is
 /// no argument for "which owner", so one user cannot revoke — or
-/// restore — another user's trust. System-wide roots under `/etc/cos`
-/// and `/usr/lib/cos` are root-owned and are managed by the package
+/// restore — another user's trust. System-wide roots under `/etc/yuos`
+/// and `/usr/lib/yuos` are root-owned and are managed by the package
 /// manager, not by this command.
 fn record_owner_generation() -> Result<u64, String> {
     #[cfg(unix)]
     {
         let uid = crate::provenance::fsec::effective_uid();
         let home = crate::paths::verified_home_for_uid(uid)?;
-        let dir = home.join(".config/cos/trust");
+        let dir = home.join(".config/yuos/trust");
         let roots = vec![dir.join("publishers.d"), dir.join("developer.d")];
         let state = crate::provenance::state::bump(
             &dir,

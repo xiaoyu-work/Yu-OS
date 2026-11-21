@@ -46,7 +46,7 @@ def build_nvidia_modules(archive, version, release, tree, work, stage):
         subprocess.run([tree / "scripts/sign-file", "sha512", tree / "certs/signing_key.pem",
                         tree / "certs/signing_key.x509", module], check=True)
         subprocess.run(["zstd", "-19", "--rm", "-q", module], check=True)
-    stage_file(driver / "COPYING", stage / "usr/share/doc/claw-os-nvidia-platform/copyright")
+    stage_file(driver / "COPYING", stage / "usr/share/doc/yuos-nvidia-platform/copyright")
 
 
 def stage_nvidia_userspace(archive, version, work, stage):

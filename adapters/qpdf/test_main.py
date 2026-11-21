@@ -88,7 +88,7 @@ class QpdfAdapterTests(unittest.TestCase):
         os.environ["QPDF_ARGS_LOG"] = str(self.args_log)
 
         self.stub = _write_stub(self.bin_dir, "qpdf", _QPDF_STUB)
-        os.environ["CLAW_QPDF_BIN"] = str(self.stub)
+        os.environ["YUOS_QPDF_BIN"] = str(self.stub)
 
         self.pdf = root / "src.pdf"
         self.pdf.write_bytes(b"%PDF-1.7\n")
@@ -97,14 +97,14 @@ class QpdfAdapterTests(unittest.TestCase):
 
         self.main = load_local_module(
             HERE / "main.py",
-            "claw_test_qpdf_adapter_main",
+            "yuos_test_qpdf_adapter_main",
         )
         self.main.app._initialized = True
 
     def tearDown(self) -> None:
-        for k in ("CLAW_QPDF_BIN", "QPDF_ARGS_LOG", "QPDF_ENCRYPTED"):
+        for k in ("YUOS_QPDF_BIN", "QPDF_ARGS_LOG", "QPDF_ENCRYPTED"):
             os.environ.pop(k, None)
-        sys.modules.pop("claw_test_qpdf_adapter_main", None)
+        sys.modules.pop("yuos_test_qpdf_adapter_main", None)
 
     def test_tools_list_reports_four_tools(self) -> None:
         reply = _rpc(self.main.app, "tools/list")

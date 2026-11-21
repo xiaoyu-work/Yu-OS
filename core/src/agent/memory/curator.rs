@@ -513,7 +513,7 @@ Rules:
      user message that supports the fact.
   2. Use these canonical aliases:
        operating_system.{name,distribution,base_distribution} -> os.distribution
-       {claw_agent,cos_agent,system_agent}.deployment_state -> claw_os.installation
+       {yu_agent,system_agent}.deployment_state -> yuos.installation
        installed/install_status/installation_state -> installation
        installed_version/package_version/version_number -> version
        desired_version/version_preference -> preferred_version
@@ -1071,7 +1071,7 @@ fn today_yyyymmdd() -> String {
     ontology::date_from_unix_s(secs)
 }
 
-// Civil date helper — same epoch math used elsewhere in cos
+// Civil date helper — same epoch math used elsewhere in yu
 // (e.g. trace timestamping). 1970-01-01 + N days.
 #[cfg(test)]
 fn days_to_ymd(days_since_epoch: i64) -> (i32, u32, u32) {

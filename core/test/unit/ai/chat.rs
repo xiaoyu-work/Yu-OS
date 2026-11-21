@@ -4,7 +4,7 @@ use super::*;
 fn summary_sdk_input_files_obey_the_exact_utf8_byte_limit() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("synthetic-prompt");
-    let limit = crate::clawd::wire::bounded::FILE_TEXT_MAX_BYTES;
+    let limit = crate::yuosd::wire::bounded::FILE_TEXT_MAX_BYTES;
     assert_eq!(limit, 1_000_000);
     let mut text = "\u{00e9}".repeat(limit / 2);
     assert_eq!(text.len(), limit);
@@ -31,7 +31,7 @@ fn rejects_unknown_flag() {
 #[test]
 fn identity_rejects_unset_env() {
     let err = enforce_identity("summarize", None).unwrap_err();
-    assert!(err.contains("COS_APP_ID is not set"), "got: {err}");
+    assert!(err.contains("YUOS_APP_ID is not set"), "got: {err}");
     assert!(err.contains("summarize"), "got: {err}");
 }
 
@@ -40,7 +40,7 @@ fn identity_rejects_mismatch() {
     let err = enforce_identity("summarize", Some("other-app")).unwrap_err();
     assert!(err.contains("identity mismatch"), "got: {err}");
     assert!(err.contains("--app=summarize"), "got: {err}");
-    assert!(err.contains("COS_APP_ID=other-app"), "got: {err}");
+    assert!(err.contains("YUOS_APP_ID=other-app"), "got: {err}");
 }
 
 #[test]
@@ -79,7 +79,7 @@ fn unavailable_broker_never_falls_back_to_app_local_identity_or_provider() {
         crate::extension_host::protocol::BROKER_SOCKET_ENV,
         dir.path().join("absent.sock"),
     );
-    let _session = crate::test_env::TestEnvVarGuard::set("COS_SESSION", "test-unmounted");
+    let _session = crate::test_env::TestEnvVarGuard::set("YUOS_SESSION", "test-unmounted");
     let error = chat_cmd(&["--app", "cosmic-edit", "--prompt", "document"].map(str::to_string))
         .unwrap_err();
     let error: Value = serde_json::from_str(&error).unwrap();

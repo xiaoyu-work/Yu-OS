@@ -1,28 +1,28 @@
 # Dynamic Extension Host Isolation
 
-Claw OS runs dynamic App, MCP, and Agent extension code in `claw-extension-host`, not in
-privileged `clawd` and not in the `claw-agentd` model/tool worker.
+Yu OS runs dynamic App, MCP, and Agent extension code in `yuos-extension-host`, not in
+privileged `yuosd` and not in the `yuos-agentd` model/tool worker.
 
 ## Process topology
 
 For each daemon-backed task:
 
-1. `clawd` claims the task and spawns `claw-agentd` as the task uid with the
-   package-created `cos-extension` primary gid.
-2. `clawd` leases a package-created locked uid that no other active task may use, creates a
+1. `yuosd` claims the task and spawns `yuos-agentd` as the task uid with the
+   package-created `yuos-extension` primary gid.
+2. `yuosd` leases a package-created locked uid that no other active task may use, creates a
    private runtime directory and route-filtered broker socket, then spawns
-   `claw-extension-host` with that uid and the dedicated gid.
-3. `clawd` writes a typed bootstrap record through a private inherited
+   `yuos-extension-host` with that uid and the dedicated gid.
+3. `yuosd` writes a typed bootstrap record through a private inherited
    descriptor. The record binds the task/session, owner uid, leased uid,
    isolated gid, worker pid/start-time, capability generation, socket paths,
    nonce, deadline, and descriptor-pinned approved roots. Identity environment
    variables are not authority. The resulting exact host binding is signed
    into the worker grant.
-4. `claw-agentd` verifies that binding and uses the host control socket for
+4. `yuos-agentd` verifies that binding and uses the host control socket for
    one-shot Apps, stateful App sessions, configured MCP servers, and signed
    Agent extension observers.
-5. Hosted children use `COS_EXTENSION_BROKER_SOCKET`; they never receive or
-   open `/run/cos/clawd.sock`.
+5. Hosted children use `YUOS_EXTENSION_BROKER_SOCKET`; they never receive or
+   open `/run/yuos/yuosd.sock`.
 
 The worker-control socket accepts only the exact worker pid/start-time and an
 unused request id bound to the task/session/nonce plus the immutable binding
@@ -45,7 +45,7 @@ authority, provider-side checks, and audit.
 The host launch applies:
 
 - `setgroups(0, NULL)`, then irreversible uid drop to an exclusively leased
-  package-created identity and gid drop to `cos-extension`;
+  package-created identity and gid drop to `yuos-extension`;
 - a pinned snapshot of the real primary broker socket inode, ownership, mode,
   and canonical ancestors, plus an actual denied post-drop `connect(2)` before
   either worker or host may exec;
@@ -85,7 +85,7 @@ dumpability surviving exec.
 Agent extension children use the same namespace/resource boundary with an even
 narrower mount profile. Their signed package snapshot is reverified and copied
 into task-private storage before launch. They do not receive
-`COS_EXTENSION_BROKER_SOCKET`, `COS_PROC_DATA_DIR`, or live App/MCP session
+`YUOS_EXTENSION_BROKER_SOCKET`, `YUOS_PROC_DATA_DIR`, or live App/MCP session
 endpoints. Their only channel is the bounded
 [`CEX1` ABI](extension-abi.md) on stdin/stdout.
 
@@ -100,13 +100,13 @@ listener inode in `/proc/net/unix`. Only the final control subdirectory is
 then made writable by the host identity. A symlink or hardlink is unlinked,
 never followed by privileged ownership or mode changes.
 
-The package creates locked system accounts `cos-ext-00..63` with fixed UIDs
+The package creates locked system accounts `yuos-ext-00..63` with fixed UIDs
 `61000..61063`, `/nonexistent` homes, `/usr/sbin/nologin` shells, and the
-dedicated `cos-extension` primary group. Fresh installs use GID `60999`; a
+dedicated `yuos-extension` primary group. Fresh installs use GID `60999`; a
 provably unused legacy package GID may be retained during upgrade rather than
 rewritten. The reserved identities remain below systemd DynamicUser
 (`61184..65519`) and above the supported default login range.
-Upgrade preinstall stops `clawd`; postinstall performs exact NSS and shadow
+Upgrade preinstall stops `yuosd`; postinstall performs exact NSS and shadow
 checks, systemd-homed and reverse UID/GID lookups, subordinate-ID validation,
 and descriptor-pinned per-mount ownership/ACL proof using the newly unpacked
 root-owned helper and configured dependencies. Every runtime allocation
@@ -114,7 +114,7 @@ revalidates those records, the package reservation manifest, and `/proc`; any
 collision or live process fails closed.
 The uid remains reserved until cgroup cleanup, private filesystem unmount,
 recursive task-state deletion, and routed-registry ACL revocation all succeed.
-Before task state is created, `clawd` writes a durable root-owned quarantine
+Before task state is created, `yuosd` writes a durable root-owned quarantine
 record. A failed cleanup retains the cross-process uid lock for the daemon
 lifetime; after restart, recovery first kills stale cgroups and then proves
 that processes, `/run/user/<uid>`, task state, and routed ACLs are gone before
@@ -133,7 +133,7 @@ the command, trusted script interpreter, and exact ELF dependency closure are
 the only executable runtime inputs. Missing interpreters or libraries fail
 before spawn.
 
-Before spawning a host, `clawd` establishes a delegated cgroup-v2 subtree with
+Before spawning a host, `yuosd` establishes a delegated cgroup-v2 subtree with
 the CPU, memory, and pids controllers. The host writes its own pid through a
 pre-opened `cgroup.procs` descriptor in `pre_exec`, before dropping privilege
 or executing the host image, and the parent verifies the exact membership.
@@ -159,7 +159,7 @@ durably committed may the broker send COMMIT. Legacy, unsupported, malformed,
 or ambiguous Pending records are terminal indeterminate; queue directories are
 created bottom-up with each new directory and parent fsynced before submissions
 are accepted. Any COMMIT persistence/delivery ambiguity or subsequent
-worker/host EOF, crash, handshake, or lease timeout is terminal; Claw OS does
+worker/host EOF, crash, handshake, or lease timeout is terminal; Yu OS does
 not replay without operation-specific durable idempotency proof.
 
 ## Lifecycle
@@ -206,14 +206,14 @@ Stdout/stderr-derived errors and tool results remain untrusted and wrapped.
 
 | Variable | Meaning |
 | --- | --- |
-| `COS_EXTENSION_HOST_BIN` | Host executable; defaults beside `clawd`, then `/usr/local/bin/claw-extension-host` |
-| `COS_EXTENSION_EXEC_GROUP` | Dedicated execution group; packaged default `cos-extension` |
-| `CLAWD_EXTENSION_CGROUP_ROOT` | Optional pre-created empty, root-owned delegated cgroup-v2 root; normally omitted so `clawd.service` prepares its own delegated subtree |
-| `CLAWD_EXTENSION_HOST_NAMESPACES` | Set to `off` to disable best-effort IPC/UTS namespaces |
+| `YUOS_EXTENSION_HOST_BIN` | Host executable; defaults beside `yuosd`, then `/usr/local/bin/yuos-extension-host` |
+| `YUOS_EXTENSION_EXEC_GROUP` | Dedicated execution group; packaged default `yuos-extension` |
+| `YUOSD_EXTENSION_CGROUP_ROOT` | Optional pre-created empty, root-owned delegated cgroup-v2 root; normally omitted so `yuosd.service` prepares its own delegated subtree |
+| `YUOSD_EXTENSION_HOST_NAMESPACES` | Set to `off` to disable best-effort IPC/UTS namespaces |
 
-The binary is shipped in `claw-os-agent` and configured by `clawd.service`.
+The binary is shipped in `yuos-agent` and configured by `yuosd.service`.
 There is no supported mode that falls back to executing dynamic code inside
-`claw-agentd`.
+`yuos-agentd`.
 
 ## Validation
 

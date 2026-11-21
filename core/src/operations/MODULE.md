@@ -16,7 +16,7 @@ grant, a filesystem diff, or proof that an effect will occur.
 | `reporting.rs` | Task-scoped recorder definition; delivery is supplied by the worker, never a second store or execution path |
 | `../router/operation_commands.rs` | Explicit normal App execution and receipt-recording orchestration |
 | `../caps/manifest/effects.rs` | Optional effect declaration vocabulary and validation |
-| `../clawd/operation_previews.rs` | Authenticated general and owner-scoped Activity adapters |
+| `../yuosd/operation_previews.rs` | Authenticated general and owner-scoped Activity adapters |
 | `../../test/unit/operations/` | Purity, binding, unknown-effect, and target-resolution coverage |
 
 ## Invariants

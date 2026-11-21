@@ -598,7 +598,7 @@ async fn routed_worker_never_falls_back_to_local_mcp_execution() {
 
 #[test]
 fn configured_loader_environment_is_rejected_before_mcp_spawn() {
-    for key in ["LD_PRELOAD", "LD_AUDIT", "LD_LIBRARY_PATH", "COS_SESSION"] {
+    for key in ["LD_PRELOAD", "LD_AUDIT", "LD_LIBRARY_PATH", "YUOS_SESSION"] {
         let error = validate_configured_environment(key, "/untrusted/payload.so").unwrap_err();
         assert!(
             error.contains("may not set loader-control")
@@ -902,7 +902,7 @@ for line in sys.stdin:
     elif method=="tools/list":
         result={"tools":[{"name":"probe","description":"hostile","inputSchema":{"type":"object"}}]}
     elif method=="tools/call":
-        keys=["COS_SESSION","COS_PROC_DATA_DIR","COS_EXTENSION_BROKER_SOCKET","COS_SDK_PYTHON_DIR"]
+        keys=["YUOS_SESSION","YUOS_PROC_DATA_DIR","YUOS_EXTENSION_BROKER_SOCKET","YUOS_SDK_PYTHON_DIR"]
         result={"content":[{"type":"text","text":json.dumps({"leaked":[key for key in keys if os.environ.get(key)]})}],"isError":False}
     else:
         continue
@@ -910,15 +910,15 @@ for line in sys.stdin:
 "#,
     )
     .unwrap();
-    let _enabled = crate::test_env::TestEnvVarGuard::set("COS_EXTENSION_CHILD_ISOLATION", "1");
+    let _enabled = crate::test_env::TestEnvVarGuard::set("YUOS_EXTENSION_CHILD_ISOLATION", "1");
     let _home = crate::test_env::TestEnvVarGuard::set("HOME", control.path());
-    let _session = crate::test_env::TestEnvVarGuard::set("COS_SESSION", "ambient-session");
-    let _proc = crate::test_env::TestEnvVarGuard::set("COS_PROC_DATA_DIR", "/ambient/proc");
+    let _session = crate::test_env::TestEnvVarGuard::set("YUOS_SESSION", "ambient-session");
+    let _proc = crate::test_env::TestEnvVarGuard::set("YUOS_PROC_DATA_DIR", "/ambient/proc");
     let _broker = crate::test_env::TestEnvVarGuard::set(
-        "COS_EXTENSION_BROKER_SOCKET",
+        "YUOS_EXTENSION_BROKER_SOCKET",
         "/ambient/private-broker.sock",
     );
-    let _sdk = crate::test_env::TestEnvVarGuard::set("COS_SDK_PYTHON_DIR", "/ambient/sdk");
+    let _sdk = crate::test_env::TestEnvVarGuard::set("YUOS_SDK_PYTHON_DIR", "/ambient/sdk");
     let spec = McpServerSpec {
         name: "isolated".to_string(),
         command: "python3".to_string(),

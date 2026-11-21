@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# rootfs/features/grub-disk/install.sh — Claw OS grub defaults.
+# rootfs/features/grub-disk/install.sh — Yu OS grub defaults.
 #
 # What this DOES:
-#  - Drops a Claw OS-branded /etc/default/grub.d/50-claw-os.cfg.
+#  - Drops a Yu OS-branded /etc/default/grub.d/50-yuos.cfg.
 #    grub-mkconfig sources /etc/default/grub.d/*.cfg after the main
 #    /etc/default/grub, so this dropin survives apt upgrades of the
 #    grub-common package without conflict prompts.
@@ -22,10 +22,10 @@
 set -euo pipefail
 
 mkdir -p "$ROOTFS/etc/default/grub.d"
-cat > "$ROOTFS/etc/default/grub.d/50-claw-os.cfg" <<'EOF'
-# Claw OS grub defaults. Sourced by grub-mkconfig after
+cat > "$ROOTFS/etc/default/grub.d/50-yuos.cfg" <<'EOF'
+# Yu OS grub defaults. Sourced by grub-mkconfig after
 # /etc/default/grub, so values here win.
-GRUB_DISTRIBUTOR="Claw OS"
+GRUB_DISTRIBUTOR="Yu OS"
 GRUB_TIMEOUT=2
 GRUB_TIMEOUT_STYLE=menu
 GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
@@ -38,4 +38,4 @@ GRUB_DISABLE_OS_PROBER=true
 GRUB_RECORDFAIL_TIMEOUT=2
 EOF
 
-echo "  :: /etc/default/grub.d/50-claw-os.cfg installed"
+echo "  :: /etc/default/grub.d/50-yuos.cfg installed"

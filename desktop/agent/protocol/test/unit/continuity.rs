@@ -118,8 +118,8 @@ fn continuity_rejects_kind_version_uuid_digest_unknown_duplicate_and_authority()
     }
     let encoded = document().to_json().unwrap();
     let duplicate = encoded.replacen(
-        r#""kind":"claw_os.activity_continuity""#,
-        r#""kind":"claw_os.activity_continuity","kind":"claw_os.activity_continuity""#,
+        r#""kind":"yuos.activity_continuity""#,
+        r#""kind":"yuos.activity_continuity","kind":"yuos.activity_continuity""#,
         1,
     );
     assert!(ActivityContinuityDocument::from_json(duplicate.as_bytes()).is_err());

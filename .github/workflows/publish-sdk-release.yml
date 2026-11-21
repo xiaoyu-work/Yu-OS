@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "SDK SemVer already declared by Python, Node, and Rust (for example 0.2.1)"
+        description: "SDK SemVer already declared by Python, Node, and Rust"
         required: true
-        default: "0.2.1"
+        default: "0.1.0"
         type: string
 
 concurrency:
-  group: claw-os-sdk-release
+  group: yuos-sdk-release
   cancel-in-progress: false
   queue: max
 
@@ -63,9 +63,9 @@ jobs:
           cargo test -p yu --lib --locked provenance:: -- --test-threads=1
           cargo build --release --locked -p yu --bin yu --target "$RUST_TARGET"
           mkdir -p dist
-          install -m 0755 "target/$RUST_TARGET/release/yu" "dist/cos-provenance-linux-$ARCH"
-          test "$(stat -c %s "dist/cos-provenance-linux-$ARCH")" -le 134217728
-          "dist/cos-provenance-linux-$ARCH" --version | grep -F "$SDK_VERSION"
+          install -m 0755 "target/$RUST_TARGET/release/yu" "dist/yu-provenance-linux-$ARCH"
+          test "$(stat -c %s "dist/yu-provenance-linux-$ARCH")" -le 134217728
+          "dist/yu-provenance-linux-$ARCH" --version | grep -F "$SDK_VERSION"
           cargo metadata --locked --format-version 1 --filter-platform "$RUST_TARGET" > "$RUNNER_TEMP/tool-metadata.json"
       - name: Retain tool source pins and upstream notices
         run: |
@@ -84,7 +84,7 @@ jobs:
               selected.add(identity)
               pending.extend(dependency["pkg"] for dependency in nodes[identity]["deps"])
           records = []
-          archive = pathlib.Path("dist") / f'cos-provenance-linux-{os.environ["ARCH"]}-notices.tar.gz'
+          archive = pathlib.Path("dist") / f'yu-provenance-linux-{os.environ["ARCH"]}-notices.tar.gz'
           with tarfile.open(archive, "w:gz") as stream:
               stream.add("LICENSE", arcname="LICENSE", recursive=False)
               for identity in sorted(selected):
@@ -108,7 +108,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: cos-provenance-tool-${{ matrix.arch }}
+          name: yu-provenance-tool-${{ matrix.arch }}
           path: dist/*
           if-no-files-found: error
 
@@ -132,11 +132,11 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-          cache-dependency-path: claw-os-sdk/node/package-lock.json
+          cache-dependency-path: yuos-sdk/node/package-lock.json
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: claw-os-sdk/go/go.mod
+          go-version-file: yuos-sdk/go/go.mod
           cache: false
 
       - uses: dtolnay/rust-toolchain@stable
@@ -153,7 +153,7 @@ jobs:
           import pathlib
           import tomllib
 
-          root = pathlib.Path("claw-os-sdk")
+          root = pathlib.Path("yuos-sdk")
           expected = os.environ["SDK_VERSION"]
           versions = {
               "python": tomllib.loads(
@@ -176,76 +176,76 @@ jobs:
           versions["rust-lock"] = next(
               package["version"]
               for package in cargo_lock["package"]
-              if package["name"] == "claw-os-sdk"
+              if package["name"] == "yuos-sdk"
           )
           mismatches = {name: version for name, version in versions.items() if version != expected}
           if mismatches:
               raise SystemExit(f"SDK version mismatch; expected {expected}: {mismatches}")
 
           module = (root / "go" / "go.mod").read_text(encoding="utf-8").splitlines()[0]
-          expected_module = "module github.com/xiaoyu-work/claw-os/claw-os-sdk/go"
+          expected_module = "module github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
           if module != expected_module:
               raise SystemExit(f"unexpected Go module path: {module!r}")
           PY
 
       - name: Regenerate wire bindings
         run: |
-          python3 claw-os-sdk/wire/codegen.py
+          python3 yuos-sdk/wire/codegen.py
           git diff --exit-code -- \
-            claw-os-sdk/rust/src/generated.rs \
-            claw-os-sdk/python/src/claw_os_sdk/generated.py \
-            claw-os-sdk/node/src/generated.ts \
-            claw-os-sdk/go/generated.go
+            yuos-sdk/rust/src/generated.rs \
+            yuos-sdk/python/src/yuos_sdk/generated.py \
+            yuos-sdk/node/src/generated.ts \
+            yuos-sdk/go/generated.go
 
       - name: Install SDK test and build dependencies
         run: |
           python3 -m pip install --upgrade build pytest
-          npm ci --prefix claw-os-sdk/node
+          npm ci --prefix yuos-sdk/node
 
       - name: Test all SDK bindings
         run: |
-          PYTHONPATH=claw-os-sdk/python/src \
-            python3 -m pytest -q claw-os-sdk/python/src
-          npm test --prefix claw-os-sdk/node
-          cargo test -p claw-os-sdk -- --test-threads=1
-          (cd claw-os-sdk/go && go test ./...)
+          PYTHONPATH=yuos-sdk/python/src \
+            python3 -m pytest -q yuos-sdk/python/src
+          npm test --prefix yuos-sdk/node
+          cargo test -p yuos-sdk -- --test-threads=1
+          (cd yuos-sdk/go && go test ./...)
 
       - name: Build SDK release artifacts
         run: |
           mkdir -p dist
 
-          python3 -m build --outdir "$GITHUB_WORKSPACE/dist" claw-os-sdk/python
+          python3 -m build --outdir "$GITHUB_WORKSPACE/dist" yuos-sdk/python
 
-          npm run build --prefix claw-os-sdk/node
-          test -f claw-os-sdk/node/dist/index.js
-          test -f claw-os-sdk/node/dist/index.d.ts
-          npm pack ./claw-os-sdk/node \
+          npm run build --prefix yuos-sdk/node
+          test -f yuos-sdk/node/dist/index.js
+          test -f yuos-sdk/node/dist/index.d.ts
+          npm pack ./yuos-sdk/node \
             --pack-destination "$GITHUB_WORKSPACE/dist" \
             --json > "$RUNNER_TEMP/npm-pack.json"
           node_tarball="$(
             node -e 'console.log(require(process.argv[1])[0].filename)' \
               "$RUNNER_TEMP/npm-pack.json"
           )"
-          mv "dist/$node_tarball" "dist/claw-os-sdk-node-$SDK_VERSION.tgz"
+          mv "dist/$node_tarball" "dist/yuos-sdk-node-$SDK_VERSION.tgz"
 
-          cargo package -p claw-os-sdk
-          cp "target/package/claw-os-sdk-$SDK_VERSION.crate" dist/
+          cargo package -p yuos-sdk
+          cp "target/package/yuos-sdk-$SDK_VERSION.crate" dist/
 
           git archive \
             --format=tar.gz \
-            --prefix="claw-os-sdk-go-$SDK_VERSION/" \
-            --output="dist/claw-os-sdk-go-$SDK_VERSION.tar.gz" \
-            HEAD:claw-os-sdk/go
+            --prefix="yuos-sdk-go-$SDK_VERSION/" \
+            --output="dist/yuos-sdk-go-$SDK_VERSION.tar.gz" \
+            HEAD:yuos-sdk/go
           git archive \
             --format=tar.gz \
-            --prefix="claw-os-sdk-$SDK_VERSION/" \
-            --output="dist/claw-os-sdk-$SDK_VERSION-source.tar.gz" \
-            HEAD:claw-os-sdk
+            --prefix="yuos-sdk-$SDK_VERSION/" \
+            --output="dist/yuos-sdk-$SDK_VERSION-source.tar.gz" \
+            HEAD:yuos-sdk
 
       - name: Collect the tested public signing tools
         uses: actions/download-artifact@v4
         with:
-          pattern: cos-provenance-tool-*
+          pattern: yu-provenance-tool-*
           path: dist
           merge-multiple: true
 
@@ -257,14 +257,14 @@ jobs:
       - name: Upload SDK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: claw-os-sdk-${{ inputs.version }}
+          name: yuos-sdk-${{ inputs.version }}
           path: dist/*
           if-no-files-found: error
 
       - name: Create SDK and Go tags
         run: |
-          sdk_tag="sdk-v$SDK_VERSION"
-          go_tag="claw-os-sdk/go/v$SDK_VERSION"
+          sdk_tag="yuos-sdk-v$SDK_VERSION"
+          go_tag="yuos-sdk/go/v$SDK_VERSION"
           if git ls-remote --exit-code --tags origin "refs/tags/$sdk_tag" >/dev/null 2>&1 \
               || git ls-remote --exit-code --tags origin "refs/tags/$go_tag" >/dev/null 2>&1; then
             echo "error: SDK release tag already exists" >&2
@@ -273,16 +273,16 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$sdk_tag" -m "Claw OS SDK v$SDK_VERSION"
-          git tag -a "$go_tag" -m "Claw OS Go SDK v$SDK_VERSION"
+          git tag -a "$sdk_tag" -m "Yu OS SDK v$SDK_VERSION"
+          git tag -a "$go_tag" -m "Yu OS Go SDK v$SDK_VERSION"
           git push --atomic origin "refs/tags/$sdk_tag" "refs/tags/$go_tag"
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "sdk-v$SDK_VERSION" \
+          gh release create "yuos-sdk-v$SDK_VERSION" \
             dist/* \
             --verify-tag \
-            --title "Claw OS SDK v$SDK_VERSION" \
+            --title "Yu OS SDK v$SDK_VERSION" \
             --generate-notes

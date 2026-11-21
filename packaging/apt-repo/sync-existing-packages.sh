@@ -10,7 +10,7 @@ EXISTING_APT_REPO_URL="${EXISTING_APT_REPO_URL:?set EXISTING_APT_REPO_URL}"
 APT_PUBLIC_KEYRING="${APT_PUBLIC_KEYRING:?set APT_PUBLIC_KEYRING}"
 SUITE="${SUITE:-trixie}"
 DEBS_DIR="${DEBS_DIR:-build/debs}"
-PREVIOUS_RELEASE_SECURITY_DIR="${COS_PREVIOUS_RELEASE_SECURITY_DIR:-build/release-security-previous}"
+PREVIOUS_RELEASE_SECURITY_DIR="${YUOS_PREVIOUS_RELEASE_SECURITY_DIR:-build/release-security-previous}"
 
 if [ ! -s "$APT_PUBLIC_KEYRING" ]; then
     echo "error: existing-repository keyring is missing: $APT_PUBLIC_KEYRING" >&2
@@ -26,7 +26,7 @@ mkdir -p "$PREVIOUS_RELEASE_SECURITY_DIR"
 # release-security metadata.
 package_security_epoch() {
     local deb="$1" epoch
-    epoch="$(dpkg-deb --field "$deb" XB-Claw-Os-Security-Epoch 2>/dev/null || true)"
+    epoch="$(dpkg-deb --field "$deb" XB-YuOS-Security-Epoch 2>/dev/null || true)"
     case "$epoch" in
         ''|*[!0-9]*) printf '0\n' ;;
         *) printf '%s\n' "$epoch" ;;
@@ -35,11 +35,11 @@ package_security_epoch() {
 
 # package|file architecture|APT query architecture|APT package expression
 targets=(
-    "claw-os-agent|amd64|amd64|claw-os-agent:amd64"
-    "claw-os-agent|arm64|arm64|claw-os-agent:arm64"
-    "claw-os-base|all|amd64|claw-os-base"
-    "claw-os-desktop|amd64|amd64|claw-os-desktop:amd64"
-    "claw-os-desktop|arm64|arm64|claw-os-desktop:arm64"
+    "yuos-agent|amd64|amd64|yuos-agent:amd64"
+    "yuos-agent|arm64|arm64|yuos-agent:arm64"
+    "yuos-base|all|amd64|yuos-base"
+    "yuos-desktop|amd64|amd64|yuos-desktop:amd64"
+    "yuos-desktop|arm64|arm64|yuos-desktop:arm64"
 )
 
 inrelease_url="$EXISTING_APT_REPO_URL/dists/$SUITE/InRelease"
@@ -56,33 +56,33 @@ declare -A prepared_arches=()
 # Every request is cache-busting. A CDN or proxy that keeps serving a
 # stale snapshot would otherwise hide a newer published version from
 # the regression checks below and make a downgrade look legitimate.
-CLAW_NO_CACHE=(
+YUOS_NO_CACHE=(
     -H 'Cache-Control: no-cache, no-store, max-age=0'
     -H 'Pragma: no-cache'
 )
-CLAW_FETCH_STATUS=000
-CLAW_FETCH_RC=0
+YUOS_FETCH_STATUS=000
+YUOS_FETCH_RC=0
 
 # Run curl and report *curl's* exit status. `if ! status="$(curl ...)"`
 # leaves `$?` describing the `!`, not the command, so the diagnostics
 # always claimed exit 0. Capture it explicitly instead; the fail-closed
 # control flow is unchanged.
-claw_fetch() {
+yuos_fetch() {
     local url="$1" out="$2"
     local body rc separator='?'
     case "$url" in *\?*) separator='&' ;; esac
     set +e
     body="$(curl -L -sS --fail-with-body -o "$out" -w '%{http_code}' \
-        "${CLAW_NO_CACHE[@]}" "${url}${separator}cachebust=$(date -u +%s)-$$")"
+        "${YUOS_NO_CACHE[@]}" "${url}${separator}cachebust=$(date -u +%s)-$$")"
     rc="$?"
     set -e
-    CLAW_FETCH_STATUS="${body:-000}"
-    CLAW_FETCH_RC="$rc"
+    YUOS_FETCH_STATUS="${body:-000}"
+    YUOS_FETCH_RC="$rc"
     return "$rc"
 }
 
-if ! claw_fetch "$inrelease_url" "$tmp/InRelease"; then
-    case "$CLAW_FETCH_STATUS" in
+if ! yuos_fetch "$inrelease_url" "$tmp/InRelease"; then
+    case "$YUOS_FETCH_STATUS" in
         404)
             echo ":: no existing signed APT repository; starting a new package pool"
             : > "$PREVIOUS_RELEASE_SECURITY_DIR/.no-existing-repository"
@@ -90,14 +90,14 @@ if ! claw_fetch "$inrelease_url" "$tmp/InRelease"; then
             ;;
         *)
             echo "error: could not read the existing APT repository (curl exit" >&2
-            echo "       $CLAW_FETCH_RC, HTTP $CLAW_FETCH_STATUS): $inrelease_url" >&2
+            echo "       $YUOS_FETCH_RC, HTTP $YUOS_FETCH_STATUS): $inrelease_url" >&2
             echo "       Refusing to publish: a fetch failure is not evidence that" >&2
             echo "       the repository is empty." >&2
             exit 1
             ;;
     esac
 fi
-status="$CLAW_FETCH_STATUS"
+status="$YUOS_FETCH_STATUS"
 if [ "$status" != "200" ]; then
     echo "error: existing APT repository returned HTTP $status: $inrelease_url" >&2
     exit 1
@@ -122,7 +122,7 @@ fi
 "$PROJECT_DIR/packaging/apt-repo/check-index-freshness.py" "$tmp/Release"
 
 baseline_field="$(awk -F': *' '
-    /^Claw-Os-Release-Security-Baseline:/ { print $2; exit }
+    /^YuOS-Release-Security-Baseline:/ { print $2; exit }
 ' "$tmp/Release" | tr -d '[:space:]')"
 if [ "$baseline_field" = "1" ]; then
     echo ":: the published repository advertises a release-security baseline"
@@ -180,12 +180,12 @@ fetch_signed_artifact() {
     local body="$tmp/$name" signature="$tmp/$name.asc"
     local body_status signature_status body_rc signature_rc
 
-    claw_fetch "$url" "$body" || true
-    body_status="$CLAW_FETCH_STATUS"
-    body_rc="$CLAW_FETCH_RC"
-    claw_fetch "$url.asc" "$signature" || true
-    signature_status="$CLAW_FETCH_STATUS"
-    signature_rc="$CLAW_FETCH_RC"
+    yuos_fetch "$url" "$body" || true
+    body_status="$YUOS_FETCH_STATUS"
+    body_rc="$YUOS_FETCH_RC"
+    yuos_fetch "$url.asc" "$signature" || true
+    signature_status="$YUOS_FETCH_STATUS"
+    signature_rc="$YUOS_FETCH_RC"
 
     if [ "$body_rc" != "0" ] || [ "$signature_rc" != "0" ] \
         || [ "$body_status" != "200" ] || [ "$signature_status" != "200" ]; then
@@ -217,7 +217,7 @@ fi
 # so the publication step can refuse a set that regresses it. Which of
 # these must exist is decided by the *signed* Packages indexes below,
 # not by whether a fetch happened to succeed.
-for package in claw-os-agent claw-os-base claw-os-desktop; do
+for package in yuos-agent yuos-base yuos-desktop; do
     for arch in amd64 arm64 all; do
         name="${package}_${arch}.json"
         if [ "$baseline_field" = "1" ]; then

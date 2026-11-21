@@ -50,7 +50,7 @@ fn meta_round_trip_full() {
         },
         created_at: "2026-01-01T00:00:00Z".into(),
         ended_at: None,
-        creator_runtime: Some("cos-agent".into()),
+        creator_runtime: Some("yuos-agent".into()),
     };
     let json = serde_json::to_string_pretty(&m).unwrap();
     let back: SessionMeta = serde_json::from_str(&json).unwrap();
@@ -62,7 +62,7 @@ fn meta_round_trip_full() {
 fn lease_round_trip() {
     let l = Lease {
         pid: 1234,
-        runtime: Some("cos-agent-chat".into()),
+        runtime: Some("yuos-agent-chat".into()),
         started_at: "2026-01-01T00:00:00Z".into(),
         heartbeat_at: "2026-01-01T00:00:05Z".into(),
     };

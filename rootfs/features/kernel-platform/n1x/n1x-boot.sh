@@ -1,6 +1,6 @@
-claw_n1x_no_gpu='module_blacklist=nvidia,nvidia_modeset,nvidia_drm,nvidia_uvm'
+yuos_n1x_no_gpu='module_blacklist=nvidia,nvidia_modeset,nvidia_drm,nvidia_uvm'
 
-claw_n1x_present() {
+yuos_n1x_present() {
     for controller in /sys/bus/acpi/devices/NVDA0200:*; do
         [ ! -d "$controller" ] || return 0
     done

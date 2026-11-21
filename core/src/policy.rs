@@ -39,7 +39,7 @@ fn load_proc_registry(path: &PathBuf) -> Registry {
         .unwrap_or_default()
 }
 
-/// Returns the current `COS_SESSION`'s legacy tier, or `None` if no
+/// Returns the current `YUOS_SESSION`'s legacy tier, or `None` if no
 /// session context is set or the session has no tier assigned.
 pub fn current_tier() -> Option<u8> {
     let sid = crate::proc::current_session_id()?;

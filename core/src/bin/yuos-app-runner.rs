@@ -1,0 +1,137 @@
+#[cfg(unix)]
+fn main() {
+    use std::io::Read;
+
+    if let Err(refusal) =
+        yu::update::runtime::enforce_startup(yu::update::runtime::Scope::CompiledEpoch)
+    {
+        fail(&refusal.message);
+    }
+    let mut args = std::env::args_os().skip(1);
+    let first = args.next();
+    if first.as_deref() == Some(std::ffi::OsStr::new("--custody-gate")) {
+        use std::os::fd::FromRawFd;
+        let descriptor = args.next().and_then(|value| value.to_str()?.parse::<i32>().ok())
+            .filter(|descriptor| *descriptor >= 3)
+            .unwrap_or_else(|| fail("invalid Root custody gate descriptor"));
+        let token = args.next().and_then(|value| value.into_string().ok())
+            .filter(|value| value.len() == 32 && value.bytes().all(|byte|
+                byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))
+            .unwrap_or_else(|| fail("invalid Root custody gate token"));
+        if args.next().as_deref() != Some(std::ffi::OsStr::new("--")) {
+            fail("Root custody gate must precede `--`");
+        }
+        let program = args.next().unwrap_or_else(|| fail("Root custody gate requires PROGRAM"));
+        disable_dumpability();
+        let mut input = unsafe { std::fs::File::from_raw_fd(descriptor) };
+        let mut received = [0; 32];
+        if input.read_exact(&mut received).is_err() || received != token.as_bytes() {
+            fail("Root App execution custody was not bound");
+        }
+        drop(input);
+        exec_setup(&program, &args.collect::<Vec<_>>());
+    }
+    let launch_gate = match first.as_deref() {
+        Some(value) if value == std::ffi::OsStr::new("--") => None,
+        Some(value) if value == std::ffi::OsStr::new("--launch-gate") => {
+            let token = args
+                .next()
+                .unwrap_or_else(|| fail("yuos-app-runner requires a launch-gate token"));
+            let token = token
+                .into_string()
+                .unwrap_or_else(|_| fail("yuos-app-runner launch-gate token is not UTF-8"));
+            if token.len() != 32
+                || !token
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            {
+                fail("yuos-app-runner launch-gate token is invalid");
+            }
+            if args.next().as_deref() != Some(std::ffi::OsStr::new("--")) {
+                fail("yuos-app-runner launch gate must precede `--`");
+            }
+            Some(token)
+        }
+        _ => fail("usage: yuos-app-runner [--launch-gate TOKEN] -- PROGRAM [ARG...]"),
+    };
+    let program = args
+        .next()
+        .unwrap_or_else(|| fail("yuos-app-runner requires PROGRAM"));
+    let argv = args.collect::<Vec<_>>();
+    let app_id = std::env::var("YUOS_APP_ID")
+        .ok()
+        .filter(|value| !value.is_empty());
+    let isolated_session = (std::env::var("YUOS_EXTENSION_CHILD_ISOLATION").as_deref() == Ok("1"))
+        .then(|| std::env::var("YUOS_SESSION").ok())
+        .flatten();
+
+    if let Some(expected) = launch_gate.as_deref() {
+        disable_dumpability();
+        let mut received = [0u8; 32];
+        // Read only the gate; buffered stdin could consume App protocol bytes
+        // that must remain on the descriptor across exec.
+        let input = unsafe { std::os::fd::BorrowedFd::borrow_raw(libc::STDIN_FILENO) };
+        let input = input
+            .try_clone_to_owned()
+            .unwrap_or_else(|_| fail("App launch-gate input is unavailable"));
+        if std::fs::File::from(input).read_exact(&mut received).is_err()
+            || received != expected.as_bytes()
+        {
+            fail("single-call App launch was not authorized");
+        }
+        exec(&program, &argv);
+    }
+
+    for _ in 0..500 {
+        let bound = match isolated_session.as_deref() {
+            Some(session_id) => {
+                yu::proc::session_id_is_bound_for_app(session_id, app_id.as_deref())
+            }
+            None => yu::proc::current_session_is_bound(app_id.as_deref()),
+        };
+        if bound {
+            disable_dumpability();
+            exec(&program, &argv);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    fail(&format!(
+        "process session was not bound before launch timeout (session={}, proc_data={})",
+        isolated_session.as_deref().unwrap_or("<none>"),
+        std::env::var("YUOS_PROC_DATA_DIR").unwrap_or_else(|_| "<none>".to_string())
+    ));
+}
+
+#[cfg(unix)]
+fn exec(program: &std::ffi::OsStr, argv: &[std::ffi::OsString]) -> ! {
+    #[cfg(target_os = "linux")]
+    if unsafe { libc::syscall(libc::SYS_close_range, 3_u32, u32::MAX, libc::CLOSE_RANGE_CLOEXEC) } != 0 {
+        fail(&format!("close inherited App descriptors on exec: {}", std::io::Error::last_os_error()));
+    }
+    exec_setup(program, argv);
+}
+
+#[cfg(unix)]
+fn exec_setup(program: &std::ffi::OsStr, argv: &[std::ffi::OsString]) -> ! {
+    use std::os::unix::process::CommandExt;
+
+    let error = std::process::Command::new(program).args(argv).exec();
+    fail(&format!("failed to exec session entrypoint: {error}"));
+}
+
+fn disable_dumpability() {
+    #[cfg(target_os = "linux")]
+    if unsafe { libc::prctl(libc::PR_SET_DUMPABLE, 0, 0, 0, 0) } != 0 {
+        fail("failed to disable dumpability before extension exec");
+    }
+}
+
+#[cfg(not(unix))]
+fn main() {
+    fail("yuos-app-runner requires Unix");
+}
+
+fn fail(message: &str) -> ! {
+    eprintln!("{message}");
+    std::process::exit(1);
+}

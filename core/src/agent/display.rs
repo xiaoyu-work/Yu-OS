@@ -1,6 +1,6 @@
 //! Terminal output formatting for the agent.
 //!
-//! Consumed by the (future) `clawos/cli/` crate to render
+//! Consumed by the (future) `yuos/cli/` crate to render
 //! conversation, tool calls, and runtime events to a human user.
 //! Lives in `core` so the same formatting can be reused by
 //! gateway adapters, log dumps, and the TUI without duplicating

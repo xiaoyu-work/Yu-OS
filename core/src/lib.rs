@@ -9,7 +9,7 @@
     clippy::type_complexity
 )]
 
-pub(crate) const BUILD_VERSION: &str = match option_env!("COS_PACKAGE_VERSION") {
+pub(crate) const BUILD_VERSION: &str = match option_env!("YUOS_PACKAGE_VERSION") {
     Some(version) => version,
     None => env!("CARGO_PKG_VERSION"),
 };
@@ -29,7 +29,7 @@ pub mod caps;
 pub mod checkpoint;
 pub(crate) mod cli_catalog;
 pub(crate) mod cli_help;
-pub mod clawd;
+pub mod yuosd;
 pub mod config;
 pub mod credential;
 pub mod cron;

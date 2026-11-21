@@ -1,8 +1,8 @@
 //! Task-owned host for dynamic App and MCP processes.
 //!
-//! `claw-extension-host` is deliberately separate from both the privileged
+//! `yuos-extension-host` is deliberately separate from both the privileged
 //! broker and the model/tool worker. The broker owns its lifetime and a
-//! private, route-filtered proxy socket; `claw-agentd` reaches it through a
+//! private, route-filtered proxy socket; `yuos-agentd` reaches it through a
 //! second socket that is bound to the exact worker pid/start-time and task
 //! lease.
 

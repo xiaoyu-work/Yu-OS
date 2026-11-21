@@ -1,0 +1,48 @@
+[Unit]
+Description=Yu OS — Agent Bridge (HTTP+SSE → system yuosd)
+Documentation=https://github.com/xiaoyu-work/Yu-OS
+# Bridge belongs to the graphical session: it serves the desktop Agent
+# app (com.yuos.Agent) and the Super+A overlay, both of which are
+# only meaningful while the user is logged in graphically.
+PartOf=yuos-desktop-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/yuos-agent-bridge
+Restart=on-failure
+RestartSec=3
+# Default port = 0 (kernel-assigned). The authenticated endpoint is
+# published inside a private runtime directory for launchers to discover.
+# Override via drop-in if a fixed port is required.
+Environment=YUOS_BIN=/usr/local/bin/yu
+Environment=YUOSD_SOCKET=/run/yuos/yuosd.sock
+RuntimeDirectory=yuos-agent-bridge
+RuntimeDirectoryMode=0700
+UMask=0077
+# Hardening: bridge is local-only. Voice transcription executes `yu`
+# with the user's configured STT provider, so configuration/credentials
+# are readable while mutable Agent data is limited to its own data/cache
+# directories.
+RestrictAddressFamilies=AF_UNIX AF_INET
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectControlGroups=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+LockPersonality=true
+RestrictRealtime=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+# Discovery/audio staging plus the audit/provider state written by
+# `yu model transcribe`. A leading `-` keeps first boot working before
+# the optional data/cache directories exist.
+ReadWritePaths=%t/yuos-agent-bridge -%h/.local/share/yuos -%h/.cache/yuos
+
+[Install]
+WantedBy=yuos-desktop-session.target

@@ -29,7 +29,7 @@ fn chat_setup_errors_explain_missing_configuration_before_submission() {
 
 #[tokio::test]
 async fn chat_drive_installs_one_complete_config_snapshot() {
-    let mut config = crate::config::CosConfig::default();
+    let mut config = crate::config::YuConfig::default();
     config.agent.provider = "mock".into();
     config.agent.model = "snapshot-model".into();
     config.embed.provider = "none".into();
@@ -102,7 +102,7 @@ fn user_facing_tool_events_omit_inputs_and_results() {
 
     let call = serde_json::to_value(StreamEvent::ToolUse(ToolCall {
         id: "call-1".into(),
-        name: "cos_sysinfo".into(),
+        name: "yu_sysinfo".into(),
         input: json!({"secret": "input"}),
     }))
     .unwrap();
@@ -120,7 +120,7 @@ fn user_facing_tool_events_omit_inputs_and_results() {
                 "progress": {
                     "kind": "tool_result",
                     "id": "call-1",
-                    "name": "cos_sysinfo",
+                    "name": "yu_sysinfo",
                     "ok": true,
                     "latency_ms": 12,
                     "bytes_returned": 128,
@@ -134,7 +134,7 @@ fn user_facing_tool_events_omit_inputs_and_results() {
         .unwrap()
         .join(""),
     );
-    assert!(output.contains("cos_sysinfo"));
+    assert!(output.contains("yu_sysinfo"));
     assert!(output.contains(r#""latency_ms":12"#));
     assert!(output.contains(r#""bytes_returned":128"#));
     assert!(!output.contains("secret"));
@@ -145,7 +145,7 @@ fn user_facing_tool_events_omit_inputs_and_results() {
     let failed = project_progress(&json!({
         "kind": "tool_result",
         "id": "call-2",
-        "name": "cos_proc",
+        "name": "yu_proc",
         "ok": false,
         "latency_ms": 21,
         "bytes_returned": 64,

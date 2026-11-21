@@ -1,20 +1,20 @@
 # App development platform
 
 The OS exports versioned development libraries; it does not supply App business
-helpers. `clawos-app` owns its support libraries, product sources, builds and
+helpers. `yuos-app` owns its support libraries, product sources, builds and
 independent Debian releases. Installed Apps communicate through the SDK and
 capability-gated OS services.
 
 ## Development artifact
 
 [`packaging/app-platform.json`](../packaging/app-platform.json) declares the
-`claw.app-platform/v1` contract and its release version. The
+`yuos.app-platform/v1` contract and its release version. The
 [publication workflow](../.github/workflows/publish-app-platform.yml) is manually
 dispatched from `main`. It publishes:
 
 ```text
-app-platform-v<VERSION>
-  claw-os-app-platform-<VERSION>.tar.gz
+yuos-app-platform-v<VERSION>
+  yuos-app-platform-<VERSION>.tar.gz
   SHA256SUMS
 ```
 
@@ -37,32 +37,28 @@ and App support libraries. Only committed library bytes are published; Git LFS
 objects must match their committed content hashes. Release output is
 reproducible and an existing version cannot be replaced.
 
-`cos_runtime` remains first-party-only. Publishing its development client does
+`yuos_runtime` remains first-party-only. Publishing its development client does
 not authorize a third-party App to use a private service, add a trust root,
 inherit another App's identity or bypass capability/consent enforcement.
 Compatible OS implementation changes need no App rebuild. A changed service
 contract needs a versioned interface and explicit package dependency.
 
 The public Rust `applet` client and its
-[versioned pipe contract](../claw-os-sdk/wire/v1/applet-services.md) belong to
-`rust-sdk`; `desktop/services/claw-applet-services` and the installed provider
+[versioned pipe contract](../yuos-sdk/wire/v1/applet-services.md) belong to
+`rust-sdk`; `desktop/services/yuos-applet-services` and the installed provider
 binary do not enter the archive. Source-cohort checks may canonically prepare
 native workspaces against a separate, explicitly unpublished copy of these
-public libraries. They must not alter a verified artifact/cache or claim
-compatibility with a published pin. The approved source contract is version
-0.2.1 with runtime ABI 1 and is not published. App consumers still select the
-real published 0.2.0 pin; withdrawn historical 1.0.0/1.1.0 releases are not
-restored. Generic GUI/owner-path and checked custody are source changes, not
-installed runtime acceptance or an available 0.2.1 artifact. Do not fabricate artifact URLs or
-digests. Publication requires an explicit owner decision; committing or pushing
-source changes is not permission to publish. Consumers still need the installed
-`claw-os-applet-services-v1` provider and OS admission.
+public libraries. They must not alter a verified artifact or substitute for a
+published pin. The initial Yu OS App platform version is `0.1.0`, with runtime
+ABI 1. The App lock must use the checksum of the published archive, not a
+locally built stand-in. Consumers still need the installed Applet provider and
+OS admission.
 
 From the repository root:
 
 ```bash
 python3 -m pytest -q scripts/tests/test_app_platform.py
-python3 scripts/app_platform.py --version 0.2.1
+python3 scripts/app_platform.py --version 0.1.0
 ```
 
 The build command only creates a local archive; it must not trigger publication.
@@ -71,9 +67,6 @@ SDK artifacts are build inputs; installed App downloads and updates use the
 separate signed App APT channel.
 
 The Agent Debian package derives its versioned
-`yuos-app-runtime-v1 (= 0.2.1)` Provides from `packaging/app-platform.json`.
-Independent App packages require `yuos-app-runtime-v1 (>= 0.2.1)` so an
-old/unversioned 0.2.0 provider cannot satisfy the new implementation contract.
-This keeps ABI 1; the implementation floor is neither a grant nor adoption of
-an unpublished development pin. See
-[coordinated packaging ownership](../packaging/README.md#coordinated-021-source-ownership-cutover).
+`yuos-app-runtime-v1 (= 0.1.0)` Provides from `packaging/app-platform.json`.
+Independent App packages require `yuos-app-runtime-v1 (>= 0.1.0)`. That
+dependency supplies the runtime, not App authorization.

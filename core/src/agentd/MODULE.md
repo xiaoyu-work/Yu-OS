@@ -4,9 +4,9 @@
 
 `agentd/` isolates the model/tool runtime from the privileged broker. Provider
 HTTP clients, streaming parsers, prompt assembly, and tool orchestration run in
-a short-lived `claw-agentd` process owned by the task's submitter. Dynamic App
+a short-lived `yuos-agentd` process owned by the task's submitter. Dynamic App
 and MCP code runs one boundary farther out under an exclusively leased,
-package-created locked uid in `claw-extension-host`. Root `clawd` supervises both but
+package-created locked uid in `yuos-extension-host`. Root `yuosd` supervises both but
 executes neither.
 
 ## Responsibilities
@@ -54,12 +54,12 @@ wire representation.
 
 | Path | Role |
 | --- | --- |
-| `guard.rs` | Process-wide broker flag; every runtime surface fails closed inside `clawd` |
+| `guard.rs` | Process-wide broker flag; every runtime surface fails closed inside `yuosd` |
 | `spawn.rs` | `socketpair` + `pre_exec` privilege drop, fd/env isolation, session/process-group isolation, worker image checks |
 | `grant.rs` | HMAC-signed job grant, its bindings, and both verification directions |
 | `protocol.rs` | Frames, route allowlist, protocol version, bounded framing, lease-renewal and permission-mediation types |
 | `receipts.rs` | Reporting-only Activity receipt association from the authenticated lease and broker-owned Job |
-| `context.rs`, `../clawd/workspaces/reads.rs` | Root current-domain context gateway, scoped memory/source retrieval and sourced reporting; no management or authority selectors |
+| `context.rs`, `../yuosd/workspaces/reads.rs` | Root current-domain context gateway, scoped memory/source retrieval and sourced reporting; no management or authority selectors |
 | `visual.rs` | Exact desktop window review, bounded image custody and single-use click dispatch |
 | `supervisor.rs` | Broker-side claim → spawn → lease → pump → finish, permission mediation, reconciliation |
 | `worker.rs` | Worker-side handshake, dedicated channel thread, sinks, audit forwarding, approval gateway, cancellation |
@@ -80,7 +80,7 @@ every other descriptor close-on-exec; `setgroups(0, NULL)` **before** the uid
 drop (this is what removes `sudo`); `setresgid` then `setresuid`; re-read all
 ids and the empty supplementary group list from the kernel and abort if any is
 wrong; the uid is the task owner while the primary gid is the package-created
-`cos-extension` group;
+`yuos-extension` group;
 `PR_SET_PDEATHSIG` with a `getppid` re-check; `setsid`, so the runtime leads its
 own session and process group; `PR_SET_NO_NEW_PRIVS`. The environment is
 rebuilt from an allowlist and carries no credential value.
@@ -90,7 +90,7 @@ formats, logs or takes a lock: failures are reported as bare `errno` values via
 `Error::from_raw_os_error`, which is all `std` writes to its exec-status pipe
 anyway.
 
-`/run/cos/clawd.sock` is unchanged (`0660 root:sudo`). Before each fork the
+`/run/yuos/yuosd.sock` is unchanged (`0660 root:sudo`). Before each fork the
 broker pins that actual socket inode plus its canonical ancestors, rejects a
 task uid or isolated gid that can replace the path, and requires an actual
 post-drop connection attempt to fail before `exec`. The worker therefore has
@@ -124,7 +124,7 @@ from a descendant's nearest registered App/MCP session.
 The signed binding is immutable bootstrap identity; its initial expiry is not
 the lifetime of a healthy long-running task. Every authenticated heartbeat
 renews the supervisor task lease and the private broker `ExtensionLease`.
-`clawd` sends the resulting absolute deadline back as a typed frame on fd 3,
+`yuosd` sends the resulting absolute deadline back as a typed frame on fd 3,
 and the worker updates only its installed Host client's rolling deadline.
 Another task id, an unbounded deadline, a missing client, or a lost
 acknowledgement closes the worker instead of retaining stale authority. The
@@ -138,7 +138,7 @@ path. Task closure stops new mount admission before checked Host/process/mount
 cleanup. Persistent backing files are never part of the disposable task tree.
 See the [Host data contract](../extension_host/MODULE.md).
 
-Assignment is a durable two-phase gate. `clawd` sends PREPARE with distinct
+Assignment is a durable two-phase gate. `yuosd` sends PREPARE with distinct
 grant-signed prepare/commit nonces; the worker verifies it, reports the exact
 prepared binding, and remains blocked. The broker then synchronously persists
 the queue's prepared phase and `execution_committed` phase before sending an
@@ -160,8 +160,8 @@ cross-checks the signed lease before building the model-visible tool projection
 and rechecks its process and deadline before advertising or executing an
 attended-only tool.
 
-Capabilities are derived by `clawd` from root-owned session metadata
-(`clawd::session_scope`) and handed to the worker; the worker never authors
+Capabilities are derived by `yuosd` from root-owned session metadata
+(`yuosd::session_scope`) and handed to the worker; the worker never authors
 them, and the exact tool/provider checks still run at the execution boundary
 inside it.
 
@@ -175,7 +175,7 @@ binding and the Host's narrower capability ceiling remain enforced.
 `<caps-data>/approvals` is root-owned and the worker has no broker route, so a
 denied capability check reaches consent over the job channel rather than the
 filesystem. `caps::approval_gateway` is the seam: `caps::require` uses it in
-place of the local store whenever one is installed, and only `claw-agentd`
+place of the local store whenever one is installed, and only `yuos-agentd`
 installs one.
 
 - The worker sends the **exact denied verb and canonical scope**, plus an
@@ -183,7 +183,7 @@ installs one.
   identify the invocation. Each ask also carries a fresh unpredictable nonce.
   There is no session, owner, requester, reason, duration or capability set on
   the request wire.
-- `clawd` takes owner, session, task, worker pid/start time, and
+- `yuosd` takes owner, session, task, worker pid/start time, and
   attended/unattended context from trusted lease/session state. It re-parses
   the verb and scope against the catalog and composes the reason itself.
 - Attended `Request` files or dedupes a pending record bound to the exact
@@ -191,7 +191,7 @@ installs one.
   nonce/deadline, request generation, and consent context. Unattended requests
   fail closed with a scheduling/delegation hint.
 - `Consume` atomically spends an exactly matching, live decision, then mints
-  and exercises a one-use `clawd::authority` grant bound to this task and
+  and exercises a one-use `yuosd::authority` grant bound to this task and
   worker. Operation-bound decisions must carry the same digest through this
   final redemption. The broker echoes the nonce and complete ask, and the
   worker accepts the reply only when correlation id, nonce, ask kind, verb,
@@ -266,7 +266,7 @@ decision. App execution uses the separate extension and service Hosts below.
 ## App execution and receipts
 
 The model worker never hosts dynamic App code. Its purpose-bound
-[`claw-extension-host`](../extension_host/MODULE.md) executes one-shot
+[`yuos-extension-host`](../extension_host/MODULE.md) executes one-shot
 operations and relays typed MCP App calls to the root App-service manager.
 Each MCP call is freshly authorized and runs in the independently isolated,
 owner/App-scoped service Host. Protected package review, exact needs, live
@@ -320,14 +320,14 @@ owner's routed session registry; the ACL is revoked before uid reuse.
 Removing the worker's broker access is deliberate:
 
 - **App and MCP sessions started from inside a task.** Registering one needs
-  `claw-extension-host`. The worker still has no `app_session.*` route and
+  `yuos-extension-host`. The worker still has no `app_session.*` route and
   cannot write the root-owned routed registry. Its task Host relays typed App
-  calls over `app_service.call`; `clawd` re-authorizes them and dispatches to a
+  calls over `app_service.call`; `yuosd` re-authorizes them and dispatches to a
   separate owner/App service Host that may outlive the task. Each Host reaches
   only its purpose-specific private routes, and hosted descendants reach only
   session-scoped provider routes for their nearest registered child session.
   If either Host or its authenticated lease is absent, dynamic execution fails
-  closed instead of falling back into `claw-agentd`.
+  closed instead of falling back into `yuos-agentd`.
 - **Scheduler mutation from inside a task.** `yu cron` / `yu triggers` state
   lives in the root-owned daemon tree, so a worker can read its own scope but
   cannot persist system schedules. `scheduler.run` is a broker route and is not
@@ -357,7 +357,7 @@ cgroup, unmounts those filesystems, recursively removes task state without
 following links or crossing mounts, and revokes routed ACLs. Only then is the
 identity lock released. A durable quarantine marker preserves failed cleanup
 across broker restart. There is no `/proc`-ancestry fallback. Unavailable
-containment or unverifiable cleanup is a terminal task error; `clawd`
+containment or unverifiable cleanup is a terminal task error; `yuosd`
 continues serving non-agent primitives.
 
 Retry is limited to phases that durably prove execution was not committed:
@@ -376,7 +376,7 @@ or substituted worker is refused before it can execute. `PR_SET_PDEATHSIG`
 means a worker cannot outlive the daemon that leased it, so every task left in
 `running/` at start-up belongs to a dead worker and is reconciled before the
 first claim.
-`CLAWD_AGENTD=off` disables supervision only; every other `clawd` primitive
+`YUOSD_AGENTD=off` disables supervision only; every other `yuosd` primitive
 keeps working.
 
 Final-result evidence confidence uses finite decimal strings on the private
@@ -389,22 +389,22 @@ the task as protocol faults.
 
 | Variable | Meaning |
 | --- | --- |
-| `CLAWD_AGENTD` | `off` disables agent supervision (default on) |
-| `COS_AGENTD_BIN` | Worker executable (default: beside `clawd`, else `/usr/local/bin/claw-agentd`) |
-| `COS_EXTENSION_EXEC_GROUP` | Dedicated primary group for worker/host/App/MCP execution (packaged default `cos-extension`) |
-| `COS_EXTENSION_HOST_BIN` | Extension host executable (default: beside `clawd`, else `/usr/local/bin/claw-extension-host`) |
-| `CLAWD_EXTENSION_CGROUP_ROOT` | Optional pre-created empty, root-owned delegated cgroup-v2 root; normally `clawd` prepares its systemd unit subtree |
-| `CLAWD_EXTENSION_HOST_NAMESPACES` | `off` disables best-effort IPC/UTS namespaces; all other host isolation remains |
-| `CLAWD_AGENTD_MAX_WORKERS` | Concurrent workers, 1–64 (default 4) |
-| `CLAWD_AGENTD_LEASE_SECS` | Heartbeat lease, 30–86400 (default 900) |
-| `CLAWD_AGENTD_HEARTBEAT_GRACE_SECS` | Handshake grace, 10–3600 (default 120) |
-| `CLAWD_AGENTD_POLL_MS` | Queue poll interval (default 500) |
+| `YUOSD_AGENTD` | `off` disables agent supervision (default on) |
+| `YUOS_AGENTD_BIN` | Worker executable (default: beside `yuosd`, else `/usr/local/bin/yuos-agentd`) |
+| `YUOS_EXTENSION_EXEC_GROUP` | Dedicated primary group for worker/host/App/MCP execution (packaged default `yuos-extension`) |
+| `YUOS_EXTENSION_HOST_BIN` | Extension host executable (default: beside `yuosd`, else `/usr/local/bin/yuos-extension-host`) |
+| `YUOSD_EXTENSION_CGROUP_ROOT` | Optional pre-created empty, root-owned delegated cgroup-v2 root; normally `yuosd` prepares its systemd unit subtree |
+| `YUOSD_EXTENSION_HOST_NAMESPACES` | `off` disables best-effort IPC/UTS namespaces; all other host isolation remains |
+| `YUOSD_AGENTD_MAX_WORKERS` | Concurrent workers, 1–64 (default 4) |
+| `YUOSD_AGENTD_LEASE_SECS` | Heartbeat lease, 30–86400 (default 900) |
+| `YUOSD_AGENTD_HEARTBEAT_GRACE_SECS` | Handshake grace, 10–3600 (default 120) |
+| `YUOSD_AGENTD_POLL_MS` | Queue poll interval (default 500) |
 
 ## Dependencies
 
 - `crate::agent::service` for the task queue, `JobExecution` and `FinishOutcome`.
 - `crate::caps::approval_gateway` for the consent seam `caps::require` consults.
-- `crate::approvals` and `crate::clawd::{audit, session_scope}` for consent
+- `crate::approvals` and `crate::yuosd::{audit, session_scope}` for consent
   mediation, the audit sink and capability derivation.
 - `crate::extension_host` for the task-owned dynamic process boundary and its
   private broker proxy.

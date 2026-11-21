@@ -83,7 +83,7 @@ generalize_cloud_image() {
         fi
     done
 
-    if [ -f "$rootfs/etc/greetd/claw-desktop.toml" ]; then
+    if [ -f "$rootfs/etc/greetd/yuos-desktop.toml" ]; then
         install -d -m 0755 "$rootfs/etc/systemd/system/greetd.service.d"
         cat > "$rootfs/etc/systemd/system/greetd.service.d/after-cloud-init.conf" <<'EOF'
 [Unit]

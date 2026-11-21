@@ -137,7 +137,7 @@ impl InsightsReport {
             .fold(&rec);
     }
 
-    /// Convenience: read the default cos run-log path.
+    /// Convenience: read the default yu run-log path.
     pub fn from_default() -> Self {
         Self::from_path(&crate::paths::ai_run_log_path())
     }

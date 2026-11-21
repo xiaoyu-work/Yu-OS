@@ -1,6 +1,6 @@
 use super::*;
 
-/// Mirror the EnvGuard from `import::tests` — flip COS_DATA_DIR
+/// Mirror the EnvGuard from `import::tests` — flip YUOS_DATA_DIR
 /// to a per-test temp dir so the dispatcher's calls into
 /// `paths::models_dir()` resolve under that root.
 struct EnvGuard {
@@ -8,16 +8,16 @@ struct EnvGuard {
 }
 impl EnvGuard {
     fn set(dir: &std::path::Path) -> Self {
-        let prev = std::env::var("COS_DATA_DIR").ok();
-        std::env::set_var("COS_DATA_DIR", dir);
+        let prev = std::env::var("YUOS_DATA_DIR").ok();
+        std::env::set_var("YUOS_DATA_DIR", dir);
         Self { prev }
     }
 }
 impl Drop for EnvGuard {
     fn drop(&mut self) {
         match &self.prev {
-            Some(v) => std::env::set_var("COS_DATA_DIR", v),
-            None => std::env::remove_var("COS_DATA_DIR"),
+            Some(v) => std::env::set_var("YUOS_DATA_DIR", v),
+            None => std::env::remove_var("YUOS_DATA_DIR"),
         }
     }
 }

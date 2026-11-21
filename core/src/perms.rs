@@ -20,7 +20,7 @@ pub fn run(command: &str, args: &[String]) -> Result<Value, String> {
 /// Run one capability check for the current session.
 ///
 /// The output envelope intentionally matches the legacy policy-check shape
-/// consumed by `cos_runtime.policy`:
+/// consumed by `yuos_runtime.policy`:
 ///
 /// ```json
 /// {"decision":"allow","verb":"fs.read","scope":{"kind":"path","value":"/tmp/x"}}

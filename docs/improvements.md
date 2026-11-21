@@ -9,14 +9,14 @@ items.
 
 ### Current state
 
-Claw OS uses four complementary memory stores:
+Yu OS uses four complementary memory stores:
 
 | Store | Purpose | Read path |
 | --- | --- | --- |
 | `USER.md` | Durable user preferences and persona facts | Bounded prompt-note selection |
 | `MEMORY.md` | Curated task and project context | Bounded prompt-note selection |
-| `memory.db` | Complete message history with SQLite FTS5 | `cos_recall` |
-| `semantic.db` | Model-defined embedding vectors in SQLite | `cos_recall_semantic` |
+| `memory.db` | Complete message history with SQLite FTS5 | `yu_recall` |
+| `semantic.db` | Model-defined embedding vectors in SQLite | `yu_recall_semantic` |
 
 Prompt assembly no longer injects an unbounded prefix of the two Markdown
 files. It selects a bounded note projection while preserving the complete
@@ -49,13 +49,13 @@ current fact, while a genuine correction replaces the old value.
 
 ### M2 — `USER.md` deduplication
 
-**Problem.** `cos_memory append USER.md` remains unconditional, so the Agent
+**Problem.** `yu_memory append USER.md` remains unconditional, so the Agent
 can append the same durable preference in separate sessions.
 
 **Proposed fix.** Add default-on deduplication for `USER.md` using a cheap
 exact/token-set check, with an explicit override for intentional duplicates.
 
-**Primary code:** `core/src/agent/tools/cos_proxy/memory.rs`
+**Primary code:** `core/src/agent/tools/yu_proxy/memory.rs`
 
 **Acceptance:** two near-identical preference appends leave one line.
 
@@ -81,7 +81,7 @@ history untouched.
 The following older proposals are intentionally removed:
 
 - rolling `MEMORY.md` into date-based journal files,
-- adding `cos_recall_journal`,
+- adding `yu_recall_journal`,
 - time-bucket partitioning of the SQLite stores,
 - adding HNSW/IVF before current vector volumes justify it.
 
@@ -93,10 +93,10 @@ of data.
 
 ### Current state
 
-`cos_sysinfo` provides request/response reads for process, network, storage,
+`yu_sysinfo` provides request/response reads for process, network, storage,
 logs, systemd, and package state.
 
-`clawd` already owns:
+`yuosd` already owns:
 
 - desktop-control and clipboard providers,
 - a persistent event center,
@@ -108,12 +108,12 @@ event bus inside the Agent runtime.
 
 ### S1 — Expose complete desktop state
 
-**Problem.** `cos_sysinfo desktop` still exposes environment hints rather than
+**Problem.** `yu_sysinfo desktop` still exposes environment hints rather than
 a complete view of active windows, displays, and clipboard availability.
 
 **Proposed fix.**
 
-- Reuse the existing `clawd` desktop and clipboard providers.
+- Reuse the existing `yuosd` desktop and clipboard providers.
 - Add read-only window/display snapshot operations.
 - Keep clipboard content opt-in and capability-gated.
 - Project the resulting state through the Agent's normal tool and audit paths.
@@ -122,15 +122,15 @@ a complete view of active windows, displays, and clipboard availability.
 shelling out to desktop-specific commands, while clipboard content remains
 off by default.
 
-### S2 — Bridge `clawd` events into Agent wake-up
+### S2 — Bridge `yuosd` events into Agent wake-up
 
-**Problem.** `clawd::event_center` collects and persists system events, but the
+**Problem.** `yuosd::event_center` collects and persists system events, but the
 Agent does not yet have one complete wake/backlog path that turns selected
 events into resumable Agent work.
 
 **Proposed fix.**
 
-1. Keep `clawd::event_center` as the single system event collector.
+1. Keep `yuosd::event_center` as the single system event collector.
 2. Add policy-controlled subscriptions that select which events can wake the
    Agent.
 3. Persist the selected event cursor with Agent task/session state.

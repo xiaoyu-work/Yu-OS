@@ -63,7 +63,7 @@ export function NotificationSettings({ preferences, onSave, onClose, onSaved }: 
                 enabled={draft.web_enabled} severity={draft.web_min_severity}
                 onToggle={(web_enabled) => setDraft({ ...draft, web_enabled })}
                 onSeverity={(web_min_severity) => setDraft({ ...draft, web_min_severity })} />
-              <Channel icon={Monitor} label="Desktop popups" description="Notifications on your Claw desktop"
+              <Channel icon={Monitor} label="Desktop popups" description="Notifications on your Yu OS desktop"
                 enabled={draft.desktop_enabled} severity={draft.desktop_min_severity}
                 onToggle={(desktop_enabled) => setDraft({ ...draft, desktop_enabled })}
                 onSeverity={(desktop_min_severity) => setDraft({ ...draft, desktop_min_severity })} />
@@ -74,7 +74,7 @@ export function NotificationSettings({ preferences, onSave, onClose, onSaved }: 
               {draft.ntfy_enabled && (
                 <label className="mt-3 grid gap-2 pl-11 text-xs">
                   <span className="font-medium">ntfy topic</span>
-                  <Input aria-label="ntfy topic" value={draft.ntfy_topic || ""} placeholder="my-claw-alerts"
+                  <Input aria-label="ntfy topic" value={draft.ntfy_topic || ""} placeholder="my-yuos-alerts"
                     onChange={(event) => setDraft({ ...draft, ntfy_topic: event.target.value || undefined })} />
                 </label>
               )}

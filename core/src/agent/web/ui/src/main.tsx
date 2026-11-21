@@ -7,7 +7,7 @@ import { setTheme } from "@/lib/theme";
 // Apply persisted theme synchronously before React renders to avoid
 // a dark-flash on light-mode page loads.
 try {
-  const stored = localStorage.getItem("cos.theme");
+  const stored = localStorage.getItem("yuos.theme");
   setTheme((stored === "light" || stored === "system" ? stored : "dark") as any);
 } catch {
   setTheme("dark");

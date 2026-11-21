@@ -1,0 +1,3139 @@
+//! The broker route registry.
+//!
+//! One table is the whole route surface. A row ties together the wire
+//! command name, the typed request body that name decodes into, the
+//! access class that may reach it, whether it mutates, the concurrency
+//! and time budget it runs under, its safe audit fields, and the handler
+//! it dispatches to.
+//!
+//! There is no way to add a route without declaring all of them: the
+//! `routes!` macro generates the [`Command`] enum, [`ROUTES`] and the
+//! name lookup from the same rows, so a route that is not in this table
+//! does not exist on the wire, and a row that omits a field does not
+//! compile. Audit field rules live in those same rows, so there is no
+//! second command-name table to synchronize.
+//!
+//! Access classes are an explicit allowlist: `context.update` is root-only
+//! and the remaining registered routes are reachable by an authenticated
+//! non-root peer. Reaching a route is not the same as being allowed to act:
+//! each route still derives identity, session and capability from the peer
+//! the kernel named.
+
+use std::future::Future;
+use std::pin::Pin;
+use std::time::Duration;
+
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+use serde_json::{json, Value};
+
+use super::activity_capability_policy;
+use super::activity_continuity;
+use super::activity_execution_limits;
+use super::activity_monetary_budget;
+use super::activity_scheduling_policy;
+use super::activity_work;
+use super::nearby;
+use crate::audit_policy::FieldRule;
+
+use super::authority::{self, Approval, Audience, RouteAuthority, SubjectSource, TransientCaps};
+use super::client_identity::ClientIdentity;
+use super::protocol::{BrokerError, Response};
+use super::state::DaemonState;
+use super::wire::bounded::MAX_WAIT_MS;
+use super::wire::requests as body;
+use super::wire::{Fault, RequestId};
+use super::{
+    accessibility, activities, activity_attention, activity_object_state, activity_objects,
+    activity_receipts, agent_account, agent_hooks, app_events, app_services, app_sessions, audio, backup,
+    bluetooth, browser, camera, channels, clipboard, config_editor, containers, context, context_events,
+    conversations, crash, credentials, desktop, display, event_center, file_changes, firewall, hardware,
+    journal as journal_ops, location, mail, memory, network, network_diagnostics, notifications,
+    operation_previews, packages, permissions, power, printer, scheduler, security, snapshots,
+    storage, system_journal, systemd, tasks, transactions, usage, usb_guard, users,
+    workspaces,
+};
+
+/// Who may reach a route at all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Access {
+    /// Any authenticated peer, root included.
+    User,
+    /// Root only.
+    Root,
+    /// A task Host identity injected only by its verified private broker.
+    PrivateTaskHost,
+}
+
+/// Whether a route changes privileged state.
+///
+/// Mutations are the ones a replayed frame must not repeat, so they are
+/// the ones the broker's bounded duplicate check covers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    Query,
+    Mutation,
+}
+
+/// How long a route may run before the broker stops waiting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Deadline {
+    /// Safe to drop at this point: the route reads, or its writes are
+    /// already committed at every await it can be cancelled on.
+    Interruptible(Duration),
+    /// Never dropped. Cancelling could leave a privileged mutation half
+    /// applied — a package part-installed, a unit part-restored — so the
+    /// route bounds itself with its own lock and subprocess timeouts and
+    /// the broker only bounds how many may run at once.
+    Uninterruptible,
+}
+
+/// Concurrency and time a route is allowed to consume.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Budget {
+    /// Requests of this route that may run at the same time.
+    pub max_in_flight: u32,
+    pub deadline: Deadline,
+}
+
+/// Translation contract for typed handler failures.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorPolicy {
+    /// Map [`BrokerErrorKind`](super::protocol::BrokerErrorKind) to the
+    /// stable public code owned by the RPC boundary.
+    Typed,
+}
+
+impl ErrorPolicy {
+    pub fn response(self, id: RequestId, error: BrokerError) -> Response {
+        match self {
+            Self::Typed => Response::handler_error(id, error),
+        }
+    }
+}
+
+impl Budget {
+    /// Cheap, purely in-memory reads.
+    const fn fast() -> Self {
+        Self {
+            max_in_flight: 64,
+            deadline: Deadline::Interruptible(Duration::from_secs(10)),
+        }
+    }
+
+    /// Reads that touch a store or the filesystem.
+    const fn query() -> Self {
+        Self {
+            max_in_flight: 32,
+            deadline: Deadline::Interruptible(Duration::from_secs(120)),
+        }
+    }
+
+    /// Bounded scans that may still parse several MiB before returning.
+    const fn log_query() -> Self {
+        Self {
+            max_in_flight: 2,
+            deadline: Deadline::Interruptible(Duration::from_secs(120)),
+        }
+    }
+
+    /// Long polls. The caller's own `timeout_ms` is already capped at
+    /// [`MAX_WAIT_MS`]; this is that ceiling plus slack, and the
+    /// in-flight cap is what keeps a flood of waiters bounded.
+    const fn poll() -> Self {
+        Self {
+            max_in_flight: 32,
+            deadline: Deadline::Interruptible(Duration::from_millis(MAX_WAIT_MS + 60_000)),
+        }
+    }
+
+    /// Privileged state changes.
+    const fn mutation() -> Self {
+        Self {
+            max_in_flight: 8,
+            deadline: Deadline::Uninterruptible,
+        }
+    }
+
+    /// Privileged state changes that drive a long external tool —
+    /// package managers, backup engines, snapshot and storage work.
+    const fn heavy() -> Self {
+        Self {
+            max_in_flight: 4,
+            deadline: Deadline::Uninterruptible,
+        }
+    }
+
+    /// Launch authority. Bounded harder than a general mutation because
+    /// each call can file approval requests.
+    const fn launch() -> Self {
+        Self {
+            max_in_flight: 16,
+            deadline: Deadline::Uninterruptible,
+        }
+    }
+}
+
+/// A route that acts only for the connecting peer.
+///
+/// No grant is resolved: the access class the registry enforces plus
+/// the credentials the kernel stamped on the message are the whole
+/// decision. A peer-scoped route may not declare a capability
+/// requirement — there is no grant to spend it against — and a unit
+/// test asserts it.
+const fn peer(audience: Audience) -> RouteAuthority {
+    RouteAuthority {
+        audience,
+        subject: SubjectSource::Peer,
+        requirement: authority::no_requirement,
+        approval: Approval::Ineligible,
+        transient: TransientCaps::Excluded,
+    }
+}
+
+/// A route addressed by an opaque grant handle the daemon minted
+/// earlier. The handle is resolved against the process presenting it,
+/// so a leaked handle is inert in another process.
+const fn handle(audience: Audience) -> RouteAuthority {
+    RouteAuthority {
+        audience,
+        subject: SubjectSource::Handle,
+        requirement: authority::no_requirement,
+        approval: Approval::Ineligible,
+        transient: TransientCaps::Excluded,
+    }
+}
+
+/// A route addressed by the session named in its typed body.
+///
+/// The id is an index, never authority: the grant behind it is bound to
+/// a process, so naming somebody else's session fails exactly the way
+/// naming a session that does not exist does. The owning provider
+/// canonicalizes the exact capability from its own validated body and
+/// must spend it through the decision before it may answer.
+///
+/// Transient capabilities are already folded into the session grant by
+/// `app_session.set_transient`, which re-derives it under attenuation,
+/// so the flag here is not consulted for this subject.
+const fn session(audience: Audience) -> RouteAuthority {
+    RouteAuthority {
+        audience,
+        subject: SubjectSource::Session,
+        requirement: authority::route_derived,
+        approval: Approval::Eligible,
+        transient: TransientCaps::Excluded,
+    }
+}
+
+/// A route addressed by the caller's *own* registered session, whose
+/// authority is the session's base capabilities only.
+///
+/// This is what the credential broker had before the authority existed:
+/// it read `session.caps` and deliberately not `transient_caps`, so an
+/// MCP tool call that was granted a secret for one invocation cannot be
+/// turned into a token refresh for a different one.
+const fn peer_session(audience: Audience) -> RouteAuthority {
+    RouteAuthority {
+        audience,
+        subject: SubjectSource::PeerSession,
+        requirement: authority::route_derived,
+        approval: Approval::Eligible,
+        transient: TransientCaps::Excluded,
+    }
+}
+
+/// A peer-session route that also honours the current tool call's
+/// transient capabilities, matching what the rollback providers did
+/// before: `packages` and `systemd` both merged `transient_caps` into
+/// the set they checked.
+const fn peer_session_with_transient(audience: Audience) -> RouteAuthority {
+    RouteAuthority {
+        audience,
+        subject: SubjectSource::PeerSession,
+        requirement: authority::route_derived,
+        approval: Approval::Eligible,
+        transient: TransientCaps::Included,
+    }
+}
+
+/// Everything a handler is given.
+pub struct RouteCall<'a> {
+    pub state: &'a DaemonState,
+    pub client: &'a ClientIdentity,
+    /// The canonical object rebuilt from the route's typed body. Every
+    /// key in it was declared and validated by
+    /// [`super::wire::requests`].
+    pub params: Value,
+    /// The authority decision the middleware took before dispatch.
+    /// `None` only for peer-scoped routes, which resolve no grant.
+    pub authority: Option<&'a authority::Decision>,
+}
+
+impl<'a> RouteCall<'a> {
+    /// The decision this route runs under.
+    ///
+    /// A route whose descriptor names a subject always has one; the
+    /// error is only reachable if a handler asks for it on a
+    /// peer-scoped row, which is a programming mistake rather than a
+    /// caller's doing.
+    pub fn authority(&self) -> Result<&'a authority::Decision, String> {
+        self.authority
+            .ok_or_else(|| "this route resolves no capability grant".to_string())
+    }
+}
+
+pub type RouteFuture<'a> = Pin<Box<dyn Future<Output = Result<Value, BrokerError>> + Send + 'a>>;
+pub type RouteHandler = for<'a> fn(RouteCall<'a>) -> RouteFuture<'a>;
+pub type RouteDecoder = fn(Value) -> Result<Value, Fault>;
+
+pub struct Route {
+    pub command: Command,
+    /// The wire name. Also the key [`crate::audit_policy`] is written
+    /// against, and the only version of the name that reaches a record.
+    pub name: &'static str,
+    pub access: Access,
+    pub kind: Kind,
+    pub budget: Budget,
+    pub errors: ErrorPolicy,
+    /// The route's authorization contract. Declared positionally by the
+    /// `routes!` macro, so a row that omits it does not compile.
+    pub authority: RouteAuthority,
+    /// Parameter fields this route has classified as safe to persist.
+    /// Omitted fields are never written to an audit sink.
+    pub audit_fields: &'static [(&'static str, FieldRule)],
+    pub decode: RouteDecoder,
+    pub handler: RouteHandler,
+}
+
+impl Route {
+    /// Whether this peer's access class may reach the route.
+    ///
+    /// Identity comes from the credentials the kernel attached to the
+    /// request message; nothing in the request selects it.
+    pub fn authorize(&self, client: &ClientIdentity) -> Result<(), Fault> {
+        let uid = client.uid.ok_or(Fault::MissingCredentials)?;
+        match self.access {
+            Access::User => Ok(()),
+            Access::Root if uid == 0 => Ok(()),
+            Access::Root => Err(Fault::NotAuthorized),
+            Access::PrivateTaskHost
+                if client.extension_host.as_ref().is_some_and(|host| {
+                    host.purpose == crate::extension_host::protocol::HostPurpose::Task
+                }) =>
+            {
+                Ok(())
+            }
+            Access::PrivateTaskHost => Err(Fault::NotAuthorized),
+        }
+    }
+}
+
+/// Decode a route's parameters into its declared body, then rebuild the
+/// canonical object the handler reads.
+///
+/// The round trip is the point: only fields the body type declared
+/// survive it, so a handler cannot reach a value the boundary did not
+/// validate, and `deny_unknown_fields` has already refused anything
+/// else. The `serde` error is deliberately not carried out of here —
+/// it quotes the offending value, which may be a credential.
+fn decode_body<T: DeserializeOwned + Serialize>(params: Value) -> Result<Value, Fault> {
+    let params = if params.is_null() {
+        Value::Object(serde_json::Map::new())
+    } else {
+        if !params.is_object() {
+            return Err(Fault::InvalidParams);
+        }
+        params
+    };
+    let typed = serde_json::from_value::<T>(params).map_err(|error| {
+        tracing::debug!(
+            category = ?error.classify(),
+            "yuosd refused route parameters"
+        );
+        Fault::InvalidParams
+    })?;
+    serde_json::to_value(typed).map_err(|_| Fault::InvalidParams)
+}
+
+macro_rules! routes {
+    (
+        $(
+            $variant:ident {
+                name: $name:literal,
+                access: $access:expr,
+                kind: $kind:expr,
+                budget: $budget:expr,
+                authority: $authority:expr,
+                body: $body:ty,
+                $( audit: $audit:expr, )?
+                run: |$call:ident| $run:expr,
+            }
+        )*
+    ) => {
+        /// Every route `yuosd` serves, as an enum an in-repo client can
+        /// name at compile time.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub enum Command {
+            $( $variant, )*
+        }
+
+        impl Command {
+            pub const ALL: &'static [Command] = &[ $( Command::$variant, )* ];
+
+            pub fn as_str(self) -> &'static str {
+                match self {
+                    $( Command::$variant => $name, )*
+                }
+            }
+
+            /// Resolve a wire name. `None` is the only outcome for a
+            /// name this daemon does not route, so an unknown command
+            /// fails closed before authorization.
+            pub fn parse(value: &str) -> Option<Self> {
+                match value {
+                    $( $name => Some(Command::$variant), )*
+                    _ => None,
+                }
+            }
+
+            pub fn route(self) -> &'static Route {
+                &ROUTES[self as usize]
+            }
+        }
+
+        pub static ROUTES: &[Route] = &[
+            $(
+                Route {
+                    command: Command::$variant,
+                    name: $name,
+                    access: $access,
+                    kind: $kind,
+                    budget: $budget,
+                    errors: ErrorPolicy::Typed,
+                    authority: $authority,
+                    audit_fields: routes!(@audit $( $audit )?),
+                    decode: {
+                        fn decode(params: Value) -> Result<Value, Fault> {
+                            decode_body::<$body>(params)
+                        }
+                        decode
+                    },
+                    handler: {
+                        fn handler<'a>($call: RouteCall<'a>) -> RouteFuture<'a> {
+                            Box::pin(async move { $run })
+                        }
+                        handler
+                    },
+                },
+            )*
+        ];
+    };
+    (@audit $audit:expr) => {
+        $audit
+    };
+    (@audit) => {
+        &[]
+    };
+}
+
+impl serde::Serialize for Command {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Command {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let raw = String::deserialize(deserializer)?;
+        Command::parse(&raw).ok_or_else(|| serde::de::Error::custom("unknown yuosd command"))
+    }
+}
+
+impl std::fmt::Display for Command {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+routes! {
+    // -----------------------------------------------------------------
+    // Daemon
+    // -----------------------------------------------------------------
+    DaemonHealth {
+        name: "daemon.health",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::fast(),
+        authority: peer(Audience::Daemon),
+        body: body::NoBody,
+        run: |c| Ok(json!({
+            "status": "ok",
+            "daemon": "yuosd",
+            "started_at": c.state.started_at(),
+            "uptime_ms": c.state.uptime_millis(),
+        })),
+    }
+    DaemonStatus {
+        name: "daemon.status",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Daemon),
+        body: body::NoBody,
+        run: |c| Ok(json!({
+            "status": "running",
+            "daemon": "yuosd",
+            "started_at": c.state.started_at(),
+            "uptime_ms": c.state.uptime_millis(),
+            "tasks": tasks::counts(c.client)?,
+            "context": context::snapshot_for_client(c.state, c.client)?,
+            "transactions": transactions::list(c.state, c.client)?,
+        })),
+    }
+
+    // -----------------------------------------------------------------
+    // Workspaces: owner-selected knowledge sharing, not execution authority.
+    // -----------------------------------------------------------------
+    WorkspaceList {
+        name: "workspace.list",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Context),
+        body: body::NoBody,
+        audit: &[],
+        run: |c| workspaces::list(c.params,c.client).await,
+    }
+    WorkspaceGet {
+        name: "workspace.get",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Context),
+        body: body::WorkspaceGet,
+        audit: &[("id",FieldRule::Token)],
+        run: |c| workspaces::get(c.params,c.client).await,
+    }
+    WorkspaceControl {
+        name: "workspace.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Context),
+        body: body::WorkspaceControl,
+        audit: &[("request",FieldRule::Size)],
+        run: |c| workspaces::control(c.params,c.client).await,
+    }
+    WorkspaceRead {
+        name: "workspace.read",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Context),
+        body: body::WorkspaceRead,
+        audit: &[("id",FieldRule::Token),("request",FieldRule::Size)],
+        run: |c| workspaces::read(c.params,c.client).await,
+    }
+    WorkspaceIndexSource {
+        name: "workspace.index_source",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Context),
+        body: body::WorkspaceIndexSource,
+        audit: &[("id",FieldRule::Token),("tag_id",FieldRule::Token)],
+        run: |c| workspaces::index_source(c.params,c.client).await,
+    }
+    // -----------------------------------------------------------------
+    // Activities: owner-scoped work records, not authority.
+    // -----------------------------------------------------------------
+    ActivityCreate {
+        name: "activity.create",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityCreate,
+        audit: &[("title", FieldRule::Size), ("goal", FieldRule::Size)],
+        run: |c| activities::create(c.params, c.client),
+    }
+    ActivityList {
+        name: "activity.list",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::ActivityList,
+        audit: &[("state", FieldRule::Token), ("limit", FieldRule::Count)],
+        run: |c| activities::list(c.params, c.client),
+    }
+    ActivityGet {
+        name: "activity.get",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::ActivityGet,
+        audit: &[("id", FieldRule::Token), ("limit", FieldRule::Count)],
+        run: |c| activities::get(c.params, c.client),
+    }
+    ActivityAttention {
+        name: "activity.attention",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::ActivityGet,
+        audit: &[("id", FieldRule::Token), ("limit", FieldRule::Count)],
+        run: |c| activity_attention::get(c.params, c.client),
+    }
+    ActivityUpdate {
+        name: "activity.update",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityUpdate,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| activities::update(c.params, c.client),
+    }
+    ActivityTransition {
+        name: "activity.transition",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityTransition,
+        audit: &[("id", FieldRule::Token), ("state", FieldRule::Token)],
+        run: |c| activities::transition(c.params, c.client),
+    }
+    ActivityRun {
+        name: "activity.run",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityRun,
+        audit: &[
+            ("id", FieldRule::Token),
+            ("session_id", FieldRule::Token),
+            ("max_turns", FieldRule::Count),
+            ("prompt", FieldRule::Size),
+            ("workspace", FieldRule::Size),
+        ],
+        run: |c| activities::run(c.params, c.client).await,
+    }
+    ActivityContinuityExport {
+        name: "activity.continuity.export",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::ActivityContinuityExport,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| activity_continuity::export(c.params, c.client),
+    }
+    ActivityContinuityImport {
+        name: "activity.continuity.import",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityContinuityImport,
+        audit: &[
+            ("placement", FieldRule::Enum(&["local"])),
+            ("document", FieldRule::Size),
+        ],
+        run: |c| activity_continuity::import(c.params, c.client),
+    }
+    ActivityExecutionLimitsGet {
+        name: "activity.execution_limits.get",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::ActivityExecutionLimitsGet,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| activity_execution_limits::get(c.params, c.client),
+    }
+    ActivityExecutionLimitsSet {
+        name: "activity.execution_limits.set",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityExecutionLimitsSet,
+        audit: &[("id", FieldRule::Token), ("expected_revision", FieldRule::Count), ("limits", FieldRule::Size)],
+        run: |c| activity_execution_limits::set(c.params, c.client),
+    }
+    ActivityExecutionLimitsEnabled {
+        name: "activity.execution_limits.enabled",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityExecutionLimitsEnabled,
+        audit: &[("id", FieldRule::Token), ("expected_revision", FieldRule::Count), ("enabled", FieldRule::Flag)],
+        run: |c| activity_execution_limits::enabled(c.params, c.client),
+    }
+    ActivityMonetaryBudgetGet {
+        name: "activity.monetary_budget.get",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::ActivityMonetaryBudgetGet,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| activity_monetary_budget::get(c.params, c.client),
+    }
+    ActivityMonetaryBudgetSet {
+        name: "activity.monetary_budget.set",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityMonetaryBudgetSet,
+        audit: &[("id", FieldRule::Token), ("expected_revision", FieldRule::Count), ("budget", FieldRule::Size)],
+        run: |c| activity_monetary_budget::set(c.params, c.client),
+    }
+    ActivityMonetaryBudgetEnabled {
+        name: "activity.monetary_budget.enabled",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityMonetaryBudgetEnabled,
+        audit: &[("id", FieldRule::Token), ("expected_revision", FieldRule::Count), ("enabled", FieldRule::Flag)],
+        run: |c| activity_monetary_budget::enabled(c.params, c.client),
+    }
+    ActivityCapabilityPolicyGet {
+        name: "activity.capability_policy.get",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::ActivityCapabilityPolicyGet,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| activity_capability_policy::get(c.params, c.client),
+    }
+    ActivityCapabilityPolicySet {
+        name: "activity.capability_policy.set",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityCapabilityPolicySet,
+        audit: &[("id", FieldRule::Token), ("expected_revision", FieldRule::Count), ("policy", FieldRule::Size)],
+        run: |c| activity_capability_policy::set(c.params, c.client),
+    }
+    ActivityCapabilityPolicyEnabled {
+        name: "activity.capability_policy.enabled",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityCapabilityPolicyEnabled,
+        audit: &[("id", FieldRule::Token), ("expected_revision", FieldRule::Count), ("enabled", FieldRule::Flag)],
+        run: |c| activity_capability_policy::enabled(c.params, c.client),
+    }
+    ActivitySchedulingPolicyGet {
+        name: "activity.scheduling_policy.get",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::ActivitySchedulingPolicyGet,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| activity_scheduling_policy::get(c.params, c.client),
+    }
+    ActivitySchedulingPolicySet {
+        name: "activity.scheduling_policy.set",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivitySchedulingPolicySet,
+        audit: &[
+            ("id", FieldRule::Token),
+            ("expected_revision", FieldRule::Count),
+            ("priority", FieldRule::Token),
+        ],
+        run: |c| activity_scheduling_policy::set(c.params, c.client),
+    }
+    ActivityObjects {
+        name: "activity.objects",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::ActivityObjects,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| activity_objects::list(c.params, c.client),
+    }
+    ActivityWorkGet {
+        name: "activity.work.get",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::ActivityWorkGet,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| activity_work::get(c.params,c.client),
+    }
+    ActivityWorkSet {
+        name: "activity.work.set",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityWorkSet,
+        audit: &[("id", FieldRule::Token),("expected_revision", FieldRule::Count),("work",FieldRule::Size)],
+        run: |c| activity_work::set(c.params,c.client),
+    }
+    ActivityWorkEnabled {
+        name: "activity.work.enabled",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityWorkEnabled,
+        audit: &[("id", FieldRule::Token),("expected_revision", FieldRule::Count),("enabled", FieldRule::Flag)],
+        run: |c| activity_work::enabled(c.params,c.client).await,
+    }
+    ActivityObjectAttach {
+        name: "activity.object.attach",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityObjectAttach,
+        audit: &[("id", FieldRule::Token), ("label", FieldRule::Size)],
+        run: |c| activity_objects::attach(c.params, c.client),
+    }
+    ActivityObjectStateList {
+        name: "activity.object_state.list",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::ActivityObjectState,
+        audit: &[("id", FieldRule::Token), ("limit", FieldRule::Count)],
+        run: |c| activity_object_state::list(c.params, c.client),
+    }
+    ActivityObjectStateRecord {
+        name: "activity.object_state.record",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityObjectStateRecord,
+        audit: &[("id", FieldRule::Token), ("entry", FieldRule::Size)],
+        run: |c| activity_object_state::record(c.params, c.client),
+    }
+    OperationPreview {
+        name: "operation.preview",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::OperationPreview,
+        audit: &[("app_id", FieldRule::Token), ("operation", FieldRule::Token), ("args", FieldRule::Size)],
+        run: |c| operation_previews::preview(c.params, c.client),
+    }
+    ActivityOperationPreview {
+        name: "activity.operation.preview",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::ActivityOperationPreview,
+        audit: &[("id", FieldRule::Token), ("app_id", FieldRule::Token), ("operation", FieldRule::Token), ("args", FieldRule::Size)],
+        run: |c| operation_previews::for_activity(c.params, c.client),
+    }
+    ActivityReceipts {
+        name: "activity.receipts",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::ActivityReceipts,
+        audit: &[("id", FieldRule::Token), ("limit", FieldRule::Count)],
+        run: |c| activity_receipts::list(c.params, c.client),
+    }
+    ActivityReceiptRecord {
+        name: "activity.receipt.record",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::ActivityReceiptRecord,
+        audit: &[("id", FieldRule::Token), ("report", FieldRule::Size)],
+        run: |c| activity_receipts::record(c.params, c.client),
+    }
+    // -----------------------------------------------------------------
+    // Agent conversations and tasks
+    // -----------------------------------------------------------------
+    AgentConversationCreate {
+        name: "agent.conversation.create",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::AgentConversationCreate,
+        audit: &[("title", FieldRule::Size)],
+        run: |c| conversations::create(c.params, c.client).map_err(BrokerError::from),
+    }
+    AgentConversationGet {
+        name: "agent.conversation.get",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::AgentConversationGet,
+        audit: &[("id", FieldRule::Token), ("limit", FieldRule::Count)],
+        run: |c| conversations::get(c.params, c.client).map_err(BrokerError::from),
+    }
+    AgentConversationList {
+        name: "agent.conversation.list",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::AgentConversationList,
+        audit: &[("archived", FieldRule::Flag), ("limit", FieldRule::Count)],
+        run: |c| conversations::list(c.params, c.client).map_err(BrokerError::from),
+    }
+    AgentConversationUpdate {
+        name: "agent.conversation.update",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::AgentConversationUpdate,
+        audit: &[
+            ("id", FieldRule::Token),
+            ("title", FieldRule::Size),
+            ("archived", FieldRule::Flag),
+            ("deleted", FieldRule::Flag),
+        ],
+        run: |c| conversations::update(c.params, c.client).map_err(BrokerError::from),
+    }
+    AgentConversationFork {
+        name: "agent.conversation.fork",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::AgentConversationFork,
+        audit: &[
+            ("id", FieldRule::Token),
+            ("before_user_turn", FieldRule::Count),
+        ],
+        run: |c| conversations::fork(c.params, c.client).map_err(BrokerError::from),
+    }
+    AgentConversationRevert {
+        name: "agent.conversation.revert",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::AgentConversationRevert,
+        audit: &[
+            ("id", FieldRule::Token),
+            ("user_turns", FieldRule::Count),
+        ],
+        run: |c| conversations::revert(c.params, c.client).map_err(BrokerError::from),
+    }
+    TaskSubmit {
+        name: "task.submit",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::TaskSubmit,
+        audit: &[
+            ("session_id", FieldRule::Token),
+            ("after_task_id", FieldRule::Token),
+            ("activity_id", FieldRule::Token),
+            ("max_turns", FieldRule::Count),
+            ("model", FieldRule::Identifier),
+            ("reasoning_effort", FieldRule::Token),
+            ("plan_only", FieldRule::Flag),
+            ("prompt", FieldRule::Size),
+            ("attachments", FieldRule::Size),
+            ("workspace", FieldRule::Size),
+        ],
+        run: |c| tasks::submit(c.params, c.client).await.map_err(BrokerError::from),
+    }
+    TaskWorkspaceResolve {
+        name: "task.workspace.resolve",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::TaskWorkspaceResolve,
+        audit: &[("path", FieldRule::Size)],
+        run: |c| tasks::workspace(c.params, c.client).map_err(BrokerError::from),
+    }
+    TaskList {
+        name: "task.list",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::TaskList,
+        audit: &[("status", FieldRule::Token), ("activity_id", FieldRule::Token)],
+        run: |c| tasks::list(c.params, c.client).map_err(BrokerError::from),
+    }
+    TaskGet {
+        name: "task.get",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::TaskId,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| tasks::get(c.params, c.client).map_err(BrokerError::from),
+    }
+    TaskStatus {
+        name: "task.status",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Task),
+        body: body::TaskId,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| tasks::get(c.params, c.client).map_err(BrokerError::from),
+    }
+    TaskCancel {
+        name: "task.cancel",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::TaskId,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| tasks::cancel(c.params, c.client).map_err(BrokerError::from),
+    }
+    TaskRetry {
+        name: "task.retry",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Task),
+        body: body::TaskId,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| tasks::retry(c.params, c.client).map_err(BrokerError::from),
+    }
+    TaskStream {
+        name: "task.stream",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::poll(),
+        authority: peer(Audience::Task),
+        body: body::TaskWait,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| tasks::result(c.params, c.client).await.map_err(BrokerError::from),
+    }
+    TaskResult {
+        name: "task.result",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::poll(),
+        authority: peer(Audience::Task),
+        body: body::TaskWait,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| tasks::result(c.params, c.client).await.map_err(BrokerError::from),
+    }
+    TaskCount {
+        name: "task.count",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::fast(),
+        authority: peer(Audience::Task),
+        body: body::NoBody,
+        run: |c| tasks::counts(c.client).map_err(BrokerError::from),
+    }
+
+    // -----------------------------------------------------------------
+    // Memory, context and journals
+    // -----------------------------------------------------------------
+    MemoryHistory {
+        name: "memory.history",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Context),
+        body: body::MemoryHistory,
+        audit: &[
+            ("session_id", FieldRule::Token),
+            ("limit", FieldRule::Count),
+        ],
+        run: |c| memory::history(c.params, c.client).map_err(BrokerError::from),
+    }
+    MemorySessions {
+        name: "memory.sessions",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Context),
+        body: body::MemorySessions,
+        audit: &[("limit", FieldRule::Count)],
+        run: |c| memory::sessions(c.params, c.client).map_err(BrokerError::from),
+    }
+    MemoryReset {
+        name: "memory.reset",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Context),
+        body: body::MemoryReset,
+        audit: &[("confirm", FieldRule::Flag)],
+        run: |c| memory::reset(c.params, c.client).map_err(BrokerError::from),
+    }
+    MemoryInspect {
+        name: "memory.inspect",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Context),
+        body: body::MemoryInspect,
+        audit: &[("kind", FieldRule::Token), ("query", FieldRule::Size), ("limit", FieldRule::Count)],
+        run: |c| memory::inspection::inspect(c.params, c.client).await.map_err(BrokerError::from),
+    }
+    NearbyStatus {
+        name: "nearby.status",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::SystemService),
+        body: body::NoBody,
+        audit: &[],
+        run: |c| nearby::status(c.params,c.client).await,
+    }
+    NearbyControl {
+        name: "nearby.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::SystemService),
+        body: body::NearbyControl,
+        audit: &[("request",FieldRule::Size)],
+        run: |c| nearby::control(c.params,c.client).await,
+    }
+    MemoryRead {
+        name: "memory.read",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Context),
+        body: body::MemoryRead,
+        audit: &[("reference", FieldRule::Size)],
+        run: |c| memory::inspection::read(c.params, c.client).await.map_err(BrokerError::from),
+    }
+    MemoryUpdate {
+        name: "memory.update",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Context),
+        body: body::MemoryUpdate,
+        audit: &[("name", FieldRule::Token), ("revision", FieldRule::Token), ("content", FieldRule::Size)],
+        run: |c| memory::inspection::update(c.params, c.client).await.map_err(BrokerError::from),
+    }
+    MemoryForget {
+        name: "memory.forget",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Context),
+        body: body::MemoryForget,
+        audit: &[("reference", FieldRule::Size), ("revision", FieldRule::Token), ("confirm", FieldRule::Flag)],
+        run: |c| memory::inspection::forget(c.params, c.client).await.map_err(BrokerError::from),
+    }
+    AgentHooksGet {
+        name: "agent.hooks.get",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Context),
+        body: body::NoBody,
+        run: |c| agent_hooks::get(c.params, c.client).map_err(BrokerError::from),
+    }
+    AgentHooksSet {
+        name: "agent.hooks.set",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Context),
+        body: body::AgentHooksSet,
+        audit: &[
+            ("kind", FieldRule::Token),
+            ("enabled", FieldRule::Flag),
+        ],
+        run: |c| agent_hooks::set(c.params, c.client).map_err(BrokerError::from),
+    }
+    AgentAccountGet {
+        name: "agent.account.get",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Credential),
+        body: body::NoBody,
+        run: |c| agent_account::status(c.params, c.client).await.map_err(BrokerError::from),
+    }
+    AgentAccountLogout {
+        name: "agent.account.logout",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Credential),
+        body: body::AgentAccountLogout,
+        audit: &[("confirm", FieldRule::Flag)],
+        run: |c| agent_account::logout(c.params, c.client).await.map_err(BrokerError::from),
+    }
+    AgentUsage {
+        name: "agent.usage",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::log_query(),
+        authority: peer(Audience::Context),
+        body: body::AgentUsage,
+        audit: &[("args", FieldRule::Size)],
+        run: |c| usage::query(c.params, c.client).await.map_err(BrokerError::from),
+    }
+    ContextSnapshot {
+        name: "context.snapshot",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Context),
+        body: body::NoBody,
+        run: |c| context::snapshot_for_client(c.state, c.client),
+    }
+    ContextSources {
+        name: "context.sources",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Context),
+        body: body::NoBody,
+        run: |c| context::sources_for_client(c.state, c.client),
+    }
+    ContextUpdate {
+        name: "context.update",
+        access: Access::Root,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Context),
+        body: body::ContextUpdate,
+        audit: &[("source", FieldRule::Token)],
+        run: |c| context::update(c.state, c.params),
+    }
+
+    // -----------------------------------------------------------------
+    // Session journal
+    // -----------------------------------------------------------------
+    JournalStatus {
+        name: "journal.status",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Daemon),
+        body: body::JournalStatus,
+        audit: &[("session_id", FieldRule::Token)],
+        run: |c| journal_ops::status(&c.params, c.client).map_err(BrokerError::from),
+    }
+    JournalResolveMutation {
+        name: "journal.mutation.resolve",
+        access: Access::Root,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Daemon),
+        body: body::JournalResolveMutation,
+        audit: &[
+            ("partition", FieldRule::Identifier),
+            ("operation", FieldRule::Token),
+            ("outcome", FieldRule::Enum(&["abandoned", "committed", "rolled-back"])),
+        ],
+        run: |c| journal_ops::resolve(&c.params, c.client).map_err(BrokerError::from),
+    }
+    ContextEventAppend {
+        name: "context.event.append",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),        authority: peer(Audience::Context),
+        body: body::ContextEventAppend,
+        audit: &[
+            ("source", FieldRule::Token),
+            ("event_type", FieldRule::Token),
+            ("app_id", FieldRule::Token),
+            ("entity_id", FieldRule::Token),
+            ("task_id", FieldRule::Token),
+            ("session_id", FieldRule::Token),
+        ],
+        run: |c| context_events::append(c.params, c.client).map_err(BrokerError::from),
+    }
+    ContextEventQuery {
+        name: "context.event.query",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Context),
+        body: body::ContextEventQuery,
+        audit: &[
+            ("source", FieldRule::Token),
+            ("event_type", FieldRule::Token),
+            ("session_id", FieldRule::Token),
+            ("order", FieldRule::Token),
+            ("limit", FieldRule::Count),
+        ],
+        run: |c| context_events::query_for_client(c.params, c.client).map_err(BrokerError::from),
+    }
+    SystemAppEventPublish {
+        name: "system.app-event.publish",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::AppEventPublish,
+        audit: &[("event_type", FieldRule::Token), ("key", FieldRule::Identifier)],
+        run: |c| {
+            let authority = c.authority()?;
+            app_events::publish(c.params, c.client, authority).map_err(BrokerError::from)
+        },
+    }
+    ChannelConfigure {
+        name: "channel.configure",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Scheduler),
+        body: body::ChannelConfigure,
+        audit: &[("platform", FieldRule::Token), ("trigger_id", FieldRule::Identifier)],
+        run: |c| channels::configure(c.params, c.client).await,
+    }
+    ChannelManage {
+        name: "channel.manage",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Scheduler),
+        body: body::ChannelManage,
+        audit: &[("platform", FieldRule::Token), ("action", FieldRule::Token)],
+        run: |c| channels::manage(c.params, c.client).await,
+    }
+    SystemChannelControl {
+        name: "system.channel.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::ChannelControl,
+        audit: &[("action", FieldRule::Token), ("event_id", FieldRule::Identifier), ("text", FieldRule::Size)],
+        run: |c| {
+            let authority = c.authority()?;
+            channels::control(c.params, authority).await
+        },
+    }
+    SystemOperations {
+        name: "system.operations",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Context),
+        body: body::SystemOperations,
+        audit: &[
+            ("source", FieldRule::Token),
+            ("limit", FieldRule::Count),
+        ],
+        run: |c| system_journal::query_for_client(c.params, c.client).map_err(BrokerError::from),
+    }
+
+    // -----------------------------------------------------------------
+    // Notifications
+    // -----------------------------------------------------------------
+    NotificationPublish {
+        name: "notification.publish",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Notification),
+        body: body::NotificationPublish,
+        audit: &[
+            ("source", FieldRule::Identifier),
+            ("kind", FieldRule::Identifier),
+            ("severity", FieldRule::Token),
+            ("title", FieldRule::Size),
+            ("body", FieldRule::Size),
+            ("task_id", FieldRule::Token),
+            ("session_id", FieldRule::Token),
+            ("job_id", FieldRule::Token),
+        ],
+        run: |c| notifications::publish(c.params, c.client).map_err(BrokerError::from),
+    }
+    NotificationView {
+        name: "notification.view",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Notification),
+        body: body::NotificationView,
+        audit: &[("session_id", FieldRule::Token)],
+        run: |c| notifications::view(c.params, c.client).map_err(BrokerError::from),
+    }
+    NotificationList {
+        name: "notification.list",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Notification),
+        body: body::NotificationList,
+        audit: &[("limit", FieldRule::Count)],
+        run: |c| notifications::list(c.params, c.client).map_err(BrokerError::from),
+    }
+    NotificationSubscribe {
+        name: "notification.subscribe",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::poll(),
+        authority: peer(Audience::Notification),
+        body: body::NotificationSubscribe,
+        audit: &[
+            ("cursor", FieldRule::Count),
+            ("limit", FieldRule::Count),
+        ],
+        run: |c| notifications::subscribe(c.params, c.client).await.map_err(BrokerError::from),
+    }
+    NotificationRead {
+        name: "notification.read",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Notification),
+        body: body::NotificationId,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| notifications::mark_read(c.params, c.client).map_err(BrokerError::from),
+    }
+    NotificationReadAll {
+        name: "notification.read_all",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Notification),
+        body: body::NoBody,
+        run: |c| notifications::mark_all_read(c.client).map_err(BrokerError::from),
+    }
+    NotificationAcknowledge {
+        name: "notification.acknowledge",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Notification),
+        body: body::NotificationId,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| notifications::acknowledge(c.params, c.client).map_err(BrokerError::from),
+    }
+    NotificationDismiss {
+        name: "notification.dismiss",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Notification),
+        body: body::NotificationId,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| notifications::dismiss(c.params, c.client).map_err(BrokerError::from),
+    }
+    NotificationPreferencesGet {
+        name: "notification.preferences.get",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::fast(),
+        authority: peer(Audience::Notification),
+        body: body::NoBody,
+        run: |c| notifications::get_preferences(c.client).map_err(BrokerError::from),
+    }
+    NotificationPreferencesSet {
+        name: "notification.preferences.set",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Notification),
+        body: body::NotificationPreferencesSet,
+        audit: &[
+            ("web_enabled", FieldRule::Flag),
+            ("desktop_enabled", FieldRule::Flag),
+            ("ntfy_enabled", FieldRule::Flag),
+            ("retention_days", FieldRule::Count),
+        ],
+        run: |c| notifications::set_preferences(c.params, c.client).map_err(BrokerError::from),
+    }
+    NotificationDeliveryClaim {
+        name: "notification.delivery.claim",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Notification),
+        body: body::NotificationDeliveryClaim,
+        audit: &[
+            ("channel", FieldRule::Token),
+            ("limit", FieldRule::Count),
+        ],
+        run: |c| notifications::claim_deliveries(c.params, c.client).map_err(BrokerError::from),
+    }
+    NotificationDeliveryComplete {
+        name: "notification.delivery.complete",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Notification),
+        body: body::NotificationDeliveryComplete,
+        audit: &[
+            ("id", FieldRule::Token),
+            ("channel", FieldRule::Token),
+            ("status", FieldRule::Token),
+            ("error_code", FieldRule::Token),
+        ],
+        run: |c| notifications::complete_delivery(c.params, c.client).map_err(BrokerError::from),
+    }
+
+    // -----------------------------------------------------------------
+    // Permissions
+    // -----------------------------------------------------------------
+    SystemReviewPrepare {
+        name: "system.review.prepare",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Permission),
+        body: body::SystemReviewPrepare,
+        audit: &[("expected_package", FieldRule::Size)],
+        run: |c| super::system_review::prepare(c.params, c.client).await,
+    }
+    SystemReviewPending {
+        name: "system.review.pending",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Permission),
+        body: body::PermissionList,
+        audit: &[("limit", FieldRule::Count)],
+        run: |c| super::system_review::pending(c.params, c.client).await,
+    }
+    SystemReviewShow {
+        name: "system.review.show",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Permission),
+        body: body::SystemReviewId,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| super::system_review::show(c.params, c.client).await,
+    }
+    SystemReviewDecide {
+        name: "system.review.decide",
+        access: Access::Root,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Permission),
+        body: body::SystemReviewDecide,
+        audit: &[("id", FieldRule::Token), ("owner_uid", FieldRule::Count), ("decision", FieldRule::Token), ("review", FieldRule::Size)],
+        run: |c| super::system_review::decide(c.params, c.client).await,
+    }
+    SystemReviewConsume {
+        name: "system.review.consume",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Permission),
+        body: body::SystemReviewConsume,
+        audit: &[("id", FieldRule::Token), ("expected_package", FieldRule::Size)],
+        run: |c| super::system_review::consume(c.params, c.client).await,
+    }
+    SystemReviewCancel {
+        name: "system.review.cancel",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Permission),
+        body: body::SystemReviewCancel,
+        audit: &[("id", FieldRule::Token), ("review", FieldRule::Size)],
+        run: |c| super::system_review::cancel(c.params, c.client).await,
+    }
+    PermissionPending {
+        name: "permission.pending",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Permission),
+        body: body::PermissionList,
+        audit: &[("limit", FieldRule::Count)],
+        run: |c| permissions::pending(c.params, c.client).map_err(BrokerError::from),
+    }
+    PermissionApps {
+        name: "permission.apps",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Permission),
+        body: body::AppPermissions,
+        audit: &[("action", FieldRule::Token), ("app_id", FieldRule::Token), ("permission_id", FieldRule::Token)],
+        run: |c| super::app_permissions::control(c.params, c.client, None).await.map_err(BrokerError::from),
+    }
+    SystemAppPermissions {
+        name: "system.app-permissions",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::AppPermissions,
+        audit: &[("session", FieldRule::Token), ("action", FieldRule::Token), ("app_id", FieldRule::Token), ("permission_id", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::app_permissions::control(c.params, c.client, Some(authority)).await.map_err(BrokerError::from)
+        },
+    }
+    PermissionRecent {
+        name: "permission.recent",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Permission),
+        body: body::PermissionList,
+        audit: &[("limit", FieldRule::Count)],
+        run: |c| permissions::recent(c.params, c.client).map_err(BrokerError::from),
+    }
+    PermissionStatus {
+        name: "permission.status",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Permission),
+        body: body::PermissionStatus,
+        audit: &[("ids", FieldRule::Size)],
+        run: |c| permissions::status(c.params, c.client).map_err(BrokerError::from),
+    }
+    PermissionRequest {
+        name: "permission.request",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Permission),
+        body: body::PermissionRequest,
+        audit: &[
+            ("verb", FieldRule::Identifier),
+            ("session", FieldRule::Token),
+        ],
+        run: |c| permissions::request(c.params, c.client).map_err(BrokerError::from),
+    }
+    PermissionDecide {
+        name: "permission.decide",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Permission),
+        body: body::PermissionDecide,
+        audit: &[
+            ("id", FieldRule::Token),
+            ("decision", FieldRule::Token),
+            ("owner_uid", FieldRule::Count),
+        ],
+        run: |c| permissions::decide(c.params, c.client).map_err(BrokerError::from),
+    }
+    PermissionRevoke {
+        name: "permission.revoke",
+        access: Access::Root,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Permission),
+        body: body::PermissionRevoke,
+        // The scope of a revocation is safe to name: an owner uid is
+        // already recorded on every request, and the grant session is a
+        // caller-derived string, so it is stored as a token or as
+        // `unloggable`.
+        audit: &[
+            ("owner_uid", FieldRule::Count),
+            ("session", FieldRule::Token),
+        ],
+        run: |c| permissions::revoke(c.params, c.client).await.map_err(BrokerError::from),
+    }
+
+    // -----------------------------------------------------------------
+    // Transactions
+    // -----------------------------------------------------------------
+    TransactionBegin {
+        name: "transaction.begin",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Transaction),
+        body: body::TransactionBegin,
+        run: |c| transactions::begin(c.state, c.params, c.client),
+    }
+    TransactionList {
+        name: "transaction.list",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::Transaction),
+        body: body::NoBody,
+        run: |c| transactions::list(c.state, c.client),
+    }
+    TransactionCommit {
+        name: "transaction.commit",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Transaction),
+        body: body::TransactionId,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| transactions::commit(c.state, c.params, c.client),
+    }
+    TransactionRollback {
+        name: "transaction.rollback",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Transaction),
+        body: body::TransactionId,
+        audit: &[("id", FieldRule::Token)],
+        run: |c| {
+            transactions::rollback(c.state, c.params, c.client).await
+        },
+    }
+
+    // -----------------------------------------------------------------
+    // App / MCP session authority
+    // -----------------------------------------------------------------
+    AppDirectoryInstall {
+        name: "app.directory_install",
+        access: Access::Root,
+        kind: Kind::Mutation,
+        budget: Budget { max_in_flight: 2, deadline: Deadline::Uninterruptible },
+        authority: peer(Audience::AppLaunch),
+        body: body::AppDirectoryInstall,
+        audit: &[("action", FieldRule::Enum(&["publish", "recover"])), ("app_id", FieldRule::Token), ("review_id", FieldRule::Token), ("expected_package", FieldRule::Size), ("force", FieldRule::Flag)],
+        run: |c| super::app_install::install(c.state, c.params, c.client).await,
+    }
+    ProvenanceTrustWithdrawal {
+        name: "provenance.trust_withdrawal",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget { max_in_flight: 2, deadline: Deadline::Uninterruptible },
+        authority: peer(Audience::AppLaunch),
+        body: body::ProvenanceTrustWithdrawal,
+        audit: &[("action", FieldRule::Enum(&["reconcile", "status", "recover"])), ("target", FieldRule::Size), ("request_id", FieldRule::Token)],
+        run: |c| super::trust_withdrawal::handle(c.state, c.params, c.client).await,
+    }
+    AppStoreList {
+        name: "app_store.list",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget { max_in_flight: 2, deadline: Deadline::Interruptible(Duration::from_secs(200)) },
+        authority: peer(Audience::AppLaunch),
+        body: body::NoBody,
+        audit: &[],
+        run: |c| super::app_store::list(c.params, c.client).await,
+    }
+    AppStoreInstalled {
+        name: "app_store.installed",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::mutation(),
+        authority: peer(Audience::AppLaunch),
+        body: body::NoBody,
+        audit: &[],
+        run: |c| super::app_store::installed(c.params, c.client).await,
+    }
+    AppStoreRequests {
+        name: "app_store.requests",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::AppLaunch),
+        body: body::NoBody,
+        audit: &[],
+        run: |c| super::app_store::requests(c.params, c.client).await,
+    }
+    AppStorePrepare {
+        name: "app_store.prepare",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget { max_in_flight: 2, deadline: Deadline::Uninterruptible },
+        authority: peer(Audience::AppLaunch),
+        body: body::AppStoreSelection,
+        audit: &[("app_id", FieldRule::Token), ("sha256", FieldRule::Token)],
+        run: |c| super::app_store::prepare(c.params, c.client).await,
+    }
+    AppStoreCommit {
+        name: "app_store.commit",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget { max_in_flight: 2, deadline: Deadline::Uninterruptible },
+        authority: peer(Audience::AppLaunch),
+        body: body::AppStoreRequest,
+        audit: &[("request_id", FieldRule::Token)],
+        run: |c| super::app_store::commit(c.state, c.params, c.client).await,
+    }
+    AppStoreCancel {
+        name: "app_store.cancel",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::AppLaunch),
+        body: body::AppStoreRequest,
+        audit: &[("request_id", FieldRule::Token)],
+        run: |c| super::app_store::cancel(c.params, c.client).await,
+    }
+    AppStoreAptHook {
+        name: "app_store.apt_hook",
+        access: Access::Root,
+        kind: Kind::Mutation,
+        budget: Budget { max_in_flight: 1, deadline: Deadline::Uninterruptible },
+        authority: peer(Audience::AppLaunch),
+        body: body::AppStoreAptHook,
+        audit: &[("request_id", FieldRule::Token)],
+        run: |c| super::app_store::apt_hook(c.params, c.client).await,
+    }
+    AppStoreOpen {
+        name: "app_store.open",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::AppLaunch),
+        body: body::AppStoreApp,
+        audit: &[("app_id", FieldRule::Token)],
+        run: |c| super::app_store::open(c.params, c.client).await,
+    }
+    AppServiceCall {
+        name: "app_service.call",
+        access: Access::PrivateTaskHost,
+        kind: Kind::Mutation,
+        budget: Budget::launch(),
+        authority: peer(Audience::AppLaunch),
+        body: body::AppServiceCall,
+        audit: &[
+            ("app_id", FieldRule::Token),
+            ("tool", FieldRule::Token),
+        ],
+        run: |c| app_services::call(c.state, c.params, c.client).await,
+    }
+    AppServiceCliCall {
+        name: "app_service.cli_call",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::launch(),
+        authority: peer(Audience::AppLaunch),
+        body: body::AppServiceCliCall,
+        audit: &[
+            ("app_id", FieldRule::Token),
+            ("tool", FieldRule::Token),
+        ],
+        run: |c| app_services::cli_call(c.state, c.params, c.client).await,
+    }
+    AppSessionRegister {
+        name: "app_session.register",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::launch(),
+        authority: peer(Audience::AppLaunch),
+        body: body::AppSessionRegister,
+        audit: &[
+            ("app_id", FieldRule::Token),
+            ("kind", FieldRule::Token),
+            ("operation", FieldRule::Token),
+            ("gui_entry", FieldRule::Token),
+            ("tool", FieldRule::Token),
+            ("args", FieldRule::Size),
+            ("package", FieldRule::Size),
+        ],
+        run: |c| app_sessions::register(c.params, c.client).await,
+    }
+    AppSessionRegisterNative {
+        name: "app_session.register_native",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::launch(),
+        authority: peer(Audience::AppLaunch),
+        body: body::AppSessionRegisterNative,
+        audit: &[("app_id", FieldRule::Token)],
+        run: |c| {
+            app_sessions::register_native(c.params, c.client)
+                .await
+        },
+    }
+    McpSessionRegister {
+        name: "mcp_session.register",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::launch(),
+        authority: peer(Audience::AppLaunch),
+        body: body::McpSessionRegister,
+        audit: &[("command", FieldRule::Size)],
+        run: |c| {
+            app_sessions::register_mcp(c.params, c.client)
+                .await
+                .map_err(BrokerError::from)
+        },
+    }
+    AppSessionBind {
+        name: "app_session.bind",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::launch(),
+        authority: handle(Audience::AppLaunch),
+        body: body::AppSessionBind,
+        audit: &[
+            ("session_id", FieldRule::Token),
+            ("pid", FieldRule::Count),
+        ],
+        run: |c| {
+            app_sessions::bind(c.params, c.client)
+                .await
+                .map_err(BrokerError::from)
+        },
+    }
+    AppSessionCheckLive {
+        name: "app_session.check_live",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::poll(),
+        authority: handle(Audience::AppRelay),
+        body: body::AppSessionCheckLive,
+        audit: &[("session_id", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            app_sessions::check_live(c.params, c.client, authority).await
+        },
+    }
+    AppSessionSetTransient {
+        name: "app_session.set_transient",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::launch(),
+        authority: handle(Audience::AppLaunch),
+        body: body::AppSessionSetTransient,
+        audit: &[
+            ("session_id", FieldRule::Token),
+            ("authorization", FieldRule::Size),
+            ("action_digest", FieldRule::Token),
+        ],
+        run: |c| {
+            app_sessions::set_transient(c.state, c.params, c.client)
+                .await
+                .map_err(BrokerError::from)
+        },
+    }
+    AppGuiLaunch {
+        name: "app.gui.launch",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::launch(),
+        authority: handle(Audience::AppLaunch),
+        body: body::AppGuiLaunch,
+        audit: &[("session_id", FieldRule::Token), ("args", FieldRule::Size)],
+        run: |c| super::gui::launch(c.params, c.client).await,
+    }
+    AppGuiWait {
+        name: "app.gui.wait",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::poll(),
+        authority: peer(Audience::AppLaunch),
+        body: body::AppGuiWait,
+        audit: &[("session_id", FieldRule::Token)],
+        run: |c| super::gui::wait(c.params, c.client).await,
+    }
+    AppGuiStop {
+        name: "app.gui.stop",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::launch(),
+        authority: peer(Audience::AppLaunch),
+        body: body::AppGuiStop,
+        audit: &[("session_id", FieldRule::Token)],
+        run: |c| super::gui::stop(c.params, c.client).await,
+    }
+    AppSessionDeregister {
+        name: "app_session.deregister",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::launch(),
+        authority: handle(Audience::AppLaunch),
+        body: body::AppSessionDeregister,
+        audit: &[("session_id", FieldRule::Token)],
+        run: |c| {
+            app_sessions::deregister(c.params, c.client)
+                .await
+                .map_err(BrokerError::from)
+        },
+    }
+
+    AppSessionRelay {
+        name: "app_session.relay",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: handle(Audience::AppRelay),
+        body: body::AppSessionRelay,
+        audit: &[
+            ("session_id", FieldRule::Token),
+            ("command", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+            app_sessions::relay(c.state, c.params.clone(), c.client, authority).await
+        },
+    }
+
+    // -----------------------------------------------------------------
+    // Scheduler authority
+    // -----------------------------------------------------------------
+    SchedulerRun {
+        name: "scheduler.run",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Scheduler),
+        body: body::SchedulerRun,
+        audit: &[
+            ("subsystem", FieldRule::Enum(&["cron", "triggers"])),
+            ("command", FieldRule::Token),
+            ("args", FieldRule::Size),
+        ],
+        run: |c| scheduler::run(c.params, c.client).await,
+    }
+
+    // -----------------------------------------------------------------
+    // Credentials
+    // -----------------------------------------------------------------
+    CredentialOauthRefresh {
+        name: "credential.oauth-refresh",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer_session(Audience::Credential),
+        body: body::CredentialOauthRefresh,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("namespace", FieldRule::Token),
+            (
+                "credential",
+                FieldRule::Enum(&["GOOGLE_ACCESS_TOKEN", "MICROSOFT_ACCESS_TOKEN"]),
+            ),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+        credentials::oauth_refresh(c.params, c.client, authority).await
+        },
+    }
+
+    // -----------------------------------------------------------------
+    // System services
+    // -----------------------------------------------------------------
+    SystemAudioControl {
+        name: "system.audio.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::AudioControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("target", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    audio::control(c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemAccessibilityControl {
+        name: "system.accessibility.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::AccessibilityControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    accessibility::control(c.params, c.client, authority).await
+        },
+    }
+    SystemBackupControl {
+        name: "system.backup.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::heavy(),
+        authority: session(Audience::SystemService),
+        body: body::BackupControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("snapshot", FieldRule::Token),
+            ("keep_daily", FieldRule::Count),
+            ("keep_weekly", FieldRule::Count),
+            ("keep_monthly", FieldRule::Count),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    backup::control(c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemBluetoothControl {
+        name: "system.bluetooth.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::BluetoothControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("adapter", FieldRule::Token),
+            ("device", FieldRule::Token),
+            ("pairing_id", FieldRule::Token),
+            ("state", FieldRule::Token),
+            ("seconds", FieldRule::Count),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+        bluetooth::control(c.params, c.client, authority)
+            .await
+            .map_err(BrokerError::from)
+        },
+    }
+    SystemCameraControl {
+        name: "system.camera.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::CameraControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("node_id", FieldRule::Token),
+            ("format", FieldRule::Token),
+            ("width", FieldRule::Count),
+            ("height", FieldRule::Count),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    camera::control(c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemClipboardControl {
+        name: "system.clipboard.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::ClipboardControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("mime", FieldRule::Identifier),
+            ("deadline_unix_ms", FieldRule::Count),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+        clipboard::control(c.params, c.client, authority)
+            .await
+        },
+    }
+    SystemContainerControl {
+        name: "system.container.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::heavy(),
+        authority: session(Audience::SystemService),
+        body: body::ContainerControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("runtime", FieldRule::Token),
+            ("namespace", FieldRule::Token),
+            ("target", FieldRule::Identifier),
+            ("signal", FieldRule::Token),
+            ("lines", FieldRule::Count),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+        containers::control(c.params, c.client, authority)
+            .await
+            .map_err(BrokerError::from)
+        },
+    }
+    SystemConfigControl {
+        name: "system.config.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::ConfigControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("target", FieldRule::Identifier),
+            ("confirm", FieldRule::Flag),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+        config_editor::control(c.params, c.client, authority)
+            .await
+            .map_err(BrokerError::from)
+        },
+    }
+    SystemCrashInspect {
+        name: "system.crash.inspect",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: session(Audience::SystemService),
+        body: body::CrashInspect,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("id", FieldRule::Token),
+            ("limit", FieldRule::Count),
+            ("since_minutes", FieldRule::Count),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    crash::inspect(c.params, authority).await.map_err(BrokerError::from)
+        },
+    }
+    AiChat {
+        name: "ai.chat",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget { max_in_flight: 4, deadline: Deadline::Uninterruptible },
+        authority: session(Audience::SystemService),
+        body: body::AiChat,
+        audit: &[("session", FieldRule::Token), ("app_id", FieldRule::Identifier), ("origin", FieldRule::Token), ("prompt", FieldRule::Size), ("system", FieldRule::Size), ("tools", FieldRule::Size), ("max_units", FieldRule::Count)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::ai::chat(c.params, c.client, authority).await
+        },
+    }
+    GuiFileReadRequest {
+        name: "gui.file.read.request",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::GuiResource),
+        body: body::GuiFileReadRequest,
+        audit: &[("session", FieldRule::Token), ("node", FieldRule::Count)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::gui::request_file_read(c.params, c.client, authority).await
+        },
+    }
+    GuiFileReadStatus {
+        name: "gui.file.read.status",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::GuiResource),
+        body: body::GuiFileReadStatusRequest,
+        audit: &[("session", FieldRule::Token), ("node", FieldRule::Count), ("selection_id", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::gui::file_read_status(c.params, c.client, authority).await
+        },
+    }
+    GuiFileWriteRequest {
+        name: "gui.file.write.request",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::GuiResource),
+        body: body::GuiFileWriteRequest,
+        audit: &[("session", FieldRule::Token), ("node", FieldRule::Count)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::gui::request_file_write(c.params, c.client, authority).await
+        },
+    }
+    GuiFileWriteStatus {
+        name: "gui.file.write.status",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::GuiResource),
+        body: body::GuiFileWriteStatusRequest,
+        audit: &[("session", FieldRule::Token), ("node", FieldRule::Count), ("selection_id", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::gui::file_write_status(c.params, c.client, authority).await
+        },
+    }
+    GuiFileSaveReserve {
+        name: "gui.file.save.reserve",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::GuiResource),
+        body: body::GuiFileSaveReservationRequest,
+        audit: &[("session", FieldRule::Token), ("node", FieldRule::Count), ("selection_id", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::gui::reserve_file_save(c.params, c.client, authority).await
+        },
+    }
+    GuiFileCreateRequest {
+        name: "gui.file.create.request",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::GuiResource),
+        body: body::GuiFileCreateRequest,
+        audit: &[("session", FieldRule::Token), ("parent_node", FieldRule::Count), ("name", FieldRule::Size)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::gui::request_file_create(c.params, c.client, authority).await
+        },
+    }
+    GuiFileCreateStatus {
+        name: "gui.file.create.status",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::GuiResource),
+        body: body::GuiFileCreateStatusRequest,
+        audit: &[("session", FieldRule::Token), ("parent_node", FieldRule::Count), ("selection_id", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::gui::file_create_status(c.params, c.client, authority).await
+        },
+    }
+    GuiFileCreateReserve {
+        name: "gui.file.create.reserve",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::GuiResource),
+        body: body::GuiFileCreateReservationRequest,
+        audit: &[("session", FieldRule::Token), ("parent_node", FieldRule::Count), ("selection_id", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::gui::reserve_file_create(c.params, c.client, authority).await
+        },
+    }
+    SystemFilesystemRead {
+        name: "system.filesystem.read",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: session(Audience::SystemService),
+        body: body::FilesystemAccess,
+        audit: &[("session", FieldRule::Token), ("request", FieldRule::Size)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::filesystem::access(c.params, authority, false).await.map_err(BrokerError::from)
+        },
+    }
+    SystemFilesystemWrite {
+        name: "system.filesystem.write",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::FilesystemAccess,
+        audit: &[("session", FieldRule::Token), ("request", FieldRule::Size)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::filesystem::access(c.params, authority, true).await.map_err(BrokerError::from)
+        },
+    }
+    GuiCaptureControl {
+        name: "gui.capture.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::GuiResource),
+        body: body::GuiCaptureControl,
+        audit: &[("session", FieldRule::Token), ("request_id", FieldRule::Token), ("action", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::capture::gui::control(c.params, c.client, authority).await
+        },
+    }
+    GuiMediaExchange {
+        name: "gui.media.exchange",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::GuiResource),
+        body: body::GuiMediaExchange,
+        audit: &[("session", FieldRule::Token)],
+        run: |_c| Err(BrokerError::authorization(
+            "playback exchange requires the exact Root-held private GUI endpoint")),
+    }
+    GuiAudioControl {
+        name: "gui.audio.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::GuiResource),
+        body: body::GuiAudioControl,
+        audit: &[("session", FieldRule::Token), ("stream_id", FieldRule::Token),
+            ("action", FieldRule::Token), ("sequence", FieldRule::Count)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::gui::audio::control(c.params, c.client, authority).await
+        },
+    }
+    GuiFilePicker {
+        name: "gui.file.picker",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::GuiResource),
+        body: body::GuiFilePicker,
+        audit: &[("session", FieldRule::Token), ("request_id", FieldRule::Token), ("action", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::gui::file_picker::control(c.params, c.client, authority).await
+        },
+    }
+    GuiNotificationExchange {
+        name: "gui.notification.exchange",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::GuiResource),
+        body: body::GuiNotificationExchange,
+        audit: &[("session", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::notifications::gui::control(c.params, c.client, authority).await
+        },
+    }
+    NotificationPresentationControl {
+        name: "notification.presentation.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::Notification),
+        body: body::NotificationPresentationControl,
+        audit: &[("action", FieldRule::Token), ("generation", FieldRule::Token)],
+        run: |c| super::notifications::gui::panel_control(c.params, c.client).await,
+    }
+    SystemDesktopPreferencesControl {
+        name: "system.desktop-preferences.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::DesktopPreferencesControl,
+        audit: &[("session", FieldRule::Token), ("action", FieldRule::Token),
+            ("namespace", FieldRule::Token), ("version", FieldRule::Count)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::desktop_preferences::control(c.params, c.client, authority).await
+        },
+    }
+    SystemScreenshotCapture {
+        name: "system.screenshot.capture",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget { max_in_flight: 2, deadline: Deadline::Uninterruptible },
+        authority: session(Audience::SystemService),
+        body: body::ScreenshotCapture,
+        audit: &[("session", FieldRule::Token), ("request", FieldRule::Size)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::capture::capture(c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemNotificationControl {
+        name: "system.notification.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::AppNotificationControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("deadline_unix_ms", FieldRule::Count),
+            ("request", FieldRule::Size),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+            super::app_notifications::control(c.params, c.client, authority)
+        },
+    }
+    SystemObservationQuery {
+        name: "system.observation.query",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: session(Audience::SystemService),
+        body: body::SessionAction,
+        audit: &[("session", FieldRule::Token), ("action", FieldRule::Enum(&["tasks", "resources"]))],
+        run: |c| {
+            let authority = c.authority()?;
+            super::observations::query(c.params, c.client, authority).await
+        },
+    }
+    SystemCalendarDay {
+        name: "system.calendar.day",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget { max_in_flight: 4, deadline: Deadline::Interruptible(Duration::from_secs(10)) },
+        authority: session(Audience::SystemService),
+        body: body::CalendarDay,
+        audit: &[("session", FieldRule::Token), ("year", FieldRule::Integer), ("month", FieldRule::Count), ("day", FieldRule::Count)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::calendar::day(c.params, c.client, authority).await
+        },
+    }
+    SystemMediaPlayerControl {
+        name: "system.media-player.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget { max_in_flight: 4, deadline: Deadline::Uninterruptible },
+        authority: session(Audience::SystemService),
+        body: body::MediaPlayerControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Enum(&["status", "play", "pause", "stop", "next", "previous", "toggle"])),
+            ("deadline_unix_ms", FieldRule::Count),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+            super::media_player::control(c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    GuiDesktopLaunch {
+        name: "gui.desktop.launch",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::GuiResource),
+        body: body::DesktopMenuLaunch,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("app_id", FieldRule::Token),
+            ("review_id", FieldRule::Token),
+        ],
+        run: |_c| Err(BrokerError::authorization(
+            "desktop menu launches require the exact Root-held private GUI endpoint")),
+    }
+    GuiPowerReview {
+        name: "gui.power.review",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::GuiResource),
+        body: body::DesktopPowerReview,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("power_action", FieldRule::Enum(&["poweroff", "reboot", "suspend", "hibernate", "hybrid-sleep", "suspend-then-hibernate"])),
+            ("review_id", FieldRule::Token),
+        ],
+        run: |_c| Err(BrokerError::authorization(
+            "desktop power reviews require the exact Root-held private GUI endpoint")),
+    }
+    GuiDesktopLock {
+        name: "gui.desktop.lock",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::GuiResource),
+        body: body::DesktopLock,
+        audit: &[("session", FieldRule::Token)],
+        run: |_c| Err(BrokerError::authorization(
+            "screen locking requires the exact Root-held private GUI endpoint")),
+    }
+    GuiDesktopEvents {
+        name: "gui.desktop.events",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: peer(Audience::GuiResource),
+        body: body::DesktopEvents,
+        audit: &[("session", FieldRule::Token)],
+        run: |_c| Err(BrokerError::authorization(
+            "desktop events require the exact Root-held private GUI endpoint")),
+    }
+    GuiSystemSettings {
+        name: "gui.system-settings",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::GuiResource),
+        body: body::SystemSettings,
+        audit: &[("session", FieldRule::Token), ("action", FieldRule::Token)],
+        run: |_c| Err(BrokerError::authorization(
+            "machine settings require the exact OS-started Settings window")),
+    }
+    SystemDesktopControl {
+        name: "system.desktop.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::DesktopControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("app_id", FieldRule::Token),
+            ("identifier", FieldRule::Token),
+            ("workspace", FieldRule::Token),
+            ("uris", FieldRule::Size),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    desktop::control(c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemBrowserControl {
+        name: "system.browser.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::BrowserControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("tab_id", FieldRule::Count),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+            browser::control(c.params, authority).await
+        },
+    }
+    SystemBrowserRender {
+        name: "system.browser.render",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::log_query(),
+        authority: session(Audience::SystemService),
+        body: body::BrowserRender,
+        audit: &[("session", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            browser::render(c.params, authority, c.state).await
+        },
+    }
+    SystemMailControl {
+        name: "system.mail.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget { max_in_flight: 2, deadline: Deadline::Uninterruptible },
+        authority: session(Audience::SystemService),
+        body: body::MailControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("account", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+            mail::control(c.params, c.client, authority).await
+        },
+    }
+    SystemDisplayControl {
+        name: "system.display.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::DisplayControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("output", FieldRule::Token),
+            ("transform", FieldRule::Token),
+            ("percent", FieldRule::Count),
+            ("adaptive_sync", FieldRule::Token),
+            ("backlight", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    display::control(c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemEventsControl {
+        name: "system.events.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::EventsControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("source", FieldRule::Token),
+            ("limit", FieldRule::Count),
+            ("pid", FieldRule::Count),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+        event_center::control(c.params, authority)
+            .await
+            .map_err(BrokerError::from)
+        },
+    }
+    SystemFileReplace {
+        name: "system.file.replace",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::FileReplace,
+        audit: &[("session", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            file_changes::replace(c.params, authority).await
+        },
+    }
+    SystemFirewallControl {
+        name: "system.firewall.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::FirewallControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("direction", FieldRule::Token),
+            ("interface", FieldRule::Token),
+            ("port", FieldRule::Token),
+            ("protocol", FieldRule::Token),
+            ("rule_action", FieldRule::Token),
+            ("rule_id", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    firewall::control(c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemHardwareInspect {
+        name: "system.hardware.inspect",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: session(Audience::SystemService),
+        body: body::SessionAction,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    hardware::inspect(c.params, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemLocationQuery {
+        name: "system.location.query",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: session(Audience::SystemService),
+        body: body::LocationQuery,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("accuracy", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    location::query(c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemNetworkControl {
+        name: "system.network.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::NetworkControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("state", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    network::control(c.params, c.client, authority).await
+        },
+    }
+    SystemNetworkDiagnose {
+        name: "system.network.diagnose",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget {
+            max_in_flight: 8,
+            deadline: Deadline::Interruptible(Duration::from_secs(30)),
+        },
+        authority: session(Audience::SystemService),
+        body: body::NetworkDiagnose,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("attempts", FieldRule::Count),
+            ("timeout_ms", FieldRule::Count),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    network_diagnostics::diagnose(c.params, authority).await
+        },
+    }
+    SystemPackageQuery {
+        name: "system.package.query",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget {
+            max_in_flight: 4,
+            deadline: Deadline::Interruptible(Duration::from_secs(105)),
+        },
+        authority: session(Audience::SystemService),
+        body: body::PackageQuery,
+        audit: &[
+            ("session", FieldRule::Token),
+            (
+                "action",
+                FieldRule::Enum(&["search", "show", "installed", "available", "catalog", "updates",
+                    "store", "refresh", "flatpak-refresh", "flatpak-catalog", "flatpak-installed", "flatpak-updates"]),
+            ),
+            ("name", FieldRule::Identifier),
+            ("query", FieldRule::Size),
+            ("limit", FieldRule::Count),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+            packages::query::query(c.params, c.client, authority).await
+        },
+    }
+    SystemPackageInstall {
+        name: "system.package.install",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::heavy(),
+        authority: session(Audience::SystemService),
+        body: body::PackageInstall,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("mutation_session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("package", FieldRule::Identifier),
+            ("version", FieldRule::Identifier),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    packages::install(c.state, c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    GuiPackageIntent {
+        name: "gui.package.intent",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer(Audience::GuiResource),
+        body: body::PackageIntent,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("invocation_id", FieldRule::Token),
+            ("mode", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("packages", FieldRule::Size),
+        ],
+        run: |_c| Err(BrokerError::authorization(
+            "package intents require the exact Root-held private GUI endpoint")),
+    }
+    SystemPackageControl {
+        name: "system.package.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::heavy(),
+        authority: session(Audience::SystemService),
+        body: body::PackageControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("mutation_session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("package", FieldRule::Identifier),
+            ("version", FieldRule::Identifier),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    packages::control(c.state, c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemPackageRestore {
+        name: "system.package.restore",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::heavy(),
+        authority: peer_session_with_transient(Audience::SystemService),
+        body: body::PackageRestore,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("mutation_session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("package", FieldRule::Identifier),
+            ("previous_version", FieldRule::Identifier),
+            ("was_held", FieldRule::Flag),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    packages::restore(c.state, c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemPackageStatus {
+        name: "system.package.status",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::fast(),
+        authority: peer(Audience::SystemService),
+        body: body::PackageTransactionStatus,
+        audit: &[("request_id", FieldRule::Token), ("invocation_id", FieldRule::Token)],
+        run: |c| packages::transaction_status(c.params, c.client).await,
+    }
+    SystemPackageRecover {
+        name: "system.package.recover",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::heavy(),
+        authority: peer(Audience::SystemService),
+        body: body::PackageTransactionRecover,
+        audit: &[("request_id", FieldRule::Token)],
+        run: |c| packages::transaction_recover(c.params, c.client).await,
+    }
+    SystemPowerControl {
+        name: "system.power.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::PowerControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    power::control(c.params, c.client, authority).await
+        },
+    }
+    SystemPrinterControl {
+        name: "system.printer.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::PrinterControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("printer", FieldRule::Token),
+            ("job_id", FieldRule::Token),
+            ("media", FieldRule::Token),
+            ("sides", FieldRule::Token),
+            ("copies", FieldRule::Count),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    printer::control(c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemSecurityInspect {
+        name: "system.security.inspect",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::query(),
+        authority: session(Audience::SystemService),
+        body: body::SessionAction,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    security::inspect(c.params, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemServiceControl {
+        name: "system.service.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::ServiceControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("mutation_session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("unit", FieldRule::Identifier),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    systemd::control(c.params, c.client, authority).await
+        },
+    }
+    SystemServiceRestore {
+        name: "system.service.restore",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: peer_session_with_transient(Audience::SystemService),
+        body: body::ServiceRestore,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("mutation_session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("unit", FieldRule::Identifier),
+            ("active", FieldRule::Flag),
+            ("enabled", FieldRule::Flag),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    systemd::restore(c.params, authority).await
+        },
+    }
+    SystemSnapshotControl {
+        name: "system.snapshot.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::heavy(),
+        authority: session(Audience::SystemService),
+        body: body::SnapshotControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("id", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    snapshots::control(c.params, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemStorageControl {
+        name: "system.storage.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::heavy(),
+        authority: session(Audience::SystemService),
+        body: body::StorageControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("device", FieldRule::Identifier),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    storage::control(c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemUsbControl {
+        name: "system.usb.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::UsbControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("device", FieldRule::Token),
+            ("rule_id", FieldRule::Token),
+            ("state", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+    usb_guard::control(c.params, c.client, authority).await.map_err(BrokerError::from)
+        },
+    }
+    SystemRegionalSettingsControl {
+        name: "system.regional-settings.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::RegionalSettingsControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("lang", FieldRule::Identifier),
+            ("region", FieldRule::Identifier),
+            ("languages", FieldRule::Identifier),
+            ("hostname", FieldRule::Identifier),
+            ("timezone", FieldRule::Identifier),
+            ("enabled", FieldRule::Flag),
+            ("layout", FieldRule::Identifier),
+            ("model", FieldRule::Identifier),
+            ("variant", FieldRule::Identifier),
+            ("options", FieldRule::Size),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+            super::regional_settings::control(c.params, c.client, authority).await
+        },
+    }
+    SystemUsersControl {
+        name: "system.users.control",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: session(Audience::SystemService),
+        body: body::UsersControl,
+        audit: &[
+            ("session", FieldRule::Token),
+            ("action", FieldRule::Token),
+            ("user", FieldRule::Token),
+            ("uid", FieldRule::Count),
+            ("new_name", FieldRule::Token),
+            ("account_type", FieldRule::Enum(&["standard", "administrator"])),
+            ("group", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+            users::control(c.params, c.client, authority).await
+        },
+    }
+}
+
+/// Route names any authenticated peer may reach.
+pub fn user_commands() -> impl Iterator<Item = &'static str> {
+    ROUTES
+        .iter()
+        .filter(|route| route.access == Access::User)
+        .map(|route| route.name)
+}
+
+/// Route names only root may reach.
+pub fn root_commands() -> impl Iterator<Item = &'static str> {
+    ROUTES
+        .iter()
+        .filter(|route| route.access == Access::Root)
+        .map(|route| route.name)
+}
+
+/// Route names reachable only through an authenticated private Host broker.
+pub fn private_task_host_commands() -> impl Iterator<Item = &'static str> {
+    ROUTES
+        .iter()
+        .filter(|route| route.access == Access::PrivateTaskHost)
+        .map(|route| route.name)
+}
+
+#[cfg(test)]
+mod tests {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/test/unit/yuosd/routes.rs"
+    ));
+}

@@ -200,7 +200,7 @@ pub const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
 
 /// Streamable-HTTP / SSE transport for connecting to a **remote** MCP
 /// server (the MCP 2025 "Streamable HTTP" transport). This is the gap
-/// that kept ClawOS from using hosted MCP servers — stdio only reaches
+/// that kept YuOS from using hosted MCP servers — stdio only reaches
 /// local subprocesses.
 ///
 /// `send` POSTs a JSON-RPC frame to the endpoint; the server answers

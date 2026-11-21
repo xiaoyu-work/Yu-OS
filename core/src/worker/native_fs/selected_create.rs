@@ -11,8 +11,8 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::Instant;
 
 use crate::caps::{Cap, Verb};
-use crate::clawd::authority::Authorized;
-use crate::clawd::client_identity::FsIdentityGuard;
+use crate::yuosd::authority::Authorized;
+use crate::yuosd::client_identity::FsIdentityGuard;
 
 use super::selected_read::ReadProvider;
 use super::selected_write::{WriteLeaseCheck, bind_session};
@@ -120,7 +120,7 @@ impl CreateCandidate {
     fn absent_locked(&self, view: &Shared) -> Result<(), i32> {
         self.revalidate_locked(view)?;
         let _owner = FsIdentityGuard::enter(view.owner).map_err(|_| libc::EACCES)?;
-        match crate::clawd::filesystem::open_at(
+        match crate::yuosd::filesystem::open_at(
             &self.parent,
             OsStr::new(&self.name),
             libc::O_PATH | libc::O_NOFOLLOW,
@@ -231,11 +231,11 @@ impl ReadProvider {
         parent_node: u64,
         name: &str,
     ) -> Result<Arc<CreateCandidate>, String> {
-        claw_os_sdk::generated::validate_gui_file_create_request(
+        yuos_sdk::generated::validate_gui_file_create_request(
             &serde_json::json!({"parent_node":parent_node,"name":name}),
         )
         .map_err(|error| error.to_string())?;
-        if name.starts_with(".cos-save-") || name.starts_with(".cos-native-") {
+        if name.starts_with(".yuos-save-") || name.starts_with(".yuos-native-") {
             return Err("creation target uses the private native staging namespace".into());
         }
         let shared = self.shared.upgrade().ok_or("native view has retired")?;
@@ -400,7 +400,7 @@ impl ReadProvider {
             return Err("native reservation bound reached".into());
         }
         let suffix = uuid::Uuid::new_v4().simple().to_string();
-        let name = format!(".cos-save-{suffix}");
+        let name = format!(".yuos-save-{suffix}");
         let relative = lease.candidate.parent_relative.join(&name);
         if relative == lease.candidate.relative
             || saves.iter().any(|slot| slot.relative == relative)
@@ -535,7 +535,7 @@ pub(super) fn commit(
                 crate::session::journal::begin_mutation(crate::session::journal::MutationStart {
                     partition: crate::session::journal::Partition::Session(sid.clone()),
                     owner_uid: shared.owner,
-                    route: crate::clawd::routes::Command::SystemFilesystemWrite
+                    route: crate::yuosd::routes::Command::SystemFilesystemWrite
                         .route()
                         .name,
                     request_key: &key,
@@ -559,7 +559,7 @@ pub(super) fn commit(
             return Err(error);
         }
     };
-    let stage_name = OsString::from(format!(".cos-native-{}", uuid::Uuid::new_v4().simple()));
+    let stage_name = OsString::from(format!(".yuos-native-{}", uuid::Uuid::new_v4().simple()));
     let stage = prepare_stage(shared, parent, &stage_name, bytes);
     let mut published = false;
     let dispatched = stage.and_then(|file| {
@@ -682,7 +682,7 @@ fn prepare_stage(shared: &Shared, parent: &File, name: &OsStr, bytes: &[u8]) -> 
     }
     let retained_parent = parent.try_clone().map_err(errno)?;
     let _owner = FsIdentityGuard::enter(shared.owner).map_err(|_| libc::EACCES)?;
-    let file = crate::clawd::filesystem::open_at(
+    let file = crate::yuosd::filesystem::open_at(
         parent,
         name,
         libc::O_RDWR | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW,
@@ -729,7 +729,7 @@ fn discard_unpublished_stage(shared: &Shared, parent: &File, name: &OsStr) -> Re
     });
     let _owner = FsIdentityGuard::enter(shared.owner).map_err(|_| libc::EACCES)?;
     let current =
-        crate::clawd::filesystem::open_at(parent, name, libc::O_PATH | libc::O_NOFOLLOW, 0);
+        crate::yuosd::filesystem::open_at(parent, name, libc::O_PATH | libc::O_NOFOLLOW, 0);
     match index {
         None => {
             if !matches!(current, Err(ref error) if error.raw_os_error() == Some(libc::ENOENT)) {

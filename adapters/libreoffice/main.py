@@ -4,7 +4,7 @@ documents without learning soffice's flags.
 
 Upstream: https://www.libreoffice.org/ (MPL-2.0).
 Binary discovery order:
-1. ``$CLAW_SOFFICE_BIN`` (test override).
+1. ``$YUOS_SOFFICE_BIN`` (test override).
 2. ``soffice`` on PATH (typical Linux package).
 3. ``libreoffice`` on PATH (some distros).
 
@@ -22,14 +22,14 @@ import shutil
 import subprocess
 import tempfile
 
-from claw_os_sdk.mcp import App
+from yuos_sdk.mcp import App
 
 
 _HERE = pathlib.Path(__file__).resolve().parent
 
 
 def _soffice_bin() -> str:
-    explicit = os.environ.get("CLAW_SOFFICE_BIN")
+    explicit = os.environ.get("YUOS_SOFFICE_BIN")
     if explicit:
         return explicit
     for cand in ("soffice", "libreoffice"):
@@ -67,7 +67,7 @@ def _run_convert(input: str, output_dir: str, target_format: str) -> pathlib.Pat
     base_ext = fmt.split(":", 1)[0]
     dst = out_dir / f"{src.stem}.{base_ext}"
 
-    profile_dir = tempfile.mkdtemp(prefix="claw-lo-")
+    profile_dir = tempfile.mkdtemp(prefix="yuos-lo-")
     try:
         cmd = [
             _soffice_bin(),

@@ -1,7 +1,7 @@
 # App, Agent, and AI Integration
 
-Claw OS has one public, multi-language developer surface:
-[`claw-os-sdk`](../claw-os-sdk/). Python, Rust, Node, and Go consume the
+Yu OS has one public, multi-language developer surface:
+[`yuos-sdk`](../yuos-sdk/). Python, Rust, Node, and Go consume the
 same versioned wire schemas. MCP is an SDK module and the only typed service
 contract for Agent-to-App calls; it is not a separate SDK or a
 second registration format.
@@ -83,10 +83,10 @@ same App identity.
 
 ## 2. Authentication is workload identity
 
-Claw OS does not give Apps API keys and does not trust identity fields supplied
+Yu OS does not give Apps API keys and does not trust identity fields supplied
 in MCP arguments or environment variables.
 
-`clawd` derives the caller from registered workload state:
+`yuosd` derives the caller from registered workload state:
 
 - owner UID;
 - session id;
@@ -103,7 +103,7 @@ context or downgrade an App-owned agent to the System Agent.
 The Gateway serializes this identity under the reserved MCP metadata key:
 
 ```text
-_meta["claw-os.dev/call-context"]
+_meta["yuos.dev/call-context"]
 ```
 
 The versioned context contains `call_id`, `trace_id`, `deadline_unix_ms`,
@@ -134,7 +134,7 @@ agent.invoke:notes/*            covers the declared tools under notes
 invoke authority.
 
 Caller invoke authority is not copied into the target process. After the
-caller is authorized, `clawd` derives the target's capabilities from that
+caller is authorized, `yuosd` derives the target's capabilities from that
 tool's signed `needs[]` and effective validated arguments. The resulting
 `AppGateway` grant is:
 
@@ -169,8 +169,8 @@ System Agent or permitted external Agent
 Important properties:
 
 1. The Extension Host accepts only typed App id, tool name, and arguments from
-   the worker. It does not expose the real `/run/cos/clawd.sock`.
-2. `clawd` independently verifies the package reference, signed manifest,
+   the worker. It does not expose the real `/run/yuos/yuosd.sock`.
+2. `yuosd` independently verifies the package reference, signed manifest,
    exact declared tool, caller principal, capability generation, and deadline.
 3. Authority-time package lookup bypasses the discovery cache. Replacing a
    signed child file after registration invalidates the next call.
@@ -186,7 +186,7 @@ Important properties:
 ### Python
 
 ```python
-from claw_os_sdk.mcp import App, current_context
+from yuos_sdk.mcp import App, current_context
 
 app = App.from_manifest()
 
@@ -212,7 +212,7 @@ context.
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use claw_os_sdk::mcp::{App, CallContext, Tool, ToolResult};
+use yuos_sdk::mcp::{App, CallContext, Tool, ToolResult};
 use serde_json::Value;
 
 struct GetNote;

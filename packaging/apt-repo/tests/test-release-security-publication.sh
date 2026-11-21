@@ -1,7 +1,7 @@
 #!/bin/bash
 # packaging/apt-repo/tests/test-release-security-publication.sh
 #
-# Publication-side regression tests for Claw OS update downgrade
+# Publication-side regression tests for Yu OS update downgrade
 # protection. These run against real `.deb` archives, real OpenPGP
 # signatures made with an ephemeral key, and the real
 # `verify-release-security.sh` used by `build-repo.sh`.
@@ -16,7 +16,7 @@
 #   bash packaging/apt-repo/tests/test-release-security-publication.sh
 #
 # Environment:
-#   COS_TEST_TMPDIR  scratch root (must be a Linux filesystem)
+#   YUOS_TEST_TMPDIR  scratch root (must be a Linux filesystem)
 
 set -euo pipefail
 
@@ -29,7 +29,7 @@ SYNC="$PROJECT_DIR/packaging/apt-repo/sync-existing-packages.sh"
 MAKE_MANIFEST="$PROJECT_DIR/packaging/release-security/make-manifest.py"
 POLICY="$PROJECT_DIR/packaging/release-security/policy.json"
 
-WORK_ROOT="${COS_TEST_TMPDIR:-$PROJECT_DIR/build/tests}"
+WORK_ROOT="${YUOS_TEST_TMPDIR:-$PROJECT_DIR/build/tests}"
 WORK="$WORK_ROOT/release-security-publication-$$"
 SUITE=trixie
 COMPONENT=main
@@ -39,9 +39,9 @@ cleanup() {
     if [ -n "${GNUPGHOME:-}" ] && [ -d "${GNUPGHOME:-}" ]; then
         gpgconf --kill all >/dev/null 2>&1 || true
     fi
-    # `COS_TEST_KEEP=1` retains the scratch repositories so a failed
+    # `YUOS_TEST_KEEP=1` retains the scratch repositories so a failed
     # publication can be inspected as the real thing.
-    [ -n "${COS_TEST_KEEP:-}" ] || rm -rf "$WORK"
+    [ -n "${YUOS_TEST_KEEP:-}" ] || rm -rf "$WORK"
 }
 trap cleanup EXIT
 
@@ -64,7 +64,7 @@ mkdir -p "$WORK"
 export GNUPGHOME="$WORK/gnupg"
 mkdir -m 700 -p "$GNUPGHOME"
 gpg --batch --quiet --passphrase '' --quick-generate-key \
-    'Claw OS Publication Test <test@example.invalid>' default default never \
+    'Yu OS Publication Test <test@example.invalid>' default default never \
     >/dev/null 2>&1
 KEY_ID="$(gpg --batch --with-colons --list-secret-keys \
     | awk -F: '$1 == "fpr" { print $10; exit }')"
@@ -100,7 +100,7 @@ make_deb() {
 
     local stage="$WORK/stage-$package-$version-$arch"
     rm -rf "$stage"
-    mkdir -p "$stage/DEBIAN" "$stage/usr/lib/cos/release-security/$package"
+    mkdir -p "$stage/DEBIAN" "$stage/usr/lib/yuos/release-security/$package"
     local path
     for path in $(component_paths "$package"); do
         mkdir -p "$stage$(dirname "$path")"
@@ -128,12 +128,12 @@ PY
         --suite "$SUITE" \
         --stage-dir "$stage" \
         --policy "$policy" \
-        --output "$stage/usr/lib/cos/release-security/$package/manifest.json" \
+        --output "$stage/usr/lib/yuos/release-security/$package/manifest.json" \
         "${sign_args[@]}" "${issued_args[@]}" > /dev/null
     rm -f "$stage/policy.json"
 
     if [ -n "$tamper" ]; then
-        python3 - "$stage/usr/lib/cos/release-security/$package/manifest.json" <<'PY'
+        python3 - "$stage/usr/lib/yuos/release-security/$package/manifest.json" <<'PY'
 import json, sys
 path = sys.argv[1]
 document = json.loads(open(path, encoding="utf-8").read())
@@ -152,8 +152,8 @@ Version: $version
 Section: admin
 Priority: optional
 Architecture: $arch
-Maintainer: Claw OS <noreply@github.com>
-XB-Claw-Os-Security-Epoch: $security_epoch
+Maintainer: Yu OS <noreply@github.com>
+XB-YuOS-Security-Epoch: $security_epoch
 Description: publication fixture
 EOF
 
@@ -202,17 +202,17 @@ V2="1:0.2.1+git200.gbbbbbbbbbbbb"
 # 1. A coherent signed set verifies and publishes its metadata.
 # ---------------------------------------------------------------------------
 REPO="$(fresh_repo repo-good)"
-make_deb "$REPO" claw-os-agent "$V2" amd64 alpha
-make_deb "$REPO" claw-os-base "$V2" all alpha
+make_deb "$REPO" yuos-agent "$V2" amd64 alpha
+make_deb "$REPO" yuos-base "$V2" all alpha
 BOOTSTRAP_PREVIOUS="$(previous_dir bootstrap pre-protection)"
-COS_RELEASE_SECURITY_BOOTSTRAP=1 \
+YUOS_RELEASE_SECURITY_BOOTSTRAP=1 \
     "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$BOOTSTRAP_PREVIOUS" >/dev/null \
     || fail "the one-time migration must publish a coherent signed set"
-[ -s "$REPO/dists/$SUITE/release-security/claw-os-agent_amd64.json" ] \
+[ -s "$REPO/dists/$SUITE/release-security/yuos-agent_amd64.json" ] \
     || fail "the agent manifest was not published"
-[ -s "$REPO/dists/$SUITE/release-security/claw-os-agent_amd64.json.asc" ] \
+[ -s "$REPO/dists/$SUITE/release-security/yuos-agent_amd64.json.asc" ] \
     || fail "the agent manifest signature was not published"
-[ -s "$REPO/dists/$SUITE/release-security/claw-os-base_all.json" ] \
+[ -s "$REPO/dists/$SUITE/release-security/yuos-base_all.json" ] \
     || fail "the base manifest was not published"
 [ -s "$REPO/dists/$SUITE/release-security/baseline.json" ] \
     || fail "the migration did not establish a baseline marker"
@@ -230,8 +230,8 @@ cp -a "$REPO/dists/$SUITE/release-security" "$PREVIOUS"
 # 1b. The baseline is a ratchet.
 # ---------------------------------------------------------------------------
 REPO="$(fresh_repo repo-rebootstrap)"
-make_deb "$REPO" claw-os-agent "$V2" amd64 alpha
-if COS_RELEASE_SECURITY_BOOTSTRAP=1 \
+make_deb "$REPO" yuos-agent "$V2" amd64 alpha
+if YUOS_RELEASE_SECURITY_BOOTSTRAP=1 \
     "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$PREVIOUS" \
     >/dev/null 2>"$WORK/rebootstrap.err"; then
     fail "the one-time migration ran a second time"
@@ -241,7 +241,7 @@ grep -q "cannot be run again" "$WORK/rebootstrap.err" \
 ok "the release-security migration cannot be run twice"
 
 REPO="$(fresh_repo repo-nobaseline)"
-make_deb "$REPO" claw-os-agent "$V2" amd64 alpha
+make_deb "$REPO" yuos-agent "$V2" amd64 alpha
 NO_MARKER="$(previous_dir nomarker pre-protection)"
 if "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$NO_MARKER" \
     >/dev/null 2>"$WORK/nobaseline.err"; then
@@ -261,7 +261,7 @@ grep -q "never established" "$WORK/unknown.err" \
 ok "publication refuses when the published repository state is unknown"
 
 REPO="$(fresh_repo repo-lostmarker)"
-make_deb "$REPO" claw-os-agent "$V2" amd64 alpha
+make_deb "$REPO" yuos-agent "$V2" amd64 alpha
 LOST="$(previous_dir lost baseline)"
 if "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$LOST" \
     >/dev/null 2>"$WORK/lost.err"; then
@@ -275,7 +275,7 @@ ok "publication refuses when the published baseline marker was not retrieved"
 # 2. Unsigned and tampered metadata are refused.
 # ---------------------------------------------------------------------------
 REPO="$(fresh_repo repo-unsigned)"
-make_deb "$REPO" claw-os-agent "$V2" amd64 alpha --unsigned
+make_deb "$REPO" yuos-agent "$V2" amd64 alpha --unsigned
 if "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$PREVIOUS" >/dev/null 2>"$WORK/unsigned.err"; then
     fail "an unsigned release manifest was published"
 fi
@@ -284,7 +284,7 @@ grep -q "unsigned release manifest" "$WORK/unsigned.err" \
 ok "publication refuses a package with an unsigned release manifest"
 
 REPO="$(fresh_repo repo-tampered)"
-make_deb "$REPO" claw-os-agent "$V2" amd64 alpha --tamper
+make_deb "$REPO" yuos-agent "$V2" amd64 alpha --tamper
 if "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$PREVIOUS" >/dev/null 2>"$WORK/tampered.err"; then
     fail "a tampered release manifest was published"
 fi
@@ -296,8 +296,8 @@ ok "publication refuses a manifest edited after signing"
 # 3. A manifest that does not describe its package is refused.
 # ---------------------------------------------------------------------------
 REPO="$(fresh_repo repo-mismatch)"
-make_deb "$REPO" claw-os-agent "$V2" amd64 alpha
-mv "$REPO/pool/$COMPONENT/c/claw-os-agent/claw-os-agent_${V2}_amd64.deb" \
+make_deb "$REPO" yuos-agent "$V2" amd64 alpha
+mv "$REPO/pool/$COMPONENT/c/yuos-agent/yuos-agent_${V2}_amd64.deb" \
    "$WORK/relabel.deb"
 RELABEL="$WORK/relabel"
 rm -rf "$RELABEL"
@@ -305,7 +305,7 @@ mkdir -p "$RELABEL"
 dpkg-deb -R "$WORK/relabel.deb" "$RELABEL"
 sed -i "s/^Version: .*/Version: $V1/" "$RELABEL/DEBIAN/control"
 dpkg-deb -Znone --root-owner-group --build "$RELABEL" \
-    "$REPO/pool/$COMPONENT/c/claw-os-agent/claw-os-agent_${V1}_amd64.deb" >/dev/null
+    "$REPO/pool/$COMPONENT/c/yuos-agent/yuos-agent_${V1}_amd64.deb" >/dev/null
 if "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$PREVIOUS" >/dev/null 2>"$WORK/relabel.err"; then
     fail "a package relabelled to another version was published"
 fi
@@ -317,8 +317,8 @@ ok "publication refuses a package whose manifest names another version"
 # 4. Regressions against what is already published.
 # ---------------------------------------------------------------------------
 REPO="$(fresh_repo repo-older)"
-make_deb "$REPO" claw-os-agent "$V1" amd64 alpha
-make_deb "$REPO" claw-os-base "$V2" all alpha
+make_deb "$REPO" yuos-agent "$V1" amd64 alpha
+make_deb "$REPO" yuos-base "$V2" all alpha
 if "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$PREVIOUS" \
     >/dev/null 2>"$WORK/older.err"; then
     fail "an older version was republished"
@@ -328,8 +328,8 @@ grep -q "below the published" "$WORK/older.err" \
 ok "publication refuses to republish an older version"
 
 REPO="$(fresh_repo repo-epoch)"
-make_deb "$REPO" claw-os-agent "0.2.0+git900.gzzzzzzzzzzzz" amd64 alpha --epoch 0
-make_deb "$REPO" claw-os-base "$V2" all alpha
+make_deb "$REPO" yuos-agent "0.2.0+git900.gzzzzzzzzzzzz" amd64 alpha --epoch 0
+make_deb "$REPO" yuos-base "$V2" all alpha
 if "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$PREVIOUS" \
     >/dev/null 2>"$WORK/epoch.err"; then
     fail "a lower security epoch was republished"
@@ -339,8 +339,8 @@ grep -q "security epoch" "$WORK/epoch.err" \
 ok "publication refuses a lower security epoch even at a higher version"
 
 REPO="$(fresh_repo repo-substitute)"
-make_deb "$REPO" claw-os-agent "$V2" amd64 "different-bytes"
-make_deb "$REPO" claw-os-base "$V2" all alpha
+make_deb "$REPO" yuos-agent "$V2" amd64 "different-bytes"
+make_deb "$REPO" yuos-base "$V2" all alpha
 if "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$PREVIOUS" \
     >/dev/null 2>"$WORK/substitute.err"; then
     fail "a published version was replaced with different content"
@@ -353,7 +353,7 @@ ok "publication refuses to replace a published version with different bytes"
 # 5. Expired metadata and incompatible sets.
 # ---------------------------------------------------------------------------
 REPO="$(fresh_repo repo-expired)"
-make_deb "$REPO" claw-os-agent "$V2" amd64 alpha --issued-at "2000-01-01T00:00:00Z"
+make_deb "$REPO" yuos-agent "$V2" amd64 alpha --issued-at "2000-01-01T00:00:00Z"
 if "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$PREVIOUS" >/dev/null 2>"$WORK/expired.err"; then
     fail "an already expired manifest was published"
 fi
@@ -362,10 +362,10 @@ grep -q "already expired" "$WORK/expired.err" \
 ok "publication refuses metadata that is already expired"
 
 REPO="$(fresh_repo repo-incompatible)"
-make_deb "$REPO" claw-os-agent "$V2" amd64 alpha
-make_deb "$REPO" claw-os-base "1:0.1.0" all alpha
+make_deb "$REPO" yuos-agent "$V2" amd64 alpha
+make_deb "$REPO" yuos-base "1:0.0.9" all alpha
 INCOMPATIBLE_PREVIOUS="$(previous_dir incompatible pre-protection)"
-if COS_RELEASE_SECURITY_BOOTSTRAP=1 \
+if YUOS_RELEASE_SECURITY_BOOTSTRAP=1 \
     "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$INCOMPATIBLE_PREVIOUS" \
     >/dev/null 2>"$WORK/set.err"; then
     fail "a mutually incompatible set was published"
@@ -386,18 +386,18 @@ for epoch in (14, 16):
     (pathlib.Path(sys.argv[2]) / f"protocol-{epoch}.json").write_text(json.dumps(document))
 PY
 PROTOCOL_PREVIOUS="$(previous_dir protocols pre-protection)"
-for older in claw-os-base claw-os-agent; do
+for older in yuos-base yuos-agent; do
     REPO="$(fresh_repo "repo-protocol-$older")"
     agent_policy="$WORK/protocol-16.json"
     base_policy="$WORK/protocol-16.json"
-    if [ "$older" = claw-os-base ]; then
+    if [ "$older" = yuos-base ]; then
         base_policy="$WORK/protocol-14.json"
     else
         agent_policy="$WORK/protocol-14.json"
     fi
-    POLICY="$agent_policy" make_deb "$REPO" claw-os-agent "$V2" amd64 alpha
-    POLICY="$base_policy" make_deb "$REPO" claw-os-base "$V1" all alpha
-    if COS_RELEASE_SECURITY_BOOTSTRAP=1 \
+    POLICY="$agent_policy" make_deb "$REPO" yuos-agent "$V2" amd64 alpha
+    POLICY="$base_policy" make_deb "$REPO" yuos-base "$V1" all alpha
+    if YUOS_RELEASE_SECURITY_BOOTSTRAP=1 \
         "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$PROTOCOL_PREVIOUS" \
         >/dev/null 2>"$WORK/protocols.err"; then
         fail "a protocol-v14 package was published beside a protocol-v16 package"
@@ -408,17 +408,17 @@ for older in claw-os-base claw-os-agent; do
 done
 
 REPO="$(fresh_repo repo-protocol-compatible)"
-POLICY="$WORK/protocol-16.json" make_deb "$REPO" claw-os-agent "$V2" amd64 alpha
-POLICY="$WORK/protocol-16.json" make_deb "$REPO" claw-os-base "$V1" all alpha
-COS_RELEASE_SECURITY_BOOTSTRAP=1 \
+POLICY="$WORK/protocol-16.json" make_deb "$REPO" yuos-agent "$V2" amd64 alpha
+POLICY="$WORK/protocol-16.json" make_deb "$REPO" yuos-base "$V1" all alpha
+YUOS_RELEASE_SECURITY_BOOTSTRAP=1 \
     "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$PROTOCOL_PREVIOUS" >/dev/null \
     || fail "compatible protocols must not require equal package versions"
 ok "compatible Agent and Base versions remain independently publishable"
 
 REPO="$(fresh_repo repo-protocol-regression)"
 V3="1:0.2.1+git300.gcccccccccccc"
-POLICY="$WORK/protocol-14.json" make_deb "$REPO" claw-os-agent "$V3" amd64 alpha
-POLICY="$WORK/protocol-14.json" make_deb "$REPO" claw-os-base "$V3" all alpha
+POLICY="$WORK/protocol-14.json" make_deb "$REPO" yuos-agent "$V3" amd64 alpha
+POLICY="$WORK/protocol-14.json" make_deb "$REPO" yuos-base "$V3" all alpha
 if "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$PREVIOUS" \
     >/dev/null 2>"$WORK/protocol-regression.err"; then
     fail "newer package versions lowered a previously published protocol floor"
@@ -434,24 +434,24 @@ ok "publication preserves protocol floors across newer package versions"
 REPO="$(fresh_repo repo-legacy)"
 LEGACY="$WORK/legacy-stage"
 rm -rf "$LEGACY"
-mkdir -p "$LEGACY/DEBIAN" "$LEGACY/usr/share/doc/claw-os-agent"
-echo legacy > "$LEGACY/usr/share/doc/claw-os-agent/README"
+mkdir -p "$LEGACY/DEBIAN" "$LEGACY/usr/share/doc/yuos-agent"
+echo legacy > "$LEGACY/usr/share/doc/yuos-agent/README"
 cat > "$LEGACY/DEBIAN/control" <<EOF
-Package: claw-os-agent
+Package: yuos-agent
 Version: $V1
 Section: admin
 Priority: optional
 Architecture: amd64
-Maintainer: Claw OS <noreply@github.com>
+Maintainer: Yu OS <noreply@github.com>
 Description: artifact published before downgrade protection existed
 EOF
-mkdir -p "$REPO/pool/$COMPONENT/c/claw-os-agent"
+mkdir -p "$REPO/pool/$COMPONENT/c/yuos-agent"
 dpkg-deb -Znone --root-owner-group --build "$LEGACY" \
-    "$REPO/pool/$COMPONENT/c/claw-os-agent/claw-os-agent_${V1}_amd64.deb" >/dev/null
+    "$REPO/pool/$COMPONENT/c/yuos-agent/yuos-agent_${V1}_amd64.deb" >/dev/null
 # A pool with nothing but pre-protection artifacts cannot establish a
 # baseline: there is no metadata to anchor.
 LEGACY_PREVIOUS="$(previous_dir legacy pre-protection)"
-if COS_RELEASE_SECURITY_BOOTSTRAP=1 \
+if YUOS_RELEASE_SECURITY_BOOTSTRAP=1 \
     "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$LEGACY_PREVIOUS" \
     >/dev/null 2>"$WORK/legacy-only.err"; then
     ok "a pool of only pre-protection artifacts is published without a baseline"
@@ -461,9 +461,9 @@ fi
 
 # Add a protected package to the same pool and the migration succeeds,
 # establishing the baseline.
-make_deb "$REPO" claw-os-base "$V2" all alpha
+make_deb "$REPO" yuos-base "$V2" all alpha
 LEGACY_PREVIOUS="$(previous_dir legacy2 pre-protection)"
-COS_RELEASE_SECURITY_BOOTSTRAP=1 \
+YUOS_RELEASE_SECURITY_BOOTSTRAP=1 \
     "$VERIFY" "$REPO" "$SUITE" "$COMPONENT" "$KEYRING" "$LEGACY_PREVIOUS" >/dev/null 2>&1 \
     || fail "a mixed pre-protection pool must be publishable during migration"
 ok "a pre-protection artifact is tolerated during the one-time migration"
@@ -483,9 +483,9 @@ grep -Fq 'Acquire-By-Hash' "$BUILD_REPO" \
     || fail "build-repo.sh must publish by-hash indexes"
 grep -Fq 'verify-release-security.sh' "$BUILD_REPO" \
     || fail "build-repo.sh must verify release-security metadata before signing"
-grep -Fq 'Claw-Os-Release-Security-Baseline: 1' "$BUILD_REPO" \
+grep -Fq 'YuOS-Release-Security-Baseline: 1' "$BUILD_REPO" \
     || fail "build-repo.sh must advertise the release-security baseline in Release"
-grep -Fq 'XB-Claw-Os-Security-Epoch' "$SYNC" \
+grep -Fq 'XB-YuOS-Security-Epoch' "$SYNC" \
     || fail "the merge step must compare security epochs"
 ok "the repository build wires integrity metadata and verification"
 
@@ -566,7 +566,7 @@ run_sync() {
         APT_PUBLIC_KEYRING="$KEYRING" \
         SUITE="$SUITE" \
         DEBS_DIR="$WORK/sync-debs" \
-        COS_PREVIOUS_RELEASE_SECURITY_DIR="$previous" \
+        YUOS_PREVIOUS_RELEASE_SECURITY_DIR="$previous" \
         bash "$SYNC"
 }
 
@@ -604,12 +604,12 @@ ok "only an authenticated 404 is treated as first publication"
 # A repository that advertises a baseline but cannot produce its
 # manifests is fatal.
 cat > "$SERVE_ROOT/dists/$SUITE/Release" <<EOF
-Origin: Claw OS
+Origin: Yu OS
 Suite: $SUITE
 Codename: $SUITE
 Date: $(date -u -R)
 Valid-Until: $(date -u -R -d '+30 days')
-Claw-Os-Release-Security-Baseline: 1
+YuOS-Release-Security-Baseline: 1
 Architectures: amd64 all
 Components: $COMPONENT
 EOF
@@ -643,7 +643,7 @@ RELEASE_DIR="$WORK/release-check"
 mkdir -p "$RELEASE_DIR/dists/$SUITE/$COMPONENT/binary-amd64"
 printf 'Package: x\n' > "$RELEASE_DIR/dists/$SUITE/$COMPONENT/binary-amd64/Packages"
 cat > "$RELEASE_DIR/release.conf" <<EOF
-APT::FTPArchive::Release::Origin "Claw OS";
+APT::FTPArchive::Release::Origin "Yu OS";
 APT::FTPArchive::Release::Suite "$SUITE";
 APT::FTPArchive::Release::Codename "$SUITE";
 APT::FTPArchive::Release::Architectures "amd64";
@@ -677,9 +677,9 @@ ok "the published Release has no expiry and advertises by-hash indexes"
 # ---------------------------------------------------------------------------
 CYCLE="$WORK/cycle"
 mkdir -p "$CYCLE"
-export CLAW_OS_WEB_DIST_DIR="$CYCLE/web"
-mkdir -p "$CLAW_OS_WEB_DIST_DIR"
-echo "<html></html>" > "$CLAW_OS_WEB_DIST_DIR/index.html"
+export YUOS_WEB_DIST_DIR="$CYCLE/web"
+mkdir -p "$YUOS_WEB_DIST_DIR"
+echo "<html></html>" > "$YUOS_WEB_DIST_DIR/index.html"
 
 # Serve a built repository so `sync-existing-packages.sh` reads it the
 # way the publication workflow does. This reuses the same origin the
@@ -706,10 +706,10 @@ build_repo_at() {
     rm -rf "$out" "$debs"
     mkdir -p "$out" "$debs"
     find "$pool/pool" -name '*.deb' -exec cp {} "$debs/" \;
-    COS_DEBS_DIR="$debs" \
-    COS_APT_REPO_DIR="$out" \
-    COS_PREVIOUS_RELEASE_SECURITY_DIR="$previous" \
-    COS_RELEASE_SECURITY_BOOTSTRAP="$bootstrap" \
+    YUOS_DEBS_DIR="$debs" \
+    YUOS_APT_REPO_DIR="$out" \
+    YUOS_PREVIOUS_RELEASE_SECURITY_DIR="$previous" \
+    YUOS_RELEASE_SECURITY_BOOTSTRAP="$bootstrap" \
     SUITE="$SUITE" \
     GPG_KEY_ID="$KEY_ID" \
         "$BUILD_REPO" >"$WORK/build-repo.log" 2>&1
@@ -740,29 +740,29 @@ cycle_sync() {
         EXISTING_APT_REPO_URL="$ORIGIN" \
         APT_PUBLIC_KEYRING="$KEYRING" \
         DEBS_DIR="$debs" \
-        COS_PREVIOUS_RELEASE_SECURITY_DIR="$previous" \
+        YUOS_PREVIOUS_RELEASE_SECURITY_DIR="$previous" \
         SUITE="$SUITE" \
         bash "$SYNC" >"$log" 2>&1
 }
 
 # --- stage 1: a pool that predates downgrade protection --------------------
 PRE_POOL="$(fresh_repo cycle-pre-pool)"
-mkdir -p "$PRE_POOL/pool/$COMPONENT/c/claw-os-agent"
+mkdir -p "$PRE_POOL/pool/$COMPONENT/c/yuos-agent"
 LEGACY="$WORK/stage-legacy"
 rm -rf "$LEGACY"
-mkdir -p "$LEGACY/DEBIAN" "$LEGACY/usr/share/doc/claw-os-agent"
-echo legacy > "$LEGACY/usr/share/doc/claw-os-agent/README"
+mkdir -p "$LEGACY/DEBIAN" "$LEGACY/usr/share/doc/yuos-agent"
+echo legacy > "$LEGACY/usr/share/doc/yuos-agent/README"
 cat > "$LEGACY/DEBIAN/control" <<EOF
-Package: claw-os-agent
+Package: yuos-agent
 Version: 0.1.0
 Section: admin
 Priority: optional
 Architecture: amd64
-Maintainer: Claw OS <noreply@github.com>
+Maintainer: Yu OS <noreply@github.com>
 Description: pre-protection fixture
 EOF
 dpkg-deb -Znone --root-owner-group --build "$LEGACY" \
-    "$PRE_POOL/pool/$COMPONENT/c/claw-os-agent/claw-os-agent_0.1.0_amd64.deb" >/dev/null
+    "$PRE_POOL/pool/$COMPONENT/c/yuos-agent/yuos-agent_0.1.0_amd64.deb" >/dev/null
 
 PRE_PREVIOUS="$(previous_dir cycle-pre empty-repo)"
 # Publishing a pool that carries no release-security metadata is only
@@ -775,7 +775,7 @@ grep -q "no release-security baseline yet" "$WORK/build-repo.log" \
     || { cat "$WORK/build-repo.log" >&2; fail "the missing baseline was not explained"; }
 build_repo_at "$PRE_POOL" "$CYCLE/repo-pre" "$PRE_PREVIOUS" 1 \
     || { cat "$WORK/build-repo.log" >&2; fail "a pre-protection pool must still publish"; }
-grep -q '^Claw-Os-Release-Security-Baseline:' "$CYCLE/repo-pre/dists/$SUITE/Release" \
+grep -q '^YuOS-Release-Security-Baseline:' "$CYCLE/repo-pre/dists/$SUITE/Release" \
     && fail "an unprotected repository must not advertise a baseline"
 [ -d "$CYCLE/repo-pre/dists/$SUITE/release-security" ] \
     && fail "an unprotected repository must not publish a release-security directory"
@@ -802,11 +802,11 @@ ok "the next publication reads the signed index and sees no baseline"
 
 # --- stage 2: the one-time migration to a protected repository -------------
 PROT_POOL="$(fresh_repo cycle-protected-pool)"
-make_deb "$PROT_POOL" claw-os-agent "$V1" amd64 alpha
-make_deb "$PROT_POOL" claw-os-base "$V1" all alpha
+make_deb "$PROT_POOL" yuos-agent "$V1" amd64 alpha
+make_deb "$PROT_POOL" yuos-base "$V1" all alpha
 build_repo_at "$PROT_POOL" "$CYCLE/repo-first" "$SYNC_PREVIOUS" 1 \
     || { cat "$WORK/build-repo.log" >&2; fail "the one-time migration must publish"; }
-grep -q '^Claw-Os-Release-Security-Baseline: 1$' "$CYCLE/repo-first/dists/$SUITE/Release" \
+grep -q '^YuOS-Release-Security-Baseline: 1$' "$CYCLE/repo-first/dists/$SUITE/Release" \
     || fail "the first protected publication must advertise its baseline"
 test -s "$CYCLE/repo-first/dists/$SUITE/release-security/baseline.json" \
     || fail "the baseline artifact was not written"
@@ -825,17 +825,17 @@ cycle_sync "$SECOND_PREVIOUS" "$CYCLE/sync-debs2" "$WORK/sync-first.log" \
     || fail "the established baseline was not carried forward"
 test -s "$SECOND_PREVIOUS/baseline.json" \
     || fail "the signed baseline artifact was not preserved"
-test -s "$SECOND_PREVIOUS/claw-os-agent_amd64.json" \
+test -s "$SECOND_PREVIOUS/yuos-agent_amd64.json" \
     || fail "the published agent manifest was not preserved"
 stop_server
 ok "a protected repository hands its baseline and manifests to the next publication"
 
 NEXT_POOL="$(fresh_repo cycle-next-pool)"
-make_deb "$NEXT_POOL" claw-os-agent "$V2" amd64 beta
-make_deb "$NEXT_POOL" claw-os-base "$V2" all beta
+make_deb "$NEXT_POOL" yuos-agent "$V2" amd64 beta
+make_deb "$NEXT_POOL" yuos-base "$V2" all beta
 build_repo_at "$NEXT_POOL" "$CYCLE/repo-second" "$SECOND_PREVIOUS" 0 \
     || { cat "$WORK/build-repo.log" >&2; fail "an ordinary protected publication must succeed"; }
-grep -q '^Claw-Os-Release-Security-Baseline: 1$' "$CYCLE/repo-second/dists/$SUITE/Release" \
+grep -q '^YuOS-Release-Security-Baseline: 1$' "$CYCLE/repo-second/dists/$SUITE/Release" \
     || fail "the baseline marker was dropped by an ordinary publication"
 python3 - "$CYCLE/repo-first/dists/$SUITE/release-security/baseline.json" \
     "$CYCLE/repo-second/dists/$SUITE/release-security/baseline.json" <<'PY'
@@ -875,7 +875,7 @@ FRESH="$PROJECT_DIR/packaging/apt-repo/check-index-freshness.py"
 release_fixture() {
     local target="$1" date="$2" valid_until="$3"
     {
-        printf 'Origin: Claw OS\nSuite: %s\n' "$SUITE"
+        printf 'Origin: Yu OS\nSuite: %s\n' "$SUITE"
         printf 'Date: %s\n' "$date"
         if [ -n "$valid_until" ]; then
             printf 'Valid-Until: %s\n' "$valid_until"
@@ -932,12 +932,12 @@ export REAL_GPG="$(command -v gpg)"
 ARGV_POOL="$(fresh_repo argv-pool)"
 GPG_PASSPHRASE="correct horse battery staple" \
     PATH="$ARGV_DIR/bin:$PATH" \
-    make_deb "$ARGV_POOL" claw-os-agent "$V1" amd64 alpha
+    make_deb "$ARGV_POOL" yuos-agent "$V1" amd64 alpha
 
 ARGV_PREVIOUS="$(previous_dir argv pre-protection)"
 GPG_PASSPHRASE="correct horse battery staple" \
     PATH="$ARGV_DIR/bin:$PATH" \
-    COS_RELEASE_SECURITY_BOOTSTRAP=1 \
+    YUOS_RELEASE_SECURITY_BOOTSTRAP=1 \
     "$VERIFY" "$ARGV_POOL" "$SUITE" "$COMPONENT" "$KEYRING" "$ARGV_PREVIOUS" >/dev/null
 
 grep -q 'correct horse battery staple' "$ARGV_LOG" \

@@ -221,14 +221,14 @@ async fn spawn_one_shot_mock_binary(
 
 #[tokio::test]
 async fn end_to_end_synthesize_round_trip() {
-    std::env::set_var("COS_TEST_TTS_KEY", "sk-tts");
+    std::env::set_var("YUOS_TEST_TTS_KEY", "sk-tts");
     // Pretend the response is an MP3. (4 bytes of fake audio.)
     let fake_audio = vec![0xff, 0xfb, 0x90, 0x44];
     let (base_url, handle) =
         spawn_one_shot_mock_binary(fake_audio.clone(), "HTTP/1.1 200 OK", "audio/mpeg").await;
     let mut c = cfg();
     c.base_url = Some(base_url);
-    c.api_key_env = Some("COS_TEST_TTS_KEY".into());
+    c.api_key_env = Some("YUOS_TEST_TTS_KEY".into());
     let t = OpenAICompatTts::from_config(&c);
     let resp = t
         .synthesize(TtsRequest {
@@ -251,18 +251,18 @@ async fn end_to_end_synthesize_round_trip() {
     assert!(req.contains("\"response_format\":\"mp3\""));
     assert!(req.contains("\"model\":\"tts-1\""));
 
-    std::env::remove_var("COS_TEST_TTS_KEY");
+    std::env::remove_var("YUOS_TEST_TTS_KEY");
 }
 
 #[tokio::test]
 async fn azure_deployment_omits_model_field() {
-    std::env::set_var("COS_TEST_TTS_KEY_2", "sk-tts2");
+    std::env::set_var("YUOS_TEST_TTS_KEY_2", "sk-tts2");
     let (base_url, handle) =
         spawn_one_shot_mock_binary(vec![1, 2, 3], "HTTP/1.1 200 OK", "audio/mpeg").await;
     let azure = format!("{base_url}/deployments/tts");
     let mut c = cfg();
     c.base_url = Some(azure);
-    c.api_key_env = Some("COS_TEST_TTS_KEY_2".into());
+    c.api_key_env = Some("YUOS_TEST_TTS_KEY_2".into());
     let t = OpenAICompatTts::from_config(&c);
     let _ = t
         .synthesize(TtsRequest {
@@ -279,5 +279,5 @@ async fn azure_deployment_omits_model_field() {
         !req.contains("\"model\""),
         "Azure deployment shape must not send model field"
     );
-    std::env::remove_var("COS_TEST_TTS_KEY_2");
+    std::env::remove_var("YUOS_TEST_TTS_KEY_2");
 }

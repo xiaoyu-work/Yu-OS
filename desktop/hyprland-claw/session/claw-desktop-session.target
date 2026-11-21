@@ -1,5 +1,0 @@
-[Unit]
-Description=Yu OS desktop session
-BindsTo=graphical-session.target
-After=graphical-session-pre.target
-Wants=graphical-session-pre.target cos-agent-bridge.service claw-screen-reader.service

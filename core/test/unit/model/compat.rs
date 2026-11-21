@@ -10,7 +10,7 @@ struct EnginesDirGuard {
 impl EnginesDirGuard {
     fn new() -> Self {
         let td = tempfile::Builder::new()
-            .prefix("cos-compat-")
+            .prefix("yuos-compat-")
             .tempdir()
             .unwrap();
         engine_pkg::paths::set_engines_dir_override(Some(td.path().to_path_buf()));

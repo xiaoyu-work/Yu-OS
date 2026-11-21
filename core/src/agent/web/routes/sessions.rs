@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::agent::web::state::AppState;
-use crate::clawd::routes::Command;
+use crate::yuosd::routes::Command;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -101,28 +101,28 @@ pub async fn list(
     Query(query): Query<ListQuery>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let archived = query.archived.unwrap_or(false);
-    let result = super::clawd::request(
+    let result = super::yuosd::request(
         Command::AgentConversationList,
         json!({ "archived": archived, "limit": 1_000 }),
     )
     .await
-    .map_err(super::clawd::RpcError::into_api_error)?;
+    .map_err(super::yuosd::RpcError::into_api_error)?;
     let legacy = if archived {
         None
     } else {
         Some(
-            super::clawd::request(Command::MemorySessions, json!({ "limit": 1_000 }))
+            super::yuosd::request(Command::MemorySessions, json!({ "limit": 1_000 }))
                 .await
-                .map_err(super::clawd::RpcError::into_api_error)?,
+                .map_err(super::yuosd::RpcError::into_api_error)?,
         )
     };
     project_list(result, legacy).map(Json)
 }
 
-pub async fn create(Json(body):Json<crate::clawd::wire::requests::AgentConversationCreate>)->Result<Json<Value>,(StatusCode,Json<Value>)>{
+pub async fn create(Json(body):Json<crate::yuosd::wire::requests::AgentConversationCreate>)->Result<Json<Value>,(StatusCode,Json<Value>)>{
     if let Some(id)=body.workspace_id.as_ref(){crate::workspaces::validate_id(id.as_str()).map_err(invalid_broker_response)?;}
-    let value=super::clawd::request(Command::AgentConversationCreate,serde_json::to_value(body)
-        .map_err(|e|invalid_broker_response(e.to_string()))?).await.map_err(super::clawd::RpcError::into_api_error)?;
+    let value=super::yuosd::request(Command::AgentConversationCreate,serde_json::to_value(body)
+        .map_err(|e|invalid_broker_response(e.to_string()))?).await.map_err(super::yuosd::RpcError::into_api_error)?;
     let conversation=parse_conversation(value)?;
     Ok(Json(json!({"session":project_metadata(conversation.metadata)})))
 }
@@ -197,9 +197,9 @@ pub async fn update(
     if let Some(archived) = body.archived {
         params["archived"] = json!(archived);
     }
-    let result = super::clawd::request(Command::AgentConversationUpdate, params)
+    let result = super::yuosd::request(Command::AgentConversationUpdate, params)
         .await
-        .map_err(super::clawd::RpcError::into_api_error)?;
+        .map_err(super::yuosd::RpcError::into_api_error)?;
     let conversation = parse_conversation(result)?;
     Ok(Json(
         json!({ "session": project_metadata(conversation.metadata) }),
@@ -210,9 +210,9 @@ pub async fn fork(
     State(_state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let result = super::clawd::request(Command::AgentConversationFork, json!({ "id": id }))
+    let result = super::yuosd::request(Command::AgentConversationFork, json!({ "id": id }))
         .await
-        .map_err(super::clawd::RpcError::into_api_error)?;
+        .map_err(super::yuosd::RpcError::into_api_error)?;
     let conversation = parse_conversation(result)?;
     Ok(Json(
         json!({ "session": project_metadata(conversation.metadata) }),
@@ -220,19 +220,19 @@ pub async fn fork(
 }
 
 async fn get_conversation(id: &str, limit: u32) -> Result<Conversation, (StatusCode, Json<Value>)> {
-    let result = super::clawd::request(
+    let result = super::yuosd::request(
         Command::AgentConversationGet,
         json!({ "id": id, "limit": limit }),
     )
     .await
-    .map_err(super::clawd::RpcError::into_api_error)?;
+    .map_err(super::yuosd::RpcError::into_api_error)?;
     parse_conversation(result)
 }
 
 async fn legacy_detail(id: &str) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let result = super::clawd::request(Command::MemorySessions, json!({ "limit": 1_000 }))
+    let result = super::yuosd::request(Command::MemorySessions, json!({ "limit": 1_000 }))
         .await
-        .map_err(super::clawd::RpcError::into_api_error)?;
+        .map_err(super::yuosd::RpcError::into_api_error)?;
     let list: LegacySessionList = serde_json::from_value(result)
         .map_err(|error| invalid_broker_response(format!("legacy session list: {error}")))?;
     let session = list
@@ -249,12 +249,12 @@ async fn legacy_detail(id: &str) -> Result<Json<Value>, (StatusCode, Json<Value>
 }
 
 async fn legacy_history(id: &str) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let result = super::clawd::request(
+    let result = super::yuosd::request(
         Command::MemoryHistory,
         json!({ "session_id": id, "limit": 500 }),
     )
     .await
-    .map_err(super::clawd::RpcError::into_api_error)?;
+    .map_err(super::yuosd::RpcError::into_api_error)?;
     let messages = result
         .get("messages")
         .and_then(Value::as_array)
@@ -342,7 +342,7 @@ fn parse_conversation(result: Value) -> Result<Conversation, (StatusCode, Json<V
 fn invalid_broker_response(message: String) -> (StatusCode, Json<Value>) {
     (
         StatusCode::BAD_GATEWAY,
-        Json(json!({ "error": format!("invalid clawd {message}") })),
+        Json(json!({ "error": format!("invalid yuosd {message}") })),
     )
 }
 

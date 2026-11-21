@@ -14,7 +14,7 @@ fn parses_minimal_manifest() {
 
 #[test]
 fn parses_full_manifest() {
-    let input = "---\nname: my-skill\ndescription: |\n  Multi-line\n  description here\nversion: 1.2.3\nlicense: MIT\nauthor: Xiaoyu Zhang\nhomepage: https://example.com/path#frag\nallowed-tools:\n  - cos_fs\n  - cos_exec\ntriggers: [pdf, \"extract text\"]\n---\n# Body\n";
+    let input = "---\nname: my-skill\ndescription: |\n  Multi-line\n  description here\nversion: 1.2.3\nlicense: MIT\nauthor: Xiaoyu Zhang\nhomepage: https://example.com/path#frag\nallowed-tools:\n  - yu_fs\n  - yu_exec\ntriggers: [pdf, \"extract text\"]\n---\n# Body\n";
     let s = doc(input);
     assert_eq!(s.manifest.name, "my-skill");
     assert_eq!(
@@ -28,7 +28,7 @@ fn parses_full_manifest() {
         s.manifest.homepage.as_deref(),
         Some("https://example.com/path#frag")
     );
-    assert_eq!(s.manifest.allowed_tools, vec!["cos_fs", "cos_exec"]);
+    assert_eq!(s.manifest.allowed_tools, vec!["yu_fs", "yu_exec"]);
     assert_eq!(s.manifest.triggers, vec!["pdf", "extract text"]);
     assert_eq!(s.body, "# Body\n");
 }

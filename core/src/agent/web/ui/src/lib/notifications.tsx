@@ -57,8 +57,8 @@ export type NotificationPreferences = {
 };
 
 export function notificationActionRoute(uri: string, taskId?: string) {
-  if (uri === "clawos://agent/approvals") return "/approvals";
-  const sessionPrefix = "clawos://agent/session/";
+  if (uri === "yuos://agent/approvals") return "/approvals";
+  const sessionPrefix = "yuos://agent/session/";
   if (uri.startsWith(sessionPrefix)) {
     const sessionId = uri.slice(sessionPrefix.length);
     if (/^[A-Za-z0-9_-]+$/.test(sessionId)) return `/chat/${sessionId}`;
@@ -85,7 +85,7 @@ type NotificationContextValue = {
 };
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
-const BROWSER_NOTIFICATION_KEY = "cos.browser-notifications.enabled";
+const BROWSER_NOTIFICATION_KEY = "yuos.browser-notifications.enabled";
 
 type DeliveryClaim = {
   notification: NotificationRecord;
@@ -196,7 +196,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               setConnected(true);
               setError(null);
               window.dispatchEvent(
-                new CustomEvent("cos:notifications-changed", {
+                new CustomEvent("yuos:notifications-changed", {
                   detail: notification,
                 }),
               );

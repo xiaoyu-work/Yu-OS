@@ -72,7 +72,7 @@ pub async fn classify(
         Ok(r) => r,
         Err(e) => {
             tracing::warn!(
-                target: "cos.agent.classify",
+                target: "yuos.agent.classify",
                 "auxiliary classify failed: {e}"
             );
             return None;

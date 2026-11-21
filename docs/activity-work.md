@@ -2,8 +2,8 @@
 
 Automatic progression is an explicit execution mode of an existing Activity,
 not another goal type or daemon. The shared Activity backend persists progress;
-the existing `clawd` heartbeat, trigger scheduler, durable Job queue and
-`claw-agentd` workers execute bounded segments. Terminal-only and desktop
+the existing `yuosd` heartbeat, trigger scheduler, durable Job queue and
+`yuos-agentd` workers execute bounded segments. Terminal-only and desktop
 installations use the same state and authority.
 
 ## Start and stop
@@ -45,7 +45,7 @@ admission; Job completion never completes the Activity.
 Each automatic Job has a Root-created Activity/generation/Job/session binding.
 The model receives the unchanged owner instruction and a separately labelled,
 untrusted handoff. It can use ordinary authorized tools and must finish with
-`cos_activity_checkpoint` as its sole tool call in that response. A successful
+`yu_activity_checkpoint` as its sole tool call in that response. A successful
 handoff closes operational tool admission for that segment. The final allowed
 model turn offers only that reporting tool, not further operational tools.
 

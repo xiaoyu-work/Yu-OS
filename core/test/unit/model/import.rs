@@ -1,34 +1,34 @@
 use super::*;
 
-/// Test isolation: every test moves COS_DATA_DIR (which controls
+/// Test isolation: every test moves YUOS_DATA_DIR (which controls
 /// `models_dir()`) to a unique subdir so concurrent tests can't
 /// stomp on each other. We use a per-test counter (atomic) +
 /// pid + thread id to guarantee uniqueness even with
 /// --test-threads=N.
 fn fresh_models_root() -> tempfile::TempDir {
     tempfile::Builder::new()
-        .prefix("cos-import-test-")
+        .prefix("yuos-import-test-")
         .tempdir()
         .expect("tempdir")
 }
 
-/// Set COS_DATA_DIR so `paths::models_dir()` resolves under the
+/// Set YUOS_DATA_DIR so `paths::models_dir()` resolves under the
 /// test root. The previous value is restored on guard drop.
 struct EnvGuard {
     prev: Option<String>,
 }
 impl EnvGuard {
     fn set(dir: &Path) -> Self {
-        let prev = std::env::var("COS_DATA_DIR").ok();
-        std::env::set_var("COS_DATA_DIR", dir);
+        let prev = std::env::var("YUOS_DATA_DIR").ok();
+        std::env::set_var("YUOS_DATA_DIR", dir);
         Self { prev }
     }
 }
 impl Drop for EnvGuard {
     fn drop(&mut self) {
         match &self.prev {
-            Some(v) => std::env::set_var("COS_DATA_DIR", v),
-            None => std::env::remove_var("COS_DATA_DIR"),
+            Some(v) => std::env::set_var("YUOS_DATA_DIR", v),
+            None => std::env::remove_var("YUOS_DATA_DIR"),
         }
     }
 }

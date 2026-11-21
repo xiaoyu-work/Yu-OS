@@ -132,7 +132,7 @@ fn vision_route_unknown_intent_errs() {
 #[test]
 fn vision_route_file_uses_on_disk_size_and_extension_mime() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-agent-vision-{}",
+        "yuos-agent-vision-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&dir).unwrap();
@@ -155,7 +155,7 @@ fn vision_route_file_uses_on_disk_size_and_extension_mime() {
 #[test]
 fn vision_route_file_mime_override_wins() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-agent-vision-mime-{}",
+        "yuos-agent-vision-mime-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&dir).unwrap();
@@ -210,7 +210,7 @@ fn vision_sniff_file_returns_mime_and_len() {
     // Write a tiny PNG-magic-byte stub (8-byte signature) to a temp
     // file and confirm sniff_mime classifies it.
     let dir = std::env::temp_dir().join(format!(
-        "cos-vision-sniff-{}",
+        "yuos-vision-sniff-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&dir).unwrap();
@@ -234,7 +234,7 @@ fn vision_sniff_file_returns_mime_and_len() {
 #[test]
 fn vision_sniff_file_unknown_magic_classifies_other() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-vision-sniff-other-{}",
+        "yuos-vision-sniff-other-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&dir).unwrap();
@@ -264,7 +264,7 @@ fn vision_sniff_file_missing_path_errs() {
 #[test]
 fn vision_sniff_head_bytes_caps_inspection_window() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-vision-sniff-head-{}",
+        "yuos-vision-sniff-head-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&dir).unwrap();

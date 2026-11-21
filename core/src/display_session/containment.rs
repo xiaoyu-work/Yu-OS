@@ -3,10 +3,10 @@ use std::os::fd::{AsFd, AsRawFd, OwnedFd};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use claw_display_control::workload::{
+use yuos_display_control::workload::{
     open_directory, read_file, write_file, SessionGroup, Workload,
 };
-use claw_display_control::{Epoch, Error, ProcessIdentity};
+use yuos_display_control::{Epoch, Error, ProcessIdentity};
 
 pub struct Containment {
     anchor: SessionGroup,
@@ -55,10 +55,10 @@ impl Containment {
                 ));
             }
         }
-        let leader = anchor.path().join(format!("claw-login-{}", epoch.label()));
+        let leader = anchor.path().join(format!("yuos-login-{}", epoch.label()));
         let workload_path = anchor
             .path()
-            .join(format!("claw-display-{}", epoch.label()));
+            .join(format!("yuos-display-{}", epoch.label()));
         let compositor_path = workload_path.join("compositor");
         let mut preparation = Preparation {
             anchor: &anchor,
@@ -297,7 +297,7 @@ pub fn enter(descriptor: i32) -> Result<(), std::io::Error> {
     Ok(())
 }
 
-pub use claw_display_control::install::protected_executable;
+pub use yuos_display_control::install::protected_executable;
 
 pub fn account(uid: u32) -> Result<(u32, CString, PathBuf), Error> {
     let mut record: libc::passwd = unsafe { std::mem::zeroed() };

@@ -1,6 +1,6 @@
-//! Broker-side supervision of `claw-agentd` workers.
+//! Broker-side supervision of `yuos-agentd` workers.
 //!
-//! `clawd` remains the authority for the task queue: it claims a job,
+//! `yuosd` remains the authority for the task queue: it claims a job,
 //! derives the session's capabilities from root-owned metadata, spawns
 //! exactly one unprivileged worker for it, leases that worker a grant
 //! bound to the pid the kernel just allocated, and persists everything
@@ -11,7 +11,7 @@
 //! exits without a result, stops heartbeating, sends a frame outside
 //! its grant, or speaks a different protocol version only ever ends its
 //! own task: the supervisor reaps it, marks the task for retry or
-//! failure, and keeps serving. `clawd` treats no worker exit — normal
+//! failure, and keeps serving. `yuosd` treats no worker exit — normal
 //! or not — as fatal.
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -24,8 +24,8 @@ use tokio::sync::Semaphore;
 use crate::agent::service::{FinishOutcome, Job, Store};
 use crate::agent::tools::desktop_vision;
 use crate::caps::ConsentContext;
-use crate::clawd::state::DaemonState;
-use crate::clawd::transport::limits::{Admission, Limits};
+use crate::yuosd::state::DaemonState;
+use crate::yuosd::transport::limits::{Admission, Limits};
 
 use super::grant::{GrantClaims, GrantExpectation, GrantSigner, GRANT_AUDIENCE, GRANT_VERSION};
 use super::protocol::{
@@ -77,22 +77,22 @@ impl Default for SupervisorConfig {
 impl SupervisorConfig {
     pub fn from_env() -> Self {
         let mut config = Self::default();
-        if let Ok(raw) = std::env::var("CLAWD_AGENTD") {
+        if let Ok(raw) = std::env::var("YUOSD_AGENTD") {
             config.enabled = !matches!(
                 raw.trim().to_ascii_lowercase().as_str(),
                 "0" | "off" | "false" | "no" | "disabled"
             );
         }
-        if let Some(value) = env_u64("CLAWD_AGENTD_POLL_MS") {
+        if let Some(value) = env_u64("YUOSD_AGENTD_POLL_MS") {
             config.poll = Duration::from_millis(value.clamp(50, 60_000));
         }
-        if let Some(value) = env_u64("CLAWD_AGENTD_MAX_WORKERS") {
+        if let Some(value) = env_u64("YUOSD_AGENTD_MAX_WORKERS") {
             config.max_workers = value.clamp(1, 64) as usize;
         }
-        if let Some(value) = env_u64("CLAWD_AGENTD_LEASE_SECS") {
+        if let Some(value) = env_u64("YUOSD_AGENTD_LEASE_SECS") {
             config.lease = Duration::from_secs(value.clamp(30, 86_400));
         }
-        if let Some(value) = env_u64("CLAWD_AGENTD_HEARTBEAT_GRACE_SECS") {
+        if let Some(value) = env_u64("YUOSD_AGENTD_HEARTBEAT_GRACE_SECS") {
             config.heartbeat_grace = Duration::from_secs(value.clamp(10, 3_600));
         }
         config
@@ -104,7 +104,7 @@ fn env_u64(key: &str) -> Option<u64> {
 }
 
 /// Start supervision on the daemon's runtime. The returned handle is
-/// deliberately not joined into `clawd`'s fatal path: supervision
+/// deliberately not joined into `yuosd`'s fatal path: supervision
 /// stopping must never take the broker down with it.
 #[derive(Clone)]
 pub struct BrokerContext {
@@ -162,7 +162,7 @@ impl BrokerContext {
     pub fn initialize_app_custody(
         &self,
     ) -> Result<Arc<crate::extension_host::spawn::ContainmentRoot>, String> {
-        crate::clawd::app_execution::initialize(self);
+        crate::yuosd::app_execution::initialize(self);
         self.extension_containment()
     }
 
@@ -212,15 +212,15 @@ pub fn spawn_supervisor(
     tokio::spawn(async move {
         if !config.enabled {
             tracing::warn!(
-                "agentd supervision disabled by CLAWD_AGENTD; agent tasks will not run, \
-                 other clawd primitives are unaffected"
+                "agentd supervision disabled by YUOSD_AGENTD; agent tasks will not run, \
+                 other yuosd primitives are unaffected"
             );
             return;
         }
         if let Err(error) = run_with_broker(config, shutdown, broker).await {
             tracing::error!(
                 error = %error,
-                "agentd supervision stopped; clawd continues serving non-agent primitives"
+                "agentd supervision stopped; yuosd continues serving non-agent primitives"
             );
         }
     })
@@ -230,7 +230,7 @@ pub async fn run(config: SupervisorConfig, shutdown: Arc<AtomicBool>) -> Result<
     let broker = BrokerContext::new(
         DaemonState::try_new().map_err(|error| error.to_string())?,
         Admission::new(Limits::default()),
-        crate::paths::clawd_socket_path(),
+        crate::paths::yuosd_socket_path(),
     )?;
     run_with_broker(config, shutdown, broker).await
 }
@@ -256,7 +256,7 @@ pub async fn run_with_store(
     let broker = BrokerContext::new(
         DaemonState::try_new().map_err(|error| error.to_string())?,
         Admission::new(Limits::default()),
-        crate::paths::clawd_socket_path(),
+        crate::paths::yuosd_socket_path(),
     )?;
     run_with_store_and_broker(config, shutdown, store, broker).await
 }
@@ -311,7 +311,7 @@ pub async fn run_with_store_and_broker(
         let Ok(permit) = permits.clone().acquire_owned().await else {
             break;
         };
-        let claimed = match crate::clawd::tasks::claim_job_with_presence(&store, config.lease) {
+        let claimed = match crate::yuosd::tasks::claim_job_with_presence(&store, config.lease) {
             Ok(claimed) => claimed,
             Err(error) => {
                 tracing::warn!(error = %error, "agentd supervisor failed to claim a task");
@@ -623,7 +623,7 @@ async fn supervise(
 
     // Rebind the queue record from the claiming broker to the process
     // that actually runs the work, so recovery and audit both point at
-    // the worker rather than at `clawd`.
+    // the worker rather than at `yuosd`.
     if let Err(error) = store.bind_worker(&job.id, pid, start_time_ticks) {
         tracing::warn!(task = %job.id, error = %error, "failed to bind agent worker to task");
     }
@@ -660,7 +660,7 @@ async fn supervise(
             return Ok(());
         }
     };
-    crate::clawd::audit::record_extension_host_event(
+    crate::yuosd::audit::record_extension_host_event(
         &job.id,
         job.session_id.as_deref(),
         owner_uid,
@@ -716,10 +716,10 @@ async fn supervise(
     if let Some(session_id) = extension.host_session_id.as_deref() {
         for child_session in crate::proc::deregister_child_sessions_for_owner(session_id, owner_uid)
         {
-            crate::clawd::authority::revoke_session_for_owner(&child_session, owner_uid);
+            crate::yuosd::authority::revoke_session_for_owner(&child_session, owner_uid);
         }
         crate::proc::deregister_session_for_owner(session_id, owner_uid);
-        crate::clawd::authority::revoke_session_for_owner(session_id, owner_uid);
+        crate::yuosd::authority::revoke_session_for_owner(session_id, owner_uid);
     }
     let host_cleanup = reap_extension_host(&mut extension.host).await;
     let mut extension_cleanup = match host_cleanup {
@@ -733,7 +733,7 @@ async fn supervise(
             extension_cleanup = identity.release();
         }
     }
-    crate::clawd::audit::record_extension_host_event(
+    crate::yuosd::audit::record_extension_host_event(
         &job.id,
         job.session_id.as_deref(),
         owner_uid,
@@ -749,7 +749,7 @@ async fn supervise(
     let outcome = apply_containment_cleanup(outcome, extension_cleanup);
     let resulting_status = finish_task_outcome(&store, &job, outcome);
     if job.activity_work_generation.is_some() {
-        crate::clawd::heartbeat::wake_activity_work();
+        crate::yuosd::heartbeat::wake_activity_work();
     }
     if resulting_status != Some(crate::agent::service::JobStatus::WaitingApproval) {
         if let Some(session_id) = job.session_id.as_deref() {
@@ -765,7 +765,7 @@ async fn supervise(
                     "could not invalidate pending approvals for a finished worker"
                 );
             }
-            crate::clawd::authority::revoke_session_for_owner(session_id, owner_uid);
+            crate::yuosd::authority::revoke_session_for_owner(session_id, owner_uid);
         }
     }
     Ok(())
@@ -1007,7 +1007,7 @@ async fn start_extension_host(
         let info = crate::proc::SessionInfo {
             session_id: host_session_id.clone(),
             pid: host.pid,
-            command: vec!["claw-extension-host".to_string(), job.id.clone()],
+            command: vec!["yuos-extension-host".to_string(), job.id.clone()],
             started_at: chrono::Utc::now().to_rfc3339(),
             stdout_path: String::new(),
             stderr_path: String::new(),
@@ -1098,23 +1098,23 @@ pub(crate) fn extension_approved_paths(
     session: Option<&crate::proc::SessionInfo>,
 ) -> Result<Vec<crate::extension_host::protocol::ApprovedPath>, String> {
     let mut candidates = vec![identity.home.clone()];
-    for path in ["/usr/lib/cos/apps", "/usr/lib/cos/python"] {
+    for path in ["/usr/lib/yuos/apps", "/usr/lib/yuos/python"] {
         let path = std::path::PathBuf::from(path);
         if path.exists() {
             candidates.push(path);
         }
     }
-    if let Some(path) = std::env::var_os("COS_APPS_DIR").map(std::path::PathBuf::from) {
+    if let Some(path) = std::env::var_os("YUOS_APPS_DIR").map(std::path::PathBuf::from) {
         if path.exists() {
             candidates.push(path);
         }
     }
-    if let Some(path) = std::env::var_os("COS_AGENT_EXTENSIONS_DIR").map(std::path::PathBuf::from) {
+    if let Some(path) = std::env::var_os("YUOS_AGENT_EXTENSIONS_DIR").map(std::path::PathBuf::from) {
         if path.exists() {
             candidates.push(path);
         }
     }
-    if let Some(paths) = std::env::var_os("COS_SDK_PYTHON_DIR") {
+    if let Some(paths) = std::env::var_os("YUOS_SDK_PYTHON_DIR") {
         for path in std::env::split_paths(&paths).filter(|path| !path.as_os_str().is_empty()) {
             if path.exists() {
                 candidates.push(path);
@@ -1193,7 +1193,7 @@ async fn pump(
         };
     // Authority on this channel comes from the grant, not from the
     // socket: `socketpair` is created before the fork, so `SO_PEERCRED`
-    // is stamped with *clawd's* own uid and pid and says nothing about
+    // is stamped with *yuosd's* own uid and pid and says nothing about
     // the worker. The descriptor is private and never sent anywhere,
     // and every frame is checked against a grant bound to the pid and
     // start-time the kernel gave this child.
@@ -1489,7 +1489,7 @@ async fn pump(
                                 {
                                     let _ = crate::approvals::deny_for_owner(
                                         request_id,
-                                        Some("clawd".to_string()),
+                                        Some("yuosd".to_string()),
                                         Some(
                                             "The task could not persist its approval wait."
                                                 .to_string(),
@@ -1657,7 +1657,7 @@ async fn pump(
                             } else if delegation_attempts > crate::agent::tools::background::MAX_SUBMISSIONS {
                                 Err("the foreground task reached its background delegation limit".into())
                             } else if let Some(caps) = assignment.session.as_ref().and_then(|session| session.caps.as_ref()) {
-                                crate::clawd::tasks::delegate_background(store, job, caps, &brief)
+                                crate::yuosd::tasks::delegate_background(store, job, caps, &brief)
                             } else {
                                 Err("the foreground task has no authenticated session".into())
                             };
@@ -1759,7 +1759,7 @@ async fn pump(
                     Ok(status) => format!("extension host exited early ({status})"),
                     Err(error) => format!("extension host could not be reaped: {error}"),
                 };
-                crate::clawd::audit::record_extension_host_event(
+                crate::yuosd::audit::record_extension_host_event(
                     &lease.task_id,
                     lease.session_id.as_deref(),
                     lease.owner_uid,
@@ -1808,7 +1808,7 @@ async fn pump(
                     desktop = None;
                     extension_lease.close();
                     cancelled_at = Some(Instant::now());
-                    crate::clawd::audit::record_extension_host_event(
+                    crate::yuosd::audit::record_extension_host_event(
                         &lease.task_id,
                         lease.session_id.as_deref(),
                         lease.owner_uid,
@@ -1847,7 +1847,7 @@ async fn pump(
                     let _ = child.start_kill();
                     unsafe {
                         spawn::terminate_worker_group(lease.worker_pid, libc::SIGKILL);
-                        crate::clawd::audit::record_extension_host_event(
+                        crate::yuosd::audit::record_extension_host_event(
                             &lease.task_id,
                             lease.session_id.as_deref(),
                             lease.owner_uid,
@@ -2084,7 +2084,7 @@ fn mediate_approval(used: &mut u32, lease: &Lease, ask: &ApprovalAsk) -> Approva
         }
         None => Boundary::Normal,
     };
-    crate::clawd::audit::record_worker_boundary(
+    crate::yuosd::audit::record_worker_boundary(
         &lease.task_id,
         lease.owner_uid,
         session_id,
@@ -2119,7 +2119,7 @@ fn mediate_approval(used: &mut u32, lease: &Lease, ask: &ApprovalAsk) -> Approva
             ) {
                 Ok(Some(grant)) => {
                     let lease_remaining = lease.deadline.saturating_duration_since(Instant::now());
-                    match crate::clawd::authority::authorize_worker_approval(
+                    match crate::yuosd::authority::authorize_worker_approval(
                         lease.owner_uid,
                         &lease.task_id,
                         session_id,
@@ -2265,9 +2265,9 @@ fn audit_approval(
     operation_digest: Option<&str>,
     action: &'static str,
     grant: Option<&crate::approvals::ConsumedGrant>,
-    authority_grant: Option<&crate::clawd::authority::GrantRef>,
+    authority_grant: Option<&crate::yuosd::authority::GrantRef>,
 ) {
-    crate::clawd::audit::record_worker_approval(
+    crate::yuosd::audit::record_worker_approval(
         &lease.task_id,
         lease.owner_uid,
         lease.worker_pid,
@@ -2319,7 +2319,7 @@ fn journal_approval(
             scope: Reference::new(&scope.to_string()),
         },
     };
-    crate::clawd::journal::record_approval(
+    crate::yuosd::journal::record_approval(
         &journal::Partition::Session(sid),
         lease.owner_uid,
         event,
@@ -2385,14 +2385,14 @@ fn check_hello_with(
 ) -> Result<(), String> {
     if hello.protocol != protocol::PROTOCOL_VERSION {
         return Err(format!(
-            "agentd protocol mismatch: worker speaks v{}, clawd speaks v{}; \
-             reinstall so clawd and claw-agentd come from the same build",
+            "agentd protocol mismatch: worker speaks v{}, yuosd speaks v{}; \
+             reinstall so yuosd and yuos-agentd come from the same build",
             hello.protocol,
             protocol::PROTOCOL_VERSION
         ));
     }
     if let Err(refusal) =
-        crate::update::runtime::check_peer_epoch("claw-agentd", hello.security_epoch)
+        crate::update::runtime::check_peer_epoch("yuos-agentd", hello.security_epoch)
     {
         return Err(refusal.message);
     }
@@ -2432,7 +2432,7 @@ fn check_hello_with(
     Ok(())
 }
 
-/// Forward the worker's runtime audit into the root-owned `clawd` log.
+/// Forward the worker's runtime audit into the root-owned `yuosd` log.
 /// The session is pinned to the lease, so a worker cannot annotate a
 /// session it was not granted.
 fn record_worker_audit(lease: &Lease, record: &RuntimeAuditRecord) {
@@ -2501,7 +2501,7 @@ fn record_worker_audit(lease: &Lease, record: &RuntimeAuditRecord) {
             return;
         }
     }
-    crate::clawd::audit::record_worker_runtime(&lease.task_id, lease.owner_uid, record);
+    crate::yuosd::audit::record_worker_runtime(&lease.task_id, lease.owner_uid, record);
     journal_worker_audit(lease, session_id, record);
 }
 
@@ -2592,8 +2592,8 @@ fn broker_session_info(
     if !crate::session::session_dir(&sid).exists() {
         return Ok((None, ConsentContext::Unattended));
     }
-    let context = crate::clawd::session_scope::consent_context(&sid)?;
-    crate::clawd::session_scope::trusted_session_info(&sid, "claw-agentd")
+    let context = crate::yuosd::session_scope::consent_context(&sid)?;
+    crate::yuosd::session_scope::trusted_session_info(&sid, "yuos-agentd")
         .map(|session| (Some(session), context))
 }
 
@@ -2638,8 +2638,8 @@ async fn send_commit_partial(
 
 #[cfg(debug_assertions)]
 fn assignment_failpoint(point: &str) -> bool {
-    if std::env::var("COS_AGENTD_TEST_ASSIGNMENT_FAILPOINT").as_deref() == Ok(point) {
-        std::env::remove_var("COS_AGENTD_TEST_ASSIGNMENT_FAILPOINT");
+    if std::env::var("YUOS_AGENTD_TEST_ASSIGNMENT_FAILPOINT").as_deref() == Ok(point) {
+        std::env::remove_var("YUOS_AGENTD_TEST_ASSIGNMENT_FAILPOINT");
         true
     } else {
         false

@@ -35,7 +35,7 @@ fn isolated_prepare(
     authorized_root: Option<&Path>,
 ) -> Result<IsolatedLaunch, String> {
     let mut roots = authorized_root.into_iter().collect::<Vec<_>>();
-    let sdk = std::env::var_os("COS_SDK_PYTHON_DIR").map(PathBuf::from);
+    let sdk = std::env::var_os("YUOS_SDK_PYTHON_DIR").map(PathBuf::from);
     if let Some(sdk) = sdk.as_deref() {
         roots.push(sdk);
     }
@@ -66,7 +66,7 @@ fn privileged_test_ready(require_bwrap: bool) -> bool {
     if root && (!require_bwrap || bwrap) {
         return true;
     }
-    if std::env::var("COS_REQUIRE_PRIVILEGED_CHILD_TESTS").as_deref() == Ok("1") {
+    if std::env::var("YUOS_REQUIRE_PRIVILEGED_CHILD_TESTS").as_deref() == Ok("1") {
         panic!(
             "privileged child-isolation prerequisite missing: root={root}, bwrap={bwrap}, required={require_bwrap}"
         );
@@ -109,8 +109,8 @@ fn isolated_clean_environment_is_installed_after_bwrap_starts() {
     let home = tempfile::tempdir().unwrap();
     let _enabled = crate::test_env::TestEnvVarGuard::set(ENABLE_ENV, "1");
     let _home = crate::test_env::TestEnvVarGuard::set("HOME", home.path());
-    let _proc = crate::test_env::TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
-    let _broker = crate::test_env::TestEnvVarGuard::remove("COS_EXTENSION_BROKER_SOCKET");
+    let _proc = crate::test_env::TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
+    let _broker = crate::test_env::TestEnvVarGuard::remove("YUOS_EXTENSION_BROKER_SOCKET");
     let launch = isolated_prepare_clean(
         "true",
         Vec::<OsString>::new(),
@@ -135,9 +135,9 @@ fn typed_authority_is_mandatory_and_identity_environment_is_ignored() {
     let _enabled = crate::test_env::TestEnvVarGuard::set(ENABLE_ENV, "1");
     let _home = crate::test_env::TestEnvVarGuard::set("HOME", home.path());
     let _spoofed_uid =
-        crate::test_env::TestEnvVarGuard::set("COS_EXTENSION_WORKER_UID", "61000");
+        crate::test_env::TestEnvVarGuard::set("YUOS_EXTENSION_WORKER_UID", "61000");
     let _spoofed_gid =
-        crate::test_env::TestEnvVarGuard::set("COS_EXTENSION_EXECUTION_GID", "1");
+        crate::test_env::TestEnvVarGuard::set("YUOS_EXTENSION_EXECUTION_GID", "1");
     let error = prepare("true", Vec::<OsString>::new(), None, None).unwrap_err();
     assert!(error.contains("typed runtime authority"), "{error}");
 }
@@ -150,10 +150,10 @@ fn controlled_unapproved_root_is_not_an_extension_root() {
         std::env::temp_dir()
     };
     let fixture = tempfile::Builder::new()
-        .prefix("cos-unapproved-")
+        .prefix("yuos-unapproved-")
         .tempdir_in(parent)
         .unwrap();
-    if std::env::var("COS_REQUIRE_PRIVILEGED_CHILD_TESTS").as_deref() == Ok("1") {
+    if std::env::var("YUOS_REQUIRE_PRIVILEGED_CHILD_TESTS").as_deref() == Ok("1") {
         assert_eq!(unsafe { libc::geteuid() }, 0);
         assert_eq!(fs::metadata(fixture.path()).unwrap().uid(), 0);
     }
@@ -179,9 +179,9 @@ fn reserved_uid_and_execution_gid_objects_are_rejected_from_owner_snapshots() {
         assert_eq!(unsafe { libc::chown(raw.as_ptr(), uid, gid) }, 0);
         let _enabled = crate::test_env::TestEnvVarGuard::set(ENABLE_ENV, "1");
         let _home = crate::test_env::TestEnvVarGuard::set("HOME", home.path());
-        let _proc = crate::test_env::TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
+        let _proc = crate::test_env::TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
         let _broker =
-            crate::test_env::TestEnvVarGuard::remove("COS_EXTENSION_BROKER_SOCKET");
+            crate::test_env::TestEnvVarGuard::remove("YUOS_EXTENSION_BROKER_SOCKET");
         let error = isolated_prepare(
             "python3",
             vec!["-c".into(), "print('should-not-run')".into()],
@@ -213,8 +213,8 @@ fn isolated_child_gets_private_proc_and_an_empty_allowlisted_root() {
     let _enabled = crate::test_env::TestEnvVarGuard::set(ENABLE_ENV, "1");
     let _home =
         crate::test_env::TestEnvVarGuard::set("HOME", home.path().to_string_lossy().as_ref());
-    let _proc = crate::test_env::TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
-    let _broker = crate::test_env::TestEnvVarGuard::remove("COS_EXTENSION_BROKER_SOCKET");
+    let _proc = crate::test_env::TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
+    let _broker = crate::test_env::TestEnvVarGuard::remove("YUOS_EXTENSION_BROKER_SOCKET");
     let launch = isolated_prepare(
         "python3",
         vec![OsString::from(source.path().join("tool.py"))],
@@ -258,8 +258,8 @@ fn authorized_snapshot_rejects_symlinks() {
     let _enabled = crate::test_env::TestEnvVarGuard::set(ENABLE_ENV, "1");
     let _home =
         crate::test_env::TestEnvVarGuard::set("HOME", home.path().to_string_lossy().as_ref());
-    let _proc = crate::test_env::TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
-    let _broker = crate::test_env::TestEnvVarGuard::remove("COS_EXTENSION_BROKER_SOCKET");
+    let _proc = crate::test_env::TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
+    let _broker = crate::test_env::TestEnvVarGuard::remove("YUOS_EXTENSION_BROKER_SOCKET");
     assert!(
         isolated_prepare("python3", Vec::<OsString>::new(), Some(source.path()))
             .unwrap_err()
@@ -315,8 +315,8 @@ fn hostile_siblings_get_private_proc_and_cannot_see_host_mounts() {
     let _enabled = crate::test_env::TestEnvVarGuard::set(ENABLE_ENV, "1");
     let _home =
         crate::test_env::TestEnvVarGuard::set("HOME", home.path().to_string_lossy().as_ref());
-    let _proc = crate::test_env::TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
-    let _broker = crate::test_env::TestEnvVarGuard::remove("COS_EXTENSION_BROKER_SOCKET");
+    let _proc = crate::test_env::TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
+    let _broker = crate::test_env::TestEnvVarGuard::remove("YUOS_EXTENSION_BROKER_SOCKET");
     let first_script = "import os,time; print(os.getpid(), flush=True); time.sleep(30)";
     let first_launch = isolated_prepare(
         "python3",
@@ -421,8 +421,8 @@ fn authorized_snapshot_script_still_executes() {
     .unwrap();
     let _enabled = crate::test_env::TestEnvVarGuard::set(ENABLE_ENV, "1");
     let _home = crate::test_env::TestEnvVarGuard::set("HOME", home.path());
-    let _proc = crate::test_env::TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
-    let _broker = crate::test_env::TestEnvVarGuard::remove("COS_EXTENSION_BROKER_SOCKET");
+    let _proc = crate::test_env::TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
+    let _broker = crate::test_env::TestEnvVarGuard::remove("YUOS_EXTENSION_BROKER_SOCKET");
     let launch = isolated_prepare(
         "python3",
         vec![script.as_os_str().to_os_string()],
@@ -457,8 +457,8 @@ fn verified_private_script_executes_with_pinned_interpreter() {
     fs::set_permissions(&script, fs::Permissions::from_mode(0o500)).unwrap();
     let _enabled = crate::test_env::TestEnvVarGuard::set(ENABLE_ENV, "1");
     let _home = crate::test_env::TestEnvVarGuard::set("HOME", home.path());
-    let _proc = crate::test_env::TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
-    let _broker = crate::test_env::TestEnvVarGuard::remove("COS_EXTENSION_BROKER_SOCKET");
+    let _proc = crate::test_env::TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
+    let _broker = crate::test_env::TestEnvVarGuard::remove("YUOS_EXTENSION_BROKER_SOCKET");
     let launch =
         isolated_prepare(&script, Vec::<OsString>::new(), Some(source.path())).unwrap();
     let output = std::process::Command::new(launch.program)
@@ -486,9 +486,9 @@ fn authorized_sdk_snapshot_remains_importable() {
     fs::write(sdk.path().join("isolated_sdk_probe.py"), b"VALUE='sdk-ok'\n").unwrap();
     let _enabled = crate::test_env::TestEnvVarGuard::set(ENABLE_ENV, "1");
     let _home = crate::test_env::TestEnvVarGuard::set("HOME", home.path());
-    let _sdk = crate::test_env::TestEnvVarGuard::set("COS_SDK_PYTHON_DIR", sdk.path());
-    let _proc = crate::test_env::TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
-    let _broker = crate::test_env::TestEnvVarGuard::remove("COS_EXTENSION_BROKER_SOCKET");
+    let _sdk = crate::test_env::TestEnvVarGuard::set("YUOS_SDK_PYTHON_DIR", sdk.path());
+    let _proc = crate::test_env::TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
+    let _broker = crate::test_env::TestEnvVarGuard::remove("YUOS_EXTENSION_BROKER_SOCKET");
     let launch = isolated_prepare(
         "python3",
         vec![
@@ -503,7 +503,7 @@ fn authorized_sdk_snapshot_remains_importable() {
         .args(launch.args)
         .envs(launch.env)
         .env("PYTHONPATH", sdk.path())
-        .env("COS_SDK_PYTHON_DIR", sdk.path())
+        .env("YUOS_SDK_PYTHON_DIR", sdk.path())
         .output()
         .unwrap();
     assert!(
@@ -553,7 +553,7 @@ fn private_network_blocks_host_and_sibling_endpoints() {
     udp.set_read_timeout(Some(std::time::Duration::from_millis(250)))
         .unwrap();
     let udp_port = udp.local_addr().unwrap().port();
-    let abstract_name = format!("cos-isolation-{}", uuid::Uuid::new_v4().simple());
+    let abstract_name = format!("yuos-isolation-{}", uuid::Uuid::new_v4().simple());
     let abstract_address = SocketAddr::from_abstract_name(abstract_name.as_bytes()).unwrap();
     let _abstract_listener = UnixListener::bind_addr(&abstract_address).unwrap();
     let unix_dir = tempfile::tempdir().unwrap();
@@ -562,8 +562,8 @@ fn private_network_blocks_host_and_sibling_endpoints() {
     let host_namespace = fs::read_link("/proc/self/ns/net").unwrap();
     let _enabled = crate::test_env::TestEnvVarGuard::set(ENABLE_ENV, "1");
     let _home = crate::test_env::TestEnvVarGuard::set("HOME", home.path());
-    let _proc = crate::test_env::TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
-    let _broker = crate::test_env::TestEnvVarGuard::remove("COS_EXTENSION_BROKER_SOCKET");
+    let _proc = crate::test_env::TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
+    let _broker = crate::test_env::TestEnvVarGuard::remove("YUOS_EXTENSION_BROKER_SOCKET");
     let script = format!(
         r#"import json,socket
 def blocked(family, address):
@@ -658,8 +658,8 @@ fn inherited_connected_socket_is_closed_before_bwrap_exec() {
     assert_eq!(unsafe { libc::fcntl(listener_fd, libc::F_SETFD, 0) }, 0);
     let _enabled = crate::test_env::TestEnvVarGuard::set(ENABLE_ENV, "1");
     let _home = crate::test_env::TestEnvVarGuard::set("HOME", home.path());
-    let _proc = crate::test_env::TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
-    let _broker = crate::test_env::TestEnvVarGuard::remove("COS_EXTENSION_BROKER_SOCKET");
+    let _proc = crate::test_env::TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
+    let _broker = crate::test_env::TestEnvVarGuard::remove("YUOS_EXTENSION_BROKER_SOCKET");
     let script = format!(
         "import json,os\nresult=[]\nfor fd in [{fd},{listener_fd}]:\n try:\n  os.fstat(fd); result.append('open')\n except OSError:\n  result.append('closed')\nprint(json.dumps(result))"
     );
@@ -692,11 +692,11 @@ fn isolated_siblings_cannot_reach_each_others_network_endpoints() {
     }
     let _lock = crate::test_env::lock_env();
     let home = tempfile::tempdir().unwrap();
-    let abstract_name = format!("cos-sibling-{}", uuid::Uuid::new_v4().simple());
+    let abstract_name = format!("yuos-sibling-{}", uuid::Uuid::new_v4().simple());
     let _enabled = crate::test_env::TestEnvVarGuard::set(ENABLE_ENV, "1");
     let _home = crate::test_env::TestEnvVarGuard::set("HOME", home.path());
-    let _proc = crate::test_env::TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
-    let _broker = crate::test_env::TestEnvVarGuard::remove("COS_EXTENSION_BROKER_SOCKET");
+    let _proc = crate::test_env::TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
+    let _broker = crate::test_env::TestEnvVarGuard::remove("YUOS_EXTENSION_BROKER_SOCKET");
     let first_script = format!(
         r#"import json,socket,time
 t=socket.socket(); t.bind(("0.0.0.0",0)); t.listen()
@@ -879,9 +879,9 @@ fn exact_broker_socket_remains_reachable_inside_the_empty_root() {
     let listener = UnixListener::bind(&socket).unwrap();
     let _enabled = crate::test_env::TestEnvVarGuard::set(ENABLE_ENV, "1");
     let _home = crate::test_env::TestEnvVarGuard::set("HOME", home.path());
-    let _proc = crate::test_env::TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
-    let _broker = crate::test_env::TestEnvVarGuard::set("COS_EXTENSION_BROKER_SOCKET", &socket);
-    let script = "import os,socket; s=socket.socket(socket.AF_UNIX); s.connect(os.environ['COS_EXTENSION_BROKER_SOCKET']); s.send(b'ok')";
+    let _proc = crate::test_env::TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
+    let _broker = crate::test_env::TestEnvVarGuard::set("YUOS_EXTENSION_BROKER_SOCKET", &socket);
+    let script = "import os,socket; s=socket.socket(socket.AF_UNIX); s.connect(os.environ['YUOS_EXTENSION_BROKER_SOCKET']); s.send(b'ok')";
     let launch = isolated_prepare(
         "python3",
         vec![OsString::from("-c"), OsString::from(script)],

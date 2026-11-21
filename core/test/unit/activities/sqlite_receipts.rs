@@ -669,7 +669,7 @@ fn receipt_schema_rejects_unsupported_old_versions_without_resetting_data() {
 
 #[test]
 fn receipt_schema_migration_crash_worker() {
-    let Some(path) = std::env::var_os("COS_TEST_RECEIPT_MIGRATION_DB") else {
+    let Some(path) = std::env::var_os("YUOS_TEST_RECEIPT_MIGRATION_DB") else {
         return;
     };
     let mut conn = Connection::open(path).unwrap();
@@ -695,7 +695,7 @@ fn receipt_schema_migration_recovers_after_process_exit_before_commit() {
             "activities::sqlite::tests::receipt_schema_migration_crash_worker",
             "--test-threads=1",
         ])
-        .env("COS_TEST_RECEIPT_MIGRATION_DB", &path)
+        .env("YUOS_TEST_RECEIPT_MIGRATION_DB", &path)
         .output()
         .unwrap();
     assert_eq!(

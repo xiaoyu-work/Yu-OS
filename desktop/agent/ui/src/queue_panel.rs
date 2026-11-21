@@ -1,5 +1,5 @@
 use crate::{Message as AppMessage, bridge, fl};
-use cos_agent_protocol::{BridgeEndpoint, FollowUp, FollowUpQueue};
+use yuos_agent_protocol::{BridgeEndpoint, FollowUp, FollowUpQueue};
 use cosmic::{
     Element,
     app::Task,

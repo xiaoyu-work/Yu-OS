@@ -49,7 +49,7 @@ pub fn app(source: &Path, kind: &str, group: &str, app_id: &str, root: &Path) ->
         serde_json::from_slice::<serde_json::Value>(&output.stdout).unwrap(),
         serde_json::json!([app_id])
     );
-    let app = root.join("usr/lib/cos/apps").join(layout);
+    let app = root.join("usr/lib/yuos/apps").join(layout);
     assert_eq!(
         std::fs::read(app.join("app.json")).unwrap(),
         std::fs::read(source.join("app.json")).unwrap()
@@ -60,7 +60,7 @@ pub fn app(source: &Path, kind: &str, group: &str, app_id: &str, root: &Path) ->
 pub fn python_runtime(source: &Path, root: &Path) -> PathBuf {
     let pinned = pinned_source(source);
     let repository = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let destination = root.join("usr/lib/cos/python");
+    let destination = root.join("usr/lib/yuos/python");
     let output = Command::new("python3")
         .arg(pinned.join("tools/stage.py"))
         .args(["--shared", "--root"])
@@ -74,8 +74,8 @@ pub fn python_runtime(source: &Path, root: &Path) -> PathBuf {
         destination
     );
     for relative in [
-        "claw-os-sdk/python/src/claw_os_sdk",
-        "cos-runtime/python/src/cos_runtime",
+        "yuos-sdk/python/src/yuos_sdk",
+        "yuos-runtime/python/src/yuos_runtime",
     ] {
         let source = repository.join(relative);
         let target = destination.join(source.file_name().unwrap());
@@ -88,7 +88,7 @@ pub fn python_runtime(source: &Path, root: &Path) -> PathBuf {
             .unwrap();
         assert!(output.status.success(), "{output:?}");
     }
-    assert!(!root.join("usr/lib/cos/apps/_shared").exists());
-    assert!(!root.join("usr/lib/cos/apps/gateway/_shared").exists());
+    assert!(!root.join("usr/lib/yuos/apps/_shared").exists());
+    assert!(!root.join("usr/lib/yuos/apps/gateway/_shared").exists());
     destination
 }

@@ -2,8 +2,8 @@
 //!
 //! # Why
 //!
-//! Claw's agent is kernel-resident: a model turn can reach processes,
-//! credentials, the policy engine and the desktop through gated `cos_*`
+//! Yu OS's agent is kernel-resident: a model turn can reach processes,
+//! credentials, the policy engine and the desktop through gated `yu_*`
 //! tools. Its context is assembled from sources with wildly different
 //! authority — the compiled operator scaffold, the owner's message,
 //! `MEMORY.md`, a Skill's catalogue entry, an MCP server's tool
@@ -30,7 +30,7 @@
 //!   inputs.
 //! * [`envelope`] — the bounded, per-request-sealed data fence used
 //!   wherever a provider has no per-segment metadata field, which is
-//!   every provider Claw supports.
+//!   every provider Yu OS supports.
 //! * [`authority`] — the type wall stating that none of the above
 //!   decides anything.
 //!

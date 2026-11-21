@@ -88,13 +88,13 @@ def catalog(document):
 
 def package_firmware_index(source, provenance, work, out, package):
     stage = work / "qualcomm-firmware-index"
-    index = stage / "usr/share/cos/qualcomm/firmware.json"
+    index = stage / "usr/share/yuos/qualcomm/firmware.json"
     index.parent.mkdir(parents=True)
     index.write_text(json.dumps(catalog(yaml.safe_load(source[INDEX].read_text())),
                                 separators=(",", ":"), sort_keys=True) + "\n", encoding="utf-8")
     certificate = index.with_name("microsoft-update.pem")
     certificate.write_text(ssl.DER_cert_to_PEM_cert(source[UPDATE_CA].read_bytes()), encoding="ascii")
-    name = "claw-os-qualcomm-firmware-index"
+    name = "yuos-qualcomm-firmware-index"
     license_file = stage / "usr/share/doc" / name / "wudrivers.LICENSE"
     license_file.parent.mkdir(parents=True)
     resolver = stage / "usr/lib/python3/dist-packages/wudrivers"
@@ -118,7 +118,7 @@ def package_firmware_index(source, provenance, work, out, package):
     if text.count(unverified) != 1 or not (resolver / "__init__.py").is_file() or not license_file.is_file():
         raise ValueError("unexpected Windows Update resolver inputs")
     transport.write_text(text.replace(unverified,
-                                      'ssl.create_default_context(cafile="/usr/share/cos/qualcomm/microsoft-update.pem")'),
+                                      'ssl.create_default_context(cafile="/usr/share/yuos/qualcomm/microsoft-update.pem")'),
                          encoding="utf-8")
     package(stage, out, name, "1-1", "all", "python3 (>= 3.11), curl, msitools, 7zip, innoextract",
             "Verified sources for model-specific Qualcomm OEM firmware",

@@ -31,7 +31,7 @@ fn scheduling_priority_translation_preserves_absence_and_closed_values() {
     .unwrap();
     assert_eq!(
         response.scheduling_policy.unwrap().priority,
-        cos_agent_protocol::ActivitySchedulingPriority::Foreground
+        yuos_agent_protocol::ActivitySchedulingPriority::Foreground
     );
 }
 

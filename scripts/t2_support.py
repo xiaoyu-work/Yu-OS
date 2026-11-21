@@ -13,7 +13,7 @@ def t2_package(release, source, provenance, work, out, package):
     fan = work / "t2-fan"
     audio = work / "t2-audio"
     stage = work / "t2-support"
-    doc = stage / "usr/share/doc/claw-os-t2-support"
+    doc = stage / "usr/share/doc/yuos-t2-support"
     extract(source["t2-fan"], fan)
     subprocess.run(["cargo", "build", "--locked", "--release", "--target-dir", fan / "target"], cwd=fan, check=True)
     stage_file(fan / "target/release/t2fanrd", stage / "usr/bin/t2fanrd", 0o755)
@@ -29,12 +29,12 @@ def t2_package(release, source, provenance, work, out, package):
     converter = source["t2-firmware-converter"].read_text()
     _, body = converter.split("python3 - \"$@\" <<'EOF'\n", 1)
     python, _ = body.split("\nEOF\n}", 1)
-    write_file(stage / "usr/lib/cos/hw/t2-firmware-convert.py", python + "\n")
+    write_file(stage / "usr/lib/yuos/hw/t2-firmware-convert.py", python + "\n")
     stage_file(source["t2-firmware-license"], doc / "firmware-converter.LICENSE")
-    stage_file(ASSETS / "claw-import-t2-firmware", stage / "usr/sbin/claw-import-t2-firmware", 0o755)
-    stage_file(ASSETS / "claw-t2-fan.service", stage / "usr/lib/systemd/system/claw-t2-fan.service")
-    write_file(stage / "usr/lib/modules-load.d/60-claw-t2.conf", "t2bce_vhci\nhci_bcm4377\n")
-    package(stage, out, "claw-os-t2-support", "1-1", "amd64",
+    stage_file(ASSETS / "yuos-import-t2-firmware", stage / "usr/sbin/yuos-import-t2-firmware", 0o755)
+    stage_file(ASSETS / "yuos-t2-fan.service", stage / "usr/lib/systemd/system/yuos-t2-fan.service")
+    write_file(stage / "usr/lib/modules-load.d/60-yuos-t2.conf", "t2bce_vhci\nhci_bcm4377\n")
+    package(stage, out, "yuos-t2-support", "1-1", "amd64",
             f"linux-image-{release}, alsa-ucm-conf, python3, libc6, libgcc-s1, kmod, mount, util-linux, systemd, initramfs-tools",
             "Audio profiles, fan service and local wireless firmware import for Apple T2 Macs",
             {name: spec for name, spec in provenance.items() if name.startswith("t2-")}, None)

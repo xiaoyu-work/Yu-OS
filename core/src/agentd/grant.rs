@@ -26,7 +26,7 @@ pub const GRANT_VERSION: u32 = 9;
 /// Intended recipient of the grant. A token issued for the worker
 /// channel is meaningless anywhere else because every verifier requires
 /// its own audience string.
-pub const GRANT_AUDIENCE: &str = "cos.agentd.worker.v1";
+pub const GRANT_AUDIENCE: &str = "yuos.agentd.worker.v1";
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -120,7 +120,7 @@ impl std::fmt::Display for GrantError {
 pub struct GrantClaims {
     pub v: u32,
     pub audience: String,
-    /// pid of the `clawd` process that issued the grant. A grant minted
+    /// pid of the `yuosd` process that issued the grant. A grant minted
     /// by a previous daemon instance is rejected after a restart.
     pub broker_pid: u32,
     pub task_id: String,

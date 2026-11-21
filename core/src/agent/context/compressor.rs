@@ -772,7 +772,7 @@ impl LlmCompressor {
                     temperature: Some(0.0),
                     top_p: None,
                     stop_sequences: Vec::new(),
-                    extra: serde_json::json!({"_cos_initiator": "agent"}),
+                    extra: serde_json::json!({"__yuos_initiator": "agent"}),
                 };
 
                 match self.provider.chat(request).await {

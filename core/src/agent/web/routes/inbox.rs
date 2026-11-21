@@ -1,6 +1,6 @@
-//! `GET /api/inbox` — tail of clawd's append-only context-events log.
+//! `GET /api/inbox` — tail of yuosd's append-only context-events log.
 //!
-//! clawd writes one JSONL line per agent context event (run started,
+//! yuosd writes one JSONL line per agent context event (run started,
 //! approval emitted, system operation succeeded, …) to
 //! [`crate::paths::context_events_log_path`]. The web UI tails the
 //! last N entries so the user can see at a glance "what has my agent
@@ -57,7 +57,7 @@ pub async fn list(State(state): State<AppState>, Query(q): Query<ListQuery>) -> 
                     continue;
                 }
                 if let Ok(v) = serde_json::from_str::<Value>(trimmed) {
-                    if crate::clawd::context_events::event_visible_to(
+                    if crate::yuosd::context_events::event_visible_to(
                         &v,
                         Some(state.inner.owner_uid),
                     ) {

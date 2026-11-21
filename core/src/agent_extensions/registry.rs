@@ -73,9 +73,9 @@ impl ExtensionRegistry {
 }
 
 pub fn installed_root() -> PathBuf {
-    std::env::var_os("COS_AGENT_EXTENSIONS_DIR")
+    std::env::var_os("YUOS_AGENT_EXTENSIONS_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/usr/lib/cos/extensions"))
+        .unwrap_or_else(|| PathBuf::from("/usr/lib/yuos/extensions"))
 }
 
 fn load_one(

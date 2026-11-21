@@ -1,7 +1,7 @@
 //! Semantic memory backed by an [`Embedder`] (cloud or local).
 //!
 //! The storage engine and trait surface live in the workspace-internal
-//! [`claw_embed`] crate. This module is the **config-aware adapter**:
+//! [`yuos_embed`] crate. This module is the **config-aware adapter**:
 //! it re-exports the engine types so existing call-sites keep working,
 //! and adds an extension trait that opens the store at the system
 //! default path (`<data_dir>/agent/semantic.db`) with the configured
@@ -9,11 +9,11 @@
 //!
 //! Why split?
 //!
-//! The daemon at `crates/claw-semantic` (and any future embed
+//! The daemon at `crates/yuos-semantic` (and any future embed
 //! consumer) needs the [`SemanticStore`] type and [`Embedder`] trait
 //! but **must not** depend on the rest of `core` (TOML/JSONC config
 //! globals, paths layout, agent runtime). Putting the storage engine
-//! in a leaf crate keeps that boundary clean while letting `cos` itself
+//! in a leaf crate keeps that boundary clean while letting `yu` itself
 //! retain its config-driven convenience constructors.
 
 use std::path::PathBuf;
@@ -21,12 +21,12 @@ use std::sync::Arc;
 
 // Re-export the storage engine + trait surface so callers can keep
 // using `crate::agent::memory::semantic::{SemanticStore, SemanticHit,
-// ...}` exactly as before. Everything is defined in `claw-embed`.
-pub use claw_embed::{
+// ...}` exactly as before. Everything is defined in `yuos-embed`.
+pub use yuos_embed::{
     SemanticError, SemanticHit, SemanticRow, SemanticStore, MAX_EMBED_TEXT_CHARS,
 };
 
-/// Default path under the cos data dir: `<data_dir>/agent/semantic.db`.
+/// Default path under the yu data dir: `<data_dir>/agent/semantic.db`.
 pub fn default_path() -> PathBuf {
     crate::paths::agent_semantic_db_path()
 }
@@ -37,7 +37,7 @@ pub fn default_path() -> PathBuf {
 /// main `[agent]` provider isn't OpenAI-shape.
 ///
 /// Free function rather than an inherent method because
-/// [`SemanticStore`] is defined in `claw_embed` (orphan rule prevents
+/// [`SemanticStore`] is defined in `yuos_embed` (orphan rule prevents
 /// adding inherent methods cross-crate). Most callers pull this in
 /// via the [`SemanticStoreExt`] trait below so the original
 /// `SemanticStore::open_default()` call-site shape keeps working.

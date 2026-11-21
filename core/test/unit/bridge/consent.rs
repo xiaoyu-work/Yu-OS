@@ -1,5 +1,5 @@
 use super::*;
-use clawd_client::system_review::{ReviewAction, ReviewSubject};
+use yuosd_client::system_review::{ReviewAction, ReviewSubject};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 
@@ -7,8 +7,8 @@ const APP: &str = "independent";
 const REVIEW: &str = "rv-0123456789abcdef0123456789abcdef";
 const CAPABILITY: &str = "ap-0123456789ab";
 
-fn review_denial() -> ClawdCallError {
-    ClawdCallError {
+fn review_denial() -> YuosdCallError {
+    YuosdCallError {
         code: Some("not_authorized".into()),
         message: "App activation is waiting for the owner's OS permission review".into(),
         data: Some(json!({
@@ -19,8 +19,8 @@ fn review_denial() -> ClawdCallError {
     }
 }
 
-fn capability_denial() -> ClawdCallError {
-    ClawdCallError {
+fn capability_denial() -> YuosdCallError {
+    YuosdCallError {
         code: Some("not_authorized".into()),
         message: "capability approval is required".into(),
         data: Some(json!({
@@ -32,7 +32,7 @@ fn capability_denial() -> ClawdCallError {
 
 fn review(status: ReviewStatus, revision: u64) -> SystemReview {
     SystemReview {
-        schema_version: clawd_client::system_review::SCHEMA_VERSION,
+        schema_version: yuosd_client::system_review::SCHEMA_VERSION,
         id: REVIEW.into(),
         revision,
         kind: ReviewKind::Activation,
@@ -159,7 +159,7 @@ fn review_then_capability_decisions_only_retry_the_original_registration() {
     assert_eq!(result, json!({"session_id": "broker-issued"}));
     assert_eq!(sent.borrow().len(), 3);
     for (command, body) in sent.borrow().iter() {
-        assert_eq!(*command, ClawdCommand::AppSessionRegister);
+        assert_eq!(*command, YuosdCommand::AppSessionRegister);
         assert_eq!(
             *body, params,
             "a review id or claimed confirmation entered registration"
@@ -212,7 +212,7 @@ fn private_hosts_preserve_review_refusals_without_bypassing_their_proxy() {
         false,
         Instant::now() + Duration::from_secs(1),
         |command, _| {
-            assert_eq!(command, ClawdCommand::AppSessionRegister);
+            assert_eq!(command, YuosdCommand::AppSessionRegister);
             Err(review_denial())
         },
         |_, _| panic!("a private Host reached around its route-filtered broker"),

@@ -14,12 +14,12 @@ const APP: &str = "opaque-cli-fixture";
 const OWNER: u32 = 42424;
 const GATE: &str = "abcdef0123456789abcdef0123456789";
 const SOURCE: &str = r#"import json, os, struct, sys, time
-assert os.environ["COS_APP_ID"] == "opaque-cli-fixture"
-assert os.environ["COS_SESSION"].startswith("app-")
-assert os.environ["COS_WORKER_SANDBOX"] == "1"
+assert os.environ["YUOS_APP_ID"] == "opaque-cli-fixture"
+assert os.environ["YUOS_SESSION"].startswith("app-")
+assert os.environ["YUOS_WORKER_SANDBOX"] == "1"
 assert sys.argv[1:] == []
-assert os.environ["COS_COMMAND"] in ("host", "hang")
-assert json.loads(os.environ["COS_ARGS_JSON"]) in ([], ["--", "--json"])
+assert os.environ["YUOS_COMMAND"] in ("host", "hang")
+assert json.loads(os.environ["YUOS_ARGS_JSON"]) in ([], ["--", "--json"])
 def read_exact(length):
     result = b""
     while len(result) < length:
@@ -40,7 +40,7 @@ while True:
     assert payload is not None
     sys.stdout.buffer.write(header + payload)
     sys.stdout.buffer.flush()
-if os.environ["COS_COMMAND"] == "hang":
+if os.environ["YUOS_COMMAND"] == "hang":
     time.sleep(600)
 "#;
 
@@ -96,8 +96,8 @@ fn isolate() -> tempfile::TempDir {
     for path in ["/run", "/etc", "/root", "/var/lib", "/usr/local/bin"] {
         private_tmpfs(path);
     }
-    if Path::new("/usr/lib/cos").is_dir() {
-        private_tmpfs("/usr/lib/cos");
+    if Path::new("/usr/lib/yuos").is_dir() {
+        private_tmpfs("/usr/lib/yuos");
     }
     fs::write(
         "/etc/passwd",
@@ -105,14 +105,14 @@ fn isolate() -> tempfile::TempDir {
     ).unwrap();
     fs::write("/etc/group", "root:x:0:\nstdio:x:42424:\n").unwrap();
     fs::write("/etc/ld.so.cache", loader_cache).unwrap();
-    for binary in ["yu", "claw-app-runner"] {
+    for binary in ["yu", "yuos-app-runner"] {
         let destination = Path::new("/usr/local/bin").join(binary);
         fs::copy(binaries.join(binary), &destination)
             .unwrap_or_else(|error| panic!("build matching {binary} first: {error}"));
         fs::set_permissions(destination, fs::Permissions::from_mode(0o755)).unwrap();
     }
     let root = tempfile::Builder::new()
-        .prefix("cos-stdio-cli-")
+        .prefix("yuos-stdio-cli-")
         .tempdir_in("/run")
         .unwrap();
     fs::set_permissions(root.path(), fs::Permissions::from_mode(0o755)).unwrap();
@@ -143,13 +143,13 @@ impl RootBroker {
                 .build()
                 .unwrap();
             runtime.block_on(async move {
-                use crate::clawd::transport::{
+                use crate::yuosd::transport::{
                     frame::PeerStream, peer, Admission, Limits, ReadOutcome,
                 };
                 let listener = tokio::net::UnixListener::bind(&path).unwrap();
                 peer::enable_credential_passing(listener.as_raw_fd()).unwrap();
                 fs::set_permissions(&path, fs::Permissions::from_mode(0o666)).unwrap();
-                let state = crate::clawd::state::DaemonState::try_new().unwrap();
+                let state = crate::yuosd::state::DaemonState::try_new().unwrap();
                 let admission = Admission::new(Limits::default());
                 ready_tx.send(()).unwrap();
                 loop {
@@ -160,7 +160,7 @@ impl RootBroker {
                     let mut stream = PeerStream::new(socket).unwrap();
                     let frame = tokio::time::timeout(
                         Duration::from_secs(10),
-                        stream.read_request(crate::clawd::wire::MAX_REQUEST_BYTES),
+                        stream.read_request(crate::yuosd::wire::MAX_REQUEST_BYTES),
                     )
                     .await
                     .unwrap()
@@ -171,13 +171,13 @@ impl RootBroker {
                     assert!(!stream.has_pending_input());
                     let peer = peer::verify(frame.credentials).expect("kernel-verified CLI sender");
                     assert!(peer.uid == 0 || peer.uid == OWNER);
-                    let client = crate::clawd::client_identity::ClientIdentity::from_peer(peer);
+                    let client = crate::yuosd::client_identity::ClientIdentity::from_peer(peer);
                     let request = serde_json::from_slice(&frame.body).unwrap();
-                    let response = crate::clawd::server::dispatch_verified_request(
+                    let response = crate::yuosd::server::dispatch_verified_request(
                         request, &client, &state, &admission,
                     )
                     .await;
-                    let response = crate::clawd::protocol::encode_response(&response).unwrap();
+                    let response = crate::yuosd::protocol::encode_response(&response).unwrap();
                     stream.write_response(&response).await.unwrap();
                 }
             });
@@ -198,7 +198,7 @@ impl Drop for RootBroker {
 }
 
 fn session_rows(owner: u32) -> Vec<crate::proc::SessionInfo> {
-    let path = PathBuf::from("/run/cos/caps")
+    let path = PathBuf::from("/run/yuos/caps")
         .join(owner.to_string())
         .join("proc/registry.json");
     let value: Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
@@ -291,7 +291,7 @@ impl Running {
     ) -> Self {
         let session = format!("stdio-caller-{}", uuid::Uuid::new_v4().simple());
         let stderr = root.join(format!("{session}.stderr"));
-        let mut child = std::process::Command::new("/usr/local/bin/claw-app-runner")
+        let mut child = std::process::Command::new("/usr/local/bin/yuos-app-runner")
             .args(["--launch-gate", GATE, "--", "/usr/local/bin/yu"])
             .args(args)
             .current_dir(root)
@@ -305,24 +305,24 @@ impl Running {
                 },
             )
             .env("PATH", "/usr/local/bin:/usr/bin:/bin")
-            .env("COS_APPS_DIR", root.join("apps"))
+            .env("YUOS_APPS_DIR", root.join("apps"))
             .env(
-                "COS_DATA_DIR",
+                "YUOS_DATA_DIR",
                 root.join(if owner == 0 { "data" } else { "user-data" }),
             )
-            .env("COS_CAPS_DATA_DIR", root.join("caps"))
-            .env("COS_PROC_DATA_DIR", format!("/run/cos/caps/{owner}"))
-            .env("COS_RUNTIME_DIR", root.join("no-daemon"))
-            .env("CLAWD_SOCKET", root.join("no-daemon/clawd.sock"))
+            .env("YUOS_CAPS_DATA_DIR", root.join("caps"))
+            .env("YUOS_PROC_DATA_DIR", format!("/run/yuos/caps/{owner}"))
+            .env("YUOS_RUNTIME_DIR", root.join("no-daemon"))
+            .env("YUOSD_SOCKET", root.join("no-daemon/yuosd.sock"))
             .env(
-                "COS_SESSION",
+                "YUOS_SESSION",
                 if parent.is_some() {
                     session.as_str()
                 } else {
                     ""
                 },
             )
-            .env("COS_APP_STDIN_MAX_BYTES", "1")
+            .env("YUOS_APP_STDIN_MAX_BYTES", "1")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(fs::File::create(&stderr).unwrap())
@@ -492,23 +492,23 @@ fn awaiting_review(root: &Path, parent: &crate::proc::SessionInfo) -> reviews::R
 }
 
 #[test]
-#[ignore = "actual Root, private mount/network namespaces, matching cos/runner; includes 300s EOF deadline"]
+#[ignore = "actual Root, private mount/network namespaces, matching yu/runner; includes 300s EOF deadline"]
 fn root_stdio_cli_preserves_opaque_transport_and_authority() {
     let _lock = crate::test_env::lock_env();
     let root = isolate();
     let _home = TestEnvVarGuard::set("HOME", "/root");
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", root.path().join("data"));
-    let _caps = TestEnvVarGuard::set("COS_CAPS_DATA_DIR", root.path().join("caps"));
-    let _fixture = TestEnvVarGuard::remove("COS_TEST_LOCAL_APP_SESSIONS");
-    let _runtime = TestEnvVarGuard::set("COS_RUNTIME_DIR", root.path().join("no-daemon"));
-    let _apps = TestEnvVarGuard::set("COS_APPS_DIR", root.path().join("apps"));
-    let _parent = TestSessionGuard::admin(Path::new("/run/cos/caps/0"));
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().join("data"));
+    let _caps = TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", root.path().join("caps"));
+    let _fixture = TestEnvVarGuard::remove("YUOS_TEST_LOCAL_APP_SESSIONS");
+    let _runtime = TestEnvVarGuard::set("YUOS_RUNTIME_DIR", root.path().join("no-daemon"));
+    let _apps = TestEnvVarGuard::set("YUOS_APPS_DIR", root.path().join("apps"));
+    let _parent = TestSessionGuard::admin(Path::new("/run/yuos/caps/0"));
     let mut parent = crate::proc::current_session_info_for_caps().unwrap();
     parent.client.source = crate::session::SessionSource::LocalCli;
     let key = SigningKeyFile::generate(Some("private stdio CLI test publisher".into())).unwrap();
-    fs::create_dir_all("/etc/cos/trust/publishers.d").unwrap();
+    fs::create_dir_all("/etc/yuos/trust/publishers.d").unwrap();
     fs::write(
-        "/etc/cos/trust/publishers.d/fixture.json",
+        "/etc/yuos/trust/publishers.d/fixture.json",
         key.trust_entry(&[PackageKind::App]).to_string(),
     )
     .unwrap();
@@ -540,10 +540,10 @@ fn root_stdio_cli_preserves_opaque_transport_and_authority() {
     );
     let mut offline = Running::start(root.path(), &parent, &["app", "stdio", APP, "host"]);
     let (status, stdout, stderr) = offline.finish(Duration::from_secs(10));
-    assert!(!status.success() && stdout.is_empty() && stderr.contains("clawd"), "{stderr}");
-    let _broker_proc = TestEnvVarGuard::remove("COS_PROC_DATA_DIR");
-    let _broker_session = TestEnvVarGuard::remove("COS_SESSION");
-    let _broker = RootBroker::start(crate::paths::clawd_socket_path());
+    assert!(!status.success() && stdout.is_empty() && stderr.contains("yuosd"), "{stderr}");
+    let _broker_proc = TestEnvVarGuard::remove("YUOS_PROC_DATA_DIR");
+    let _broker_session = TestEnvVarGuard::remove("YUOS_SESSION");
+    let _broker = RootBroker::start(crate::paths::yuosd_socket_path());
 
     let missing = awaiting_review(root.path(), &parent);
     reviews::decide(0, &missing.id, false, None).unwrap();

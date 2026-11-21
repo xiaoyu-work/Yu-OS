@@ -4,8 +4,8 @@ use axum::{
     Json,
     extract::{Path, Query, State, rejection::JsonRejection, rejection::QueryRejection},
 };
-use clawd_client::Command;
-use cos_agent_protocol::{
+use yuosd_client::Command;
+use yuos_agent_protocol::{
     ActivityCapabilityPolicy, ActivityCapabilityPolicyEnabledRequest,
     ActivityCapabilityPolicyQuery, ActivityCapabilityPolicyResponse,
     ActivityCapabilityPolicySetRequest,
@@ -35,7 +35,7 @@ pub async fn get(
     query.map_err(|_| invalid("Capability policy queries accept no owner or state selectors"))?;
     let owner = owner_uid()?;
     let value = state
-        .clawd
+        .yuosd
         .call(
             Command::ActivityCapabilityPolicyGet,
             with_id(&id, json!({}))?,
@@ -56,7 +56,7 @@ pub async fn set(
     request.validate_shape().map_err(invalid)?;
     let owner = owner_uid()?;
     let value = state
-        .clawd
+        .yuosd
         .call(
             Command::ActivityCapabilityPolicySet,
             with_id(&id, &request)?,
@@ -81,7 +81,7 @@ pub async fn enabled(
     request.validate_shape().map_err(invalid)?;
     let owner = owner_uid()?;
     let value = state
-        .clawd
+        .yuosd
         .call(
             Command::ActivityCapabilityPolicyEnabled,
             with_id(&id, &request)?,

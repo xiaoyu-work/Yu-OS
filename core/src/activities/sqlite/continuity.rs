@@ -351,7 +351,7 @@ fn load_lineage(
 }
 
 fn legacy_continuity_id(activity_id: &str) -> String {
-    let material = format!("claw-os/activity-continuity/legacy-id/v1\0{activity_id}");
+    let material = format!("yuos/activity-continuity/legacy-id/v1\0{activity_id}");
     let mut bytes = crate::crypto::sha256_bytes(material.as_bytes());
     bytes[6] = (bytes[6] & 0x0f) | 0x50;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;

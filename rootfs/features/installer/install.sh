@@ -4,7 +4,7 @@
 # What this script does:
 #  - Copies the installer overlay and branding assets
 #    into the rootfs at /etc/calamares/.
-#  - Marks /etc/cos/installer-xstartup and /etc/profile.d/cos-installer.sh
+#  - Marks /etc/yuos/installer-xstartup and /etc/profile.d/yuos-installer.sh
 #    executable; the profile.d hook is what auto-starts X on tty1 login.
 #  - Gives the live "user" account passwordless sudo for the duration of
 #    the install (live-config also does this, but we make it explicit so
@@ -21,31 +21,31 @@ if [ -d "$FEATURE_DIR/overlay" ]; then
     echo "  :: applying installer overlay"
     cp -a --no-preserve=ownership "$FEATURE_DIR/overlay/." "$ROOTFS/"
 fi
-branding="$ROOTFS/etc/calamares/branding/claw-os"
+branding="$ROOTFS/etc/calamares/branding/yuos"
 install -m0644 "$PROJECT_DIR/assets/brand/yuos-icon-192.png" "$branding/logo.png"
 install -m0644 "$PROJECT_DIR/assets/brand/yuos-wordmark.svg" "$branding/welcome.svg"
 
 # 2. Mark the autostart hook + Xstartup script executable.
-chmod 755 "$ROOTFS/etc/profile.d/cos-installer.sh"
-chmod 755 "$ROOTFS/etc/cos/installer-xstartup"
-chmod 755 "$ROOTFS/usr/lib/cos/init/cleanup-installer-target.sh"
+chmod 755 "$ROOTFS/etc/profile.d/yuos-installer.sh"
+chmod 755 "$ROOTFS/etc/yuos/installer-xstartup"
+chmod 755 "$ROOTFS/usr/lib/yuos/init/cleanup-installer-target.sh"
 
 # 3. Passwordless sudo for the live user (live-config creates "user" at
 #    boot, member of the sudo group). live-config also sets sudoers,
 #    but installing our own override makes the dependency explicit and
 #    survives live-config behavior changes.
 mkdir -p "$ROOTFS/etc/sudoers.d"
-cat > "$ROOTFS/etc/sudoers.d/cos-installer" <<'EOF'
+cat > "$ROOTFS/etc/sudoers.d/yuos-installer" <<'EOF'
 # Allow the live user to run Calamares (which calls partitioning + grub
 # helpers) without typing a password. Burned into the live image only;
 # the target system Calamares creates has its own users + sudoers config.
 user ALL=(ALL) NOPASSWD:ALL
 EOF
-chmod 0440 "$ROOTFS/etc/sudoers.d/cos-installer"
+chmod 0440 "$ROOTFS/etc/sudoers.d/yuos-installer"
 
-if [ -x "$ROOTFS/usr/libexec/claw-oobe" ]; then
+if [ -x "$ROOTFS/usr/libexec/yuos-oobe" ]; then
     if [ "$DEB_ARCH" = amd64 ]; then
-        hardware=$(mktemp -d "$ROOTFS/tmp/claw-amd64-hardware.XXXXXX")
+        hardware=$(mktemp -d "$ROOTFS/tmp/yuos-amd64-hardware.XXXXXX")
         trap 'rm -rf -- "$hardware"' EXIT
         install -d "$hardware"/{scripts,packaging}
         install -m0644 "$PROJECT_DIR"/scripts/{amd64_hardware,platform_kernels,surface_laptop7}.py "$hardware/scripts/"
@@ -63,9 +63,9 @@ if [ -x "$ROOTFS/usr/libexec/claw-oobe" ]; then
             "cargo/$SUITE-backports" "rustc/$SUITE-backports" libudev-dev libusb-1.0-0-dev </dev/null
         inside=${hardware#"$ROOTFS"}
         chroot "$ROOTFS" python3 -B "$inside/scripts/amd64_hardware.py" \
-            --cache "$inside/cache" --output /usr/share/cos/driver-cache
+            --cache "$inside/cache" --output /usr/share/yuos/driver-cache
     fi
-    chroot "$ROOTFS" /usr/lib/cos/hw/claw-driver-setup --stage-offline
+    chroot "$ROOTFS" /usr/lib/yuos/hw/yuos-driver-setup --stage-offline
 fi
 
 echo "  :: Calamares configured; X autostarts on tty1 login"

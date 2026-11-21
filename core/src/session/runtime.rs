@@ -7,7 +7,7 @@
 //!
 //! ```ignore
 //! use yu::session;
-//! let s = session::promote_to_durable("整理发票", "cos-agent")?;
+//! let s = session::promote_to_durable("整理发票", "yuos-agent")?;
 //! // …agent loop, calls into apps that update s.sid()…
 //! s.finish(session::Status::Done)?;
 //! ```
@@ -15,14 +15,14 @@
 //! ## What "promote_to_durable" means
 //!
 //! The CLI's bootstrap code (see [`crate::caps::bootstrap`]) mints a
-//! short-lived in-process session row for every `cos` invocation. Most
+//! short-lived in-process session row for every `yu` invocation. Most
 //! invocations are one-shot (`yu app fs read …`, `yu sys info`, …) and
 //! should never spill onto disk — promoting them all would explode
-//! `$COS_DATA_DIR/sessions/` into millions of empty directories.
+//! `$YUOS_DATA_DIR/sessions/` into millions of empty directories.
 //!
 //! `promote_to_durable` is the **opt-in** path an agent runtime calls
 //! when it knows the work is going to be long-lived: it allocates a
-//! durable directory, takes the lease, updates the `COS_SESSION` env
+//! durable directory, takes the lease, updates the `YUOS_SESSION` env
 //! var so any subprocess inherits "I am inside session X", and hands
 //! back a [`DurableSession`] RAII guard. Drop without [`finish`] marks
 //! the meta `Failed`.
@@ -43,7 +43,7 @@
 //!
 //! ```ignore
 //! // agent A:
-//! let s = session::promote_to_durable("…", "cos-agent")?;
+//! let s = session::promote_to_durable("…", "yuos-agent")?;
 //! …work…
 //! session::pause(s)?;
 //!
@@ -65,27 +65,27 @@ use super::store::{self, SessionError};
 /// Env var that carries "you are inside session X" to subprocesses.
 ///
 /// Mirrored from `caps/bootstrap.rs` and the internal policy bridge — the canonical
-/// signal for "this `cos` invocation should target an existing
+/// signal for "this `yu` invocation should target an existing
 /// session, not mint a new one".
-const ENV_COS_SESSION: &str = "COS_SESSION";
+const ENV_YUOS_SESSION: &str = "YUOS_SESSION";
 
-/// Serializes every mutation of `COS_SESSION` across the entire
+/// Serializes every mutation of `YUOS_SESSION` across the entire
 /// process.
 ///
 /// `std::env::set_var` is `unsafe`-ish on Unix: glibc's `setenv`
 /// races against any concurrent reader of `environ` (e.g. another
 /// thread calling `std::env::var`, `getenv`, or fork()ing). The
 /// safest in-tree fix is to funnel **every** read-or-write of
-/// `COS_SESSION` through this mutex. Callers that touch the env are
+/// `YUOS_SESSION` through this mutex. Callers that touch the env are
 /// the lifecycle helpers in this module; nothing else inside the
 /// kernel mutates it.
-static ENV_COS_SESSION_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+static ENV_YUOS_SESSION_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn with_env_lock<F, T>(f: F) -> T
 where
     F: FnOnce() -> T,
 {
-    let _g = ENV_COS_SESSION_LOCK
+    let _g = ENV_YUOS_SESSION_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     f()
@@ -97,7 +97,7 @@ where
 
 /// RAII handle to a promoted session.
 ///
-/// While alive: this process holds the [`LeaseGuard`] and `COS_SESSION`
+/// While alive: this process holds the [`LeaseGuard`] and `YUOS_SESSION`
 /// is set to the session's id. On clean shutdown, call
 /// [`finish`](Self::finish) (or [`pause`]). Dropping without either
 /// marks the meta `Failed` so the user can see "this agent died".
@@ -112,7 +112,7 @@ pub struct DurableSession {
     /// can take it without confusing Drop (Drop sees `None` and skips
     /// the fail-marking branch).
     lease: Option<LeaseGuard>,
-    /// What `COS_SESSION` was set to before promote/resume. Drop
+    /// What `YUOS_SESSION` was set to before promote/resume. Drop
     /// restores this so a parent agent's session env is not clobbered.
     prev_session_env: Option<OsString>,
     finished: bool,
@@ -135,7 +135,7 @@ impl DurableSession {
         &self.sid
     }
 
-    /// Runtime label this handle was created with (`"cos-agent"`,
+    /// Runtime label this handle was created with (`"yuos-agent"`,
     /// `"langchain-py"`, …). Recorded on the meta as
     /// `creator_runtime` and on heartbeats as the lease `runtime`.
     pub fn runtime(&self) -> &str {
@@ -156,7 +156,7 @@ impl DurableSession {
     }
 
     /// Mark the session terminal with `status` (must be `Done` or
-    /// `Failed`), release the lease, and restore `COS_SESSION`. After
+    /// `Failed`), release the lease, and restore `YUOS_SESSION`. After
     /// this returns, dropping the handle is a no-op.
     pub fn finish(mut self, status: Status) -> Result<(), SessionError> {
         debug_assert!(
@@ -241,7 +241,7 @@ pub enum TransitionError {
 /// 3. `lease::try_acquire` — take the flock. Cannot fail with `Held`
 ///    because the directory is brand new; a `Held` here would indicate
 ///    a hash collision and we surface it.
-/// 4. Save the prior `COS_SESSION`, set it to the new sid so any
+/// 4. Save the prior `YUOS_SESSION`, set it to the new sid so any
 ///    subprocess inherits "you are inside this session".
 ///
 /// Returns a [`DurableSession`] guard. Dropping without
@@ -266,8 +266,8 @@ pub fn promote_to_durable(
     let lease = lease::try_acquire(&sid)?;
 
     let prev_session_env = with_env_lock(|| {
-        let prev = std::env::var_os(ENV_COS_SESSION);
-        std::env::set_var(ENV_COS_SESSION, sid.as_str());
+        let prev = std::env::var_os(ENV_YUOS_SESSION);
+        std::env::set_var(ENV_YUOS_SESSION, sid.as_str());
         prev
     });
 
@@ -285,7 +285,7 @@ pub fn promote_to_durable(
 // ---------------------------------------------------------------------------
 
 /// Pause an attached session: flip `status` to `Paused`, drop the
-/// lease, and restore `COS_SESSION`. After this returns, the session
+/// lease, and restore `YUOS_SESSION`. After this returns, the session
 /// directory is intact and a future [`resume`] (in the same process or
 /// a totally different runtime) can pick it up.
 pub fn pause(mut handle: DurableSession) -> Result<(), TransitionError> {
@@ -316,7 +316,7 @@ pub fn pause(mut handle: DurableSession) -> Result<(), TransitionError> {
 
 /// Resume a previously paused — *or crashed-but-orphaned* — session:
 /// re-acquire the lease, flip `status` back to `Running`, set
-/// `COS_SESSION`, return a fresh [`DurableSession`].
+/// `YUOS_SESSION`, return a fresh [`DurableSession`].
 ///
 /// Accepts two starting states:
 ///
@@ -365,8 +365,8 @@ pub fn resume(
     })?;
 
     let prev_session_env = with_env_lock(|| {
-        let prev = std::env::var_os(ENV_COS_SESSION);
-        std::env::set_var(ENV_COS_SESSION, sid.as_str());
+        let prev = std::env::var_os(ENV_YUOS_SESSION);
+        std::env::set_var(ENV_YUOS_SESSION, sid.as_str());
         prev
     });
 
@@ -385,8 +385,8 @@ pub fn resume(
 
 fn restore_env(prev: Option<OsString>) {
     with_env_lock(|| match prev {
-        Some(v) => std::env::set_var(ENV_COS_SESSION, v),
-        None => std::env::remove_var(ENV_COS_SESSION),
+        Some(v) => std::env::set_var(ENV_YUOS_SESSION, v),
+        None => std::env::remove_var(ENV_YUOS_SESSION),
     })
 }
 

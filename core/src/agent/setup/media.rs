@@ -292,7 +292,7 @@ pub(super) fn wizard_media(
             "error": "yu agent setup requires an interactive TTY",
             "modality": spec.name,
             "hint": format!(
-                "run it in a terminal, or edit ~/.config/cos/config.json's `{}` block manually",
+                "run it in a terminal, or edit ~/.config/yuos/config.json's `{}` block manually",
                 spec.config_block
             ),
         })

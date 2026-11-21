@@ -41,7 +41,7 @@ def _bound_tools(source: Path) -> set[str]:
 
 def test_adapters_use_the_published_app_manifest() -> None:
     schema = json.loads(
-        (REPO_ROOT / "claw-os-sdk/wire/v1/manifest.schema.json").read_text(
+        (REPO_ROOT / "yuos-sdk/wire/v1/manifest.schema.json").read_text(
             encoding="utf-8"
         )
     )

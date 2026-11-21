@@ -72,7 +72,7 @@ fn authority_modules_do_not_read_trust_labels() {
     let guarded = [
         root.join("caps"),
         root.join("policy.rs"),
-        root.join("clawd"),
+        root.join("yuosd"),
         root.join("approvals.rs"),
         root.join("agent").join("tools").join("guardrails.rs"),
     ];

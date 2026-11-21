@@ -1,0 +1,155 @@
+# Wire protocol v1
+
+The wire protocol is the **stable contract** between every `yuos-sdk`
+language binding and the `yu` kernel binary. It is what every SDK
+ultimately speaks; what users call from their app code is a
+language-idiomatic wrapper over this protocol.
+
+## Stable AI surface
+
+Wire v1 exposes text chat only: `ai.chat` and the hardened
+`ai.chat.untrusted` variant selected by `origin=external-content`.
+Unsupported modalities are not published as placeholder SDK APIs.
+
+## Transport
+
+**v1 uses a subprocess transport.** A request is encoded as
+`yu --wire=1` plus command-line arguments and, optionally, stdin JSON. The
+reply is exactly one JSON **envelope** on stdout. Exit code 0 accompanies a
+success envelope; non-zero accompanies an error envelope. SDKs reject flat
+command output, JSON on stderr, malformed envelopes, unsupported versions, and
+an exit-status/`ok` mismatch.
+
+Reasoning:
+- Identity and audit-trail come from process ancestry. The `yu`
+  binary verifies that its parent is an app the kernel itself launched.
+- Subprocess transport works on every OS without setting up sockets,
+  named pipes, or daemons.
+- The same envelopes will flow over v2 (Unix socket + length-prefixed
+  framing). Switching transports is an SDK-internal change.
+
+## Envelope
+
+Every reply is one JSON object that conforms to `envelope.schema.json`.
+
+Successful reply:
+```json
+{
+  "ok": true,
+  "data": { /* request-specific shape, see {perms,ai,tool,app}.schema.json */ },
+  "audit_id": "01J…",
+  "wire_version": 1
+}
+```
+
+Error reply:
+```json
+{
+  "ok": false,
+  "error": "permission denied",
+  "code": "PERMISSION_DENIED",
+  "detail": { /* request-specific shape */ },
+  "audit_id": "01J…",
+  "wire_version": 1
+}
+```
+
+`code` is a stable string drawn from `error_codes.md`. New codes may
+be added in v1; existing codes keep their meaning.
+
+## Request families
+
+| Family   | Route                                   | Schema                  |
+|----------|-----------------------------------------|-------------------------|
+| `policy` | OS-internal capability check; no public SDK API | `perms.schema.json` |
+| `ai`     | `yu ai chat --app <id> [...] `         | `ai.schema.json`        |
+| `tool`   | `yu ai tool <name> --app <id> --args <json>` | `tool.schema.json` |
+| `app`    | `yu app <id> <verb> [...]`             | `app.schema.json`       |
+
+The `policy` wire family is consumed only by the OS-internal
+`yuos-runtime` package. It is not an importable API in any public SDK;
+third-party SDK calls are capability-checked by the `yu` kernel.
+
+App manifests (`app.json`) are validated against `manifest.schema.json`.
+
+## App data service helper
+
+The separate [App data service v1](applet-services.md) uses private Linux pipes
+to a fixed OS helper, not this CLI envelope or an App-to-App route. Its public
+Rust client and [shared conformance cases](applet-services.cases.json) cover
+Calendar, task and telemetry records plus a history-permission preflight.
+The generated CLI/MCP decoder set is unchanged; installing this interface
+does not grant App or desktop-resource authority.
+
+## Private App MCP calls
+
+MCP-first Apps serve their manifest-declared tools over private stdio owned
+by the Yu OS App Host. For every `tools/call`, the Gateway replaces any
+caller-supplied Yu OS metadata and injects a value conforming to
+`mcp_call_context.schema.json` under
+`_meta["yuos.dev/call-context"]`. It binds the authenticated workload
+principal to the call/trace correlation, owner, task/session, and
+deadline. This context is descriptive, not authority; the App Host retains
+the transient target capability grant.
+
+Caller kinds are `system-agent`, `external-agent`, and `cli`. App principals,
+caller `app_id`, `parent_call_id`, and `depth` are rejected, not translated.
+Apps cannot call other Apps; cross-App orchestration belongs to the system
+Agent. The manifest access object accepts only `system_agent` and
+`external_agents`.
+
+The Python runtime exposes that value through `yuos_sdk.mcp.current_context()`
+and supports MCP progress tokens plus cooperative
+`notifications/cancelled`. MCP-first runtimes reject calls without a valid
+Gateway context.
+
+## App effect metadata
+
+Optional ordinary-operation and MCP-tool `effects` declarations support
+[truthful metadata-only previews](operation-effects.md). These are App claims,
+not authority or confirmed outcomes. Missing declarations mean unknown
+effects, and recovery guidance is not proof that an inverse exists.
+
+## App object data contract
+
+[`object_ref.schema.json`](object_ref.schema.json) describes a portable
+identifier, not another request family or transport. The pure helpers across
+all four SDKs use [one canonical URI contract](object-references.md), with
+shared byte limits and golden vectors. App manifests can optionally declare
+`objects` with ordinary operation/MCP command resolvers. References carry no owner, grant,
+data payload, or nested `wire_version`.
+
+## App-reported file change plans
+
+[`file_change_plan.schema.json`](file_change_plan.schema.json) defines the
+public staged-plan value, including a bounded App-reported diff. See
+[file change plans](file-change-plans.md) for the closed shape, semantic
+validation, existing App object reference, and external-writer race
+limitations. Plan IDs and review fingerprints are data, never authority or
+OS-confirmed mutation.
+
+## Error codes
+
+See `error_codes.md` for the canonical list. The minimum:
+
+| Code                  | Meaning                                                    |
+|-----------------------|------------------------------------------------------------|
+| `PERMISSION_DENIED`   | Caps gate refused the call.                                |
+| `BUDGET_EXCEEDED`     | App's AI budget is exhausted for the current period.       |
+| `SAFETY_VIOLATION`    | Safety pipeline blocked the request (prompt injection etc.). |
+| `UNKNOWN_APP`         | App id not installed.                                      |
+| `UNKNOWN_VERB`        | App doesn't expose this verb / catalog tool not found.     |
+| `INVALID_ARGS`        | Args failed schema validation.                             |
+| `KERNEL_UNAVAILABLE`  | `yu` binary couldn't reach a required subsystem.          |
+| `INTERNAL_ERROR`      | Anything else; details in `detail.message`.                |
+
+## Versioning
+
+The protocol version is announced in three places:
+
+1. The SDK requests a version explicitly with `yu --wire=1`.
+2. `wire_version` in every reply must equal the requested version.
+3. `yu --wire=1 --version` provides a transport-level compatibility probe.
+
+Breaking changes bump the wire version. Bug fixes in the kernel that
+don't change the envelope shape do not.

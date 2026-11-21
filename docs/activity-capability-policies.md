@@ -74,7 +74,7 @@ Owner, enabled state, revision and timestamps are not draft fields.
 
 ## Terminal controls
 
-Run from an installed Linux or WSL Claw OS environment with `clawd` available.
+Run from an installed Linux or WSL Yu OS environment with `yuosd` available.
 No model or graphical session is needed to read or manage policies.
 
 Inside the full-screen Agent TUI, `/activity-controls ID` displays the saved

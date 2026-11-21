@@ -1,6 +1,6 @@
 //! Durable, per-domain trust generation state.
 //!
-//! A long-lived daemon (`clawd`, `claw-agentd`) loads the trust store
+//! A long-lived daemon (`yuosd`, `yuos-agentd`) loads the trust store
 //! once and would otherwise keep revoked keys and stale verification
 //! caches for its entire lifetime. Re-reading and re-hashing every
 //! trust file before every launch, disclosure and attach would be
@@ -11,7 +11,7 @@
 //!
 //! ```jsonc
 //! {
-//!   "schema": "claw.trust-state/v1",
+//!   "schema": "yuos.trust-state/v1",
 //!   "generation": 7,                  // monotonic, bumped on every change
 //!   "fingerprint": "sha256:…",        // over the domain's trust file contents
 //!   "updated_at": "2026-08-28T…Z"
@@ -83,10 +83,10 @@ use serde::{Deserialize, Serialize};
 
 use super::fsec;
 
-pub const TRUST_STATE_SCHEMA_V1: &str = "claw.trust-state/v1";
+pub const TRUST_STATE_SCHEMA_V1: &str = "yuos.trust-state/v1";
 
 /// File name of the per-domain state file, stored next to the domain's
-/// roots (`/etc/cos/trust/state.json`, `~/.config/cos/trust/state.json`).
+/// roots (`/etc/yuos/trust/state.json`, `~/.config/yuos/trust/state.json`).
 pub const TRUST_STATE_FILE: &str = "state.json";
 
 /// Which trust domain a root belongs to. Domains version independently
@@ -94,7 +94,7 @@ pub const TRUST_STATE_FILE: &str = "state.json";
 /// system domain and vice versa.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TrustDomain {
-    /// Root-owned vendor + operator roots under `/usr/lib/cos` and `/etc/cos`.
+    /// Root-owned vendor + operator roots under `/usr/lib/yuos` and `/etc/yuos`.
     System,
     /// One owner's publisher + developer roots, keyed by uid.
     Owner(u32),
@@ -196,7 +196,7 @@ pub fn fingerprint_files(files: &[(String, Vec<u8>)]) -> String {
     let mut sorted: Vec<&(String, Vec<u8>)> = files.iter().collect();
     sorted.sort_by(|a, b| a.0.cmp(&b.0));
     let mut h = crate::crypto::Sha256Stream::new();
-    h.update(b"claw-provenance/v1\x00trust-domain\x00");
+    h.update(b"yuos-provenance/v1\x00trust-domain\x00");
     h.update(&(sorted.len() as u64).to_le_bytes());
     for (name, body) in sorted {
         h.update(&(name.len() as u64).to_le_bytes());

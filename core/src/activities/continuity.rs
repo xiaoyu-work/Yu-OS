@@ -10,7 +10,7 @@ use super::{
     ExecutionLimitsDraft,
 };
 
-pub const CONTINUITY_KIND: &str = "claw_os.activity_continuity";
+pub const CONTINUITY_KIND: &str = "yuos.activity_continuity";
 pub const CONTINUITY_SCHEMA_VERSION: u32 = 1;
 pub const MAX_CONTINUITY_DOCUMENT_BYTES: usize = 192 * 1024;
 

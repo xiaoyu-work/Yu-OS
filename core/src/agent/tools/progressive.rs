@@ -14,9 +14,9 @@ use crate::agent::llm::{Tool as LlmTool, ToolCall};
 
 use super::ToolResult;
 
-pub const TOOL_SEARCH: &str = "cos_tool_search";
-pub const TOOL_DESCRIBE: &str = "cos_tool_describe";
-pub const TOOL_CALL: &str = "cos_tool_call";
+pub const TOOL_SEARCH: &str = "yu_tool_search";
+pub const TOOL_DESCRIBE: &str = "yu_tool_describe";
+pub const TOOL_CALL: &str = "yu_tool_call";
 pub const DEFAULT_TOOL_SCHEMA_BUDGET_TOKENS: u32 = 8_192;
 
 const MAX_QUERY_CHARS: usize = 256;

@@ -1,4 +1,4 @@
-//! The `claw.release-security/v1` manifest.
+//! The `yuos.release-security/v1` manifest.
 //!
 //! One signed document per published package that states, for a single
 //! coordinated release: which security epoch and ABI generation it
@@ -25,7 +25,7 @@ use serde_json::Value;
 use super::canonical;
 use super::debver;
 
-pub const FORMAT: &str = "claw.release-security/v1";
+pub const FORMAT: &str = "yuos.release-security/v1";
 
 /// Largest manifest that will be read from disk or from a maintainer
 /// script. Real manifests are a few kilobytes.

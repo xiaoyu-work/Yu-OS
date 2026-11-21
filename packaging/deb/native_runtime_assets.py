@@ -37,7 +37,7 @@ def stage(destination, launcher_binary=None):
         shutil.copytree(source / group / "scalable", theme / "scalable",
                         symlinks=True, dirs_exist_ok=True)
     shutil.copy2(source / "index.theme", theme / "index.theme")
-    documentation = directory("usr/share/doc/claw-os-agent/cosmic-icons")
+    documentation = directory("usr/share/doc/yuos-agent/cosmic-icons")
     for name in ("README.md", "LICENSE", "COPYING"):
         shutil.copy2(source / name, documentation / name)
     shutil.copy2(ROOT / "desktop/PROVENANCE.md", documentation / "PROVENANCE.md")
@@ -88,11 +88,11 @@ def stage(destination, launcher_binary=None):
                 (target / manifest.name).chmod(0o644)
             (target / plugin.replace("_", "-")).symlink_to(os.path.relpath(program, target))
         shutil.copytree(backend / "scripts", runtime / "scripts", symlinks=True)
-        licenses = directory("usr/share/doc/claw-os-agent/pop-launcher")
+        licenses = directory("usr/share/doc/yuos-agent/pop-launcher")
         for name in ("README.md", "LICENSE"):
             shutil.copy2(backend / name, licenses / name)
         shutil.copy2(backend / "bin/Cargo.toml", licenses / "binary-Cargo.toml")
-        shutil.copy2(ROOT / "crates/claw-display-login/test/headless/LICENSE", licenses / "GPL-3")
+        shutil.copy2(ROOT / "crates/yuos-display-login/test/headless/LICENSE", licenses / "GPL-3")
         shutil.copy2(backend / "debian/copyright", licenses / "copyright")
         shutil.copy2(ROOT / "desktop/PROVENANCE.md", licenses / "PROVENANCE.md")
         for path in (runtime, licenses):

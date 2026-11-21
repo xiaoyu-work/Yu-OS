@@ -404,7 +404,7 @@ fn osv_parse_rejects_extra_args() {
 
 #[test]
 fn osv_parse_reads_cargo_lock() {
-    let dir = std::env::temp_dir().join(format!("cos-osv-parse-{}", uuid::Uuid::new_v4().simple()));
+    let dir = std::env::temp_dir().join(format!("yuos-osv-parse-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&dir).unwrap();
     let lock_path = dir.join("Cargo.lock");
     std::fs::write(
@@ -432,7 +432,7 @@ fn osv_parse_reads_cargo_lock() {
 
 #[test]
 fn osv_parse_unknown_lockfile_errs() {
-    let dir = std::env::temp_dir().join(format!("cos-osv-bad-{}", uuid::Uuid::new_v4().simple()));
+    let dir = std::env::temp_dir().join(format!("yuos-osv-bad-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&dir).unwrap();
     let p = dir.join("Pipfile.lock");
     std::fs::write(&p, "{}").unwrap();

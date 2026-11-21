@@ -3,7 +3,7 @@ pub mod approvals;
 pub mod apps;
 pub mod auth;
 pub mod chat;
-pub(super) mod clawd;
+pub(super) mod yuosd;
 pub mod inbox;
 pub mod memory;
 pub mod meta;

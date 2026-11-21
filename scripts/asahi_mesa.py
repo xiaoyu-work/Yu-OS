@@ -11,7 +11,7 @@ from surface_laptop7 import extract, stage_file, write_file
 INPUTS = ("asahi-vulkan-source",)
 LIB = PurePosixPath("/usr/lib/aarch64-linux-gnu")
 DRIVER = LIB / "libvulkan_asahi.so"
-GL_DRIVERS = PurePosixPath("/usr/lib/cos/asahi/mesa")
+GL_DRIVERS = PurePosixPath("/usr/lib/yuos/asahi/mesa")
 GL_LOADER_FILES = ("libEGL_mesa.so.0.0.0", "libGLX_mesa.so.0.0.0", "libgbm.so.1.0.0")
 MESON_OPTIONS = [
     "--prefix=/usr", "--libdir=lib/aarch64-linux-gnu", "--buildtype=release", "--wrap-mode=nodownload",
@@ -72,7 +72,7 @@ def stage_license(upstream, stage, name):
 
 
 def package_honeykrisp(profile, upstream, driver, provenance, work, out, package):
-    name = "claw-os-asahi-vulkan"
+    name = "yuos-asahi-vulkan"
     stage = work / name
     stage_file(driver, stage / DRIVER.relative_to("/"))
     stage_license(upstream, stage, name)
@@ -88,8 +88,8 @@ case "$1" in
 esac
 """, 0o755)
     release = profile["release"].lower()
-    package(stage, out, name, "26.3.0~devel20261107+clawos3", "arm64",
-            f"linux-image-{release} (= {release}+clawos2), "
+    package(stage, out, name, "26.3.0~devel20261107+yuos3", "arm64",
+            f"linux-image-{release} (= {release}+yuos2), "
             "mesa-vulkan-drivers (>= 26.1.6-1~bpo13+1), libvulkan1, libdisplay-info2 (>= 0.2.0), "
             "libc6 (>= 2.38), libstdc++6 (>= 12), libgcc-s1, libdrm2 (>= 2.4.124), libexpat1, libudev1, "
             "libwayland-client0 (>= 1.26.0), libx11-xcb1, libxcb1, libxcb-dri3-0 (>= 1.17), "
@@ -104,7 +104,7 @@ esac
 
 
 def package_opengl(profile, upstream, install, provenance, work, out, package):
-    name = "claw-os-asahi-opengl"
+    name = "yuos-asahi-opengl"
     stage = work / name
     lib = LIB.relative_to("/")
     gl = GL_DRIVERS.relative_to("/")
@@ -133,8 +133,8 @@ esac
 """, 0o755)
     write_file(stage / "DEBIAN/triggers", "activate-noawait ldconfig\n")
     release = profile["release"].lower()
-    package(stage, out, name, "26.3.0~devel20261107+clawos1", "arm64",
-            f"linux-image-{release} (= {release}+clawos2), libegl-mesa0 (>= 26.1.6-1~bpo13+1), "
+    package(stage, out, name, "26.3.0~devel20261107+yuos1", "arm64",
+            f"linux-image-{release} (= {release}+yuos2), libegl-mesa0 (>= 26.1.6-1~bpo13+1), "
             "libglx-mesa0 (>= 26.1.6-1~bpo13+1), libgbm1 (>= 26.1.6-1~bpo13+1), "
             "libllvm19, libvulkan1, libc6, libstdc++6, libgcc-s1, libdrm2, libexpat1, libsensors5, "
             "libwayland-client0 (>= 1.26.0), libx11-6, libx11-xcb1, libxext6, libxxf86vm1, libxcb1, "

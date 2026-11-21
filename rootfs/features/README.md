@@ -1,4 +1,4 @@
-# Claw OS rootfs features
+# Yu OS rootfs features
 
 This directory contains composable units that `rootfs/build.sh` applies to
 the bootstrapped Debian rootfs to produce different distribution flavours.
@@ -7,7 +7,7 @@ A feature is a directory with up to two files:
 | File | Purpose |
 |---|---|
 | `packages.txt` | apt packages installed in the chroot (one per line, `#` for comments) |
-| `install.sh` | Arbitrary shell run on the **host** with `$ROOTFS`, `$PROJECT_DIR`, `$COS_VERSION` set |
+| `install.sh` | Arbitrary shell run on the **host** with `$ROOTFS`, `$PROJECT_DIR`, `$YUOS_VERSION` set |
 
 Both are optional. `packages.txt` runs first, then `install.sh`.
 
@@ -15,29 +15,29 @@ Both are optional. `packages.txt` runs first, then `install.sh`.
 
 | Feature | What it adds |
 |---|---|
-| `kernel-platform` | Opt-in vendor kernel, selected firmware/driver stack and boot settings for `CLAW_PLATFORM`, after the standard kernel and image features |
-| `base` | Core CLI tools, Node.js 24 (+ pnpm/typescript/tsx), Python apt packages, runtime dirs, `/etc/cos/profile.sh` sourcing, version injection |
-| `cos-core` | `claw-os-agent` plus `claw-os-base`: Agent/browser binaries, skills, SDK/runtime and OS integration; separately checked App APT packages supply the headless/support/library set |
-| `browser` | Chromium executable and target runtime integration for the browser binaries already shipped by `claw-os-agent` |
-| `qwen3-embedding` | Downloads the public Hugging Face `johnucm/Qwen-Qwen3-Embedding-0.6B-onnx` ONNX GenAI bundle into `/var/lib/cos/models/qwen3-embedding-0.6b/v1` and installs the validated `ort` plus `ort-genai` pair in `/var/lib/cos/engines` where upstream provides Linux assets |
-| `desktop` | Packages the OS compositor and services with the approved signed Desktop Shell, then installs all ordinary Claw Apps from checked independent APT packages. Set `DESKTOP_SKIP=1` for runtime deps + overlay only, never a completed desktop. |
-| `claw-mail-ai` | Registers the MailExtension with Thunderbird and installs OS NM/policy wiring. Mail App/XPI packages own product bytes; Agent owns the authority launcher and SDK/runtime. Never overwrites them or builds a UI copy. Requires Thunderbird. |
+| `kernel-platform` | Opt-in vendor kernel, selected firmware/driver stack and boot settings for `YUOS_PLATFORM`, after the standard kernel and image features |
+| `base` | Core CLI tools, Node.js 24 (+ pnpm/typescript/tsx), Python apt packages, runtime dirs, `/etc/yuos/profile.sh` sourcing, version injection |
+| `yuos-core` | `yuos-agent` plus `yuos-base`: Agent/browser binaries, skills, SDK/runtime and OS integration; separately checked App APT packages supply the headless/support/library set |
+| `browser` | Chromium executable and target runtime integration for the browser binaries already shipped by `yuos-agent` |
+| `qwen3-embedding` | Downloads the public Hugging Face `johnucm/Qwen-Qwen3-Embedding-0.6B-onnx` ONNX GenAI bundle into `/var/lib/yuos/models/qwen3-embedding-0.6b/v1` and installs the validated `ort` plus `ort-genai` pair in `/var/lib/yuos/engines` where upstream provides Linux assets |
+| `desktop` | Packages the OS compositor and services with the approved signed Desktop Shell, then installs all ordinary Yu OS Apps from checked independent APT packages. Set `DESKTOP_SKIP=1` for runtime deps + overlay only, never a completed desktop. |
+| `yuos-mail-ai` | Registers the MailExtension with Thunderbird and installs OS NM/policy wiring. Mail App/XPI packages own product bytes; Agent owns the authority launcher and SDK/runtime. Never overwrites them or builds a UI copy. Requires Thunderbird. |
 | `copilot-cli` | Installs `@github/copilot` globally via npm so `copilot` is on every user's `$PATH`. Used by the external Terminal product's `@`-trigger AI integration. |
-| `systemd` | Claw OS system services plus `systemd-coredump`, so the system agent can diagnose process crashes on desktop and headless images. |
+| `systemd` | Yu OS system services plus `systemd-coredump`, so the system agent can diagnose process crashes on desktop and headless images. |
 | `vm` | Hypervisor-neutral serial console, GRUB command line, serial getty, and VM power defaults. Does not create a user or install a provider agent. |
-| `local-user` | Enables graphical owner creation on fresh local desktop images, or configures one-time serial password setup for the locked headless `cos` account in a VM. |
+| `local-user` | Enables graphical owner creation on fresh local desktop images, or configures one-time serial password setup for the locked headless `yu` account in a VM. |
 | `cloud-init` | Provider-neutral cloud provisioning, SSH, root filesystem growth, and locked root account. |
 | `azure` | Azure datasource policy, WALinuxAgent, Hyper-V daemons/initramfs modules, and Azure serial-console settings. Requires `cloud-init`. |
 | `vmware` | Optional VMware Tools guest integration (`open-vm-tools`, `open-vm-tools-desktop`) for VMware Fusion / Workstation / ESXi images. Include only for VMware builds, after `systemd`. |
 
-Default feature set (when no `--features` is given): `base,cos-core,browser`.
-Docker and WSL use the headless Claw OS runtime feature set:
-`base,cos-core,browser,systemd,gpu-drivers,apt-source,qwen3-embedding`. This is
-the full non-desktop OS surface: Claw's own `cos`/`clawd` agent runtime, apps,
+Default feature set (when no `--features` is given): `base,yuos-core,browser`.
+Docker and WSL use the headless Yu OS runtime feature set:
+`base,yuos-core,browser,systemd,gpu-drivers,apt-source,qwen3-embedding`. This is
+the full non-desktop OS surface: Yu OS's own `yu`/`yuosd` agent runtime, apps,
 skills, browser automation, service units, local embedding stack, and upgrade
 source. This feature set builds on both amd64 and arm64 (WSL/Docker arm64 are
 Linux targets). In every system target, systemd starts
-`clawd.service` as part of boot. The shared rootfs contains no target-specific
+`yuosd.service` as part of boot. The shared rootfs contains no target-specific
 human account: WSL creates one through its first-launch OOBE, while Docker
 creates the account requested through its runtime environment.
 Target-specific boot/install features (`kernel`, `grub-disk`, `vm`,
@@ -55,8 +55,8 @@ existing semantic user unit has an 8 GiB memory ceiling covering its model
 child. See [installed index behavior](../../docs/updating.md#local-personal-file-vector-index).
 
 The default headless VM has no known password. On its first serial-console
-boot, `cos-local-first-login.service` blocks the normal getty until the user
-sets a password for the locked `cos` account. Later logins and `sudo` use that
+boot, `yuos-local-first-login.service` blocks the normal getty until the user
+sets a password for the locked `yu` account. Later logins and `sudo` use that
 password. Azure profiles do not include `local-user`; their identity remains
 entirely cloud-init managed.
 
@@ -71,16 +71,16 @@ artifact formats and finalization.
 sudo ./rootfs/build.sh
 
 # Headless rootfs without a Chromium renderer
-sudo ./rootfs/build.sh --features base,cos-core
+sudo ./rootfs/build.sh --features base,yuos-core
 
-# Headless rootfs, no cos at all (just Debian + Node)
+# Headless rootfs without Yu OS (just Debian + Node)
 sudo ./rootfs/build.sh --features base
 
 # Desktop VMware image rootfs with VMware Tools guest integration
-sudo ./rootfs/build.sh --features base,cos-core,systemd,kernel,desktop,vmware,grub-disk,vm,apt-source,local-user
+sudo ./rootfs/build.sh --features base,yuos-core,systemd,kernel,desktop,vmware,grub-disk,vm,apt-source,local-user
 
 # Generalized Azure rootfs (the azure target also performs final cleanup)
-sudo ./rootfs/build.sh --features base,cos-core,systemd,kernel,grub-disk,vm,cloud-init,azure
+sudo ./rootfs/build.sh --features base,yuos-core,systemd,kernel,grub-disk,vm,cloud-init,azure
 ```
 
 ## Adding a new feature

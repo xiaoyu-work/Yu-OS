@@ -32,7 +32,7 @@ struct Input {
 #[async_trait]
 impl Tool for BackgroundDelegate {
     fn name(&self) -> &str {
-        "cos_delegate_background"
+        "yu_delegate_background"
     }
 
     fn description(&self) -> &str {

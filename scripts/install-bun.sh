@@ -29,7 +29,7 @@ case "$INSTALL_DIR" in
         exit 1
         ;;
 esac
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/claw-bun.XXXXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/yuos-bun.XXXXXXXX")"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
 ARCHIVE="$WORK_DIR/$ASSET"

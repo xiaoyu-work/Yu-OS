@@ -6,7 +6,7 @@
 //! usage afterward. Cap checks always use `used + reserved`, so concurrent
 //! calls cannot oversell the same remaining capacity.
 //!
-//! The store lives at `${COS_DATA_DIR}/ai_budget.db`. Writing is
+//! The store lives at `${YUOS_DATA_DIR}/ai_budget.db`. Writing is
 //! serialised through SQLite's own locking; readers see consistent
 //! snapshots.
 
@@ -124,7 +124,7 @@ fn ensure_reserved_column(conn: &Connection) -> rusqlite::Result<()> {
 
 impl Store {
     pub(crate) fn open_for_owner(uid: u32) -> Result<Self, String> {
-        let (gid, _) = crate::clawd::client_identity::owner_groups(uid)?;
+        let (gid, _) = crate::yuosd::client_identity::owner_groups(uid)?;
         if uid != 0 {
             crate::storage::ensure_owner_agent_state_dir(uid, gid)
                 .map_err(|error| error.to_string())?;
@@ -132,7 +132,7 @@ impl Store {
         // SQLite creation/schema work is synchronous. Never carry filesystem
         // credentials across the provider await. Keep the shared ledger
         // owner-accessible when the system Agent subsequently opens it.
-        let _identity = crate::clawd::client_identity::FsIdentityGuard::enter(uid)?;
+        let _identity = crate::yuosd::client_identity::FsIdentityGuard::enter(uid)?;
         let store = Self::open()?;
         crate::storage::set_private_file(&db_path()).map_err(|error| error.to_string())?;
         Ok(store)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# presets/desktop.sh — Claw OS desktop VM (VMware .vmdk).
+# presets/desktop.sh — Yu OS desktop VM (VMware .vmdk).
 #
-# Builds a 50 GB VMware disk with the complete Claw OS desktop, VMware
+# Builds a 50 GB VMware disk with the complete Yu OS desktop, VMware
 # guest tools (auto screen resize + clipboard), and the Copilot CLI.
 # Import the resulting .vmdk into VMware Workstation / Fusion / ESXi.
 #
@@ -10,7 +10,7 @@
 # Usage:
 #   sudo ./presets/desktop.sh
 #
-# Output: build/claw-os-vm-<arch>.vmdk
+# Output: build/yuos-vm-<arch>.vmdk
 
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"

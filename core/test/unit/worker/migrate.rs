@@ -43,7 +43,7 @@ fn root_calendar_migration_uses_the_authenticated_owner_not_root_euid() {
     let path = std::ffi::CString::new(data.as_os_str().as_encoded_bytes()).unwrap();
     assert_eq!(unsafe { libc::chown(path.as_ptr(), uid, owner.gid) }, 0);
     let before = {
-        let _identity = crate::clawd::client_identity::FsIdentityGuard::enter(uid).unwrap();
+        let _identity = crate::yuosd::client_identity::FsIdentityGuard::enter(uid).unwrap();
         std::fs::create_dir(data.join("calendar")).unwrap();
         std::fs::write(data.join("calendar/events.db"), b"preserved rows").unwrap();
         std::fs::metadata(data.join("calendar/events.db")).unwrap()
@@ -71,7 +71,7 @@ mod fixtures {
     impl Root {
         pub fn new(label: &str) -> Self {
             let path = std::env::temp_dir().join(format!(
-                "cos-migrate-{label}-{}-{}",
+                "yuos-migrate-{label}-{}-{}",
                 std::process::id(),
                 uuid::Uuid::new_v4().simple()
             ));
@@ -352,9 +352,9 @@ fn the_kernel_session_registry_stays_exactly_where_it_is() {
 
     // A non-App reader still finds the registry through the kernel's
     // own path resolution.
-    std::env::set_var("COS_PROC_DATA_DIR", root.path());
+    std::env::set_var("YUOS_PROC_DATA_DIR", root.path());
     let resolved = crate::proc::registry_path_for_caps();
-    std::env::remove_var("COS_PROC_DATA_DIR");
+    std::env::remove_var("YUOS_PROC_DATA_DIR");
     assert_eq!(resolved, registry);
     assert!(std::fs::read_to_string(&resolved)
         .unwrap()

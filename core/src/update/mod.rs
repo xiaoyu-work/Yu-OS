@@ -1,5 +1,5 @@
 //! Update freshness: the local security floor that keeps a validly
-//! signed *older* Claw OS release from being installed, activated or
+//! signed *older* Yu OS release from being installed, activated or
 //! executed.
 //!
 //! # What this is, and what it is not
@@ -9,8 +9,8 @@
 //! these bytes?". None of them answer **freshness**: an artifact that
 //! was validly signed two years ago is still validly signed today, so
 //! a stale mirror, a preserved repository snapshot, or a plain
-//! `apt install claw-os-agent=<old>` can put a known-vulnerable
-//! `clawd` back on disk without forging anything.
+//! `apt install yuos-agent=<old>` can put a known-vulnerable
+//! `yuosd` back on disk without forging anything.
 //!
 //! The floor is the freshness authority. It is a root-owned, monotonic
 //! record of the highest security epoch, package version and component
@@ -32,7 +32,7 @@
 //!   complete filesystem *and* state, is not defeated by software on
 //!   that same filesystem: root can rewrite the floor together with
 //!   the binaries. Detecting that requires a TPM measurement or a
-//!   remote attestation anchor, neither of which Claw OS has. We do
+//!   remote attestation anchor, neither of which Yu OS has. We do
 //!   not claim hardware anti-rollback.
 //!
 //! # Layout
@@ -41,15 +41,15 @@
 //! | --- | --- |
 //! | [`canonical`] | Deterministic JSON encoding used for signing and hashing |
 //! | [`debver`] | Debian version ordering (`dpkg --compare-versions` semantics) |
-//! | [`manifest`] | The signed `claw.release-security/v1` release manifest |
+//! | [`manifest`] | The signed `yuos.release-security/v1` release manifest |
 //! | [`signature`] | OpenPGP verification against the release/APT trust already on the machine |
 //! | [`floor`] | The durable, root-owned monotonic floor state |
 //! | [`projection`] | The unprivileged, root-owned runtime view of that floor |
 //! | [`recovery`] | One-use, narrowly scoped operator authorizations |
 //! | [`decide`] | The refusal policy every enforcement point shares |
 //! | [`journal`] | Auditable record of every decision |
-//! | [`runtime`] | Startup/spawn gates for `clawd`, `claw-agentd` and the CLI |
-//! | [`cli`] | `claw-security-floor`, the helper maintainer scripts call |
+//! | [`runtime`] | Startup/spawn gates for `yuosd`, `yuos-agentd` and the CLI |
+//! | [`cli`] | `yuos-security-floor`, the helper maintainer scripts call |
 
 pub mod canonical;
 pub mod cli;
@@ -73,7 +73,7 @@ pub const SECURITY_EPOCH: u64 = 1;
 
 /// Cross-package ABI generation.
 ///
-/// `claw-os-agent` advertises `Provides: claw-os-abi-<ABI>` and the
+/// `yuos-agent` advertises `Provides: yuos-abi-<ABI>` and the
 /// dependent packages `Depends:` on that virtual name, so APT's own
 /// solver refuses to combine an agent with a base or desktop outside
 /// the supported protocol range — without pinning exact versions,
@@ -90,13 +90,13 @@ const _: () = assert!(AGENTD_CONTEXT_PROTOCOL == crate::agentd::protocol::PROTOC
 /// `0700 root:root` — it holds the generation history and the recovery
 /// authorizations. Unprivileged processes read
 /// [`RUNTIME_STATE_DIR`] instead.
-pub const SYSTEM_STATE_DIR: &str = "/var/lib/cos/security";
+pub const SYSTEM_STATE_DIR: &str = "/var/lib/yuos/security";
 
 /// The unprivileged runtime view of the floor: a separate root-owned,
 /// world-readable directory holding a minimal projection with no
-/// recovery or history data. Deliberately *outside* `/var/lib/cos`, so
+/// recovery or history data. Deliberately *outside* `/var/lib/yuos`, so
 /// nothing in the private tree has to be widened.
-pub const RUNTIME_STATE_DIR: &str = "/var/lib/cos-security";
+pub const RUNTIME_STATE_DIR: &str = "/var/lib/yuos-security";
 
 /// File name of the projection inside [`RUNTIME_STATE_DIR`].
 pub const RUNTIME_FLOOR_FILE: &str = "runtime-floor.json";
@@ -107,7 +107,7 @@ pub const RUNTIME_FLOOR_FILE: &str = "runtime-floor.json";
 /// never write the same regular file and a maintainer script always
 /// reads its own release rather than whichever package was unpacked
 /// last.
-pub const RELEASE_SECURITY_DIR: &str = "/usr/lib/cos/release-security";
+pub const RELEASE_SECURITY_DIR: &str = "/usr/lib/yuos/release-security";
 
 /// Installed manifest path for one package.
 pub fn release_manifest_path(package: &str) -> String {
@@ -123,11 +123,11 @@ pub fn release_manifest_member(package: &str) -> String {
 /// manifest is signed by the same publisher identity, so a machine
 /// that can verify its package index can verify its release manifest
 /// without a second trust root to distribute.
-pub const APT_KEYRING: &str = "/usr/share/keyrings/claw-os-archive-keyring.gpg";
+pub const APT_KEYRING: &str = "/usr/share/keyrings/yuos-archive-keyring.gpg";
 
 /// Operator-managed additional release keyrings, for a key rotation or
 /// a private rebuild. Never shipped by a package.
-pub const OPERATOR_KEYRING_DIR: &str = "/etc/cos/trust/release.d";
+pub const OPERATOR_KEYRING_DIR: &str = "/etc/yuos/trust/release.d";
 
 /// A binary whose version and content digest the floor tracks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -137,7 +137,7 @@ pub struct Component {
     pub path: &'static str,
     /// Package that owns the file.
     pub package: &'static str,
-    /// Security-critical: `clawd` refuses to start when one of these
+    /// Security-critical: `yuosd` refuses to start when one of these
     /// no longer matches the floor.
     pub critical: bool,
 }
@@ -147,94 +147,100 @@ pub struct Component {
 /// publication scripts read; the pairing is asserted by a unit test.
 pub const COMPONENTS: &[Component] = &[
     Component {
-        name: "clawd",
-        path: "/usr/local/bin/clawd",
-        package: "claw-os-agent",
+        name: "yuosd",
+        path: "/usr/local/bin/yuosd",
+        package: "yuos-agent",
         critical: true,
     },
     Component {
-        name: "claw-agentd",
-        path: "/usr/local/bin/claw-agentd",
-        package: "claw-os-agent",
+        name: "yuos-agentd",
+        path: "/usr/local/bin/yuos-agentd",
+        package: "yuos-agent",
         critical: true,
     },
     Component {
-        name: "claw-extension-host",
-        path: "/usr/local/bin/claw-extension-host",
-        package: "claw-os-agent",
+        name: "yuos-extension-host",
+        path: "/usr/local/bin/yuos-extension-host",
+        package: "yuos-agent",
         critical: true,
     },
     Component {
-        name: "claw-approval-helper",
-        path: "/usr/local/bin/claw-approval-helper",
-        package: "claw-os-agent",
+        name: "yuos-approval-helper",
+        path: "/usr/local/bin/yuos-approval-helper",
+        package: "yuos-agent",
         critical: true,
     },
     Component {
-        name: "claw-app-runner",
-        path: "/usr/local/bin/claw-app-runner",
-        package: "claw-os-agent",
+        name: "yuos-app-runner",
+        path: "/usr/local/bin/yuos-app-runner",
+        package: "yuos-agent",
         critical: true,
     },
     Component {
-        name: "claw-calendar-reader",
-        path: "/usr/lib/cos/bin/claw-calendar-reader",
-        package: "claw-os-agent",
+        name: "yuos-calendar-reader",
+        path: "/usr/lib/yuos/bin/yuos-calendar-reader",
+        package: "yuos-agent",
         critical: true,
     },
     Component {
-        name: "claw-nearby-worker",
-        path: "/usr/lib/cos/bin/claw-nearby-worker",
-        package: "claw-os-agent",
+        name: "yuos-nearby-worker",
+        path: "/usr/lib/yuos/bin/yuos-nearby-worker",
+        package: "yuos-agent",
         critical: true,
     },
     Component {
-        name: "claw-nearby-radio",
-        path: "/usr/lib/cos/bin/claw-nearby-radio",
-        package: "claw-os-agent",
+        name: "yuos-nearby-radio",
+        path: "/usr/lib/yuos/bin/yuos-nearby-radio",
+        package: "yuos-agent",
         critical: true,
     },
     Component {
-        name: "claw-security-floor",
-        path: "/usr/lib/cos/bin/claw-security-floor",
-        package: "claw-os-agent",
+        name: "yuos-security-floor",
+        path: "/usr/lib/yuos/bin/yuos-security-floor",
+        package: "yuos-agent",
         critical: true,
     },
     Component {
         name: "yu",
         path: "/usr/local/bin/yu",
-        package: "claw-os-agent",
+        package: "yuos-agent",
         critical: true,
     },
     Component {
-        name: "cos-init",
-        path: "/usr/local/bin/cos-init",
-        package: "claw-os-base",
+        name: "yuos-init",
+        path: "/usr/local/bin/yuos-init",
+        package: "yuos-base",
         critical: false,
     },
     Component {
-        name: "cos-agent-bridge",
-        path: "/usr/local/bin/cos-agent-bridge",
-        package: "claw-os-desktop",
+        name: "yuos-agent-bridge",
+        path: "/usr/local/bin/yuos-agent-bridge",
+        package: "yuos-desktop",
         critical: false,
     },
     Component {
-        name: "cos-agent-ui",
-        path: "/usr/local/bin/cos-agent-ui",
-        package: "claw-os-desktop",
+        name: "yuos-agent-ui",
+        path: "/usr/local/bin/yuos-agent-ui",
+        package: "yuos-desktop",
         critical: false,
     },
     Component {
-        name: "cos-ask-claw-launcher",
-        path: "/usr/local/bin/cos-ask-claw-launcher",
-        package: "claw-os-desktop",
+        name: "yuos-ask-launcher",
+        path: "/usr/local/bin/yuos-ask-launcher",
+        package: "yuos-desktop",
+        critical: false,
+    },
+    Component {
+        name: "browser-chat-native-host",
+        path: "/usr/lib/yuos/browser-chat-native-host",
+        package: "yuos-desktop",
         critical: false,
     },
 ];
 
 /// The packages whose lifecycle is gated. Anything owning a security
 /// policy, protocol or privileged component belongs here.
-pub const GATED_PACKAGES: &[&str] = &["claw-os-agent", "claw-os-base", "claw-os-desktop"];
+pub const GATED_PACKAGES: &[&str] = &["yuos-agent", "yuos-base", "yuos-desktop"];
 
 /// Look up a tracked component by name.
 pub fn component(name: &str) -> Option<&'static Component> {
@@ -259,7 +265,7 @@ pub fn compiled_protocols() -> std::collections::BTreeMap<String, u32> {
     );
     map.insert(
         "broker_envelope".to_string(),
-        crate::clawd::wire::PROTOCOL_VERSION,
+        crate::yuosd::wire::PROTOCOL_VERSION,
     );
     map.insert(
         "extension_host_control".to_string(),
