@@ -83,7 +83,7 @@ struct FollowResult {
 #[async_trait]
 impl Tool for BrowserDecision {
     fn name(&self) -> &str {
-        "cos_browser_next"
+        "yu_browser_next"
     }
 
     fn description(&self) -> &str {

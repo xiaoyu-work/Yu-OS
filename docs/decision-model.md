@@ -41,13 +41,13 @@ To verify inference, pipe a request to `yu model decide`:
 }
 ```
 
-Configured system Agent sessions can use `cos_decide` for the same request.
+Configured system Agent sessions can use `yu_decide` for the same request.
 This is not an App AI permission or a new credential or provider API for
 Apps. No decision request is added to ordinary chat unless a tool is called.
 
 ## Helium
 
-`cos_browser_next` is available to an attended local Agent with the matching
+`yu_browser_next` is available to an attended local Agent with the matching
 verified Browser App and access to both underlying App tools. Given the
 selected tab and an explicit navigation goal, it reads one compact `links`
 snapshot, asks for one action-and-target choice within two seconds, and can

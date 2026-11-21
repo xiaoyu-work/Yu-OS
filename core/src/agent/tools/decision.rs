@@ -10,7 +10,7 @@ pub(super) struct Decide(pub DecisionModel);
 #[async_trait]
 impl Tool for Decide {
     fn name(&self) -> &str {
-        "cos_decide"
+        "yu_decide"
     }
 
     fn description(&self) -> &str {
