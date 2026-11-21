@@ -183,11 +183,11 @@ az vm create \
     --location "$LOCATION" \
     --image "$IMAGE_ID" \
     --security-type Standard \
-    --admin-username clawadmin \
+    --admin-username yuosadmin \
     --ssh-key-values "$HOME/.ssh/id_ed25519.pub"
 ```
 
-At first boot, cloud-init creates `clawadmin`, installs the SSH key, sets the
+At first boot, cloud-init creates `yuosadmin`, installs the SSH key, sets the
 hostname and network configuration, grows the root filesystem, and generates
 new machine and SSH identities. WALinuxAgent then handles Azure fabric status
 and VM extensions.
@@ -200,8 +200,8 @@ authenticate an SSH key. For `IMAGE_FLAVOR=desktop`, first connect over SSH and
 set a local password:
 
 ```bash
-ssh clawadmin@<vm-address>
-sudo passwd clawadmin
+ssh yuosadmin@<vm-address>
+sudo passwd yuosadmin
 ```
 
 The desktop image requires the signed Desktop Shell App from the authenticated

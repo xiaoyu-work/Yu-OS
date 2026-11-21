@@ -296,7 +296,7 @@ void CCompositor::initServer(std::string socketName, int socketFd) {
                           .retireContexts =
                               [](uint64_t token) {
                                   if (PROTO::securityContext)
-                                      PROTO::securityContext->retireClaw(token);
+                                      PROTO::securityContext->retireYuOs(token);
                               },
                           .installSelection = YuOs::installSelection,
                           .desktop          = YuOs::desktop,

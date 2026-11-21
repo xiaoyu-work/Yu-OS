@@ -528,7 +528,7 @@ def run(args):
                 input=PASSWORD + "\n", capture_output=True, text=True,
             ).stdout.strip()
             shadow = root / "shadow"
-            shadow.write_text(f"root:!*:20000:0:99999:7:::\nclaw-auth-fixture:{hashed}:20000:0:99999:7:::\n")
+            shadow.write_text(f"root:!*:20000:0:99999:7:::\nyuos-auth-fixture:{hashed}:20000:0:99999:7:::\n")
             shadow.chmod(0o600)
             nsswitch = root / "nsswitch.conf"
             nsswitch.write_text("passwd: files\ngroup: files\nshadow: files\nhosts: files\n")

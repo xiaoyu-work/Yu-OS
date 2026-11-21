@@ -245,6 +245,6 @@ bool CSecurityContextProtocol::isClientSandboxed(const wl_client* client) {
     return std::ranges::find_if(m_sandboxedClients, [client](const auto& e) { return e->m_client == client; }) != m_sandboxedClients.end();
 }
 
-void CSecurityContextProtocol::retireClaw(uint64_t token) {
+void CSecurityContextProtocol::retireYuOs(uint64_t token) {
     std::erase_if(m_contexts, [token](const auto& context) { return token == 0 || context->m_yuosToken == token; });
 }

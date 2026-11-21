@@ -30,9 +30,9 @@ import (
 	"time"
 )
 
-const askClawLauncher = "/usr/local/bin/yuos-ask-launcher"
-const askClawProtocol = 1
-const askClawRequestLimit = 32 * 1024
+const askYuLauncher = "/usr/local/bin/yuos-ask-launcher"
+const askYuProtocol = 1
+const askYuRequestLimit = 32 * 1024
 
 // RequestFileRead proposes a native metadata inode; pending is not selected content.
 func RequestFileRead(node uint64) (*GuiFileRead, error) {
@@ -226,7 +226,7 @@ func (c *GuiContext) OpenAgentOverlay(hint string) error {
 	if err := validateAskYuLauncher(); err != nil {
 		return err
 	}
-	cmd := exec.Command(askClawLauncher, "--protocol", fmt.Sprint(askClawProtocol))
+	cmd := exec.Command(askYuLauncher, "--protocol", fmt.Sprint(askYuProtocol))
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -250,7 +250,7 @@ func (c *GuiContext) OpenAgentOverlay(hint string) error {
 			announced <- announcementResult{err: fmt.Errorf("Ask Yu OS socket announcement is too long")}
 			return
 		}
-		prefix := fmt.Sprintf("SOCKET %d @", askClawProtocol)
+		prefix := fmt.Sprintf("SOCKET %d @", askYuProtocol)
 		if !strings.HasPrefix(line, prefix) || !strings.HasSuffix(line, "\n") {
 			announced <- announcementResult{err: fmt.Errorf("invalid Ask Yu OS socket announcement")}
 			return
@@ -299,14 +299,14 @@ func (c *GuiContext) OpenAgentOverlay(hint string) error {
 		}
 		return fmt.Errorf("unexpected Ask Yu OS launcher handshake")
 	}
-	request := map[string]any{"protocol": askClawProtocol, "app": c.AppID, "hint": hint}
+	request := map[string]any{"protocol": askYuProtocol, "app": c.AppID, "hint": hint}
 	payload, err := json.Marshal(request)
 	if err != nil {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
 		return err
 	}
-	if len(payload) > askClawRequestLimit {
+	if len(payload) > askYuRequestLimit {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
 		return fmt.Errorf("Ask Yu OS request exceeds the protocol limit")
@@ -355,7 +355,7 @@ func validateAskYuLauncher() error {
 			return fmt.Errorf("untrusted Ask Yu OS launcher parent: %s", path)
 		}
 	}
-	info, err := os.Lstat(askClawLauncher)
+	info, err := os.Lstat(askYuLauncher)
 	if err != nil {
 		return err
 	}

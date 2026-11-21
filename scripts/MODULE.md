@@ -192,7 +192,7 @@ The isolated bootstrap validates the final closed-instance metadata and
 container checksum before copying `native-calendar-agenda.shm` to mode0600
 workflow-owner evidence. A bounded export JSON explains skipped/limited
 captures; the existing artifact upload additionally includes that one file.
-Its first 12 bytes are `CLAWCALSHM1\0`, then a little-endian u32 JSON-header
+Its first 12 bytes are `YUOSCALSHM1\0`, then a little-endian u32 JSON-header
 length, the immutable UTF-8 header, and the packed visible pixel bytes.
 No new dependency/encoder is used. Parent can convert that captured evidence
 after genuine GHA; it alone proves neither SDK decode nor an exact event title.

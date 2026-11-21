@@ -56,7 +56,7 @@ fn open_snapshot(window: &serde_json::Value) -> Option<Vec<u8>> {
         && info.mode() & 0o077 == 0 && info.len() <= limit);
     let mut bytes = Vec::new();
     file.take(limit + 1).read_to_end(&mut bytes).unwrap();
-    assert!((16..=limit as usize).contains(&bytes.len()) && &bytes[..12] == b"CLAWCLPSHM1\0");
+    assert!((16..=limit as usize).contains(&bytes.len()) && &bytes[..12] == b"YUOSCLPSHM1\0");
     let size = u32::from_le_bytes(bytes[12..16].try_into().unwrap()) as usize;
     assert!(size <= 4096 && 16 + size <= bytes.len());
     let frame: serde_json::Value = serde_json::from_slice(&bytes[16..16 + size]).unwrap();

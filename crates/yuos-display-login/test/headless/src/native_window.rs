@@ -54,7 +54,7 @@ const CALENDAR_SNAPSHOT: SnapshotProfile = SnapshotProfile {
     index_schema: "yuos.private-calendar-shm-index/v1",
     file: "native-calendar-agenda.shm",
     next: "agenda-snapshot.next",
-    magic: b"CLAWCALSHM1\0",
+    magic: b"YUOSCALSHM1\0",
     role: "xdg_popup",
     parent_role: Some("zwlr_layer_surface_v1"),
 };
@@ -65,7 +65,7 @@ const STORE_SNAPSHOT: SnapshotProfile = SnapshotProfile {
     index_schema: "yuos.private-store-shm-index/v1",
     file: "native-store-window.shm",
     next: "store-snapshot.next",
-    magic: b"CLAWSTRSHM1\0",
+    magic: b"YUOSSTRSHM1\0",
     role: "xdg_toplevel",
     parent_role: None,
 };
@@ -76,7 +76,7 @@ const WIDGET_SNAPSHOT: SnapshotProfile = SnapshotProfile {
     index_schema: "yuos.private-widget-rail-shm-index/v1",
     file: "native-widget-rail.shm",
     next: "widget-snapshot.next",
-    magic: b"CLAWWIDSHM1\0",
+    magic: b"YUOSWIDSHM1\0",
     role: "zwlr_layer_surface_v1",
     parent_role: None,
 };
@@ -87,7 +87,7 @@ const CLIPBOARD_SNAPSHOT: SnapshotProfile = SnapshotProfile {
     index_schema: "yuos.private-clipboard-shm-index/v1",
     file: "native-clipboard-history.shm",
     next: "clipboard-snapshot.next",
-    magic: b"CLAWCLPSHM1\0",
+    magic: b"YUOSCLPSHM1\0",
     role: "xdg_popup",
     parent_role: Some("zwlr_layer_surface_v1"),
 };

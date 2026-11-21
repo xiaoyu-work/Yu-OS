@@ -83,7 +83,7 @@ The adapter also has an independent native build:
 
 ```bash
 cmake -S desktop/hyprland-yuos -B build/yuos-compositor-adapter -G Ninja \
-  -DCLAW_COMPOSITOR_LIBRARY="$PWD/target/debug/libyuos_compositor.a"
+  -DYUOS_COMPOSITOR_LIBRARY="$PWD/target/debug/libyuos_compositor.a"
 cmake --build build/yuos-compositor-adapter
 ctest --test-dir build/yuos-compositor-adapter --output-on-failure
 ```

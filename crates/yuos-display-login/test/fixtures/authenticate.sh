@@ -18,7 +18,7 @@ printf '%s\n' \
     >"$private/passwd"
 printf '%s\n' 'root:x:0:' 'yuos-display-test:x:62050:' >"$private/group"
 hash=$(printf '%s\n' 'private-disposable-display-fixture-password' | openssl passwd -6 -stdin)
-printf 'root:!:20000:0:99999:7:::\nclaw-display-test:%s:20000:0:99999:7:::\n' "$hash" \
+printf 'root:!:20000:0:99999:7:::\nyuos-display-test:%s:20000:0:99999:7:::\n' "$hash" \
     >"$private/shadow"
 chmod 0600 "$private/shadow"
 mount --bind "$private/passwd" /etc/passwd

@@ -76,7 +76,7 @@ class CSecurityContextProtocol : public IWaylandProtocol {
     virtual void bindManager(wl_client* client, void* data, uint32_t ver, uint32_t id);
 
     bool         isClientSandboxed(const wl_client* client);
-    void         retireClaw(uint64_t token);
+    void         retireYuOs(uint64_t token);
 
   private:
     void destroyResource(CSecurityContextManagerResource* resource);

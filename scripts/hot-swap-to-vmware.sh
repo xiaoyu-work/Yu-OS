@@ -24,13 +24,13 @@
 #   -h | --help     This message
 #
 # Environment knobs:
-#   ORB_VM          OrbStack VM name (default: clawbuild)
+#   ORB_VM          OrbStack VM name (default: yuosbuild)
 #   QCOW            host path to the qcow2 (default: build/yuos-vm-arm64.qcow2)
 #   VMWAREVM        Fusion bundle dir (default: ~/Virtual Machines.localized/YuOS.vmwarevm)
 
 set -euo pipefail
 
-ORB_VM=${ORB_VM:-clawbuild}
+ORB_VM=${ORB_VM:-yuosbuild}
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 QCOW=${QCOW:-"$REPO_ROOT/build/yuos-vm-arm64.qcow2"}
 VMWAREVM=${VMWAREVM:-"$HOME/Virtual Machines.localized/YuOS.vmwarevm"}

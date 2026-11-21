@@ -227,7 +227,7 @@ printf '%s\n' \
     >"$private/passwd"
 printf '%s\n' 'root:x:0:' 'yuos-display-test:x:62050:' 'yuos-display-other:x:62051:' >"$private/group"
 hash=$(printf '%s\n' 'private-disposable-display-fixture-password' | openssl passwd -6 -stdin)
-printf 'root:!:20000:0:99999:7:::\nclaw-display-test:%s:20000:0:99999:7:::\nclaw-display-other:!:20000:0:99999:7:::\n' "$hash" \
+printf 'root:!:20000:0:99999:7:::\nyuos-display-test:%s:20000:0:99999:7:::\nyuos-display-other:!:20000:0:99999:7:::\n' "$hash" \
     >"$private/shadow"
 chmod 0600 "$private/shadow"
 if [[ "$package_fixture" == 1 ]]; then
@@ -418,10 +418,10 @@ owner = destination.stat()
 source = pathlib.Path("/run/user/62050/native-product-observer")
 product = sys.argv[2]
 profiles = {
-    "calendar": ("native-calendar-agenda.shm", b"CLAWCALSHM1\0", "yuos.private-calendar"),
-    "store": ("native-store-window.shm", b"CLAWSTRSHM1\0", "yuos.private-store"),
-    "desktop-widgets": ("native-widget-rail.shm", b"CLAWWIDSHM1\0", "yuos.private-widget-rail"),
-    "clipboard": ("native-clipboard-history.shm", b"CLAWCLPSHM1\0", "yuos.private-clipboard"),
+    "calendar": ("native-calendar-agenda.shm", b"YUOSCALSHM1\0", "yuos.private-calendar"),
+    "store": ("native-store-window.shm", b"YUOSSTRSHM1\0", "yuos.private-store"),
+    "desktop-widgets": ("native-widget-rail.shm", b"YUOSWIDSHM1\0", "yuos.private-widget-rail"),
+    "clipboard": ("native-clipboard-history.shm", b"YUOSCLPSHM1\0", "yuos.private-clipboard"),
 }
 assert product in profiles
 popup = product in ("calendar", "clipboard")

@@ -160,7 +160,7 @@ pub(in crate::yuosd) async fn owner_file_chooser_request(
             return Err("File chooser is not the installed OS provider for this account".into());
         }
         let path = OwnedObjectPath::try_from(format!(
-            "/org/freedesktop/portal/desktop/request/claw_{}", uuid::Uuid::new_v4().simple(),
+            "/org/freedesktop/portal/desktop/request/yuos_{}", uuid::Uuid::new_v4().simple(),
         )).map_err(|error| error.to_string())?;
         let picker = Proxy::new(
             &connection, owner.clone(), "/org/freedesktop/portal/desktop", "org.freedesktop.impl.portal.FileChooser",
