@@ -1016,8 +1016,12 @@ from having no updates. On desktop the `yuos-software-store-v1` dependency
 requires a matching Agent package; older Store clients continue to use their
 existing package queries and intents.
 
-Installs and updates require protected OS review; acceptance means queued,
-not installed. Yu OS App delivery retains its independent per-App reviews.
+The OS confirms the exact installation or update plan; acceptance means queued,
+not installed. Vendor-signed Yu OS Apps from the authenticated catalog show
+their requested permissions without making you choose Allow or Don't allow for
+each one to install. Installation does not create permission grants. A direct
+desktop launch can use the OS's ordinary defaults for the confirmed build;
+owner denials and separate sensitive permissions still apply.
 Flatpak is limited to the exact app ref, configured installation/remotes and
 reviewed deployment commits. The OS verifies the result as the requesting
 desktop user, including for system-wide installs and updates. Local archives,

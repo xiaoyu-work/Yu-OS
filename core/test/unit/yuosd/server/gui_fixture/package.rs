@@ -231,11 +231,7 @@ if __name__ == "__main__":
         &directory, &crate::provenance::VerifyOptions::new(PackageKind::App),
         &crate::provenance::trust_store(),
     ).unwrap();
-    let review = crate::approvals::system_review::submit(
-        OWNER, crate::approvals::system_review::ReviewKind::AppActivation, &verified,
-        "private Root package fixture".into(),
-    ).unwrap();
-    crate::approvals::system_review::decide(OWNER, &review.id, true, Some(&verified)).unwrap();
+    approve_fixture_app(&verified, "private Root package fixture".into(), true);
 }
 
 #[test]

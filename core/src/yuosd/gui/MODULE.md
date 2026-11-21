@@ -14,6 +14,11 @@ its own needs, never a union with operations, MCP or another GUI. Fixed needs
 outside launcher delegation use the ordinary exact-owner approval flow unless
 the owner already saved a supported exact choice or the OS preapproved this
 build and its direct GUI declaration. A signature or GUI declaration alone grants nothing.
+An official APT installation confirmed for the owner also supplies the normal
+low- and medium-risk defaults for that exact build's explicit GUI needs on a
+direct desktop launch. The Root-held delivery receipt and verified installed
+tree must remain current. Owner denials and the package/resource ceilings still
+apply, and this never provides defaults to an App, task, or MCP caller.
 Wild needs still inherit only the launcher's bounded scopes.
 Argument-bound GUI needs are unsupported/unbound. Explicit conditional GUI
 needs are also unbound, not unconditional grants; the legacy operation union

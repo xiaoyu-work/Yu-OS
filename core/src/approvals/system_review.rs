@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::apps::permission_review::PermissionReview;
 use crate::caps::Manifest;
 use crate::provenance::runtime::PackageRef;
-use crate::provenance::{PackageKind, VerifiedPackage};
+use crate::provenance::{PackageKind, TrustTier, VerifiedPackage};
 
 const SCHEMA_VERSION: u32 = 1;
 const REVIEW_LIFETIME_SECS: u64 = 30 * 60;
@@ -96,6 +96,23 @@ impl DeliveryReview {
 }
 
 impl ReviewRecord {
+    fn is_official_apt_install(&self) -> bool {
+        self.kind == ReviewKind::AppInstall
+            && self.delivery.is_some()
+            && self.package.tier == TrustTier::Vendor.as_str()
+            && self.package.publisher_key_id.is_some()
+    }
+
+    pub(crate) fn can_choose_permissions(&self) -> bool {
+        self.package.publisher_key_id.is_some() && !self.is_official_apt_install()
+    }
+
+    fn confirms_official_install(&self, package: &PackageRef) -> Result<bool, String> {
+        Ok(self.is_official_apt_install()
+            && self.package == *package
+            && self.effective_state()? == ReviewState::Consumed)
+    }
+
     pub fn permission_review(&self) -> Result<PermissionReview, String> {
         PermissionReview::from_manifest(&self.manifest)
     }
@@ -444,7 +461,7 @@ pub(crate) fn decide_with_permissions(
             require_package(&record, package)?;
             let previous = permission_choices(owner, &record.package)?;
             let mut required = std::collections::BTreeSet::new();
-            if record.package.publisher_key_id.is_some() {
+            if record.can_choose_permissions() {
                 let ceiling = package.ceiling();
                 for permission in record.resolved_permissions()?.permissions {
                     if permission.persistent_cap(&ceiling).is_some() {
@@ -536,6 +553,30 @@ pub fn has_accepted(owner: u32, package: &VerifiedPackage) -> Result<bool, Strin
             && record.package.tier == package_ref.tier
             && record.contract_digest == review.contract_digest
     }))
+}
+
+pub(crate) fn official_installation(
+    owner: u32,
+    package: &VerifiedPackage,
+) -> Result<Option<String>, String> {
+    let package = PackageRef::of(package);
+    if package.tier != TrustTier::Vendor.as_str() || package.publisher_key_id.is_none() {
+        return Ok(None);
+    }
+    for record in records(owner)?.into_iter().rev() {
+        if record.confirms_official_install(&package)? {
+            return Ok(Some(record.id));
+        }
+    }
+    Ok(None)
+}
+
+pub(crate) fn official_installation_is_current(
+    owner: u32,
+    id: &str,
+    package: &VerifiedPackage,
+) -> Result<bool, String> {
+    get(owner, id)?.confirms_official_install(&PackageRef::of(package))
 }
 
 #[cfg(test)]

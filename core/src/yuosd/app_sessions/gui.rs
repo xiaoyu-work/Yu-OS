@@ -9,6 +9,7 @@ use crate::bridge::AppLaunch;
 use crate::caps::{Cap, CapSet, Scope, Verb};
 use crate::display_session::registry::{GuiControl, Registry};
 use crate::display_session::SHELL_APP;
+use crate::yuosd::preinstalled::{self, Defaults};
 
 #[cfg(test)]
 use crate::provenance::verify::test_profile::{Guard as ProfileGuard, Span, Step};
@@ -50,7 +51,7 @@ pub(crate) struct Registration {
     pub caps: CapSet,
     pub optional_needs_ungranted: Vec<usize>,
     optional_approval_expiry: Option<u64>,
-    os_defaults: bool,
+    defaults: Option<Defaults>,
     pub registered_at: Instant,
     pub authority_alias: Epoch,
     delegation: BoundDelegation,
@@ -149,13 +150,13 @@ impl Draft {
         })
     }
 
-    pub fn finish(
+    pub(super) fn finish(
         self,
         session_id: String,
         caps: CapSet,
         optional_needs_ungranted: Vec<usize>,
         optional_approval_expiry: Option<u64>,
-        os_defaults: bool,
+        defaults: Option<Defaults>,
     ) -> Result<Registration, String> {
         let desktop_launcher = self.system_menu_app
             && self.launch.app_id() == "yuos-launcher"
@@ -175,7 +176,7 @@ impl Draft {
             desktop_launcher,
             owner_settings: self.owner_settings,
             owner_launch: self.owner_launch,
-            os_defaults,
+            defaults,
             session_id,
             caps,
             optional_needs_ungranted,
@@ -264,9 +265,10 @@ impl Registration {
     }
 
     pub(crate) fn default_permission(&self, cap: &Cap) -> bool {
-        self.os_defaults && self.caps.covers(cap)
-            && crate::yuosd::preinstalled::allows(cap, &self.home)
-            && crate::yuosd::preinstalled::listed(self.launch.package())
+        self.caps.covers(cap) && self.defaults.as_ref().is_some_and(|defaults| {
+            defaults.allows(cap, &self.home)
+                && defaults.is_current(self.owner(), self.launch.package()).is_ok_and(|current| current)
+        })
     }
 
     pub fn belongs_to_session(&self, session: &str) -> bool {
@@ -435,8 +437,11 @@ impl Registration {
         self.require_client(client)?;
         self.require_delegation()?;
         crate::yuosd::trust_withdrawal::check_package(self.owner(), self.launch.package())?;
-        if self.os_defaults && !crate::yuosd::preinstalled::approved(self.launch.package()) {
-            return Err("OS App defaults changed; fresh registration is required".into());
+        if let Some(defaults) = &self.defaults {
+            let package = self.launch.package();
+            if !defaults.is_current(self.owner(), package)? || !preinstalled::protected_app(package) {
+                return Err("OS App defaults changed; fresh registration is required".into());
+            }
         }
         let selected = self.launch.manifest().gui_entry(self.gui_entry.as_deref())?;
         if selected.entry != self.entry || selected.exec != self.selector {
@@ -508,8 +513,10 @@ impl Registration {
             .assert_current()
             .map_err(|error| error.to_string())?;
         self.require_delegation()?;
-        if self.os_defaults && !crate::yuosd::preinstalled::listed(self.launch.package()) {
-            return Err("OS App defaults changed; fresh registration is required".into());
+        if let Some(defaults) = &self.defaults {
+            if !defaults.is_current(self.owner(), self.launch.package())? {
+                return Err("OS App defaults changed; fresh registration is required".into());
+            }
         }
         crate::yuosd::trust_withdrawal::check_session(self.owner(), &self.session_id)?;
         let trust = crate::provenance::trust_store();

@@ -318,16 +318,30 @@ fn install_packages(package_only: bool, native: Option<native_products::Product>
             &crate::provenance::trust_store(),
         )
         .unwrap();
-        let review = crate::approvals::system_review::submit(
-            OWNER,
-            crate::approvals::system_review::ReviewKind::AppActivation,
-            &package,
-            "private Root fixture controller".to_string(),
-        )
-        .unwrap();
-        crate::approvals::system_review::decide(OWNER, &review.id, true, Some(&package)).unwrap();
+        approve_fixture_app(&package, "private Root fixture controller".into(), true);
     }
     if package_only { package::install_denied_app(&key); }
+}
+
+fn approve_fixture_app(
+    package: &crate::provenance::VerifiedPackage,
+    requester: String,
+    allow_optional: bool,
+) {
+    use crate::approvals::system_review::{self, ReviewKind};
+
+    let review = system_review::submit(OWNER, ReviewKind::AppActivation, package, requester).unwrap();
+    let previous = system_review::permission_choices(OWNER, &review.package).unwrap();
+    let ceiling = package.ceiling();
+    let choices = review.resolved_permissions().unwrap().permissions.into_iter()
+        .filter(|permission| permission.persistent_cap(&ceiling).is_some())
+        .map(|permission| {
+            let allow = allow_optional || permission.uses.iter().any(|usage| !usage.optional);
+            (permission.decision_id().unwrap(), allow)
+        })
+        .filter(|(id, _)| !previous.contains_key(id))
+        .collect();
+    system_review::decide_with_permissions(OWNER, &review.id, true, Some(package), choices).unwrap();
 }
 
 fn launch_parent(process: &ProcessIdentity, case: usize) -> String {

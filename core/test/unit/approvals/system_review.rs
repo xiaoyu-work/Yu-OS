@@ -159,6 +159,60 @@ fn delivery_confirmation_is_plan_bound_and_cannot_inherit_app_permission_accepta
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn official_apt_confirmation_needs_no_permission_choices_and_binds_exact_installation() {
+    use crate::provenance::{state::TrustDomain, trust::TrustRootSpec, TrustStore, VerifyOptions};
+
+    let environment = Environment::new();
+    let source = environment.directory.path().join("review");
+    std::fs::create_dir(&source).unwrap();
+    std::fs::write(source.join("app.json"), serde_json::json!({
+        "id": "review-app", "version": "1.0.0", "schema_version": 2,
+        "name": {"en": "Review App"},
+        "desktop": {"exec": "--gui", "needs": [{
+            "verb": "sys.observe",
+            "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "hardware"}},
+            "why": {"en": "Show a hardware summary"}
+        }]}
+    }).to_string()).unwrap();
+    std::fs::write(source.join("main.py"), "# fixture only\n").unwrap();
+    crate::test_env::sign_test_package(&source, PackageKind::App, "review-app");
+    let uid = crate::provenance::fsec::effective_uid();
+    let root = environment.directory.path().join("vendor");
+    std::fs::create_dir(&root).unwrap();
+    let key = crate::test_env::test_signing_key().trust_entry(&[PackageKind::App]);
+    std::fs::write(root.join("publisher.json"), serde_json::to_vec(&key).unwrap()).unwrap();
+    let roots = [TrustRootSpec {
+        path: root,
+        tier: TrustTier::Vendor,
+        allowed_uids: vec![uid],
+        domain: TrustDomain::Owner(uid),
+    }];
+    crate::test_env::record_trust_state(&roots);
+    let trust = TrustStore::load_roots(&roots);
+    let package =
+        crate::provenance::verify::verify_package(&source, &VerifyOptions::new(PackageKind::App), &trust)
+            .unwrap();
+    let unbound = submit(1000, ReviewKind::AppInstall, &package, "local directory".into()).unwrap();
+    assert!(decide(1000, &unbound.id, true, Some(&package)).is_err());
+    let plan = DeliveryReview {
+        digest: "a".repeat(64),
+        packages: vec![DeliveryPackage {
+            package: "yuos-app-review".into(),
+            version: "1.0.0".into(),
+            architecture: "all".into(),
+        }],
+    };
+    let review = submit_delivery(1000, &package, "App Store".into(), plan.clone()).unwrap();
+    decide(1000, &review.id, true, Some(&package)).unwrap();
+    assert!(official_installation(1000, &package).unwrap().is_none());
+    consume_delivery(1000, &review.id, &package, &plan.digest).unwrap();
+    assert_eq!(official_installation(1000, &package).unwrap(), Some(review.id));
+    assert!(official_installation(1001, &package).unwrap().is_none());
+    assert!(permission_choices(1000, &PackageRef::of(&package)).unwrap().is_empty());
+}
+
 #[test]
 fn system_review_refuses_a_different_package_after_the_user_saw_the_request() {
     let environment = Environment::new();

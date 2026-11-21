@@ -460,14 +460,11 @@ pub(super) fn install(key: &crate::provenance::sign::SigningKeyFile, product: Pr
         signed, payload.payload_inventory,
         "signed App must retain every actual installer/resource/license byte and mode"
     );
-    let review = crate::approvals::system_review::submit(
-        OWNER,
-        crate::approvals::system_review::ReviewKind::AppActivation,
+    approve_fixture_app(
         &package,
         format!("private real {} acceptance controller", product.name),
-    )
-    .unwrap();
-    crate::approvals::system_review::decide(OWNER, &review.id, true, Some(&package)).unwrap();
+        product.name != "settings",
+    );
     println!(
         "private actual {} input: App revision {revision}, public platform {platform_digest}, signed ELF/resources/licenses verified",
         product.name

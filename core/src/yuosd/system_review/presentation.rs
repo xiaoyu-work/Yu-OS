@@ -57,7 +57,7 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
             if *choice { PermissionChoice::AllowAlways } else { PermissionChoice::Deny }
         });
         let selectable = status == ReviewStatus::Pending && current.is_none()
-            && record.package.publisher_key_id.is_some()
+            && record.can_choose_permissions()
             && permission.persistent_cap(&ceiling).is_some();
         Ok(ReviewPermission {
             id,
