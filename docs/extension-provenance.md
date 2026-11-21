@@ -611,6 +611,10 @@ rather than dropped:
 
 ### Publisher
 
+The private signer requires the `yuos.signing-key/v1` JSON schema. For an
+existing approved key, update only `schema` in a private local copy. Keep
+the key material and `key_id` unchanged; no public trust change is needed.
+
 ```bash
 # One-time: create a signing key. Never commit this file.
 yu provenance keygen --out ~/.secrets/yuos-release.json --comment "release 2026"

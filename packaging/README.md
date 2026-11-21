@@ -607,6 +607,11 @@ channel.
 
 ## Independent publication
 
+Before a signed release, add the existing OS archive's armored GPG private key
+and passphrase to the repository Actions secrets `YUOS_APT_SIGNING_PRIVATE_KEY`
+and `YUOS_APT_SIGNING_PASSPHRASE`. Reuse the trusted archive key; these settings
+do not rotate it.
+
 The **Release Yu OS** workflow (`release.yml`) has one target selector:
 
 | Target | Builds and publishes |

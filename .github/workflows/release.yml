@@ -69,7 +69,7 @@ jobs:
 
       - name: Import signing key
         env:
-          YUOS_APT_SIGNING_PRIVATE_KEY: ${{ secrets.CLAW_OS_APT_SIGNING_PRIVATE_KEY }}
+          YUOS_APT_SIGNING_PRIVATE_KEY: ${{ secrets.YUOS_APT_SIGNING_PRIVATE_KEY }}
         run: bash scripts/ci/import-signing-key.sh
 
       - name: Export the image and repository public key
@@ -131,7 +131,7 @@ jobs:
 
       - name: Import signing key
         env:
-          YUOS_APT_SIGNING_PRIVATE_KEY: ${{ secrets.CLAW_OS_APT_SIGNING_PRIVATE_KEY }}
+          YUOS_APT_SIGNING_PRIVATE_KEY: ${{ secrets.YUOS_APT_SIGNING_PRIVATE_KEY }}
         run: bash scripts/ci/import-signing-key.sh
 
       - name: Cache cargo registry and target
@@ -163,7 +163,7 @@ jobs:
 
       - name: Build Agent package
         env:
-          GPG_PASSPHRASE: ${{ secrets.CLAW_OS_APT_SIGNING_PASSPHRASE }}
+          GPG_PASSPHRASE: ${{ secrets.YUOS_APT_SIGNING_PASSPHRASE }}
         run: bash packaging/deb/build-debs.sh agent
 
       - name: Exercise the Yu OS-owned Agent TUI
@@ -219,12 +219,12 @@ jobs:
 
       - name: Import signing key
         env:
-          YUOS_APT_SIGNING_PRIVATE_KEY: ${{ secrets.CLAW_OS_APT_SIGNING_PRIVATE_KEY }}
+          YUOS_APT_SIGNING_PRIVATE_KEY: ${{ secrets.YUOS_APT_SIGNING_PRIVATE_KEY }}
         run: bash scripts/ci/import-signing-key.sh
 
       - name: Build Base package
         env:
-          GPG_PASSPHRASE: ${{ secrets.CLAW_OS_APT_SIGNING_PASSPHRASE }}
+          GPG_PASSPHRASE: ${{ secrets.YUOS_APT_SIGNING_PASSPHRASE }}
         run: bash packaging/deb/build-debs.sh base
 
       - name: Verify Base payload and signed release manifest
@@ -281,12 +281,12 @@ jobs:
 
       - name: Import signing key
         env:
-          YUOS_APT_SIGNING_PRIVATE_KEY: ${{ secrets.CLAW_OS_APT_SIGNING_PRIVATE_KEY }}
+          YUOS_APT_SIGNING_PRIVATE_KEY: ${{ secrets.YUOS_APT_SIGNING_PRIVATE_KEY }}
         run: bash scripts/ci/import-signing-key.sh
 
       - name: Build Desktop package in its Debian rootfs
         env:
-          GPG_PASSPHRASE: ${{ secrets.CLAW_OS_APT_SIGNING_PASSPHRASE }}
+          GPG_PASSPHRASE: ${{ secrets.YUOS_APT_SIGNING_PASSPHRASE }}
         run: |
           sudo --preserve-env=GNUPGHOME,YUOS_RELEASE_SECURITY_KEY_ID,GPG_PASSPHRASE,YUOS_PACKAGE_VERSION,YUOS_APP_PACKAGE_ROOT \
             env ARCH="$ARCH" DESKTOP_PACKAGE_ONLY=1 \
@@ -589,12 +589,12 @@ jobs:
 
       - name: Import signing key
         env:
-          YUOS_APT_SIGNING_PRIVATE_KEY: ${{ secrets.CLAW_OS_APT_SIGNING_PRIVATE_KEY }}
+          YUOS_APT_SIGNING_PRIVATE_KEY: ${{ secrets.YUOS_APT_SIGNING_PRIVATE_KEY }}
         run: bash scripts/ci/import-signing-key.sh
 
       - name: Merge and sign the repository once
         env:
-          GPG_PASSPHRASE: ${{ secrets.CLAW_OS_APT_SIGNING_PASSPHRASE }}
+          GPG_PASSPHRASE: ${{ secrets.YUOS_APT_SIGNING_PASSPHRASE }}
           YUOS_WEB_DIST_DIR: ${{ github.workspace }}/build/web-dist
           YUOS_RELEASE_SECURITY_BOOTSTRAP: ${{ inputs.release_security_bootstrap && '1' || '0' }}
         run: |

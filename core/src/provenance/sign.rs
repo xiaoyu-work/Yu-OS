@@ -21,7 +21,7 @@ use super::envelope::{
     NodeKind, PackageBody, PackageKind, ALG_ED25519, ENVELOPE_FILE, SCHEMA_V1,
 };
 
-pub const SIGNING_KEY_SCHEMA_V1: &str = "claw.signing-key/v1";
+pub const SIGNING_KEY_SCHEMA_V1: &str = "yuos.signing-key/v1";
 
 #[derive(Debug, thiserror::Error)]
 pub enum SignError {
