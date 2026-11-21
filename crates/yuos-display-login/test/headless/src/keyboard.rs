@@ -19,7 +19,7 @@ use std::{
 use wayland_server::Resource;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-const SCHEMA: &str = "claw.private-keyboard/v1";
+const SCHEMA: &str = "yuos.private-keyboard/v1";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Stroke {

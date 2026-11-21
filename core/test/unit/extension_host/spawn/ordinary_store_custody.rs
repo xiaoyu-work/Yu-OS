@@ -144,7 +144,7 @@ fn sign_app(directory: &Path, version: &str, key: &sign::SigningKeyFile) {
         }
     }).to_string()).unwrap();
     std::fs::write(directory.join("web-ui.json"), json!({
-        "schema": "claw.web-app/v1", "app_id": ID,
+        "schema": "yuos.web-app/v1", "app_id": ID,
         "source_kind": "product", "source_name": "custody-fixture",
         "title": "Ordinary custody fixture", "description": "Isolated signed App",
         "entry": "web/index.html",
@@ -152,7 +152,7 @@ fn sign_app(directory: &Path, version: &str, key: &sign::SigningKeyFile) {
     std::fs::write(directory.join("web/index.html"), "<!doctype html><title>Private fixture</title>").unwrap();
     sign::sign_directory(directory, &sign::SignRequest {
         kind: PackageKind::App, id: ID.into(), version: version.into(),
-        manifest_schema: "cos.app/v2".into(), manifest_path: "app.json".into(),
+        manifest_schema: "yuos.app/v2".into(), manifest_path: "app.json".into(),
         entrypoints: vec!["main.py".into()],
         resources: vec!["web-ui.json".into(), "web/index.html".into()],
     }, key).unwrap();
@@ -195,7 +195,7 @@ fn record(directory: &Path) -> Record {
     };
     let now = chrono::Utc::now();
     let catalog = store::Catalog {
-        schema: "claw.app-store/v2".into(), repository: store::REPOSITORY.into(),
+        schema: "yuos.app-store/v2".into(), repository: store::REPOSITORY.into(),
         runtime_abi: 1, generation: "1".into(), issued_at: now,
         expires_at: now + chrono::Duration::hours(1),
         packages: vec![store::AptPackage {
@@ -253,7 +253,7 @@ impl Fixture {
                 "ordinary custody fixture requires private mount/network namespaces");
         }
         let backing = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
-        let cos = PathBuf::from(std::env::var_os("YUOS_ORDINARY_TEST_COS").expect("compiled cos fixture"));
+        let yu = PathBuf::from(std::env::var_os("YUOS_ORDINARY_TEST_YU").expect("compiled yu fixture"));
         let runner = PathBuf::from(std::env::var_os("YUOS_ORDINARY_TEST_RUNNER").expect("compiled runner fixture"));
         let actor = std::env::current_exe().unwrap();
         mount_tmpfs(c"/run");
@@ -269,7 +269,7 @@ impl Fixture {
         std::fs::set_permissions("/run/lock", std::fs::Permissions::from_mode(0o1777)).unwrap();
         std::fs::write("/var/lib/dpkg/status", "").unwrap();
         std::fs::write("/var/lib/dpkg/lock", "").unwrap();
-        copy_executable(&cos, Path::new("/usr/local/bin/yu"));
+        copy_executable(&yu, Path::new("/usr/local/bin/yu"));
         copy_executable(&runner, Path::new("/usr/local/bin/yuos-app-runner"));
         copy_executable(&actor, &Path::new(BASE).join("actor"));
         synthetic_accounts();
@@ -686,7 +686,7 @@ fn group_empty(path: &Path) -> bool {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_COS/RUNNER"]
+#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_YU/RUNNER"]
 async fn ordinary_root_standalone_retires_host_before_publication() {
     let _environment = crate::test_env::lock_env();
     let fixture = Fixture::new();
@@ -757,7 +757,7 @@ async fn ordinary_root_standalone_retires_host_before_publication() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_COS/RUNNER"]
+#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_YU/RUNNER"]
 async fn ordinary_root_standalone_cancel_retry_publishes_only_after_cleanup() {
     let _environment = crate::test_env::lock_env();
     let fixture = Fixture::new();
@@ -800,7 +800,7 @@ async fn ordinary_root_standalone_cancel_retry_publishes_only_after_cleanup() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace, idmapped mounts and YUOS_ORDINARY_TEST_COS/RUNNER"]
+#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace, idmapped mounts and YUOS_ORDINARY_TEST_YU/RUNNER"]
 async fn ordinary_root_task_host_retires_namespace_data_before_publication() {
     let _environment = crate::test_env::lock_env();
     let fixture = Fixture::new();
@@ -816,7 +816,7 @@ async fn ordinary_root_task_host_retires_namespace_data_before_publication() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_COS/RUNNER"]
+#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_YU/RUNNER"]
 async fn ordinary_root_indeterminate_provider_blocks_store_publication() {
     let _environment = crate::test_env::lock_env();
     let fixture = Fixture::new();
@@ -931,7 +931,7 @@ async fn grandchild_pid(group: &Path) -> u32 {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_COS/RUNNER"]
+#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_YU/RUNNER"]
 async fn ordinary_root_live_grandchild_blocks_publication_until_checked_retry() {
     let _environment = crate::test_env::lock_env();
     let fixture = Fixture::new();
@@ -959,7 +959,7 @@ async fn ordinary_root_live_grandchild_blocks_publication_until_checked_retry() 
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_COS/RUNNER"]
+#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace and YUOS_ORDINARY_TEST_YU/RUNNER"]
 async fn ordinary_root_foreign_and_lost_ack_cannot_authorize_publication() {
     let _environment = crate::test_env::lock_env();
     let fixture = Fixture::new();

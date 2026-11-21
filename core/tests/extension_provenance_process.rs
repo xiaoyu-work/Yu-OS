@@ -1386,7 +1386,7 @@ fn a_signed_entrypoint_executes_the_verified_bytes() {
     fs::create_dir_all(&dir).unwrap();
     write(
         &dir.join("agent-api.json"),
-        r#"{"schema":"claw.agent-api/v1","id":"runner","name":"runner","transport":"mcp+stdio","command":"true"}"#,
+        r#"{"schema":"yuos.agent-api/v1","id":"runner","name":"runner","transport":"mcp+stdio","command":"true"}"#,
     );
     let script = dir.join("run.sh");
     write(&script, "#!/bin/sh\necho verified\n");

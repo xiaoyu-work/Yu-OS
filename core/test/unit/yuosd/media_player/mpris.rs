@@ -494,7 +494,7 @@ fn media_player_names_metadata_and_executable_trust_fail_closed() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "requires separately built Player, native MPRIS fixture, cos and staged manifest"]
+#[ignore = "requires separately built Player, native MPRIS fixture, yu and staged manifest"]
 async fn media_player_actual_native_mcp_crosses_worker_relay() {
     use crate::caps::{CapSet, Scope, Verb};
     use crate::yuosd::authority::{
@@ -575,7 +575,7 @@ async fn media_player_actual_native_mcp_crosses_worker_relay() {
     let _lock = crate::test_env::lock_env();
     let fixture = input("YUOS_MEDIA_PLAYER_MPRIS_FIXTURE");
     let native = input("YUOS_MEDIA_PLAYER_BINARY");
-    let cos = input("YUOS_MEDIA_PLAYER_COS");
+    let yu = input("YUOS_MEDIA_PLAYER_YU");
     let manifest = input("YUOS_MEDIA_PLAYER_MANIFEST");
     let directory = tempfile::Builder::new()
         .prefix("mp-")
@@ -656,7 +656,7 @@ async fn media_player_actual_native_mcp_crosses_worker_relay() {
         .mounts
         .retain(|mount| mount.target != Path::new("/usr/local/bin/yu"));
     policy.mounts.push(Mount::read_only(
-        cos,
+        yu,
         "/usr/local/bin/yu",
         MountClass::Runtime,
     ));

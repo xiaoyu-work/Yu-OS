@@ -3,7 +3,7 @@ use serde_json::json;
 
 fn catalog_value() -> Value {
     json!({
-        "schema": "claw.app-store/v2", "repository": REPOSITORY, "runtime_abi": 1,
+        "schema": "yuos.app-store/v2", "repository": REPOSITORY, "runtime_abi": 1,
         "generation": "1", "issued_at": Utc::now() - chrono::Duration::minutes(1),
         "expires_at": Utc::now() + chrono::Duration::days(1),
         "packages": [{
@@ -62,7 +62,7 @@ fn catalog_refuses_stale_or_substituted_release_metadata() {
         },
         {
             let mut v = value.clone();
-            v["schema"] = json!("claw.app-store/v1");
+            v["schema"] = json!("yuos.app-store/v1");
             v
         },
         {

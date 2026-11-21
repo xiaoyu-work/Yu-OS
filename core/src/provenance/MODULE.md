@@ -8,7 +8,7 @@ schemas or model-visible metadata are trusted.
 
 ## Responsibilities
 
-- Define and validate the versioned `claw.provenance/v1` envelope and
+- Define and validate the versioned `yuos.provenance/v1` envelope and
   its deterministic canonical signing bytes.
 - Load publisher trust roots with ownership/mode gating, enforce key
   usage constraints, rotation and revocation.
@@ -22,7 +22,7 @@ schemas or model-visible metadata are trusted.
 
 | Path | Role |
 | --- | --- |
-| `envelope.rs` | `claw.provenance/v1` format, canonical bytes, strict parsing |
+| `envelope.rs` | `yuos.provenance/v1` format, canonical bytes, strict parsing |
 | `trust.rs` | Trust roots, key ids, usage/kind constraints, revocation, developer grants |
 | `verify.rs` | Signature + tree verification, `VerifiedPackage` snapshots, vendor pins, cache |
 | `sign.rs` | Publisher signing key handling and envelope construction |

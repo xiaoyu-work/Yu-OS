@@ -207,7 +207,7 @@ def payload_record(source, payload, lock, product="editor", *, platform=None):
         if resource not in files or files[resource]["size"] == 0:
             raise ValueError(f"Missing original native installer resource: {resource}")
     return {
-        "schema": f"claw.private-native-{product}/v1", "source_lock": lock,
+        "schema": f"yuos.private-native-{product}/v1", "source_lock": lock,
         "platform_lock": platform, "entrypoints": entries,
         "resources": sorted(name for name in files if name.startswith("resources/")),
         "payload_inventory": records,

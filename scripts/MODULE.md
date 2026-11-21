@@ -163,7 +163,7 @@ its fixed service path inside the fresh isolated bootstrap. No provider enters
 the App payload. The Root fixture creates a synthetic canonical owner Calendar
 SQLite store (including one all-day event spanning the current real UTC day
 and its adjacent days), never calls another App and never changes the clock.
-The original App's installed SDK/Cos CLI must make `system.calendar.day`;
+The original App's installed SDK/Yu CLI must make `system.calendar.day`;
 existing Root audit must show exactly one successful same-owner/session day
 request and the independent exact `data.db.read:calendar` spend for
 `panel-calendar`. The real protected query directory must have been created

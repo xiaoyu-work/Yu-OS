@@ -3647,7 +3647,7 @@ fn run_worker_loop_inner(
             Some(job) => {
                 let prepare_nonce = uuid::Uuid::new_v4().simple().to_string();
                 let commit_nonce = uuid::Uuid::new_v4().simple().to_string();
-                let generation = crate::crypto::sha256_hex(b"cos.agent.service.direct-worker.v1");
+                let generation = crate::crypto::sha256_hex(b"yuos.agent.service.direct-worker.v1");
                 let prepared = store.record_execution_prepared(
                     &job.id,
                     job.worker_pid.unwrap_or_default(),

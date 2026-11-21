@@ -223,8 +223,8 @@ fn body_filters_reserved_extras_and_preserves_provider_cache_fields() {
     let mut request = req_text("hello");
     request.extra = serde_json::json!({
         "top_k": 32,
-        "_cos_initiator": "agent",
-        "_cos_trace": "internal",
+        "__yuos_initiator": "agent",
+        "__yuos_trace": "internal",
         "__private": true
     });
     caching::mark_system_cached(&mut request);
@@ -234,8 +234,8 @@ fn body_filters_reserved_extras_and_preserves_provider_cache_fields() {
     assert_eq!(body["top_k"], 32);
     assert_eq!(body["system"][0]["cache_control"]["type"], "ephemeral");
     for key in [
-        "_cos_initiator",
-        "_cos_trace",
+        "__yuos_initiator",
+        "__yuos_trace",
         "__private",
         caching::KEY_SYSTEM,
     ] {

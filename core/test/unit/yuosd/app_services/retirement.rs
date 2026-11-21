@@ -136,7 +136,7 @@ mod process {
                 kind: PackageKind::App,
                 id: id.into(),
                 version: "0.1.0".into(),
-                manifest_schema: "cos.app/v2".into(),
+                manifest_schema: "yuos.app/v2".into(),
                 manifest_path: "app.json".into(),
                 entrypoints: vec!["main.py".into(), "server.py".into()],
                 resources: vec![],

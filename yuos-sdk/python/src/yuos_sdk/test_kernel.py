@@ -86,7 +86,7 @@ def test_deadline_and_cancellation_kill_and_reap_a_started_child(tmp_path, monke
 
 
 @pytest.mark.parametrize("change", [
-    {"binary": "cos"}, {"args": "request"}, {"data": "not bytes"},
+    {"binary": "yu"}, {"args": "request"}, {"data": "not bytes"},
     {"data": b"x" * (kernel.MAX_INPUT_BYTES + 1)}, {"deadline_unix_ms": True},
 ])
 def test_invalid_transport_arguments_do_not_launch(monkeypatch, change):

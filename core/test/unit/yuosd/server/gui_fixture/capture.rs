@@ -747,7 +747,7 @@ pub(super) async fn run(first_group: &std::fs::File) {
     std::fs::write(
         "/run/gui-fixture/native-capture-consumer.json",
         serde_json::to_vec_pretty(&serde_json::json!({
-            "schema": "claw.private-native-capture/v1", "cases": cases,
+            "schema": "yuos.private-native-capture/v1", "cases": cases,
             "proof": "real signed App/PAM/private broker/OS helper and checked retirement",
             "physical_display_or_screen_pixels": false,
         }))

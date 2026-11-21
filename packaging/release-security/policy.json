@@ -92,7 +92,7 @@
       "path": "/usr/local/bin/yuos-ask-launcher"
     }
   ],
-  "format": "claw.release-security-policy/v1",
+  "format": "yuos.release-security-policy/v1",
   "manifest_validity_days": 400,
   "minimum_compatible": {
     "yuos-agent": "1:0.1.0",

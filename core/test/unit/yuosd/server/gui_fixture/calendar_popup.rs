@@ -137,7 +137,7 @@ impl Fixture {
             .map_err(|error| error.to_string())?;
         selector.set_permissions(std::fs::Permissions::from_mode(0o644)).unwrap();
         selector.write_all(&serde_json::to_vec(&serde_json::json!({
-            "schema":"claw.private-widget-rail-synthetic-shm/v1", "instance":instance,
+            "schema":"yuos.private-widget-rail-synthetic-shm/v1", "instance":instance,
         })).unwrap()).unwrap();
         drop(selector);
         let expected = [
@@ -195,7 +195,7 @@ impl Fixture {
                 && frame["snapshot"]["snapshot_commit"] == frame["buffer_commits"])
             {
                 let report = serde_json::json!({
-                    "schema":"claw.private-native-desktop-widgets-consumer/v1",
+                    "schema":"yuos.private-native-desktop-widgets-consumer/v1",
                     "instance":instance, "owner_uid":OWNER, "requests":requests, "exact_scope_uses":uses,
                     "fixture_event_id":EVENT_ID, "fixture_event_title":EVENT_TITLE,
                     "passive_panel_snapshot":frame["snapshot"], "window":frame,
@@ -390,7 +390,7 @@ impl<'a> Driver<'a> {
         self.sequence += 1;
         let directory = Path::new(OBSERVER).parent().unwrap();
         let request = serde_json::json!({
-            "schema": "claw.private-keyboard/v1", "sequence": self.sequence,
+            "schema": "yuos.private-keyboard/v1", "sequence": self.sequence,
             "instance": self.instance, "surface": surface,
             "expires_ms": yuos_display_control::wire::monotonic_ms().unwrap() + 5_000,
             "kind": "pointer", "value": value,
@@ -461,7 +461,7 @@ pub(super) async fn run(
         Ok(metadata) if metadata.is_file() && metadata.mode() & 0o111 != 0 => {}
         result => driver
             .fail(&format!(
-                "cannot verify the real fixed SDK Cos helper in this native sandbox: {result:?}"
+                "cannot verify the real fixed SDK Yu helper in this native sandbox: {result:?}"
             ))
             .await,
     }
@@ -493,7 +493,7 @@ pub(super) async fn run(
     snapshot
         .write_all(
             &serde_json::to_vec(&serde_json::json!({
-                "schema":"claw.private-calendar-synthetic-shm/v1", "instance":driver.instance,
+                "schema":"yuos.private-calendar-synthetic-shm/v1", "instance":driver.instance,
             }))
             .unwrap(),
         )
@@ -555,7 +555,7 @@ pub(super) async fn run(
             .await;
     }
     let report = serde_json::json!({
-        "schema": "claw.private-native-calendar-consumer/v1",
+        "schema": "yuos.private-native-calendar-consumer/v1",
         "instance": driver.instance, "owner_uid": OWNER,
         "fixture_event_id": EVENT_ID, "fixture_event_title": EVENT_TITLE,
         "fixture_first_day": fixture.first.to_string(), "fixture_end_day_exclusive": fixture.end.to_string(),
@@ -574,7 +574,7 @@ pub(super) async fn run(
 #[test]
 fn native_calendar_popup_readiness_requires_real_same_layer_parent_pixels() {
     let mut record = serde_json::json!({
-        "schema": "claw.private-native-panel/v1", "instance": "instance",
+        "schema": "yuos.private-native-panel/v1", "instance": "instance",
         "role": "zwlr_layer_surface_v1", "namespace": CALENDAR.desktop_id, "layer": "Top",
         "layer_surfaces": 1, "toplevels": 0, "keyboard_interactivity": "None",
         "configure_acked": true, "configure_size": [40,40], "closed": false,

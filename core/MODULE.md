@@ -208,7 +208,7 @@ cargo test -p yu --test app_source_fixtures -- --test-threads=1
 # Update downgrade protection, including the dpkg ordering cross-check
 cargo test -p yu --test security_floor_process -- --test-threads=1
 
-# Same-owner FileManager1 methods and fake-cos/private-bus process fixtures
+# Same-owner FileManager1 methods and fake-yu/private-bus process fixtures
 cargo test -p yu --bin yuos-file-manager -- --test-threads=1
 
 # CI lint

@@ -178,7 +178,7 @@ fn redirect_user_data_dir() -> UserDataDirGuard {
 /// when `yu agent setup text` tried to store the GitHub Copilot
 /// OAuth token.
 #[test]
-fn bootstrap_writes_to_user_data_dir_when_cos_data_dir_unset() {
+fn bootstrap_writes_to_user_data_dir_when_yu_data_dir_unset() {
     let _lock = env_lock();
     let prev_data = env::var_os("YUOS_DATA_DIR");
     env::remove_var("YUOS_DATA_DIR");

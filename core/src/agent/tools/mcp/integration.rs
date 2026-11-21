@@ -1243,8 +1243,8 @@ fn safe_env_allowlist() -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
         ("LC_ALL".into(), "C.UTF-8".into()),
         ("TZ".into(), "UTC".into()),
     ];
-    const SAFE_COS: &[&str] = &["YUOS_TRACE_ID", "YUOS_SPAN_ID", "YUOS_VERSION"];
-    for key in SAFE_COS {
+    const SAFE_YU: &[&str] = &["YUOS_TRACE_ID", "YUOS_SPAN_ID", "YUOS_VERSION"];
+    for key in SAFE_YU {
         if let Ok(value) = std::env::var(key) {
             out.push(((*key).into(), value.into()));
         }

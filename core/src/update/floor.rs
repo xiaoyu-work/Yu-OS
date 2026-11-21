@@ -56,8 +56,8 @@ use super::canonical;
 use super::debver;
 use super::manifest::{require_digest, Manifest};
 
-pub const FORMAT: &str = "claw.security-floor/v1";
-pub const HISTORY_FORMAT: &str = "claw.security-floor-history/v1";
+pub const FORMAT: &str = "yuos.security-floor/v1";
+pub const HISTORY_FORMAT: &str = "yuos.security-floor-history/v1";
 
 const FLOOR_FILE: &str = "floor.json";
 const HISTORY_FILE: &str = "history.jsonl";

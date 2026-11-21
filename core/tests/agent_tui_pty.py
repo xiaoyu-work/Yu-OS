@@ -1262,7 +1262,7 @@ def process_diagnostics(pid):
     return records
 
 
-def run(cos, case, transcript, original_namespace, trace):
+def run(yu, case, transcript, original_namespace, trace):
     if os.geteuid() == 0:
         raise RuntimeError("run this fixture as a non-root account, like ordinary Agent chat")
     output = bytearray()
@@ -1342,9 +1342,9 @@ def run(cos, case, transcript, original_namespace, trace):
             "YUOS_APPS_DIR": str(root / "apps"),
             "YUOS_AGENT_EXTENSIONS_DIR": str(root / "extensions"),
         }
-        command = [str(cos), "agent", "chat", "--tui"]
+        command = [str(yu), "agent", "chat", "--tui"]
         if case == "plain":
-            command = [str(cos), "agent", "chat", "--plain", "--no-memory"]
+            command = [str(yu), "agent", "chat", "--plain", "--no-memory"]
         elif case in ("resume", "resume-running"):
             command.extend(["--session", PRESENTATION_ID])
         if trace:
@@ -1391,7 +1391,7 @@ def run(cos, case, transcript, original_namespace, trace):
                     )
                     for request in broker.requests
                 )
-                if opened and b"CLAW" in data:
+                if opened and b"YU OS AGENT" in data:
                     if ready_at is None:
                         ready_at = time.monotonic()
                     return time.monotonic() - ready_at >= 0.5

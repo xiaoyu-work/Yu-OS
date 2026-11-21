@@ -395,7 +395,7 @@ fn render_ruleset(state: &FirewallState) -> Result<String, String> {
         } else {
             "drop".to_string()
         });
-        expressions.push(format!("comment \"claw:{}\"", rule.id));
+        expressions.push(format!("comment \"yuos:{}\"", rule.id));
         script.push_str(&format!(
             "add rule {TABLE_FAMILY} {TABLE_NAME} {} {}\n",
             rule.direction,
@@ -450,7 +450,7 @@ fn collect_comments(value: &Value, ids: &mut BTreeSet<String>) {
     match value {
         Value::Object(map) => {
             if let Some(comment) = map.get("comment").and_then(Value::as_str) {
-                if let Some(id) = comment.strip_prefix("claw:") {
+                if let Some(id) = comment.strip_prefix("yuos:") {
                     if validate_id(id, "rule id").is_ok() {
                         ids.insert(id.to_string());
                     }

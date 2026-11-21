@@ -49,9 +49,9 @@ struct SnapshotProfile {
 
 const CALENDAR_SNAPSHOT: SnapshotProfile = SnapshotProfile {
     selector: "/run/gui-public/native-calendar-snapshot-enabled",
-    selector_schema: "claw.private-calendar-synthetic-shm/v1",
-    frame_schema: "claw.private-calendar-shm-frame/v1",
-    index_schema: "claw.private-calendar-shm-index/v1",
+    selector_schema: "yuos.private-calendar-synthetic-shm/v1",
+    frame_schema: "yuos.private-calendar-shm-frame/v1",
+    index_schema: "yuos.private-calendar-shm-index/v1",
     file: "native-calendar-agenda.shm",
     next: "agenda-snapshot.next",
     magic: b"CLAWCALSHM1\0",
@@ -60,9 +60,9 @@ const CALENDAR_SNAPSHOT: SnapshotProfile = SnapshotProfile {
 };
 const STORE_SNAPSHOT: SnapshotProfile = SnapshotProfile {
     selector: "/run/gui-public/native-store-snapshot-enabled",
-    selector_schema: "claw.private-store-synthetic-shm/v1",
-    frame_schema: "claw.private-store-shm-frame/v1",
-    index_schema: "claw.private-store-shm-index/v1",
+    selector_schema: "yuos.private-store-synthetic-shm/v1",
+    frame_schema: "yuos.private-store-shm-frame/v1",
+    index_schema: "yuos.private-store-shm-index/v1",
     file: "native-store-window.shm",
     next: "store-snapshot.next",
     magic: b"CLAWSTRSHM1\0",
@@ -71,9 +71,9 @@ const STORE_SNAPSHOT: SnapshotProfile = SnapshotProfile {
 };
 const WIDGET_SNAPSHOT: SnapshotProfile = SnapshotProfile {
     selector: "/run/gui-public/native-widget-rail-snapshot-enabled",
-    selector_schema: "claw.private-widget-rail-synthetic-shm/v1",
-    frame_schema: "claw.private-widget-rail-shm-frame/v1",
-    index_schema: "claw.private-widget-rail-shm-index/v1",
+    selector_schema: "yuos.private-widget-rail-synthetic-shm/v1",
+    frame_schema: "yuos.private-widget-rail-shm-frame/v1",
+    index_schema: "yuos.private-widget-rail-shm-index/v1",
     file: "native-widget-rail.shm",
     next: "widget-snapshot.next",
     magic: b"CLAWWIDSHM1\0",
@@ -82,9 +82,9 @@ const WIDGET_SNAPSHOT: SnapshotProfile = SnapshotProfile {
 };
 const CLIPBOARD_SNAPSHOT: SnapshotProfile = SnapshotProfile {
     selector: "/run/gui-public/native-clipboard-snapshot-enabled",
-    selector_schema: "claw.private-clipboard-synthetic-shm/v1",
-    frame_schema: "claw.private-clipboard-shm-frame/v1",
-    index_schema: "claw.private-clipboard-shm-index/v1",
+    selector_schema: "yuos.private-clipboard-synthetic-shm/v1",
+    frame_schema: "yuos.private-clipboard-shm-frame/v1",
+    index_schema: "yuos.private-clipboard-shm-index/v1",
     file: "native-clipboard-history.shm",
     next: "clipboard-snapshot.next",
     magic: b"CLAWCLPSHM1\0",
@@ -387,7 +387,7 @@ pub fn enable(display: &DisplayHandle) -> Result<Option<Window>> {
             file.take(513).read_to_end(&mut bytes)?;
             let projection: serde_json::Value = serde_json::from_slice(&bytes)?;
             if bytes.len() > 512 || projection.as_object().is_none_or(|fields| fields.len() != 4)
-                || projection["schema"] != "claw.private-native-selection/v2"
+                || projection["schema"] != "yuos.private-native-selection/v2"
             {
                 return Err("invalid native expected-selection projection".into());
             }
@@ -1069,7 +1069,7 @@ impl Window {
         };
         if let Some(panel) = &self.panel {
             return self.publish_record(serde_json::json!({
-                "schema": "claw.private-native-panel/v1", "instance": instance,
+                "schema": "yuos.private-native-panel/v1", "instance": instance,
                 "role": "zwlr_layer_surface_v1", "layer": format!("{:?}", panel.layer),
                 "namespace": panel.namespace, "layer_surfaces": usize::from(panel.surface.is_some()),
                 "toplevels": usize::from(self.surface.is_some()) + usize::from(self.auxiliary.surface.is_some()),
@@ -1143,7 +1143,7 @@ impl Window {
             return Err("native window metadata exceeded the private witness bound".into());
         }
         let record = serde_json::json!({
-            "schema": "claw.private-native-window/v1", "instance": instance,
+            "schema": "yuos.private-native-window/v1", "instance": instance,
             "toplevels": usize::from(self.surface.is_some()) + usize::from(self.auxiliary.surface.is_some()),
             "configure_acked": self.configured,
             "buffer_commits": self.commits, "raster": self.raster,

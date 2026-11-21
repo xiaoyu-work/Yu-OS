@@ -301,7 +301,7 @@ pub(super) fn install(key: &crate::provenance::sign::SigningKeyFile, product: Pr
         .open("/run/gui-public/native-product-selection.json").unwrap();
     projection.set_permissions(std::fs::Permissions::from_mode(0o644)).unwrap();
     projection.write_all(&serde_json::to_vec(&serde_json::json!({
-        "schema":"claw.private-native-selection/v2",
+        "schema":"yuos.private-native-selection/v2",
         "selection_read":has_selection(Verb::CLIPBOARD_READ),
         "selection_write":has_selection(Verb::CLIPBOARD_WRITE),
         "interactive_layer":product.interactive_panel,
@@ -315,7 +315,7 @@ pub(super) fn install(key: &crate::provenance::sign::SigningKeyFile, product: Pr
     let mut payload: Payload = serde_json::from_slice(&std::fs::read(receipt).unwrap()).unwrap();
     assert_eq!(
         payload.schema,
-        format!("claw.private-native-{}/v1", product.name)
+        format!("yuos.private-native-{}/v1", product.name)
     );
     assert_eq!(payload.source_lock["version"], 1);
     let revision = payload.source_lock["revision"].as_str().unwrap();
@@ -432,7 +432,7 @@ pub(super) fn install(key: &crate::provenance::sign::SigningKeyFile, product: Pr
             kind: PackageKind::App,
             id: product.app.into(),
             version: manifest["version"].as_str().unwrap().into(),
-            manifest_schema: "cos.app-manifest/v2".into(),
+            manifest_schema: "yuos.app-manifest/v2".into(),
             manifest_path: "app.json".into(),
             entrypoints: payload.entrypoints,
             resources: payload.resources,
@@ -501,7 +501,7 @@ fn observe() -> Option<serde_json::Value> {
 }
 
 fn buffered_window(record: &serde_json::Value, instance: &str) -> bool {
-    record["schema"] == "claw.private-native-window/v1"
+    record["schema"] == "yuos.private-native-window/v1"
         && record["instance"] == instance
         && record["toplevels"] == 1
         && record["configure_acked"] == true
@@ -535,7 +535,7 @@ fn buffered_panel_size(
     width: std::ops::RangeInclusive<u64>, height: std::ops::RangeInclusive<u64>,
     keyboard: &str,
 ) -> bool {
-    record["schema"] == "claw.private-native-panel/v1"
+    record["schema"] == "yuos.private-native-panel/v1"
         && record["instance"] == instance
         && record["role"] == "zwlr_layer_surface_v1"
         && record["namespace"] == namespace
@@ -1556,7 +1556,7 @@ pub(super) async fn run(group: &std::fs::File, product: Product) {
                 && record["closed"] == true
                 && record["toplevels"] == 0
                 && (!product.panel
-                    || (record["schema"] == "claw.private-native-panel/v1"
+                    || (record["schema"] == "yuos.private-native-panel/v1"
                         && record["role"] == "zwlr_layer_surface_v1"
                         && record["layer_surfaces"] == 0
                         && record["popup"]["open"] == false
@@ -1659,7 +1659,7 @@ pub(super) async fn run(group: &std::fs::File, product: Product) {
 #[test]
 fn native_editor_readiness_rejects_titles_without_real_configured_pixels() {
     let mut record = serde_json::json!({
-        "schema": "claw.private-native-window/v1", "instance": "window",
+        "schema": "yuos.private-native-window/v1", "instance": "window",
         "toplevels": 1, "configure_acked": true, "closed": false,
         "buffer_commits": 1, "title": "native-editor-startup.txt - Text Editor",
     });
@@ -1766,7 +1766,7 @@ fn private_native_store() {
 #[test]
 fn native_calendar_readiness_requires_typed_configured_panel_pixels_not_an_xdg_window() {
     let record = serde_json::json!({
-        "schema": "claw.private-native-panel/v1", "instance": "instance",
+        "schema": "yuos.private-native-panel/v1", "instance": "instance",
         "role": "zwlr_layer_surface_v1", "namespace": CALENDAR.desktop_id, "layer": "Top",
         "layer_surfaces": 1, "toplevels": 0, "keyboard_interactivity": "None",
         "configure_acked": true, "configure_size": [40, 40], "closed": false,
@@ -1800,7 +1800,7 @@ fn native_calendar_readiness_requires_typed_configured_panel_pixels_not_an_xdg_w
     palette["keyboard_interactivity"] = "None".into();
     assert!(!buffered_palette(&palette, "instance"));
     for (field, invalid) in [
-        ("schema", serde_json::json!("claw.private-native-window/v1")),
+        ("schema", serde_json::json!("yuos.private-native-window/v1")),
         ("role", serde_json::json!("xdg_toplevel")),
         ("namespace", serde_json::json!("another.panel")),
         ("toplevels", serde_json::json!(1)),
@@ -1824,7 +1824,7 @@ fn native_calendar_readiness_requires_typed_configured_panel_pixels_not_an_xdg_w
         );
     }
     let mut ordinary = record;
-    ordinary["schema"] = "claw.private-native-window/v1".into();
+    ordinary["schema"] = "yuos.private-native-window/v1".into();
     ordinary["toplevels"] = 1.into();
     assert!(
         !buffered_window(&ordinary, "instance"),

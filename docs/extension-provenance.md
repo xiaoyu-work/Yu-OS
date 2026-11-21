@@ -11,19 +11,19 @@ verified.
 This document describes the format, the trust model, the install
 pipeline and the operator/developer workflows.
 
-## The envelope: `claw.provenance/v1`
+## The envelope: `yuos.provenance/v1`
 
 A package is a directory. Its envelope lives at `.provenance.json`
 inside that directory:
 
 ```json
 {
-  "schema": "claw.provenance/v1",
+  "schema": "yuos.provenance/v1",
   "package": {
     "kind": "app",
     "id": "notes",
     "version": "1.2.0",
-    "manifest_schema": "cos.app-manifest/v1",
+    "manifest_schema": "yuos.app-manifest/v1",
     "manifest_path": "app.json",
     "entrypoints": ["main.py"],
     "resources": [],
@@ -700,7 +700,7 @@ Standalone `yu provenance dev-trust` still demands, in order:
 
 `--yes` does **not** satisfy this and never will; passing it only logs
 that it was ignored. Automation that genuinely needs unsigned content
-uses an **offline signed developer grant**: a `claw.trust-dev/v1` file
+uses an **offline signed developer grant**: a `yuos.trust-dev/v1` file
 produced on a workstation and copied into the developer root. That is a
 deliberate, auditable artifact rather than a runtime flag.
 

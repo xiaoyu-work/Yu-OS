@@ -309,7 +309,7 @@ impl State {
                     assert_eq!(bytes, entry.data, "Root selection MIME transfer changed data");
                 }
                 let record = serde_json::json!({
-                    "schema":"claw.private-root-selection/v1",
+                    "schema":"yuos.private-root-selection/v1",
                     "entries":payload.entries,
                     "installed_in_smithay":true,
                     "mime_transfers_confirmed":true,

@@ -18,7 +18,7 @@
 #   - When the backing filesystem is already an overlay (live ISOs ship a
 #     squashfs+overlay rootfs), upper/work move to tmpfs under /run, since
 #     overlay-on-overlay is not reliably supported and would otherwise fail.
-#   - Always exits 0 — overlay-mount failure is non-fatal; cos still works
+#   - Always exits 0 — overlay-mount failure is non-fatal; yu still works
 #     without checkpoint support, with a JSON warning emitted to stdout.
 
 set -e

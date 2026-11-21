@@ -30,7 +30,7 @@ fn body(files: Vec<FileEntry>) -> PackageBody {
         kind: PackageKind::App,
         id: "notes".to_string(),
         version: "1.0.0".to_string(),
-        manifest_schema: "cos.app-manifest/v1".to_string(),
+        manifest_schema: "yuos.app-manifest/v1".to_string(),
         manifest_path: "app.json".to_string(),
         entrypoints: vec![],
         resources: vec![],
@@ -186,7 +186,7 @@ fn schema_and_algorithm_confusion_is_rejected() {
     let pk_hex = hex::encode(pk);
     let kid = key_id_for(&pk);
 
-    let err = Envelope::parse(&envelope_json("claw.provenance/v2", ALG_ED25519, &kid, &pk_hex))
+    let err = Envelope::parse(&envelope_json("yuos.provenance/v2", ALG_ED25519, &kid, &pk_hex))
         .unwrap_err();
     assert!(matches!(err, EnvelopeError::UnsupportedSchema(_)), "{err}");
 

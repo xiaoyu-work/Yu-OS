@@ -403,15 +403,15 @@ async fn run_turn_inner(request: TurnRequest<'_>) -> Result<TurnReport, super::l
         top_p: None,
         stop_sequences: vec![],
         extra: serde_json::json!({
-            "_cos_turn_index": hook_ctx.map(|context| context.turn_index).unwrap_or(0),
+            "__yuos_turn_index": hook_ctx.map(|context| context.turn_index).unwrap_or(0),
         }),
     };
     if let Some(reasoning_effort) = reasoning_effort {
-        request.extra["_cos_reasoning_effort"] = serde_json::json!(reasoning_effort);
+        request.extra["__yuos_reasoning_effort"] = serde_json::json!(reasoning_effort);
     }
     if let Some(image) = desktop_vision::take(visual_model.as_ref()) {
         request.messages.push(image);
-        request.extra["_cos_desktop_visual"] = serde_json::json!(true);
+        request.extra["__yuos_desktop_visual"] = serde_json::json!(true);
     }
 
     // Prompt-cache markers are no-ops for providers that don't support

@@ -294,8 +294,8 @@ fn body_filters_reserved_extras_and_preserves_provider_extras() {
             "category": "HARM_CATEGORY_HARASSMENT",
             "threshold": "BLOCK_NONE"
         }],
-        "_cos_initiator": "agent",
-        "_cos_trace": "internal",
+        "__yuos_initiator": "agent",
+        "__yuos_trace": "internal",
         "__cache_system": true,
         "__private": true
     });
@@ -305,8 +305,8 @@ fn body_filters_reserved_extras_and_preserves_provider_extras() {
         "HARM_CATEGORY_HARASSMENT"
     );
     for key in [
-        "_cos_initiator",
-        "_cos_trace",
+        "__yuos_initiator",
+        "__yuos_trace",
         "__cache_system",
         "__private",
     ] {

@@ -80,7 +80,7 @@ fn one_shot_ask(yu_bin: &str, prompt: Vec<String>) -> Result<()> {
     }
     // Pass `--` so prompts that start with a dash (e.g. `--help` or
     // `-foo`) are not interpreted as flags by `yu agent ask`. Without
-    // the separator, `cos cli ask -- --version` and similar inputs
+    // the separator, `yu cli ask -- --version` and similar inputs
     // would be parsed as version requests instead of prompts.
     forward(yu_bin, &["agent", "ask", "--", &prompt])
 }
@@ -104,7 +104,7 @@ fn repl(yu_bin: &str) -> Result<()> {
     let mut stdout = io::stdout();
     println!("yuos-cli {} — type /help for commands, EOF or /quit to exit", env!("CARGO_PKG_VERSION"));
     loop {
-        write!(stdout, "cos> ")?;
+        write!(stdout, "yu> ")?;
         stdout.flush()?;
         let mut line = String::new();
         let n = stdin.lock().read_line(&mut line)?;

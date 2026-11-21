@@ -1071,7 +1071,7 @@ fn today_yyyymmdd() -> String {
     ontology::date_from_unix_s(secs)
 }
 
-// Civil date helper — same epoch math used elsewhere in cos
+// Civil date helper — same epoch math used elsewhere in yu
 // (e.g. trace timestamping). 1970-01-01 + N days.
 #[cfg(test)]
 fn days_to_ymd(days_since_epoch: i64) -> (i32, u32, u32) {

@@ -97,7 +97,7 @@ def initialize_home(account, data):
             write(config / gtk / "settings.ini",
                   f'[Settings]\ngtk-application-prefer-dark-theme={int(not data["light"])}\n')
         if data["agent"] is not None:
-            write(config / "cos/config.json", json.dumps(data["agent"]["config"]) + "\n")
+            write(config / "yuos/config.json", json.dumps(data["agent"]["config"]) + "\n")
             directory = home / ".local/share/yuos/credentials/agent"
             for name, value in data["agent"]["credentials"].items():
                 write(directory / name, json.dumps(value) + "\n")

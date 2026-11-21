@@ -112,7 +112,7 @@ impl Fixture {
             .open("/run/gui-public/native-clipboard-snapshot-enabled").unwrap();
         selector.set_permissions(std::fs::Permissions::from_mode(0o644)).unwrap();
         selector.write_all(&serde_json::to_vec(&serde_json::json!({
-            "schema":"claw.private-clipboard-synthetic-shm/v1","instance":instance,
+            "schema":"yuos.private-clipboard-synthetic-shm/v1","instance":instance,
         })).unwrap()).unwrap();
         drop(selector);
         let mut driver = calendar_popup::Driver::new(
@@ -170,7 +170,7 @@ impl Fixture {
             tokio::time::sleep(Duration::from_millis(20)).await;
         };
         let report = serde_json::json!({
-            "schema":"claw.private-native-clipboard-consumer/v1","instance":instance,"owner_uid":OWNER,
+            "schema":"yuos.private-native-clipboard-consumer/v1","instance":instance,"owner_uid":OWNER,
             "request":request,"exact_scope_use":use_record,"popup":frame["popup"],
             "passive_history_snapshot":closed["popup"]["snapshot"],
             "open_snapshot_copied_before_close":true,

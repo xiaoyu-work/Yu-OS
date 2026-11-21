@@ -19,7 +19,7 @@ fn denied(result: Result<(), ClientError>) {
 }
 
 #[tokio::test]
-#[ignore = "run through test/support/run_kernel_fixture.py with real built cos/provider binaries"]
+#[ignore = "run through test/support/run_kernel_fixture.py with real built yu/provider binaries"]
 async fn real_kernel_context() {
     assert_ne!(unsafe { libc::geteuid() }, 0);
     assert_eq!(

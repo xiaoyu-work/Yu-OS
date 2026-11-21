@@ -405,7 +405,7 @@ async fn safe_extension_proposal_reenters_exact_capability_and_approval_enforcem
 }
 
 #[test]
-fn default_registry_has_builtins_and_cos_proxy() {
+fn default_registry_has_builtins_and_yu_proxy() {
     let r = default_registry();
     assert!(r.get("echo").is_some());
     assert!(r.get("now").is_some());

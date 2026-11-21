@@ -48,7 +48,7 @@ def _write_fake_cos(tmp_dir: str, *, stdout: str = "", stderr: str = "", exit_co
         sys.exit({exit_code})
         """
     ).lstrip()
-    path = os.path.join(tmp_dir, "cos")
+    path = os.path.join(tmp_dir, "yu")
     with open(path, "w", encoding="utf-8") as f:
         f.write(script)
     os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
@@ -84,8 +84,8 @@ class SubprocessShellOutTests(unittest.TestCase):
             "text": "hi",
         }
         with tempfile.TemporaryDirectory() as tmp:
-            cos = _write_fake_cos(tmp, stdout=_wire_success(envelope))
-            with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": cos}):
+            yu = _write_fake_cos(tmp, stdout=_wire_success(envelope))
+            with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": yu}):
                 got = memory.remember(text="hi", source="expense-tracker", indexable=False)
         self.assertEqual(got, envelope)
 
@@ -96,7 +96,7 @@ class SubprocessShellOutTests(unittest.TestCase):
             "summary": "memory.write not granted to source=calendar",
         }
         with tempfile.TemporaryDirectory() as tmp:
-            cos = _write_fake_cos(
+            yu = _write_fake_cos(
                 tmp,
                 stdout=_wire_error(
                     "memory remember denied",
@@ -105,7 +105,7 @@ class SubprocessShellOutTests(unittest.TestCase):
                 ),
                 exit_code=1,
             )
-            with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": cos}):
+            with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": yu}):
                 with self.assertRaises(memory.PermissionDenied) as ctx:
                     memory.remember(text="hi", source="calendar")
         self.assertEqual(ctx.exception.denial["decision"], "deny")
@@ -113,15 +113,15 @@ class SubprocessShellOutTests(unittest.TestCase):
 
     def test_unstructured_failure_becomes_unavailable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            cos = _write_fake_cos(tmp, stderr="yu: catastrophic kernel oops", exit_code=2)
-            with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": cos}):
+            yu = _write_fake_cos(tmp, stderr="yu: catastrophic kernel oops", exit_code=2)
+            with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": yu}):
                 with self.assertRaises(memory.MemoryUnavailable):
                     memory.remember(text="hi", source="expense-tracker")
 
     def test_non_json_stdout_becomes_unavailable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            cos = _write_fake_cos(tmp, stdout="not json", exit_code=0)
-            with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": cos}):
+            yu = _write_fake_cos(tmp, stdout="not json", exit_code=0)
+            with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": yu}):
                 with self.assertRaises(memory.MemoryUnavailable):
                     memory.remember(text="hi", source="expense-tracker")
 
@@ -152,7 +152,7 @@ class SubprocessShellOutTests(unittest.TestCase):
 
 
 class BinaryDiscoveryTests(unittest.TestCase):
-    def test_missing_cos_binary_raises_unavailable(self) -> None:
+    def test_missing_yu_binary_raises_unavailable(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("YUOS_KERNEL_BIN", None)
             with mock.patch("shutil.which", return_value=None):

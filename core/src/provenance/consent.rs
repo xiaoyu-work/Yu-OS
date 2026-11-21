@@ -17,7 +17,7 @@
 //!    a `yes |` pipeline.
 //!
 //! Automation that genuinely needs unsigned content uses an **offline
-//! signed developer grant**: a `claw.trust-dev/v1` file produced on a
+//! signed developer grant**: a `yuos.trust-dev/v1` file produced on a
 //! workstation and copied into the developer root. That is a
 //! deliberate, auditable artifact rather than a runtime flag.
 //!

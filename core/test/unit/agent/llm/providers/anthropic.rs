@@ -231,8 +231,8 @@ fn body_filters_reserved_extras_and_preserves_cache_markers() {
     let mut r = req_text("hi");
     r.extra = serde_json::json!({
         "metadata": {"user_id": "u-1"},
-        "_cos_initiator": "agent",
-        "_cos_trace": "internal",
+        "__yuos_initiator": "agent",
+        "__yuos_trace": "internal",
         "__private": true
     });
     caching::mark_system_cached(&mut r);
@@ -241,8 +241,8 @@ fn body_filters_reserved_extras_and_preserves_cache_markers() {
     assert_eq!(body["metadata"]["user_id"], "u-1");
     assert_eq!(body["system"][0]["cache_control"]["type"], "ephemeral");
     for key in [
-        "_cos_initiator",
-        "_cos_trace",
+        "__yuos_initiator",
+        "__yuos_trace",
         "__private",
         caching::KEY_SYSTEM,
     ] {

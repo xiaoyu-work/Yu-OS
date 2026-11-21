@@ -30,7 +30,7 @@ fi
 if [[ $# == 15 && "${13}" == --native-capture-only ]]; then
     native_capture_helper=$(realpath -- "${15}")
     [[ -f "$native_capture_helper" && -x "$native_capture_helper" && ! -L "$native_capture_helper" ]] || exit 64
-    set -- "${@:1:16}"
+    set -- "${@:1:14}"
 elif [[ $# == 14 && "${13}" == --native-capture-only ]]; then
     printf 'actual Capture requires its matching compiled OS yuosd helper\n' >&2
     exit 64
@@ -38,7 +38,7 @@ fi
 if [[ $# == 15 && "${13}" == --native-launcher-only ]]; then
     native_launcher_backend=$(realpath -- "${15}")
     [[ -f "$native_launcher_backend" && -x "$native_launcher_backend" && ! -L "$native_launcher_backend" ]] || exit 64
-    set -- "${@:1:16}"
+    set -- "${@:1:14}"
 elif [[ $# == 14 && "${13}" == --native-launcher-only ]]; then
     printf 'actual Launcher requires its compiled OS backend\n' >&2
     exit 64
@@ -46,7 +46,7 @@ fi
 if [[ $# == 15 && ( "${13}" == --native-calendar-only || "${13}" == --native-desktop-widgets-only ) ]]; then
     native_calendar_reader=$(realpath -- "${15}")
     [[ -f "$native_calendar_reader" && -x "$native_calendar_reader" && ! -L "$native_calendar_reader" ]] || exit 64
-    set -- "${@:1:16}"
+    set -- "${@:1:14}"
 elif [[ $# == 14 && ( "${13}" == --native-calendar-only || "${13}" == --native-desktop-widgets-only ) ]]; then
     printf 'actual Calendar consumers require the existing compiled OS reader\n' >&2
     exit 64
@@ -127,17 +127,17 @@ if [[ $# == 12 ]]; then
     if [[ "$package_fixture" == 0 ]]; then
         [[ "$(readlink /proc/self/ns/net)" != "$(readlink /proc/1/ns/net)" ]] || exit 64
     fi
-    cos=$(realpath -- "$7")
+    yu=$(realpath -- "$7")
     gui_runner=$(realpath -- "$8")
     app_runner=$(realpath -- "$9")
     probe=$(realpath -- "${10}")
     session=$(realpath -- "${11}")
     file_manager=$(realpath -- "${12}")
-    [[ -x "$cos" && -x "$gui_runner" && -x "$app_runner" && -x "$probe" \
+    [[ -x "$yu" && -x "$gui_runner" && -x "$app_runner" && -x "$probe" \
         && -x "$session" && -x "$file_manager" ]] || exit 64
     if [[ "$package_fixture" == 0 ]]; then
         if [[ -z "$native_notification_helper" ]]; then
-            native_notification_helper=$(realpath -e -- "$(dirname -- "$cos")/yuos-notification-panel")
+            native_notification_helper=$(realpath -e -- "$(dirname -- "$yu")/yuos-notification-panel")
         fi
         [[ -f "$native_notification_helper" && -x "$native_notification_helper" \
             && ! -L "$native_notification_helper" ]] || exit 64
@@ -178,7 +178,7 @@ if [[ "$gui" == 1 ]]; then
     install -d -m0755 /usr/local/bin
     install -m0755 "$registry" /usr/local/bin/yuos-gui-broker-fixture
     registry=/usr/local/bin/yuos-gui-broker-fixture
-    install -m0755 "$cos" /usr/local/bin/yu
+    install -m0755 "$yu" /usr/local/bin/yu
     if [[ "$native_product" == capture ]]; then
         install -m0755 "$native_capture_helper" /usr/local/bin/yuosd
     fi
@@ -418,10 +418,10 @@ owner = destination.stat()
 source = pathlib.Path("/run/user/62050/native-product-observer")
 product = sys.argv[2]
 profiles = {
-    "calendar": ("native-calendar-agenda.shm", b"CLAWCALSHM1\0", "claw.private-calendar"),
-    "store": ("native-store-window.shm", b"CLAWSTRSHM1\0", "claw.private-store"),
-    "desktop-widgets": ("native-widget-rail.shm", b"CLAWWIDSHM1\0", "claw.private-widget-rail"),
-    "clipboard": ("native-clipboard-history.shm", b"CLAWCLPSHM1\0", "claw.private-clipboard"),
+    "calendar": ("native-calendar-agenda.shm", b"CLAWCALSHM1\0", "yuos.private-calendar"),
+    "store": ("native-store-window.shm", b"CLAWSTRSHM1\0", "yuos.private-store"),
+    "desktop-widgets": ("native-widget-rail.shm", b"CLAWWIDSHM1\0", "yuos.private-widget-rail"),
+    "clipboard": ("native-clipboard-history.shm", b"CLAWCLPSHM1\0", "yuos.private-clipboard"),
 }
 assert product in profiles
 popup = product in ("calendar", "clipboard")
@@ -524,7 +524,7 @@ if product == "clipboard":
     checked_snapshot(data, index, {"instance": window["instance"], "popup": opened})
     publish("native-clipboard-history-open.shm", data)
     publish("native-clipboard-history-open-export.json", (json.dumps({
-        "schema": "claw.private-clipboard-open-shm-export/v1", "instance": window["instance"],
+        "schema": "yuos.private-clipboard-open-shm-export/v1", "instance": window["instance"],
         "copied": True, "reason": "live-frame-retained-before-original-close", "snapshot": index,
         "reply_decode_asserted": False, "event_text_asserted": False,
     }) + "\n").encode())

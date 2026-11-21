@@ -6,7 +6,7 @@
 // AI prompt bodies are passed through private temporary files. The
 // subprocess model is intentional — identity, audit, and session
 // context are inherited from process ancestry (kernel-spawned parent →
-// app process → cos child). A pure in-process binding could not prove
+// app process → yu child). A pure in-process binding could not prove
 // "App X is making this call".
 
 import { spawnSync } from "node:child_process";

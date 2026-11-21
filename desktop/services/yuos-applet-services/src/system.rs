@@ -92,7 +92,7 @@ pub(crate) async fn load_authorized(
         sampled_at: Instant::now(),
     };
 
-    let (mut summary, fallback) = match load_cos_resources().await {
+    let (mut summary, fallback) = match load_yu_resources().await {
         Ok(summary) => (summary, false),
         Err(yu_error) => match load_linux_resources().await {
             Some(summary) => (summary, true),
@@ -112,7 +112,7 @@ pub(crate) async fn load_authorized(
     Ok((summary, current))
 }
 
-async fn load_cos_resources() -> Result<SystemSummary, String> {
+async fn load_yu_resources() -> Result<SystemSummary, String> {
     let mut command = Command::new(crate::command::yu_binary());
     command.args(["sys", "resources"]);
     let output =

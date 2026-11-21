@@ -65,7 +65,7 @@ fn pid_recycle_safe() {
     let info_match = SessionInfo {
         session_id: "s-match".into(),
         pid: real_pid,
-        command: vec!["cos".into()],
+        command: vec!["yu".into()],
         started_at: "2026-01-01T00:00:00Z".into(),
         stdout_path: "/dev/null".into(),
         stderr_path: "/dev/null".into(),
@@ -103,7 +103,7 @@ fn pid_recycle_safe() {
 
     // 3) Legacy entry with no recorded start_time → fall back
     //    to the basic pid check (preserves behaviour for rows
-    //    written by older cos).
+    //    written by older yu).
     let info_legacy = SessionInfo {
         start_time_ticks: None,
         ..info_match.clone()

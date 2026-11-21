@@ -154,10 +154,10 @@ print(json.dumps(result))
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "requires YUOS_FILE_PLAN_COS_BIN pointing to a freshly built yu binary and a working sandbox"]
+#[ignore = "requires YUOS_FILE_PLAN_YU_BIN pointing to a freshly built yu binary and a working sandbox"]
 async fn file_plan_real_app_worker_cli_and_broker_round_trip() {
     let binary = PathBuf::from(
-        std::env::var_os("YUOS_FILE_PLAN_COS_BIN").expect("set YUOS_FILE_PLAN_COS_BIN"),
+        std::env::var_os("YUOS_FILE_PLAN_YU_BIN").expect("set YUOS_FILE_PLAN_YU_BIN"),
     )
     .canonicalize()
     .unwrap();

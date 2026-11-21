@@ -31,7 +31,7 @@ impl LearnDataDir {
     }
 }
 
-fn isolate_cos_data_dir(tag: &str) -> LearnDataDir {
+fn isolate_yu_data_dir(tag: &str) -> LearnDataDir {
     let env = crate::test_env::lock_env();
     let dir = std::env::temp_dir().join(format!(
         "yuos-learn-cli-{tag}-{}-{}",
@@ -345,7 +345,7 @@ fn run_interrupt_routes_to_interrupt_cmd() {
 
 #[test]
 fn hooks_cmd_list_default_returns_count() {
-    let _dir = isolate_cos_data_dir("hooks-list-default");
+    let _dir = isolate_yu_data_dir("hooks-list-default");
     let v = hooks_cmd(&[]).expect("ok");
     assert!(v.get("hooks").is_some(), "got {v}");
     assert!(v.get("count").is_some(), "got {v}");
@@ -357,7 +357,7 @@ fn hooks_cmd_list_default_returns_count() {
 #[test]
 fn hooks_cmd_list_after_register_includes_name() {
     use crate::agent::runtime::hooks::{global_registry, Hook, HookContext, HookOutcome};
-    let _dir = isolate_cos_data_dir("hooks-list-after-register");
+    let _dir = isolate_yu_data_dir("hooks-list-after-register");
     struct TestHook;
     impl Hook for TestHook {
         fn name(&self) -> &str {
@@ -381,7 +381,7 @@ fn hooks_cmd_list_after_register_includes_name() {
 
 #[test]
 fn run_hooks_routes_to_hooks_cmd() {
-    let _dir = isolate_cos_data_dir("hooks-route");
+    let _dir = isolate_yu_data_dir("hooks-route");
     let v = run("dev", &["hooks".into(), "list".into()]).expect("ok");
     assert!(v.get("count").is_some(), "got {v}");
 }
@@ -390,7 +390,7 @@ fn run_hooks_routes_to_hooks_cmd() {
 fn hooks_cmd_enable_persists_kind_and_registers_in_process() {
     use crate::agent::runtime::hooks::global_registry;
     use crate::agent::runtime::hooks_config;
-    let _dir = isolate_cos_data_dir("hooks-enable");
+    let _dir = isolate_yu_data_dir("hooks-enable");
     // make sure no leftover registration from a prior test
     global_registry().unregister("logging");
 
@@ -413,7 +413,7 @@ fn hooks_cmd_enable_persists_kind_and_registers_in_process() {
 #[test]
 fn hooks_cmd_enable_idempotent_second_call_is_noop() {
     use crate::agent::runtime::hooks::global_registry;
-    let _dir = isolate_cos_data_dir("hooks-enable-idempotent");
+    let _dir = isolate_yu_data_dir("hooks-enable-idempotent");
     global_registry().unregister("logging");
 
     let _ = hooks_cmd(&["enable".into(), "logging".into()]).expect("ok");
@@ -427,7 +427,7 @@ fn hooks_cmd_enable_idempotent_second_call_is_noop() {
 #[test]
 fn hooks_cmd_enable_accepts_kind_flag_form() {
     use crate::agent::runtime::hooks::global_registry;
-    let _dir = isolate_cos_data_dir("hooks-enable-flag");
+    let _dir = isolate_yu_data_dir("hooks-enable-flag");
     global_registry().unregister("logging");
 
     let v = hooks_cmd(&["enable".into(), "--kind".into(), "logging".into()]).expect("ok");
@@ -438,14 +438,14 @@ fn hooks_cmd_enable_accepts_kind_flag_form() {
 
 #[test]
 fn hooks_cmd_enable_unknown_kind_errs() {
-    let _dir = isolate_cos_data_dir("hooks-enable-unknown");
+    let _dir = isolate_yu_data_dir("hooks-enable-unknown");
     let err = hooks_cmd(&["enable".into(), "frobnicate".into()]).unwrap_err();
     assert!(err.contains("unknown hook kind"), "got {err}");
 }
 
 #[test]
 fn hooks_cmd_enable_missing_kind_errs() {
-    let _dir = isolate_cos_data_dir("hooks-enable-missing");
+    let _dir = isolate_yu_data_dir("hooks-enable-missing");
     let err = hooks_cmd(&["enable".into()]).unwrap_err();
     assert!(err.contains("missing hook kind"), "got {err}");
 }
@@ -454,7 +454,7 @@ fn hooks_cmd_enable_missing_kind_errs() {
 fn hooks_cmd_enable_checkpoint_kind_persists_and_registers() {
     use crate::agent::runtime::hooks::global_registry;
     use crate::agent::runtime::hooks_config;
-    let _dir = isolate_cos_data_dir("hooks-enable-checkpoint");
+    let _dir = isolate_yu_data_dir("hooks-enable-checkpoint");
     global_registry().unregister("checkpoint");
 
     let v = hooks_cmd(&["enable".into(), "checkpoint".into()]).expect("ok");
@@ -475,7 +475,7 @@ fn hooks_cmd_enable_checkpoint_kind_persists_and_registers() {
 fn hooks_cmd_disable_removes_from_config_and_registry() {
     use crate::agent::runtime::hooks::global_registry;
     use crate::agent::runtime::hooks_config;
-    let _dir = isolate_cos_data_dir("hooks-disable");
+    let _dir = isolate_yu_data_dir("hooks-disable");
     global_registry().unregister("logging");
 
     let _ = hooks_cmd(&["enable".into(), "logging".into()]).expect("ok");
@@ -490,7 +490,7 @@ fn hooks_cmd_disable_removes_from_config_and_registry() {
 
 #[test]
 fn hooks_cmd_disable_idempotent_when_not_enabled() {
-    let _dir = isolate_cos_data_dir("hooks-disable-noop");
+    let _dir = isolate_yu_data_dir("hooks-disable-noop");
     let v = hooks_cmd(&["disable".into(), "logging".into()]).expect("ok");
     assert_eq!(v["persisted"], serde_json::json!(false));
     assert_eq!(v["unregistered_now"], serde_json::json!(false));
@@ -499,7 +499,7 @@ fn hooks_cmd_disable_idempotent_when_not_enabled() {
 #[test]
 fn hooks_cmd_list_includes_persistent_kinds() {
     use crate::agent::runtime::hooks::global_registry;
-    let _dir = isolate_cos_data_dir("hooks-list-persistent");
+    let _dir = isolate_yu_data_dir("hooks-list-persistent");
     global_registry().unregister("logging");
 
     let _ = hooks_cmd(&["enable".into(), "logging".into()]).expect("ok");

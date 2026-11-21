@@ -381,7 +381,7 @@ ignored explicit-input fixture: build the native Notifications executable and
 `notification-presentation-fixture`, the desktop bridge's
 `notification-delivery-fixture`, and `yu`; supply the corresponding
 `YUOS_NOTIFICATIONS_BINARY`, `YUOS_NOTIFICATIONS_PRESENTER`,
-`YUOS_NOTIFICATIONS_DELIVERY`, `YUOS_NOTIFICATIONS_COS` and
+`YUOS_NOTIFICATIONS_DELIVERY`, `YUOS_NOTIFICATIONS_YU` and
 `YUOS_NOTIFICATIONS_MANIFEST` paths. It exercises the real strict worker,
 authenticated private relay, typed provider, SQLite, desktop consumer and
 native presentation subscription against a private bus and task-local data.
@@ -421,7 +421,7 @@ per-App denials and grant-use limits; private worker relays expose neither
 human approval nor App registration. The ignored
 `media_player_actual_native_mcp_crosses_worker_relay` test takes explicitly
 built `YUOS_MEDIA_PLAYER_BINARY`, `YUOS_MEDIA_PLAYER_MPRIS_FIXTURE`,
-`YUOS_MEDIA_PLAYER_MANIFEST` and `YUOS_MEDIA_PLAYER_COS` inputs and exercises
+`YUOS_MEDIA_PLAYER_MANIFEST` and `YUOS_MEDIA_PLAYER_YU` inputs and exercises
 the real strict worker, private relay, typed authority and native backend.
 `core/test/support/media_player_helper.py` separately exercises the installed
 executable and actual dropped-owner helper under a private mount namespace;

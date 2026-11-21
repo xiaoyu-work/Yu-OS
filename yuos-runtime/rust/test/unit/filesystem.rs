@@ -35,10 +35,10 @@ fn filesystem_bridge_sends_stdin_and_validates_confirmation() {
     }
     assert_eq!(result.unwrap().bytes, 4);
     assert_eq!(
-        std::fs::read_to_string(dir.path().join("cos.args")).unwrap(),
+        std::fs::read_to_string(dir.path().join("yuos.args")).unwrap(),
         "--wire=1\n__filesystem\nwrite\n--request-stdin\n"
     );
     let request: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(dir.path().join("cos.input")).unwrap()).unwrap();
+        serde_json::from_slice(&std::fs::read(dir.path().join("yuos.input")).unwrap()).unwrap();
     assert_eq!(request["content"], "é\0\n");
 }

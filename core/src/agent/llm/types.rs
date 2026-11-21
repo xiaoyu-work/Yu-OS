@@ -133,8 +133,8 @@ pub struct ChatRequest {
     pub stop_sequences: Vec<String>,
 
     /// Provider-specific extras (Anthropic `metadata`, OpenAI `seed`, etc.)
-    /// — pass-through, opaque to the trait. Keys beginning with `_cos_` or
-    /// `__` are reserved for internal metadata and never sent to providers.
+    /// — pass-through, opaque to the trait. Keys beginning with `__` are
+    /// internal; neither they nor the retired `_cos_` keys reach providers.
     #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
     pub extra: serde_json::Value,
 }

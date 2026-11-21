@@ -191,7 +191,7 @@ ensure_cargo() {
     fi
     if ! command -v cargo >/dev/null 2>&1; then
         echo "error: cargo not found — the Rust toolchain is required to build the" >&2
-        echo "       cos / yuosd binaries. Install it with:" >&2
+        echo "       yu / yuosd binaries. Install it with:" >&2
         echo "         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y" >&2
         echo "         . \"\$HOME/.cargo/env\"" >&2
         echo "       (when building under sudo, the toolchain is still found via" >&2

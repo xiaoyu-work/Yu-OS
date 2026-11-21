@@ -274,13 +274,13 @@ fn decode_search_output(
             stderr.trim()
         };
         return Err(if detail.is_empty() {
-            format!("cos failed without a diagnostic ({status})")
+            format!("yu failed without a diagnostic ({status})")
         } else {
-            format!("cos failed ({status}): {detail}")
+            format!("yu failed ({status}): {detail}")
         });
     }
     if trimmed.is_empty() {
-        return Err("cos produced no output".to_string());
+        return Err("yu produced no output".to_string());
     }
     serde_json::from_str::<SearchEnvelope>(trimmed).map_err(|e| format!("bad JSON from yu: {}", e))
 }

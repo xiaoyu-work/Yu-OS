@@ -101,8 +101,7 @@ fn install_packages(package_only: bool, native: Option<native_products::Product>
     use crate::provenance::{
         envelope::PackageKind,
         sign::{self, SignRequest, SigningKeyFile},
-        state::TrustDomain,
-        trust::{TrustStore, VENDOR_TRUST_ROOT},
+        trust::{TrustStore, SYSTEM_TRUST_ROOT, VENDOR_TRUST_ROOT},
     };
     let root = Path::new(VENDOR_TRUST_ROOT);
     std::fs::create_dir_all(root).unwrap();
@@ -118,17 +117,8 @@ fn install_packages(package_only: bool, native: Option<native_products::Product>
         std::fs::Permissions::from_mode(0o644),
     )
     .unwrap();
-    crate::provenance::state::bump(
-        root.parent().unwrap(),
-        TrustDomain::System,
-        &[root.to_path_buf()],
-    )
-    .unwrap();
-    std::fs::set_permissions(
-        root.parent().unwrap().join("state.json"),
-        std::fs::Permissions::from_mode(0o644),
-    )
-    .unwrap();
+    std::fs::create_dir_all(SYSTEM_TRUST_ROOT).unwrap();
+    crate::provenance::cli::run("trust", &["record-system".into()]).unwrap();
     let roots = TrustStore::default_roots();
     let trust = TrustStore::load_roots(&roots);
     assert!(!trust.is_empty(), "{:?}", trust.diagnostics());

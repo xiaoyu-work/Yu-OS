@@ -2,7 +2,7 @@
 ///
 /// Tracks processes by session ID with persistent registry,
 /// output buffering with caps, and queryable status.
-/// Registry is stored on disk so sessions survive cos restarts.
+/// Registry is stored on disk so sessions survive yu restarts.
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::fs;
@@ -1474,8 +1474,8 @@ fn cmd_spawn(args: &[String]) -> Result<Value, String> {
 
     // Reap the child in a background thread. Replacing the old
     // `std::mem::forget(child)` — which left every exited child as
-    // <defunct> in the cos parent's process table — preserves the
-    // detached-spawn semantics (process keeps running after `cos
+    // <defunct> in the yu parent's process table — preserves the
+    // detached-spawn semantics (process keeps running after `yu
     // proc spawn` returns) while freeing the kernel PID slot once
     // the child exits.
     thread::spawn(move || {

@@ -335,7 +335,7 @@ fn a_worker_refuses_a_grant_minted_for_another_process() {
 fn a_grant_for_a_different_audience_is_not_accepted_here() {
     let signer = GrantSigner::from_secret([7u8; 32]);
     let mut other = claims(77);
-    other.audience = "cos.yuosd.broker.v1".to_string();
+    other.audience = "yuos.yuosd.broker.v1".to_string();
     let grant = signer.issue(other);
     assert!(matches!(
         signer.verify(&grant, &expectation("hello"), 2_000),

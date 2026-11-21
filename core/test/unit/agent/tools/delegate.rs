@@ -67,7 +67,7 @@ fn build_child_registry_keeps_only_allowed() {
 }
 
 #[test]
-fn build_child_registry_strips_cos_delegate() {
+fn build_child_registry_strips_yu_delegate() {
     let parent = test_registry();
     let allowed = vec!["yu_delegate".to_string(), "echo".to_string()];
     let child = build_child_registry(None, None, parent, &allowed);

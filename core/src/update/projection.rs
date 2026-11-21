@@ -61,7 +61,7 @@ use super::canonical;
 use super::floor::{ComponentFloor, Floor};
 use super::manifest::require_digest;
 
-pub const FORMAT: &str = "claw.security-runtime-floor/v1";
+pub const FORMAT: &str = "yuos.security-runtime-floor/v1";
 
 const MAX_PROJECTION_BYTES: u64 = 1024 * 1024;
 

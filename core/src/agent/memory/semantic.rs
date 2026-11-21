@@ -26,7 +26,7 @@ pub use yuos_embed::{
     SemanticError, SemanticHit, SemanticRow, SemanticStore, MAX_EMBED_TEXT_CHARS,
 };
 
-/// Default path under the cos data dir: `<data_dir>/agent/semantic.db`.
+/// Default path under the yu data dir: `<data_dir>/agent/semantic.db`.
 pub fn default_path() -> PathBuf {
     crate::paths::agent_semantic_db_path()
 }

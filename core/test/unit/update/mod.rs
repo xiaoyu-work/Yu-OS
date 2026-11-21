@@ -116,7 +116,7 @@ fn compiled_policy_matches_the_packaging_policy_file() {
 
     assert_eq!(
         policy["format"].as_str(),
-        Some("claw.release-security-policy/v1")
+        Some("yuos.release-security-policy/v1")
     );
     assert_eq!(
         policy["security_epoch"].as_u64(),

@@ -85,7 +85,7 @@ type NotificationContextValue = {
 };
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
-const BROWSER_NOTIFICATION_KEY = "cos.browser-notifications.enabled";
+const BROWSER_NOTIFICATION_KEY = "yuos.browser-notifications.enabled";
 
 type DeliveryClaim = {
   notification: NotificationRecord;
@@ -196,7 +196,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               setConnected(true);
               setError(null);
               window.dispatchEvent(
-                new CustomEvent("cos:notifications-changed", {
+                new CustomEvent("yuos:notifications-changed", {
                   detail: notification,
                 }),
               );

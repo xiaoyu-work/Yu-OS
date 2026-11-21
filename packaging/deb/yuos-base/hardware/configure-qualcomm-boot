@@ -14,9 +14,9 @@ fail() {
 tree=
 for arg in $(cat /proc/cmdline); do
     case "$arg" in
-        claw.board_tree=*)
+        yuos.board_tree=*)
             [ -z "$tree" ] || fail "multiple board selections"
-            tree=${arg#claw.board_tree=}
+            tree=${arg#yuos.board_tree=}
             [ -n "$tree" ] || fail "empty board selection"
             ;;
     esac

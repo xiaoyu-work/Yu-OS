@@ -7,7 +7,7 @@
 #   scripts/hot-swap-to-vmware.sh [options] TARGET [TARGET ...]
 #
 # TARGETs (default install path /usr/bin/<name>):
-#   cos                    — workspace root,        target/release/yu
+#   yu                    — workspace root,        target/release/yu
 #   yuos-agent-ui           — desktop/agent,         target/release/yuos-agent-ui
 #   yuos-agent-bridge       — desktop/agent,         target/release/yuos-agent-bridge
 #   cosmic-files           — build/native-apps/cosmic-files, target/release/cosmic-files

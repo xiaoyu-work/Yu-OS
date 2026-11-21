@@ -44,7 +44,7 @@ use super::debver;
 use super::floor::FloorStore;
 use super::manifest::require_digest;
 
-pub const FORMAT: &str = "claw.security-recovery/v1";
+pub const FORMAT: &str = "yuos.security-recovery/v1";
 
 /// Longest life an authorization may be given.
 pub const MAX_LIFETIME_HOURS: i64 = 72;

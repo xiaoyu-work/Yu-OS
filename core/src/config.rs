@@ -351,7 +351,7 @@ pub struct AgentConfig {
     #[serde(default)]
     pub mcp_servers: Vec<McpServerConfig>,
 
-    /// Whether to scan XDG directories for `claw.agent-api/v1` manifests
+    /// Whether to scan XDG directories for `yuos.agent-api/v1` manifests
     /// and attach them alongside `mcp_servers` at startup. Defaults to
     /// `true` so an adapter package dropped under
     /// `/usr/share/yuos/agent-api/` Just Works without an extra config
@@ -985,7 +985,7 @@ impl Default for AgentConfig {
 /// network outbound enabled, etc.) with no indication anything was
 /// wrong. The audit explicitly called out "we never silently keep
 /// stale config on a parse failure" — when the on-disk file is
-/// unreadable we still return defaults so cos can boot, but we log
+/// unreadable we still return defaults so yu can boot, but we log
 /// the underlying error at ERROR severity so it shows up in logs and
 /// observability dashboards.
 fn load_from_disk() -> YuConfig {
@@ -1024,7 +1024,7 @@ pub fn load_from_path(path: &Path) -> YuConfig {
         Err(e) => {
             tracing::error!(
                 "config: failed to parse {} as JSON: {e} — falling back to defaults. \
-                 Check the file with `jq . {}` and re-run cos.",
+                 Check the file with `jq . {}` and re-run yu.",
                 path.display(),
                 path.display()
             );

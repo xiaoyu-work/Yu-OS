@@ -53,7 +53,7 @@ fn round_trip_with_tool_calls() {
 
 #[test]
 fn unknown_runtime_can_round_trip_minimal_turn() {
-    // Simulate a minimal turn a non-claw runtime might produce.
+    // Simulate a minimal turn a non-yuos runtime might produce.
     let raw = r#"{"role":"user","content":"hi"}"#;
     let t: Turn = serde_json::from_str(raw).unwrap();
     assert_eq!(t.role, TurnRole::User);

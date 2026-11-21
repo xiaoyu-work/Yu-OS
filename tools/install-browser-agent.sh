@@ -65,7 +65,7 @@ if [[ -f "${CHAT_HOST}" && ! -x "${CHAT_HOST}" ]]; then
   exit 1
 fi
 
-echo "[claw] installing Native Messaging for Helium → ${NM_MANIFEST}"
+echo "[yuos] installing Native Messaging for Helium → ${NM_MANIFEST}"
 install -d -m 0755 "$(dirname "${NM_MANIFEST}")"
 if [[ -n "${EXT_ID}" ]]; then
   ALLOWED_ORIGINS=$(printf '"chrome-extension://%s/"' "${EXT_ID}")
@@ -99,7 +99,7 @@ EOF
   chmod 0644 "${CHAT_MANIFEST}"
 fi
 
-echo "[claw] installing Chromium managed policy → ${POLICY_FILE}"
+echo "[yuos] installing Chromium managed policy → ${POLICY_FILE}"
 install -d -m 0755 "$(dirname "${POLICY_FILE}")"
 # Pin force-install / allowlist to the specific extension ID. If the
 # caller has not yet generated a stable ID, we ship an empty allowlist
@@ -125,7 +125,7 @@ chmod 0644 "${POLICY_FILE}"
 
 cat <<MSG
 
-[claw] install complete.
+[yuos] install complete.
 
 Next steps:
   1. Launch Helium.

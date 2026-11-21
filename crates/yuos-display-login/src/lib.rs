@@ -238,16 +238,16 @@ impl Drop for Login {
         let deadline = Instant::now() + STOP_TIMEOUT;
         if let Some(workload) = &self.workload {
             if let Err(error) = workload.retire(deadline) {
-                eprintln!("claw display emergency retirement failed: {error}");
+                eprintln!("Yu OS display emergency retirement failed: {error}");
             }
         }
         if let Err(error) = self.child.kill() {
             if error.kind() != std::io::ErrorKind::InvalidInput {
-                eprintln!("claw display supervisor termination failed: {error}");
+                eprintln!("Yu OS display supervisor termination failed: {error}");
             }
         }
         if let Err(error) = wait_child(&mut self.child, self.child_pidfd.as_fd(), deadline) {
-            eprintln!("claw display supervisor retirement failed: {error}");
+            eprintln!("Yu OS display supervisor retirement failed: {error}");
         }
     }
 }
@@ -390,7 +390,7 @@ unsafe extern "C" fn cleanup(handle: *mut PamHandle, data: *mut c_void, _status:
     })
     .is_err()
     {
-        diagnostic(handle, c"claw display lifecycle cleanup panicked");
+        diagnostic(handle, c"Yu OS display lifecycle cleanup panicked");
     }
 }
 
@@ -408,17 +408,17 @@ fn boundary(handle: *mut PamHandle, run: impl FnOnce() -> Result<(), Error>) -> 
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(run)) {
         Ok(Ok(())) => PAM_SUCCESS,
         Ok(Err(error)) => {
-            match std::ffi::CString::new(format!("claw display activation: {error}")) {
+            match std::ffi::CString::new(format!("Yu OS display activation: {error}")) {
                 Ok(message) => diagnostic(handle, &message),
                 Err(_) => diagnostic(
                     handle,
-                    c"claw display activation failed; invalid diagnostic text",
+                    c"Yu OS display activation failed; invalid diagnostic text",
                 ),
             }
             PAM_SESSION_ERR
         }
         Err(_) => {
-            diagnostic(handle, c"claw display activation panicked");
+            diagnostic(handle, c"Yu OS display activation panicked");
             PAM_SESSION_ERR
         }
     }

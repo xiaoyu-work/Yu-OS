@@ -105,7 +105,7 @@ struct WriterState {
 impl WriterState {
     fn preimage(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(96);
-        out.extend_from_slice(b"cos.session.journal.writer");
+        out.extend_from_slice(b"yuos.session.journal.writer");
         out.extend_from_slice(&self.v.to_be_bytes());
         out.extend_from_slice(&self.epoch.to_be_bytes());
         out.extend_from_slice(&self.pid.to_be_bytes());

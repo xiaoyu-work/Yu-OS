@@ -94,21 +94,22 @@ def isolate():
     etc = BASE / "etc"
     mirror(
         Path("/etc"), etc,
-        ("cos", "apt", "dpkg", *identities),
+        ("yuos", "apt", "dpkg", *identities),
     )
     for name, body in identities.items():
         target = etc / name
         target.write_bytes(body)
         target.chmod(0o600 if name == "shadow" else 0o644)
-    (etc / "cos/trust/publishers.d").mkdir(parents=True)
+    (etc / "yuos/trust/publishers.d").mkdir(parents=True)
     for name in ("apt", "dpkg"):
         (etc / name).mkdir()
     mount(etc, "/etc", flags=4096 | 16384)
     for target in ("/etc/apt", "/etc/dpkg"):
         mount("tmpfs", target, "tmpfs", 2 | 4, "mode=0755,size=1073741824")
     shadow = BASE / "usr"
-    mirror(Path("/usr"), shadow, ("lib", "share"))
-    mirror(Path("/usr/lib"), shadow / "lib", ("cos",))
+    mirror(Path("/usr"), shadow, ("lib", "libexec", "share"))
+    mirror(Path("/usr/lib"), shadow / "lib", ("yuos",))
+    mirror(Path("/usr/libexec"), shadow / "libexec", ("yuos-hyprland",))
     mirror(Path("/usr/share"), shadow / "share", ("doc",))
     for directory in ("lib/yuos/apps", "lib/yuos/python", "lib/yuos/bin", "share/doc"):
         (shadow / directory).mkdir(parents=True, exist_ok=True)
@@ -320,7 +321,7 @@ def catalog():
     directory.mkdir(mode=0o755)
     directory.chmod(0o755)
     components = "".join(
-        f'<component type="desktop-application"><id>org.claw.fixture.Catalog{index}</id>'
+        f'<component type="desktop-application"><id>org.yuos.fixture.Catalog{index}</id>'
         f"<pkgname>{package}</pkgname><name>Controlled catalog fixture {index}</name>"
         '<name xml:lang="fr">Catalogue prive</name>'
         "<summary>Public synthetic metadata only</summary>"

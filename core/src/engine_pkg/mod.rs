@@ -4,7 +4,7 @@
 //! onnxruntime-genai) as **independently upgradable system components**,
 //! not compile-time dependencies. Each engine has many versions installed
 //! side by side under `<data_dir>/engines/<engine>/<version>/`, and the
-//! `active` field in `engines.json` decides which one cos loads at
+//! `active` field in `engines.json` decides which one yu loads at
 //! runtime.
 //!
 //! ## Storage layout

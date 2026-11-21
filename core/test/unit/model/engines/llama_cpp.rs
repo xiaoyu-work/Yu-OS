@@ -281,7 +281,7 @@ fn engine_version_from_lib_path_handles_layouts() {
     );
 
     let bin_layout =
-        PathBuf::from("C:/ProgramData/cos/data/engines/llama-cpp/b4001/bin/llama.dll");
+        PathBuf::from("C:/ProgramData/yuos/data/engines/llama-cpp/b4001/bin/llama.dll");
     assert_eq!(
         super::engine_version_from_lib_path(&bin_layout).as_deref(),
         Some("b4001"),

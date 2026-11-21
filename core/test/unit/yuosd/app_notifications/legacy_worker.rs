@@ -88,7 +88,7 @@ impl NotifyWorker {
             .mounts
             .retain(|mount| mount.target != std::path::Path::new("/usr/local/bin/yu"));
         policy.mounts.push(Mount::read_only(
-            input("YUOS_NOTIFICATIONS_COS"),
+            input("YUOS_NOTIFICATIONS_YU"),
             "/usr/local/bin/yu",
             MountClass::Runtime,
         ));
@@ -190,7 +190,7 @@ impl NotifyWorker {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "requires staged Notify package, cos and the existing native presentation/delivery fixtures"]
+#[ignore = "requires staged Notify package, yu and the existing native presentation/delivery fixtures"]
 async fn notifications_signed_notify_worker_persists_and_shares_native_delivery() {
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
     use std::sync::{

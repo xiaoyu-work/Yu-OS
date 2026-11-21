@@ -16,7 +16,7 @@ fn descriptions_strip_controls_and_limit_size() {
 
 #[test]
 fn lvm_paths_and_names_are_restricted() {
-    ensure_lvm_snapshot_path("/dev/vg/cos_123").unwrap();
+    ensure_lvm_snapshot_path("/dev/vg/yuos_123").unwrap();
     assert!(ensure_lvm_snapshot_path("/tmp/x").is_err());
     assert!(ensure_lvm_snapshot_path("/dev/vg/../root").is_err());
     assert!(safe_lvm_name("ubuntu-vg"));

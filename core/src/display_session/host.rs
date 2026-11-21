@@ -812,12 +812,12 @@ fn spawn_desktop_process(
     display: &str,
     process: DesktopProcess,
 ) -> Result<Child, Error> {
-    const COS: &str = "/usr/local/bin/yu";
+    const YU: &str = "/usr/local/bin/yu";
     const AGENT: &str = "/usr/local/bin/yuos-agent-ui";
     let executable = match &process {
         DesktopProcess::Native(_) => "/usr/bin/gtk4-launch",
         DesktopProcess::Agent => AGENT,
-        _ => COS,
+        _ => YU,
     };
     containment::protected_executable(executable)?;
     let uid = controllers.login.owner_uid;

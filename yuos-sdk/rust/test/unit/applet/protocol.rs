@@ -78,7 +78,7 @@ fn request_schema_is_closed_and_never_accepts_authority() {
         json!({"version":1,"id":1,"operation":{"kind":"tasks"},"trusted":true}),
         json!({"version":1,"id":1,"operation":{"kind":"history-check","permission":"wild"}}),
         json!({"version":1,"id":1,"operation":{"kind":"calendar-day","date":{"year":2026,"month":9,"day":9,"path":"/data"}}}),
-        json!({"version":1,"id":1,"operation":{"kind":"run","program":"cos"}}),
+        json!({"version":1,"id":1,"operation":{"kind":"run","program":"yu"}}),
         json!({"version":1,"id":-1,"operation":{"kind":"system"}}),
         json!({"version":1,"id":1,"operation":{"kind":"calendar-today","scope":"*"}}),
     ] {

@@ -1,7 +1,7 @@
 [Unit]
 Description=Serve Elgato Cam Link 4K as a 16:9 camera
 ConditionPathExists=/dev/yuos-camlink4k
-StopPropagatedFrom=dev-claw\x2dcamlink4k.device
+StopPropagatedFrom=dev-yuos\x2dcamlink4k.device
 Requires=yuos-camlink-loopback.service
 After=yuos-camlink-loopback.service
 

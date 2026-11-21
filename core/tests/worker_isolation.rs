@@ -1537,7 +1537,7 @@ from yuos_runtime import policy
 
 args = sys.argv[1:]
 if args[:2] == ["--wire=1", "__policy"]:
-    os.execv(COS, [COS, *args])
+    os.execv(YU, [YU, *args])
 
 def record(value):
     with (pathlib.Path(os.environ["YUOS_DATA_DIR"]) / "fixture-services.jsonl").open("a") as log:
@@ -1576,7 +1576,7 @@ else:
     raise RuntimeError("unsupported fixture service request: " + repr(args))
 "#,
     );
-    let path = python.join("fixture-cos");
+    let path = python.join("fixture-yu");
     std::fs::write(&path, script).unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
     path
@@ -1683,7 +1683,7 @@ async fn run_shipped_app(
     std::fs::create_dir_all(&partition).expect("partition");
     let service_log = partition.join("fixture-services.jsonl");
     std::fs::write(&service_log, "").unwrap();
-    let fixture_cos = fixture_services(&python, app_id, &caps);
+    let fixture_yu = fixture_services(&python, app_id, &caps);
     let stub_socket = partition.join("egress.sock");
     let stub = endpoint.as_ref().map(|endpoint| {
         let tls = fixture_tls(&python, &endpoint.host);
@@ -1708,11 +1708,11 @@ async fn run_shipped_app(
         ),
         (
             "YUOS_BIN".to_string(),
-            fixture_cos.to_string_lossy().into_owned(),
+            fixture_yu.to_string_lossy().into_owned(),
         ),
         (
             "YUOS_KERNEL_BIN".to_string(),
-            fixture_cos.to_string_lossy().into_owned(),
+            fixture_yu.to_string_lossy().into_owned(),
         ),
         (
             "SSL_CERT_FILE".to_string(),

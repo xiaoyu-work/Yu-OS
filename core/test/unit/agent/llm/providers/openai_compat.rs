@@ -224,10 +224,10 @@ fn copilot_initiator_distinguishes_user_and_tool_follow_up() {
 
     let mut automatic_request = req_text("summarise");
     automatic_request.extra =
-        serde_json::json!({"_cos_initiator": "agent", "seed": 7});
+        serde_json::json!({"__yuos_initiator": "agent", "seed": 7});
     let body =
         wire::build_request_body(&automatic_request, "gpt-4o-mini", false).unwrap();
-    assert!(body.get("_cos_initiator").is_none());
+    assert!(body.get("__yuos_initiator").is_none());
     assert_eq!(body["seed"], 7);
     assert_eq!(
         copilot_initiator(&automatic_request),
@@ -511,8 +511,8 @@ fn builds_responses_body_with_tool_history() {
         "store": true,
         "include": ["not.allowed"],
         "seed": 42,
-        "_cos_initiator": "agent",
-        "_cos_trace": "internal",
+        "__yuos_initiator": "agent",
+        "__yuos_trace": "internal",
         "__cache_system": true,
         "__private": true
     });
@@ -524,8 +524,8 @@ fn builds_responses_body_with_tool_history() {
     assert_eq!(body["include"][0], "reasoning.encrypted_content");
     assert_eq!(body["seed"], 42);
     for key in [
-        "_cos_initiator",
-        "_cos_trace",
+        "__yuos_initiator",
+        "__yuos_trace",
         "__cache_system",
         "__private",
     ] {
@@ -557,10 +557,10 @@ fn builds_responses_body_with_tool_history() {
 #[test]
 fn responses_reasoning_effort_is_explicit_and_chat_completions_refuse_it() {
     let mut request = req_text("reason carefully");
-    request.extra = serde_json::json!({"_cos_reasoning_effort": "high"});
+    request.extra = serde_json::json!({"__yuos_reasoning_effort": "high"});
     let body = responses_wire::build_request_body(&request, "gpt-5.6-sol", false);
     assert_eq!(body["reasoning"]["effort"], "high");
-    assert!(body.get("_cos_reasoning_effort").is_none());
+    assert!(body.get("__yuos_reasoning_effort").is_none());
 
     let error = build_wire_request_body(
         &request,
@@ -832,8 +832,8 @@ fn body_filters_reserved_extras_and_preserves_provider_extras() {
     r.extra = serde_json::json!({
         "seed": 42,
         "response_format": {"type":"json_object"},
-        "_cos_initiator": "agent",
-        "_cos_trace": "internal",
+        "__yuos_initiator": "agent",
+        "__yuos_trace": "internal",
         "__cache_tools": true,
         "__private": true
     });
@@ -841,8 +841,8 @@ fn body_filters_reserved_extras_and_preserves_provider_extras() {
     assert_eq!(body["seed"], 42);
     assert_eq!(body["response_format"]["type"], "json_object");
     for key in [
-        "_cos_initiator",
-        "_cos_trace",
+        "__yuos_initiator",
+        "__yuos_trace",
         "__cache_tools",
         "__private",
     ] {
@@ -1825,14 +1825,14 @@ async fn end_to_end_includes_extra_headers() {
     let mut c = AgentConfig::default();
     c.base_url = Some(base_url);
     c.extra_headers
-        .insert("HTTP-Referer".into(), "https://cos.example".into());
+        .insert("HTTP-Referer".into(), "https://yuos.example".into());
     c.extra_headers.insert("X-Title".into(), "yu agent".into());
     c.request_timeout = 5;
 
     let provider = OpenAICompatProvider::from_agent_config("openrouter", "openrouter/auto", &c);
     let _ = provider.chat(req_text("hi")).await; // success or not, we want to inspect req
     let request = String::from_utf8_lossy(&handle.await.unwrap()).to_lowercase();
-    assert!(request.contains("http-referer: https://cos.example"));
+    assert!(request.contains("http-referer: https://yuos.example"));
     assert!(request.contains("x-title: yu agent"));
 }
 

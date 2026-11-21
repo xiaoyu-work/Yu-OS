@@ -469,7 +469,7 @@ fn store_with_refresh_cmd() {
 }
 
 #[test]
-fn store_rejects_non_cos_refresh_cmd() {
+fn store_rejects_non_yu_refresh_cmd() {
     perms_init();
     setup();
     let name = unique_name("bad-refresh");
@@ -484,7 +484,7 @@ fn store_rejects_non_cos_refresh_cmd() {
 }
 
 #[test]
-fn execute_refresh_rejects_non_cos() {
+fn execute_refresh_rejects_non_yu() {
     perms_init();
     let r = execute_refresh("rm -rf /");
     assert!(r.is_err());
@@ -497,7 +497,7 @@ fn load_auto_refresh_on_expiry() {
     setup();
     let name = unique_name("auto-refresh");
 
-    // Store with expired TTL and a cos refresh command that will fail.
+    // Store with expired TTL and a yu refresh command that will fail.
     // We write the credential file directly to bypass store validation.
     let dir = namespace_dir("default");
     let _ = fs::create_dir_all(&dir);
@@ -527,12 +527,12 @@ fn load_auto_refresh_on_expiry() {
     // Load should attempt auto-refresh but fail
     let r = cmd_load(&[name.clone()]);
     // The yu binary may or may not be in PATH, but either way the refresh should fail:
-    // - If cos is not in PATH: "failed to execute refresh command"
-    // - If cos is in PATH but exits non-zero: "refresh command failed"
-    // - If cos is in PATH and exits 0 with error JSON: we get a JSON string as value
+    // - If yu is not in PATH: "failed to execute refresh command"
+    // - If yu is in PATH but exits non-zero: "refresh command failed"
+    // - If yu is in PATH and exits 0 with error JSON: we get a JSON string as value
     //   (which is still technically valid but the credential gets refreshed with error JSON)
     // In any case, we verify the refresh path is exercised by checking the result.
-    // If it succeeds, the value will be error JSON from cos, not "old-value".
+    // If it succeeds, the value will be error JSON from yu, not "old-value".
     match r {
         Err(e) => {
             assert!(
@@ -541,7 +541,7 @@ fn load_auto_refresh_on_expiry() {
             );
         }
         Ok(v) => {
-            // Refresh "succeeded" with error JSON from cos — value is not "old-value"
+            // Refresh "succeeded" with error JSON from yu — value is not "old-value"
             assert_eq!(v["refreshed"], true);
             assert_ne!(v["value"], "old-value");
         }

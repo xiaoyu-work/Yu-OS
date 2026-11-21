@@ -194,7 +194,7 @@ tests and dev setups.
 
 ```sh
 go vet ./...
-go test -count=1 ./...  # fake cos; also reloads shared wire vectors outside this module
+go test -count=1 ./...  # fake yu; also reloads shared wire vectors outside this module
 ```
 
 Generated types in `generated.go` are produced by

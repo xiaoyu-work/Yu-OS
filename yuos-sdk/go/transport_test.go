@@ -162,7 +162,7 @@ func TestYuBinaryResolution(t *testing.T) {
 	}
 	os.Unsetenv("YUOS_BIN")
 	if got := YuBinary(); got != "yu" {
-		t.Fatalf("default should be cos, got %q", got)
+		t.Fatalf("default should be yu, got %q", got)
 	}
 }
 

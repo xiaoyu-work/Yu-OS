@@ -112,7 +112,7 @@ fn session(role: crate::caps::Role, app_id: Option<&str>, pid: u32) -> crate::pr
     crate::proc::SessionInfo {
         session_id: "oauth-login-test".into(),
         pid,
-        command: vec!["cos".into(), "credential".into(), "oauth-login".into()],
+        command: vec!["yu".into(), "credential".into(), "oauth-login".into()],
         started_at: chrono::Utc::now().to_rfc3339(),
         stdout_path: String::new(),
         stderr_path: String::new(),
@@ -152,10 +152,10 @@ fn accepts_only_same_pid_admin_cli_session() {
         std::process::id() + 1,
     )));
     let mut agent_chat = session(crate::caps::Role::Admin, None, std::process::id());
-    agent_chat.command = vec!["cos".into(), "agent".into(), "chat".into()];
+    agent_chat.command = vec!["yu".into(), "agent".into(), "chat".into()];
     assert!(!is_direct_oauth_login_session(&agent_chat));
     let mut credential_load = session(crate::caps::Role::Admin, None, std::process::id());
-    credential_load.command = vec!["cos".into(), "credential".into(), "load".into()];
+    credential_load.command = vec!["yu".into(), "credential".into(), "load".into()];
     assert!(is_same_pid_admin_cli_session(&credential_load));
     assert!(!is_direct_oauth_login_session(&credential_load));
 }

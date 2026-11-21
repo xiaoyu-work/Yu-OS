@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a signed `claw.release-security/v1` manifest for one package.
+"""Generate a signed `yuos.release-security/v1` manifest for one package.
 
 The manifest is the artifact that lets an offline machine tell a *newer*
 Yu OS release from an *older* one that is just as validly signed. It
@@ -41,7 +41,7 @@ import subprocess
 import sys
 
 DEFAULT_POLICY = pathlib.Path(__file__).resolve().parent / "policy.json"
-FORMAT = "claw.release-security/v1"
+FORMAT = "yuos.release-security/v1"
 
 
 def canonical_bytes(document: object) -> bytes:
@@ -194,7 +194,7 @@ def main() -> int:
     args = parser.parse_args()
 
     policy = json.loads(pathlib.Path(args.policy).read_text(encoding="utf-8"))
-    if policy.get("format") != "claw.release-security-policy/v1":
+    if policy.get("format") != "yuos.release-security-policy/v1":
         raise SystemExit("error: unexpected release-security policy format")
     if args.package not in policy["packages"]:
         raise SystemExit(f"error: {args.package} is not a gated Yu OS package")

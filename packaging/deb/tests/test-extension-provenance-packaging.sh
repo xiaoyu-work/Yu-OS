@@ -3,7 +3,7 @@
 # installed system must be able to authenticate extension packages.
 #
 # Apps, Skills and MCP/adapter packages are only trusted after their
-# `claw.provenance/v1` envelope verifies against a trusted publisher
+# `yuos.provenance/v1` envelope verifies against a trusted publisher
 # key, or after they are recognised as root-owned package content. That
 # turns two things into packaging contracts:
 #
@@ -141,7 +141,7 @@ fi
 # per-domain state file is what makes that cheap; without it a running
 # yuosd would keep honouring a key the operator revoked.
 STATE_MODULE="$PROJECT_DIR/core/src/provenance/state.rs"
-assert_contains "$STATE_MODULE" 'claw.trust-state/v1' \
+assert_contains "$STATE_MODULE" 'yuos.trust-state/v1' \
     "the durable trust generation format must be versioned"
 assert_contains "$TRUST_MODULE" 'pub fn is_current' \
     "the trust store must expose a cheap staleness check for daemons"

@@ -224,7 +224,7 @@ fn isolated_service_data_worker_probe() {
 }
 
 #[test]
-#[ignore = "requires Root in a private mount namespace and YUOS_APP_DATA_TEST_COS"]
+#[ignore = "requires Root in a private mount namespace and YUOS_APP_DATA_TEST_YU"]
 fn persistent_service_data_survives_uid_and_host_replacement() {
     let _lock = crate::test_env::lock_env();
     assert_eq!(unsafe { libc::geteuid() }, 0);
@@ -259,7 +259,7 @@ fn persistent_service_data_survives_uid_and_host_replacement() {
     std::fs::set_permissions("/run/lock", std::fs::Permissions::from_mode(0o1777)).unwrap();
     mount_tmpfs(c"/usr/local/bin");
     copy_executable(
-        Path::new(&std::env::var("YUOS_APP_DATA_TEST_COS").unwrap()),
+        Path::new(&std::env::var("YUOS_APP_DATA_TEST_YU").unwrap()),
         Path::new("/usr/local/bin/yu"),
     );
     copy_executable(

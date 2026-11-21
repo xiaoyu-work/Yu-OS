@@ -83,7 +83,7 @@ impl LearnDataDir {
     }
 }
 
-fn isolate_cos_data_dir(tag: &str) -> LearnDataDir {
+fn isolate_yu_data_dir(tag: &str) -> LearnDataDir {
     let env = crate::test_env::lock_env();
     let dir = std::env::temp_dir().join(format!(
         "yuos-learn-cli-{tag}-{}-{}",
@@ -103,7 +103,7 @@ fn isolate_cos_data_dir(tag: &str) -> LearnDataDir {
 
 #[test]
 fn learn_cmd_extract_requires_session_flag() {
-    let _dir = isolate_cos_data_dir("missing-session");
+    let _dir = isolate_yu_data_dir("missing-session");
     let err = learn_cmd(&["extract".into()]).unwrap_err();
     assert!(err.contains("--session"), "got {err}");
 }
@@ -152,7 +152,7 @@ fn learn_cmd_extract_dry_run_with_unknown_session_succeeds() {
     // dry-run skips both LLM and dedupe, and an unknown session
     // simply has zero recent messages — should be a clean
     // success envelope with empty facts.
-    let _dir = isolate_cos_data_dir("dry-run-empty");
+    let _dir = isolate_yu_data_dir("dry-run-empty");
     let v = learn_cmd(&[
         "extract".into(),
         "--session".into(),
@@ -171,7 +171,7 @@ fn learn_cmd_extract_dry_run_with_unknown_session_succeeds() {
 
 #[test]
 fn learn_cmd_status_default_is_empty_when_log_missing() {
-    let _dir = isolate_cos_data_dir("status-empty");
+    let _dir = isolate_yu_data_dir("status-empty");
     let v = learn_cmd(&["status".into()]).expect("ok");
     assert_eq!(v["session_count"], serde_json::json!(0));
     assert_eq!(v["log_exists"], serde_json::Value::Bool(false));
@@ -179,14 +179,14 @@ fn learn_cmd_status_default_is_empty_when_log_missing() {
 
 #[test]
 fn learn_cmd_default_subcommand_is_status() {
-    let _dir = isolate_cos_data_dir("status-default");
+    let _dir = isolate_yu_data_dir("status-default");
     let v = learn_cmd(&[]).expect("ok");
     assert!(v.get("session_count").is_some(), "got {v}");
 }
 
 #[test]
 fn learn_cmd_clear_log_requires_session_or_all() {
-    let _dir = isolate_cos_data_dir("clear-needs-flag");
+    let _dir = isolate_yu_data_dir("clear-needs-flag");
     let err = learn_cmd(&["clear-log".into()]).unwrap_err();
     assert!(
         err.contains("--session") || err.contains("--all"),
@@ -196,7 +196,7 @@ fn learn_cmd_clear_log_requires_session_or_all() {
 
 #[test]
 fn learn_cmd_clear_log_all_writes_empty_log() {
-    let dir = isolate_cos_data_dir("clear-all");
+    let dir = isolate_yu_data_dir("clear-all");
     let v = learn_cmd(&["clear-log".into(), "--all".into()]).expect("ok");
     assert_eq!(v["ok"], serde_json::Value::Bool(true));
     // log file is now created on disk under the isolated dir.
@@ -206,7 +206,7 @@ fn learn_cmd_clear_log_all_writes_empty_log() {
 
 #[test]
 fn learn_cmd_clear_log_for_unknown_session_reports_zero_removed() {
-    let _dir = isolate_cos_data_dir("clear-unknown");
+    let _dir = isolate_yu_data_dir("clear-unknown");
     let v = learn_cmd(&["clear-log".into(), "--session".into(), "ghost".into()]).expect("ok");
     assert_eq!(v["removed_entries"], serde_json::json!(0));
 }

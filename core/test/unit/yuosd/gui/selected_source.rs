@@ -29,7 +29,7 @@ fn pinned_source_still_rejects_held_fd_tamper_modes_and_identical_directory_repl
         kind: PackageKind::App,
         id: "source-window".into(),
         version: "1".into(),
-        manifest_schema: "cos.app-manifest/v1".into(),
+        manifest_schema: "yuos.app-manifest/v1".into(),
         manifest_path: "app.json".into(),
         entrypoints: vec!["main.py".into()],
         resources: vec!["resource.bin".into()],

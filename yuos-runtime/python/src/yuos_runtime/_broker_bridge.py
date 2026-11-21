@@ -30,7 +30,7 @@ class BridgeRejected(BridgeError):
         self.code = code
 
 
-def _cos_binary() -> str:
+def _yu_binary() -> str:
     binary = os.environ.get("YUOS_KERNEL_BIN")
     if not binary or not os.path.isabs(binary):
         raise BridgeUnavailable("YUOS_KERNEL_BIN is not an absolute runtime path")
@@ -98,7 +98,7 @@ def exchange(
         raise BridgeError(f"{service} request exceeds the internal bridge limit")
 
     command = [
-        _cos_binary(),
+        _yu_binary(),
         f"--wire={WIRE_VERSION}",
         bridge,
         "request",

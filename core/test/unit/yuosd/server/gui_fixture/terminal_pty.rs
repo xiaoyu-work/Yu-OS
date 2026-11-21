@@ -267,7 +267,7 @@ pub(super) async fn run(
         "original Terminal readiness budget was exhausted"
     );
     let request = serde_json::json!({
-        "schema": "claw.private-keyboard/v1", "sequence": 1, "instance": window,
+        "schema": "yuos.private-keyboard/v1", "sequence": 1, "instance": window,
         "surface": "primary", "expires_ms": now + remaining, "kind": "text", "value": text,
     });
     let next = directory.join("keyboard-command.next");
@@ -299,7 +299,7 @@ pub(super) async fn run(
                 );
                 let ack: serde_json::Value =
                     serde_json::from_slice(&std::fs::read(ack).unwrap()).unwrap();
-                ack["schema"] == "claw.private-keyboard/v1"
+                ack["schema"] == "yuos.private-keyboard/v1"
                     && ack["sequence"] == 1
                     && ack["instance"] == window
                     && ack["surface"] == "primary"

@@ -400,9 +400,9 @@ launches no App and opens no media URL. The service is exported by Agent as
 
 The complete 110-file native Player fork, descriptor, 72 locales, thumbnailer,
 desktop/metainfo files, icons and independent locked renderer now live in
-`yuos-app/products/media-player`. `just player-build` consumes immutable
-inputs at `build/native-apps/cosmic-player`; no production source remains at
-`desktop/player`. The managed native UI receives typed playback requests through its exact
+`yuos-app/products/media-player`. The App repository builds it through
+`tools/native_build.py`; no production source remains at `desktop/player`.
+The managed native UI receives typed playback requests through its exact
 private GUI broker and all seven MCP calls address that same UI state. Root
 selects the live signed package/instance, not a compatibility executable or an
 owner-bus name. The original MPRIS backend remains separate from the managed
@@ -1146,7 +1146,7 @@ so neither path accepts a caller-supplied owner identifier.
 ### Broker request admission
 
 ```text
-client (cos / bridge / rollback / approval helper)
+client (yu / bridge / rollback / approval helper)
   -> one length-prefixed v2 envelope in a CBK1 frame on /run/yuos/yuosd.sock
   -> connection slot for the peer's accounting bucket
   -> recvmsg: kernel SCM_CREDENTIALS, SCM_RIGHTS closed and refused
@@ -2104,7 +2104,7 @@ traversal, symlinks, hidden files, and oversized resources are rejected.
 ### Extension provenance
 
 ```text
-publisher key -> claw.provenance/v1 envelope (kind, id, version, manifest
+publisher key -> yuos.provenance/v1 envelope (kind, id, version, manifest
                  schema/path, entrypoints, resources, complete file tree,
                  content digest)
   -> trust roots: /usr/lib/yuos/trust/publishers.d, /etc/yuos/trust/publishers.d,

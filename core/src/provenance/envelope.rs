@@ -1,4 +1,4 @@
-//! The `claw.provenance/v1` envelope: one versioned content manifest
+//! The `yuos.provenance/v1` envelope: one versioned content manifest
 //! shared by every extension kind (App, Skill, MCP/Adapter).
 //!
 //! An extension package is a directory. Its provenance envelope lives
@@ -34,7 +34,7 @@ use crate::crypto::Sha256Stream;
 pub const ENVELOPE_FILE: &str = ".provenance.json";
 
 /// The only schema string this build accepts.
-pub const SCHEMA_V1: &str = "claw.provenance/v1";
+pub const SCHEMA_V1: &str = "yuos.provenance/v1";
 
 /// The only signature algorithm this build accepts.
 pub const ALG_ED25519: &str = "ed25519";
@@ -142,8 +142,8 @@ pub struct PackageBody {
     pub kind: PackageKind,
     pub id: String,
     pub version: String,
-    /// Schema string of the *inner* manifest (`cos.app-manifest/v1`,
-    /// `claw.agent-api/v1`, `agentskills.io/skill-md/v1`, …). Bound so
+    /// Schema string of the *inner* manifest (`yuos.app-manifest/v1`,
+    /// `yuos.agent-api/v1`, `agentskills.io/skill-md/v1`, …). Bound so
     /// a manifest can never be reinterpreted under a different schema.
     pub manifest_schema: String,
     /// Path of the inner manifest inside the package.

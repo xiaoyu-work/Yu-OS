@@ -999,7 +999,7 @@ async fn unknown_tool_surfaces_as_tool_error_not_panic() {
 }
 
 #[tokio::test]
-async fn end_to_end_agent_drives_cos_primitive() {
+async fn end_to_end_agent_drives_yu_primitive() {
     // Prove the full integration: provider returns ToolUse referencing a
     // yu_proxy tool; the loop dispatches it; the yu primitive's real
     // run() is called; result is fed back; provider terminates with

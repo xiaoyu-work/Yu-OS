@@ -21,7 +21,7 @@ async fn async_stdin_binary_is_bounded_and_keeps_business_text_out_of_argv() {
         &binary, "notification", "post", ["__notifications"], br#"{"body":"private text"}"#,
     ).await.unwrap();
     assert_eq!(result["body"], "private text");
-    let error_binary = write_fake_cos(
+    let error_binary = write_fake_yu(
         dir.path(), r#"{"ok":false,"wire_version":1,"error":"refused","code":"PERMISSION_DENIED"}"#, 1,
     );
     let error = yu_call_json_async_with_stdin_binary(
@@ -44,7 +44,7 @@ async fn async_explicit_binary_preserves_shared_wire_decoding() {
         (r#"{"status":"Paused"}"#, 0, false),
         (r#"{"ok":true,"wire_version":1,"data":{}}"#, 1, false),
     ] {
-        let binary = write_fake_cos(dir.path(), body, code);
+        let binary = write_fake_yu(dir.path(), body, code);
         let sync = yu_call_json_with_binary(&binary, "media-player", "status", ["__media-player", "status"]);
         let result = yu_call_json_async_with_binary(&binary, "media-player", "status", ["__media-player", "status"]).await;
         assert_eq!(result.is_ok(), accepted);
@@ -92,7 +92,7 @@ fn explicit_binary_uses_shared_transport_without_path_or_override() {
     let original_path = std::env::var_os("PATH");
     std::env::remove_var("YUOS_KERNEL_BIN");
     std::env::set_var("PATH", "/usr/bin:/bin");
-    let binary = write_fake_cos(dir.path(), r#"{"ok":true,"wire_version":1,"data":{"selected":true}}"#, 0);
+    let binary = write_fake_yu(dir.path(), r#"{"ok":true,"wire_version":1,"data":{"selected":true}}"#, 0);
     let first = yu_call_json_with_binary(&binary, "permissions", "manage", ["__app-permissions", "{}"]);
     std::env::set_var("YUOS_KERNEL_BIN", dir.path().join("not-created"));
     let second = yu_call_json_with_binary(&binary, "permissions", "manage", ["__app-permissions", "{}"]);
@@ -120,7 +120,7 @@ fn explicit_binary_preserves_wire_errors_and_spawn_failures() {
         (r#"{"enabled":true}"#, 0, false),
         (r#"{"ok":true,"wire_version":1,"data":{}}"#, 1, false),
     ] {
-        let binary = write_fake_cos(dir.path(), body, code);
+        let binary = write_fake_yu(dir.path(), body, code);
         let error = yu_call_json_with_binary(
             binary, "permissions", "manage", ["__app-permissions", "{}"],
         ).unwrap_err();
@@ -141,7 +141,7 @@ fn controlled_stdin_transports_share_bounds_and_wire_decoding() {
     let oversized = vec![b' '; APP_ARGS_STDIN_MAX_BYTES + 1];
     let ordinary = yu_call_json_with_stdin("capture", "screenshot", ["__capture"], &oversized);
     let terminal = yu_call_json_with_stdin_terminal("capture", "screenshot", ["__capture"], &oversized);
-    let bin = write_fake_cos(
+    let bin = write_fake_yu(
         dir.path(),
         r#"{"ok":true,"wire_version":1,"data":{"cancelled":true,"path":null}}"#,
         0,
@@ -162,9 +162,9 @@ fn controlled_stdin_transports_share_bounds_and_wire_decoding() {
 
 #[test]
 fn build_command_uses_env_override() {
-    std::env::set_var("YUOS_KERNEL_BIN", "/tmp/fake-cos");
+    std::env::set_var("YUOS_KERNEL_BIN", "/tmp/fake-yu");
     let cmd = build_command("fs", "ls", &["/tmp"]);
-    assert_eq!(cmd.get_program(), "/tmp/fake-cos");
+    assert_eq!(cmd.get_program(), "/tmp/fake-yu");
     let argv: Vec<&OsStr> = cmd.get_args().collect();
     assert_eq!(argv, &["--wire=1", "app", "fs", "ls", "/tmp"]);
     std::env::remove_var("YUOS_KERNEL_BIN");
@@ -180,7 +180,7 @@ fn build_command_default_is_path_lookup() {
 /// Fake `yu` binary that emits a fixed JSON object so we can
 /// exercise the parsing path without a real backend. Used by
 /// several integration-style tests.
-fn write_fake_cos(dir: &std::path::Path, json: &str, exit_code: i32) -> std::path::PathBuf {
+fn write_fake_yu(dir: &std::path::Path, json: &str, exit_code: i32) -> std::path::PathBuf {
     let script = dir.join("yu");
     std::fs::write(
         &script,
@@ -201,7 +201,7 @@ fn write_fake_cos(dir: &std::path::Path, json: &str, exit_code: i32) -> std::pat
 #[cfg(unix)]
 fn call_parses_success_json() {
     let dir = tempfile::tempdir().unwrap();
-    let bin = write_fake_cos(
+    let bin = write_fake_yu(
         dir.path(),
         r#"{"ok":true,"wire_version":1,"data":{"hello":"world","n":3}}"#,
         0,
@@ -219,7 +219,7 @@ fn call_parses_success_json() {
 #[cfg(unix)]
 fn call_surfaces_error_field_as_app_error() {
     let dir = tempfile::tempdir().unwrap();
-    let bin = write_fake_cos(
+    let bin = write_fake_yu(
         dir.path(),
         r#"{"ok":false,"wire_version":1,"error":"file not found: /x","code":"RESOURCE_NOT_FOUND"}"#,
         1,
@@ -255,7 +255,7 @@ fn call_reaps_early_stdin_refusal_and_preserves_typed_error() {
         "error": "body rejected ".repeat(16 * 1024), "code": "INVALID_ARGUMENT"
     })
     .to_string();
-    let bin = write_fake_cos(dir.path(), &response, 1);
+    let bin = write_fake_yu(dir.path(), &response, 1);
     std::env::set_var("YUOS_KERNEL_BIN", &bin);
     let error = call(
         "fs",
@@ -294,7 +294,7 @@ fn call_rejects_flat_and_status_incoherent_wire_replies() {
             0,
         ),
     ] {
-        let bin = write_fake_cos(dir.path(), body, exit_code);
+        let bin = write_fake_yu(dir.path(), body, exit_code);
         std::env::set_var("YUOS_KERNEL_BIN", &bin);
         let error = call("noop", "ping", std::iter::empty::<&str>(), None).unwrap_err();
         assert!(

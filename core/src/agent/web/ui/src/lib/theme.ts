@@ -1,5 +1,5 @@
 /**
- * Tiny theme manager. cos UI defaults to dark (the open-agents look),
+ * Tiny theme manager. yu UI defaults to dark (the open-agents look),
  * but lets the user switch to light or "system" (follows the OS prefs
  * via the `prefers-color-scheme` media query). Persisted in
  * localStorage.
@@ -12,7 +12,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 export type Theme = "dark" | "light" | "system";
-const KEY = "cos.theme";
+const KEY = "yuos.theme";
 
 function read(): Theme {
   if (typeof window === "undefined") return "dark";

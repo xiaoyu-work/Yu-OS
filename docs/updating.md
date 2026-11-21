@@ -545,7 +545,7 @@ read by the Yu OS-owned renderer and may be removed manually after inspection.
 Confirm both binaries and the running daemon after an upgrade:
 
 ```bash
-dpkg-query -L yuos-agent | grep -E '/(cos|yuosd|yuos-agentd|yuos-extension-host)$'
+dpkg-query -L yuos-agent | grep -E '/(yu|yuosd|yuos-agentd|yuos-extension-host)$'
 getent group yuos-extension
 sudo systemctl status yuosd
 yu agent service list --status pending

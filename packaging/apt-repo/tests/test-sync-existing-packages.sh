@@ -283,7 +283,7 @@ test_repair_incomplete_baseline() {
 yuos-base|1.0|$remote/yuos-base_1.0_all.deb
 EOF
 
-    printf '{"format":"claw.release-security-baseline/v1"}\n' \
+    printf '{"format":"yuos.release-security-baseline/v1"}\n' \
         > "$bodies/baseline.json"
     printf 'fixture signature\n' > "$bodies/baseline.json.asc"
     baseline_hash="$(sha256sum "$bodies/baseline.json" | cut -d' ' -f1)"

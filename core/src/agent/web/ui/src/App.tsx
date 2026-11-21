@@ -1,5 +1,5 @@
 /**
- * Top-level shell. SidebarProvider + cos sidebar + main inset that
+ * Top-level shell. SidebarProvider + yu sidebar + main inset that
  * route-switches between pages. Same layout pattern as
  * `open-agents/apps/web/app/inbox-shell.tsx`.
  */

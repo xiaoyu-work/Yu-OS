@@ -169,7 +169,7 @@ sys.exit(1 if page == 'users' else 0)
         command
             .args(&args[1..])
             .env("YUOS_SESSION", "manager-authority-must-not-leak")
-            .env("YUOS_KERNEL_BIN", "/not-the-installed-cos")
+            .env("YUOS_KERNEL_BIN", "/not-the-installed-yu")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null());

@@ -43,7 +43,7 @@ transports, discovery, and tool-registry integration.
 ## Provenance
 
 Presence in an XDG search path is not authority to execute. A discovered
-agent-API package must be a directory carrying a `claw.provenance/v1`
+agent-API package must be a directory carrying a `yuos.provenance/v1`
 envelope signed by a trusted publisher, root-owned content under an
 approved system package root, or covered by an explicit developer grant.
 Loose `*.json` manifests are honoured only under an approved,

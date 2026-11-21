@@ -871,7 +871,7 @@ Set explicitly only when overriding defaults
 | Variable | Purpose | Default |
 |---|---|---|
 | `YUOS_APPS_DIR` | Apps root the kernel scans. | `/usr/lib/yuos/apps` |
-| `YUOS_DATA_DIR` | Where the current process persists Yu OS data. Inside a sandboxed operation this is the app's own partition, `<data-root>/apps/<app-id>` — never the owner's data root. | `$XDG_DATA_HOME/cos`, normally `~/.local/share/yuos`; yuosd overrides this to `/var/lib/yuos` |
+| `YUOS_DATA_DIR` | Where the current process persists Yu OS data. Inside a sandboxed operation this is the app's own partition, `<data-root>/apps/<app-id>` — never the owner's data root. | `$XDG_DATA_HOME/yuos`, normally `~/.local/share/yuos`; yuosd overrides this to `/var/lib/yuos` |
 | `YUOS_OWNER_HOME` | Verified home path of the user the App service represents. Use it only to resolve a manifest-approved `~/...` resource; the path grants no access by itself, and `$HOME` remains private App state. | (auto) |
 | `YUOS_APPLICATIONS_DIR` | Where `yu app install` writes generated desktop launchers. | `/usr/share/applications` |
 | `YUOS_SDK_PYTHON_DIR` | Force the SDK lookup to a specific dir. Must contain both `yuos_sdk/` and `yuos_runtime/` as subdirs. | unset → kernel probes `/usr/lib/yuos/python` + sibling dev paths |

@@ -69,14 +69,14 @@ class BrowserBridgeTests(unittest.TestCase):
             }
         ).encode()
         process = _process(denied, returncode=1)
-        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/cos"}):
+        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/yu"}):
             with mock.patch("subprocess.Popen", return_value=process):
                 with self.assertRaises(browser_bridge.PermissionDenied):
                     browser_bridge.request("eval", tab_id=3, expr="document.title")
 
     def test_invalid_success_data_is_rejected(self) -> None:
         process = _process(_wire(["not", "an", "object"]))
-        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/cos"}):
+        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/yu"}):
             with mock.patch("subprocess.Popen", return_value=process):
                 with self.assertRaises(browser_bridge.BrowserActionIndeterminate):
                     browser_bridge.request("tabs.list")
@@ -85,10 +85,10 @@ class BrowserBridgeTests(unittest.TestCase):
         process = _process(b"")
         process.poll.return_value = None
         process.communicate.side_effect = [
-            subprocess.TimeoutExpired("/runtime/cos", 60),
+            subprocess.TimeoutExpired("/runtime/yu", 60),
             (b"", b""),
         ]
-        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/cos"}):
+        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/yu"}):
             with mock.patch("subprocess.Popen", return_value=process):
                 with self.assertRaises(browser_bridge.BrowserActionIndeterminate):
                     browser_bridge.request("dom.click", tab_id=3)
@@ -98,7 +98,7 @@ class BrowserBridgeTests(unittest.TestCase):
         process = _process(b"")
         process.poll.return_value = None
         process.communicate.side_effect = [OSError("pipe failed"), (b"", b"")]
-        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/cos"}):
+        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/yu"}):
             with mock.patch("subprocess.Popen", return_value=process):
                 with self.assertRaises(browser_bridge.BrowserActionIndeterminate):
                     browser_bridge.request("dom.click", tab_id=3)
@@ -109,7 +109,7 @@ class BrowserBridgeTests(unittest.TestCase):
             {"ok": True, "wire_version": 2, "data": {}}
         ).encode()
         process = _process(wrong_version)
-        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/cos"}):
+        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/yu"}):
             with mock.patch("subprocess.Popen", return_value=process):
                 with self.assertRaises(browser_bridge.BrowserActionIndeterminate):
                     browser_bridge.request("tabs.list")
@@ -119,13 +119,13 @@ class BrowserBridgeTests(unittest.TestCase):
             {"ok": True, "wire_version": True, "data": {}}
         ).encode()
         process = _process(wrong_version)
-        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/cos"}):
+        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/yu"}):
             with mock.patch("subprocess.Popen", return_value=process):
                 with self.assertRaises(browser_bridge.BrowserActionIndeterminate):
                     browser_bridge.request("tabs.list")
 
     def test_process_creation_failure_is_unavailable(self) -> None:
-        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/cos"}):
+        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/yu"}):
             with mock.patch("subprocess.Popen", side_effect=OSError("missing")):
                 with self.assertRaises(browser_bridge.BrowserUnavailable):
                     browser_bridge.request("tabs.list")
@@ -140,7 +140,7 @@ class BrowserBridgeTests(unittest.TestCase):
             }
         ).encode()
         process = _process(failed, returncode=1)
-        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/cos"}):
+        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/yu"}):
             with mock.patch("subprocess.Popen", return_value=process):
                 with self.assertRaises(browser_bridge.BrowserActionIndeterminate):
                     browser_bridge.request("dom.click", tab_id=3)
@@ -155,7 +155,7 @@ class BrowserBridgeTests(unittest.TestCase):
             }
         ).encode()
         process = _process(failed, returncode=1)
-        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/cos"}):
+        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/yu"}):
             with mock.patch("subprocess.Popen", return_value=process):
                 with self.assertRaises(browser_bridge.BrowserActionFailed):
                     browser_bridge.request("eval", tab_id=3)

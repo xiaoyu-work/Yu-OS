@@ -47,7 +47,7 @@ use super::state::{self, TrustDomain, TrustState, TrustWatch};
 /// Schema string for a publisher trust file.
 pub const TRUST_SCHEMA_V1: &str = "claw.trust/v1";
 /// Schema string for the developer (unsigned-package) trust file.
-pub const DEV_TRUST_SCHEMA_V1: &str = "claw.trust-dev/v1";
+pub const DEV_TRUST_SCHEMA_V1: &str = "yuos.trust-dev/v1";
 
 /// The only usage constraint that authorises package signing. A key
 /// minted for release-artifact signing or TLS must not be able to

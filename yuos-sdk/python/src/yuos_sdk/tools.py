@@ -168,7 +168,7 @@ def call(
 
     args_payload = encode_wire_json({} if args is _MISSING else args)
     cmd = [
-        _cos_binary(),
+        _yu_binary(),
         WIRE_ARG,
         "ai",
         "tool",
@@ -208,7 +208,7 @@ def catalog() -> List[CatalogEntry]:
     consulting this list; the catalog evolves and a tool can be
     deprecated or renamed between releases.
     """
-    cmd = [_cos_binary(), WIRE_ARG, "ai", "tools"]
+    cmd = [_yu_binary(), WIRE_ARG, "ai", "tools"]
     proc = _run_with_timeout(cmd, "yu ai tools")
     text = (proc.stdout or "").strip()
     try:
@@ -282,7 +282,7 @@ def _run_with_timeout(cmd: List[str], label: str) -> subprocess.CompletedProcess
         ) from exc
 
 
-def _cos_binary() -> str:
+def _yu_binary() -> str:
     override = os.environ.get("YUOS_KERNEL_BIN")
     if override:
         return override

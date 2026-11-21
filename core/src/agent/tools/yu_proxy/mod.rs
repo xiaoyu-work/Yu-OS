@@ -213,7 +213,7 @@ impl Tool for YuPrimitiveTool {
             }
         };
 
-        // cos primitives are sync and may do file IO / spawn processes.
+        // yu primitives are sync and may do file IO / spawn processes.
         // A yuosd-routed job carries Tokio task-local user/config overrides;
         // spawn_blocking does not inherit those. Keep routed calls on the
         // current task so credential, memory and config lookups cannot fall
@@ -362,7 +362,7 @@ const PRIMITIVES: &[PrimitiveSpec] = &[
     },
     PrimitiveSpec {
         name: "yu_cron",
-        description: "Schedule recurring jobs. Persists across reboots via cos \
+        description: "Schedule recurring jobs. Persists across reboots via yu \
                       service. Cron expression syntax.",
         primitive: crate::cron::run,
         commands: &[
@@ -433,7 +433,7 @@ const PRIMITIVES: &[PrimitiveSpec] = &[
     },
     PrimitiveSpec {
         name: "yu_ipc",
-        description: "Send/receive on cos's local IPC bus (Unix sockets / named \
+        description: "Send/receive on yu's local IPC bus (Unix sockets / named \
                       pipes on Windows). Includes lock/barrier primitives.",
         primitive: crate::ipc::run,
         commands: &[

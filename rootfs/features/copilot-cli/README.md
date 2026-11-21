@@ -7,7 +7,7 @@ every user's `$PATH`.
 Used by **cosmic-term**'s `@`-trigger AI integration: when the user types `@`
 at the start of a shell prompt, cosmic-term captures the typed query, drops it
 into `$YUOS_AI_TMP/aq-<id>.txt`, then injects a call to a shell function
-`__cos_ai <id>` which `exec`s:
+`__yuos_ai <id>` which `exec`s:
 
 ```sh
 copilot -p "<terminal_context>...</terminal_context>\n\n<user_request>...</user_request>" \
@@ -31,6 +31,6 @@ Pulls `nodejs` and `npm` from apt (`packages.txt`) — npm is required to instal
 ## Used by
 
 * [Terminal shell integration](https://github.com/xiaoyu-work/yuos-app/blob/main/products/terminal/native/cosmic-term/src/ai/shell_integration.rs) — embeds `copilot` in the
-  generated bash/zsh/fish/pwsh `__cos_ai` functions
+  generated bash/zsh/fish/pwsh `__yuos_ai` functions
 * [Terminal AI runtime](https://github.com/xiaoyu-work/yuos-app/blob/main/products/terminal/native/cosmic-term/src/ai/mod.rs) — `$YUOS_AI_COPILOT_BIN` env override resolves
   the binary path; defaults to bare `copilot` so the user's `$PATH` lookup wins

@@ -3050,10 +3050,10 @@ try {
   await cdp.send("Browser.setPermission", { permission: { name: "notifications" }, setting: "granted", origin });
   await clickText("Enable");
   await wait("!!Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === 'Disable')", "browser notifications enabled explicitly");
-  assert.equal(await evaluate("localStorage.getItem('cos.browser-notifications.enabled')"), "true");
+  assert.equal(await evaluate("localStorage.getItem('yuos.browser-notifications.enabled')"), "true");
   await clickText("Disable");
   await wait("!!Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === 'Enable')", "browser notifications disabled");
-  assert.equal(await evaluate("localStorage.getItem('cos.browser-notifications.enabled')"), null);
+  assert.equal(await evaluate("localStorage.getItem('yuos.browser-notifications.enabled')"), null);
 
   await clickLabel("Notification settings");
   await wait("document.querySelector('[role=\"dialog\"]')?.innerText.includes('Notification settings')", "bounded settings dialog");

@@ -2605,7 +2605,7 @@ fn e2e_gateway_parent(session_id: &str, caps: CapSet) -> SessionInfo {
     SessionInfo {
         session_id: session_id.to_string(),
         pid,
-        command: vec!["cos".to_string(), "agent".to_string()],
+        command: vec!["yu".to_string(), "agent".to_string()],
         started_at: chrono::Utc::now().to_rfc3339(),
         stdout_path: String::new(),
         stderr_path: String::new(),
@@ -4098,7 +4098,7 @@ fn e2e_install_parent_session(session_id: &str) {
     let info = SessionInfo {
         session_id: session_id.to_string(),
         pid,
-        command: vec!["cos".to_string()],
+        command: vec!["yu".to_string()],
         started_at: chrono::Utc::now().to_rfc3339(),
         stdout_path: String::new(),
         stderr_path: String::new(),

@@ -277,7 +277,7 @@ async fn simulation(output: &str, purge: bool) -> Result<Vec<Action>, String> {
 fn empty_os_catalog() -> store::Catalog {
     let now = chrono::Utc::now();
     store::Catalog {
-        schema: "claw.app-store/v2".into(),
+        schema: "yuos.app-store/v2".into(),
         repository: store::REPOSITORY.into(),
         runtime_abi: 1,
         generation: "0".into(),

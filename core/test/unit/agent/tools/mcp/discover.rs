@@ -84,7 +84,7 @@ fn parses_minimal_manifest_and_substitutes_manifest_dir() {
     write(
         &p,
         r#"{
-          "schema": "claw.agent-api/v1",
+          "schema": "yuos.agent-api/v1",
           "id": "org.tesseract",
           "name": "tesseract",
           "transport": "mcp+stdio",

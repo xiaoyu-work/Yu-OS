@@ -322,7 +322,7 @@ print(json.load(open(sys.argv[1]))["floor_generation"])
 ok "the runtime projection carries no recovery or trust material"
 
 # The projection is what an unprivileged binary reads. `runtime-check`
-# is exactly the path cos/yuos-agentd take at startup, and it never
+# is exactly the path yu/yuos-agentd take at startup, and it never
 # repairs anything.
 "$HELPER" runtime-check --root "$ROOT" >/dev/null \
     || fail "an unprivileged process must be able to satisfy the runtime floor"

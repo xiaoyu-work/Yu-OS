@@ -68,7 +68,7 @@ pub async fn stream_to_temp(opts: &DownloadOpts<'_>) -> Result<DownloadResult, D
     }
 
     let client = reqwest::Client::builder()
-        .user_agent(concat!("cos/", env!("CARGO_PKG_VERSION"), " (engine-pkg)"))
+        .user_agent(concat!("yuos/", env!("CARGO_PKG_VERSION"), " (engine-pkg)"))
         .timeout(std::time::Duration::from_secs(60 * 30))
         // Refuse any redirect that leaves https — a redirect to http://
         // would defeat the scheme guard above.

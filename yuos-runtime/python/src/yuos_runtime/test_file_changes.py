@@ -39,7 +39,7 @@ def result(path=PATH, content=CONTENT, changed=True):
 
 @pytest.fixture
 def transport():
-    with mock.patch.object(file_changes, "_cos_binary", return_value="/usr/local/bin/yu"):
+    with mock.patch.object(file_changes, "_yu_binary", return_value="/usr/local/bin/yu"):
         with mock.patch.object(file_changes.subprocess, "run") as run:
             run.return_value = subprocess.CompletedProcess([], 0, json.dumps(result()), "")
             yield run
@@ -135,7 +135,7 @@ def test_file_replace_fingerprint_is_closed_without_namespace_uid_gid(transport)
 
 
 @pytest.mark.parametrize("failure", [
-    FileNotFoundError("cos missing"),
+    FileNotFoundError("yu missing"),
     OSError("transport lost"),
     subprocess.TimeoutExpired(["yu", "__file", "replace"], 60),
     UnicodeError("invalid output"),
@@ -199,7 +199,7 @@ def test_file_replace_unchanged_is_valid_only_for_the_same_existing_content(tran
 
 
 def test_file_replace_discovery_failure_never_invokes_or_writes(transport):
-    with mock.patch.object(file_changes, "_cos_binary", side_effect=PolicyUnavailable("missing")):
+    with mock.patch.object(file_changes, "_yu_binary", side_effect=PolicyUnavailable("missing")):
         with pytest.raises(file_changes.FileChangeError) as error:
             file_changes.replace_file(PATH, None, CONTENT)
     assert error.value.indeterminate is False

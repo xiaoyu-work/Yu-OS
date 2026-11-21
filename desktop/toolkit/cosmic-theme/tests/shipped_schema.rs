@@ -79,7 +79,7 @@ fn assert_derived(mode: &str, is_dark: bool) {
     // `build()` labels the theme after its seed palette; the shipped
     // schema keeps the Yu OS name, so that one field differs by design.
     let name: String = parse(&theme_fields, "name");
-    assert_eq!(name, format!("claw-{}", mode.to_lowercase()));
+    assert_eq!(name, format!("yuos-{}", mode.to_lowercase()));
 
     assert_eq!(parse::<bool>(&theme_fields, "is_dark"), is_dark);
 

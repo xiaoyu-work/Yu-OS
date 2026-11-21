@@ -1,10 +1,10 @@
 /**
- * cos's primary navigation rail. Same structure as open-agents'
+ * yu's primary navigation rail. Same structure as open-agents'
  * `inbox-sidebar.tsx`: SidebarHeader (brand + "New chat") +
  * SidebarContent (nav group, then date-grouped sessions group) +
  * SidebarFooter (status pill). The visual language is verbatim — we
  * keep the same shadcn Sidebar primitive and class names; only the
- * concepts being displayed are remapped to cos (no repos / branches /
+ * concepts being displayed are remapped to yu (no repos / branches /
  * GitHub OAuth — instead chat / tasks / approvals / inbox / settings,
  * plus a date-grouped session list from `/api/sessions`).
  */
@@ -128,8 +128,8 @@ export function YuSidebar({ meta }: { meta: any }) {
     let cancelled = false;
     const load = () => { void workspaceApi.list().then((records) => { if (!cancelled) setWorkspaces(records); })
       .catch((error: unknown) => { if (!cancelled) setSessionError(error instanceof Error ? error.message : "Workspace picker failed"); }); };
-    load(); window.addEventListener("cos:workspaces-changed", load);
-    return () => { cancelled = true; window.removeEventListener("cos:workspaces-changed", load); };
+    load(); window.addEventListener("yuos:workspaces-changed", load);
+    return () => { cancelled = true; window.removeEventListener("yuos:workspaces-changed", load); };
   }, []);
 
   const fetchSessions = useCallback(async (archived: boolean) => {
@@ -160,14 +160,14 @@ export function YuSidebar({ meta }: { meta: any }) {
         });
     };
     refresh();
-    // The chat page dispatches `cos:sessions-changed` after the server
+    // The chat page dispatches `yuos:sessions-changed` after the server
     // creates a fresh session id mid-stream, so the new chat appears in
     // the sidebar immediately rather than only after the next reload.
     const onChange = () => refresh();
-    window.addEventListener("cos:sessions-changed", onChange);
+    window.addEventListener("yuos:sessions-changed", onChange);
     return () => {
       cancelled = true;
-      window.removeEventListener("cos:sessions-changed", onChange);
+      window.removeEventListener("yuos:sessions-changed", onChange);
     };
   }, [fetchSessions, showArchived]);
 
@@ -208,7 +208,7 @@ export function YuSidebar({ meta }: { meta: any }) {
           candidate.id === updated.id ? updated : candidate,
         );
       });
-      window.dispatchEvent(new CustomEvent("cos:sessions-changed"));
+      window.dispatchEvent(new CustomEvent("yuos:sessions-changed"));
       return updated;
     } catch (error: any) {
       setSessionError(error?.message || "Failed to update conversation");
@@ -226,7 +226,7 @@ export function YuSidebar({ meta }: { meta: any }) {
         `/api/sessions/${encodeURIComponent(session.id)}/fork`,
       );
       setShowArchived(false);
-      window.dispatchEvent(new CustomEvent("cos:sessions-changed"));
+      window.dispatchEvent(new CustomEvent("yuos:sessions-changed"));
       navigate(`/chat/${response.session.id}`);
     } catch (error: any) {
       setSessionError(error?.message || "Failed to fork conversation");
@@ -247,7 +247,7 @@ export function YuSidebar({ meta }: { meta: any }) {
     setBusySession("new");
     try {
       const id = await workspaceApi.conversation(selectedWorkspace);
-      window.dispatchEvent(new CustomEvent("cos:sessions-changed"));
+      window.dispatchEvent(new CustomEvent("yuos:sessions-changed"));
       navigate(`/chat/${id}`);
     } catch (cause) { setSessionError(`${cause instanceof Error ? cause.message : "Conversation creation failed"}. Creation is not replayed automatically.`); }
     finally { setBusySession(null); }
@@ -632,7 +632,7 @@ function SidebarFooterUser({ meta }: { meta: any }) {
           className="text-destructive focus:text-destructive"
           onClick={() => {
             try {
-              localStorage.removeItem("cos.token");
+              localStorage.removeItem("yuos.token");
             } catch {}
             location.reload();
           }}

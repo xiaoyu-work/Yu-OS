@@ -11,6 +11,9 @@ and the native Agent interface. The Agent's terminal and Web use do not
 depend on the desktop. Existing Apps keep their identities and shared
 toolkit without requiring the previous shell.
 
+Build the native Media Player in the `yuos-app` checkout with
+`python3 tools/native_build.py media-player build`.
+
 - [Build a VM image](../docs/building-desktop.md)
 - [Build an Azure image](../docs/building-azure.md)
 - [Source origins and licenses](PROVENANCE.md)

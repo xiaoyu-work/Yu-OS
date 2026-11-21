@@ -492,7 +492,7 @@ fn awaiting_review(root: &Path, parent: &crate::proc::SessionInfo) -> reviews::R
 }
 
 #[test]
-#[ignore = "actual Root, private mount/network namespaces, matching cos/runner; includes 300s EOF deadline"]
+#[ignore = "actual Root, private mount/network namespaces, matching yu/runner; includes 300s EOF deadline"]
 fn root_stdio_cli_preserves_opaque_transport_and_authority() {
     let _lock = crate::test_env::lock_env();
     let root = isolate();

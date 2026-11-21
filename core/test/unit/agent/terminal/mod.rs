@@ -450,7 +450,7 @@ fn composer_edits_unicode_by_character_not_byte() {
     assert_eq!(app.input, "Yu OS 好额");
     app.cursor = 0;
     app.delete();
-    assert_eq!(app.input, "law 好额");
+    assert_eq!(app.input, "u OS 好额");
 
     app.input.clear();
     app.cursor = 0;
@@ -1793,7 +1793,7 @@ fn model_output_is_redacted_and_control_safe() {
 fn ratatui_frame_is_yuos_owned_and_contains_core_state() {
     let mut app = app();
     app.begin_task(&job("running"));
-    app.push_assistant_delta("## Result\n\nClaw completed the work.");
+    app.push_assistant_delta("## Result\n\nYu OS completed the work.");
     app.tool_started("tool-1", "yu_sysinfo");
     let backend = TestBackend::new(100, 28);
     let mut terminal = ratatui::Terminal::new(backend).unwrap();
@@ -1804,7 +1804,7 @@ fn ratatui_frame_is_yuos_owned_and_contains_core_state() {
         .iter()
         .map(|cell| cell.symbol())
         .collect::<String>();
-    assert!(output.contains("CLAW AGENT"));
+    assert!(output.contains("YU OS AGENT"));
     assert!(output.contains("Yu OS terminal test"));
     assert!(output.contains("Yu OS completed the work."));
     assert!(output.contains("yu_sysinfo"));

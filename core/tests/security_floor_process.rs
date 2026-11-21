@@ -151,7 +151,7 @@ fn write_manifest(dir: &Path, version: &str, component_digest: &str) -> PathBuf 
     let document = format!(
         concat!(
             r#"{{"abi":1,"components":[{{"name":"yuosd","path":"/usr/local/bin/yuosd","#,
-            r#""sha256":"{digest}"}}],"format":"claw.release-security/v1","#,
+            r#""sha256":"{digest}"}}],"format":"yuos.release-security/v1","#,
             r#""issued_at":"2026-01-01T00:00:00Z","minimum_compatible":{{"#,
             r#""yuos-agent":"0.2.0"}},"protocols":{{"agentd_worker":5,"#,
             r#""broker_envelope":2}},"release":{{"architecture":"amd64","#,

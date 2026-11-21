@@ -24,7 +24,7 @@ fn request(id: &str) -> SignRequest {
         kind: PackageKind::App,
         id: id.to_string(),
         version: "0.1.0".to_string(),
-        manifest_schema: "cos.app-manifest/v1".to_string(),
+        manifest_schema: "yuos.app-manifest/v1".to_string(),
         manifest_path: "app.json".to_string(),
         entrypoints: vec!["main.py".to_string()],
         resources: vec![],

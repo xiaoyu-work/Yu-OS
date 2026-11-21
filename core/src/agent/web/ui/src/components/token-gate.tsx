@@ -1,6 +1,6 @@
 /**
  * Token bootstrap modal. Mirrors the old single-file SPA's first-launch
- * flow: read `cos.token` from localStorage; if missing or rejected by
+ * flow: read `yuos.token` from localStorage; if missing or rejected by
  * `/api/meta`, prompt the user to paste the bootstrap secret printed by
  * `yu agent serve`. The bootstrap secret is exchanged for a one-hour signed
  * access token; only the short-lived token is stored in localStorage.
@@ -26,8 +26,8 @@ export function TokenGate({ children, onMeta }: { children: React.ReactNode; onM
   useEffect(() => {
     void bootstrap();
     const requireAuth = () => setStatus("needs-token");
-    window.addEventListener("cos:auth-required", requireAuth);
-    return () => window.removeEventListener("cos:auth-required", requireAuth);
+    window.addEventListener("yuos:auth-required", requireAuth);
+    return () => window.removeEventListener("yuos:auth-required", requireAuth);
   }, []);
 
   async function bootstrap() {

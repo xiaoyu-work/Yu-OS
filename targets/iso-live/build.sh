@@ -140,7 +140,7 @@ grub-mkrescue \
     --product-name="Yu OS Live" \
     "$ISO_BUILD" \
     -- \
-    -volid "CLAWOS_LIVE"
+    -volid "YUOS_LIVE"
 
 SIZE=$(du -h "$OUTPUT" | cut -f1)
 echo ":: done — $OUTPUT ($SIZE)"

@@ -205,7 +205,7 @@ def budget(app_id: Optional[str] = None) -> Budget:
     app = app_id or os.environ.get("YUOS_APP_ID")
     if not app:
         raise AiError("budget: app_id is required")
-    cmd = [_cos_binary(), WIRE_ARG, "agent", "budget", "show", app]
+    cmd = [_yu_binary(), WIRE_ARG, "agent", "budget", "show", app]
     try:
         proc = subprocess.run(
             cmd,
@@ -258,7 +258,7 @@ def _dispatch(
 
     with tempfile.TemporaryDirectory(prefix="yuos-ai-") as private_dir:
         cmd = [
-            _cos_binary(),
+            _yu_binary(),
             WIRE_ARG,
             "ai",
             "chat",
@@ -360,7 +360,7 @@ def _raise_for_error(env: Mapping[str, Any]) -> None:
     raise AiDenied(env)
 
 
-def _cos_binary() -> str:
+def _yu_binary() -> str:
     override = os.environ.get("YUOS_KERNEL_BIN")
     if override:
         return override

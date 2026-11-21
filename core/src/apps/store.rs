@@ -23,7 +23,7 @@ pub(crate) const MAX_METADATA: usize = 8 * 1024 * 1024;
 #[cfg(test)]
 pub(crate) const MAX_DOWNLOAD: u64 = 256 * 1024 * 1024;
 pub(crate) const WEB_DESCRIPTOR: &str = "web-ui.json";
-pub(crate) const WEB_PROTOCOL: &str = "claw.web-app/v1";
+pub(crate) const WEB_PROTOCOL: &str = "yuos.web-app/v1";
 
 const ARCHIVE_KEY: &str = include_str!("../../assets/app-store-archive-key.asc");
 
@@ -177,7 +177,7 @@ impl Catalog {
         }
         let catalog: Self = serde_json::from_slice(bytes)
             .map_err(|_| "The official App Store catalog has an invalid shape".to_string())?;
-        if catalog.schema != "claw.app-store/v2"
+        if catalog.schema != "yuos.app-store/v2"
             || catalog.repository != REPOSITORY
             || catalog.runtime_abi != 1
             || catalog.apps.is_empty()

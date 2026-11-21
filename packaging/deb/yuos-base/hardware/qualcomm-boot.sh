@@ -117,7 +117,7 @@ yuos_qcom_iso_menu() {
             cat <<MENU
     menuentry '$model' {
         if devicetree /live/dtb/qcom/$tree; then
-            linux /live/vmlinuz boot=live components $yuos_qcom_args $board_args $yuos_qcom_no_dsp claw.board_tree=$tree
+            linux /live/vmlinuz boot=live components $yuos_qcom_args $board_args $yuos_qcom_no_dsp yuos.board_tree=$tree
             initrd /live/initrd.img
         fi
     }

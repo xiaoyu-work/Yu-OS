@@ -416,17 +416,17 @@ fn missing_ready_signal_times_out_and_reaps_child() {
     use std::os::unix::fs::PermissionsExt;
 
     let environment = TestEnvironment::new();
-    let fake_cos = environment.directory.path().join("fake-agent-timeout");
+    let fake_yu = environment.directory.path().join("fake-agent-timeout");
     let pid_file = environment.directory.path().join("pid");
     std::fs::write(
-        &fake_cos,
+        &fake_yu,
         format!(
             "#!/bin/sh\nprintf '%s' \"$$\" > '{}'\nexec sleep 30\n",
             pid_file.display()
         ),
     )
     .unwrap();
-    std::fs::set_permissions(&fake_cos, std::fs::Permissions::from_mode(0o700)).unwrap();
+    std::fs::set_permissions(&fake_yu, std::fs::Permissions::from_mode(0o700)).unwrap();
     assert!(matches!(
         launch_prepared_for_test(
             &prepare_launch(&TestContext {
@@ -435,7 +435,7 @@ fn missing_ready_signal_times_out_and_reaps_child() {
             })
             .unwrap(),
             Duration::from_secs(2),
-            &fake_cos,
+            &fake_yu,
         ),
         Err(LaunchError::Timeout(_))
     ));
@@ -552,9 +552,9 @@ fn launcher_worker_does_not_block_the_calling_thread() {
     use std::time::{Duration, Instant};
 
     let environment = TestEnvironment::new();
-    let fake_cos = environment.directory.path().join("slow-success-agent");
+    let fake_yu = environment.directory.path().join("slow-success-agent");
     std::fs::write(
-        &fake_cos,
+        &fake_yu,
         concat!(
             "#!/bin/sh\n",
             "printf 'READY\\n' >&3\n",
@@ -563,14 +563,14 @@ fn launcher_worker_does_not_block_the_calling_thread() {
         ),
     )
     .unwrap();
-    std::fs::set_permissions(&fake_cos, std::fs::Permissions::from_mode(0o700)).unwrap();
+    std::fs::set_permissions(&fake_yu, std::fs::Permissions::from_mode(0o700)).unwrap();
     let payload = prepare_launch(&TestContext {
         mode: "inspect",
         path: None,
     })
     .unwrap();
     let started = Instant::now();
-    let worker = spawn_prepared_for_test(payload, fake_cos).unwrap();
+    let worker = spawn_prepared_for_test(payload, fake_yu).unwrap();
     assert!(started.elapsed() < Duration::from_millis(500));
     worker.join().unwrap();
 }

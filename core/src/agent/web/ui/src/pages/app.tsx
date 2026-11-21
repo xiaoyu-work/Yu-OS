@@ -41,12 +41,12 @@ export function AppPage() {
     const handled = new Set<string>();
     let active = true;
     const initialize = () => frame.current?.contentWindow?.postMessage({
-      protocol: "claw.web-app/v1", type: "init", nonce: view.nonce, app: view.app,
+      protocol: "yuos.web-app/v1", type: "init", nonce: view.nonce, app: view.app,
       theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
     }, "*");
     const receive = (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow || event.origin !== "null") return;
-      if (event.data?.protocol === "claw.web-app/v1" && event.data?.type === "ready") {
+      if (event.data?.protocol === "yuos.web-app/v1" && event.data?.type === "ready") {
         initialize(); return;
       }
       const message = appMessage(event.data, view.nonce, view.app);
@@ -57,7 +57,7 @@ export function AppPage() {
       }, { signal: AbortSignal.timeout(120_000) }).then((value) => {
         if (!active) return;
         frame.current?.contentWindow?.postMessage({
-          protocol: "claw.web-app/v1", type: "result", nonce: view.nonce,
+          protocol: "yuos.web-app/v1", type: "result", nonce: view.nonce,
           id: message.id, ok: true, result: value.result,
         }, "*");
       }).catch((failure) => {
@@ -65,7 +65,7 @@ export function AppPage() {
         const messageText = failure instanceof Error ? failure.message : "App call outcome is not confirmed.";
         setError(messageText);
         frame.current?.contentWindow?.postMessage({
-          protocol: "claw.web-app/v1", type: "result", nonce: view.nonce,
+          protocol: "yuos.web-app/v1", type: "result", nonce: view.nonce,
           id: message.id, ok: false, error: messageText,
         }, "*");
       });
@@ -77,7 +77,7 @@ export function AppPage() {
   useEffect(() => {
     if (!view) return;
     frame.current?.contentWindow?.postMessage({
-      protocol: "claw.web-app/v1", type: "theme", nonce: view.nonce,
+      protocol: "yuos.web-app/v1", type: "theme", nonce: view.nonce,
       theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
     }, "*");
   }, [theme, view]);
@@ -101,7 +101,7 @@ export function AppPage() {
     {view && <iframe ref={frame} title={`${view.app.name} product interface`}
       src={view.src} sandbox="allow-scripts" referrerPolicy="no-referrer"
       onLoad={() => frame.current?.contentWindow?.postMessage({
-        protocol: "claw.web-app/v1", type: "init", nonce: view.nonce, app: view.app,
+        protocol: "yuos.web-app/v1", type: "init", nonce: view.nonce, app: view.app,
         theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
       }, "*")}
       className="min-h-0 w-full flex-1 border-0" />}

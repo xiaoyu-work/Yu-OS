@@ -390,14 +390,14 @@ fn random_token() -> io::Result<String> {
     Ok(token)
 }
 
-fn configured_cos_bin() -> OsString {
+fn configured_yu_bin() -> OsString {
     env::var_os("YUOS_BIN")
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| OsString::from(DEFAULT_YUOS_BIN))
 }
 
 async fn transcribe_audio(path: &Path) -> Result<String, TranscriptionError> {
-    let yu_bin = configured_cos_bin();
+    let yu_bin = configured_yu_bin();
     transcribe_audio_with_bin(path, &yu_bin, TRANSCRIPTION_TIMEOUT).await
 }
 

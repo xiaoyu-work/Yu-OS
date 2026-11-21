@@ -132,14 +132,14 @@ arguments.
            │ subprocess: yu ai chat --app <id> --prompt-file <0600 temp>
            ▼
 ┌──────────────────────────────────────────────────────────┐
-│  cos                  (Rust binary, in /usr/local/bin)   │
+│  yu                  (Rust binary, in /usr/local/bin)   │
 │  - caps gate, audit, budget, safety, provider routing    │
 └──────────────────────────────────────────────────────────┘
 ```
 
 The reason for the subprocess transport: **identity, audit, and
 session context are inherited from process ancestry** (kernel-spawned
-parent → app process → cos child). A pure-library binding can't claim
+parent → app process → yu child). A pure-library binding can't claim
 "App X is making this call" without that lineage.
 
 ## App object references

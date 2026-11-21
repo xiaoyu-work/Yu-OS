@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn parses_cos_resources_response() {
+fn parses_yu_resources_response() {
     let summary = parse_resources(
         br#"{
             "disk":{"path":"/home/yuos","total_mb":100000,"used_mb":42000,"free_mb":58000},

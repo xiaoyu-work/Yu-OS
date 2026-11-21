@@ -2735,7 +2735,7 @@ pub async fn ask(user_prompt: &str) -> Result<AskResult, AgentError> {
 }
 
 /// Translate `cfg.mcp_servers` into [`McpServerSpec`]s, optionally
-/// merge in specs discovered from XDG `claw/agent-api/*.json`
+/// merge in specs discovered from XDG `yuos/agent-api/*.json`
 /// manifests, and attach each enabled entry. Returns the live handles
 /// (drop terminates the children).
 ///

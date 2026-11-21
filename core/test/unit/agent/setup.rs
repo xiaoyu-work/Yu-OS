@@ -160,8 +160,8 @@ fn is_ready_blocks_real_provider_with_no_credential() {
     cfg.model = "claude-3-5-sonnet".into();
     // Ensure no env var fallback can rescue us in CI:
     cfg.api_key_credential = Some("definitely_not_present".into());
-    cfg.api_key_env = Some("__COS_TEST_DEFINITELY_UNSET__".into());
-    std::env::remove_var("__COS_TEST_DEFINITELY_UNSET__");
+    cfg.api_key_env = Some("__YUOS_TEST_DEFINITELY_UNSET__".into());
+    std::env::remove_var("__YUOS_TEST_DEFINITELY_UNSET__");
     let err = is_ready(&cfg).unwrap_err();
     assert!(err.contains("no credential found"));
     assert!(err.contains("yu agent setup"));
@@ -193,7 +193,7 @@ fn text_status_treats_mock_as_unconfigured() {
 fn is_ready_passes_when_env_credential_present() {
     let mut cfg = mock_cfg();
     cfg.provider = "anthropic".into();
-    let env_name = "__COS_TEST_API_KEY_PRESENT__";
+    let env_name = "__YUOS_TEST_API_KEY_PRESENT__";
     cfg.api_key_env = Some(env_name.into());
     std::env::set_var(env_name, "sk-fake");
     assert!(is_ready(&cfg).is_ok());
@@ -216,7 +216,7 @@ fn blank_stored_key_uses_env_fallback_for_all_text_providers() {
     )
     .expect("store blank credential");
 
-    const ENV_NAME: &str = "__COS_TEST_BLANK_STORED_KEY_FALLBACK__";
+    const ENV_NAME: &str = "__YUOS_TEST_BLANK_STORED_KEY_FALLBACK__";
     let _env = EnvVarGuard::set(ENV_NAME, "  env-fallback-key  ");
     let mut cfg = mock_cfg();
     cfg.api_key_credential = Some(credential_name);
@@ -284,7 +284,7 @@ async fn corrupt_stored_key_is_typed_and_blocks_readiness_for_all_text_providers
     )
     .expect("write corrupt credential");
 
-    const ENV_NAME: &str = "__COS_TEST_CORRUPT_STORED_KEY_FALLBACK__";
+    const ENV_NAME: &str = "__YUOS_TEST_CORRUPT_STORED_KEY_FALLBACK__";
     const ENV_VALUE: &str = "env-key-must-not-leak";
     let _env = EnvVarGuard::set(ENV_NAME, ENV_VALUE);
     let mut cfg = mock_cfg();
@@ -372,9 +372,9 @@ async fn corrupt_stored_key_is_typed_and_blocks_readiness_for_all_text_providers
 fn pool_readiness_covers_empty_partial_valid_and_absent_states() {
     let _g = env_lock();
     let _store = CredentialTestEnv::new("pool-readiness");
-    const LEGACY_ENV: &str = "__COS_TEST_POOL_READINESS_LEGACY__";
-    const POOL_PRESENT: &str = "__COS_TEST_POOL_READINESS_PRESENT__";
-    const POOL_SECOND: &str = "__COS_TEST_POOL_READINESS_SECOND__";
+    const LEGACY_ENV: &str = "__YUOS_TEST_POOL_READINESS_LEGACY__";
+    const POOL_PRESENT: &str = "__YUOS_TEST_POOL_READINESS_PRESENT__";
+    const POOL_SECOND: &str = "__YUOS_TEST_POOL_READINESS_SECOND__";
     const LEGACY_VALUE: &str = "legacy-secret-must-not-leak";
     let _legacy = EnvVarGuard::set(LEGACY_ENV, LEGACY_VALUE);
     let _present = EnvVarGuard::set(POOL_PRESENT, " pool-key-one ");
@@ -469,7 +469,7 @@ fn corrupt_pool_credential_stays_typed_and_never_uses_legacy_key() {
     )
     .expect("write corrupt credential");
 
-    const LEGACY_ENV: &str = "__COS_TEST_CORRUPT_POOL_LEGACY__";
+    const LEGACY_ENV: &str = "__YUOS_TEST_CORRUPT_POOL_LEGACY__";
     const LEGACY_VALUE: &str = "legacy-key-must-not-leak";
     let _legacy = EnvVarGuard::set(LEGACY_ENV, LEGACY_VALUE);
     let mut cfg = mock_cfg();
@@ -528,8 +528,8 @@ fn is_ready_accepts_usable_local_fallback() {
     cfg.provider = "anthropic".into();
     cfg.model = "primary-model".into();
     cfg.api_key_credential = Some("definitely_not_present".into());
-    cfg.api_key_env = Some("__COS_TEST_PRIMARY_UNSET__".into());
-    std::env::remove_var("__COS_TEST_PRIMARY_UNSET__");
+    cfg.api_key_env = Some("__YUOS_TEST_PRIMARY_UNSET__".into());
+    std::env::remove_var("__YUOS_TEST_PRIMARY_UNSET__");
     cfg.provider_fallbacks = vec![crate::config::ProviderFallbackConfig {
         provider: "llama_local".into(),
         model: "local-default".into(),

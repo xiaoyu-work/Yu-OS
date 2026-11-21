@@ -221,7 +221,7 @@ fn inherited_runtime_overrides_cannot_expose_caller_code_or_private_directories(
     let _sdk = TestEnvVarGuard::remove("YUOS_SDK_PYTHON_DIR");
     validate_runtime_overrides().unwrap();
     for (name, bad) in [
-        ("YUOS_BIN", "/home/example/fake-cos"),
+        ("YUOS_BIN", "/home/example/fake-yu"),
         ("YUOS_BIN", "/usr/bin/bash"),
         ("YUOS_SDK_PYTHON_DIR", "/home/example/.ssh"),
         (

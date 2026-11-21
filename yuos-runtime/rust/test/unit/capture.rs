@@ -17,7 +17,7 @@ fn capture_uses_typed_sdk_stdin_and_validates_before_contacting_os() {
         assert!(screenshot(path, true).is_err());
         assert!(screenshot_from_terminal(path, true).is_err());
     }
-    assert!(!dir.path().join("cos.args").exists());
+    assert!(!dir.path().join("yuos.args").exists());
     let cases = [
         (
             serde_json::json!({"cancelled":false,"path":"/work/shots/shot.png"}),
@@ -40,7 +40,7 @@ fn capture_uses_typed_sdk_stdin_and_validates_before_contacting_os() {
     ];
     for (data, ok) in cases {
         std::fs::write(
-            dir.path().join("cos.reply"),
+            dir.path().join("yuos.reply"),
             serde_json::json!({"ok":true,"wire_version":1,"data":data}).to_string(),
         )
         .unwrap();
@@ -48,11 +48,11 @@ fn capture_uses_typed_sdk_stdin_and_validates_before_contacting_os() {
         assert_eq!(screenshot_from_terminal("/work/shots", false).is_ok(), ok);
     }
     std::fs::write(
-        dir.path().join("cos.reply"),
+        dir.path().join("yuos.reply"),
         r#"{"ok":false,"wire_version":1,"code":"PERMISSION_DENIED","error":"fixture denied"}"#,
     )
     .unwrap();
-    std::fs::write(dir.path().join("cos.denied"), "").unwrap();
+    std::fs::write(dir.path().join("yuos.denied"), "").unwrap();
     let error = screenshot("/work/shots", false).unwrap_err();
     match old {
         Some(old) => std::env::set_var("YUOS_KERNEL_BIN", old),
@@ -60,11 +60,11 @@ fn capture_uses_typed_sdk_stdin_and_validates_before_contacting_os() {
     }
     assert!(error.to_string().contains("fixture denied"), "{error}");
     assert_eq!(
-        std::fs::read_to_string(dir.path().join("cos.args")).unwrap(),
+        std::fs::read_to_string(dir.path().join("yuos.args")).unwrap(),
         "--wire=1\n__capture\nscreenshot\n--request-stdin\n"
     );
     let request: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(dir.path().join("cos.input")).unwrap()).unwrap();
+        serde_json::from_slice(&std::fs::read(dir.path().join("yuos.input")).unwrap()).unwrap();
     assert_eq!(
         request,
         serde_json::json!({"directory":"/work/shots","modal":false})

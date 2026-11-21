@@ -105,7 +105,7 @@ impl BrokerAuthority {
     ///     another process may already have marked.
     ///
     /// Resolving the trust store re-stats the durable generation and
-    /// rebuilds it when it moved, so a revocation written by `cos
+    /// rebuilds it when it moved, so a revocation written by `yu
     /// provenance trust revoke` in a different process is visible here
     /// on the very next request. A failure marks the instance for
     /// bounded shutdown and denies; there is no local fallback and no

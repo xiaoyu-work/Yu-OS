@@ -5,7 +5,7 @@
 //! ## Three ways a package can be trusted
 //!
 //! 1. **Publisher signature** — the package carries a
-//!    `claw.provenance/v1` envelope signed by a trusted, non-revoked
+//!    `yuos.provenance/v1` envelope signed by a trusted, non-revoked
 //!    key. This is the only route for user-installed content.
 //! 2. **Vendor (package-manager) trust** — the package sits under an
 //!    approved, root-owned system root that no unprivileged user can

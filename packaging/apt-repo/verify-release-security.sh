@@ -44,7 +44,7 @@ PREVIOUS_DIR="${5:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 POLICY="$PROJECT_DIR/packaging/release-security/policy.json"
-BASELINE_FORMAT="claw.release-security-baseline/v1"
+BASELINE_FORMAT="yuos.release-security-baseline/v1"
 
 command -v dpkg-deb >/dev/null 2>&1 || {
     echo "error: dpkg-deb is required" >&2; exit 1; }

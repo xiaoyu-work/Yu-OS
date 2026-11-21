@@ -157,7 +157,7 @@ fn cli_child(helper: &Process) -> Process {
     assert_eq!(
         children.len(),
         1,
-        "intent did not use one actual protected cos child"
+        "intent did not use one actual protected yu child"
     );
     let child = process(children[0]);
     assert_eq!(parent(child.identity.pid()), helper.identity.pid());
@@ -171,7 +171,7 @@ fn cli_child(helper: &Process) -> Process {
         !environment
             .windows(b"file-manager-stale-".len())
             .any(|value| value == b"file-manager-stale-"),
-        "actual cos borrowed stale App/model environment"
+        "actual yu borrowed stale App/model environment"
     );
     child
 }
@@ -485,7 +485,7 @@ fn checked_outcomes(expected: usize) {
     assert_eq!(
         entries.len(),
         expected,
-        "missing actual cos checked GUI outcome"
+        "missing actual yu checked GUI outcome"
     );
     for (index, entry) in entries.iter().enumerate() {
         let vectors = vectors();
@@ -679,5 +679,5 @@ pub(super) async fn run(root: &Path) {
         private_logs(Path::new(root), &mut bytes);
     }
     std::fs::remove_dir("/run/systemd/system").unwrap();
-    println!("private FileManager1 actual protected cos/signed GUI outcomes, cross-UID no-spawn, private logs and checked session/PAM teardown: passed");
+    println!("private FileManager1 actual protected yu/signed GUI outcomes, cross-UID no-spawn, private logs and checked session/PAM teardown: passed");
 }

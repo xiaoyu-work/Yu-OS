@@ -65,7 +65,7 @@ Description: Private controlled Store inventory\n\n".to_vec();
         };
         let components = packages
             .iter().enumerate().map(|(index, package)| format!(
-                "<component type=\"desktop-application\"><id>org.claw.fixture.Store{index}</id>\
+                "<component type=\"desktop-application\"><id>org.yuos.fixture.Store{index}</id>\
                  <pkgname>{package}</pkgname><name>Controlled Store fixture {index}</name>\
                  <name xml:lang=\"fr\">Catalogue prive {index}</name>\
                  <summary>Public synthetic controlled catalog</summary>\
@@ -136,7 +136,7 @@ Description: Private controlled Store inventory\n\n".to_vec();
         }
         self.verify_after_retirement(false);
         let report = serde_json::json!({
-            "schema": "claw.private-native-store-consumer/v1",
+            "schema": "yuos.private-native-store-consumer/v1",
             "instance": yuos_display_control::Epoch(retained.instance.0).label(),
             "owner_uid": OWNER, "requests": requests, "exact_scope_uses": uses,
             "window": window, "raw_system_state_or_bus": false,
@@ -226,7 +226,7 @@ Description: Private controlled Store inventory\n\n".to_vec();
         let instance = yuos_display_control::Epoch(retained.instance.0).label();
         if sequence == 1 {
             let selector = serde_json::json!({
-                "schema": "claw.private-store-synthetic-shm/v1", "instance": instance,
+                "schema": "yuos.private-store-synthetic-shm/v1", "instance": instance,
             });
             let mut selected = std::fs::OpenOptions::new().write(true).create_new(true)
                 .mode(0o644).custom_flags(libc::O_NOFOLLOW)
@@ -238,7 +238,7 @@ Description: Private controlled Store inventory\n\n".to_vec();
         let directory = Path::new(OBSERVER).parent().unwrap();
         let next = directory.join("keyboard-command.next");
         let request = serde_json::json!({
-            "schema": "claw.private-keyboard/v1", "sequence": sequence, "instance": instance,
+            "schema": "yuos.private-keyboard/v1", "sequence": sequence, "instance": instance,
             "surface": "primary", "expires_ms": yuos_display_control::wire::monotonic_ms().unwrap() + 5_000,
             "kind": kind, "value": value,
         });
@@ -263,7 +263,7 @@ Description: Private controlled Store inventory\n\n".to_vec();
                 file.take(1025).read_to_end(&mut bytes).ok()?;
                 (bytes.len() <= 1024).then(|| serde_json::from_slice::<serde_json::Value>(&bytes).ok()).flatten()
             })();
-            if let Some(ack) = ack.filter(|ack| ack["schema"] == "claw.private-keyboard/v1"
+            if let Some(ack) = ack.filter(|ack| ack["schema"] == "yuos.private-keyboard/v1"
                 && ack["instance"] == instance && ack["sequence"] == sequence
                 && ack["surface"] == "primary"
                 && ack[if kind == "pointer" { "pointer_events_sent" } else { "keyboard_events_sent" }] == true) {

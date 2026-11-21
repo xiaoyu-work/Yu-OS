@@ -460,7 +460,7 @@ No intent is automatically retried. Diagnostics report only launcher status,
 never URIs, StartupIDs, credentials or captured App output.
 
 A successful D-Bus method means **intent accepted**, not GUI started or
-completed. The ordinary `cos --gui` child awaits Root's real checked outcome;
+completed. The ordinary `yu --gui` child awaits Root's real checked outcome;
 process creation alone is not that evidence. The private core bin tests use
 their own bus and an explicit test-only fake executable, never installed
 `yu`, a live GUI, real PAM, accounts or clipboard. Run on Linux:

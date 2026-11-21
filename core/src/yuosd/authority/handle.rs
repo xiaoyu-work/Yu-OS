@@ -134,7 +134,7 @@ impl fmt::Display for GrantRef {
 fn audit_key() -> &'static [u8; 32] {
     static KEY: std::sync::OnceLock<[u8; 32]> = std::sync::OnceLock::new();
     KEY.get_or_init(|| {
-        random_bytes().unwrap_or_else(|_| crate::crypto::sha256_bytes(b"cos.authority.audit"))
+        random_bytes().unwrap_or_else(|_| crate::crypto::sha256_bytes(b"yuos.authority.audit"))
     })
 }
 

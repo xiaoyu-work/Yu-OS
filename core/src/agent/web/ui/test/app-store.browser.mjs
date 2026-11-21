@@ -30,7 +30,7 @@ const manifest = JSON.parse(await readFile(path.join(product, "app.json"), "utf8
 const tools = manifest.mcp.tools.map((tool) => ({ ...tool, command: tool.name.split(".").at(-1) }));
 const app = { id: "kv", name: "Key-Value Store", version: manifest.version, state: "installed",
   web_ready: true, source_name: "storage-sdk", source_kind: "capability",
-  content_digest: `sha256:${digest}`, protocol: "claw.web-app/v1", tools };
+  content_digest: `sha256:${digest}`, protocol: "yuos.web-app/v1", tools };
 const review = {
   schema_version: 1, id: reviewId, revision: "9007199254740993", kind: "install", status: "pending",
   subject: { app_id: "kv", name: app.name, version: app.version, publisher: "synthetic public fixture" },
@@ -66,7 +66,7 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/api/app-store") {
       if (!catalogAvailable) return json({ error: "Official release catalog unavailable" }, 503);
       return json({ architecture: "amd64", installed: installed ? [app] : [], catalog: {
-        schema: "claw.app-store/v2", repository: "xiaoyu-work/yuos-app", runtime_abi: 1,
+        schema: "yuos.app-store/v2", repository: "xiaoyu-work/yuos-app", runtime_abi: 1,
         generation: "1", expires_at: new Date(Date.now() + 86400000).toISOString(),
         packages: [{ package: "yuos-cap-storage-sdk", version: "1.0.0", architecture: "all",
           size: 8192, sha256: "f".repeat(64), apps: ["db", "kv"] }],
@@ -173,7 +173,7 @@ try {
   await send("Runtime.enable");
   await send("Page.navigate", { url: `${origin}/#/app-store` });
   await wait("!!document.querySelector('input')");
-  await evaluate("localStorage.setItem('cos.token','store-browser-token'); location.reload()");
+  await evaluate("localStorage.setItem('yuos.token','store-browser-token'); location.reload()");
   await wait("document.body.innerText.includes('Persistent string key-value storage')");
   await clickText("Install");
   await wait("document.body.innerText.includes('Review and install App')");
@@ -225,7 +225,7 @@ try {
   assert.equal(entries.get("form-proof"), "submitted", "A real submit-button click must work without allow-forms");
   const before = requests.filter((item) => item.path.endsWith("/call")).length;
   await evaluate(`window.dispatchEvent(new MessageEvent('message', {source: document.querySelector('iframe').contentWindow,
-    origin:'null', data:{protocol:'claw.web-app/v1',type:'call',nonce:${JSON.stringify(nonce)},id:'forged',tool:'email.send',arguments:{}}}))`);
+    origin:'null', data:{protocol:'yuos.web-app/v1',type:'call',nonce:${JSON.stringify(nonce)},id:'forged',tool:'email.send',arguments:{}}}))`);
   await delay(200);
   assert.equal(requests.filter((item) => item.path.endsWith("/call")).length, before);
   assert.equal(requests.filter((item) => item.path === "/api/chat").length, 0);
@@ -355,7 +355,7 @@ async function installedProduct() {
     await send("Runtime.enable");
     await send("Page.navigate", { url: `${origin.origin}/#/apps` });
     await wait(`location.origin === ${JSON.stringify(origin.origin)} && document.readyState === 'complete'`);
-    await evaluate(`localStorage.setItem('cos.token',${JSON.stringify(token)}); location.reload()`);
+    await evaluate(`localStorage.setItem('yuos.token',${JSON.stringify(token)}); location.reload()`);
     await wait("document.body.innerText.includes('Key-Value Store')");
     await wait("Array.from(document.querySelectorAll('button')).some(button => button.textContent.trim() === 'Open App' && !button.disabled)");
     await evaluate("Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === 'Open App' && !button.disabled).click()");

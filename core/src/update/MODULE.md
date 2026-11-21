@@ -10,7 +10,7 @@ being installed, activated or run.
 
 ## Responsibilities
 
-- Define and validate the signed `claw.release-security/v1` manifest and its
+- Define and validate the signed `yuos.release-security/v1` manifest and its
   canonical encoding.
 - Order Debian versions exactly as `dpkg` does, including epochs and `~`.
 - Own the durable, root-owned monotonic security floor and its hash-chained
@@ -29,7 +29,7 @@ being installed, activated or run.
 | --- | --- |
 | `canonical.rs` | Deterministic JSON used for signing, hashing and chaining |
 | `debver.rs` | `dpkg --compare-versions` ordering and validation |
-| `manifest.rs` | `claw.release-security/v1` parsing and structural validation |
+| `manifest.rs` | `yuos.release-security/v1` parsing and structural validation |
 | `signature.rs` | Detached OpenPGP verification via `gpgv`, keyring discovery |
 | `floor.rs` | Floor state, atomic durable commit, rollback detection |
 | `projection.rs` | The unprivileged, root-owned runtime view of that floor |

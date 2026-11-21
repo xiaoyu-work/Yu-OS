@@ -17,7 +17,8 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_ROOT_ENV = "YUOS_APP_PACKAGE_ROOT"
-APP_NAME = re.compile(r"yuos-(?:app-|apps-|cap-)[a-z0-9][a-z0-9+.-]*\Z")
+# The Agent package, not the App channel, provides the SDK/runtime ABI.
+APP_NAME = re.compile(r"(?!yuos-app-runtime-v1\Z)yuos-(?:app-|apps-|cap-)[a-z0-9][a-z0-9+.-]*\Z")
 APP_INTERFACE = re.compile(r"yuos-app-(?:support|python-[a-z0-9][a-z0-9-]*)-v1\Z")
 RETIRED_DESKTOP = {"yuos-apps-desktop", "yuos-app-desktop-shell"}
 DESKTOP_SHELL_ROOT = "usr/lib/yuos/apps/desktop-shell"
@@ -39,7 +40,7 @@ def run(arguments, **kwargs):
 
 def settings():
     value = json.loads((ROOT / "packaging/app-packages.json").read_text())
-    if value["format"] != "claw.app-package-consumer/v1" or (
+    if value["format"] != "yuos.app-package-consumer/v1" or (
         value["url"] != "https://xiaoyu-work.github.io/yuos-app/"
         or value["suite"] != "trixie" or value["component"] != "main"
         or value["architectures"] != ["amd64", "arm64"]

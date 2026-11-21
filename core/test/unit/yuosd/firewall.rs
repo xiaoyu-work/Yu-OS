@@ -24,5 +24,5 @@ fn rendered_rules_use_managed_comments() {
     };
     let script = render_ruleset(&state).unwrap();
     assert!(script.contains("tcp dport 22 drop"));
-    assert!(script.contains("comment \"claw:0123456789abcdef0123456789abcdef\""));
+    assert!(script.contains("comment \"yuos:0123456789abcdef0123456789abcdef\""));
 }

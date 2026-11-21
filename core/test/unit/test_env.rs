@@ -105,7 +105,7 @@ pub(crate) fn test_signing_key() -> &'static crate::provenance::sign::SigningKey
     static KEY: std::sync::OnceLock<crate::provenance::sign::SigningKeyFile> =
         std::sync::OnceLock::new();
     KEY.get_or_init(|| {
-        crate::provenance::sign::SigningKeyFile::generate(Some("cos test key".to_string()))
+        crate::provenance::sign::SigningKeyFile::generate(Some("yu test key".to_string()))
             .expect("generate test signing key")
     })
 }
@@ -505,7 +505,7 @@ pub(crate) fn signed_web_app(id: &str) -> std::sync::Arc<crate::provenance::Veri
     std::fs::write(
         dir.join("web-ui.json"),
         serde_json::to_vec(&serde_json::json!({
-            "schema": "claw.web-app/v1", "app_id": id, "source_kind": "product",
+            "schema": "yuos.web-app/v1", "app_id": id, "source_kind": "product",
             "source_name": "fixture", "title": "Web fixture", "description": "Signed fixture",
             "entry": "web/index.html",
         }))

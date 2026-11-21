@@ -28,7 +28,7 @@ fn fs_json_writes_roundtrip_large_text_binary_and_nul_and_reject_overflow() {
     std::env::set_var("YUOS_KERNEL_BIN", &script);
 
     let assert_request = |verb: &str, content: &str| {
-        let captured = std::fs::read(dir.path().join("cos.args")).unwrap();
+        let captured = std::fs::read(dir.path().join("yuos.args")).unwrap();
         let args: Vec<&[u8]> = captured
             .split(|byte| *byte == 0)
             .filter(|value| !value.is_empty())
@@ -36,7 +36,7 @@ fn fs_json_writes_roundtrip_large_text_binary_and_nul_and_reject_overflow() {
         let expected = ["--wire=1", "app", "fs", verb, "--args-stdin"];
         assert_eq!(args, expected.map(str::as_bytes));
         let arguments: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(dir.path().join("cos.stdin")).unwrap()).unwrap();
+            serde_json::from_slice(&std::fs::read(dir.path().join("yuos.stdin")).unwrap()).unwrap();
         assert_eq!(
             arguments,
             serde_json::json!({"path": "--output", "content": content})
@@ -64,7 +64,7 @@ fn fs_json_writes_roundtrip_large_text_binary_and_nul_and_reject_overflow() {
     let binary = vec![255; 256 * 1024];
     write_bytes("--output", &binary).unwrap();
     let arguments: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(dir.path().join("cos.stdin")).unwrap()).unwrap();
+        serde_json::from_slice(&std::fs::read(dir.path().join("yuos.stdin")).unwrap()).unwrap();
     use base64::{engine::general_purpose::STANDARD, Engine as _};
     assert_request("write_bytes", &STANDARD.encode(&binary));
     assert_eq!(
@@ -82,20 +82,20 @@ fn fs_json_writes_roundtrip_large_text_binary_and_nul_and_reject_overflow() {
     let near_limit = "x".repeat(yuos_sdk::APP_ARGS_STDIN_MAX_BYTES - overhead);
     write("--output", &near_limit).unwrap();
     assert_request("write", &near_limit);
-    std::fs::remove_file(dir.path().join("cos.args")).unwrap();
+    std::fs::remove_file(dir.path().join("yuos.args")).unwrap();
     assert!(matches!(
         write("--output", &(near_limit + "x")),
         Err(BridgeError::Io(_))
     ));
     assert!(
-        !dir.path().join("cos.args").exists(),
-        "oversize request spawned cos"
+        !dir.path().join("yuos.args").exists(),
+        "oversize request spawned yu"
     );
     assert!(matches!(
         write_bytes("--output", &vec![0; yuos_sdk::APP_ARGS_STDIN_MAX_BYTES]),
         Err(BridgeError::Io(_))
     ));
-    assert!(!dir.path().join("cos.args").exists());
+    assert!(!dir.path().join("yuos.args").exists());
 
     for (truncation_field, succeeds) in [
         ("", true),

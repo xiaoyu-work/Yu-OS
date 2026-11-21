@@ -48,7 +48,7 @@ impl Driver<'_> {
         let directory = Path::new(OBSERVER).parent().unwrap();
         let next = directory.join("keyboard-command.next");
         let request = serde_json::json!({
-            "schema": "claw.private-keyboard/v1", "sequence": self.sequence,
+            "schema": "yuos.private-keyboard/v1", "sequence": self.sequence,
             "instance": self.window, "surface": surface,
             "expires_ms": yuos_display_control::wire::monotonic_ms().unwrap() + 5_000,
             "kind": kind, "value": value,

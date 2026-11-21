@@ -38,7 +38,7 @@ mod desktop {
 
     const SERVICE: &str = "org.freedesktop.FileManager1";
     const OBJECT_PATH: &str = "/org/freedesktop/FileManager1";
-    const COS: &str = "/usr/local/bin/yu";
+    const YU: &str = "/usr/local/bin/yu";
     const MAX_PENDING: usize = 8;
     const MAX_URIS: usize = 128;
     const MAX_URI_BYTES: usize = 4096;
@@ -201,7 +201,7 @@ mod desktop {
     impl Launcher {
         fn installed(app: String) -> Self {
             Self {
-                executable: PathBuf::from(COS),
+                executable: PathBuf::from(YU),
                 app,
                 environment: launcher_environment(std::env::vars_os()),
             }

@@ -214,7 +214,7 @@ class WireValidationTests(unittest.TestCase):
         validate_budget_show(
             {"app": "notes", "period": "2026-08", "units_used": 7}
         )
-        with mock.patch.object(ai, "_cos_binary", return_value="yu"), mock.patch.object(
+        with mock.patch.object(ai, "_yu_binary", return_value="yu"), mock.patch.object(
             subprocess,
             "run",
             return_value=subprocess.CompletedProcess(
@@ -278,7 +278,7 @@ class WireValidationTests(unittest.TestCase):
         self.assertIn("WIRE_TYPE", str(raised.exception))
         self.assertIn(" at $:", str(raised.exception))
 
-        with mock.patch.object(tools, "_cos_binary", return_value="yu"), mock.patch.object(
+        with mock.patch.object(tools, "_yu_binary", return_value="yu"), mock.patch.object(
             tools,
             "_run_with_timeout",
             return_value=subprocess.CompletedProcess(["yu"], 0, "null", ""),
@@ -307,7 +307,7 @@ class WireValidationTests(unittest.TestCase):
             ),
             "",
         )
-        with mock.patch.object(tools, "_cos_binary", return_value="yu"), mock.patch.object(
+        with mock.patch.object(tools, "_yu_binary", return_value="yu"), mock.patch.object(
             tools, "_run_with_timeout", return_value=completed
         ) as run:
             tools.call(
@@ -328,7 +328,7 @@ class WireValidationTests(unittest.TestCase):
             ),
             "",
         )
-        with mock.patch.object(tools, "_cos_binary", return_value="yu"), mock.patch.object(
+        with mock.patch.object(tools, "_yu_binary", return_value="yu"), mock.patch.object(
             tools, "_run_with_timeout", return_value=tool_completed
         ):
             result = tools.call("echo", {}, app_id="notes")
@@ -350,7 +350,7 @@ class WireValidationTests(unittest.TestCase):
             ),
             "",
         )
-        with mock.patch.object(tools, "_cos_binary", return_value="yu"), mock.patch.object(
+        with mock.patch.object(tools, "_yu_binary", return_value="yu"), mock.patch.object(
             tools, "_run_with_timeout", return_value=catalog_completed
         ):
             entry = tools.catalog()[0]
@@ -368,7 +368,7 @@ class WireValidationTests(unittest.TestCase):
         )
         for args in (None, "scalar", [1, True]):
             with self.subTest(args=args), mock.patch.object(
-                tools, "_cos_binary", return_value="yu"
+                tools, "_yu_binary", return_value="yu"
             ), mock.patch.object(
                 tools, "_run_with_timeout", return_value=completed
             ) as run:
@@ -462,7 +462,7 @@ class WireValidationTests(unittest.TestCase):
             ),
         ):
             with self.subTest(completed=completed), mock.patch.object(
-                tools, "_cos_binary", return_value="yu"
+                tools, "_yu_binary", return_value="yu"
             ), mock.patch.object(
                 tools, "_run_with_timeout", return_value=completed
             ):

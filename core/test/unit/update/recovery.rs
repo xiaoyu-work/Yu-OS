@@ -193,7 +193,7 @@ fn a_tampered_authorization_encoding_is_refused() {
     let path = store.write(&subject).unwrap();
     std::fs::write(
         &path,
-        b"{\n  \"format\": \"claw.security-recovery/v1\"\n}\n",
+        b"{\n  \"format\": \"yuos.security-recovery/v1\"\n}\n",
     )
     .unwrap();
     assert!(store.pending().is_err());

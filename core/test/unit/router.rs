@@ -664,7 +664,7 @@ fn show_builtin_schema_all_primitives() {
 fn every_public_router_namespace_has_machine_readable_help() {
     for name in crate::cli_catalog::namespace_names() {
         let output = dispatch(&[name.to_string(), "--help".to_string()])
-            .unwrap_or_else(|error| panic!("cos {name} --help failed: {error}"));
+            .unwrap_or_else(|error| panic!("yu {name} --help failed: {error}"));
         let value = parse(output);
         assert_eq!(value["app"], name);
         assert!(value["commands"].is_object());

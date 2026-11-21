@@ -605,7 +605,7 @@ pub(crate) fn command_schemas() -> Vec<(&'static str, &'static str, Vec<CommandS
                         false,
                         "Filter pattern",
                     )],
-                    example: "yu sys env COS",
+                    example: "yu sys env YUOS",
                 },
                 CommandSchema {
                     command: "proc",

@@ -71,14 +71,14 @@ struct FakeCos {
 impl FakeCos {
     fn new(block: bool) -> Self {
         let directory = tempfile::Builder::new()
-            .prefix("fm-cos-")
+            .prefix("fm-yu-")
             .tempdir_in(std::env::current_dir().unwrap())
             .unwrap();
         fs::create_dir(directory.path().join("records")).unwrap();
         if !block {
             fs::write(directory.path().join("release"), b"").unwrap();
         }
-        let executable = directory.path().join("fake-cos");
+        let executable = directory.path().join("fake-yu");
         let root = serde_json::to_string(directory.path().to_str().unwrap()).unwrap();
         fs::write(
             &executable,
@@ -161,7 +161,7 @@ sys.exit(9)
             }
         })
         .await
-        .expect("fake cos did not execute")
+        .expect("fake yu did not execute")
     }
 }
 

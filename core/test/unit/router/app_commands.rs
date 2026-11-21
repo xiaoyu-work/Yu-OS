@@ -165,7 +165,7 @@ fn install_generates_desktop_entry_for_gui_app() {
     );
     assert!(body.contains("Categories=X-YuOS;Utility;"), "got:\n{body}");
     assert!(body.contains("MimeType=text/markdown;"), "got:\n{body}");
-    assert!(body.contains("X-CLAW-App-Id=notes"), "got:\n{body}");
+    assert!(body.contains("X-YUOS-App-Id=notes"), "got:\n{body}");
 
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);

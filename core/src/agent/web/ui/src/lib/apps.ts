@@ -58,7 +58,7 @@ export function readInstalled(value: unknown): InstalledApp[] {
 }
 
 export function readStore(value: unknown): StoreView {
-  if (!record(value) || !record(value.catalog) || value.catalog.schema !== "claw.app-store/v2" ||
+  if (!record(value) || !record(value.catalog) || value.catalog.schema !== "yuos.app-store/v2" ||
       value.catalog.repository !== "xiaoyu-work/yuos-app" || value.catalog.runtime_abi !== 1 ||
       typeof value.catalog.generation !== "string" || !/^[1-9][0-9]{0,19}$/.test(value.catalog.generation) ||
       typeof value.catalog.expires_at !== "string" ||
@@ -166,7 +166,7 @@ export function readAppView(value: unknown, appId: string): AppView {
       !SHA256.test(value.view_id) || value.nonce !== value.view_id ||
       value.src !== `/app-ui/${value.view_id}/index.html` || !record(value.app) ||
       value.app.id !== appId || typeof value.app.name !== "string" ||
-      value.app.protocol !== "claw.web-app/v1") {
+      value.app.protocol !== "yuos.web-app/v1") {
     throw new Error("The OS returned an invalid owning-App Web view.");
   }
   return { view_id: value.view_id, nonce: value.nonce, src: value.src,
@@ -177,7 +177,7 @@ export function readAppView(value: unknown, appId: string): AppView {
 export function appMessage(value: unknown, nonce: string, app: InstalledApp): {
   id: string; tool: string; arguments: Record<string, unknown>;
 } | null {
-  if (!record(value) || value.protocol !== "claw.web-app/v1" || value.type !== "call" ||
+  if (!record(value) || value.protocol !== "yuos.web-app/v1" || value.type !== "call" ||
       value.nonce !== nonce || typeof value.id !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(value.id) ||
       typeof value.tool !== "string" || !app.tools.some((tool) => tool.name === value.tool) ||
       !record(value.arguments) || JSON.stringify(value).length > 1024 * 1024) return null;

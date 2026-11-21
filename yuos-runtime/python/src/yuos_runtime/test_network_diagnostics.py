@@ -77,7 +77,7 @@ class NetworkDiagnosticsBridgeTests(unittest.TestCase):
             ).encode(),
             returncode=1,
         )
-        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/cos"}):
+        with mock.patch.dict(os.environ, {"YUOS_KERNEL_BIN": "/runtime/yu"}):
             with mock.patch("subprocess.Popen", return_value=process):
                 with self.assertRaises(network_diagnostics.PermissionDenied):
                     network_diagnostics.request("tcp", target="example.com:443")

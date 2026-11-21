@@ -178,7 +178,7 @@ It is not a real greetd/logind/KMS login or an installed-image acceptance test.
 `yuosd::server::gui_fixture::private_file_manager_session` is the isolated
 FileManager1 acceptance selection (`--file-manager-only` on the twelve-input
 runner); the full GUI selection includes it. It runs actual PAM, display
-attachment, the session-child facade and protected cos through
+attachment, the session-child facade and protected yu through
 ordinary signed zero-needs GUI hosting. Literal URIs, successful and failed
 checked outcomes, exact kernel login ancestry, no borrowed parent grants,
 cross-UID facade refusal before fork/vfork, raw App bus denial, private logs

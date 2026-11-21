@@ -145,7 +145,7 @@ if [ "$1" = "configure" ]; then
     fi
     commit_security_floor
     if [ -z "$DPKG_ROOT" ]; then
-        plymouth-set-default-theme claw
+        plymouth-set-default-theme yuos
         if command -v update-initramfs >/dev/null 2>&1; then
             dpkg-trigger --no-await update-initramfs
         fi

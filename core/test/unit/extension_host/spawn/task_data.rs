@@ -178,7 +178,7 @@ fn session(id: &str, pid: u32, caps: crate::caps::CapSet) -> crate::proc::Sessio
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "requires Root in private mount/network namespaces and YUOS_APP_DATA_TEST_COS/RUNNER"]
+#[ignore = "requires Root in private mount/network namespaces and YUOS_APP_DATA_TEST_YU/RUNNER"]
 async fn task_app_registration_binds_persistent_data_after_authorization() {
     use crate::caps::{Cap, CapSet, Scope, Verb};
     use crate::yuosd::transport::{frame::PeerStream, peer, ReadOutcome};
@@ -224,7 +224,7 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
     std::fs::set_permissions("/run/lock", std::fs::Permissions::from_mode(0o1777)).unwrap();
     mount_tmpfs(c"/usr/local/bin");
     copy_executable(
-        Path::new(&std::env::var("YUOS_APP_DATA_TEST_COS").unwrap()),
+        Path::new(&std::env::var("YUOS_APP_DATA_TEST_YU").unwrap()),
         Path::new("/usr/local/bin/yu"),
     );
     copy_executable(

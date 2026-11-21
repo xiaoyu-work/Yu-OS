@@ -554,7 +554,7 @@ document = {
     "expires_at": expires,
     "floor_generation": int(generation),
     "floor_sha256": floor,
-    "format": "claw.security-recovery/v1",
+    "format": "yuos.security-recovery/v1",
     "id": ident,
     "manifest_sha256": digest,
     "package": package,

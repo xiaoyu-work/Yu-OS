@@ -42,10 +42,10 @@ fn discovery_has_explicit_precedence_and_no_present_but_invalid_fallback() {
         PathBuf::from(DEFAULT_SOCKET_PATH)
     );
 
-    std::env::set_var(RUNTIME_ENV, "/run/test-cos");
+    std::env::set_var(RUNTIME_ENV, "/run/test-yu");
     assert_eq!(
         discover_socket().unwrap(),
-        PathBuf::from("/run/test-cos/yuosd.sock")
+        PathBuf::from("/run/test-yu/yuosd.sock")
     );
 
     std::env::set_var(COMPAT_SOCKET_ENV, "/run/compat.sock");

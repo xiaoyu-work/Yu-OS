@@ -305,8 +305,8 @@ fn providers_cmd_surfaces_bedrock_with_aws_access_key_env() {
 
 #[test]
 fn provider_build_status_surfaces_unresolved_pool_without_secret_values() {
-    const LEGACY_ENV: &str = "__COS_TEST_PROVIDER_STATUS_LEGACY__";
-    const MISSING_POOL_ENV: &str = "__COS_TEST_PROVIDER_STATUS_POOL_MISSING__";
+    const LEGACY_ENV: &str = "__YUOS_TEST_PROVIDER_STATUS_LEGACY__";
+    const MISSING_POOL_ENV: &str = "__YUOS_TEST_PROVIDER_STATUS_POOL_MISSING__";
     const LEGACY_VALUE: &str = "legacy-status-secret-must-not-leak";
     std::env::set_var(LEGACY_ENV, LEGACY_VALUE);
     std::env::remove_var(MISSING_POOL_ENV);

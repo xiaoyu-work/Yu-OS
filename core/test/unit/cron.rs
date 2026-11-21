@@ -744,7 +744,7 @@ fn wait_with_timeout_terminates_slow_child_and_reports_timeout() {
 #[test]
 fn crashed_running_recovered_on_startup() {
     // Reproduces the crashed-mid-run availability bug: a job
-    // whose last_run was stamped `status: "running"` before cos
+    // whose last_run was stamped `status: "running"` before yu
     // crashed must NOT be treated as still-running forever
     // under the default Skip policy. The fix records `pid` in
     // `last_run`; `is_running` checks whether that pid is

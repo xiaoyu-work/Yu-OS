@@ -104,7 +104,7 @@ fn corrupt_or_mis_owned_state_is_an_error() {
     bump_in_place(&dir, domain()).unwrap();
     let mut value: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(dir.join(TRUST_STATE_FILE)).unwrap()).unwrap();
-    value["schema"] = serde_json::json!("claw.trust-state/v2");
+    value["schema"] = serde_json::json!("yuos.trust-state/v2");
     fs::write(dir.join(TRUST_STATE_FILE), value.to_string()).unwrap();
     fs::set_permissions(dir.join(TRUST_STATE_FILE), fs::Permissions::from_mode(0o600)).unwrap();
     assert!(matches!(

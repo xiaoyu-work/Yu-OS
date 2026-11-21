@@ -120,7 +120,7 @@ impl Qwen3GenaiEmbedder {
         }
     }
 
-    /// Default model directory under the cos data root:
+    /// Default model directory under the yu data root:
     /// `<models_dir>/qwen3-embedding-0.6b/v1/`.
     pub fn default_model_dir() -> PathBuf {
         crate::model::paths::model_version_dir("qwen3-embedding-0.6b", "v1")

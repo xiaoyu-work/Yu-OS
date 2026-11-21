@@ -120,7 +120,7 @@ mod tempdir {
     impl Dir {
         pub fn new(label: &str) -> Self {
             let path = std::env::temp_dir().join(format!(
-                "cos-{label}-{}-{}",
+                "yu-{label}-{}-{}",
                 std::process::id(),
                 uuid::Uuid::new_v4().simple()
             ));

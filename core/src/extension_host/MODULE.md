@@ -281,7 +281,7 @@ bash packaging/deb/tests/test-agentd-packaging.sh
 
 The ignored `extension_host::spawn::app_data::tests` private cases require Root
 in a fresh mount namespace. `persistent_service_data_survives_uid_and_host_replacement`
-also takes an explicitly built `YUOS_APP_DATA_TEST_COS` binary. It runs real
+also takes an explicitly built `YUOS_APP_DATA_TEST_YU` binary. It runs real
 sandboxed MCP/SQLite writes through two distinct execution UIDs and mount
 lifetimes, then reads the same files from the owner view. The companion case
 refuses aliases, foreign owners, nested mounts and replaced bindings. These

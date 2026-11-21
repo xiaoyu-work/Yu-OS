@@ -24,7 +24,7 @@ import sys
 
 # ---------------------------------------------------------------------------
 # System prompt — intentionally minimal.  Everything else is discovered
-# by the agent at runtime via ``$ cos``.
+# by the agent at runtime via ``$ yu``.
 # ---------------------------------------------------------------------------
 
 SYSTEM_PROMPT = """\
@@ -32,7 +32,7 @@ You are an AI agent running on Yu OS.
 
 To interact with the system, write a command on a line starting with $:
 
-$ cos
+$ yu
 
 Run the command above to see what you can do.\
 """
@@ -82,9 +82,9 @@ class Executor:
                 if k in os.environ:
                     env[k] = os.environ[k]
         else:
-            cmd = [self._cos_path()] + parts
+            cmd = [self._yu_path()] + parts
             # Local mode runs in this process's user context, so it's
-            # safe to inherit env — but only pass through the cos-
+            # safe to inherit env — but only pass through the yu-
             # specific knobs explicitly (the rest of the parent env is
             # already visible to the child process by default).
             env = os.environ.copy()
@@ -107,19 +107,19 @@ class Executor:
         except Exception as e:
             return f"error: {e}"
 
-    def _cos_path(self):
+    def _yu_path(self):
         """Resolve the yu binary. Prefer system-installed, fall back to local build."""
         import shutil
-        system_cos = shutil.which("yu")
-        if system_cos:
-            return system_cos
+        system_yu = shutil.which("yu")
+        if system_yuos:
+            return system_yu
         # Development: use locally built Rust binary
         base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         return os.path.join(base, "core", "target", "release", "yu")
 
 
 # ---------------------------------------------------------------------------
-# Command extraction — pull ``$ cos …`` lines from LLM text
+# Command extraction — pull ``$ yu …`` lines from LLM text
 # ---------------------------------------------------------------------------
 
 def extract_commands(text, max_commands=1024):

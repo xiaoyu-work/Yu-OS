@@ -194,7 +194,7 @@ module tags. It does not publish to PyPI, npm, or crates.io.
 ### Run Locally (Development)
 
 ```bash
-# Point cos to local apps directory
+# Point yu to local apps directory
 YUOS_APPS_DIR=./apps YUOS_DATA_DIR=/tmp/yuos-data ./core/target/debug/yu sys info
 YUOS_APPS_DIR=./apps YUOS_DATA_DIR=/tmp/yuos-data ./core/target/debug/yu fs ls .
 ```
@@ -259,7 +259,7 @@ cargo test --manifest-path desktop/services/yuos-applet-services/Cargo.toml --fe
 
 ```
 yuos/
-├── core/              Rust binary (cos)
+├── core/              Rust binary (yu)
 │   └── src/
 │       ├── main.rs        Entry point
 │       ├── agentd/        Unprivileged model/tool worker supervision

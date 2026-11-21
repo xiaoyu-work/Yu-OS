@@ -331,7 +331,7 @@ impl Fixture {
             self.second = Some(second);
         }
         let report = serde_json::json!({
-            "schema":"claw.private-native-notifications-consumer/v1","case":self.case,"instance":instance,
+            "schema":"yuos.private-native-notifications-consumer/v1","case":self.case,"instance":instance,
             "owner_uid":OWNER,"first_notification":self.first.id,"other_owner_notification":self.other_owner.id,
             "card_handle":card.id,"actual_popup_frame":first_frame,
             "real_signed_host":true,"real_root_desktop_lease":true,"real_private_panel_descriptor":true,

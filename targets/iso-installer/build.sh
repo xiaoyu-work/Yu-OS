@@ -160,7 +160,7 @@ grub-mkrescue \
     --product-name="Yu OS Installer" \
     "$ISO_BUILD" \
     -- \
-    -volid "CLAWOS_INST"
+    -volid "YUOS_INST"
 
 SIZE=$(du -h "$OUTPUT" | cut -f1)
 echo ":: done — $OUTPUT ($SIZE)"

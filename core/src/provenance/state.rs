@@ -11,7 +11,7 @@
 //!
 //! ```jsonc
 //! {
-//!   "schema": "claw.trust-state/v1",
+//!   "schema": "yuos.trust-state/v1",
 //!   "generation": 7,                  // monotonic, bumped on every change
 //!   "fingerprint": "sha256:…",        // over the domain's trust file contents
 //!   "updated_at": "2026-08-28T…Z"
@@ -83,7 +83,7 @@ use serde::{Deserialize, Serialize};
 
 use super::fsec;
 
-pub const TRUST_STATE_SCHEMA_V1: &str = "claw.trust-state/v1";
+pub const TRUST_STATE_SCHEMA_V1: &str = "yuos.trust-state/v1";
 
 /// File name of the per-domain state file, stored next to the domain's
 /// roots (`/etc/yuos/trust/state.json`, `~/.config/yuos/trust/state.json`).

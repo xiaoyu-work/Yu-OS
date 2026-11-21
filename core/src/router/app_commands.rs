@@ -981,7 +981,7 @@ fn scaffold_main_py(id: &str, want_ops: bool, want_desktop: bool) -> String {
     }
 
     out.push_str("def run(command, args):\n");
-    out.push_str("    \"\"\"Entry point called by cos.\"\"\"\n");
+    out.push_str("    \"\"\"Entry point called by yu.\"\"\"\n");
     if want_desktop {
         out.push_str("    if gui.is_gui_launch():\n");
         out.push_str("        return run_gui(gui.context())\n");
@@ -1031,9 +1031,9 @@ fn write_desktop_entry(manifest: &apps::AppManifest) -> Result<Option<String>, S
     };
     let exec_line = exec_line.trim_end().to_string();
 
-    // Categories: always tag YuOS, then the app's own (validated to
+    // Categories: always tag X-YuOS, then the app's own (validated to
     // contain no ';' or control chars at manifest parse time).
-    let mut cats = vec!["YuOS".to_string()];
+    let mut cats = vec!["X-YuOS".to_string()];
     cats.extend(desktop.categories.iter().cloned());
 
     let mut entry = String::new();
@@ -1056,7 +1056,7 @@ fn write_desktop_entry(manifest: &apps::AppManifest) -> Result<Option<String>, S
     }
     // Provenance marker so the launcher / audit tooling can tell a
     // Yu OS app entry from an ordinary system .desktop.
-    entry.push_str(&format!("X-CLAW-App-Id={id}\n"));
+    entry.push_str(&format!("X-YUOS-App-Id={id}\n"));
 
     let dir = applications_dir();
     std::fs::create_dir_all(&dir).map_err(|e| format!("create {}: {e}", dir.display()))?;

@@ -833,7 +833,7 @@ fn promote_drop_without_finish_marks_failed() {
 }
 
 #[test]
-fn promote_restores_previous_cos_session_env() {
+fn promote_restores_previous_yu_session_env() {
     let _lock = lock_env();
     let _data = redirect_data_dir();
 

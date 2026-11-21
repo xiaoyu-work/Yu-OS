@@ -234,7 +234,7 @@ print(json.dumps(value))
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "requires private Root namespaces, staged App source, and YUOS_CALENDAR_{COS,READER,PROVIDER} binaries"]
+#[ignore = "requires private Root namespaces, staged App source, and YUOS_CALENDAR_{YU,READER,PROVIDER} binaries"]
 async fn calendar_mcp_to_broker_reader_and_public_sdk() {
     use crate::yuosd::transport::{frame::PeerStream, peer, ReadOutcome};
     use crate::yuosd::wire::Request;
@@ -291,7 +291,7 @@ async fn calendar_mcp_to_broker_reader_and_public_sdk() {
     mount_tmpfs(c"/usr/local/bin");
     std::fs::create_dir_all("/run/yuos").unwrap();
     executable(
-        Path::new(&std::env::var("YUOS_CALENDAR_COS").unwrap()),
+        Path::new(&std::env::var("YUOS_CALENDAR_YU").unwrap()),
         Path::new("/usr/local/bin/yu"),
     );
     executable(

@@ -262,7 +262,7 @@ async fn create_snapshot(description: &str) -> Result<SnapshotRecord, String> {
                     "LVM volume group `{vg}` has insufficient free space for a safe snapshot"
                 ));
             }
-            let name = format!("cos_{}", &id[5..17]);
+            let name = format!("yuos_{}", &id[5..17]);
             run(
                 lvcreate_path(),
                 &[

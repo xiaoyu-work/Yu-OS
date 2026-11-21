@@ -1,6 +1,6 @@
 //! llama.cpp inference engine — runtime-loaded.
 //!
-//! As of P2.3, `libllama` is no longer compile-time linked. The cos
+//! As of P2.3, `libllama` is no longer compile-time linked. The yu
 //! binary always builds; an engine is *available* iff the engine
 //! package manager has installed an active version on disk:
 //!

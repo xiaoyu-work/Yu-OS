@@ -59,7 +59,7 @@ pub async fn summarise(aux: Option<&AuxiliaryClient>, text: &str, max_chars: usi
             }
             Err(e) => {
                 tracing::warn!(
-                    target: "cos.agent.summarise",
+                    target: "yuos.agent.summarise",
                     "auxiliary summarise failed: {e}"
                 );
             }

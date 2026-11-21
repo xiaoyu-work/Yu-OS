@@ -2183,7 +2183,7 @@ fn render_header(frame: &mut Frame<'_>, area: Rect, app: &App) {
         .unwrap_or(workspace_path);
     let line = Line::from(vec![
         Span::styled(
-            " CLAW AGENT ",
+            " YU OS AGENT ",
             Style::default()
                 .fg(Color::Black)
                 .bg(accent(app))

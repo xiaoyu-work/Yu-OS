@@ -41,7 +41,7 @@
 //! | --- | --- |
 //! | [`canonical`] | Deterministic JSON encoding used for signing and hashing |
 //! | [`debver`] | Debian version ordering (`dpkg --compare-versions` semantics) |
-//! | [`manifest`] | The signed `claw.release-security/v1` release manifest |
+//! | [`manifest`] | The signed `yuos.release-security/v1` release manifest |
 //! | [`signature`] | OpenPGP verification against the release/APT trust already on the machine |
 //! | [`floor`] | The durable, root-owned monotonic floor state |
 //! | [`projection`] | The unprivileged, root-owned runtime view of that floor |
@@ -227,6 +227,12 @@ pub const COMPONENTS: &[Component] = &[
     Component {
         name: "yuos-ask-launcher",
         path: "/usr/local/bin/yuos-ask-launcher",
+        package: "yuos-desktop",
+        critical: false,
+    },
+    Component {
+        name: "browser-chat-native-host",
+        path: "/usr/lib/yuos/browser-chat-native-host",
         package: "yuos-desktop",
         critical: false,
     },

@@ -1,5 +1,5 @@
 {
-  "schema": "claw.applet-services.cases/v1",
+  "schema": "yuos.applet-services.cases/v1",
   "requests": [
     {"name":"selected leap day","wire":"{\"version\":1,\"id\":1,\"operation\":{\"kind\":\"calendar-day\",\"date\":{\"year\":2024,\"month\":2,\"day\":29}}}","error":null},
     {"name":"today","wire":"{\"version\":1,\"id\":2,\"operation\":{\"kind\":\"calendar-today\"}}","error":null},

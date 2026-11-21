@@ -93,7 +93,7 @@ app_apt() {
     for fixture in "${fixtures[@]}"; do
         sudo timeout --kill-after=5 150 unshare --mount --pid --net --fork --mount-proc --kill-child=KILL \
             env YUOS_APP_APT_TEST_HOOK="$CARGO_TARGET_DIR/debug/yuos-app-apt-hook" \
-                YUOS_APP_APT_TEST_COS="$CARGO_TARGET_DIR/debug/yu" \
+                YUOS_APP_APT_TEST_YU="$CARGO_TARGET_DIR/debug/yu" \
                 YUOS_APP_APT_TEST_RUNNER="$CARGO_TARGET_DIR/debug/yuos-app-runner" \
                 YUOS_APP_APT_TEST_HOST="$CARGO_TARGET_DIR/debug/yuos-extension-host" \
                 YUOS_APP_APT_TEST_NODE="$node_binary" \
@@ -170,7 +170,7 @@ app_bind() {
         grep -Fx -- "extension_host::spawn::task_data::tests::store_custody::$fixture: test" \
             <<< "$listing" > /dev/null
         sudo timeout 150 unshare --mount --net --fork \
-            env YUOS_ORDINARY_TEST_COS="$CARGO_TARGET_DIR/debug/yu" \
+            env YUOS_ORDINARY_TEST_YU="$CARGO_TARGET_DIR/debug/yu" \
                 YUOS_ORDINARY_TEST_RUNNER="$CARGO_TARGET_DIR/debug/yuos-app-runner" \
             bash --noprofile --norc -c '
                 set -euo pipefail
@@ -189,7 +189,7 @@ calendar() {
         > "$RUNNER_TEMP/calendar-tests.jsonl"
     test_binary="$(yu_test_binary "$RUNNER_TEMP/calendar-tests.jsonl")"
     sudo timeout 120 unshare --mount --net --fork \
-        env YUOS_CALENDAR_COS="$CARGO_TARGET_DIR/debug/yu" \
+        env YUOS_CALENDAR_YU="$CARGO_TARGET_DIR/debug/yu" \
             YUOS_CALENDAR_READER="$RUNNER_TEMP/calendar-target/debug/yuos-calendar-reader" \
             YUOS_CALENDAR_PROVIDER="$RUNNER_TEMP/calendar-target/debug/yuos-applet-provider" \
         bash --noprofile --norc -c '
@@ -454,7 +454,7 @@ display() {
         persistent_service_data_survives_uid_and_host_replacement \
         service_data_refuses_aliases_foreign_owners_submounts_and_replaced_bindings; do
         sudo timeout 90 unshare --mount --net --fork \
-            env YUOS_APP_DATA_TEST_COS="$CARGO_TARGET_DIR/debug/yu" \
+            env YUOS_APP_DATA_TEST_YU="$CARGO_TARGET_DIR/debug/yu" \
             bash --noprofile --norc -c '
                 set -euo pipefail
                 mount --make-rprivate /
@@ -462,7 +462,7 @@ display() {
             ' private-app-data "$test_binary" "extension_host::spawn::app_data::tests::$data_case"
     done
     sudo timeout 100 unshare --mount --net --fork \
-        env YUOS_APP_DATA_TEST_COS="$CARGO_TARGET_DIR/debug/yu" \
+        env YUOS_APP_DATA_TEST_YU="$CARGO_TARGET_DIR/debug/yu" \
             YUOS_APP_DATA_TEST_RUNNER="$CARGO_TARGET_DIR/debug/yuos-app-runner" \
         bash --noprofile --norc -c '
             set -euo pipefail

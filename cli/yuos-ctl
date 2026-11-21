@@ -21,7 +21,7 @@ import sys
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMAGE_NAME = "yuos"
-CONTAINER_PREFIX = "cos-"
+CONTAINER_PREFIX = "yuos-"
 
 
 def respond(data):
@@ -159,7 +159,7 @@ def cmd_exec(args):
     target = args[0]
     yu_args = args[1:]
     result = docker("exec", target, "yu", *yu_args)
-    # Pass through the JSON output from cos directly
+    # Pass through the JSON output from yu directly
     if result.stdout.strip():
         try:
             data = json.loads(result.stdout)

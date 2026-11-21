@@ -14,7 +14,7 @@ const PROTECTED_PATTERNS: &[&str] = &[
     "/.env",
     "/.config/yuos/",
     "/.local/share/yuos/",
-    "/.local/state/cos/",
+    "/.local/state/yuos/",
     "/.local/state/yuos-semantic/",
 ];
 

@@ -5,7 +5,7 @@
 //! | Command | Purpose |
 //! | --- | --- |
 //! | `keygen` | Create a publisher signing key (mode `0600`) plus its trust entry |
-//! | `sign` | Build and sign a package's `claw.provenance/v1` envelope |
+//! | `sign` | Build and sign a package's `yuos.provenance/v1` envelope |
 //! | `verify` | Authenticate a package directory against the active trust store |
 //! | `trust list` | Show trusted keys, revocations and developer grants |
 //! | `trust add` | Install a publisher trust entry into the per-user root |
@@ -142,10 +142,10 @@ fn sign_cmd(args: &[String]) -> Result<Value, String> {
     let version = flag(args, "version").unwrap_or_else(|| "0.0.0".to_string());
     let manifest_path = flag(args, "manifest").unwrap_or_else(|| kind.manifest_file().to_string());
     let manifest_schema = flag(args, "manifest-schema").unwrap_or_else(|| match kind {
-        PackageKind::App => "cos.app-manifest/v1".to_string(),
+        PackageKind::App => "yuos.app-manifest/v1".to_string(),
         PackageKind::Skill => "agentskills.io/skill-md/v1".to_string(),
-        PackageKind::Mcp => "claw.agent-api/v1".to_string(),
-        PackageKind::AgentExtension => "claw.agent-extension/v1".to_string(),
+        PackageKind::Mcp => "yuos.agent-api/v1".to_string(),
+        PackageKind::AgentExtension => "yuos.agent-extension/v1".to_string(),
     });
     let key = SigningKeyFile::load(&key_path).map_err(|e| e.to_string())?;
     let request = sign::SignRequest {

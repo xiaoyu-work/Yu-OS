@@ -613,7 +613,7 @@ pub fn operation_identity(
 ) -> Result<crate::audit_policy::TextDigest, JournalError> {
     let lease = lease()?;
     let mut data = Vec::with_capacity(request_key.len() + 64);
-    data.extend_from_slice(b"cos.session.journal.idempotency.v1");
+    data.extend_from_slice(b"yuos.session.journal.idempotency.v1");
     push_field(&mut data, &owner_uid.to_be_bytes());
     push_field(&mut data, route.as_bytes());
     push_field(&mut data, request_key.as_bytes());

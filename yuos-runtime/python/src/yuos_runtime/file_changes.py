@@ -14,7 +14,7 @@ import os
 import re
 import subprocess
 
-from .policy import PolicyError, _cos_binary
+from .policy import PolicyError, _yu_binary
 
 _MAX_CONTENT = 65_536
 _MAX_JSON = 128 * 1024
@@ -27,7 +27,7 @@ class FileChangeError(Exception):
     """Replacement failed or its outcome is unknown.
 
     ``indeterminate=False`` is used only for validation/discovery failures
-    before invoking cos. A relay may flatten provider errors, so an ordinary
+    before invoking yu. A relay may flatten provider errors, so an ordinary
     error code from a subprocess is not evidence that the target is unchanged.
     """
 
@@ -112,9 +112,9 @@ def replace_file(
     if len(payload.encode("utf-8")) > _MAX_JSON:
         _invalid("replacement JSON exceeds 128 KiB")
     try:
-        binary = _cos_binary()
+        binary = _yu_binary()
     except PolicyError as exc:
-        raise FileChangeError("cos is unavailable for file replacement", code="unavailable", indeterminate=False) from exc
+        raise FileChangeError("yu is unavailable for file replacement", code="unavailable", indeterminate=False) from exc
     try:
         process = subprocess.run(
             [binary, "__file", "replace"],

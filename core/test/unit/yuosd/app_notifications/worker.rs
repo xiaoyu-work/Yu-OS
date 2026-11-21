@@ -179,14 +179,14 @@ async fn notification_broker(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "requires native Notifications, native presentation fixture, desktop delivery fixture and cos"]
+#[ignore = "requires native Notifications, native presentation fixture, desktop delivery fixture and yu"]
 async fn notifications_actual_native_worker_durable_delivery_and_owner_bound_ui() {
     let _lock = crate::test_env::lock_env();
     let native = input("YUOS_NOTIFICATIONS_BINARY");
     let manifest = input("YUOS_NOTIFICATIONS_MANIFEST");
     let presenter = input("YUOS_NOTIFICATIONS_PRESENTER");
     let bridge = input("YUOS_NOTIFICATIONS_DELIVERY");
-    let cos = input("YUOS_NOTIFICATIONS_COS");
+    let yu = input("YUOS_NOTIFICATIONS_YU");
     let root = tempfile::Builder::new()
         .prefix("nf-")
         .tempdir_in(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../build"))
@@ -237,7 +237,7 @@ async fn notifications_actual_native_worker_durable_delivery_and_owner_bound_ui(
         .mounts
         .retain(|mount| mount.target != std::path::Path::new("/usr/local/bin/yu"));
     policy.mounts.push(Mount::read_only(
-        cos,
+        yu,
         "/usr/local/bin/yu",
         MountClass::Runtime,
     ));
@@ -327,7 +327,7 @@ async fn notifications_actual_native_worker_durable_delivery_and_owner_bound_ui(
     let mut ui_output = tokio::io::BufReader::new(ui.stdout.take().unwrap()).lines();
     assert_eq!(line(&mut ui_output).await, "ready");
     let wrong_presenter = start(&bridge)
-        .arg(input("YUOS_NOTIFICATIONS_COS"))
+        .arg(input("YUOS_NOTIFICATIONS_YU"))
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();

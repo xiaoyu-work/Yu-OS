@@ -547,7 +547,7 @@ def _browser_asset_check(tmp_path, *, writable=False):
     else:
         host.unlink()
     script = (ROOT / "tools/install-browser-agent.sh").read_text()
-    block = script[script.index('if [[ -n "${EXT_ID}"'):script.index('echo "[claw] installing Native Messaging')]
+    block = script[script.index('if [[ -n "${EXT_ID}"'):script.index('echo "[yuos] installing Native Messaging')]
     before = {path: path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()}
     result = subprocess.run(
         ["bash", "-euc", block], capture_output=True, text=True,
@@ -1102,7 +1102,7 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
             assert code == _app_payload(original, source=True)
             assert _app_payload(installed / "web") == expected_ui
             descriptor = json.loads((installed / "web-ui.json").read_text())
-            assert descriptor["schema"] == "claw.web-app/v1"
+            assert descriptor["schema"] == "yuos.web-app/v1"
             assert descriptor["app_id"] == app_id
             assert descriptor["source_kind"] == "capability"
             assert descriptor["source_name"] == group
@@ -1144,7 +1144,7 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
     (net / net_manifest["mcp"]["entry"]).rename(net / "http_mcp.py")
     net_manifest["mcp"]["entry"] = "http_mcp.py"
     (net / "app.json").write_text(json.dumps(net_manifest))
-    denied_policy = tmp_path / "deny-cos"
+    denied_policy = tmp_path / "deny-yu"
     denied_policy.write_text(
         '#!/bin/sh\n'
         'test "$1:$2:$3" = "--wire=1:__policy:check" || exit 99\n'
@@ -1591,4 +1591,4 @@ def test_native_player_source_status_and_package_identity_are_consistent():
     assert f"**{len(lock['products'])} business product groups**" in status
     assert "yuos-app/products/media-player" in status
     assert "products/media-player" in (ROOT / "desktop/PROVENANCE.md").read_text()
-    assert "just player-build" in (ROOT / "desktop/README.md").read_text()
+    assert "tools/native_build.py media-player build" in (ROOT / "desktop/README.md").read_text()

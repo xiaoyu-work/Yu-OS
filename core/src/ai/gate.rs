@@ -1239,7 +1239,7 @@ fn build_chat_request(
         temperature: None,
         top_p: None,
         stop_sequences: Vec::new(),
-        extra: serde_json::json!({"_cos_initiator": "agent"}),
+        extra: serde_json::json!({"__yuos_initiator": "agent"}),
     }
 }
 

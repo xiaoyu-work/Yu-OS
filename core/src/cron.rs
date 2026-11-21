@@ -225,7 +225,7 @@ struct CronRunResult {
     duration_ms: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     run_id: Option<String>,
-    /// PID of the spawned shell. Recorded so that, on cos restart,
+    /// PID of the spawned shell. Recorded so that, on yu restart,
     /// `is_running` can decide whether a stale `status: "running"`
     /// row belongs to a still-live process or a crashed run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -685,7 +685,7 @@ fn execute_job(job: &CronJob, run_id: &str) -> CronRunResult {
     let mut cmd = std::process::Command::new(crate::bridge::app_runner_path());
     cmd.arg("--").arg(shell).arg(shell_flag).arg(&job.command);
     // Default stdin to /dev/null so a job that mistakenly tries to
-    // read input doesn't block forever inheriting the cos parent
+    // read input doesn't block forever inheriting the yu parent
     // tty / pipe.
     cmd.stdin(std::process::Stdio::null());
 

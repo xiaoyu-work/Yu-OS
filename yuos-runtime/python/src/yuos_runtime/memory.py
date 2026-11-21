@@ -175,7 +175,7 @@ def forget(*, source: Optional[str] = None, row_id: Optional[int] = None) -> dic
 
 
 def _invoke(subcommand: str, args: Sequence[str]) -> dict:
-    cmd = [_cos_binary(), WIRE_ARG, "__memory", subcommand, *args]
+    cmd = [_yu_binary(), WIRE_ARG, "__memory", subcommand, *args]
     try:
         proc = subprocess.run(
             cmd,
@@ -211,7 +211,7 @@ def _invoke(subcommand: str, args: Sequence[str]) -> dict:
         raise MemoryUnavailable(str(error)) from error
 
 
-def _cos_binary() -> str:
+def _yu_binary() -> str:
     """Locate the ``yu`` binary. Honours ``YUOS_KERNEL_BIN`` for tests."""
     override = os.environ.get("YUOS_KERNEL_BIN")
     if override:

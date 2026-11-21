@@ -104,7 +104,7 @@ fn malformed_json_returns_defaults() {
 }
 
 /// Parse-failure regression: a malformed config file on disk must
-/// (a) NOT panic, (b) return the safe defaults so cos can still
+/// (a) NOT panic, (b) return the safe defaults so yu can still
 /// boot, and (c) emit a tracing::error! so the operator notices.
 /// The earlier behaviour swallowed the serde error with
 /// `unwrap_or_default()` and silently downgraded the running
@@ -138,7 +138,7 @@ fn load_from_disk_returns_defaults_on_malformed_file_without_panic() {
     }
     let _ = fs::remove_dir_all(&dir);
 
-    // Defaults: cos can still boot.
+    // Defaults: yu can still boot.
     assert_eq!(cfg.version, env!("CARGO_PKG_VERSION"));
     assert_eq!(cfg.exec.timeout, 300);
     assert_eq!(cfg.exec.shell, "/bin/bash");

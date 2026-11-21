@@ -10,7 +10,7 @@
 //!
 //! | Module | Responsibility |
 //! | --- | --- |
-//! | [`envelope`] | The versioned `claw.provenance/v1` format and its canonical signing bytes |
+//! | [`envelope`] | The versioned `yuos.provenance/v1` format and its canonical signing bytes |
 //! | [`trust`] | Trust roots, key ids, revocation/rotation, developer grants |
 //! | [`verify`] | Signature + content verification, verified snapshots |
 //! | [`sign`] | Publisher/developer signing workflow |

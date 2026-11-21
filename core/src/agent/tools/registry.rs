@@ -551,7 +551,7 @@ impl ToolRegistry {
             ));
         }
         let canonical = serde_json::to_vec(&serde_json::json!({
-            "domain": "claw.agent-extension.action/v2",
+            "domain": "yuos.agent-extension.action/v2",
             "extension_id": extension_id,
             "package_digest": package_digest,
             "manifest_digest": manifest_digest,

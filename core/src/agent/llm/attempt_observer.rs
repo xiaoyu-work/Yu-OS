@@ -131,7 +131,7 @@ impl ObservedProvider {
     fn start(&self, request: &ChatRequest, delivery: ProviderDelivery) -> AttemptSpan {
         let turn_index = request
             .extra
-            .get("_cos_turn_index")
+            .get("__yuos_turn_index")
             .and_then(serde_json::Value::as_u64)
             .and_then(|value| u32::try_from(value).ok())
             .unwrap_or(0);

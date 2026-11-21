@@ -75,7 +75,7 @@ fn trust_add_requires_the_expected_schema() {
     ));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("wrong.json");
-    std::fs::write(&path, r#"{"schema":"claw.trust/v2","keys":[]}"#).unwrap();
+    std::fs::write(&path, r#"{"schema":"yuos.trust/v2","keys":[]}"#).unwrap();
     let err = trust_add(&["--file".to_string(), path.display().to_string()]).unwrap_err();
     assert!(err.contains("claw.trust/v1"), "{err}");
     let _ = std::fs::remove_dir_all(&dir);

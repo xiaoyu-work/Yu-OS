@@ -67,7 +67,7 @@ use super::store::{self, SessionError};
 /// Mirrored from `caps/bootstrap.rs` and the internal policy bridge — the canonical
 /// signal for "this `yu` invocation should target an existing
 /// session, not mint a new one".
-const ENV_COS_SESSION: &str = "YUOS_SESSION";
+const ENV_YUOS_SESSION: &str = "YUOS_SESSION";
 
 /// Serializes every mutation of `YUOS_SESSION` across the entire
 /// process.
@@ -79,13 +79,13 @@ const ENV_COS_SESSION: &str = "YUOS_SESSION";
 /// `YUOS_SESSION` through this mutex. Callers that touch the env are
 /// the lifecycle helpers in this module; nothing else inside the
 /// kernel mutates it.
-static ENV_COS_SESSION_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+static ENV_YUOS_SESSION_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn with_env_lock<F, T>(f: F) -> T
 where
     F: FnOnce() -> T,
 {
-    let _g = ENV_COS_SESSION_LOCK
+    let _g = ENV_YUOS_SESSION_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     f()
@@ -266,8 +266,8 @@ pub fn promote_to_durable(
     let lease = lease::try_acquire(&sid)?;
 
     let prev_session_env = with_env_lock(|| {
-        let prev = std::env::var_os(ENV_COS_SESSION);
-        std::env::set_var(ENV_COS_SESSION, sid.as_str());
+        let prev = std::env::var_os(ENV_YUOS_SESSION);
+        std::env::set_var(ENV_YUOS_SESSION, sid.as_str());
         prev
     });
 
@@ -365,8 +365,8 @@ pub fn resume(
     })?;
 
     let prev_session_env = with_env_lock(|| {
-        let prev = std::env::var_os(ENV_COS_SESSION);
-        std::env::set_var(ENV_COS_SESSION, sid.as_str());
+        let prev = std::env::var_os(ENV_YUOS_SESSION);
+        std::env::set_var(ENV_YUOS_SESSION, sid.as_str());
         prev
     });
 
@@ -385,8 +385,8 @@ pub fn resume(
 
 fn restore_env(prev: Option<OsString>) {
     with_env_lock(|| match prev {
-        Some(v) => std::env::set_var(ENV_COS_SESSION, v),
-        None => std::env::remove_var(ENV_COS_SESSION),
+        Some(v) => std::env::set_var(ENV_YUOS_SESSION, v),
+        None => std::env::remove_var(ENV_YUOS_SESSION),
     })
 }
 

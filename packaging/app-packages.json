@@ -1,5 +1,5 @@
 {
-  "format": "claw.app-package-consumer/v1",
+  "format": "yuos.app-package-consumer/v1",
   "url": "https://xiaoyu-work.github.io/yuos-app/",
   "suite": "trixie",
   "component": "main",

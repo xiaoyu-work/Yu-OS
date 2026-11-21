@@ -26,7 +26,7 @@ pub const GRANT_VERSION: u32 = 9;
 /// Intended recipient of the grant. A token issued for the worker
 /// channel is meaningless anywhere else because every verifier requires
 /// its own audience string.
-pub const GRANT_AUDIENCE: &str = "cos.agentd.worker.v1";
+pub const GRANT_AUDIENCE: &str = "yuos.agentd.worker.v1";
 
 type HmacSha256 = Hmac<Sha256>;
 

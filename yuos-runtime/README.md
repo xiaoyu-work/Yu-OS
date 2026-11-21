@@ -104,7 +104,7 @@ one without overwrite, then syncs the parent. New files are owner-private
 `0600`; existing host UID/GID and basic mode are preserved.
 
 The final check/commit interval is **not CAS against uncooperative host
-writers**. `FileChangeError` reports every failure; after invoking cos its
+writers**. `FileChangeError` reports every failure; after invoking yu its
 `indeterminate` flag stays conservative even when a worker relay reports an ordinary
 error code. An unknown commit or durability outcome keeps an effect-level
 journal bracket unresolved and refuses replay until operator resolution.

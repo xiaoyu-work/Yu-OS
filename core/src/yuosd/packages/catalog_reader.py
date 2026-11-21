@@ -74,7 +74,7 @@ def _sources():
 
 def snapshot():
     records = []
-    digest = hashlib.sha256(b"claw.package-catalog/v1\0")
+    digest = hashlib.sha256(b"yuos.package-catalog/v1\0")
     source_bytes = 0
     for path in _sources():
         fd = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK)

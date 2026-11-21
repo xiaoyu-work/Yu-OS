@@ -16,7 +16,7 @@ from zoneinfo import available_timezones
 
 SHELL = "/usr/bin/quickshell"
 CONFIG = "/usr/share/yuos/oobe/shell.qml"
-COS = "/usr/local/bin/yu"
+YU = "/usr/local/bin/yu"
 DRIVERS = Path("/var/lib/yuos/driver-setup/status.json")
 
 
@@ -294,7 +294,7 @@ def backend(completed, staging=None):
                     failed_profile.delete_async(None, None)
             send(wifiState="idle" if state == NM.ActiveConnectionState.ACTIVATED else "failed")
 
-        def cos(self, args, callback, stdin=""):
+        def run_yu(self, args, callback, stdin=""):
             flags = Gio.SubprocessFlags
             try:
                 launcher = Gio.SubprocessLauncher.new(
@@ -303,7 +303,7 @@ def backend(completed, staging=None):
                 if staging is not None:
                     launcher.setenv("YUOS_USER_CONFIG_DIR", str(staging / "config"), True)
                     launcher.setenv("YUOS_USER_DATA_DIR", str(staging / "data"), True)
-                self.child = launcher.spawnv([COS, "agent", "setup", "text", *args])
+                self.child = launcher.spawnv([YU, "agent", "setup", "text", *args])
             except GLib.Error:
                 callback({})
                 return
@@ -326,14 +326,14 @@ def backend(completed, staging=None):
             def catalogue(response):
                 if response.get("ready"):
                     send(savedModel=response["model"])
-                self.cos(["providers"], providers)
+                self.run_yu(["providers"], providers)
 
             def providers(response):
                 entries = response.get("providers", [])
                 self.providers = {entry["name"]: entry for entry in entries}
                 send(providers=entries, agentState="idle" if entries else "unavailable")
 
-            self.cos(["--status"], catalogue)
+            self.run_yu(["--status"], catalogue)
 
         def sign_in(self):
             if self.child is not None or self.oauth is not None:
@@ -354,7 +354,7 @@ def backend(completed, staging=None):
                 send(userCode=response["user_code"], agentState="authorizing")
                 self.schedule_poll()
 
-            self.cos(["oauth-start", "--provider", "copilot"], started)
+            self.run_yu(["oauth-start", "--provider", "copilot"], started)
 
         def schedule_poll(self):
             self.oauth_timer = GLib.timeout_add_seconds(self.oauth["interval"], self.poll_sign_in)
@@ -377,12 +377,12 @@ def backend(completed, staging=None):
                 elif status == "ok":
                     self.signed_in = True
                     self.end_sign_in("loadingModels")
-                    self.cos(["models", "--provider", "copilot"], self.copilot_models)
+                    self.run_yu(["models", "--provider", "copilot"], self.copilot_models)
                 else:
                     self.end_sign_in("signInFailed")
 
-            self.cos(["oauth-poll", "--provider", "copilot", "--device-code-stdin"],
-                     polled, flow["code"] + "\n")
+            self.run_yu(["oauth-poll", "--provider", "copilot", "--device-code-stdin"],
+                        polled, flow["code"] + "\n")
             return GLib.SOURCE_REMOVE
 
         def end_sign_in(self, state="idle"):
@@ -423,7 +423,7 @@ def backend(completed, staging=None):
                 else:
                     send(agentState="saveFailed")
 
-            self.cos(args, saved, secret)
+            self.run_yu(args, saved, secret)
 
     Setup().run()
 
@@ -465,7 +465,7 @@ def sign_in_accounts():
 
 def main():
     config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
-    completed = config / "cos/first-run-complete"
+    completed = config / "yuos/first-run-complete"
     args = sys.argv[1:]
     if args == ["--accounts"]:
         print(json.dumps(sign_in_accounts()))

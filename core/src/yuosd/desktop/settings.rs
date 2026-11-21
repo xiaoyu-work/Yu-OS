@@ -74,7 +74,7 @@ fn service_args_for(
         "--service-type=exec".into(),
         "--expand-environment=no".into(),
         format!(
-            "--unit=claw-{service}-{}.service",
+            "--unit=yuos-{service}-{}.service",
             uuid::Uuid::new_v4().simple()
         ),
         format!("--property=Description=Yu OS {service}"),

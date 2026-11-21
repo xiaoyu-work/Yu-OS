@@ -6,7 +6,7 @@
 
 set -e
 
-# Source COS profile
+# Source YU profile
 [ -f /etc/yuos/profile.sh ] && . /etc/yuos/profile.sh
 
 # Agent-home OverlayFS setup. Shared with yuos-home-setup.service on normal

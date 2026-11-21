@@ -184,7 +184,7 @@ YUOS_CAPTURED_TEST_RUNNER="$PWD/target/debug/yuos-app-runner" \
 `scripts/ci/test-boundaries.sh app-bind` selects both real-runner cases and the
 six ignored `extension_host::spawn::task_data::tests::store_custody` process
 cases. They require Root, private mount/network namespaces, writable cgroup v2,
-ptrace/pidfd support, ACL tools, and `YUOS_ORDINARY_TEST_COS` /
+ptrace/pidfd support, ACL tools, and `YUOS_ORDINARY_TEST_YU` /
 `YUOS_ORDINARY_TEST_RUNNER` pointing at the matching compiled OS binaries.
 Each case runs in its own process with isolated synthetic NSS accounts, signed
 packages and trust, an empty private dpkg database, and project-local backing

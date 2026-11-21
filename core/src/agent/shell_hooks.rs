@@ -11,7 +11,7 @@
 //! / record-post`, so the yu binary is the single source of
 //! truth for the schema.
 //!
-//! Threat model: the log is local-only, written under the cos data
+//! Threat model: the log is local-only, written under the yu data
 //! dir. Operators can disable capture entirely by simply not
 //! sourcing the init script. `clear --yes` truncates; the file is
 //! rotated when it exceeds [`MAX_LOG_BYTES`] so unbounded shell
@@ -113,64 +113,64 @@ pub fn render_init(shell: Shell) -> String {
 
 fn render_bash() -> String {
     format!(r#"# yu agent shell-hooks (bash)
-__cos_call() {{
+__yuos_call() {{
     if command -v timeout >/dev/null 2>&1; then
-        timeout {timeout} cos "$@" >/dev/null 2>&1 || true
+        timeout {timeout} yu "$@" >/dev/null 2>&1 || true
     else
-        cos "$@" >/dev/null 2>&1 || true
+        yu "$@" >/dev/null 2>&1 || true
     fi
 }}
-__cos_pre_exec() {{
-    __cos_call agent shell-hooks record-pre "$BASH_COMMAND"
+__yuos_pre_exec() {{
+    __yuos_call agent shell-hooks record-pre "$BASH_COMMAND"
 }}
-__cos_post_exec() {{
+__yuos_post_exec() {{
     local rc=$?
-    __cos_call agent shell-hooks record-post "$rc"
+    __yuos_call agent shell-hooks record-post "$rc"
 }}
-trap '__cos_pre_exec' DEBUG
+trap '__yuos_pre_exec' DEBUG
 case ":${{PROMPT_COMMAND:-}}:" in
-    *":__cos_post_exec:"*) ;;
-    *) PROMPT_COMMAND="__cos_post_exec${{PROMPT_COMMAND:+; $PROMPT_COMMAND}}" ;;
+    *":__yuos_post_exec:"*) ;;
+    *) PROMPT_COMMAND="__yuos_post_exec${{PROMPT_COMMAND:+; $PROMPT_COMMAND}}" ;;
 esac
 "#, timeout = HOOK_TIMEOUT_SECS)
 }
 
 fn render_zsh() -> String {
     format!(r#"# yu agent shell-hooks (zsh)
-function __cos_call() {{
+function __yuos_call() {{
     if command -v timeout >/dev/null 2>&1; then
-        timeout {timeout} cos "$@" >/dev/null 2>&1 || true
+        timeout {timeout} yu "$@" >/dev/null 2>&1 || true
     else
-        cos "$@" >/dev/null 2>&1 || true
+        yu "$@" >/dev/null 2>&1 || true
     fi
 }}
-function __cos_preexec() {{
-    __cos_call agent shell-hooks record-pre "$1"
+function __yuos_preexec() {{
+    __yuos_call agent shell-hooks record-pre "$1"
 }}
-function __cos_precmd() {{
+function __yuos_precmd() {{
     local rc=$?
-    __cos_call agent shell-hooks record-post "$rc"
+    __yuos_call agent shell-hooks record-post "$rc"
 }}
 autoload -Uz add-zsh-hook
-add-zsh-hook preexec __cos_preexec
-add-zsh-hook precmd __cos_precmd
+add-zsh-hook preexec __yuos_preexec
+add-zsh-hook precmd __yuos_precmd
 "#, timeout = HOOK_TIMEOUT_SECS)
 }
 
 fn render_fish() -> String {
     format!(r#"# yu agent shell-hooks (fish)
-function __cos_call
+function __yuos_call
     if command -v timeout >/dev/null 2>&1
-        timeout {timeout} cos $argv >/dev/null 2>&1
+        timeout {timeout} yu $argv >/dev/null 2>&1
     else
-        cos $argv >/dev/null 2>&1
+        yu $argv >/dev/null 2>&1
     end
 end
-function __cos_preexec --on-event fish_preexec
-    __cos_call agent shell-hooks record-pre "$argv"
+function __yuos_preexec --on-event fish_preexec
+    __yuos_call agent shell-hooks record-pre "$argv"
 end
-function __cos_postexec --on-event fish_postexec
-    __cos_call agent shell-hooks record-post $status
+function __yuos_postexec --on-event fish_postexec
+    __yuos_call agent shell-hooks record-post $status
 end
 "#, timeout = HOOK_TIMEOUT_SECS)
 }
@@ -327,7 +327,7 @@ pub fn tail_at(path: &Path, limit: usize) -> std::io::Result<Vec<Record>> {
             Ok(r) => all.push(r),
             Err(e) => {
                 tracing::trace!(
-                    target: "cos.agent.shell_hooks",
+                    target: "yuos.agent.shell_hooks",
                     "skipping malformed shell-hook record: {e}"
                 );
             }

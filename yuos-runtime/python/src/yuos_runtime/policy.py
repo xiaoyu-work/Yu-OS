@@ -131,7 +131,7 @@ def check(
     raising. Useful when an app wants to surface a "would-be-denied"
     notice without aborting.
     """
-    cmd = [_cos_binary(), WIRE_ARG, "__policy", "check", verb]
+    cmd = [_yu_binary(), WIRE_ARG, "__policy", "check", verb]
     cmd.extend(_scope_flag(path=path, host=host, name=name, self_ref=self_ref, wild=wild))
 
     try:
@@ -193,7 +193,7 @@ def _scope_flag(
     return [flag] if val is None else [flag, val]
 
 
-def _cos_binary() -> str:
+def _yu_binary() -> str:
     """Locate the ``yu`` binary. Honours ``YUOS_KERNEL_BIN`` for tests."""
     override = os.environ.get("YUOS_KERNEL_BIN")
     if override:

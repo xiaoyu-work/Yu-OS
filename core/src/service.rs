@@ -196,7 +196,7 @@ impl Drop for ServiceLifecycleLock {
 ///
 /// Backward-compatible format: the file is either
 /// ```text
-/// 12345          # legacy (cos < this commit)
+/// 12345          # legacy (yu < this commit)
 /// 12345:6789012  # pid plus /proc/<pid>/stat starttime ticks
 /// ```
 /// On legacy files the second tuple element is `None` — the caller
@@ -857,10 +857,10 @@ fn cmd_start_locked(args: &[String]) -> Result<Value, String> {
 
     // Reap the child in a background thread. The previous
     // `std::mem::forget(child)` left every exited service as a
-    // <defunct> entry in the cos parent's process table — long-
-    // running cos daemons gradually consumed pid_max. The reaper
+    // <defunct> entry in the yu parent's process table — long-
+    // running yu daemons gradually consumed pid_max. The reaper
     // thread blocks on `wait()` and then drops, releasing the kernel
-    // entry. The service still runs detached from the cos
+    // entry. The service still runs detached from the yu
     // foreground; we just don't leak the slot when it dies.
     std::thread::spawn(move || {
         let mut child = child;

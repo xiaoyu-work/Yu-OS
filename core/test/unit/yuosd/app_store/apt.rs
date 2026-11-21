@@ -118,7 +118,7 @@ def run(command, args):
         for args in (
             ["search", "{BUNDLE}", "25"], ["show", "{BUNDLE}"],
             ["installed"], ["available", "{BUNDLE}"],
-            ["available", "cos"], ["catalog"], ["updates"], ["show", "{SIDE_EFFECT}"],
+            ["available", "yu"], ["catalog"], ["updates"], ["show", "{SIDE_EFFECT}"],
         ):
             result = subprocess.run(
                 ["/usr/local/bin/yu", "--wire=1", "__package_query", *args],
@@ -233,7 +233,7 @@ for line in sys.stdin:
                         },
                         {
                             "verb": "sys.observe",
-                            "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "cos"}},
+                            "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "yu"}},
                             "why": {"en": "Check the fixed command's availability without executing it"}
                         }
                     ],
@@ -256,7 +256,7 @@ for line in sys.stdin:
     std::fs::write(
         directory.join("web-ui.json"),
         json!({
-            "schema": "claw.web-app/v1", "app_id": id,
+            "schema": "yuos.web-app/v1", "app_id": id,
             "source_kind": "product", "source_name": "apt-fixture",
             "title": id, "description": "Private APT acceptance App",
             "entry": "web/index.html"
@@ -275,7 +275,7 @@ for line in sys.stdin:
             kind: PackageKind::App,
             id: id.into(),
             version: "1.0.0".into(),
-            manifest_schema: "cos.app/v2".into(),
+            manifest_schema: "yuos.app/v2".into(),
             manifest_path: "app.json".into(),
             entrypoints: vec!["main.py".into(), "server.py".into()],
             resources: vec!["web-ui.json".into(), "web/index.html".into()],
@@ -846,7 +846,7 @@ impl Fixture {
             .collect::<Vec<_>>();
         let now = chrono::Utc::now();
         let catalog = store::Catalog {
-            schema: "claw.app-store/v2".into(),
+            schema: "yuos.app-store/v2".into(),
             repository: store::REPOSITORY.into(),
             runtime_abi: 1,
             generation: "1".into(),
@@ -1127,7 +1127,7 @@ impl Fixture {
 
     fn enable_processes(&self) {
         for (variable, destination) in [
-            ("YUOS_APP_APT_TEST_COS", "/usr/local/bin/yu"),
+            ("YUOS_APP_APT_TEST_YU", "/usr/local/bin/yu"),
             ("YUOS_APP_APT_TEST_RUNNER", "/usr/local/bin/yuos-app-runner"),
             ("YUOS_APP_APT_TEST_HOST", "/usr/local/bin/yuos-extension-host"),
         ] {
@@ -1614,7 +1614,7 @@ fn stage_real_web_client() -> PathBuf {
             kind: PackageKind::App,
             id: "kv".into(),
             version: manifest["version"].as_str().unwrap().into(),
-            manifest_schema: "cos.app/v2".into(),
+            manifest_schema: "yuos.app/v2".into(),
             manifest_path: "app.json".into(),
             entrypoints: vec![manifest["mcp"]["entry"].as_str().unwrap().into()],
             resources: vec!["web-ui.json".into(), "web/index.html".into()],
@@ -1758,7 +1758,7 @@ impl OrdinaryActor {
                 crate::caps::Scope::name(BUNDLE),
             ));
         } else if operation == "catalog" {
-            for name in ["packages", BUNDLE, "cos"] {
+            for name in ["packages", BUNDLE, "yuos"] {
                 caps.insert(crate::caps::Cap::new(
                     crate::caps::Verb::SYS_OBSERVE,
                     crate::caps::Scope::name(name),
@@ -2515,7 +2515,7 @@ async fn private_apt_owner_withdrawal_denies_live_calls_and_retires_only_owner()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/PID/network namespaces, cgroup v2, ptrace and matching YUOS_APP_APT_TEST_COS/RUNNER/HOOK"]
+#[ignore = "Root private mount/PID/network namespaces, cgroup v2, ptrace and matching YUOS_APP_APT_TEST_YU/RUNNER/HOOK"]
 async fn private_apt_package_queries_use_ordinary_app_custody_and_exact_read_scopes() {
     use crate::yuosd::routes::Command;
     let _lock = crate::test_env::lock_env();
@@ -2586,7 +2586,7 @@ async fn private_apt_package_queries_use_ordinary_app_custody_and_exact_read_sco
         "name": BUNDLE, "available": true, "type": "system", "details": "installed via dpkg",
     }));
     assert_eq!(queries[4]["reply"]["data"], json!({
-        "name": "cos", "available": true, "type": "command",
+        "name": "yu", "available": true, "type": "command",
         "details": "found at /usr/local/bin/yu",
     }));
     let catalog = &queries[5]["reply"]["data"];
@@ -2596,7 +2596,7 @@ async fn private_apt_package_queries_use_ordinary_app_custody_and_exact_read_sco
     assert!(catalog["next"].is_null());
     let xml = catalog["items"].as_array().unwrap().iter()
         .map(|item| item["xml"].as_str().unwrap()).collect::<String>();
-    for value in [BUNDLE, SUPPORT, "org.claw.fixture.Catalog0", "Catalogue prive"] {
+    for value in [BUNDLE, SUPPORT, "org.yuos.fixture.Catalog0", "Catalogue prive"] {
         assert!(xml.contains(value));
     }
     assert_eq!(queries[6]["reply"]["data"]["upgradable"], json!([]));
@@ -2636,7 +2636,7 @@ async fn private_apt_package_queries_use_ordinary_app_custody_and_exact_read_sco
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/PID/network namespaces, cgroup v2, ptrace and matching YUOS_APP_APT_TEST_COS/RUNNER/HOOK"]
+#[ignore = "Root private mount/PID/network namespaces, cgroup v2, ptrace and matching YUOS_APP_APT_TEST_YU/RUNNER/HOOK"]
 async fn private_apt_ordinary_self_handoff_retains_receipt() {
     use crate::yuosd::routes::Command;
     let _lock = crate::test_env::lock_env();
@@ -2876,7 +2876,7 @@ async fn private_installed_product_web_calls_real_kv_without_model() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/PID/network namespaces, cgroup v2, ptrace and matching YUOS_APP_APT_TEST_COS/RUNNER/HOOK"]
+#[ignore = "Root private mount/PID/network namespaces, cgroup v2, ptrace and matching YUOS_APP_APT_TEST_YU/RUNNER/HOOK"]
 async fn private_apt_global_stop_is_separate_and_unreviewed_effect_is_not_applied() {
     use crate::yuosd::routes::Command;
     use yuosd_client::system_review::{ReviewAction, ReviewKind, ReviewStatus};
@@ -3123,7 +3123,7 @@ async fn private_apt_global_stop_is_separate_and_unreviewed_effect_is_not_applie
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/PID/network namespaces and matching YUOS_APP_APT_TEST_COS/RUNNER/HOOK"]
+#[ignore = "Root private mount/PID/network namespaces and matching YUOS_APP_APT_TEST_YU/RUNNER/HOOK"]
 async fn private_apt_retained_payload_lifecycle_and_nonzero_completion() {
     use crate::yuosd::routes::Command;
     let _lock = crate::test_env::lock_env();

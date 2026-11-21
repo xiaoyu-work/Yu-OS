@@ -36,7 +36,7 @@ fn a_reordered_but_semantically_equal_manifest_is_refused() {
 fn a_manifest_from_another_format_is_refused() {
     let mut value: serde_json::Value =
         serde_json::from_slice(&manifest_bytes(&ManifestSpec::default())).unwrap();
-    value["format"] = serde_json::json!("claw.release-security/v0");
+    value["format"] = serde_json::json!("yuos.release-security/v0");
     let bytes = crate::update::canonical::to_bytes(&value).unwrap();
     let error = Manifest::parse(&bytes).unwrap_err();
     assert!(error.contains("format"), "{error}");

@@ -15,7 +15,7 @@ import unittest
 _THIS_DIR = os.path.dirname(__file__)
 sys.path.insert(0, os.path.dirname(_THIS_DIR))
 
-from yuos_sdk import yuos_session as cos  # noqa: E402
+from yuos_sdk import yuos_session  # noqa: E402
 
 
 class AtomicWriteTests(unittest.TestCase):
@@ -39,7 +39,7 @@ class AtomicWriteTests(unittest.TestCase):
                 try:
                     barrier.wait()
                     for _ in range(20):
-                        cos._atomic_write_json(path, payload)
+                        yuos_session._atomic_write_json(path, payload)
                 except BaseException as e:  # noqa: BLE001
                     errors.append(e)
 
@@ -68,10 +68,10 @@ class AtomicWriteTests(unittest.TestCase):
 
 
 class StashBlobTests(unittest.TestCase):
-    def _make_session(self, td: str) -> "cos.Session":
+    def _make_session(self, td: str) -> "yuos_session.Session":
         os.environ["YUOS_DATA_DIR"] = td
         sid = "ses_0000000000000_000000000000"
-        s = cos.Session(sid)
+        s = yuos_session.Session(sid)
         s.dir.mkdir(parents=True, exist_ok=True)
         return s
 

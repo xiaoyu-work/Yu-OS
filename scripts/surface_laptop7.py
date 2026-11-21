@@ -282,7 +282,7 @@ def configs(fixes, stage):
     for name in ("btintel-pcie.sh", "sl7-card-reader.sh"):
         script = (fixes / "configs/usr/lib/systemd/system-sleep" / name).read_text()
         shebang, body = script.split("\n", 1)
-        write_file(stage / "usr/lib/systemd/system-sleep" / f"claw-{name}",
+        write_file(stage / "usr/lib/systemd/system-sleep" / f"yuos-{name}",
                    f"{shebang}\n[ -d {model} ] || exit 0\n{body}", mode=0o755)
 
 
