@@ -116,6 +116,10 @@ execution receipts.
 
 ## Read the same receipts everywhere
 
+The native Activity **History** tab groups a receipt under a run only if its
+retained Job stream contains a matching Activity and receipt link. Receipts
+without a visible, unambiguous link remain under **Other Activity receipts**.
+
 ```bash
 yu activity receipts 00000000-0000-4000-8000-000000000001 --limit 50
 ```

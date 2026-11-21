@@ -210,6 +210,8 @@ pub struct ActivityReceiptDeclaration {
 pub struct ActivityReceiptView {
     pub id: String,
     pub activity_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub job_id: Option<String>,
     pub received_at: String,
     pub source: ActivityReceiptSource,
     pub report: ActivityReceiptReport,
@@ -537,6 +539,9 @@ pub struct ActivityListResponse {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ActivityDetailResponse {
+    // The native client joins a separate owner-checked read before presenting detail.
+    #[serde(skip)]
+    pub automatic_work: Option<Result<crate::ActivityAutoWorkResponse, String>>,
     pub activity: ActivityView,
     #[serde(default)]
     pub jobs: Vec<ActivityJobView>,

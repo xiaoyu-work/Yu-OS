@@ -43,8 +43,9 @@ web UI.
   presentation mutations through `agent.conversation.*`; Web never opens or
   mutates Agent memory as a separate authority.
 - Present explicit Activity automatic-work configuration, scheduler-authorized
-  start/stop and inspected resumption. Revisions use decimal strings; handoffs
-  remain caller reports and the browser owns no loop or durable execution state.
+  start/stop, inspected resumption and broker-owned parent/subtask dependencies.
+  Revisions use decimal strings; handoffs remain caller reports and the browser
+  owns no loop or durable execution state.
 - Present the shared Activity broker's goals, planning metadata, explicit state
   changes, and associated job/session views without a Web-owned store or lifecycle.
 - Export and import the broker's closed portable Activity continuity document

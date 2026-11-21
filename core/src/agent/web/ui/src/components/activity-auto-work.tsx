@@ -25,6 +25,7 @@ export function ActivityAutoWorkPanel({ activityId, ownerUid, active, editable, 
   const error = view.error || (work && work.owner_uid !== ownerUid ? "Automatic-work owner does not match this Activity." : null);
   const blocked = disabled || !!error || !view.data;
   const needsReview = work?.phase === "review" || work?.phase === "held";
+  const inFlight = !!work?.current || !!work?.parallel?.running.size;
   async function change(action: () => Promise<unknown>, notice: string) {
     if (await mutate(action, notice) && mounted.current) {
       setForm(null); setReview(false);
@@ -57,6 +58,29 @@ export function ActivityAutoWorkPanel({ activityId, ownerUid, active, editable, 
           <p className="whitespace-pre-wrap break-words text-sm">Next task: {work.next_task}</p>
           {work.next_wake_at && <p className="text-xs">Next waiting check: <time dateTime={work.next_wake_at}>{work.next_wake_at}</time></p>}
           {work.current && <a className="text-sm underline" href={`#/tasks/${encodeURIComponent(work.current.job_id)}`}>Inspect current Job</a>}
+          {work.parallel && (
+            <div className="grid gap-2 border-t pt-3">
+              <a className="text-sm underline" href={`#/tasks/${encodeURIComponent(work.parallel.parent_job_id)}`}>Parent Job</a>
+              <ul className="grid gap-2 border-l pl-3">
+                {work.parallel.tasks.map((task) => {
+                  const finished = work.parallel?.finished.get(task.id);
+                  const running = work.parallel?.running.get(task.id);
+                  const job = finished ?? running;
+                  const ready = task.after.every((id) => work.parallel?.finished.get(id)?.checkpoint?.next.kind === "done"
+                    && work.parallel.finished.get(id)?.outcome === "reported");
+                  return <li key={task.id} className="whitespace-pre-wrap break-words text-sm">
+                    <div>{task.task}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {task.id} · {finished ? finished.checkpoint?.next.kind === "done" && finished.outcome === "reported"
+                        ? "Reported done" : "Needs review" : running ? "In flight" : !work.enabled ? "Stopped" : ready ? "Ready" : "Waiting for dependencies"}
+                      {task.after.length ? ` · After ${task.after.join(", ")}` : ""}
+                    </div>
+                    {job && <a className="text-xs underline" href={`#/tasks/${encodeURIComponent(job.job_id)}`}>Inspect Job</a>}
+                  </li>;
+                })}
+              </ul>
+            </div>
+          )}
           {work.last_checkpoint?.checkpoint && (
             <div className="grid gap-2 border-t pt-3">
               <h4 className="text-sm font-medium">Latest reported handoff</h4>
@@ -72,11 +96,11 @@ export function ActivityAutoWorkPanel({ activityId, ownerUid, active, editable, 
                 Stop automatic progression
               </Button>
             ) : needsReview ? (
-              <Button size="sm" disabled={blocked || !active || !!work.current || !!form || review} onClick={() => {
+              <Button size="sm" disabled={blocked || !active || inFlight || !!form || review} onClick={() => {
                 setRevision(work.revision); setNextTask(""); setReviewNote(""); setReview(true);
               }}>Review and resume work</Button>
             ) : (
-              <Button size="sm" disabled={blocked || !active || !!work.current || !!form || review}
+              <Button size="sm" disabled={blocked || !active || inFlight || !!form || review}
                 onClick={() => void change(() => autoWorkApi.enabled(activityId, ownerUid, work.revision, true), "Automatic progression explicitly enabled.")}>
                 Start automatic work
               </Button>
@@ -86,7 +110,7 @@ export function ActivityAutoWorkPanel({ activityId, ownerUid, active, editable, 
       ) : <p className="text-sm text-muted-foreground">Automatic progression is not configured or enabled.</p>}
       {!form && !review && (
         <Button className="w-fit" size="sm" variant="outline"
-          disabled={blocked || !editable || !!work?.current || needsReview}
+          disabled={blocked || !editable || inFlight || needsReview}
           onClick={() => {
             setRevision(work?.revision ?? null);
             setForm(work?.config ?? { task: "", check_interval_secs: 3600, wake_event: null });

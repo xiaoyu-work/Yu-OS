@@ -1,5 +1,7 @@
 //! Closed presentation DTOs for broker-owned Activity automatic progression.
 
+use std::collections::{BTreeMap, BTreeSet};
+
 use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -39,10 +41,53 @@ impl AutoWorkDraft {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum AutoWorkNext {
-    Continue { task: String },
-    Wait { task: String, reason: String },
-    Review { reason: String },
-    Blocked { reason: String },
+    Continue {
+        task: String,
+    },
+    Wait {
+        task: String,
+        reason: String,
+    },
+    Review {
+        reason: String,
+    },
+    Blocked {
+        reason: String,
+    },
+    Parallel {
+        tasks: Vec<AutoWorkTask>,
+        then: String,
+    },
+    Done,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AutoWorkTask {
+    pub id: String,
+    pub task: String,
+    pub after: Vec<String>,
+}
+
+fn task_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 32
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'-' | b'_'))
+}
+
+fn valid_plan(tasks: &[AutoWorkTask]) -> bool {
+    let mut seen = BTreeSet::new();
+    (2..=6).contains(&tasks.len())
+        && tasks.iter().all(|task| {
+            let edges: BTreeSet<_> = task.after.iter().map(String::as_str).collect();
+            task_id(&task.id)
+                && text(&task.task, 2048)
+                && edges.len() == task.after.len()
+                && edges.is_subset(&seen)
+                && seen.insert(task.id.as_str())
+        })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -68,6 +113,8 @@ impl AutoWorkCheckpoint {
                 AutoWorkNext::Review { reason } | AutoWorkNext::Blocked { reason } => {
                     text(reason, 2048)
                 }
+                AutoWorkNext::Parallel { tasks, then } => text(then, 8192) && valid_plan(tasks),
+                AutoWorkNext::Done => true,
             }
     }
 }
@@ -92,6 +139,58 @@ pub struct AutoWorkSegment {
     pub checkpoint: Option<AutoWorkCheckpoint>,
 }
 
+impl AutoWorkSegment {
+    fn valid_for(&self, generation: Option<&str>) -> bool {
+        generation == Some(self.generation.as_str())
+            && text(&self.job_id, 128)
+            && text(&self.session_id, 128)
+            && time(&self.prepared_at)
+            && self
+                .checkpoint
+                .as_ref()
+                .is_none_or(AutoWorkCheckpoint::valid)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AutoWorkChild {
+    pub parent_job_id: String,
+    pub task_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AutoWorkBatch {
+    pub parent_job_id: String,
+    pub tasks: Vec<AutoWorkTask>,
+    pub running: BTreeMap<String, AutoWorkSegment>,
+    pub finished: BTreeMap<String, AutoWorkRecord>,
+}
+
+impl AutoWorkBatch {
+    fn valid_for(&self, generation: Option<&str>) -> bool {
+        let mut jobs = BTreeSet::from([self.parent_job_id.as_str()]);
+        text(&self.parent_job_id, 128)
+            && valid_plan(&self.tasks)
+            && self.running.len() <= 2
+            && self.running.iter().all(|(id, segment)| {
+                !self.finished.contains_key(id)
+                    && self.tasks.iter().any(|task| &task.id == id)
+                    && segment.valid_for(generation)
+                    && jobs.insert(segment.job_id.as_str())
+            })
+            && self.finished.iter().all(|(id, record)| {
+                self.tasks.iter().any(|task| &task.id == id)
+                    && record.valid()
+                    && jobs.insert(record.job_id.as_str())
+                    && record.child.as_ref().is_some_and(|link| {
+                        link.task_id == *id && link.parent_job_id == self.parent_job_id
+                    })
+            })
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AutoWorkOutcome {
@@ -110,6 +209,8 @@ pub struct AutoWorkRecord {
     pub checkpoint: Option<AutoWorkCheckpoint>,
     pub outcome: AutoWorkOutcome,
     pub message: Option<String>,
+    #[serde(default)]
+    pub child: Option<AutoWorkChild>,
 }
 
 impl AutoWorkRecord {
@@ -125,6 +226,11 @@ impl AutoWorkRecord {
                 .message
                 .as_deref()
                 .is_none_or(|message| text(message, 2048))
+            && self.child.as_ref().is_none_or(|child| {
+                child.parent_job_id != self.job_id
+                    && text(&child.parent_job_id, 128)
+                    && task_id(&child.task_id)
+            })
     }
 }
 
@@ -142,6 +248,8 @@ pub struct ActivityAutoWork {
     pub next_wake_at: Option<String>,
     pub event_after: u64,
     pub current: Option<AutoWorkSegment>,
+    #[serde(default)]
+    pub parallel: Option<AutoWorkBatch>,
     pub last_checkpoint: Option<AutoWorkRecord>,
     pub stagnant_segments: u32,
     pub message: Option<String>,
@@ -150,6 +258,14 @@ pub struct ActivityAutoWork {
 }
 
 impl ActivityAutoWork {
+    pub fn has_in_flight(&self) -> bool {
+        self.current.is_some()
+            || self
+                .parallel
+                .as_ref()
+                .is_some_and(|batch| !batch.running.is_empty())
+    }
+
     pub fn matches_activity(&self, id: &str) -> bool {
         self.activity_id == id
             && canonical_uuid(id)
@@ -161,16 +277,13 @@ impl ActivityAutoWork {
             && self.next_wake_at.as_deref().is_none_or(time)
             && self.generation.as_deref().is_none_or(canonical_uuid)
             && (!self.enabled || self.generation.is_some())
-            && (self.phase == AutoWorkPhase::Running) == self.current.is_some()
-            && self.current.as_ref().is_none_or(|segment| {
-                self.generation.as_deref() == Some(segment.generation.as_str())
-                    && text(&segment.job_id, 128)
-                    && text(&segment.session_id, 128)
-                    && time(&segment.prepared_at)
-                    && segment
-                        .checkpoint
-                        .as_ref()
-                        .is_none_or(AutoWorkCheckpoint::valid)
+            && (self.phase == AutoWorkPhase::Running) == self.has_in_flight()
+            && self
+                .current
+                .as_ref()
+                .is_none_or(|segment| segment.valid_for(self.generation.as_deref()))
+            && self.parallel.as_ref().is_none_or(|batch| {
+                self.current.is_none() && batch.valid_for(self.generation.as_deref())
             })
             && self
                 .last_checkpoint

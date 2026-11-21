@@ -46,9 +46,9 @@ pub use receipts::{
 pub use scheduling_policy::{ActivitySchedulingPolicy, ActivitySchedulingPriority};
 pub use sqlite::SqliteActivityService;
 pub use work::{
-    ActivityWork, ActivityWorkChange, ActivityWorkCheckpoint, ActivityWorkDraft,
+    ActivityWork, ActivityWorkBatch, ActivityWorkChange, ActivityWorkCheckpoint, ActivityWorkChild, ActivityWorkDraft,
     ActivityWorkEvent, ActivityWorkNext, ActivityWorkOutcome, ActivityWorkPhase,
-    ActivityWorkRecord, ActivityWorkSegment, MAX_STAGNANT_WORK_SEGMENTS,
+    ActivityWorkRecord, ActivityWorkSegment, ActivityWorkTask, MAX_PARALLEL_TASKS, MAX_STAGNANT_WORK_SEGMENTS,
     MAX_WORK_CHECKPOINT_BYTES, MAX_WORK_HISTORY,
 };
 

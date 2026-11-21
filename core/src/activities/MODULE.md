@@ -24,9 +24,10 @@ and the owner-scoped broker contract; only their presentations differ.
   settlements without becoming an invoice or authorization mechanism.
 - Store owner-selected pending admission priority with exact revision/CAS
   updates, without adding authority, preemption or priority fields to Jobs.
-- Persist explicit automatic-work controls, one reserved Job, reported handoffs,
-  waiting watermarks and review holds; scheduler delegation remains outside
-  this metadata service and no work state enters portable continuity.
+- Persist explicit automatic-work controls, exact Job reservations, bounded
+  parent/subtask dependencies, reported handoffs, waiting watermarks and review
+  holds. Scheduler delegation remains outside this metadata service; work
+  state never enters portable continuity.
 - Export and import a closed, bounded continuity-v1 document containing only
   portable intent, canonical App object references, finite execution bounds
   and scheduling preference. Imports are explicit-local, atomic, paused and

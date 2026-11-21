@@ -1,6 +1,6 @@
 //! Receipt reports are owner data, never proof of execution or authority.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{json, Value};
 
@@ -142,7 +142,36 @@ pub fn list(params: Value, client: &ClientIdentity) -> Result<Value, BrokerError
     let receipts = service
         .receipts(owner, &activity.id, limit)
         .map_err(service_error)?;
-    Ok(json!({"schema":1,"activity_id":activity.id,"receipts":receipts}))
+    let mut views = serde_json::to_value(&receipts)
+        .map_err(|error| BrokerError::execution(error.to_string()))?;
+    if !receipts.is_empty() {
+        let store = crate::agent::service::Store::open_default()
+            .map_err(|error| BrokerError::execution(error.to_string()))?;
+        let jobs = store.list_for_activity(owner, &activity.id, activities::MAX_LIST_LIMIT)
+            .map_err(|error| BrokerError::execution(error.to_string()))?;
+        let receipt_ids: BTreeSet<_> = receipts.iter().map(|receipt| receipt.id.as_str()).collect();
+        let mut links = BTreeMap::<String, Option<&str>>::new();
+        for job in &jobs {
+            match store.recent_receipt_links(&job.id, &activity.id) {
+                Ok(ids) => {
+                    for id in ids.into_iter().filter(|id| receipt_ids.contains(id.as_str())) {
+                        let link = links.entry(id).or_insert(Some(job.id.as_str()));
+                        if *link != Some(job.id.as_str()) {
+                            *link = None;
+                        }
+                    }
+                }
+                Err(error) => tracing::warn!(job_id = job.id, %error, "Activity receipt links unavailable"),
+            }
+        }
+        let items = views.as_array_mut().ok_or_else(|| BrokerError::execution("invalid receipt projection"))?;
+        for (receipt, view) in receipts.iter().zip(items) {
+            if let Some(Some(job_id)) = links.get(&receipt.id) {
+                view["job_id"] = json!(job_id);
+            }
+        }
+    }
+    Ok(json!({"schema":1,"activity_id":activity.id,"receipts":views}))
 }
 
 pub fn record(params: Value, client: &ClientIdentity) -> Result<Value, BrokerError> {

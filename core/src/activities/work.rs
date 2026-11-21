@@ -1,5 +1,7 @@
 //! Durable, caller-reported work handoffs. Neither progress nor enablement is authority.
 
+use std::collections::{BTreeMap, BTreeSet};
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -57,10 +59,67 @@ impl ActivityWorkDraft {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ActivityWorkNext {
-    Continue { task: String },
-    Wait { task: String, reason: String },
-    Review { reason: String },
-    Blocked { reason: String },
+    Continue {
+        task: String,
+    },
+    Wait {
+        task: String,
+        reason: String,
+    },
+    Review {
+        reason: String,
+    },
+    Blocked {
+        reason: String,
+    },
+    Parallel {
+        tasks: Vec<ActivityWorkTask>,
+        then: String,
+    },
+    Done,
+}
+
+pub const MAX_PARALLEL_TASKS: usize = 6;
+const MAX_IN_FLIGHT_CHILDREN: usize = 2;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ActivityWorkTask {
+    pub id: String,
+    pub task: String,
+    pub after: Vec<String>,
+}
+
+fn valid_task_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 32
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'-' | b'_'))
+}
+
+fn validate_plan(tasks: &[ActivityWorkTask]) -> Result<(), ActivityError> {
+    if !(2..=MAX_PARALLEL_TASKS).contains(&tasks.len()) {
+        return Err(ActivityError::Invalid(
+            "parallel work requires two to six subtasks".into(),
+        ));
+    }
+    let mut seen = BTreeSet::new();
+    for task in tasks {
+        validate_text("parallel subtask", &task.task, 2048, false, true)?;
+        let parents: BTreeSet<_> = task.after.iter().map(String::as_str).collect();
+        if !valid_task_id(&task.id)
+            || seen.contains(task.id.as_str())
+            || parents.len() != task.after.len()
+            || !parents.is_subset(&seen)
+        {
+            return Err(ActivityError::Invalid(
+                "parallel task IDs must be unique and dependencies must name distinct earlier subtasks".into(),
+            ));
+        }
+        seen.insert(task.id.as_str());
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -74,6 +133,23 @@ pub struct ActivityWorkCheckpoint {
 }
 
 impl ActivityWorkCheckpoint {
+    pub(crate) fn validate_role(&self, child: bool) -> Result<(), ActivityError> {
+        if (child
+            && !matches!(
+                self.next,
+                ActivityWorkNext::Done
+                    | ActivityWorkNext::Review { .. }
+                    | ActivityWorkNext::Blocked { .. }
+            ))
+            || (!child && matches!(self.next, ActivityWorkNext::Done))
+        {
+            return Err(ActivityError::Invalid(
+                "invalid handoff for this work role".into(),
+            ));
+        }
+        Ok(())
+    }
+
     pub fn validate(&self) -> Result<(), ActivityError> {
         validate_text("work summary", &self.summary, 8192, false, true)?;
         if self.completed_steps.len() > 32 || self.artifacts.len() > 32 {
@@ -110,6 +186,11 @@ impl ActivityWorkCheckpoint {
             ActivityWorkNext::Review { reason } | ActivityWorkNext::Blocked { reason } => {
                 validate_text("work stop reason", reason, 2048, false, true)?;
             }
+            ActivityWorkNext::Parallel { tasks, then } => {
+                validate_plan(tasks)?;
+                validate_text("work after parallel tasks", then, 8192, false, true)?;
+            }
+            ActivityWorkNext::Done => {}
         }
         if serde_json::to_vec(self)?.len() > MAX_WORK_CHECKPOINT_BYTES {
             return Err(ActivityError::Invalid("work handoff exceeds 32 KiB".into()));
@@ -140,6 +221,34 @@ pub struct ActivityWorkSegment {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct ActivityWorkChild {
+    pub parent_job_id: String,
+    pub task_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ActivityWorkBatch {
+    pub parent_job_id: String,
+    pub tasks: Vec<ActivityWorkTask>,
+    pub running: BTreeMap<String, ActivityWorkSegment>,
+    pub finished: BTreeMap<String, ActivityWorkRecord>,
+}
+
+impl ActivityWorkBatch {
+    pub(crate) fn failed(&self) -> bool {
+        self.finished
+            .values()
+            .any(|record| !record.child_reported_done())
+    }
+
+    fn succeeded(&self) -> bool {
+        self.finished.len() == self.tasks.len() && !self.failed()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ActivityWorkRecord {
     pub job_id: String,
     pub session_id: String,
@@ -147,6 +256,8 @@ pub struct ActivityWorkRecord {
     pub checkpoint: Option<ActivityWorkCheckpoint>,
     pub outcome: String,
     pub message: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub child: Option<ActivityWorkChild>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -163,6 +274,8 @@ pub struct ActivityWork {
     pub next_wake_at: Option<String>,
     pub event_after: u64,
     pub current: Option<ActivityWorkSegment>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parallel: Option<ActivityWorkBatch>,
     pub last_checkpoint: Option<ActivityWorkRecord>,
     pub stagnant_segments: u32,
     pub message: Option<String>,
@@ -171,8 +284,55 @@ pub struct ActivityWork {
 }
 
 impl ActivityWork {
+    pub fn in_flight(&self) -> impl Iterator<Item = &ActivityWorkSegment> {
+        self.current.iter().chain(
+            self.parallel
+                .iter()
+                .flat_map(|batch| batch.running.values()),
+        )
+    }
+
+    pub fn has_in_flight(&self) -> bool {
+        self.in_flight().next().is_some()
+    }
+
+    pub fn segment(&self, job_id: &str) -> Option<&ActivityWorkSegment> {
+        self.in_flight().find(|segment| segment.job_id == job_id)
+    }
+
+    pub(crate) fn next_child(&self) -> Option<&ActivityWorkTask> {
+        let batch = self.parallel.as_ref()?;
+        if !self.enabled
+            || !matches!(
+                self.phase,
+                ActivityWorkPhase::Ready | ActivityWorkPhase::Running
+            )
+            || self.current.is_some()
+            || batch.running.len() >= MAX_IN_FLIGHT_CHILDREN
+            || batch.failed()
+        {
+            return None;
+        }
+        batch.tasks.iter().find(|task| {
+            !batch.running.contains_key(&task.id)
+                && !batch.finished.contains_key(&task.id)
+                && task.after.iter().all(|id| {
+                    batch
+                        .finished
+                        .get(id)
+                        .is_some_and(ActivityWorkRecord::child_reported_done)
+                })
+        })
+    }
+
     pub fn due_at(&self, now: DateTime<Utc>) -> Result<bool, ActivityError> {
-        if !self.enabled || self.current.is_some() {
+        if !self.enabled
+            || self.has_in_flight()
+            || self
+                .parallel
+                .as_ref()
+                .is_some_and(|batch| !batch.succeeded())
+        {
             return Ok(false);
         }
         if !matches!(
@@ -218,18 +378,51 @@ impl ActivityWork {
                 "enabled work has no scheduler binding".into(),
             ));
         }
-        if (self.phase == ActivityWorkPhase::Running) != self.current.is_some() {
+        if (self.phase == ActivityWorkPhase::Running) != self.has_in_flight()
+            || (self.current.is_some() && self.parallel.is_some())
+        {
             return Err(ActivityError::Invalid(
                 "work phase and current Job disagree".into(),
             ));
         }
-        if let Some(segment) = &self.current {
+        for segment in self.in_flight() {
             super::execution_limits::validate_job_id(&segment.job_id)?;
             validate_text("work session", &segment.session_id, 128, false, false)?;
             if self.generation.as_deref() != Some(segment.generation.as_str()) {
                 return Err(ActivityError::Invalid(
                     "work segment generation differs".into(),
                 ));
+            }
+            if let Some(batch) = &self.parallel {
+                validate_plan(&batch.tasks)?;
+                super::execution_limits::validate_job_id(&batch.parent_job_id)?;
+                let mut jobs = BTreeSet::from([batch.parent_job_id.as_str()]);
+                if batch.running.len() > MAX_IN_FLIGHT_CHILDREN
+                    || batch
+                        .running
+                        .keys()
+                        .chain(batch.finished.keys())
+                        .any(|id| !batch.tasks.iter().any(|task| task.id == *id))
+                    || batch.running.iter().any(|(id, segment)| {
+                        batch.finished.contains_key(id) || !jobs.insert(&segment.job_id)
+                    })
+                {
+                    return Err(ActivityError::Invalid(
+                        "invalid parallel work reservation".into(),
+                    ));
+                }
+                for (id, record) in &batch.finished {
+                    record.validate()?;
+                    if !jobs.insert(&record.job_id)
+                        || record.child.as_ref().is_none_or(|link| {
+                            link.parent_job_id != batch.parent_job_id || link.task_id != *id
+                        })
+                    {
+                        return Err(ActivityError::Invalid(
+                            "invalid parallel work result identity".into(),
+                        ));
+                    }
+                }
             }
             work_time(&segment.prepared_at)?;
             if let Some(checkpoint) = &segment.checkpoint {
@@ -252,6 +445,14 @@ impl ActivityWork {
 }
 
 impl ActivityWorkRecord {
+    pub(crate) fn child_reported_done(&self) -> bool {
+        self.outcome == "reported"
+            && self
+                .checkpoint
+                .as_ref()
+                .is_some_and(|checkpoint| matches!(checkpoint.next, ActivityWorkNext::Done))
+    }
+
     pub fn validate(&self) -> Result<(), ActivityError> {
         super::execution_limits::validate_job_id(&self.job_id)?;
         validate_text("work session", &self.session_id, 128, false, false)?;
@@ -266,6 +467,15 @@ impl ActivityWorkRecord {
         }
         if let Some(checkpoint) = &self.checkpoint {
             checkpoint.validate()?;
+            checkpoint.validate_role(self.child.is_some())?;
+        }
+        if let Some(child) = &self.child {
+            super::execution_limits::validate_job_id(&child.parent_job_id)?;
+            if child.parent_job_id == self.job_id || !valid_task_id(&child.task_id) {
+                return Err(ActivityError::Invalid(
+                    "invalid parent or subtask identity".into(),
+                ));
+            }
         }
         if let Some(message) = &self.message {
             validate_text("work message", message, 2048, false, true)?;
@@ -288,6 +498,12 @@ pub enum ActivityWorkChange {
         generation: String,
         job_id: String,
         session_id: String,
+    },
+    ReserveChild {
+        generation: String,
+        job_id: String,
+        session_id: String,
+        task_id: String,
     },
     Stage {
         job_id: String,

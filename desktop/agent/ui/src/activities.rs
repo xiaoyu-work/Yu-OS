@@ -6,6 +6,7 @@ mod continuity;
 mod execution_limits;
 mod monetary_budget;
 mod object_state;
+mod progress;
 mod scheduling_priority;
 mod automatic_work;
 
@@ -69,6 +70,8 @@ pub enum Message {
     Back,
     Refresh,
     RefreshReceipts,
+    DetailTab(DetailTab),
+    ToggleRun(String),
     CapabilityPolicy(CapabilityPolicyMessage),
     Continuity(ContinuityMessage),
     ExecutionLimits(ExecutionLimitsMessage),
@@ -103,6 +106,14 @@ pub enum Message {
         generation: u64,
         result: Result<Response, String>,
     },
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum DetailTab {
+    #[default]
+    Progress,
+    History,
+    Settings,
 }
 
 #[derive(Debug, Clone)]
@@ -227,6 +238,8 @@ pub(crate) struct Activities {
     filter: Option<ActivityState>,
     selected: Option<String>,
     detail: Option<ActivityDetailResponse>,
+    detail_tab: DetailTab,
+    expanded_run: Option<String>,
     receipts: Option<ActivityReceiptsResponse>,
     continuity: continuity::State,
     capability_policy: capability_policy::State,
@@ -455,6 +468,8 @@ impl Activities {
         self.invalidate();
         self.selected = None;
         self.detail = None;
+        self.detail_tab = DetailTab::Progress;
+        self.expanded_run = None;
         self.receipts = None;
         self.continuity = continuity::State::default();
         self.object_state = object_state::State::default();
@@ -509,6 +524,27 @@ impl Activities {
                 }
             }
             Message::Refresh => return self.refresh(connected),
+            Message::DetailTab(tab) if self.detail_navigation_enabled() => {
+                self.detail_tab = tab;
+                if tab == DetailTab::History && self.receipts.is_none() {
+                    return self.begin(Action::Receipts(self.selected.clone()?), connected);
+                }
+            }
+            Message::DetailTab(_) => {}
+            Message::ToggleRun(id) => {
+                if self.detail_tab != DetailTab::History {
+                    if !self.detail_navigation_enabled() {
+                        return None;
+                    }
+                    self.detail_tab = DetailTab::History;
+                    self.expanded_run = Some(id);
+                    if self.receipts.is_none() {
+                        return self.begin(Action::Receipts(self.selected.clone()?), connected);
+                    }
+                } else {
+                    self.expanded_run = (self.expanded_run.as_deref() != Some(id.as_str())).then_some(id);
+                }
+            }
             Message::PreviewObjectOperation(reference) => {
                 return self.begin_operation_preview(reference, connected);
             }
@@ -993,7 +1029,7 @@ impl Activities {
             {
                 self.receipts = Some(receipts);
             }
-            (Action::Get(id), Response::Detail(detail)) if detail.activity.id == id => {
+            (Action::Get(id), Response::Detail(mut detail)) if detail.activity.id == id => {
                 if self.objects.is_some()
                     && self.detail.as_ref().is_some_and(|previous| {
                         previous.activity.resources != detail.activity.resources
@@ -1003,12 +1039,20 @@ impl Activities {
                     self.operation_preview = None;
                     self.refresh_objects_after_detail = true;
                 }
+                let automatic_work = detail.automatic_work.take();
                 self.detail = Some(*detail);
+                if !self.automatic_work.is_editing() {
+                    match automatic_work {
+                        Some(Ok(response)) => self.automatic_work_loaded(&id, response),
+                        Some(Err(error)) => {
+                            self.automatic_work.response = None;
+                            self.automatic_work.load_error = Some(error);
+                        }
+                        None => {}
+                    }
+                }
                 if self.refresh_objects_after_detail {
                     return self.begin(Action::Objects(id), connected);
-                }
-                if self.automatic_work.response.is_some() && !self.automatic_work.is_editing() {
-                    return self.refresh_automatic_work(connected);
                 }
             }
             (Action::Objects(id), Response::Objects(objects)) if objects.activity_id == id => {
@@ -1335,7 +1379,21 @@ impl Activities {
         let mut content = Column::new()
             .spacing(12)
             .push(text(&activity.title).size(22.0))
-            .push(text(format!("{} · {}", state_label(activity.state), activity.id)).size(12.0))
+            .push(text(state_label(activity.state)).size(13.0))
+            .push(self.detail_tabs());
+        if self.detail_tab == DetailTab::Progress {
+            return content
+                .push(section(fl!("activity-goal"), &activity.goal))
+                .push(attention_view(detail, true))
+                .push(self.progress_view(detail))
+                .push(self.manual_run_view(detail, available))
+                .into();
+        }
+        if self.detail_tab == DetailTab::History {
+            return content.push(self.history_view(detail, available)).push(attention_view(detail, false)).into();
+        }
+        content = content
+            .push(text(&activity.id).size(11.0))
             .push(
                 text(fl!(
                     "activity-updated",
@@ -1420,10 +1478,15 @@ impl Activities {
             .push(self.monetary_budget_view(detail, monetary_budget_available))
             .push(self.scheduling_priority_view(detail, scheduling_priority_available))
             .push(self.automatic_work_view(detail, automatic_work_available))
-            .push(self.capability_policy_view(detail, capability_policy_available))
+            .push(self.capability_policy_view(detail, capability_policy_available));
+        content.into()
+    }
+
+    fn manual_run_view<'a>(&'a self, detail: &'a ActivityDetailResponse, available: bool) -> Element<'a, AppMessage> {
+        let mut content = Column::new().spacing(8)
             .push(text(fl!("activity-work")).size(18.0))
             .push(text(fl!("activity-work-hint")).size(12.0));
-        if activity.state == ActivityState::Active {
+        if detail.activity.state == ActivityState::Active {
             content = content
                 .push(field(fl!("activity-prompt"), &self.prompt, Field::Prompt))
                 .push(
@@ -1446,22 +1509,6 @@ impl Activities {
         } else {
             content = content.push(text(fl!("activity-work-inactive")).size(12.0));
         }
-        content = content
-            .push(attention_view(detail))
-            .push(text(fl!("activity-jobs")).size(18.0));
-        if detail.jobs.is_empty() {
-            content = content.push(text(fl!("activity-no-jobs")).size(12.0));
-        }
-        for job in &detail.jobs {
-            content = content.push(job_view(
-                job,
-                available,
-                activity.state == ActivityState::Active,
-            ));
-        }
-        content = content
-            .push(self.receipts_view(available))
-            .push(text(fl!("sessions")).size(18.0));
         for session in &detail.sessions {
             content = content.push(
                 Row::new()
@@ -1474,17 +1521,17 @@ impl Activities {
                     .push(control(
                         fl!("activity-use-session"),
                         Message::UseSession(Some(session.clone())),
-                        available && activity.state == ActivityState::Active,
+                        available && detail.activity.state == ActivityState::Active,
                     )),
             );
         }
         content.into()
     }
 
-    fn receipts_view(&self, available: bool) -> Element<'_, AppMessage> {
+    fn receipts_view<'a>(&'a self, detail: &'a ActivityDetailResponse, available: bool) -> Element<'a, AppMessage> {
         let mut content = Column::new()
             .spacing(12)
-            .push(text(fl!("activity-receipts")).size(18.0))
+            .push(text(fl!("activity-history-receipts")).size(18.0))
             .push(text(fl!("activity-receipts-caveat")).size(12.0))
             .push(control(
                 fl!("activity-receipts-refresh"),
@@ -1499,7 +1546,10 @@ impl Activities {
         if receipts.receipts.is_empty() {
             content = content.push(text(fl!("activity-receipts-empty")).size(12.0));
         }
-        for receipt in &receipts.receipts {
+        let reports = self.automatic_work.response.as_ref().map_or(&[][..], |view| view.history.as_slice());
+        for receipt in receipts.receipts.iter().filter(|receipt| receipt.job_id.as_deref().is_none_or(|id| {
+            !detail.jobs.iter().any(|job| job.id == id) && !reports.iter().any(|record| record.job_id == id)
+        })) {
             content = content.push(receipt_view(receipt));
         }
         if receipts.receipts.len() >= 100 {
@@ -1993,7 +2043,7 @@ fn error_card(error: &str) -> Element<'_, AppMessage> {
         .into()
 }
 
-fn attention_view(detail: &ActivityDetailResponse) -> Element<'_, AppMessage> {
+fn attention_view(detail: &ActivityDetailResponse, pending_only: bool) -> Element<'_, AppMessage> {
     let mut content = Column::new()
         .spacing(8)
         .push(text(fl!("activity-attention")).size(18.0))
@@ -2025,18 +2075,23 @@ fn attention_view(detail: &ActivityDetailResponse) -> Element<'_, AppMessage> {
     content = content
         .push(text(fl!("activity-attention-decisions")).size(15.0))
         .push(text(fl!("activity-attention-decisions-hint")).size(11.0));
-    if attention.decisions.is_empty() {
+    let decisions = attention.decisions.iter().filter(|decision| !pending_only
+        || matches!(decision.status, ActivityDecisionStatus::Pending | ActivityDecisionStatus::Unavailable));
+    if decisions.clone().next().is_none() {
         content = content.push(text(fl!("activity-attention-no-decisions")).size(12.0));
     }
-    for decision in &attention.decisions {
+    for decision in decisions.take(if pending_only { 4 } else { usize::MAX }) {
         content = content.push(attention_decision_view(decision));
     }
     content = content.push(text(fl!("activity-attention-issues")).size(15.0));
     if attention.issues.is_empty() {
         content = content.push(text(fl!("activity-attention-no-issues")).size(12.0));
     }
-    for issue in &attention.issues {
+    for issue in attention.issues.iter().take(if pending_only { 4 } else { usize::MAX }) {
         content = content.push(attention_issue_view(issue));
+    }
+    if pending_only {
+        return content.into();
     }
     content = content
         .push(text(fl!("activity-attention-notifications")).size(15.0))

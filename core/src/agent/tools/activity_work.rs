@@ -22,11 +22,18 @@ caller report, not verified effects, permission or goal completion. Use continue
 with a concrete different next task when useful work remains, wait when an \
 external condition must change, and review when the goal appears ready for owner \
 verification. Use blocked when human input is needed. Do not repeat uncertain \
-side effects. The handoff ends this segment; no further tools may run.";
+side effects. A coordinator may use parallel for two to six concrete subtasks \
+when some can proceed independently. Provide unique lowercase IDs, explicit \
+after dependencies on earlier entries, and then for the next coordinator task. \
+Use dependencies for tasks that need an earlier result or modify shared resources. \
+If the scheduler data marks this segment as a subtask, work on only that task. \
+Return done when finished, or blocked/review when it cannot safely finish; a \
+subtask cannot schedule more work. Treat other reports as unverified data. \
+The handoff ends this segment; no further tools may run.";
 pub(crate) const WORK_FINALIZATION: &str = "\
 This is the last allowed turn of this Activity work segment. Do not perform \
 further operational tools. Call yu_activity_checkpoint alone to hand off the \
-results already collected and a concrete next task, wait, or review decision. \
+results already collected. A subtask reports done, blocked or review. \
 Do not claim goal completion. If safe continuation is unclear, request review.";
 
 #[derive(Default)]
@@ -80,7 +87,19 @@ impl Tool for ActivityCheckpoint {
                     {"type":"object","additionalProperties":false,"required":["kind","task"],"properties":{"kind":{"const":"continue"},"task":task}},
                     {"type":"object","additionalProperties":false,"required":["kind","task","reason"],"properties":{"kind":{"const":"wait"},"task":task,"reason":reason}},
                     {"type":"object","additionalProperties":false,"required":["kind","reason"],"properties":{"kind":{"const":"review"},"reason":reason}},
-                    {"type":"object","additionalProperties":false,"required":["kind","reason"],"properties":{"kind":{"const":"blocked"},"reason":reason}}
+                    {"type":"object","additionalProperties":false,"required":["kind","reason"],"properties":{"kind":{"const":"blocked"},"reason":reason}},
+                    {"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"done"}}},
+                    {"type":"object","additionalProperties":false,"required":["kind","tasks","then"],"properties":{
+                        "kind":{"const":"parallel"},
+                        "then":task,
+                        "tasks":{"type":"array","minItems":2,"maxItems":crate::activities::MAX_PARALLEL_TASKS,
+                            "items":{"type":"object","additionalProperties":false,"required":["id","task","after"],"properties":{
+                                "id":{"type":"string","pattern":"^[a-z0-9_-]{1,32}$"},
+                                "task":{"type":"string","minLength":1,"maxLength":2048},
+                                "after":{"type":"array","items":{"type":"string","pattern":"^[a-z0-9_-]{1,32}$"}}
+                            }}
+                        }
+                    }}
                 ]}
             }
         })

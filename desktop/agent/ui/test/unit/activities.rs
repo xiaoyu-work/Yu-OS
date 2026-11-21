@@ -2,6 +2,7 @@ use super::*;
 
 fn detail(id: &str, state: ActivityState) -> ActivityDetailResponse {
     ActivityDetailResponse {
+        automatic_work: None,
         activity: ActivityView {
             id: id.into(),
             title: "Prepare a release".into(),
@@ -1185,6 +1186,7 @@ fn receipt_response(id: &str, outcome: ActivityReceiptOutcome) -> ActivityReceip
         receipts: vec![ActivityReceiptView {
             id: "receipt-1".into(),
             activity_id: id.into(),
+            job_id: None,
             received_at: "2026-09-10T21:00:00Z".into(),
             source: ActivityReceiptSource::CallerReported,
             report: ActivityReceiptReport {

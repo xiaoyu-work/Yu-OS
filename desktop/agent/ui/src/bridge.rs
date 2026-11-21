@@ -622,7 +622,11 @@ pub async fn fetch_activities(
 pub async fn fetch_activity(endpoint: BridgeEndpoint, id: &str) -> Result<ActivityDetailResponse> {
     let (request, selected) =
         activity_request(&endpoint, reqwest::Method::GET, &["activities", id])?;
-    activity_response(request, selected).await
+    let mut detail: ActivityDetailResponse = activity_response(request, selected).await?;
+    detail.automatic_work = Some(
+        fetch_activity_auto_work(endpoint, id).await.map_err(|error| error.to_string()),
+    );
+    Ok(detail)
 }
 
 fn continuity_export_request(

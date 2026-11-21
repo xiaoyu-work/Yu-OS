@@ -670,6 +670,36 @@ impl Store {
         Ok((next_cursor, events))
     }
 
+    pub(crate) fn recent_receipt_links(&self, id: &str, activity: &str) -> io::Result<Vec<String>> {
+        use std::io::{Read, Seek, SeekFrom};
+
+        validate_job_id(id)?;
+        let mut file = match fs::File::open(self.stream_path(id)) {
+            Ok(file) => file,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => return Err(error),
+        };
+        let size = file.metadata()?.len();
+        let window = size.min(64 * 1024);
+        file.seek(SeekFrom::Start(size - window))?;
+        let mut tail = Vec::new();
+        file.take(window).read_to_end(&mut tail)?;
+        // Stream events are append-only; neither a partial first nor last line is evidence.
+        Ok(tail.split_inclusive(|&byte| byte == b'\n')
+            .skip(usize::from(size > window))
+            .filter(|line| line.ends_with(b"\n"))
+            .filter_map(|line| {
+                let value: Value = serde_json::from_slice(line).ok()?;
+                let progress = value.get("progress")?;
+                if progress.get("kind")?.as_str()? != "activity_receipt"
+                    || progress.get("activity_id")?.as_str()? != activity
+                {
+                    return None;
+                }
+                progress.get("receipt_id")?.as_str().map(str::to_owned)
+            }).collect())
+    }
+
     /// Locate a job by id by checking pending/, running/, then done/.
     /// Returns the bucket the file currently lives in plus the parsed
     /// Job, or `Ok(None)` if no file exists in any bucket.

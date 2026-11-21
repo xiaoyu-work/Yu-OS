@@ -274,6 +274,11 @@ worker controls.
 
 ## Event-driven work
 
+An enabled Activity can also schedule [dependent parallel subtasks](activity-work.md#parallel-subtasks).
+The native **Progress** and **History** tabs show the shared execution state
+and retained run evidence. A reported subtask result does not complete the
+Activity or authorize a downstream operation.
+
 For an explicitly enabled goal that advances across multiple bounded Jobs,
 see [long-running Activity work](activity-work.md). It reuses this scheduler,
 persists structured handoffs, waits without holding a worker and stops for

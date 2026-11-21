@@ -2,8 +2,8 @@
 
 use super::*;
 use crate::activities::{
-    ActivityService, ActivityWork, ActivityWorkChange, ActivityWorkCheckpoint, ActivityWorkOutcome,
-    ActivityWorkPhase,
+    ActivityService, ActivityWork, ActivityWorkChange, ActivityWorkCheckpoint, ActivityWorkNext,
+    ActivityWorkOutcome, ActivityWorkPhase, ActivityWorkRecord, ActivityWorkTask,
 };
 use crate::agent::service::{ExecutionPhase, Job, JobStatus, Store};
 
@@ -25,7 +25,7 @@ pub(super) fn preflight_enable(
         .ok_or("work revision is missing")?
         .parse::<u64>()
         .map_err(|_| "invalid work revision")?;
-    if work.revision != expected || work.current.is_some() {
+    if work.revision != expected || work.has_in_flight() {
         return Err("work changed or still has an in-flight Job; refresh before enabling".into());
     }
     if flag(args, "id").as_deref() != Some(rule_id(activity_id).as_str())
@@ -97,13 +97,9 @@ pub(crate) fn admit_job(job: &Job) -> Result<(), String> {
         .work(owner, activity_id)
         .map_err(|error| error.to_string())?
         .ok_or("automatic work state is missing; replay is refused")?;
-    let segment = work
-        .current
-        .as_ref()
-        .ok_or("automatic work has no current Job")?;
+    let segment = work.segment(&job.id).ok_or("automatic work Job is not reserved")?;
     if !work.enabled
         || work.generation.as_deref() != Some(generation)
-        || segment.job_id != job.id
         || job.session_id.as_deref() != Some(segment.session_id.as_str())
         || job.prompt != work.config.task
     {
@@ -137,14 +133,14 @@ pub(crate) fn stage_checkpoint(
         .map_err(|error| error.to_string())?
         .ok_or("Activity work state is missing")?;
     if work.generation.as_deref() != Some(generation)
-        || work.current.as_ref().is_none_or(|current| {
-            current.job_id != job.id
-                || job.session_id.as_deref() != Some(current.session_id.as_str())
+        || work.segment(&job.id).is_none_or(|current| {
+            job.session_id.as_deref() != Some(current.session_id.as_str())
         })
     {
         return Err("handoff does not match the broker-owned work Job/session/generation".into());
     }
     checkpoint.validate().map_err(|error| error.to_string())?;
+    checkpoint.validate_role(work.current.is_none()).map_err(|error| error.to_string())?;
     if let Some(sid)=job.session_id.as_deref(){
         let sid=sid.parse::<crate::session::SessionId>().map_err(|e|e.to_string())?;
         if crate::workspaces::context_access::has_temporary(&sid)?{
@@ -164,21 +160,27 @@ pub(crate) fn stage_checkpoint(
         *step = redactor.redact(step);
     }
     match &mut checkpoint.next {
-        crate::activities::ActivityWorkNext::Continue { task } => *task = redactor.redact(task),
-        crate::activities::ActivityWorkNext::Wait { task, reason } => {
+        ActivityWorkNext::Continue { task } => *task = redactor.redact(task),
+        ActivityWorkNext::Wait { task, reason } => {
             *task = redactor.redact(task);
             *reason = redactor.redact(reason);
         }
-        crate::activities::ActivityWorkNext::Review { reason }
-        | crate::activities::ActivityWorkNext::Blocked { reason } => {
+        ActivityWorkNext::Review { reason } | ActivityWorkNext::Blocked { reason } => {
             *reason = redactor.redact(reason)
         }
+        ActivityWorkNext::Parallel { tasks, then } => {
+            *then = redactor.redact(then);
+            for task in tasks {
+                task.task = redactor.redact(&task.task);
+            }
+        }
+        ActivityWorkNext::Done => {}
     }
     service
         .change_work(
             owner,
             activity_id,
-            Some(work.revision),
+            None,
             ActivityWorkChange::Stage {
                 job_id: job.id.clone(),
                 checkpoint,
@@ -217,11 +219,12 @@ fn tick_one(
     else {
         return Ok(());
     };
-    if !work.enabled && work.current.is_none() {
+    if !work.enabled && !work.has_in_flight() {
         return Ok(());
     }
     let store = Store::open_default().map_err(|error| error.to_string())?;
-    if let Some(current) = &work.current {
+    let segments = work.in_flight().cloned().collect::<Vec<_>>();
+    for current in segments {
         let located = store
             .locate_for_owner(&current.job_id, Some(owner))
             .map_err(|error| error.to_string())?;
@@ -231,7 +234,7 @@ fn tick_one(
                 && job.session_id.as_deref() == Some(current.session_id.as_str())
                 && job.prompt == work.config.task => {
                 match job.status {
-                    JobStatus::Pending | JobStatus::Running | JobStatus::WaitingApproval => return Ok(()),
+                    JobStatus::Pending | JobStatus::Running | JobStatus::WaitingApproval => continue,
                     JobStatus::Ok => ActivityWorkOutcome::Reported,
                     JobStatus::Cancelled => ActivityWorkOutcome::Cancelled,
                     JobStatus::Error if job.execution_phase == ExecutionPhase::Indeterminate =>
@@ -263,7 +266,9 @@ fn tick_one(
             notify_review(&work);
         }
     }
-    if !work.enabled {
+    if !work.enabled || (work.next_child().is_none()
+        && !work.due_at(chrono::Utc::now()).map_err(|error| error.to_string())?)
+    {
         return Ok(());
     }
     let activity = service
@@ -274,19 +279,17 @@ fn tick_one(
     }
     let rule = binding(owner, activity_id)?;
     let Some(rule) = rule.filter(|rule| rule.enabled && rule.generation == work.generation) else {
-        hold(service, &work, "The scheduler binding was removed, disabled or replaced; explicitly review and re-enable automatic work.")?;
+        if !work.has_in_flight() {
+            hold(service, &work, "The scheduler binding was removed, disabled or replaced; explicitly review and re-enable automatic work.")?;
+        }
         return Ok(());
     };
     if let Err(error) = validate_activity_trigger(owner, activity_id)
         .and_then(|_| execution_owner(&rule).map(|_| ()))
     {
-        hold(service, &work, &error)?;
-        return Ok(());
-    }
-    if !work
-        .due_at(chrono::Utc::now())
-        .map_err(|error| error.to_string())?
-    {
+        if !work.has_in_flight() {
+            hold(service, &work, &error)?;
+        }
         return Ok(());
     }
     let active = store
@@ -294,7 +297,7 @@ fn tick_one(
         .map_err(|error| error.to_string())?
         .into_iter()
         .any(|job| {
-            matches!(
+            work.segment(&job.id).is_none() && matches!(
                 job.status,
                 JobStatus::Pending | JobStatus::Running | JobStatus::WaitingApproval
             )
@@ -305,43 +308,92 @@ fn tick_one(
     use crate::workspaces::WorkspaceService;
     let domain=crate::workspaces::open_default().and_then(|service|service.activity_workspace(owner,activity_id))
         .map_err(|e|e.to_string())?.map(|workspace|workspace.id);
-    let checkpoint=match work.last_checkpoint.as_ref(){
-        Some(record)=>{
-            let meta=checkpoint_session_meta(record,owner,activity_id)?;
-            if meta.workspace_id!=domain || crate::workspaces::context_access::has_temporary(&meta.id)?{None}
-            else{Some(record)}
+    loop {
+        let child = work.next_child();
+        if child.is_none() && !work.due_at(chrono::Utc::now()).map_err(|error| error.to_string())? {
+            break;
         }
-        None=>None,
-    };
-    let mut job = prepare_job(&rule, work.config.task.clone())?;
-    job.activity_work_generation = work.generation.clone();
-    job.context = Some(
-        handoff_segment(&work.next_task, checkpoint)?
-            .render_fenced(crate::agent::trust::envelope::process_seal()),
-    );
-    let reserved = service.change_work(
-        owner,
-        activity_id,
-        Some(work.revision),
-        ActivityWorkChange::Reserve {
-            generation: work
+        let task_id = child.map(|task| task.id.clone());
+        let context = match scheduled_context(&work, child, domain.as_deref()) {
+            Ok(context) => context,
+            Err(error) => {
+                if !work.has_in_flight() {
+                    hold(service, &work, &error)?;
+                }
+                return Ok(());
+            }
+        };
+        let generation = work
                 .generation
                 .clone()
-                .ok_or("work generation is missing")?,
-            job_id: job.id.clone(),
-            session_id: job.session_id.clone().ok_or("work session is missing")?,
-        },
-    );
-    if let Err(error) = reserved {
-        end_unpublished_session(&job);
-        return Err(error.to_string());
+                .ok_or("work generation is missing")?;
+        let mut job = prepare_job(&rule, work.config.task.clone())?;
+        job.activity_work_generation = Some(generation.clone());
+        job.context = Some(context.render_fenced(crate::agent::trust::envelope::process_seal()));
+        let session_id = job.session_id.clone().ok_or("work session is missing")?;
+        let change = if let Some(task_id) = task_id {
+            ActivityWorkChange::ReserveChild { generation, job_id: job.id.clone(), session_id, task_id }
+        } else {
+            ActivityWorkChange::Reserve { generation, job_id: job.id.clone(), session_id }
+        };
+        match service.change_work(owner, activity_id, Some(work.revision), change) {
+            Ok(reserved) => work = reserved,
+            Err(error) => {
+                end_unpublished_session(&job);
+                return Err(error.to_string());
+            }
+        }
+        // A publish failure is reconciled by exact reservation, never by sending a replacement.
+        store.publish(job).map_err(|error| format!("publish Activity work: {error}"))?;
     }
-    // The durable reservation precedes queue publication. An ambiguous failure
-    // is reconciled by exact identity, never by publishing a replacement Job.
-    store
-        .publish(job)
-        .map_err(|error| format!("publish Activity work: {error}"))?;
     Ok(())
+}
+
+fn scheduled_context(
+    work: &ActivityWork,
+    child: Option<&ActivityWorkTask>,
+    domain: Option<&str>,
+) -> Result<crate::agent::trust::LabeledSegment, String> {
+    let visible = |record: &ActivityWorkRecord| -> Result<bool, String> {
+        let meta = checkpoint_session_meta(record, work.owner_uid, &work.activity_id)?;
+        Ok(meta.workspace_id.as_deref() == domain
+            && !crate::workspaces::context_access::has_temporary(&meta.id)?)
+    };
+    let Some(batch) = &work.parallel else {
+        let prior = match &work.last_checkpoint {
+            Some(record) if visible(record)? => Some(record),
+            _ => None,
+        };
+        return handoff_segment(&work.next_task, prior);
+    };
+    let mut reports = Vec::new();
+    for (id, record) in &batch.finished {
+        if child.is_some_and(|task| !task.after.contains(id)) || !visible(record)? {
+            continue;
+        }
+        if let Some(checkpoint) = &record.checkpoint {
+            let summary: String = checkpoint.summary.chars().take(512).collect();
+            let artifacts = checkpoint.artifacts.iter().filter(|reference| reference.len() <= 1024)
+                .take(2).collect::<Vec<_>>();
+            reports.push(serde_json::json!({
+                "task_id": id, "summary": summary, "artifact_count": checkpoint.artifacts.len(), "artifacts": artifacts,
+            }));
+        }
+    }
+    let payload = serde_json::json!({
+        "role": if child.is_some() { "subtask" } else { "coordinator" },
+        "next_task": child.map_or(work.next_task.as_str(), |task| task.task.as_str()),
+        "task_id": child.map(|task| &task.id),
+        "parent_job_id": batch.parent_job_id,
+        "reports": reports,
+        "source": "caller_reported",
+        "effects_verified": false,
+        "goal_completed": false,
+    });
+    Ok(crate::agent::trust::LabeledSegment::of(
+        crate::agent::trust::SourceKind::ActivityWorkCheckpoint,
+        payload.to_string(),
+    ))
 }
 
 fn checkpoint_session_meta(

@@ -35,8 +35,8 @@ yu activity work "$activity_id"
 yu activity stop-work "$activity_id" --expected-revision 4
 ```
 
-Stopping prevents future segments, including a reserved Job that has not been
-admitted. It does not cancel an already running Job or undo effects. Use the
+Stopping prevents future segments, including reserved Jobs that have not been
+admitted. It does not cancel already running Jobs or undo effects. Use the
 existing task controls to cancel a Job. Activity pause/end also gates future
 admission; Job completion never completes the Activity.
 
@@ -80,10 +80,31 @@ Events observed while the Activity is paused or ended are consumed without
 waking work; resuming does not replay them. Unavailable Activity storage blocks
 automatic work visibly without blocking unrelated, unassociated triggers.
 
-Only one automatic segment is reserved at a time; automatic dispatch also
-waits for other nonterminal Jobs associated with the Activity. Existing queue
-priority, execution limits, configured monetary accounting, consent,
-capabilities and approval waits retain their ordinary enforcement.
+### Parallel subtasks
+
+To use parallel work, ask an explicitly enabled Activity to split an independent
+part of its task. For example: “Check the authorized inbox and download folder
+in parallel, then reconcile the two lists.” A coordinator may propose two to
+six subtasks in its handoff. Every subtask has an ID and can name earlier
+subtasks it must wait for. The parent is the Job that proposed the batch;
+siblings do not automatically depend on one another.
+
+The scheduler runs at most two eligible children at once. Children cannot
+spawn another batch. A dependency counts as ready only when its child Job
+finished durably and reported `done`. The next coordinator receives bounded,
+caller-reported results after all children finish successfully. If a child
+fails, blocks, is cancelled, or has an uncertain result, the scheduler stops
+scheduling new work, reconciles in-flight Jobs and requires inspection. It
+does not retry a child automatically. Automatic dispatch still waits for
+unrelated nonterminal Jobs in the Activity. Queue priority, execution limits,
+monetary accounting, capabilities and approvals all continue to apply.
+
+`yu activity work ID` includes the active batch and retained handoffs. Agent
+Web shows dependencies in **Automatic work**. The native App opens Activity
+details on **Progress**, with pending decisions and the task tree. **History**
+groups handoffs, artifacts, receipts with retained Job links and conversation
+links by run. Automatic-work controls and policy configuration live under
+**Settings**.
 
 ## Review and recovery
 

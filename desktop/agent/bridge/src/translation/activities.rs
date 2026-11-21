@@ -217,6 +217,7 @@ pub fn detail(value: Value) -> Result<ActivityDetailResponse, String> {
         })
         .collect::<Result<_, _>>()?;
     Ok(ActivityDetailResponse {
+        automatic_work: None,
         activity: envelope.activity.into_view()?,
         jobs,
         sessions: envelope.sessions,

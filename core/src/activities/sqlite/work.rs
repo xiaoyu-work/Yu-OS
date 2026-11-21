@@ -5,9 +5,9 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 
 use super::{load_activity, parse_id, timestamp, SqliteActivityService};
 use crate::activities::{
-    Activity, ActivityError, ActivityState, ActivityWork, ActivityWorkChange, ActivityWorkNext,
-    ActivityWorkOutcome, ActivityWorkPhase, ActivityWorkRecord, ActivityWorkSegment,
-    MAX_STAGNANT_WORK_SEGMENTS, MAX_WORK_HISTORY,
+    Activity, ActivityError, ActivityState, ActivityWork, ActivityWorkBatch, ActivityWorkChange,
+    ActivityWorkChild, ActivityWorkNext, ActivityWorkOutcome, ActivityWorkPhase,
+    ActivityWorkRecord, ActivityWorkSegment, MAX_STAGNANT_WORK_SEGMENTS, MAX_WORK_HISTORY,
 };
 
 pub(super) const MIGRATE_TO_V9: &str = r#"
@@ -77,22 +77,58 @@ fn load(conn: &Connection, activity: &Activity) -> Result<Option<ActivityWork>, 
         if latest != work.last_checkpoint {
             return Err(corrupt("the latest handoff differs from durable history"));
         }
+        if let Some(batch) = &work.parallel {
+            let parent = ledger_record(conn, activity, &batch.parent_job_id)?;
+            if !matches!(parent.as_ref(), Some(ActivityWorkRecord { outcome, child: None, checkpoint: Some(checkpoint), .. })
+                if outcome == "reported" && matches!(&checkpoint.next, ActivityWorkNext::Parallel { tasks, then }
+                    if tasks == &batch.tasks && then == &work.next_task))
+            {
+                return Err(corrupt("parallel work does not match its completed parent"));
+            }
+            for record in batch.finished.values() {
+                if ledger_record(conn, activity, &record.job_id)?.as_ref() != Some(record) {
+                    return Err(corrupt("finished subtask differs from durable history"));
+                }
+            }
+        }
         Ok(work)
     })
     .transpose()
 }
 
-pub(super) fn hold_for_workspace_move(conn:&Connection,activity:&Activity)->Result<(),ActivityError>{
-    let Some(mut work)=load(conn,activity)?else{return Ok(());};
-    if work.current.is_some(){return Err(ActivityError::Conflict("retire and reconcile automatic work before changing its Workspace".into()));}
-    work.enabled=false;work.phase=ActivityWorkPhase::Held;work.next_wake_at=None;
+pub(super) fn hold_for_workspace_move(
+    conn: &Connection,
+    activity: &Activity,
+) -> Result<(), ActivityError> {
+    let Some(mut work) = load(conn, activity)? else {
+        return Ok(());
+    };
+    if work.has_in_flight() {
+        return Err(ActivityError::Conflict(
+            "retire and reconcile automatic work before changing its Workspace".into(),
+        ));
+    }
+    work.enabled = false;
+    work.phase = ActivityWorkPhase::Held;
+    work.next_wake_at = None;
+    work.parallel = None;
     work.message=Some("Workspace changed. Inspect retained execution evidence and explicitly provide a fresh next task; old private handoffs are not imported.".into());
-    work.revision=work.revision.checked_add(1).filter(|revision|*revision<=i64::MAX as u64)
-        .ok_or_else(||corrupt("work revision exhausted"))?;
-    work.updated_at=timestamp().max(work.updated_at);
+    work.revision = work
+        .revision
+        .checked_add(1)
+        .filter(|revision| *revision <= i64::MAX as u64)
+        .ok_or_else(|| corrupt("work revision exhausted"))?;
+    work.updated_at = timestamp().max(work.updated_at);
     work.validate()?;
-    conn.execute("UPDATE activity_work SET revision=?3,state_json=?4 WHERE owner_uid=?1 AND activity_id=?2",
-        params![activity.owner_uid,activity.id,i64::try_from(work.revision).map_err(|_|corrupt("work revision out of range"))?,serde_json::to_string(&work)?])?;
+    conn.execute(
+        "UPDATE activity_work SET revision=?3,state_json=?4 WHERE owner_uid=?1 AND activity_id=?2",
+        params![
+            activity.owner_uid,
+            activity.id,
+            i64::try_from(work.revision).map_err(|_| corrupt("work revision out of range"))?,
+            serde_json::to_string(&work)?
+        ],
+    )?;
     Ok(())
 }
 
@@ -164,6 +200,21 @@ fn decode_record(job_id: &str, json: &str) -> Result<ActivityWorkRecord, Activit
     Ok(record)
 }
 
+fn ledger_record(
+    conn: &Connection,
+    activity: &Activity,
+    job_id: &str,
+) -> Result<Option<ActivityWorkRecord>, ActivityError> {
+    conn.query_row(
+        "SELECT record_json FROM activity_work_history WHERE owner_uid=?1 AND activity_id=?2 AND job_id=?3",
+        params![activity.owner_uid, activity.id, job_id],
+        |row| row.get::<_, String>(0),
+    )
+    .optional()?
+    .map(|json| decode_record(job_id, &json))
+    .transpose()
+}
+
 pub(super) fn change(
     service: &SqliteActivityService,
     owner: u32,
@@ -176,7 +227,10 @@ pub(super) fn change(
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
     let activity = load_activity(&tx, owner, &id)?;
     let previous = load(&tx, &activity)?;
-    if previous.as_ref().map(|work| work.revision) != expected {
+    // Sibling reports use their exact reserved Job, not a revision shared across the batch.
+    if !(expected.is_none() && matches!(&change, ActivityWorkChange::Stage { .. }))
+        && previous.as_ref().map(|work| work.revision) != expected
+    {
         return Err(ActivityError::Conflict(
             "Activity work revision changed; refresh before editing".into(),
         ));
@@ -196,6 +250,7 @@ pub(super) fn change(
             next_wake_at: None,
             event_after: 0,
             current: None,
+            parallel: None,
             last_checkpoint: None,
             stagnant_segments: 0,
             message: None,
@@ -212,7 +267,7 @@ pub(super) fn change(
         ActivityWorkChange::Configure(config) => {
             config.validate()?;
             configurable(&activity)?;
-            if work.current.is_some() {
+            if work.has_in_flight() {
                 return Err(ActivityError::Conflict(
                     "finish or cancel the current Job before editing work".into(),
                 ));
@@ -227,6 +282,7 @@ pub(super) fn change(
             }
             work.next_task = config.task.clone();
             work.config = config;
+            work.parallel = None;
             work.enabled = false;
             work.phase = ActivityWorkPhase::Ready;
             work.next_wake_at = None;
@@ -243,7 +299,7 @@ pub(super) fn change(
                     "resume the Activity before enabling automatic work".into(),
                 ));
             }
-            if work.current.is_some() {
+            if work.has_in_flight() {
                 return Err(ActivityError::Conflict(
                     "a previous work Job still needs reconciliation".into(),
                 ));
@@ -280,6 +336,7 @@ pub(super) fn change(
             if let Some(task) = next_task {
                 super::super::validate_text("next work task", &task, 8192, false, true)?;
                 work.next_task = task;
+                work.parallel = None;
             }
             work.enabled = true;
             work.phase = ActivityWorkPhase::Ready;
@@ -307,6 +364,7 @@ pub(super) fn change(
             }
             super::super::execution_limits::validate_job_id(&job_id)?;
             super::super::validate_text("work session", &session_id, 128, false, false)?;
+            work.parallel = None;
             work.current = Some(ActivityWorkSegment {
                 job_id,
                 session_id,
@@ -317,6 +375,36 @@ pub(super) fn change(
             work.phase = ActivityWorkPhase::Running;
             work.next_wake_at = None;
             work.message = None;
+        }
+        ActivityWorkChange::ReserveChild {
+            generation,
+            job_id,
+            session_id,
+            task_id,
+        } => {
+            if !activity.state.allows_work()
+                || work.generation.as_deref() != Some(generation.as_str())
+                || work.next_child().is_none_or(|task| task.id != task_id)
+            {
+                return Err(ActivityError::Conflict(
+                    "subtask is not ready for this scheduler generation".into(),
+                ));
+            }
+            let batch = work
+                .parallel
+                .as_mut()
+                .ok_or_else(|| corrupt("missing parallel plan"))?;
+            batch.running.insert(
+                task_id,
+                ActivityWorkSegment {
+                    job_id,
+                    session_id,
+                    generation,
+                    prepared_at: now.clone(),
+                    checkpoint: None,
+                },
+            );
+            work.phase = ActivityWorkPhase::Running;
         }
         ActivityWorkChange::Stage { job_id, checkpoint } => {
             checkpoint.validate()?;
@@ -331,13 +419,23 @@ pub(super) fn change(
                     ));
                 }
             }
-            let segment = work
+            let (segment, child) = work
                 .current
                 .as_mut()
                 .filter(|segment| segment.job_id == job_id)
+                .map(|segment| (segment, false))
+                .or_else(|| {
+                    work.parallel
+                        .as_mut()?
+                        .running
+                        .values_mut()
+                        .find(|segment| segment.job_id == job_id)
+                        .map(|segment| (segment, true))
+                })
                 .ok_or_else(|| {
-                    ActivityError::Conflict("work handoff is not for the current Job".into())
+                    ActivityError::Conflict("work handoff is not for a reserved Job".into())
                 })?;
+            checkpoint.validate_role(child)?;
             if let Some(existing) = &segment.checkpoint {
                 if *existing != checkpoint {
                     return Err(ActivityError::Conflict(
@@ -353,13 +451,33 @@ pub(super) fn change(
             outcome,
             event_after,
         } => {
-            let segment = work
-                .current
-                .take()
-                .filter(|segment| segment.job_id == job_id)
-                .ok_or_else(|| {
-                    ActivityError::Conflict("work completion is not for the current Job".into())
-                })?;
+            let (segment, child) = match work.current.take() {
+                Some(segment) if segment.job_id == job_id => (segment, None),
+                _ => {
+                    let batch = work.parallel.as_mut().ok_or_else(|| {
+                        ActivityError::Conflict("work completion is not for a reserved Job".into())
+                    })?;
+                    let id = batch
+                        .running
+                        .iter()
+                        .find(|(_, segment)| segment.job_id == job_id)
+                        .map(|(id, _)| id.clone())
+                        .ok_or_else(|| {
+                            ActivityError::Conflict("subtask Job is not reserved".into())
+                        })?;
+                    let segment = batch
+                        .running
+                        .remove(&id)
+                        .ok_or_else(|| corrupt("subtask reservation disappeared"))?;
+                    (
+                        segment,
+                        Some(ActivityWorkChild {
+                            parent_job_id: batch.parent_job_id.clone(),
+                            task_id: id,
+                        }),
+                    )
+                }
+            };
             let (outcome_text, message) = match outcome {
                 ActivityWorkOutcome::Reported => ("reported", None),
                 ActivityWorkOutcome::Failed(message) => ("failed", Some(message)),
@@ -375,6 +493,7 @@ pub(super) fn change(
                 checkpoint: segment.checkpoint,
                 outcome: outcome_text.into(),
                 message: message.clone(),
+                child,
             };
             record.validate()?;
             let count: i64 = tx.query_row(
@@ -389,55 +508,93 @@ pub(super) fn change(
                 "INSERT INTO activity_work_history(owner_uid,activity_id,job_id,record_json) VALUES(?1,?2,?3,?4)",
                 params![owner, activity.id, record.job_id, serde_json::to_string(&record)?],
             )?;
-            work.phase = ActivityWorkPhase::Held;
-            work.enabled &= outcome_text == "reported";
-            work.next_wake_at = None;
-            work.event_after = event_after;
-            work.message = message;
-            if outcome_text == "reported" {
-                if let Some(checkpoint) = &record.checkpoint {
-                    work.stagnant_segments = if checkpoint.made_progress
-                        || !matches!(checkpoint.next, ActivityWorkNext::Continue { .. })
-                    {
-                        0
-                    } else {
-                        (work.stagnant_segments + 1).min(MAX_STAGNANT_WORK_SEGMENTS)
-                    };
-                    match &checkpoint.next {
-                        ActivityWorkNext::Continue { task } => {
-                            work.next_task = task.clone();
-                            work.phase = ActivityWorkPhase::Ready;
+            if let Some(child) = &record.child {
+                let batch = work
+                    .parallel
+                    .as_mut()
+                    .ok_or_else(|| corrupt("subtask lost its batch"))?;
+                if !record.child_reported_done() && !batch.failed() {
+                    work.enabled = false;
+                    work.message = message.or_else(|| match record.checkpoint.as_ref().map(|checkpoint| &checkpoint.next) {
+                        Some(ActivityWorkNext::Blocked { reason } | ActivityWorkNext::Review { reason }) => Some(reason.clone()),
+                        _ => Some("A subtask ended without a completed handoff; review before continuing.".into()),
+                    });
+                }
+                batch.finished.insert(child.task_id.clone(), record.clone());
+                work.phase = if !batch.running.is_empty() {
+                    ActivityWorkPhase::Running
+                } else if batch.failed() {
+                    ActivityWorkPhase::Held
+                } else {
+                    ActivityWorkPhase::Ready
+                };
+            } else {
+                work.phase = ActivityWorkPhase::Held;
+                work.enabled &= outcome_text == "reported";
+                work.next_wake_at = None;
+                work.event_after = event_after;
+                work.message = message;
+                if outcome_text == "reported" {
+                    if let Some(checkpoint) = &record.checkpoint {
+                        work.stagnant_segments = if checkpoint.made_progress
+                            || !matches!(
+                                checkpoint.next,
+                                ActivityWorkNext::Continue { .. }
+                                    | ActivityWorkNext::Parallel { .. }
+                            ) {
+                            0
+                        } else {
+                            (work.stagnant_segments + 1).min(MAX_STAGNANT_WORK_SEGMENTS)
+                        };
+                        match &checkpoint.next {
+                            ActivityWorkNext::Continue { task } => {
+                                work.next_task = task.clone();
+                                work.phase = ActivityWorkPhase::Ready;
+                            }
+                            ActivityWorkNext::Wait { task, reason } => {
+                                work.next_task = task.clone();
+                                work.phase = ActivityWorkPhase::Waiting;
+                                work.message = Some(reason.clone());
+                                work.next_wake_at = Some(
+                                    (Utc::now()
+                                        + Duration::seconds(i64::from(
+                                            work.config.check_interval_secs,
+                                        )))
+                                    .to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+                                );
+                            }
+                            ActivityWorkNext::Review { reason }
+                            | ActivityWorkNext::Blocked { reason } => {
+                                work.phase = ActivityWorkPhase::Review;
+                                work.enabled = false;
+                                work.message = Some(reason.clone());
+                            }
+                            ActivityWorkNext::Parallel { tasks, then } => {
+                                work.next_task = then.clone();
+                                work.phase = ActivityWorkPhase::Ready;
+                                work.parallel = Some(ActivityWorkBatch {
+                                    parent_job_id: record.job_id.clone(),
+                                    tasks: tasks.clone(),
+                                    running: Default::default(),
+                                    finished: Default::default(),
+                                });
+                            }
+                            ActivityWorkNext::Done => {
+                                return Err(corrupt("parent Job cannot report subtask completion"))
+                            }
                         }
-                        ActivityWorkNext::Wait { task, reason } => {
-                            work.next_task = task.clone();
-                            work.phase = ActivityWorkPhase::Waiting;
-                            work.message = Some(reason.clone());
-                            work.next_wake_at = Some(
-                                (Utc::now()
-                                    + Duration::seconds(i64::from(
-                                        work.config.check_interval_secs,
-                                    )))
-                                .to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
-                            );
-                        }
-                        ActivityWorkNext::Review { reason }
-                        | ActivityWorkNext::Blocked { reason } => {
+                        if work.stagnant_segments >= MAX_STAGNANT_WORK_SEGMENTS {
                             work.phase = ActivityWorkPhase::Review;
                             work.enabled = false;
-                            work.message = Some(reason.clone());
-                        }
-                    }
-                    if work.stagnant_segments >= MAX_STAGNANT_WORK_SEGMENTS {
-                        work.phase = ActivityWorkPhase::Review;
-                        work.enabled = false;
-                        work.message = Some(
+                            work.message = Some(
                             "Three continuing segments reported no progress; review before continuing.".into(),
                         );
+                        }
+                    } else {
+                        work.phase = ActivityWorkPhase::Review;
+                        work.enabled = false;
+                        work.message = Some("The Job ended without a structured handoff; inspect its result before continuing.".into());
                     }
-                } else {
-                    work.phase = ActivityWorkPhase::Review;
-                    work.enabled = false;
-                    work.message = Some("The Job ended without a structured handoff; inspect its result before continuing.".into());
                 }
             }
             work.last_checkpoint = Some(record);
@@ -453,7 +610,7 @@ pub(super) fn change(
             }
             if !work.enabled
                 || work.phase != ActivityWorkPhase::Waiting
-                || work.current.is_some()
+                || work.has_in_flight()
                 || work.generation.as_deref() != Some(generation.as_str())
                 || event_index < work.event_after
             {
@@ -465,7 +622,7 @@ pub(super) fn change(
             work.next_wake_at = None;
         }
         ActivityWorkChange::Hold(message) => {
-            if work.current.is_some() {
+            if work.has_in_flight() {
                 return Err(ActivityError::Conflict(
                     "reconcile the current work Job before holding work".into(),
                 ));

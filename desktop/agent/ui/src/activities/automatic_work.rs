@@ -34,6 +34,7 @@ pub enum Message {
 #[derive(Debug, Default)]
 pub(super) struct State {
     pub(super) response: Option<ActivityAutoWorkResponse>,
+    pub(super) load_error: Option<String>,
     pub(super) form: Option<Form>,
 }
 
@@ -59,6 +60,7 @@ impl Activities {
     pub(super) fn refresh_automatic_work(&mut self, connected: bool) -> Option<Request> {
         let id = self.selected.clone()?;
         self.automatic_work.response = None;
+        self.automatic_work.load_error = None;
         self.begin(Action::GetAutomaticWork(id), connected)
     }
 
@@ -95,7 +97,7 @@ impl Activities {
                     return None;
                 }
                 let work = view.work.as_ref();
-                if work.is_some_and(|work| work.current.is_some()) {
+                if work.is_some_and(ActivityAutoWork::has_in_flight) {
                     return None;
                 }
                 let review = matches!(message, Message::Review);
@@ -213,7 +215,7 @@ impl Activities {
                 let enabled = matches!(message, Message::Start);
                 if enabled
                     && (detail.activity.state != super::ActivityState::Active
-                        || work.current.is_some()
+                        || work.has_in_flight()
                         || matches!(work.phase, AutoWorkPhase::Review | AutoWorkPhase::Held))
                 {
                     self.error = Some(fl!("activity-auto-work-review-required"));
@@ -245,8 +247,10 @@ impl Activities {
                 .is_some_and(|detail| detail.activity.id == id && response.matches_activity(id));
         if valid && !self.automatic_work.is_editing() {
             self.automatic_work.response = Some(response);
+            self.automatic_work.load_error = None;
         } else {
-            self.error = Some(fl!("activity-auto-work-invalid"));
+            self.automatic_work.response = None;
+            self.automatic_work.load_error = Some(fl!("activity-auto-work-invalid"));
         }
     }
 
@@ -382,7 +386,10 @@ impl Activities {
                 available,
             ));
             match self.automatic_work.response.as_ref() {
-                None => card = card.push(text(fl!("activity-auto-work-load")).size(12.0)),
+                None => {
+                    card = card.push(text(self.automatic_work.load_error.clone()
+                        .unwrap_or_else(|| fl!("activity-auto-work-load"))).size(12.0));
+                }
                 Some(response) => {
                     let current = response.work.as_ref();
                     if let Some(work) = current {
@@ -443,7 +450,7 @@ impl Activities {
                             available
                                 && (work.enabled
                                     || detail.activity.state == super::ActivityState::Active
-                                        && work.current.is_none()),
+                                        && !work.has_in_flight()),
                         ));
                     } else {
                         card = card.push(text(fl!("activity-auto-work-unconfigured")).size(13.0));
@@ -454,7 +461,7 @@ impl Activities {
                         available
                             && editable(detail.activity.state)
                             && current.is_none_or(|work| {
-                                work.current.is_none()
+                                !work.has_in_flight()
                                     && !matches!(
                                         work.phase,
                                         AutoWorkPhase::Review | AutoWorkPhase::Held

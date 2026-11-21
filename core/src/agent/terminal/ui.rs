@@ -1169,7 +1169,13 @@ fn render_activity_controls(frame: &mut Frame<'_>, screen: Rect, app: &App) {
         controls.work.as_ref(),
     );
     lines.push(Line::raw("W: configure/start/stop automatic work. Review/held work needs an explicit next task and review note."));
-    lines.push(Line::raw("The work 'running' phase means a reserved/in-flight Job; inspect its actual task status."));
+    lines.push(Line::raw("The work 'running' phase means reserved/in-flight Jobs; inspect actual task status."));
+    if let Some(batch) = controls.work.as_ref().and_then(|work| work.get("parallel")) {
+        let total = batch.get("tasks").and_then(serde_json::Value::as_array).map_or(0, Vec::len);
+        let in_flight = batch.get("running").and_then(serde_json::Value::as_object).map_or(0, |jobs| jobs.len());
+        let reported = batch.get("finished").and_then(serde_json::Value::as_object).map_or(0, |jobs| jobs.len());
+        lines.push(Line::raw(format!("Subtasks: {total} total, {in_flight} in flight, {reported} settled. Run yu activity work for exact dependencies.")));
+    }
     frame.render_widget(Clear, area);
     frame.render_widget(
         Paragraph::new(lines)
