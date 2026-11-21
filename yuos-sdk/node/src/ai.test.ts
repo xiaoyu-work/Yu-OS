@@ -6,7 +6,7 @@ import * as ai from "./ai";
 import * as tools from "./tools";
 import { WireDecimal, stringifyWireJson } from "./generated";
 import {
-  installFakeCos,
+  installFakeYu,
   wireError,
   wireSuccessJson,
   withCos,
@@ -25,7 +25,7 @@ const OK_CHAT_DATA = JSON.stringify({
 const OK_CHAT = wireSuccessJson(OK_CHAT_DATA);
 
 test("chat builds the right argv and parses the envelope", () => {
-  const fake = installFakeCos(OK_CHAT);
+  const fake = installFakeYu(OK_CHAT);
   const res = withCos(fake, { YUOS_APP_ID: "notes" }, () =>
     ai.chat("summarise", { origin: "external-content", maxUnits: 100, tools: ["fs.read_text"] }),
   );
@@ -55,7 +55,7 @@ test("chat rejects an empty prompt", () => {
 });
 
 test("chat requires an app id", () => {
-  const fake = installFakeCos(OK_CHAT);
+  const fake = installFakeYu(OK_CHAT);
   assert.throws(
     () => withCos(fake, { YUOS_APP_ID: undefined }, () => ai.chat("hi")),
     ai.AiError,
@@ -63,7 +63,7 @@ test("chat requires an app id", () => {
 });
 
 test("budget-exceeded code maps to AiBudgetExceeded", () => {
-  const fake = installFakeCos(wireError("opaque", "BUDGET_EXCEEDED"), 1);
+  const fake = installFakeYu(wireError("opaque", "BUDGET_EXCEEDED"), 1);
   assert.throws(
     () => withCos(fake, { YUOS_APP_ID: "notes" }, () => ai.chat("hi")),
     ai.AiBudgetExceeded,
@@ -71,7 +71,7 @@ test("budget-exceeded code maps to AiBudgetExceeded", () => {
 });
 
 test("safety code maps to AiSafetyViolation", () => {
-  const fake = installFakeCos(wireError("opaque", "SAFETY_VIOLATION"), 1);
+  const fake = installFakeYu(wireError("opaque", "SAFETY_VIOLATION"), 1);
   assert.throws(
     () => withCos(fake, { YUOS_APP_ID: "notes" }, () => ai.chat("hi")),
     ai.AiSafetyViolation,
@@ -79,7 +79,7 @@ test("safety code maps to AiSafetyViolation", () => {
 });
 
 test("generic error envelope maps to AiDenied", () => {
-  const fake = installFakeCos(wireError("capability denied", "PERMISSION_DENIED"), 1);
+  const fake = installFakeYu(wireError("capability denied", "PERMISSION_DENIED"), 1);
   assert.throws(
     () => withCos(fake, { YUOS_APP_ID: "notes" }, () => ai.chat("hi")),
     ai.AiDenied,
@@ -87,13 +87,13 @@ test("generic error envelope maps to AiDenied", () => {
 });
 
 test("stable error code determines the typed error", () => {
-  const budget = installFakeCos(wireError("safety words", "BUDGET_EXCEEDED"), 1);
+  const budget = installFakeYu(wireError("safety words", "BUDGET_EXCEEDED"), 1);
   assert.throws(
     () => withCos(budget, { YUOS_APP_ID: "notes" }, () => ai.chat("hi")),
     ai.AiBudgetExceeded,
   );
 
-  const safety = installFakeCos(wireError("budget words", "SAFETY_VIOLATION"), 1);
+  const safety = installFakeYu(wireError("budget words", "SAFETY_VIOLATION"), 1);
   assert.throws(
     () => withCos(safety, { YUOS_APP_ID: "notes" }, () => ai.chat("hi")),
     ai.AiSafetyViolation,
@@ -103,7 +103,7 @@ test("stable error code determines the typed error", () => {
 test("malformed tool call rejects the entire response", () => {
   const payload = JSON.parse(OK_CHAT_DATA) as Record<string, unknown>;
   payload.tool_calls = [{ id: "c1", input: {} }];
-  const fake = installFakeCos(wireSuccessJson(JSON.stringify(payload)));
+  const fake = installFakeYu(wireSuccessJson(JSON.stringify(payload)));
   assert.throws(
     () => withCos(fake, { YUOS_APP_ID: "notes" }, () => ai.chat("hi")),
     (error: unknown) =>
@@ -119,7 +119,7 @@ test("chat preserves unrestricted tool input and mathematical integers", () => {
     .replace('"output_tokens":5', '"output_tokens":1e0')
     .replace('"units":8', '"units":18446744073709551615')
     .replace('"input":{"path":"/x"}', '"input":["a",1]'));
-  const fake = installFakeCos(payload);
+  const fake = installFakeYu(payload);
   const response = withCos(fake, { YUOS_APP_ID: "notes" }, () => ai.chat("hi"));
   assert.equal(response.usage.inputTokens, 1);
   assert.equal(response.usage.outputTokens, 1);
@@ -128,7 +128,7 @@ test("chat preserves unrestricted tool input and mathematical integers", () => {
 });
 
 test("chat rejects scalar root with stable wire error", () => {
-  const fake = installFakeCos("null");
+  const fake = installFakeYu("null");
   assert.throws(
     () => withCos(fake, { YUOS_APP_ID: "notes" }, () => ai.chat("hi")),
     (error: unknown) =>
@@ -139,7 +139,7 @@ test("chat rejects scalar root with stable wire error", () => {
 });
 
 test("budget accepts the producer budget-show shape", () => {
-  const fake = installFakeCos(
+  const fake = installFakeYu(
     wireSuccessJson(JSON.stringify({ app: "notes", period: "2026-08", units_used: 7 })),
   );
   const result = withCos(fake, {}, () => ai.budget("notes"));
@@ -148,14 +148,14 @@ test("budget accepts the producer budget-show shape", () => {
 
 test("proposed lossless input round-trips directly through tools.call", () => {
   const lexeme = "0.12345678901234567890";
-  const chatFake = installFakeCos(
+  const chatFake = installFakeYu(
     wireSuccessJson(OK_CHAT_DATA.replace('"input":{"path":"/x"}', `"input":${lexeme}`)),
   );
   const response = withCos(chatFake, { YUOS_APP_ID: "notes" }, () => ai.chat("hi"));
   assert.ok(response.toolCalls[0].input instanceof WireDecimal);
   assert.equal(stringifyWireJson(response.toolCalls[0].input), lexeme);
 
-  const toolFake = installFakeCos(
+  const toolFake = installFakeYu(
     wireSuccessJson(
       JSON.stringify({ tool: "echo", app_id: "notes", status: "ok", result: null }),
     ),

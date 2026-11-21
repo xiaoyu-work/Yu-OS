@@ -6,7 +6,7 @@ import { mkdtempSync, writeFileSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-export interface FakeCos {
+export interface FakeYu {
   /** Absolute path to the fake binary; assign to YUOS_KERNEL_BIN. */
   bin: string;
   /** Path the fake writes its received argv to (one arg per line). */
@@ -31,7 +31,7 @@ export function wireError(error: string, code: string): string {
  * script is a Node program with a shebang so spawnSync can exec it
  * directly on Linux.
  */
-export function installFakeCos(stdout: string, exitCode = 0): FakeCos {
+export function installFakeYu(stdout: string, exitCode = 0): FakeYu {
   const dir = mkdtempSync(join(tmpdir(), "yuos-fakecos-"));
   const bin = join(dir, "yu");
   const argvOut = join(dir, "argv.txt");
@@ -49,7 +49,7 @@ process.exit(${exitCode});
 /** Run `fn` with YUOS_KERNEL_BIN (and optionally YUOS_APP_ID) set, then
  * restore the previous environment. */
 export function withCos<T>(
-  fake: FakeCos,
+  fake: FakeYu,
   env: Record<string, string | undefined>,
   fn: () => T,
 ): T {

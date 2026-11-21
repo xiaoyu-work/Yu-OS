@@ -10,7 +10,7 @@ import (
 )
 
 func TestAppEventPayloadUsesStdinWithoutIdentitySelectors(t *testing.T) {
-	bin, argv := fakeCos(t, wireSuccess(`{"accepted":true}`), 0)
+	bin, argv := fakeYu(t, wireSuccess(`{"accepted":true}`), 0)
 	captured := bin + ".stdin"
 	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argv +
 		"\ncat > " + captured + "\nprintf '%s\\n' '" + wireSuccess(`{"accepted":true}`) + "'\n"
@@ -40,7 +40,7 @@ func TestAppEventPayloadUsesStdinWithoutIdentitySelectors(t *testing.T) {
 }
 
 func TestChannelReplyUsesVerifiedEventAndExplicitConfirmationOnStdin(t *testing.T) {
-	bin, argv := fakeCos(t, wireSuccess(`{"submitted":true,"delivery_confirmed":false}`), 0)
+	bin, argv := fakeYu(t, wireSuccess(`{"submitted":true,"delivery_confirmed":false}`), 0)
 	captured := bin + ".stdin"
 	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argv +
 		"\ncat > " + captured + "\nprintf '%s\\n' '" + wireSuccess(`{"submitted":true,"delivery_confirmed":false}`) + "'\n"
@@ -82,10 +82,10 @@ func wireErrorEnvelope(message, code string) string {
 	)
 }
 
-// fakeCos writes an executable that prints stdout and exits with
+// fakeYu writes an executable that prints stdout and exits with
 // exitCode, recording the argv it received (one per line) to a sidecar
 // file. It returns the binary path and the argv-record path.
-func fakeCos(t *testing.T, stdout string, exitCode int) (bin, argvOut string) {
+func fakeYu(t *testing.T, stdout string, exitCode int) (bin, argvOut string) {
 	t.Helper()
 	dir := t.TempDir()
 	bin = filepath.Join(dir, "yu")
@@ -167,7 +167,7 @@ func TestYuBinaryResolution(t *testing.T) {
 }
 
 func TestCosCallJSONNonJSON(t *testing.T) {
-	bin, _ := fakeCos(t, "not json at all", 0)
+	bin, _ := fakeYu(t, "not json at all", 0)
 	withCos(t, bin, nil, func() {
 		_, err := yuCallJSON("test", []string{"x"})
 		if _, ok := err.(*UnavailableError); !ok {
@@ -181,7 +181,7 @@ func TestCosCallJSONRejectsTrailingData(t *testing.T) {
 		`{"ok":true} {"second":true}`,
 		`{"ok":true} trailing`,
 	} {
-		bin, _ := fakeCos(t, body, 0)
+		bin, _ := fakeYu(t, body, 0)
 		withCos(t, bin, nil, func() {
 			_, err := yuCallJSON("test", []string{"x"})
 			if _, ok := err.(*UnavailableError); !ok {
@@ -193,7 +193,7 @@ func TestCosCallJSONRejectsTrailingData(t *testing.T) {
 
 func TestCosCallJSONRejectsFlatAndScalarResponses(t *testing.T) {
 	for _, body := range []string{`{"value":1}`, "null"} {
-		bin, _ := fakeCos(t, body, 0)
+		bin, _ := fakeYu(t, body, 0)
 		withCos(t, bin, nil, func() {
 			_, err := yuCallJSON("test", []string{"x"})
 			if _, ok := err.(*UnavailableError); !ok {
@@ -204,7 +204,7 @@ func TestCosCallJSONRejectsFlatAndScalarResponses(t *testing.T) {
 }
 
 func TestCosCallJSONExtractsDataAndPrependsWireFlag(t *testing.T) {
-	bin, argvOut := fakeCos(t, wireSuccess(`{"value":1}`), 0)
+	bin, argvOut := fakeYu(t, wireSuccess(`{"value":1}`), 0)
 	withCos(t, bin, nil, func() {
 		out, err := yuCallJSON("test", []string{"x"})
 		if err != nil {
@@ -227,7 +227,7 @@ func TestCosCallJSONEnforcesStatusConsistency(t *testing.T) {
 		{wireSuccess(`{"value":1}`), 1},
 		{wireErrorEnvelope("denied", "PERMISSION_DENIED"), 0},
 	} {
-		bin, _ := fakeCos(t, test.body, test.status)
+		bin, _ := fakeYu(t, test.body, test.status)
 		withCos(t, bin, nil, func() {
 			_, err := yuCallJSON("test", []string{"x"})
 			if _, ok := err.(*UnavailableError); !ok {
@@ -238,7 +238,7 @@ func TestCosCallJSONEnforcesStatusConsistency(t *testing.T) {
 }
 
 func TestCosCallJSONReturnsTypedDenied(t *testing.T) {
-	bin, _ := fakeCos(t, wireErrorEnvelope("denied", "PERMISSION_DENIED"), 1)
+	bin, _ := fakeYu(t, wireErrorEnvelope("denied", "PERMISSION_DENIED"), 1)
 	withCos(t, bin, nil, func() {
 		_, err := yuCallJSON("test", []string{"x"})
 		if denied, ok := err.(*DeniedError); !ok ||

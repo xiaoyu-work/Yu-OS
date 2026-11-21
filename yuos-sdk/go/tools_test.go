@@ -7,7 +7,7 @@ import (
 
 func TestToolBuildsArgvAndParses(t *testing.T) {
 	body := `{"tool": "fs.read_text", "app_id": "notes", "status": "ok", "result": {"content": "hi"}}`
-	bin, argvOut := fakeCos(t, wireSuccess(body), 0)
+	bin, argvOut := fakeYu(t, wireSuccess(body), 0)
 	var res *ToolResult
 	var err error
 	withCos(t, bin, map[string]string{"YUOS_APP_ID": "notes"}, func() {
@@ -41,7 +41,7 @@ func TestToolEmptyName(t *testing.T) {
 }
 
 func TestToolRequiresAppID(t *testing.T) {
-	bin, _ := fakeCos(t, `{}`, 0)
+	bin, _ := fakeYu(t, `{}`, 0)
 	var err error
 	withCos(t, bin, map[string]string{"YUOS_APP_ID": ""}, func() {
 		_, err = CallTool("fs.read_text", nil, "")
@@ -52,7 +52,7 @@ func TestToolRequiresAppID(t *testing.T) {
 }
 
 func TestToolDenied(t *testing.T) {
-	bin, _ := fakeCos(t, wireErrorEnvelope("capability denied: fs.read", "PERMISSION_DENIED"), 1)
+	bin, _ := fakeYu(t, wireErrorEnvelope("capability denied: fs.read", "PERMISSION_DENIED"), 1)
 	var err error
 	withCos(t, bin, map[string]string{"YUOS_APP_ID": "notes"}, func() {
 		_, err = CallTool("fs.read_text", nil, "")
@@ -69,7 +69,7 @@ func TestCatalogParses(t *testing.T) {
 		{"name": "kv.get", "summary": "get", "verb": "data.kv.read", "stability": "experimental",
 		 "args_schema": {}, "returns_schema": {}}
 	]}`
-	bin, argvOut := fakeCos(t, wireSuccess(body), 0)
+	bin, argvOut := fakeYu(t, wireSuccess(body), 0)
 	var entries []CatalogEntry
 	var err error
 	withCos(t, bin, nil, func() {
@@ -113,7 +113,7 @@ func TestProposedLosslessInputRoundTripsThroughCallTool(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bin, argvOut := fakeCos(
+	bin, argvOut := fakeYu(
 		t,
 		wireSuccess(`{"tool":"echo","app_id":"notes","status":"ok","result":null}`),
 		0,
@@ -132,7 +132,7 @@ func TestProposedLosslessInputRoundTripsThroughCallTool(t *testing.T) {
 
 func TestCallToolPreservesArbitraryJSONAndLosslessResults(t *testing.T) {
 	for _, args := range []any{nil, "scalar", []any{json.Number("1"), true}} {
-		bin, argvOut := fakeCos(
+		bin, argvOut := fakeYu(
 			t,
 			wireSuccess(`{"tool":"echo","app_id":"notes","status":"ok","result":0.12345678901234567890}`),
 			0,
@@ -170,7 +170,7 @@ func TestCatalogSchemasRetainLosslessNumbers(t *testing.T) {
 		"args_schema":{"minimum":` + lexeme + `},
 		"returns_schema":{"maximum":` + lexeme + `}
 	}]}`
-	bin, _ := fakeCos(t, wireSuccess(body), 0)
+	bin, _ := fakeYu(t, wireSuccess(body), 0)
 	var entries []CatalogEntry
 	var err error
 	withCos(t, bin, nil, func() {

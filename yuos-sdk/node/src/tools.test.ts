@@ -11,14 +11,14 @@ import {
   stringifyWireJson,
 } from "./generated";
 import {
-  installFakeCos,
+  installFakeYu,
   wireError,
   wireSuccessJson,
   withCos,
 } from "./testutil";
 
 test("App events keep business payload on stdin without caller identity selectors", () => {
-  const fake = installFakeCos(wireSuccessJson('{"accepted":true}'));
+  const fake = installFakeYu(wireSuccessJson('{"accepted":true}'));
   const captured = fake.bin + ".stdin";
   const script = readFileSync(fake.bin, "utf8").replace(
     "process.stdout.write(",
@@ -36,7 +36,7 @@ test("App events keep business payload on stdin without caller identity selector
 });
 
 test("channel replies keep only verified event text and confirmation on stdin", () => {
-  const fake = installFakeCos(wireSuccessJson('{"submitted":true,"delivery_confirmed":false}'));
+  const fake = installFakeYu(wireSuccessJson('{"submitted":true,"delivery_confirmed":false}'));
   const captured = fake.bin + ".stdin";
   writeFileSync(fake.bin, readFileSync(fake.bin, "utf8").replace(
     "process.stdout.write(",
@@ -53,7 +53,7 @@ test("channel replies keep only verified event text and confirmation on stdin", 
 });
 
 test("call builds argv and parses the result", () => {
-  const fake = installFakeCos(
+  const fake = installFakeYu(
     wireSuccessJson(
       JSON.stringify({
         tool: "fs.read_text",
@@ -85,7 +85,7 @@ test("call builds argv and parses the result", () => {
 });
 
 test("call maps an error envelope to ToolDenied", () => {
-  const fake = installFakeCos(wireError("unknown tool", "UNKNOWN_TOOL"), 1);
+  const fake = installFakeYu(wireError("unknown tool", "UNKNOWN_TOOL"), 1);
   assert.throws(
     () => withCos(fake, { YUOS_APP_ID: "notes" }, () => tools.call("nope")),
     tools.ToolDenied,
@@ -94,14 +94,14 @@ test("call maps an error envelope to ToolDenied", () => {
 
 test("call requires an app id", () => {
   assert.throws(
-    () => withCos(installFakeCos("{}"), { YUOS_APP_ID: undefined }, () => tools.call("x")),
+    () => withCos(installFakeYu("{}"), { YUOS_APP_ID: undefined }, () => tools.call("x")),
     tools.ToolError,
   );
 });
 
 test("catalog parses tool rows", () => {
   const lexeme = "0.12345678901234567890";
-  const fake = installFakeCos(wireSuccessJson(`{"tools":[{
+  const fake = installFakeYu(wireSuccessJson(`{"tools":[{
     "name":"fs.read_text","summary":"read a file","verb":"fs.read",
     "stability":"stable","args_schema":{"type":"number","minimum":${lexeme}},
     "returns_schema":{"type":"number","maximum":${lexeme}}
@@ -120,7 +120,7 @@ test("catalog parses tool rows", () => {
 
 test("call preserves explicit null, scalar, and array arguments", () => {
   for (const args of [null, "scalar", [1, true]]) {
-    const fake = installFakeCos(
+    const fake = installFakeYu(
       wireSuccessJson(
         JSON.stringify({ tool: "echo", app_id: "notes", status: "ok", result: null }),
       ),
@@ -133,7 +133,7 @@ test("call preserves explicit null, scalar, and array arguments", () => {
 
 test("tool result preserves unsafe fractional lexemes", () => {
   const lexeme = "0.12345678901234567890";
-  const fake = installFakeCos(
+  const fake = installFakeYu(
     wireSuccessJson(
       `{"tool":"echo","app_id":"notes","status":"ok","result":${lexeme}}`,
     ),

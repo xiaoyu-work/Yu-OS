@@ -18,7 +18,7 @@ const okChat = `{
 }`
 
 func TestChatBuildsArgvAndParses(t *testing.T) {
-	bin, argvOut := fakeCos(t, wireSuccess(okChat), 0)
+	bin, argvOut := fakeYu(t, wireSuccess(okChat), 0)
 	var res *AiResponse
 	var err error
 	withCos(t, bin, map[string]string{"YUOS_APP_ID": "notes"}, func() {
@@ -63,7 +63,7 @@ func TestChatEmptyPrompt(t *testing.T) {
 }
 
 func TestChatRequiresAppID(t *testing.T) {
-	bin, _ := fakeCos(t, wireSuccess(okChat), 0)
+	bin, _ := fakeYu(t, wireSuccess(okChat), 0)
 	var err error
 	withCos(t, bin, map[string]string{"YUOS_APP_ID": ""}, func() {
 		_, err = Chat("hi", ChatOptions{})
@@ -83,7 +83,7 @@ func TestChatErrorClassification(t *testing.T) {
 		{wireErrorEnvelope("capability denied", "PERMISSION_DENIED"), "denied"},
 	}
 	for _, c := range cases {
-		bin, _ := fakeCos(t, c.body, 1)
+		bin, _ := fakeYu(t, c.body, 1)
 		var err error
 		withCos(t, bin, map[string]string{"YUOS_APP_ID": "notes"}, func() {
 			_, err = Chat("hi", ChatOptions{})
@@ -113,7 +113,7 @@ func TestChatRejectsMalformedToolCall(t *testing.T) {
 	  "review":{"safety":"strict","prompt_redacted":false},
 	  "tool_calls":[{"id":"c1","input":{}}]
 	}`
-	bin, _ := fakeCos(t, wireSuccess(body), 0)
+	bin, _ := fakeYu(t, wireSuccess(body), 0)
 	var err error
 	withCos(t, bin, map[string]string{"YUOS_APP_ID": "notes"}, func() {
 		_, err = Chat("hi", ChatOptions{})
@@ -133,7 +133,7 @@ func TestChatAcceptsMathematicalIntegersAndUnrestrictedToolInput(t *testing.T) {
 	  "review":{"safety":"strict","prompt_redacted":false},
 	  "tool_calls":[{"id":"c1","name":"echo","input":["a",1]}]
 	}`
-	bin, _ := fakeCos(t, wireSuccess(body), 0)
+	bin, _ := fakeYu(t, wireSuccess(body), 0)
 	var response *AiResponse
 	var err error
 	withCos(t, bin, map[string]string{"YUOS_APP_ID": "notes"}, func() {
@@ -151,7 +151,7 @@ func TestChatAcceptsMathematicalIntegersAndUnrestrictedToolInput(t *testing.T) {
 }
 
 func TestChatRejectsScalarRootWithStableWireError(t *testing.T) {
-	bin, _ := fakeCos(t, `null`, 0)
+	bin, _ := fakeYu(t, `null`, 0)
 	var err error
 	withCos(t, bin, map[string]string{"YUOS_APP_ID": "notes"}, func() {
 		_, err = Chat("hi", ChatOptions{})
@@ -164,7 +164,7 @@ func TestChatRejectsScalarRootWithStableWireError(t *testing.T) {
 }
 
 func TestBudgetAcceptsProducerShape(t *testing.T) {
-	bin, _ := fakeCos(t, wireSuccess(`{"app":"notes","period":"2026-08","units_used":7}`), 0)
+	bin, _ := fakeYu(t, wireSuccess(`{"app":"notes","period":"2026-08","units_used":7}`), 0)
 	var budget *AiBudget
 	var err error
 	withCos(t, bin, nil, func() {
