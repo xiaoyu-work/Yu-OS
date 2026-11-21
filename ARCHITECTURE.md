@@ -535,7 +535,7 @@ with their original locked toolkit patches. Native UI/MCP embed the same
 product filesystem, owner-scoped Recoll and shared document parsing sources;
 the SDK/runtime still provide policy, snapshots, AI consent/budget/audit and
 memory authority. The Document Engine capability client imports the same parser from
-the Agent package's `claw_files.document` library. Native reveal admits only
+the Agent package's `yuos_files.document` library. Native reveal admits only
 `cosmic-files` to its fixed `com.yuos.Files` target with exact metadata scope.
 Summary memory is Files-owned; metadata's sidecar needs an explicit parent
 read. User files, UI caches/settings and the existing Recoll index are not
@@ -777,7 +777,7 @@ The lock's `products` list remains the business-product source composition;
 optional `capabilities` entries resolve only `capabilities/<name>` packages
 explicitly marked `shared-capability-client`. Document Engine owns the complete
 legacy `doc` facade and owning-client MCP bridge, not a new business product.
-Its declared Files `claw_files` export supplies the same parser in development,
+Its declared Files `yuos_files` export supplies the same parser in development,
 Doc-only staging and the Agent package. No Files App call or second parser is
 introduced; identical co-staged library payloads are reused and conflicts
 refused. Native preparation stays product-only. Missing or ambiguous declared
@@ -908,7 +908,7 @@ extension's execution GID. Synchronous filesystem guards change only the
 provider thread's credentials and restore them before yielding or returning.
 
 Bundled desktop apps launch Ask Yu OS through `yuos_runtime::ask_yu`. Their
-thin `claw_glue` adapters define only typed, app-specific context fields; the
+thin `yuos_glue` adapters define only typed, app-specific context fields; the
 runtime owns bounded JSON serialization, anonymous process-bound stdin
 handoff, executable selection, readiness and write deadlines, exact-child
 reaping, and the activation contract consumed by the Agent UI. Context payloads

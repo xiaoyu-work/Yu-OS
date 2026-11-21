@@ -150,7 +150,7 @@ PID and UID verified with `SO_PEERCRED`. Anonymous handoff fails closed unless L
 `kernel.yama.ptrace_scope >= 2`. The host and Agent UI are marked non-dumpable;
 the parent withholds bytes until the child confirms that hardening is complete.
 
-Keep these typed adapters in each app's `claw_glue` module. Reducers should
+Keep these typed adapters in each app's `yuos_glue` module. Reducers should
 only select the user intent and pass the already-visible page, query, path, or
 terminal output fields; they must not build JSON or know the Agent UI command.
 The Terminal adapter uses the runtime's encoded-size predicate to drop oldest

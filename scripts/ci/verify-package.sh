@@ -53,7 +53,7 @@ case "$component" in
             usr/lib/yuos/python/yuos_sdk/__init__.py
             usr/lib/yuos/python/yuos_runtime/__init__.py
             usr/share/keyrings/yuos-apps-archive-key.asc
-            etc/apt/sources.list.d/claw-apps.sources
+            etc/apt/sources.list.d/yuos-apps.sources
             usr/share/keyrings/claw-helium-archive-key.asc
             etc/apt/sources.list.d/claw-helium.sources
             etc/apt/preferences.d/claw-helium.pref

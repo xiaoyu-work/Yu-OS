@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use crate::yuosd::app_store;
 use crate::update::debver::Version;
 
-const APP_SOURCE: &str = "/etc/apt/sources.list.d/claw-apps.sources";
+const APP_SOURCE: &str = "/etc/apt/sources.list.d/yuos-apps.sources";
 const REFRESH_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const MIN_ATTEMPT_INTERVAL: Duration = Duration::from_secs(60);
 

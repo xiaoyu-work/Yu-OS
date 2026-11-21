@@ -53,8 +53,8 @@ mkdir -p "$ROOTFS/var/cache/yuos-debs"
 cp "$AGENT_DEB" "$BASE_DEB" "$ROOTFS/var/cache/yuos-debs/"
 install -Dm0644 "$PROJECT_DIR/core/assets/app-store-archive-key.asc" \
     "$ROOTFS/usr/share/keyrings/yuos-apps-archive-key.asc"
-install -Dm0644 "$PROJECT_DIR/packaging/deb/yuos-agent/claw-apps.sources" \
-    "$ROOTFS/etc/apt/sources.list.d/claw-apps.sources"
+install -Dm0644 "$PROJECT_DIR/packaging/deb/yuos-agent/yuos-apps.sources" \
+    "$ROOTFS/etc/apt/sources.list.d/yuos-apps.sources"
 install -Dm0644 "$PROJECT_DIR/packaging/deb/yuos-agent/helium-archive-key.asc" \
     "$ROOTFS/usr/share/keyrings/claw-helium-archive-key.asc"
 install -Dm0644 "$PROJECT_DIR/packaging/deb/yuos-agent/claw-helium.sources" \

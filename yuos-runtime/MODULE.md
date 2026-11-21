@@ -56,7 +56,7 @@ not private dispatcher/provider code. Its `self:summarize` memory requests
 remain separate from other identities, and failures must propagate.
 
 Inherited desktop apps keep app-specific `Serialize` context structs in their
-small `claw_glue` modules and call `yuos_runtime::ask_yu::launch`. They do not
+small `yuos_glue` modules and call `yuos_runtime::ask_yu::launch`. They do not
 name the Agent UI executable, construct activation flags, or assemble JSON.
 The Agent UI consumes the same runtime-owned activation type; context-bearing
 launches remain transient while context-free activation may use D-Bus.

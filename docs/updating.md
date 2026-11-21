@@ -255,7 +255,7 @@ is introduced.
 Files follows the same immutable native source composition, preserving
 `/usr/bin/cosmic-files`, `/usr/bin/cosmic-files-applet`, its descriptor and
 desktop resources in `yuos-desktop`. The Agent package owns the shared
-`claw_files.document` parser used by the Document Engine client; it arrives
+`yuos_files.document` parser used by the Document Engine client; it arrives
 through the same signed package, never a runtime download. Files metadata
 declares its tag-sidecar parent read; reveal uses only `com.yuos.Files`
 desktop authority, and summary memory is `self:cosmic-files` rather than

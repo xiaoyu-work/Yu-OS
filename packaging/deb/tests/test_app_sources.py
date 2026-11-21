@@ -496,7 +496,7 @@ def test_capability_contract_errors_fail_before_staging(capability_source, monke
         package["native"] = {}
     else:
         package["python_dependencies"] = [
-            {"kind": "product", "name": "unlocked", "library": "claw_files", "apps": [app_id]},
+            {"kind": "product", "name": "unlocked", "library": "yuos_files", "apps": [app_id]},
         ]
     path.write_text(json.dumps(package))
     monkeypatch.setattr(sources, "prepare_sources", lambda _: source)
@@ -615,7 +615,7 @@ def test_os_installer_owns_shared_desktop_policy_without_app_sources():
     "usr/lib/yuos/apps/alpha/app.json",
     "usr/lib/yuos/python/_shared/atomic.py",
     "usr/lib/yuos/python/canonical_argv.py",
-    "usr/lib/yuos/python/claw_files/document.py",
+    "usr/lib/yuos/python/yuos_files/document.py",
     "usr/share/applications/com.yuos.Files.desktop",
     "usr/bin/yuos-applet-calendar",
 ])
@@ -1042,7 +1042,7 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
     assert set(sources.stage_products(tmp_path / "all", lock=lock)) == expected
     assert set(sources.stage_products(tmp_path / "agent", "agent", lock=lock)) == expected - desktop
     assert set(sources.stage_products(tmp_path / "desktop", "desktop", lock=lock)) == desktop
-    assert not (tmp_path / "desktop/usr/lib/yuos/python/claw_files").exists()
+    assert not (tmp_path / "desktop/usr/lib/yuos/python/yuos_files").exists()
     assert sources.app_path("doc", lock=lock) == source / "capabilities/document-engine/apps/doc"
     assert sources.app_path("db", lock=lock) == source / "capabilities/storage-sdk/apps/db"
     assert sources.app_path("kv", lock=lock) == source / "capabilities/storage-sdk/apps/kv"
@@ -1107,8 +1107,8 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
             assert descriptor["source_kind"] == "capability"
             assert descriptor["source_name"] == group
             assert descriptor["entry"] == "web/index.html"
-    parser = python / "claw_files/document.py"
-    assert parser.read_bytes() == (source / "products/files/python/claw_files/document.py").read_bytes()
+    parser = python / "yuos_files/document.py"
+    assert parser.read_bytes() == (source / "products/files/python/yuos_files/document.py").read_bytes()
     manifests = list((staged / "usr/lib/yuos/apps").rglob("app.json"))
     assert len(manifests) == len(expected - desktop)
     assert {json.loads(path.read_text())["id"] for path in manifests} == (
@@ -1128,7 +1128,7 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
     policy.chmod(0o755)
     result = subprocess.run(
         [sys.executable, "-c",
-         "import json; import main; import claw_files.document as library; "
+         "import json; import main; import yuos_files.document as library; "
          "print(json.dumps({'library':library.__file__, 'result':main.run('read', "
          f"[{str(document)!r}])}}))"],
         cwd=staged / "usr/lib/yuos/apps/doc", capture_output=True, text=True, check=True, timeout=20,

@@ -26,7 +26,7 @@ Debian packages and a signed multi-architecture APT repository.
 | `apps.lock.json` | Retained identity selection and explicit cross-repository source-fixture composition, never production payload staging |
 | `../scripts/app_sources.py` | Immutable test/development source fixtures only |
 | `../scripts/app_sources.py --stage-shared <root>` | Source-fixture common support staging; production common files belong to independent `yuos-app-support` |
-| External Files `python/claw_files/` | Single App-owned named library export; production owner is `yuos-app-files`, not Agent |
+| External Files `python/yuos_files/` | Single App-owned named library export; production owner is `yuos-app-files`, not Agent |
 | `../tools/install-browser-agent.sh` | Native Messaging/policy registration for already installed Browser assets; never fetches or replaces product files |
 | `../tools/browser_native_host.py` | OS-owned owner-bound Native Messaging transport for the capability-gated Browser service |
 | `deb/tests/test_app_sources.py` | Immutable source/cache, payload identity, and OS native-launcher ownership |
@@ -90,7 +90,7 @@ independently owned graphical App packages and Mail's Thunderbird integration.
 Desktop requires runtime-v1 implementation 0.2.1 for its actual SDK consumer.
 No Agent → App hard dependency prevents publishing independent App APT
 packages before the new Agent. SDK/runtime Python and Root authority stay
-OS-owned; `_shared`, `gateway`, `canonical_argv` and `claw_files` do not.
+OS-owned; `_shared`, `gateway`, `canonical_argv` and `yuos_files` do not.
 See [current ownership and bootstrap blockers](README.md#coordinated-021-source-ownership-cutover).
 
 Independent publication must still preserve protocol compatibility. Before

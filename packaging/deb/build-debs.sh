@@ -443,8 +443,8 @@ render_control "$SCRIPT_DIR/yuos-agent/control" "$AGENT_STAGE/DEBIAN/control"
 install -m 644 "$SCRIPT_DIR/yuos-agent/conffiles" "$AGENT_STAGE/DEBIAN/conffiles"
 install -Dm0644 "$PROJECT_DIR/core/assets/app-store-archive-key.asc" \
     "$AGENT_STAGE/usr/share/keyrings/yuos-apps-archive-key.asc"
-install -Dm0644 "$SCRIPT_DIR/yuos-agent/claw-apps.sources" \
-    "$AGENT_STAGE/etc/apt/sources.list.d/claw-apps.sources"
+install -Dm0644 "$SCRIPT_DIR/yuos-agent/yuos-apps.sources" \
+    "$AGENT_STAGE/etc/apt/sources.list.d/yuos-apps.sources"
 install -Dm0644 "$SCRIPT_DIR/yuos-agent/helium-archive-key.asc" \
     "$AGENT_STAGE/usr/share/keyrings/claw-helium-archive-key.asc"
 install -Dm0644 "$SCRIPT_DIR/yuos-agent/claw-helium.sources" \

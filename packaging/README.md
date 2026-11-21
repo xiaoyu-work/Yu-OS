@@ -56,7 +56,7 @@ new privilege is introduced.
 The separately signed App channel owns product/capability packages, native
 ELFs/resources, Browser assets, Mail's XPI, `yuos-app-support` and named Python
 libraries. Support provides `yuos-app-support-v1`; Files alone provides
-`yuos-app-python-claw-files-v1`. App packages cannot provide OS/package/authority
+`yuos-app-python-yuos-files-v1`. App packages cannot provide OS/package/authority
 ABIs. Agent retains `yuos_sdk`, `yuos_runtime`, toolkit/system services and
 Root helpers. Its `yuos-app-runtime-v1 (= 0.2.1)` implementation version
 comes from `app-platform.json`; App packages require `>= 0.2.1`, still ABI 1.
@@ -84,7 +84,7 @@ then the OS packages. Desktop also needs its approved signed Shell build input.
 Agent only *recommends* the headless set, so App runtime dependencies create
 no circular hard dependency and Agent-only
 Ubuntu/WSL installs do not require the full Desktop. Configure both signed
-channels before a default install; Agent also ships `claw-apps.sources` and
+channels before a default install; Agent also ships `yuos-apps.sources` and
 the public key. An existing minimal `--no-install-recommends` Agent can run
 `apt update` and explicitly select `yuos-apps-agent`, native App packages or
 the protected Store later. Maintainer scripts do not run nested APT installs.
@@ -227,7 +227,7 @@ decoupling.
 
 Native Files is composed under `build/native-apps/cosmic-files`, preserving
 both executables and resources in the desktop package. Files also exports the
-shared `claw_files.document` parsing/conversion library into the Agent package;
+shared `yuos_files.document` parsing/conversion library into the Agent package;
 the Document Engine client and native Files use this one implementation.
 The native executable embeds its product helpers and uses installed OS
 SDK/runtime libraries, not mutable App entrypoints.
@@ -235,10 +235,10 @@ SDK/runtime libraries, not mutable App entrypoints.
 Document Engine's complete legacy `doc` source lives at the pinned
 `capabilities/document-engine/apps/doc`, with `kind: "shared-capability-client"`
 package metadata. This is not a Documents business product or a new runtime
-identity. The group's declared dependency selects Files' named `claw_files`
+identity. The group's declared dependency selects Files' named `yuos_files`
 export for tests and staging, including Doc-only staging without Files Apps.
 Co-staging never merges conflicting library trees. Agent still owns
-`/usr/lib/yuos/apps/doc`, `/usr/lib/yuos/python/claw_files`, SDK/runtime and the
+`/usr/lib/yuos/apps/doc`, `/usr/lib/yuos/python/yuos_files`, SDK/runtime and the
 canonical argument module. All six operations, manifest needs/AI declarations,
 outputs, memory identity and user state remain unchanged. The source lock now
 selects 63 retained identities after the original 75-identity source relocation:

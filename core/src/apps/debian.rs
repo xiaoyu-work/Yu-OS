@@ -86,7 +86,7 @@ fn data_path_allowed(path: &Path, directory: bool) -> bool {
             "doc",
             "licenses",
             "claw",
-            "claw-apps",
+            "yuos-apps",
         ]
         .iter()
         .any(|name| path.starts_with(Path::new("usr/share").join(name))))
