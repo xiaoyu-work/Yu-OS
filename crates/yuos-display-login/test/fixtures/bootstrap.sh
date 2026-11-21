@@ -54,16 +54,16 @@ fi
 if [[ $# == 14 && ( "${13}" == --native-editor-only || "${13}" == --native-files-only || "${13}" == --native-terminal-only || "${13}" == --native-calendar-only || "${13}" == --native-store-only || "${13}" == --native-store-package-only || "${13}" == --native-desktop-widgets-only || "${13}" == --native-clipboard-only || "${13}" == --native-launcher-only || "${13}" == --native-settings-only || "${13}" == --native-capture-only || "${13}" == --native-notifications-only || "${13}" == --native-media-player-only ) ]]; then
     if [[ "${13}" == --native-editor-only ]]; then
         native_product=editor
-        native_app=cosmic-edit
+        native_app=yuos-edit
     elif [[ "${13}" == --native-files-only ]]; then
         native_product=files
-        native_app=cosmic-files
+        native_app=yuos-files
     elif [[ "${13}" == --native-terminal-only ]]; then
         native_product=terminal
-        native_app=cosmic-term
+        native_app=yuos-term
     elif [[ "${13}" == --native-store-only || "${13}" == --native-store-package-only ]]; then
         native_product=store
-        native_app=cosmic-store
+        native_app=yuos-store
     elif [[ "${13}" == --native-desktop-widgets-only ]]; then
         native_product=desktop-widgets
         native_app=widget-rail
@@ -75,16 +75,16 @@ if [[ $# == 14 && ( "${13}" == --native-editor-only || "${13}" == --native-files
         native_app=yuos-launcher
     elif [[ "${13}" == --native-settings-only ]]; then
         native_product=settings
-        native_app=cosmic-settings
+        native_app=yuos-settings
     elif [[ "${13}" == --native-capture-only ]]; then
         native_product=capture
-        native_app=cosmic-screenshot
+        native_app=yuos-screenshot
     elif [[ "${13}" == --native-notifications-only ]]; then
         native_product=notifications
-        native_app=cosmic-notifications
+        native_app=yuos-notifications
     elif [[ "${13}" == --native-media-player-only ]]; then
         native_product=media-player
-        native_app=cosmic-player
+        native_app=yuos-player
     else
         native_product=calendar
         native_app=panel-calendar

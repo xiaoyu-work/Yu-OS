@@ -92,9 +92,9 @@ per-user package sandbox. Rollback remains tied to its recorded inverse and
 fresh authority. No App-to-App invocation or installation approval is implied.
 
 Media clients use `system.media-player.control` under their own authenticated
-identity, without impersonating the `cosmic-player` App. Status requires
-`desktop.media.observe:cosmic-player`; the six playback actions separately
-require `desktop.media.control:cosmic-player`. The scope identifies the fixed
+identity, without impersonating the `yuos-player` App. Status requires
+`desktop.media.observe:yuos-player`; the six playback actions separately
+require `desktop.media.control:yuos-player`. The scope identifies the fixed
 target, not the caller. Neither capability is in the default System Agent
 authority; existing authenticated local-launch policy is unchanged, and each
 calling App's permission-denial policy remains authoritative. The provider

@@ -333,7 +333,7 @@ fn configure() {
     let source = std::fs::read_to_string("/etc/xdg/autostart/yuos-file-manager.desktop").unwrap();
     assert!(source.lines().any(|line| line == "OnlyShowIn=COSMIC;"));
     assert!(source.lines().any(|line| line == "X-systemd-skip=true"));
-    let exec = "Exec=/usr/lib/yuos/bin/yuos-file-manager --app cosmic-files";
+    let exec = "Exec=/usr/lib/yuos/bin/yuos-file-manager --app yuos-files";
     assert_eq!(source.lines().filter(|line| *line == exec).count(), 1);
     let config = Path::new("/run/display-home/.config");
     owner_directory(config);

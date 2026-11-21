@@ -291,13 +291,13 @@ fn notifications() -> Vec<crate::notifications::Notification> {
     let service = crate::notifications::open_default().unwrap();
     assert_eq!(
         service
-            .list_source(OWNER + 1, "app:cosmic-screenshot", 10)
+            .list_source(OWNER + 1, "app:yuos-screenshot", 10)
             .unwrap()
             .total,
         0
     );
     service
-        .list_source(OWNER, "app:cosmic-screenshot", 10)
+        .list_source(OWNER, "app:yuos-screenshot", 10)
         .unwrap()
         .notifications
 }
@@ -666,7 +666,7 @@ async fn run_case(group: &std::fs::File, case: usize, collision: bool) -> serde_
             .find(|notice| notice.session_id.as_deref() == Some(&session))
             .unwrap();
         assert_eq!(notice.owner_uid, OWNER);
-        assert_eq!(notice.source, "app:cosmic-screenshot");
+        assert_eq!(notice.source, "app:yuos-screenshot");
         assert_eq!(notice.body, if case == 34 { SAVED } else { "" });
         assert!(!notice.title.is_empty());
         let presentation = notice.presentation.as_ref().unwrap();

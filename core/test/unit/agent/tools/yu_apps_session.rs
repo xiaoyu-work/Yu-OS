@@ -1325,7 +1325,7 @@ fn the_call_classifier_separates_brokered_from_resource_bearing_calls() {
         Cap::new(Verb::FS_WRITE, Scope::path("/work/document")),
     ];
     assert_eq!(
-        classify_app_call("cosmic-edit", &editor_files),
+        classify_app_call("yuos-edit", &editor_files),
         CallPlacement::Reusable
     );
     assert_eq!(
@@ -1333,7 +1333,7 @@ fn the_call_classifier_separates_brokered_from_resource_bearing_calls() {
         CallPlacement::Ephemeral
     );
     assert!(matches!(
-        classify_app_call("cosmic-edit", &[Cap::new(Verb::FS_WRITE, Scope::Wild)]),
+        classify_app_call("yuos-edit", &[Cap::new(Verb::FS_WRITE, Scope::Wild)]),
         CallPlacement::Unsupported(_)
     ));
     use crate::caps::{Cap, Scope, Verb};
@@ -1644,15 +1644,15 @@ const SHIPPED_PYTHON_MCP_APPS: &[&str] = &["kv", "notify"];
 
 /// All shipped native Desktop and panel MCP Apps.
 const SHIPPED_NATIVE_MCP_APPS: &[&str] = &[
-    "cosmic-files",
-    "cosmic-edit",
-    "cosmic-store",
-    "cosmic-settings",
-    "cosmic-term",
+    "yuos-files",
+    "yuos-edit",
+    "yuos-store",
+    "yuos-settings",
+    "yuos-term",
     "yuos-launcher",
-    "cosmic-player",
-    "cosmic-screenshot",
-    "cosmic-notifications",
+    "yuos-player",
+    "yuos-screenshot",
+    "yuos-notifications",
     "panel-calendar",
     "panel-clipboard",
     "widget-rail",
@@ -1732,7 +1732,7 @@ fn every_shipped_mcp_app_resolves_its_entry_and_its_calls() {
                 placement => {
                     // The screenshot tool writes a file, so it must be
                     // the one that gets its own worker.
-                    if id == "cosmic-screenshot" {
+                    if id == "yuos-screenshot" {
                         assert_eq!(
                             placement,
                             CallPlacement::Ephemeral,
@@ -1750,10 +1750,10 @@ fn media_player_signed_manifest_has_seven_exact_brokered_calls() {
     let _lock = crate::test_env::lock_env();
     let root = crate::test_env::secure_scratch_dir("player-manifest");
     let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", root.join("data"));
-    let directory = root.join("cosmic-player");
+    let directory = root.join("yuos-player");
     std::fs::create_dir(&directory).unwrap();
     std::fs::copy(
-        app_sources::app_dir("cosmic-player").join("app.json"),
+        app_sources::app_dir("yuos-player").join("app.json"),
         directory.join("app.json"),
     )
     .unwrap();
@@ -1761,11 +1761,11 @@ fn media_player_signed_manifest_has_seven_exact_brokered_calls() {
     crate::test_env::sign_test_package(
         &directory,
         crate::provenance::PackageKind::App,
-        "cosmic-player",
+        "yuos-player",
     );
     let trust = crate::provenance::trust_store();
     let options = crate::provenance::VerifyOptions::new(crate::provenance::PackageKind::App)
-        .expect_id("cosmic-player");
+        .expect_id("yuos-player");
     let package = crate::provenance::verify::verify_package(&directory, &options, &trust).unwrap();
     let text = package.manifest_text().unwrap();
     let manifest = crate::caps::manifest::Manifest::from_json(&text).unwrap();
@@ -1800,11 +1800,11 @@ fn media_player_signed_manifest_has_seven_exact_brokered_calls() {
                 } else {
                     crate::caps::Verb::DESKTOP_MEDIA_CONTROL
                 },
-                crate::caps::Scope::name("cosmic-player"),
+                crate::caps::Scope::name("yuos-player"),
             )]
         );
         assert_eq!(
-            classify_app_call("cosmic-player", &caps),
+            classify_app_call("yuos-player", &caps),
             CallPlacement::Reusable
         );
     }
@@ -1872,7 +1872,7 @@ fn every_shipped_native_desktop_app_binds_its_declared_mcp_entry() {
 
 #[test]
 fn the_screenshot_call_is_bound_to_the_directory_it_was_given() {
-    let manifest = shipped_manifest("cosmic-screenshot");
+    let manifest = shipped_manifest("yuos-screenshot");
     let paths = crate::caps::args::PathContext {
         home: std::path::PathBuf::from("/home/tester"),
         cwd: None,
@@ -1913,7 +1913,7 @@ fn the_screenshot_call_is_bound_to_the_directory_it_was_given() {
 
 #[test]
 fn the_screenshot_call_refuses_interactive_capture_before_worker_admission() {
-    let manifest = shipped_manifest("cosmic-screenshot");
+    let manifest = shipped_manifest("yuos-screenshot");
     let paths = crate::caps::args::PathContext {
         home: std::path::PathBuf::from("/home/tester"),
         cwd: None,
@@ -1947,7 +1947,7 @@ fn only_the_allowlisted_ids_may_name_a_program_outside_their_package() {
             "operations": {},
             "mcp": {
                 "transport": "stdio",
-                "entry": "/usr/bin/cosmic-player",
+                "entry": "/usr/bin/yuos-player",
                 "tools": [{
                     "name": "impostor.probe",
                     "summary": {"en": "Probe"}

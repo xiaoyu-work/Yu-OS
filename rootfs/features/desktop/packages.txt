@@ -155,7 +155,7 @@ libgtk-4-1
 libgtk-4-bin
 libgtk-4-dev
 
-# --- Multimedia (cosmic-player) ---
+# --- Multimedia (yuos-player) ---
 libgstreamer1.0-dev
 libgstreamer-plugins-base1.0-dev
 gstreamer1.0-plugins-base
@@ -170,7 +170,7 @@ gstreamer1.0-pipewire
 libssl-dev
 libflatpak-dev
 flatpak
-# PackageKit is the system-package backend used by cosmic-store when it is
+# PackageKit is the system-package backend used by yuos-store when it is
 # built with the `packagekit` feature. Flatpak covers most user apps, but
 # a normal desktop also needs a GUI path for system packages and for
 # double-clicking local .deb files. PackageKit is dbus-activated.
@@ -242,7 +242,7 @@ systemd-timesyncd
 # --- Removable media / storage (real hardware fundamentals) ---
 # udisks2: D-Bus API the desktop uses to mount/unmount USB sticks
 # and external disks. Without it, plugging a USB stick into a
-# real laptop does literally nothing (cosmic-files won't see it).
+# real laptop does literally nothing (yuos-files won't see it).
 # The polkit rule shipped in 40-yuos.rules lets active sudo
 # users drive it without password prompts.
 udisks2
@@ -251,7 +251,7 @@ udisks2
 # the user plugs in a stick and gets "filesystem not supported".
 ntfs-3g
 exfatprogs
-# gvfs: GIO Virtual Filesystem. cosmic-files is built with the
+# gvfs: GIO Virtual Filesystem. yuos-files is built with the
 # `gvfs` feature on (Files product), so it depends on
 # this at runtime for: the trash, mount-monitoring, network
 # locations, archive:// scheme. gvfs-backends adds smb / sftp /
@@ -361,7 +361,7 @@ thunderbird
 # real daily-use gaps.
 #
 # eog (Eye of GNOME): image viewer. Without it, double-clicking a
-# JPG/PNG/GIF/WEBP/BMP/TIFF/SVG in cosmic-files returns "no
+# JPG/PNG/GIF/WEBP/BMP/TIFF/SVG in yuos-files returns "no
 # application available". Bound to image/* in mimeapps.list.
 # Ships /usr/share/applications/org.gnome.eog.desktop.
 eog
@@ -372,7 +372,7 @@ evince
 # file-roller: archive manager with GUI extract / create flow for
 # zip / tar / gz / bz2 / xz / 7z / rar / iso etc. Also wires up
 # the org.gnome.ArchiveManager1 D-Bus service so file managers
-# (including cosmic-files via gvfs) can dispatch extraction calls
+# (including yuos-files via gvfs) can dispatch extraction calls
 # to it. Bound to the common archive MIME types in mimeapps.list.
 # Ships /usr/share/applications/org.gnome.FileRoller.desktop.
 file-roller
@@ -385,7 +385,7 @@ gnome-calculator
 # Ships /usr/share/applications/org.gnome.SystemMonitor.desktop.
 gnome-system-monitor
 # gnome-disk-utility: GUI for partitioning, formatting USB sticks,
-# SMART health, image mount / write. cosmic-files only mounts; this
+# SMART health, image mount / write. yuos-files only mounts; this
 # is the only graphical path to formatting a stick. Ships
 # /usr/share/applications/org.gnome.DiskUtility.desktop. Also pulls
 # in udisks2 (already in the list above) as the privileged backend.
@@ -490,16 +490,16 @@ wireguard-tools
 # va-driver-all: meta-package pulling the right VAAPI driver for
 # the GPU: intel-media-va-driver (Intel gen8+), i965-va-driver
 # (older Intel), mesa-va-drivers (AMD VCN, Mali, etc.). Without
-# any VA driver, cosmic-player and Chromium fall back to CPU
+# any VA driver, yuos-player and Chromium fall back to CPU
 # H.264/HEVC decode — battery drain + stuttering on 4K.
 va-driver-all
 # Intel iHD non-free driver: adds the codecs the free driver
 # lacks on gen 11+ chips (HEVC Main10 for HDR, VP9 Profile 2,
 # AV1 hardware decode on gen 12). amd64-only.
 ${VAAPI_INTEL_NONFREE_PKG}
-# gstreamer1.0-vaapi: lets GStreamer pipelines (cosmic-player's
+# gstreamer1.0-vaapi: lets GStreamer pipelines (yuos-player's
 # playbin) use VA-API. Without this the VA driver is installed
-# but cosmic-player doesn't actually negotiate hardware decode
+# but yuos-player doesn't actually negotiate hardware decode
 # because GstVaapiDecode isn't registered.
 gstreamer1.0-vaapi
 # v4l-utils: webcam diagnostics + tooling (v4l2-ctl, qv4l2).
@@ -527,7 +527,7 @@ network-manager-config-connectivity-debian
 # gnome-bluetooth-sendto: command line / D-Bus tool that bluez
 # uses for "send file to bluetooth device" from file managers
 # (right-click → Send To). Pulled in by drag-drop UX from
-# cosmic-files via the org.freedesktop.bluetooth.Sendto interface.
+# yuos-files via the org.freedesktop.bluetooth.Sendto interface.
 gnome-bluetooth-sendto
 
 # --- Local document full-text search (apps/docs) ---

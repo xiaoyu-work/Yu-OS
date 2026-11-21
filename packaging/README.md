@@ -225,7 +225,7 @@ migration commits are cutover choreography, not a requirement to edit both
 implementations for every future feature. Pins alone do not prove complete
 decoupling.
 
-Native Files is composed under `build/native-apps/cosmic-files`, preserving
+Native Files is composed under `build/native-apps/yuos-files`, preserving
 both executables and resources in the desktop package. Files also exports the
 shared `yuos_files.document` parsing/conversion library into the Agent package;
 the Document Engine client and native Files use this one implementation.
@@ -295,13 +295,13 @@ Summarize's real Agent build-block fixture exercises public MCP and SDK wire
 with synthetic AI/policy/memory responses, including denied consent/budgets,
 safety and memory failures. It does not contact a model or mount owner state.
 
-Native Store is composed under `build/native-apps/cosmic-store`, including its
+Native Store is composed under `build/native-apps/yuos-store`, including its
 original default-feature graph and flathub-stats workspace. The desktop package
 retains the Store descriptor, executable and resources; pkg remains in the
 Agent package with its own transaction grants. The native read-only catalog
 embeds shared product logic and imports only installed OS support libraries.
 
-Native Settings is composed under `build/native-apps/cosmic-settings`, retaining
+Native Settings is composed under `build/native-apps/yuos-settings`, retaining
 the full nested workspace, all original default pages and toolkit patches.
 The desktop package keeps its native manifest/binary, page entries, translations,
 icons, polkit resources and config defaults. Its eleven management Apps remain
@@ -318,17 +318,17 @@ bus, never removing `NoNewPrivileges` from system services. The compiled
 permission and fixed-launch clients use the packaged `/usr/local/bin/yu`
 explicitly.
 
-Native Capture is composed under `build/native-apps/cosmic-screenshot` with
+Native Capture is composed under `build/native-apps/yuos-screenshot` with
 its original independent portal-client graph. The desktop package retains
-`/usr/bin/cosmic-screenshot`, its descriptor, desktop entry and all icons.
+`/usr/bin/yuos-screenshot`, its descriptor, desktop entry and all icons.
 It depends on Agent's `yuos-capture-v1`: non-interactive capture requires
 separate screen and exact-directory write grants, not a worker session bus.
 The shared interactive portal and installed screenshots/configuration remain
 OS/user-owned. No Capture binary or native resources enter the headless Agent
 payload, and normal signed package updates remain the only installed update path.
 
-Media Player is composed at `build/native-apps/cosmic-player` with its full
-native source and original locked renderer. Desktop owns `/usr/bin/cosmic-player`,
+Media Player is composed at `build/native-apps/yuos-player` with its full
+native source and original locked renderer. Desktop owns `/usr/bin/yuos-player`,
 the `com.yuos.Player` resources/thumbnailer and the seven-tool descriptor;
 Agent provides the required `yuos-media-player-v1` adapter. Observation and
 control require separate exact grants and operate only this owner's installed
@@ -336,9 +336,9 @@ native Player. There is no worker bus or second playback state. Replace the
 signed manifest and matching packages together; binary-only hot-swap is refused.
 No Player binary/resources or test-fixture executable enter the headless payload.
 
-Notifications is composed at `build/native-apps/cosmic-notifications`, including
+Notifications is composed at `build/native-apps/yuos-notifications`, including
 the full original daemon, config/util crates and standalone default/optional
-graph. Desktop owns `/usr/bin/cosmic-notifications` and its MCP descriptor;
+graph. Desktop owns `/usr/bin/yuos-notifications` and its MCP descriptor;
 its panel/applets retain their existing links to the component's private
 config/util sources. Those inputs are still composed with the whole native
 component, but are no longer declared `native_libraries` exports; the source
@@ -442,7 +442,7 @@ presentation semantics. No shell, legacy executable, owner/session/socket
 selector or new installed App identity is involved.
 
 `--app <canonical-id>` selects the OS routing preference, defaulting to
-`cosmic-files`, not an exclusive App entitlement. CLI management namespaces
+`yuos-files`, not an exclusive App entitlement. CLI management namespaces
 cannot be targets. Normal Root admission still
 verifies that target's signed GUI, actual ancestry and delegation, owner,
 PAM/kernel login, protected review, capabilities, sandbox and managed lifetime.

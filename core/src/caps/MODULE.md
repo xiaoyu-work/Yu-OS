@@ -96,7 +96,7 @@ enforcement test.
 
 Media Player's status and six playback controls use separate
 `desktop.media.observe` / `desktop.media.control` name scopes, fixed to
-`cosmic-player`. Neither is ambient authority or session-bus access.
+`yuos-player`. Neither is ambient authority or session-bus access.
 Their provider and private-bus tests are under `yuosd/media_player`.
 
 A broker-authenticated, identity-matched non-App task scope checks its granted

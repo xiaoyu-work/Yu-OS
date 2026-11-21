@@ -97,7 +97,7 @@ fn any_declared_app_needs_independent_exact_live_preference_read_and_write_right
         json!({"action":"write","entries":[{"key":"xkb_config","value":"(layout:\"us\")"}]}),
     ] {
         let request = request(action);
-        for app in ["cosmic-settings", "independent-preferences-client"] {
+        for app in ["yuos-settings", "independent-preferences-client"] {
             let cap = request.required_cap();
             let grant = decision(&request, vec![cap.clone()], app);
             assert!(grant.require(cap).is_ok());
@@ -118,7 +118,7 @@ fn any_declared_app_needs_independent_exact_live_preference_read_and_write_right
             )],
             vec![Cap::new(Verb::SYS_IDENTITY, Scope::name("manage"))],
         ] {
-            let grant = decision(&request, caps, "cosmic-settings");
+            let grant = decision(&request, caps, "yuos-settings");
             let mut client = ClientIdentity::unknown();
             client.uid = Some(unsafe { libc::geteuid() });
             let error = runtime

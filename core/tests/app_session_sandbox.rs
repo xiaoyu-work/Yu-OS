@@ -1143,7 +1143,7 @@ fn a_classified_transport_binds_one_socket_and_lifts_the_tier() {
     let bus = FixtureBus::install(&runtime);
 
     let mut spec = Spec::new(package.path(), data.path(), "app-desktop");
-    spec.app_id = "cosmic-notifications";
+    spec.app_id = "yuos-notifications";
     spec.transports = &[yu::worker::trusted_desktop::Transport::SessionBus];
     let mut session = start_session(spec).expect("start classified worker");
 
@@ -1243,7 +1243,7 @@ fn a_socket_swapped_after_derivation_fails_the_launch() {
     let bus = FixtureBus::install(&runtime);
 
     let mut spec = Spec::new(package.path(), data.path(), "app-swap");
-    spec.app_id = "cosmic-notifications";
+    spec.app_id = "yuos-notifications";
     spec.transports = &[yu::worker::trusted_desktop::Transport::SessionBus];
     let policy = spec.derive().expect("derive with the fixture bus");
 
@@ -1256,7 +1256,7 @@ fn a_socket_swapped_after_derivation_fails_the_launch() {
     let refused = yu::worker::prepare(&WorkerLaunch::new(policy).with_authority(
         BrokerAuthority::new(
             "app-swap",
-            Some("cosmic-notifications".to_string()),
+            Some("yuos-notifications".to_string()),
             CapSet::new(),
             yu::worker::relay_slot(),
         ),

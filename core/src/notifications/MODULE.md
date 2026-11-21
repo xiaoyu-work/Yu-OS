@@ -26,7 +26,8 @@ list independently requires `data.inbox.read`. Every publication, close and list
 binds to the App ID in the sealed grant, not a caller-supplied source or display
 name. Ordinary IDs retain `app:<id>`; IDs too long for the existing 128-byte
 source bound use a deterministic `app:sha256:<digest>` encoding.
-Existing `app:notify` and `app:cosmic-notifications` records are unchanged.
+The delivery App and native presenter use separate `app:notify` and
+`app:yuos-notifications` source IDs.
 The service stores display-only sender, theme
 icon, popup timeout and transient metadata, never caller-provided authority.
 The additive SQLite v1 → v2 upgrade preserves every existing record and

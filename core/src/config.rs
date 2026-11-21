@@ -3,7 +3,7 @@
 /// Reads `~/.config/yuos/config.json` (or `YUOS_CONFIG_PATH` override)
 /// and provides typed access to settings. Falls back to sensible
 /// defaults if the config file is missing or malformed. The file is
-/// per-user; `yu agent setup` (and the cosmic-settings agent page)
+/// per-user; `yu agent setup` (and the yuos-settings agent page)
 /// write to it under the running user's `$HOME`, so changes don't
 /// need root.
 use serde::{Deserialize, Serialize};

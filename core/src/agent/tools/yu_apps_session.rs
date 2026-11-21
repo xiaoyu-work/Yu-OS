@@ -1093,7 +1093,7 @@ pub(crate) fn classify_call(caps: &[crate::caps::Cap]) -> CallPlacement {
 /// broker unchanged. This is placement, never a source of authority.
 pub(crate) fn classify_app_call(app_id: &str, caps: &[crate::caps::Cap]) -> CallPlacement {
     let placement = classify_call(caps);
-    if app_id != "cosmic-edit" || matches!(placement, CallPlacement::Unsupported(_)) {
+    if app_id != "yuos-edit" || matches!(placement, CallPlacement::Unsupported(_)) {
         return placement;
     }
     let direct = caps

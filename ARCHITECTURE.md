@@ -315,7 +315,7 @@ not acquire a display dependency.
 The complete native Notifications fork, both private implementation crates,
 descriptor, license and original build now live in
 `yuos-app/products/notifications`. `just notifications-build` consumes the
-immutable App pin at `build/native-apps/cosmic-notifications`; no production
+immutable App pin at `build/native-apps/yuos-notifications`; no production
 source remains at `desktop/notifications`. The OS applet and panel consume
 only the existing public notification-presentation SDK records, proxy and FD
 constants; config/util and their markup/image/configuration implementation
@@ -386,7 +386,7 @@ account/home transaction and policy ownership.
 
 The OS exposes `system.media-player.control` to independently authorized
 sessions, without a fixed caller App identity. The seven closed actions still
-address only `cosmic-player`, with independent exact `desktop.media.observe`
+address only `yuos-player`, with independent exact `desktop.media.observe`
 and `desktop.media.control` grants scoped to that target. Neither is in the
 default System Agent authority; existing local-launch policy is unchanged.
 Callers retain their own identity and App permission-denial policy.
@@ -417,7 +417,7 @@ acceptance does not claim interactive Wayland or real-device playback.
 Capture's complete native portal client, manifest, localization, resources,
 tests and original standalone build now live in `yuos-app/products/capture`.
 `just capture-build` composes the immutable App pin under
-`build/native-apps/cosmic-screenshot`. Its ashpd/zbus/Tokio graph has no
+`build/native-apps/yuos-screenshot`. Its ashpd/zbus/Tokio graph has no
 libcosmic renderer or file-chooser dependency. The signed desktop package
 retains the executable, `com.yuos.Screenshot` resources and descriptor;
 the shared interactive portal UI and user screenshot/configuration paths stay
@@ -521,34 +521,34 @@ still consumes the OS-owned `desktop/launcher-backend` library/service and
 forked toolkit. This move shares Python/native MCP business logic but does not
 unify UI-service catalog/history or change isolated App data/grants.
 The complete native Editor now lives in `yuos-app/products/editor` and is
-composed at `build/native-apps/cosmic-edit`. Its original locked upstream
+composed at `build/native-apps/yuos-edit`. Its original locked upstream
 toolkit/file-chooser libraries are preserved; only SDK/runtime remain local
 OS dependencies. Native UI reload/save/New Window and buffer AI no longer
 invoke the Files, Terminal or Document Apps. They use the same controlled
 filesystem/fixed desktop/SDK AI boundaries as its seven MCP handlers.
 Filesystem scope enforcement, atomic writes, task-owned inverse snapshots,
 AI identity/consent/budget/audit and model providers remain OS-owned.
-`cosmic-edit` and its resources remain desktop-package assets with unchanged
+`yuos-edit` and its resources remain desktop-package assets with unchanged
 installed identity and user state.
-The complete native Files source/library and `cosmic-files-applet` companion
-live in `yuos-app/products/files`, composed at `build/native-apps/cosmic-files`
+The complete native Files source/library and `yuos-files-applet` companion
+live in `yuos-app/products/files`, composed at `build/native-apps/yuos-files`
 with their original locked toolkit patches. Native UI/MCP embed the same
 product filesystem, owner-scoped Recoll and shared document parsing sources;
 the SDK/runtime still provide policy, snapshots, AI consent/budget/audit and
 memory authority. The Document Engine capability client imports the same parser from
 the Agent package's `yuos_files.document` library. Native reveal admits only
-`cosmic-files` to its fixed `com.yuos.Files` target with exact metadata scope.
+`yuos-files` to its fixed `com.yuos.Files` target with exact metadata scope.
 Summary memory is Files-owned; metadata's sidecar needs an explicit parent
 read. User files, UI caches/settings and the existing Recoll index are not
 migrated or unified, and no App invokes another App.
 The Terminal product owns the complete native UI/MCP/resources and the `exec`
-App source. Native composition uses `build/native-apps/cosmic-term` with the
+App source. Native composition uses `build/native-apps/yuos-term` with the
 original locked renderer/file-chooser/toolkit graph. Native MCP embeds the
 canonical product bounded command/PATH implementation, never invoking `exec`;
 the independent identities, grants and process registries are unchanged.
 UI writes use controlled filesystem snapshots and policy-gated directory
 creation. Native window activation is a fixed OS desktop service restricted
-to Terminal's existing `proc.spawn:cosmic-term` scope, with no arbitrary
+to Terminal's existing `proc.spawn:yuos-term` scope, with no arbitrary
 executable/argument delegation. Authenticated worker sessions remain broker
 authority; call metadata or process environment never synthesizes snapshots.
 Interactive PTY state, user histories and credentials are not migrated.
@@ -559,12 +559,12 @@ Backup and Recovery owns both `backup-center` and `system-snapshot`, with
 separate data-backup and machine-recovery permissions. The Restic provider,
 credential loading, mount/owner authorization, snapshot index and
 Snapper/Btrfs/LVM execution remain here.
-Store owns the `pkg` CLI/MCP source and complete native `cosmic-store` fork,
+Store owns the `pkg` CLI/MCP source and complete native `yuos-store` fork,
 including resources, translations and the nested flathub-stats build helper.
 Its native queries embed the shared product catalog without invoking pkg or
 borrowing package transaction identity. Privileged package transactions, audit,
 rollback and installed state remain OS-owned. Native New Window/MCP activation
-uses a fixed OS target under `proc.spawn:cosmic-store`; human ref reads and data
+uses a fixed OS target under `proc.spawn:yuos-store`; human ref reads and data
 cleanup retain policy/snapshot checks and are unavailable in MCP.
 Flatpak catalog and inventory reads are scoped to the authenticated desktop
 owner. Native Flatpak installs and updates from configured signed sources use
@@ -616,10 +616,10 @@ rollback stay OS-owned. All eleven management App sources assigned to Settings
 have moved, along with the complete native Settings workspace, all page and
 subscription crates, original default renderer/toolkit patches, resources,
 translations and configuration schemas. `just settings-build` composes the
-immutable App source under `build/native-apps/cosmic-settings`; Settings Daemon,
+immutable App source under `build/native-apps/yuos-settings`; Settings Daemon,
 shared toolkit and privileged providers remain here. Native MCP retains
 page listing/search and fixed Settings activation under
-`proc.spawn:cosmic-settings`, and adds four owner-scoped permission-management
+`proc.spawn:yuos-settings`, and adds four owner-scoped permission-management
 tools under `sys.permissions:manage`. The Applications UI and MCP share
 `yuosd/app_permissions.rs`; the latter reaches it through the authenticated
 App Host/worker system-service route. Native owner UI uses the non-App peer
@@ -636,7 +636,7 @@ restoration receipts can be spent as execution authority. Ordinary launch and
 execution grants keep their existing lifetimes and manifest/trust/caller ceilings.
 Fixed Settings activation crosses the owner's authenticated user systemd service
 manager, not a child GUI or scope beneath `yuosd`. Its transient exec service
-starts only `/usr/bin/cosmic-settings` with validated page arguments and a closed
+starts only `/usr/bin/yuos-settings` with validated page arguments and a closed
 environment, observes immediate startup failure, and outlives the broker
 request. The daemon/worker `NoNewPrivileges` boundary is unchanged; only the
 independent human desktop process may present polkit confirmation. The native

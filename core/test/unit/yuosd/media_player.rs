@@ -54,9 +54,9 @@ fn media_player_authority_accepts_independently_authorized_clients() {
     let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().join("data"));
     let uid = unsafe { libc::geteuid() };
     for app in [
-        Some("cosmic-player"),
+        Some("yuos-player"),
         Some("independent-media-client"),
-        Some("cosmic-notifications"),
+        Some("yuos-notifications"),
         None,
     ] {
         for action in ACTIONS {
@@ -71,8 +71,8 @@ fn media_player_authority_accepts_independently_authorized_clients() {
             assert_eq!(proof.spent(), std::slice::from_ref(&cap));
             assert_eq!(allowed.app_id(), app);
             assert_eq!(allowed.session_id(), Some(session.as_str()));
-            if app != Some("cosmic-player") {
-                assert!(allowed.require_app("cosmic-player").is_err());
+            if app != Some("yuos-player") {
+                assert!(allowed.require_app("yuos-player").is_err());
             }
             assert!(authorize(&allowed, action, uid).is_err());
         }
@@ -98,7 +98,7 @@ fn media_player_authority_preserves_exact_scopes_and_existing_launch_policy() {
         } else {
             observe.clone()
         };
-        for app in [Some("cosmic-player"), Some("independent-media-client"), None] {
+        for app in [Some("yuos-player"), Some("independent-media-client"), None] {
             for caps in [
                 vec![],
                 vec![Cap::new(cap.verb, Scope::name("vlc"))],
@@ -126,7 +126,7 @@ fn media_player_revocation_tracks_the_calling_app_and_session_not_the_target_nam
         vec![observe.clone(), control],
         Uses::Unbounded,
     );
-    let player = decision(Some("cosmic-player"), vec![observe.clone()], Uses::Unbounded);
+    let player = decision(Some("yuos-player"), vec![observe.clone()], Uses::Unbounded);
     let _authorized = authorize(&client, MediaPlayerAction::Status, uid).unwrap();
     crate::approvals::app_policy::revoke(uid, "independent-media-client", observe).unwrap();
     assert!(authorize(&client, MediaPlayerAction::Status, uid)
@@ -158,7 +158,7 @@ fn media_player_wire_deadlines_and_audit_exclude_endpoint_and_authority_inputs()
         ("deadline_unix_ms", json!(-1)),
         ("deadline_unix_ms", json!("123")),
         ("owner_uid", json!(0)),
-        ("app_id", json!("cosmic-player")),
+        ("app_id", json!("yuos-player")),
         ("caps", json!(["desktop.media.control:*"])),
         ("pid", json!(1)),
         ("target", json!("org.mpris.MediaPlayer2.vlc")),

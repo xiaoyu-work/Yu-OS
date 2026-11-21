@@ -166,8 +166,8 @@ def repository(*, native_package=False, native_store=False):
                 directory.mkdir(parents=True, exist_ok=True)
                 directory.chmod(0o755)
         shutil.copytree(
-            "/usr/lib/yuos/apps/cosmic-store",
-            BASE / "payloads/bundle/usr/lib/yuos/apps/cosmic-store",
+            "/usr/lib/yuos/apps/yuos-store",
+            BASE / "payloads/bundle/usr/lib/yuos/apps/yuos-store",
             symlinks=True,
         )
     for directory in (
@@ -290,9 +290,9 @@ def repository(*, native_package=False, native_store=False):
         )
         owner = run(
             "/usr/bin/dpkg-query", "--search",
-            "/usr/lib/yuos/apps/cosmic-store/bin/cosmic-store",
+            "/usr/lib/yuos/apps/yuos-store/bin/yuos-store",
         ).decode().strip()
-        if owner != f"{BUNDLE}: /usr/lib/yuos/apps/cosmic-store/bin/cosmic-store":
+        if owner != f"{BUNDLE}: /usr/lib/yuos/apps/yuos-store/bin/yuos-store":
             raise RuntimeError("actual Store payload has no exact private dpkg owner")
 
 

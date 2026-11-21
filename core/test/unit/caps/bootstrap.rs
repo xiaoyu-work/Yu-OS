@@ -15,7 +15,7 @@ fn capture_stdin_bridge_needs_a_real_human_terminal_or_existing_session() {
     let args = ["__capture", "screenshot", "--request-stdin"].map(String::from);
     assert!(bootstrap_user_cli_session_impl(&args, false).is_none());
     {
-        let _app = crate::test_env::TestEnvVarGuard::set("YUOS_APP_ID", "cosmic-screenshot");
+        let _app = crate::test_env::TestEnvVarGuard::set("YUOS_APP_ID", "yuos-screenshot");
         assert!(bootstrap_user_cli_session_impl(&args, true).is_none());
     }
     {

@@ -81,16 +81,16 @@ static int gui_reply(const char tag[4], int descriptor) {
 
 static int gui_entry(int count, char **arguments) {
     int editor = count == 5 && strcmp(arguments[1], "app") == 0
-        && strcmp(arguments[2], "cosmic-edit") == 0 && strcmp(arguments[3], "--gui") == 0
+        && strcmp(arguments[2], "yuos-edit") == 0 && strcmp(arguments[3], "--gui") == 0
         && strcmp(arguments[4], "/run/display-home/native-editor-startup.txt") == 0;
     int files = count == 4 && strcmp(arguments[1], "app") == 0
-        && strcmp(arguments[2], "cosmic-files") == 0 && strcmp(arguments[3], "--gui") == 0;
+        && strcmp(arguments[2], "yuos-files") == 0 && strcmp(arguments[3], "--gui") == 0;
     int terminal = count == 4 && strcmp(arguments[1], "app") == 0
-        && strcmp(arguments[2], "cosmic-term") == 0 && strcmp(arguments[3], "--gui") == 0;
+        && strcmp(arguments[2], "yuos-term") == 0 && strcmp(arguments[3], "--gui") == 0;
     int calendar = count == 4 && strcmp(arguments[1], "app") == 0
         && strcmp(arguments[2], "panel-calendar") == 0 && strcmp(arguments[3], "--gui") == 0;
     int store = count == 4 && strcmp(arguments[1], "app") == 0
-        && strcmp(arguments[2], "cosmic-store") == 0 && strcmp(arguments[3], "--gui") == 0;
+        && strcmp(arguments[2], "yuos-store") == 0 && strcmp(arguments[3], "--gui") == 0;
     int widgets = count == 4 && strcmp(arguments[1], "app") == 0
         && strcmp(arguments[2], "widget-rail") == 0 && strcmp(arguments[3], "--gui") == 0;
     int clipboard = count == 4 && strcmp(arguments[1], "app") == 0
@@ -98,18 +98,18 @@ static int gui_entry(int count, char **arguments) {
     int launcher = count == 4 && strcmp(arguments[1], "app") == 0
         && strcmp(arguments[2], "yuos-launcher") == 0 && strcmp(arguments[3], "--gui") == 0;
     int settings = count == 4 && strcmp(arguments[1], "app") == 0
-        && strcmp(arguments[2], "cosmic-settings") == 0 && strcmp(arguments[3], "--gui") == 0;
+        && strcmp(arguments[2], "yuos-settings") == 0 && strcmp(arguments[3], "--gui") == 0;
     int notifications = count == 4 && strcmp(arguments[1], "app") == 0
-        && strcmp(arguments[2], "cosmic-notifications") == 0 && strcmp(arguments[3], "--gui") == 0;
+        && strcmp(arguments[2], "yuos-notifications") == 0 && strcmp(arguments[3], "--gui") == 0;
     int player = count >= 5 && strcmp(arguments[1], "app") == 0
-        && strcmp(arguments[2], "cosmic-player") == 0 && strcmp(arguments[3], "--gui") == 0
+        && strcmp(arguments[2], "yuos-player") == 0 && strcmp(arguments[3], "--gui") == 0
         && ((count == 5 && strcmp(arguments[4], "/run/display-home/native-player.webm") == 0)
             || (count == 9 && strcmp(arguments[4], "--thumbnail") == 0
                 && strcmp(arguments[5], "/run/display-home/native-player-thumbnail.png") == 0
                 && strcmp(arguments[6], "--size") == 0 && strcmp(arguments[7], "160x90") == 0
                 && strcmp(arguments[8], "/run/display-home/native-player.webm") == 0));
     int capture = count >= 4 && count <= 8 && strcmp(arguments[1], "app") == 0
-        && strcmp(arguments[2], "cosmic-screenshot") == 0 && strcmp(arguments[3], "--gui") == 0
+        && strcmp(arguments[2], "yuos-screenshot") == 0 && strcmp(arguments[3], "--gui") == 0
         && (count == 4 || (count == 5 && (strcmp(arguments[4], "--modal=false") == 0
             || strcmp(arguments[4], "--notify=false") == 0))
             || (count == 6 && strcmp(arguments[4], "--modal=false") == 0
@@ -255,24 +255,24 @@ static int gui_fixture(void) {
                         if (scenario == 34)
                             execl("/usr/local/bin/yuos-display-session", "yuos-display-session", "--exec",
                                   "/usr/lib/yuos/bin/pam-login-fixture", "--entry", "/usr/local/bin/yu",
-                                  "app", "cosmic-screenshot", "--gui", (char *)NULL);
+                                  "app", "yuos-screenshot", "--gui", (char *)NULL);
                         else if (scenario == 35)
                             execl("/usr/local/bin/yuos-display-session", "yuos-display-session", "--exec",
                                   "/usr/lib/yuos/bin/pam-login-fixture", "--entry", "/usr/local/bin/yu",
-                                  "app", "cosmic-screenshot", "--gui", "--modal=false", (char *)NULL);
+                                  "app", "yuos-screenshot", "--gui", "--modal=false", (char *)NULL);
                         else if (scenario == 39)
                             execl("/usr/local/bin/yuos-display-session", "yuos-display-session", "--exec",
                                   "/usr/lib/yuos/bin/pam-login-fixture", "--entry", "/usr/local/bin/yu",
-                                  "app", "cosmic-screenshot", "--gui", "--interactive=false",
+                                  "app", "yuos-screenshot", "--gui", "--interactive=false",
                                   "--notify=false", "--save-dir", "/run/display-home/Pictures", (char *)NULL);
                         else if (scenario == 37)
                             execl("/usr/local/bin/yuos-display-session", "yuos-display-session", "--exec",
                                   "/usr/lib/yuos/bin/pam-login-fixture", "--entry", "/usr/local/bin/yu",
-                                  "app", "cosmic-screenshot", "--gui", "--modal=false", "--notify=false", (char *)NULL);
+                                  "app", "yuos-screenshot", "--gui", "--modal=false", "--notify=false", (char *)NULL);
                         else
                             execl("/usr/local/bin/yuos-display-session", "yuos-display-session", "--exec",
                                   "/usr/lib/yuos/bin/pam-login-fixture", "--entry", "/usr/local/bin/yu",
-                                  "app", "cosmic-screenshot", "--gui", "--notify=false", (char *)NULL);
+                                  "app", "yuos-screenshot", "--gui", "--notify=false", (char *)NULL);
                         _exit(123);
                     }
                     if (scenario == 40) {
@@ -280,13 +280,13 @@ static int gui_fixture(void) {
                         if (setenv("ICED_BACKEND", "wgpu", 1) != 0) _exit(122);
                         execl("/usr/local/bin/yuos-display-session", "yuos-display-session", "--exec",
                               "/usr/lib/yuos/bin/pam-login-fixture", "--entry", "/usr/local/bin/yu",
-                              "app", "cosmic-player", "--gui", "/run/display-home/native-player.webm", (char *)NULL);
+                              "app", "yuos-player", "--gui", "/run/display-home/native-player.webm", (char *)NULL);
                         _exit(123);
                     }
                     if (scenario == 41) {
                         execl("/usr/local/bin/yuos-display-session", "yuos-display-session", "--exec",
                               "/usr/lib/yuos/bin/pam-login-fixture", "--entry", "/usr/local/bin/yu",
-                              "app", "cosmic-player", "--gui", "--thumbnail",
+                              "app", "yuos-player", "--gui", "--thumbnail",
                               "/run/display-home/native-player-thumbnail.png", "--size", "160x90",
                               "/run/display-home/native-player.webm", (char *)NULL);
                         _exit(123);
@@ -295,25 +295,25 @@ static int gui_fixture(void) {
                         if (setenv("ICED_BACKEND", "tiny-skia", 1) != 0) _exit(122);
                         execl("/usr/local/bin/yuos-display-session", "yuos-display-session", "--exec",
                               "/usr/lib/yuos/bin/pam-login-fixture", "--entry", "/usr/local/bin/yu",
-                              "app", "cosmic-notifications", "--gui", (char *)NULL);
+                              "app", "yuos-notifications", "--gui", (char *)NULL);
                         _exit(123);
                     }
                     if (scenario >= 26) {
                         execl("/usr/local/bin/yuos-display-session", "yuos-display-session", "--exec",
                               "/usr/lib/yuos/bin/pam-login-fixture", "--entry", "/usr/local/bin/yu",
-                              "app", scenario == 26 ? "cosmic-files" :
-                                     scenario == 27 ? "cosmic-term" :
+                              "app", scenario == 26 ? "yuos-files" :
+                                     scenario == 27 ? "yuos-term" :
                                      scenario == 28 ? "panel-calendar" :
-                                     scenario == 29 ? "cosmic-store" :
+                                     scenario == 29 ? "yuos-store" :
                                      scenario == 30 ? "widget-rail" :
                                      scenario == 31 ? "panel-clipboard" :
-                                     scenario == 32 ? "yuos-launcher" : "cosmic-settings",
+                                     scenario == 32 ? "yuos-launcher" : "yuos-settings",
                               "--gui", (char *)NULL);
                         _exit(123);
                     }
                     execl("/usr/local/bin/yuos-display-session", "yuos-display-session", "--exec",
                           "/usr/lib/yuos/bin/pam-login-fixture", "--entry", "/usr/local/bin/yu",
-                          "app", "cosmic-edit", "--gui", "/run/display-home/native-editor-startup.txt",
+                          "app", "yuos-edit", "--gui", "/run/display-home/native-editor-startup.txt",
                           (char *)NULL);
                     _exit(123);
                 }

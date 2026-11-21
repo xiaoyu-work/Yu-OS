@@ -254,7 +254,7 @@ fn native_mutations_and_wifi_export_cannot_borrow_other_category_or_secret_right
         })).unwrap();
     let wifi = Cap::new(Verb::NET_MANAGE, Scope::name("wifi"));
     let secret = Cap::new(Verb::SECRET_READ, Scope::name("network/work"));
-    for app in ["independent-client", "cosmic-settings"] {
+    for app in ["independent-client", "yuos-settings"] {
         for caps in [
             vec![wifi.clone()],
             vec![secret.clone()],

@@ -67,7 +67,7 @@ source-relocation notes retain pre-cutover compatibility history and do not
 override [the new package ownership graph](../packaging/README.md#coordinated-021-source-ownership-cutover).
 
 Agent provides `yuos-notifications-v1`; matching Desktop packages depend on
-it. Native `cosmic-notifications` keeps its identity and `ui.notify` grant, but
+it. Native `yuos-notifications` keeps its identity and `ui.notify` grant, but
 MCP 0.2 returns durable `notif-` string IDs rather than D-Bus integers.
 `notify.close` accepts only this App's owner-scoped returned strings; no numeric
 alias database or cross-App close is provided. Absolute icon paths/URLs are
@@ -137,10 +137,10 @@ OS records are durable across App/service restarts.
 
 Agent provides the versioned `yuos-media-player-v1` playback adapter for
 newer native Media Player packages. It requires separate exact
-`desktop.media.observe:cosmic-player` and
-`desktop.media.control:cosmic-player` authority; old unscoped MPRIS access does
+`desktop.media.observe:yuos-player` and
+`desktop.media.control:yuos-player` authority; old unscoped MPRIS access does
 not confer either grant. Callers keep their own authenticated identity; the
-service no longer requires the calling App to be `cosmic-player`. The existing
+service no longer requires the calling App to be `yuos-player`. The existing
 capabilities still name that fixed target. Neither is in the default System
 Agent authority; existing authenticated local-launch policy is unchanged.
 Installation or default-App selection is not a broker grant, and each calling
@@ -247,18 +247,18 @@ CopyQ/Wayland isolation or clear GUI publication gates.
 
 Text Editor's complete native source and descriptor are now built from the
 same immutable App repository pin. The signed `yuos-desktop` package still
-owns `/usr/bin/cosmic-edit`, `/usr/lib/yuos/apps/cosmic-edit` and the
+owns `/usr/bin/yuos-edit`, `/usr/lib/yuos/apps/yuos-edit` and the
 `com.yuos.Edit` desktop entry/resources. No user documents, editor settings,
 permissions or model credentials are moved, and no separate runtime updater
 is introduced.
 
 Files follows the same immutable native source composition, preserving
-`/usr/bin/cosmic-files`, `/usr/bin/cosmic-files-applet`, its descriptor and
+`/usr/bin/yuos-files`, `/usr/bin/yuos-files-applet`, its descriptor and
 desktop resources in `yuos-desktop`. The Agent package owns the shared
 `yuos_files.document` parser used by the Document Engine client; it arrives
 through the same signed package, never a runtime download. Files metadata
 declares its tag-sidecar parent read; reveal uses only `com.yuos.Files`
-desktop authority, and summary memory is `self:cosmic-files` rather than
+desktop authority, and summary memory is `self:yuos-files` rather than
 `self:doc`. Existing grants are not unioned or silently transferred.
 
 The legacy `doc` source now comes from the explicitly declared
@@ -270,24 +270,24 @@ budget/safety/origin, `doc` summary-memory identity and user state do not
 change; there is no new updater, data import or implicit grant transfer.
 
 Terminal now follows the same immutable native source composition. The signed
-desktop package still owns `/usr/bin/cosmic-term`, its descriptor and
+desktop package still owns `/usr/bin/yuos-term`, its descriptor and
 `com.yuos.Term` resources. Its paired OS desktop service preserves the
-existing `proc.spawn:cosmic-term` launch grant; native command/PATH handlers
+existing `proc.spawn:yuos-term` launch grant; native command/PATH handlers
 share product logic without calling the `exec` App. Native PTYs, history,
 password state and the independent `exec` registry are not moved or unified.
 
 Store's complete native source now follows the same immutable App pin.
-`yuos-desktop` still owns `/usr/bin/cosmic-store`, its native descriptor and
+`yuos-desktop` still owns `/usr/bin/yuos-store`, its native descriptor and
 `com.yuos.Store` resources. Its paired fixed-target OS launcher preserves
-`proc.spawn:cosmic-store`; the native query surface never receives pkg's
+`proc.spawn:yuos-store`; the native query surface never receives pkg's
 transaction identity. Read-only source discovery and the retained package
 controller stay OS-owned; there is no runtime Git updater.
 
 Settings' complete nested native workspace follows the same immutable App pin.
-The signed desktop package keeps `/usr/bin/cosmic-settings`, its separate
+The signed desktop package keeps `/usr/bin/yuos-settings`, its separate
 manifest, localized page entries, polkit resources and default config schemas.
 The paired OS launch service accepts only the fixed Settings target under
-`proc.spawn:cosmic-settings`. The eleven management Apps remain Agent-package
+`proc.spawn:yuos-settings`. The eleven management Apps remain Agent-package
 identities with their original scopes. User configuration, credentials and
 device/account state are not moved, and Settings Daemon/shared providers stay
 OS-owned. No runtime source download or permission-union migration is added.
@@ -342,7 +342,7 @@ provider credentials are rewritten.
 
 Capture's complete native source, descriptor, locales and resources now come
 from the immutable App repository pin. `yuos-desktop` still owns
-`/usr/bin/cosmic-screenshot`, `/usr/lib/yuos/apps/cosmic-screenshot` and
+`/usr/bin/yuos-screenshot`, `/usr/lib/yuos/apps/yuos-screenshot` and
 `com.yuos.Screenshot` resources. Existing screenshots and configuration are
 neither copied nor renamed; the default interactive OS portal UI is unchanged.
 
@@ -352,7 +352,7 @@ required by the Desktop package. Non-interactive App capture requires an explici
 output-directory write permission; clipboard and interactive destination
 selection are not part of this broker route. The service uses its own
 Root-parent-authenticated `yuosd` portal helper, not the App's legacy
-`/usr/bin/cosmic-screenshot` compatibility command or private pipe mode.
+`/usr/bin/yuos-screenshot` compatibility command or private pipe mode.
 Updating Agent updates this helper with the broker; no App identity, data or
 permission migration is introduced. Screenshot MCP receives no owner session bus.
 Direct human CLI requests preserve an already-connected stderr terminal for

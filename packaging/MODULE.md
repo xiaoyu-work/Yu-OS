@@ -176,7 +176,7 @@ resolved from the same immutable source pin by desktop package assembly;
 their complete product-owned native UIs are linked into `cosmic-applets`.
 The complete standalone Launcher source/resources are composed from that pin
 too; `yuos-launcher` remains a desktop-package descriptor and executable.
-The complete native Editor is composed likewise; `cosmic-edit`, its localized
+The complete native Editor is composed likewise; `yuos-edit`, its localized
 desktop/metainfo files and icons retain desktop-package ownership. Editor's
 locked renderer/file-chooser graph is not replaced by the shell toolkit.
 Its Python MCP code is embedded at compilation and imports the packaged
@@ -189,7 +189,7 @@ transaction grants. Native UI backend/user state is not imported into packages.
 The complete nested Settings workspace is composed identically, retaining its
 original default pages and toolkit patches. Its binary, page desktop entries,
 translations, icons, polkit resources and default config schemas remain in the
-desktop package, as does its separate `cosmic-settings` manifest. Neither
+desktop package, as does its separate `yuos-settings` manifest. Neither
 Settings Daemon/provider code nor user state moves with this product.
 Settings permission management adds the `yuos-app-permissions-v1` service
 dependency from Desktop to Agent, without forcing synchronized package versions.

@@ -77,7 +77,7 @@ def main():
         installed = root / "usr-bin"
         installed.mkdir(mode=0o755)
         shutil.copy2(Path("/usr/bin/dbus-daemon").resolve(), installed / "dbus-daemon")
-        shutil.copy2(native, installed / "cosmic-player")
+        shutil.copy2(native, installed / "yuos-player")
         for entry in installed.iterdir():
             entry.chmod(0o755)
             os.chown(entry, 0, 0)
@@ -93,9 +93,9 @@ def main():
                      "--nosyslog", f"--address={address}", "--print-address=1"])
         assert ready(bus).startswith(address)
         env = {"DBUS_SESSION_BUS_ADDRESS": address}
-        other = start(["/usr/bin/cosmic-player", "--other"], env=env)
+        other = start(["/usr/bin/yuos-player", "--other"], env=env)
         assert ready(other) == "other-ready"
-        ui = start(["/usr/bin/cosmic-player"], env=env, stdin=subprocess.PIPE)
+        ui = start(["/usr/bin/yuos-player"], env=env, stdin=subprocess.PIPE)
         assert ready(ui) == f"org.mpris.MediaPlayer2.com.yuos.Player.pid{ui.pid}"
 
         def call(action, *, permit=True, timeout_ms=4000, success=True):
@@ -139,7 +139,7 @@ def main():
         assert "withdrawn" in call("play", permit=False, success=False)
         assert "timed out" in call("play", permit=None, timeout_ms=300, success=False)
         assert call("status")["status"] == "Stopped"
-        second = start(["/usr/bin/cosmic-player"], env=env, stdin=subprocess.PIPE)
+        second = start(["/usr/bin/yuos-player"], env=env, stdin=subprocess.PIPE)
         ready(second)
         assert "ambiguous" in call("status", success=False)
         finish(second)

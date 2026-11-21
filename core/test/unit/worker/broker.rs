@@ -125,7 +125,7 @@ fn notification_inbox_grant_admits_only_the_typed_source_scoped_provider() {
 #[test]
 fn media_player_relay_requires_a_media_verb_not_other_desktop_authority() {
     for verb in [Verb::DESKTOP_MEDIA_OBSERVE, Verb::DESKTOP_MEDIA_CONTROL] {
-        let granted = relaying_authority(vec![Cap::new(verb, Scope::name("cosmic-player"))]);
+        let granted = relaying_authority(vec![Cap::new(verb, Scope::name("yuos-player"))]);
         assert_eq!(granted.app_id.as_deref(), Some("fs"));
         admit(Command::SystemMediaPlayerControl, &granted).unwrap();
         for command in [
@@ -142,7 +142,7 @@ fn media_player_relay_requires_a_media_verb_not_other_desktop_authority() {
         Verb::DEVICE_MEDIA_ROUTE,
         Verb::SYS_OBSERVE,
     ] {
-        let unrelated = relaying_authority(vec![Cap::new(verb, Scope::name("cosmic-player"))]);
+        let unrelated = relaying_authority(vec![Cap::new(verb, Scope::name("yuos-player"))]);
         assert!(admit(Command::SystemMediaPlayerControl, &unrelated).is_err());
     }
 }

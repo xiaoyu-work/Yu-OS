@@ -47,7 +47,7 @@ fn media_player_metadata_and_playback_both_require_explicit_consent() {
     let owner = owner();
     let caps = caps_for(&owner);
     for verb in [Verb::DESKTOP_MEDIA_OBSERVE, Verb::DESKTOP_MEDIA_CONTROL] {
-        assert!(!caps.covers(&Cap::new(verb, Scope::name("cosmic-player"))));
+        assert!(!caps.covers(&Cap::new(verb, Scope::name("yuos-player"))));
         assert!(!caps.covers(&Cap::new(verb, Scope::Wild)));
     }
 }

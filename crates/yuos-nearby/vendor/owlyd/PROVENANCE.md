@@ -7,7 +7,7 @@ This is the complete `crates/owlyd` subtree from the MIT-licensed
 
 Local changes are limited to the standalone manifest and checked retirement:
 upstream 0.4.1 logged `Backend::down` failures but still replied successfully to
-`Release` and published an idle `LastEnd`. Claw propagates that error, exposes
+`Release` and published an idle `LastEnd`. The Yu OS patch propagates that error, exposes
 `recovery-failed` instead of idle, and publishes successful `LastEnd` only after
 network retirement completes. Expiry, owner loss, shutdown and link loss use the
 same checked path. No protocol/file parser, lease policy or radio backend is
@@ -15,7 +15,7 @@ replaced.
 Startup also refuses to advertise an idle service when journal recovery fails.
 The added private-bus regressions check both failure acknowledgements.
 
-The Claw workspace patches only this crate. AWDL, hardware handling and AirDrop
+The Yu OS workspace patches only this crate. AWDL, hardware handling and AirDrop
 remain pinned Git dependencies at the recorded revision. This crate keeps an
 independent workspace boundary; its upstream CLI is not installed or exposed
-by Claw's fixed radio wrapper.
+by the Yu OS radio wrapper.

@@ -1,1 +1,1 @@
-../claw-recoll-index.service
+/usr/lib/systemd/user/yuos-recoll-index.service

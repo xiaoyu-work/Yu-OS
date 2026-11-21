@@ -15,7 +15,7 @@ fn parse(s: &str) -> Manifest {
 fn files_tools_derive_exact_filesystem_desktop_and_owned_memory_scopes() {
     use crate::caps::{Cap, Scope, Verb};
     let manifest = parse(
-        &std::fs::read_to_string(app_sources::app_dir("cosmic-files").join("app.json")).unwrap(),
+        &std::fs::read_to_string(app_sources::app_dir("yuos-files").join("app.json")).unwrap(),
     );
     let args = BTreeMap::from([("path".into(), serde_json::json!("/work/document"))]);
     let caps = |tool| {
@@ -45,7 +45,7 @@ fn files_tools_derive_exact_filesystem_desktop_and_owned_memory_scopes() {
         vec![
             Cap::new(Verb::FS_READ, Scope::path("/work/document")),
             Cap::new(Verb::AI_CHAT_UNTRUSTED, Scope::Wild),
-            Cap::new(Verb::MEMORY_WRITE, Scope::SelfRef("cosmic-files".into())),
+            Cap::new(Verb::MEMORY_WRITE, Scope::SelfRef("yuos-files".into())),
         ]
     );
 }
@@ -53,7 +53,7 @@ fn files_tools_derive_exact_filesystem_desktop_and_owned_memory_scopes() {
 #[test]
 fn editor_tools_derive_only_owned_service_capabilities() {
     let manifest = parse(
-        &std::fs::read_to_string(app_sources::app_dir("cosmic-edit").join("app.json")).unwrap(),
+        &std::fs::read_to_string(app_sources::app_dir("yuos-edit").join("app.json")).unwrap(),
     );
     let empty = BTreeMap::new();
     let open = manifest

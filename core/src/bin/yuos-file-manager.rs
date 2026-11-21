@@ -49,7 +49,7 @@ mod desktop {
         mut arguments: impl Iterator<Item = OsString>,
     ) -> Result<String, &'static str> {
         let Some(option) = arguments.next() else {
-            return Ok("cosmic-files".into());
+            return Ok("yuos-files".into());
         };
         let app = arguments.next();
         if option != "--app" || arguments.next().is_some() {

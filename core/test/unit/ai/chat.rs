@@ -80,7 +80,7 @@ fn unavailable_broker_never_falls_back_to_app_local_identity_or_provider() {
         dir.path().join("absent.sock"),
     );
     let _session = crate::test_env::TestEnvVarGuard::set("YUOS_SESSION", "test-unmounted");
-    let error = chat_cmd(&["--app", "cosmic-edit", "--prompt", "document"].map(str::to_string))
+    let error = chat_cmd(&["--app", "yuos-edit", "--prompt", "document"].map(str::to_string))
         .unwrap_err();
     let error: Value = serde_json::from_str(&error).unwrap();
     assert_eq!(error["code"], "KERNEL_UNAVAILABLE");

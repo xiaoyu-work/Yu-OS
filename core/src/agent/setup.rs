@@ -390,7 +390,7 @@ pub(crate) fn help_doc() -> Value {
         "subcommands": {
             "apply":       "Non-interactive write. Required flags: --provider X --model Y. Credential: one of --api-key K | --api-key-stdin | --api-key-env ENV. `--provider none` clears the modality.",
             "test":        "Alias for --verify-only: probe the currently configured provider for this modality.",
-            "providers":   "Emit JSON catalogue of providers + sample models for the picked modality (or `all`). Used by the cosmic-settings agent page.",
+            "providers":   "Emit JSON catalogue of providers + sample models for the picked modality (or `all`). Used by the yuos-settings agent page.",
             "oauth-start": "Begin a device-authorization flow for a provider whose `auth_kind` is `oauth_device` (currently only `copilot`). Requires --provider X. Emits the user code + verification URL the UI should display, plus the device_code the UI passes to `oauth-poll`.",
             "oauth-poll": "One-shot poll for an in-flight OAuth flow. Requires --provider X and either --device-code Z or --device-code-stdin. Emits a `status` of pending | slow_down | ok | expired | denied | error. On `ok` the long-lived credential is stored automatically; the UI then refreshes its model list via `models`.",
             "models":      "Fetch usable chat models for providers whose `auth_kind` is `oauth_device` (currently only `copilot`). Requires --provider X. Returns `{ models: [{name, wire_api}, …] }`; non-chat and unsupported endpoint models are excluded.",
@@ -1366,7 +1366,7 @@ fn default_env_name(provider: &str) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Non-interactive subcommands (used by cosmic-settings and other UIs)
+// Non-interactive subcommands (used by yuos-settings and other UIs)
 // ---------------------------------------------------------------------------
 
 /// Args bundle for the `apply` subcommand. Mirrors the wizard's persistence
@@ -1386,7 +1386,7 @@ struct ApplyArgs {
 }
 
 /// Emit a JSON catalogue of providers + sample models for one or all
-/// modalities. The cosmic-settings agent page uses this to populate
+/// modalities. The yuos-settings agent page uses this to populate
 /// provider dropdowns, model suggestions, and "needs API key" badges
 /// without hard-coding any of it.
 fn providers_cmd(modality: Modality) -> Result<Value, String> {
@@ -1406,7 +1406,7 @@ fn providers_cmd(modality: Modality) -> Result<Value, String> {
 }
 
 /// Providers shown in user-facing pickers (`yu agent setup text` wizard,
-/// the desktop catalogue consumed by cosmic-settings, the initial-setup
+/// the desktop catalogue consumed by yuos-settings, the initial-setup
 /// AI page). Filters out `mock` (test-only) and `llama_local` (managed
 /// via `yu model load`, not the standard credential flow). Power users
 /// can still address these by name via `yu agent setup text apply

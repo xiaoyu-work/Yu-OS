@@ -203,11 +203,11 @@ enum NativeLaunchTarget {
 impl NativeLaunchTarget {
     fn spawn_cap(self) -> Cap {
         let name = match self {
-            Self::Terminal => "cosmic-term",
-            Self::Store => "cosmic-store",
-            Self::Settings => "cosmic-settings",
-            Self::Files => "cosmic-files",
-            Self::Editor => "cosmic-edit",
+            Self::Terminal => "yuos-term",
+            Self::Store => "yuos-store",
+            Self::Settings => "yuos-settings",
+            Self::Files => "yuos-files",
+            Self::Editor => "yuos-edit",
         };
         Cap::new(Verb::PROC_SPAWN, Scope::name(name))
     }
@@ -330,7 +330,7 @@ async fn open_store(
     let args = store_launch_args(uris)?;
     let _authorized = authorize_native_launch(authority, NativeLaunchTarget::Store, None)?;
     let environment = DesktopEnvironment::for_user(uid, gid, home, peer_pid)?;
-    let program = PathBuf::from("/usr/bin/cosmic-store");
+    let program = PathBuf::from("/usr/bin/yuos-store");
     let status = run_user_launch_command(program.clone(), args, environment, LAUNCH_TIMEOUT).await?;
     if !status.success() {
         return Err(format!("native Store launcher failed: {status}"));
@@ -373,7 +373,7 @@ async fn open_terminal(
         terminal_launch_args(uris)?
     };
     let environment = DesktopEnvironment::for_user(uid, gid, home, peer_pid)?;
-    let program = PathBuf::from("/usr/bin/cosmic-term");
+    let program = PathBuf::from("/usr/bin/yuos-term");
     let status = run_user_launch_command(program.clone(), args, environment, LAUNCH_TIMEOUT).await?;
     if !status.success() {
         return Err(format!("native Terminal launcher failed: {status}"));

@@ -124,9 +124,9 @@ fn lint_checks_default_and_explicit_package_mcp_entries_without_execution() {
 fn lint_uses_the_fixed_native_system_program_table() {
     let root = tempfile::tempdir().unwrap();
     for (id, entry, allowed) in [
-        ("cosmic-files", "/usr/bin/cosmic-files", true),
-        ("cosmic-files", "/usr/bin/cosmic-edit", false),
-        ("other", "/usr/bin/cosmic-files", false),
+        ("yuos-files", "/usr/bin/yuos-files", true),
+        ("yuos-files", "/usr/bin/yuos-edit", false),
+        ("other", "/usr/bin/yuos-files", false),
     ] {
         let app = mcp_app(root.path(), id, Runtime::Binary, Some(entry));
         let hits = app_lint_violations(&app);

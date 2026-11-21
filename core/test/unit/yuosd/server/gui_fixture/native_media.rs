@@ -245,8 +245,8 @@ impl Fixture {
                 subject: Subject::session(&caller_session),
                 audience: AudienceSet::one(Audience::SystemService),
                 caps: CapSet::from_caps([
-                    Cap::new(Verb::DESKTOP_MEDIA_OBSERVE, Scope::name("cosmic-player")),
-                    Cap::new(Verb::DESKTOP_MEDIA_CONTROL, Scope::name("cosmic-player")),
+                    Cap::new(Verb::DESKTOP_MEDIA_OBSERVE, Scope::name("yuos-player")),
+                    Cap::new(Verb::DESKTOP_MEDIA_CONTROL, Scope::name("yuos-player")),
                 ]),
                 lifetime: Duration::from_secs(90),
                 uses: Uses::Unbounded,

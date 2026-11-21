@@ -1,1 +1,1 @@
-../claw-semantic.service
+/usr/lib/systemd/user/yuos-semantic.service

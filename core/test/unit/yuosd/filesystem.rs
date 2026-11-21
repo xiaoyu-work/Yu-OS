@@ -12,7 +12,7 @@ fn decision(caps: Vec<Cap>) -> Decision {
             issuer: Issuer::AppSessionAuthority,
             principal: Principal::of_process(uid, std::process::id()).unwrap(),
             binding: Binding::ProcessTree,
-            subject: Subject::session(session.clone()).with_app(Some("cosmic-edit".into())),
+            subject: Subject::session(session.clone()).with_app(Some("yuos-edit".into())),
             audience: AudienceSet::one(Audience::SystemService),
             caps: crate::caps::CapSet::from_caps(caps),
             lifetime: std::time::Duration::from_secs(60),

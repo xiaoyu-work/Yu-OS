@@ -130,15 +130,15 @@ fn package_local_entries_do_not_require_a_product_name_or_vendor_origin() {
 fn generic_admission_never_uses_the_legacy_native_mcp_table() {
     let _lock = crate::test_env::lock_env();
     for id in [
-        "cosmic-files",
-        "cosmic-edit",
-        "cosmic-store",
-        "cosmic-settings",
-        "cosmic-term",
+        "yuos-files",
+        "yuos-edit",
+        "yuos-store",
+        "yuos-settings",
+        "yuos-term",
         "yuos-launcher",
-        "cosmic-player",
-        "cosmic-screenshot",
-        "cosmic-notifications",
+        "yuos-player",
+        "yuos-screenshot",
+        "yuos-notifications",
     ] {
         let legacy_program = super::super::trusted_desktop::allowlisted_system_program(id)
             .expect("this checkpoint preserves all nine native MCP rows");
@@ -158,7 +158,7 @@ fn forged_identity_and_nonrelative_paths_are_refused() {
     let _lock = crate::test_env::lock_env();
     let fixture = EntryFixture::new("independent-editor", true, true);
     assert!(verified_entrypoint(
-        "cosmic-player",
+        "yuos-player",
         &fixture.package,
         "program",
         Runtime::Binary

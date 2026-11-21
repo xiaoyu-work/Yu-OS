@@ -110,11 +110,11 @@ passing native window or file-open result.
 ELFs, its exact manifest and original resources/licenses. Preparing those
 inputs alone does not establish a managed Files window, its auxiliary desktop
 surface or controlled file operations.
-`--product terminal` prepares the original `cosmic-term` ELF and installer
+`--product terminal` prepares the original `yuos-term` ELF and installer
 resources/licenses, without changing its manifest or default shell. The
 `test-boundaries.sh native-terminal` lane uses the same normal PAM/common Host
 and sandbox, but requires **empty GUI capabilities** and only the launcher's
-exact `agent.invoke:cosmic-term`; MCP needs never become GUI authority.
+exact `agent.invoke:yuos-term`; MCP needs never become GUI authority.
 There is no Home-metadata approval or FUSE mount. Root discovers the unique
 bound App session through its typed owner registry, not App output.
 The original absolute 25-second startup budget includes real configured,

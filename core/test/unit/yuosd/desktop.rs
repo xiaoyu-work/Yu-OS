@@ -8,18 +8,18 @@ use serde_json::json;
 const APP_ID: &str = "com.example.App";
 const WINDOW_ID: &str = "11111111111111111111111111111111:402653184";
 const NATIVE_TARGETS: [(NativeLaunchTarget, &str, &str); 5] = [
-    (NativeLaunchTarget::Terminal, "com.yuos.Term", "cosmic-term"),
-    (NativeLaunchTarget::Store, "com.yuos.Store", "cosmic-store"),
-    (NativeLaunchTarget::Settings, "com.yuos.Settings", "cosmic-settings"),
-    (NativeLaunchTarget::Files, "com.yuos.Files", "cosmic-files"),
-    (NativeLaunchTarget::Editor, "com.yuos.Edit", "cosmic-edit"),
+    (NativeLaunchTarget::Terminal, "com.yuos.Term", "yuos-term"),
+    (NativeLaunchTarget::Store, "com.yuos.Store", "yuos-store"),
+    (NativeLaunchTarget::Settings, "com.yuos.Settings", "yuos-settings"),
+    (NativeLaunchTarget::Files, "com.yuos.Files", "yuos-files"),
+    (NativeLaunchTarget::Editor, "com.yuos.Edit", "yuos-edit"),
 ];
 
 #[test]
 fn caller_names_and_human_sessions_do_not_grant_desktop_authority() {
     for (index, app) in [
-        Some("cosmic-settings"), Some("cosmic-store"), Some("cosmic-term"),
-        Some("cosmic-files"), Some("cosmic-edit"), Some("launcher"),
+        Some("yuos-settings"), Some("yuos-store"), Some("yuos-term"),
+        Some("yuos-files"), Some("yuos-edit"), Some("launcher"),
         Some("desktop-manager"), Some("independent-desktop-client"), None,
     ].into_iter().enumerate() {
         let decision = decision_for_app(app, vec![], &format!("desktop-no-caps-{index}"));
@@ -145,9 +145,9 @@ async fn settings_launch_requires_exact_original_proc_scope_before_desktop_acces
     for (index, caps) in [
         vec![], vec![Cap::new(Verb::SYS_OBSERVE, Scope::name("desktop"))],
         vec![Cap::new(Verb::DESKTOP_LAUNCH, Scope::name("com.yuos.Settings"))],
-        vec![Cap::new(Verb::PROC_SPAWN, Scope::name("cosmic-store"))],
+        vec![Cap::new(Verb::PROC_SPAWN, Scope::name("yuos-store"))],
     ].into_iter().enumerate() {
-        let decision = decision_for_app(Some("cosmic-settings"), caps, &format!("settings-denied-{index}"));
+        let decision = decision_for_app(Some("yuos-settings"), caps, &format!("settings-denied-{index}"));
         let error = open_settings(&[], &decision, 1000, 1000, PathBuf::from("/nonexistent"), 1)
             .await.unwrap_err();
         assert!(!error.contains("home"), "{error}");
@@ -172,9 +172,9 @@ async fn store_launch_requires_original_exact_proc_scope_before_desktop_access()
     for (index, caps) in [
         vec![], vec![Cap::new(Verb::SYS_PACKAGE, Scope::wild())],
         vec![Cap::new(Verb::DESKTOP_LAUNCH, Scope::name("com.yuos.Store"))],
-        vec![Cap::new(Verb::PROC_SPAWN, Scope::name("cosmic-term"))],
+        vec![Cap::new(Verb::PROC_SPAWN, Scope::name("yuos-term"))],
     ].into_iter().enumerate() {
-        let decision = decision_for_app(Some("cosmic-store"), caps, &format!("store-denied-{index}"));
+        let decision = decision_for_app(Some("yuos-store"), caps, &format!("store-denied-{index}"));
         let error = open_store(&[], &decision, 1000, 1000, PathBuf::from("/nonexistent"), 1)
             .await.unwrap_err();
         assert!(!error.contains("home"), "{error}");
@@ -217,7 +217,7 @@ async fn terminal_launch_requires_original_exact_proc_scope_before_desktop_acces
         vec![Cap::new(Verb::DESKTOP_LAUNCH, Scope::name("com.yuos.Term"))],
         vec![Cap::new(Verb::PROC_SPAWN, Scope::name("other-program"))],
     ].into_iter().enumerate() {
-        let decision = decision_for_app(Some("cosmic-term"), caps, &format!("term-denied-{index}"));
+        let decision = decision_for_app(Some("yuos-term"), caps, &format!("term-denied-{index}"));
         let error = open_terminal(&[], &decision, 1000, 1000, PathBuf::from("/nonexistent"), 1)
             .await.unwrap_err();
         assert!(!error.contains("home"), "{error}");
@@ -254,14 +254,14 @@ async fn files_reveal_requires_both_exact_capabilities_before_desktop_access() {
     let uri = url::Url::from_file_path(&directory).unwrap().to_string();
     for (index, caps) in [
         vec![Cap::new(Verb::FS_META, Scope::path(directory.to_str().unwrap()))],
-        vec![Cap::new(Verb::PROC_SPAWN, Scope::name("cosmic-files"))],
+        vec![Cap::new(Verb::PROC_SPAWN, Scope::name("yuos-files"))],
         vec![Cap::new(Verb::DESKTOP_LAUNCH, Scope::name("com.yuos.Files"))],
         vec![Cap::new(Verb::FS_META, Scope::path("/not-the-requested-directory")),
-             Cap::new(Verb::PROC_SPAWN, Scope::name("cosmic-files"))],
+             Cap::new(Verb::PROC_SPAWN, Scope::name("yuos-files"))],
         vec![Cap::new(Verb::FS_READ, Scope::path(directory.to_str().unwrap())),
-             Cap::new(Verb::PROC_SPAWN, Scope::name("cosmic-files"))],
+             Cap::new(Verb::PROC_SPAWN, Scope::name("yuos-files"))],
         vec![Cap::new(Verb::FS_META, Scope::path(directory.to_str().unwrap())),
-             Cap::new(Verb::PROC_SPAWN, Scope::name("cosmic-edit"))],
+             Cap::new(Verb::PROC_SPAWN, Scope::name("yuos-edit"))],
     ].into_iter().enumerate() {
         let decision = decision_for_app(Some("independent-files-client"), caps, &format!("files-denied-{index}"));
         let error = reveal_files(&[uri.clone()], &decision, 1000, 1000, directory.clone(), 1)
@@ -299,11 +299,11 @@ async fn editor_launch_requires_original_proc_and_exact_read_before_desktop_acce
     let uri = url::Url::from_file_path(&file).unwrap().to_string();
     for (index, caps) in [
         vec![],
-        vec![Cap::new(Verb::PROC_SPAWN, Scope::name("cosmic-edit"))],
+        vec![Cap::new(Verb::PROC_SPAWN, Scope::name("yuos-edit"))],
         vec![Cap::new(Verb::FS_READ, Scope::path(file.to_str().unwrap()))],
-        vec![Cap::new(Verb::PROC_SPAWN, Scope::name("cosmic-edit")),
+        vec![Cap::new(Verb::PROC_SPAWN, Scope::name("yuos-edit")),
              Cap::new(Verb::FS_READ, Scope::path("/not-the-requested-file"))],
-        vec![Cap::new(Verb::PROC_SPAWN, Scope::name("cosmic-files")),
+        vec![Cap::new(Verb::PROC_SPAWN, Scope::name("yuos-files")),
              Cap::new(Verb::FS_READ, Scope::path(file.to_str().unwrap()))],
     ].into_iter().enumerate() {
         let decision = decision_for_app(Some("independent-editor-client"), caps, &format!("editor-denied-{index}"));
@@ -508,7 +508,7 @@ fn desktop_actions_admit_independently_authorized_sessions_without_rebinding_ide
     let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().join("data"));
     for (index, app) in [
         Some("independent-desktop-client"), Some("launcher"), Some("desktop-manager"),
-        Some("cosmic-settings"), None,
+        Some("yuos-settings"), None,
     ].into_iter().enumerate() {
         for (action, app_id) in [
             ("launch", Some(APP_ID)), ("list", None), ("focus", None),
@@ -533,7 +533,7 @@ fn desktop_actions_still_require_the_exact_action_and_restart_target_scopes() {
         ("list", None, vec![Cap::new(Verb::SYS_OBSERVE, Scope::name("network"))]),
         ("focus", None, vec![Cap::new(Verb::DESKTOP_WINDOW, Scope::name("other"))]),
         ("close", None, vec![Cap::new(Verb::SYS_OBSERVE, Scope::name("desktop"))]),
-        ("launch", Some(APP_ID), vec![Cap::new(Verb::PROC_SPAWN, Scope::name("cosmic-term"))]),
+        ("launch", Some(APP_ID), vec![Cap::new(Verb::PROC_SPAWN, Scope::name("yuos-term"))]),
         ("launch", Some(APP_ID), vec![Cap::new(Verb::DESKTOP_LAUNCH, Scope::name("com.example.Other"))]),
         ("restart", Some(APP_ID), vec![Cap::new(Verb::DESKTOP_WINDOW, Scope::name("control"))]),
         ("restart", Some(APP_ID), vec![Cap::new(Verb::DESKTOP_LAUNCH, Scope::name(APP_ID))]),

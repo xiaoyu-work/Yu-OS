@@ -215,7 +215,7 @@ an owner-bus proxy. Normal public dispatch refuses the exchange; only the
 common Host's checked per-message process/cgroup endpoint can enter it.
 
 The owner registry selects one running target under the existing exact
-`desktop.media.observe:cosmic-player` or `desktop.media.control:cosmic-player`
+`desktop.media.observe:yuos-player` or `desktop.media.control:yuos-player`
 caller grant. Multiple targets remain ambiguous. Root keeps at most eight
 pending requests per window, obtains fresh caller authorization before releasing
 a command, and rechecks it before returning a result. The native UI itself

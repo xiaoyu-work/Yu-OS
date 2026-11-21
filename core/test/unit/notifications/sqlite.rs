@@ -324,7 +324,7 @@ fn deduplication_never_reassigns_a_record_to_another_source() {
     let service = SqliteNotificationService::open_in_memory().unwrap();
     let a = service.publish(7, draft("same").dedupe("key")).unwrap();
     let mut input = draft("same").dedupe("key");
-    input.source = "app:cosmic-notifications".into();
+    input.source = "app:yuos-notifications".into();
     let b = service.publish(7, input).unwrap();
     assert_ne!(a.id, b.id);
     assert_eq!(service.get(7, &a.id).unwrap().source, a.source);

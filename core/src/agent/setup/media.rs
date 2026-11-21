@@ -622,7 +622,7 @@ pub(super) fn status_media(modality: Modality) -> Value {
         false
     };
     // `reason` is emitted as a structured envelope (`error` /
-    // `details` / `fix`) matching the shape the cosmic-settings UI
+    // `details` / `fix`) matching the shape the yuos-settings UI
     // expects in [`ErrorEnvelope`]. `status_llm` emits the same shape
     // via `is_ready`; emitting a plain string here used to make every
     // media settings page fail with "invalid status JSON: invalid type:

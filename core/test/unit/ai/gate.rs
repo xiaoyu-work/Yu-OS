@@ -251,7 +251,7 @@ async fn dispatched_app_request_timeout_retains_its_budget_reservation() {
     let store = Store::open().unwrap();
     let call = async move {
         let mut reservation =
-            BudgetReservation::reserve(store, "cosmic-edit".into(), 500, 1000, 0).unwrap();
+            BudgetReservation::reserve(store, "yuos-edit".into(), 500, 1000, 0).unwrap();
         reservation.retain_estimate_on_drop();
         std::future::pending::<()>().await;
         drop(reservation);
@@ -262,8 +262,8 @@ async fn dispatched_app_request_timeout_retains_its_budget_reservation() {
             .is_err()
     );
     let store = Store::open().unwrap();
-    assert_eq!(store.current("cosmic-edit").unwrap().units_used, 500);
-    assert!(BudgetReservation::reserve(store, "cosmic-edit".into(), 501, 1000, 0).is_err());
+    assert_eq!(store.current("yuos-edit").unwrap().units_used, 500);
+    assert!(BudgetReservation::reserve(store, "yuos-edit".into(), 501, 1000, 0).is_err());
 }
 
 /// The `BudgetReservation` Drop guard refunds the reserved

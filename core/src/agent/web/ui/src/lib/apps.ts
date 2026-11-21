@@ -26,7 +26,7 @@ const SHA256 = /^[a-f0-9]{64}$/;
 function webProduct(appId: string, kind: unknown, source: unknown): boolean {
   return (kind === "product" || kind === "capability" || kind === undefined) &&
     source !== "store" && source !== "launcher" &&
-    !["pkg", "cosmic-store", "launcher", "cosmic-launcher", "yuos-launcher"].includes(appId);
+    !["pkg", "yuos-store", "launcher", "cosmic-launcher", "yuos-launcher"].includes(appId);
 }
 
 function tools(value: unknown): AppTool[] {

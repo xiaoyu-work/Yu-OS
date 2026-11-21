@@ -104,10 +104,10 @@ impl Draft {
             verify_system_gui(&launch)?;
         }
         let system_menu_app = system_launcher
-            && matches!(launch.app_id(), "yuos-launcher" | "cosmic-settings")
+            && matches!(launch.app_id(), "yuos-launcher" | "yuos-settings")
             && verify_system_gui(&launch).is_ok();
-        let owner_settings = system_menu_app && launch.app_id() == "cosmic-settings"
-            && entry == "bin/cosmic-settings" && selector == "--gui";
+        let owner_settings = system_menu_app && launch.app_id() == "yuos-settings"
+            && entry == "bin/yuos-settings" && selector == "--gui";
         let owner_launch = launcher_authority.parent.is_none()
             && launcher_authority.activity.is_none()
             && launcher_authority.workspace.is_none()

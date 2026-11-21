@@ -42,7 +42,7 @@ fn model_content_is_plain_text_and_presentation_labels_are_not_identity() {
     let envelope: DeliveryEnvelope = serde_json::from_value(json!({
         "deliveries":[{"notification":{
             "id":"notif-example","state":"unread","severity":"info","title":"Title","body":"",
-            "source":"app:cosmic-notifications",
+            "source":"app:yuos-notifications",
             "presentation":{"app_name":"Untrusted label","icon":"name","expire_ms":0,"transient":true}
         }}]
     })).unwrap();

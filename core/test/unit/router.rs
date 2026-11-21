@@ -781,7 +781,7 @@ fn dispatch_builtin_recovery_envelope_propagates_failure() {
     // matching a `recovery_hint` pattern (e.g. "Permission denied"
     // when writing config as a non-root user) used to
     // be re-wrapped in `Ok(Some(envelope))`. That zeroed out the CLI
-    // exit code, so callers like cosmic-settings' agent page parsed
+    // exit code, so callers like yuos-settings' agent page parsed
     // the failure as a default-valued success and silently flipped
     // the provider back to openai. The wrapper must keep failures
     // failing while still attaching the recovery hints.

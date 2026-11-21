@@ -5,15 +5,15 @@ fn every_fixed_row_names_exactly_its_system_program() {
     // Kernel source, spelled out: an id may name this program and no
     // other, and an id that is not here may name none at all.
     let expected: &[(&str, &str)] = &[
-        ("cosmic-files", "/usr/bin/cosmic-files"),
-        ("cosmic-edit", "/usr/bin/cosmic-edit"),
-        ("cosmic-store", "/usr/bin/cosmic-store"),
-        ("cosmic-settings", "/usr/bin/cosmic-settings"),
-        ("cosmic-term", "/usr/bin/cosmic-term"),
+        ("yuos-files", "/usr/bin/yuos-files"),
+        ("yuos-edit", "/usr/bin/yuos-edit"),
+        ("yuos-store", "/usr/bin/yuos-store"),
+        ("yuos-settings", "/usr/bin/yuos-settings"),
+        ("yuos-term", "/usr/bin/yuos-term"),
         ("yuos-launcher", "/usr/bin/yuos-launcher"),
-        ("cosmic-player", "/usr/bin/cosmic-player"),
-        ("cosmic-screenshot", "/usr/bin/cosmic-screenshot"),
-        ("cosmic-notifications", "/usr/bin/cosmic-notifications"),
+        ("yuos-player", "/usr/bin/yuos-player"),
+        ("yuos-screenshot", "/usr/bin/yuos-screenshot"),
+        ("yuos-notifications", "/usr/bin/yuos-notifications"),
     ];
     assert_eq!(ALLOWLIST.len(), expected.len(), "the table grew or shrank");
     for (app_id, program) in expected {
@@ -25,7 +25,7 @@ fn every_fixed_row_names_exactly_its_system_program() {
     }
     // Nothing else may name an absolute entry at all.
     assert_eq!(allowlisted_system_program("kv"), None);
-    assert_eq!(allowlisted_system_program("cosmic-player-evil"), None);
+    assert_eq!(allowlisted_system_program("yuos-player-evil"), None);
     assert_eq!(allowlisted_system_program("launcher"), None);
     assert_eq!(allowlisted_system_program(""), None);
 }
@@ -48,18 +48,18 @@ fn native_rows_never_carry_a_desktop_transport() {
 fn a_package_that_is_not_vendor_trusted_is_never_classified() {
     let _lock = crate::caps::test_env_lock::env_lock();
     let root = crate::test_env::secure_scratch_dir("desktop-classify");
-    let dir = root.join("cosmic-player");
+    let dir = root.join("yuos-player");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("app.json"), "{}").unwrap();
-    crate::test_env::sign_test_package(&dir, crate::provenance::PackageKind::App, "cosmic-player");
+    crate::test_env::sign_test_package(&dir, crate::provenance::PackageKind::App, "yuos-player");
     let trust = crate::provenance::trust_store();
     let options = crate::provenance::VerifyOptions::new(crate::provenance::PackageKind::App)
-        .expect_id("cosmic-player");
+        .expect_id("yuos-player");
     let package = crate::provenance::verify::verify_package(&dir, &options, &trust)
         .expect("verify signed fixture");
 
     // A real publisher signature over a package that calls itself
-    // `cosmic-player` is exactly the attack this refuses: the id
+    // `yuos-player` is exactly the attack this refuses: the id
     // matches a row, everything else does not.
     assert!(matches!(
         package.source(),
@@ -67,9 +67,9 @@ fn a_package_that_is_not_vendor_trusted_is_never_classified() {
     ));
     assert!(
         classify(
-            "cosmic-player",
+            "yuos-player",
             &package,
-            std::path::Path::new("/usr/bin/cosmic-player"),
+            std::path::Path::new("/usr/bin/yuos-player"),
         )
         .is_none(),
         "a publisher-signed package reached the desktop transport"
@@ -81,7 +81,7 @@ fn a_package_that_is_not_vendor_trusted_is_never_classified() {
 #[test]
 fn a_program_the_owner_can_rewrite_is_never_classified() {
     let root = crate::test_env::secure_scratch_dir("desktop-program");
-    let program = root.join("cosmic-player");
+    let program = root.join("yuos-player");
     std::fs::write(&program, "#!/bin/sh\n").unwrap();
     // Owned by the test user, not root: the ownership gate is what
     // stands between "the id matched" and "the transport is granted".
