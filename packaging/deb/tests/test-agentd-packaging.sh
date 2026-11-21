@@ -68,7 +68,7 @@ assert_contains "$CARGO_TOML" 'path = "src/bin/yuos-extension-host.rs"' \
 for helper in yuos-gui-runner yuos-display-host yuos-display-session yuos-file-manager yuos-notification-panel; do
     assert_contains "$CARGO_TOML" "name = \"$helper\"" \
         "the GUI helper must be a first-class cargo binary"
-    assert_contains "$BUILD_DEBS" "ensure_bin $helper cos" \
+    assert_contains "$BUILD_DEBS" "ensure_bin $helper yu" \
         "Agent packaging must build every required GUI helper"
 done
 assert_contains "$BUILD_DEBS" 'ensure_bin libpam_claw_display.so yuos-display-login "${RUST_TARGET/-musl/-gnu}"' \
@@ -130,11 +130,11 @@ assert_contains "$TEST_BOUNDARIES" '"$CARGO_TARGET_DIR/debug/yuos-display-sessio
     "the private fixture must receive the real display subscriber and FileManager1 facade"
 assert_contains "$TEST_BOUNDARIES" 'private_deferred_retirement_reclaims_the_exact_slot_and_workload' \
     "CI must exercise deferred display retirement and slot reclamation"
-assert_contains "$BUILD_DEBS" 'ensure_bin yuos-agentd cos' \
+assert_contains "$BUILD_DEBS" 'ensure_bin yuos-agentd yu' \
     "yuos-agent must build the agent worker"
 assert_contains "$BUILD_DEBS" '/usr/local/bin/yuos-agentd' \
     "yuos-agent must install the agent worker beside yuosd"
-assert_contains "$BUILD_DEBS" 'ensure_bin yuos-extension-host cos' \
+assert_contains "$BUILD_DEBS" 'ensure_bin yuos-extension-host yu' \
     "yuos-agent must build the extension host"
 assert_contains "$BUILD_DEBS" '/usr/local/bin/yuos-extension-host' \
     "yuos-agent must install the extension host beside yuos-agentd"

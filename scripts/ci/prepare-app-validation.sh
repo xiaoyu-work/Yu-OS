@@ -11,14 +11,15 @@ if [[ -n ${APP_SOURCE_ARTIFACT:-} ]]; then
   fi
   export CLAW_APP_SOURCE_LOCK="$GITHUB_WORKSPACE/build/release/app-sources.json"
 elif [[ -n ${APP_CANDIDATE_REVISION:-} ]]; then
-  export CLAW_APP_SOURCE_LOCK="$GITHUB_WORKSPACE/build/app-validation-source.json"
-  python3 - "$CLAW_APP_SOURCE_LOCK" "$APP_CANDIDATE_REVISION" <<'PY'
+  lock="$GITHUB_WORKSPACE/build/app-validation-source.json"
+  env -u CLAW_APP_SOURCE_LOCK python3 - "$lock" "$APP_CANDIDATE_REVISION" <<'PY'
 import sys
 from scripts import app_sources
 
 selection = app_sources.read_lock()
 app_sources.write_lock(sys.argv[1], {**selection, "version": 1, "revision": sys.argv[2]})
 PY
+  export CLAW_APP_SOURCE_LOCK="$lock"
   if [[ ${1:-} == native-* ]]; then
     version="$(python3 -c 'import json; print(json.load(open("packaging/app-platform.json"))["version"])')"
     output="$GITHUB_WORKSPACE/build/app-platform-acceptance"

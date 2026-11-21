@@ -749,7 +749,7 @@ BUILD_DESKTOP="$DEB_DIR/build-desktop-deb.sh"
 bash -n "$BUILD_DEBS" || fail "build-debs.sh is not valid bash"
 bash -n "$BUILD_DESKTOP" || fail "build-desktop-deb.sh is not valid bash"
 for needle in \
-    'ensure_bin yuos-security-floor cos' \
+    'ensure_bin yuos-security-floor yu' \
     '/usr/lib/yuos/bin/yuos-security-floor' \
     '/usr/lib/yuos/apt/security-floor-hook' \
     '/etc/apt/apt.conf.d/50yuos-security-floor' \
