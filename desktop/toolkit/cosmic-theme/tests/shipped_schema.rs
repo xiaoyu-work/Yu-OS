@@ -1,7 +1,7 @@
 //! `com.yuos.Theme.{Light,Dark}` is a *derived* config: every field is
 //! whatever `ThemeBuilder::build()` produced from the matching
 //! `.Builder` entry. The two drifted apart once already — the builders
-//! carried the Claw palette while the derived themes still held stock
+//! carried the Yu OS palette while the derived themes still held stock
 //! COSMIC greys — and nothing caught it, because cosmic-config falls
 //! back to compiled-in defaults on a parse miss rather than failing
 //! loudly. Re-derive here and compare.
@@ -77,7 +77,7 @@ fn assert_derived(mode: &str, is_dark: bool) {
     let expected = builder_from(&builder_fields, is_dark).build();
 
     // `build()` labels the theme after its seed palette; the shipped
-    // schema keeps the Claw name, so that one field differs by design.
+    // schema keeps the Yu OS name, so that one field differs by design.
     let name: String = parse(&theme_fields, "name");
     assert_eq!(name, format!("claw-{}", mode.to_lowercase()));
 
@@ -152,7 +152,7 @@ fn dark_theme_is_derived_from_its_builder() {
     assert_derived("Dark", true);
 }
 
-/// The desktop ships light-first, and the brand accent is Claw blue
+/// The desktop ships light-first, and the brand accent is Yu OS blue
 /// (`#005CFE`) in both modes.
 #[test]
 fn shipped_defaults_are_light_and_branded() {
@@ -177,7 +177,7 @@ fn shipped_defaults_are_light_and_branded() {
             (accent.green * 255.0).round() as u8,
             (accent.blue * 255.0).round() as u8,
         );
-        assert_eq!(hex, (0x00, 0x5C, 0xFE), "{mode} accent is not Claw blue");
+        assert_eq!(hex, (0x00, 0x5C, 0xFE), "{mode} accent is not Yu OS blue");
 
         let fields = read_fields(&schema_dir(&format!("com.yuos.Theme.{mode}")));
         assert_eq!(parse::<bool>(&fields, "is_dark"), dark);

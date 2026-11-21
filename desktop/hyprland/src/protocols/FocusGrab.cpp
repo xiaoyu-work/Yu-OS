@@ -1,5 +1,5 @@
 #include "FocusGrab.hpp"
-#include "../../../hyprland-claw/Claw.hpp"
+#include "../../../hyprland-claw/Yu OS.hpp"
 #include "../Compositor.hpp"
 #include <hyprland-focus-grab-v1.hpp>
 #include "../managers/input/InputManager.hpp"
@@ -46,7 +46,7 @@ bool CFocusGrab::isSurfaceCommitted(SP<CWLSurfaceResource> surface) {
 }
 
 void CFocusGrab::start() {
-    if (!Claw::permitted(m_resource->client(), CLAW_PANEL)) {
+    if (!Yu OS::permitted(m_resource->client(), CLAW_PANEL)) {
         finish(true);
         return;
     }
@@ -76,7 +76,7 @@ void CFocusGrab::finish(bool sendCleared) {
 }
 
 void CFocusGrab::addSurface(SP<CWLSurfaceResource> surface) {
-    if (!Claw::permitted(m_resource->client(), CLAW_PANEL))
+    if (!Yu OS::permitted(m_resource->client(), CLAW_PANEL))
         return;
     auto iter = std::ranges::find_if(m_surfaces, [surface](const auto& e) { return e.first == surface; });
     if (iter == m_surfaces.end())
@@ -118,7 +118,7 @@ void CFocusGrab::refocusKeyboard() {
 }
 
 void CFocusGrab::commit(bool removeOnly) {
-    if (!Claw::permitted(m_resource->client(), CLAW_PANEL)) {
+    if (!Yu OS::permitted(m_resource->client(), CLAW_PANEL)) {
         finish(true);
         return;
     }
@@ -174,7 +174,7 @@ void CFocusGrabProtocol::destroyGrab(CFocusGrab* grab) {
 }
 
 void CFocusGrabProtocol::onCreateGrab(CHyprlandFocusGrabManagerV1* pMgr, uint32_t id) {
-    if (!Claw::permitted(pMgr->client(), CLAW_PANEL)) {
+    if (!Yu OS::permitted(pMgr->client(), CLAW_PANEL)) {
         wl_client_post_implementation_error(pMgr->client(), "No live Root panel focus authority");
         return;
     }

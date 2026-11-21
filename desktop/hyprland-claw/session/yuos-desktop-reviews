@@ -13,11 +13,11 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gio, GLib
 
-GLib.set_prgname("claw-desktop-reviews")
+GLib.set_prgname("yuos-desktop-reviews")
 from gi.repository import Gdk, Gtk, Pango
 
 
-COS = "/usr/local/bin/yu"
+YU = "/usr/local/bin/yu"
 APPROVAL_HELPER = "/usr/local/bin/yuos-approval-helper"
 REVIEW_ID = re.compile(r"(?:rv-[a-f0-9]{32}|ap-[a-f0-9]{12}|pg-[a-f0-9]{32})")
 CONFIRMATIONS = {
@@ -291,7 +291,7 @@ class Reviews:
 
     def poll(self):
         if not self.busy and self.pending is None:
-            self.run([COS, "--json", "review", "pending"], self.inventory)
+            self.run([YU, "--json", "review", "pending"], self.inventory)
         return GLib.SOURCE_CONTINUE
 
     def inventory(self, output, _):
@@ -304,7 +304,7 @@ class Reviews:
         for item in actionable:
             if (item["id"], item["revision"]) not in self.deferred:
                 self.remaining = len(actionable) - 1
-                self.run([COS, "--json", "review", "show", item["id"]], self.present)
+                self.run([YU, "--json", "review", "show", item["id"]], self.present)
                 return
 
     def message(self, text):
@@ -444,12 +444,12 @@ class Reviews:
             ]}
 
         def refresh(_, __):
-            self.run([COS, "--json", "review", "show", review_id],
+            self.run([YU, "--json", "review", "show", review_id],
                      lambda latest, text: self.settle(decision["revision"], latest, text))
 
         if action == "cancel":
             self.message("Declining this request...")
-            self.run([COS, "--json", "review", "deny", review_id, str(decision["revision"])], refresh)
+            self.run([YU, "--json", "review", "deny", review_id, str(decision["revision"])], refresh)
         else:
             self.message("Enter your sign-in password in the system dialog to confirm.")
             self.run(["/usr/bin/pkexec", "--disable-internal-agent", APPROVAL_HELPER,

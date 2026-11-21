@@ -110,7 +110,7 @@ impl LoadedSkill {
 /// Trust/source layer from which a skill was discovered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SkillOrigin {
-    /// Read-only content shipped with the Claw Agent package.
+    /// Read-only content shipped with the Yu OS Agent package.
     BuiltIn,
     /// Content installed into the current user's skill directory.
     User,

@@ -5,7 +5,7 @@ Use for disk-full, slow storage, missing filesystems, or heavy I/O.
 ## Initial evidence
 
 ```json
-{"command":"run","args":["--domain","storage","--path","/home/cos","disk is full"]}
+{"command":"run","args":["--domain","storage","--path","/home/operator","disk is full"]}
 ```
 
 Inspect:

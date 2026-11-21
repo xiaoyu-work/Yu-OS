@@ -71,7 +71,7 @@ async fn actual_airdrop_tls_driver_declines_then_transfers_only_after_exact_acce
         address,
         &identity,
         Options::new(
-            receiver_config("Claw fixture".into()),
+            receiver_config("Yu OS fixture".into()),
             inbox.path().to_path_buf(),
         ),
     )

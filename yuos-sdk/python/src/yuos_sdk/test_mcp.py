@@ -1,4 +1,4 @@
-"""Tests for the manifest-bound Claw App MCP runtime."""
+"""Tests for the manifest-bound Yu OS App MCP runtime."""
 
 from __future__ import annotations
 

@@ -16,7 +16,7 @@ Inspect:
 
 ## Decision tree
 
-1. Confirm the exact unit or Claw-managed service name.
+1. Confirm the exact unit or Yu OS-managed service name.
 2. Determine whether it is:
    - a native systemd unit; or
    - a service registered with `yu_service`.
@@ -26,9 +26,9 @@ Inspect:
 
 ## Important distinction
 
-`yu_service` manages Claw-defined services. It is not a general `systemctl`
+`yu_service` manages Yu OS-defined services. It is not a general `systemctl`
 replacement. Until the native systemd manager lands, do not claim the agent
 can enable, disable, or restart arbitrary system units.
 
-For a Claw-managed service, prefer `status`, `health`, and `logs` before
+For a Yu OS-managed service, prefer `status`, `health`, and `logs` before
 `restart`. Preserve the pre-action status and verify health afterward.

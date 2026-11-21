@@ -26,7 +26,7 @@ fn fixture() -> App {
     app.nearby_view = Some(NearbyView {
         schema: SCHEMA,
         owner_uid: 1000,
-        inbox: "/home/user/Downloads/Claw Nearby".into(),
+        inbox: "/home/user/Downloads/Yu OS Nearby".into(),
         probe: RadioProbe {
             available: true,
             mode: Some(RadioMode::Shared),

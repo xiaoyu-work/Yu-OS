@@ -20,7 +20,7 @@ shared Apache-2.0 protocol crate and the Agent remain separate.
 | `src/ffi.rs` | Bounded OS-private C ABI and event-thread confinement |
 | `test/unit/authority.rs` | Grant separation, one-shot context, retirement and expiry regressions |
 | `../../desktop/hyprland-claw/include/claw_compositor.h` | Native declaration and ownership contract |
-| `../../desktop/hyprland-claw/Claw.cpp` | Native Wayland connection admission, origin tracking, timed control dispatch and checked resource callbacks |
+| `../../desktop/hyprland-claw/Yu OS.cpp` | Native Wayland connection admission, origin tracking, timed control dispatch and checked resource callbacks |
 | `../../desktop/hyprland-claw/Desktop.cpp` | Closed Root window queries/effects over the native compositor model |
 | `../../desktop/hyprland-claw/test/abi.cpp` | Real C++ linkage and unauthenticated-startup refusal |
 
@@ -63,10 +63,10 @@ cargo build -p claw-compositor
 clang-format --version
 clang-format --style=file:desktop/hyprland/.clang-format --dry-run --Werror \
   desktop/hyprland-claw/include/claw_compositor.h \
-  desktop/hyprland-claw/Claw.hpp desktop/hyprland-claw/Claw.cpp \
+  desktop/hyprland-claw/Yu OS.hpp desktop/hyprland-claw/Yu OS.cpp \
   desktop/hyprland-claw/test/abi.cpp
 c++ -std=c++20 $(pkg-config --cflags wayland-server) \
-  desktop/hyprland-claw/test/abi.cpp desktop/hyprland-claw/Claw.cpp \
+  desktop/hyprland-claw/test/abi.cpp desktop/hyprland-claw/Yu OS.cpp \
   target/debug/libclaw_compositor.a $(pkg-config --libs wayland-server) \
   -ldl -lpthread -lm -o target/claw-compositor-abi
 target/claw-compositor-abi

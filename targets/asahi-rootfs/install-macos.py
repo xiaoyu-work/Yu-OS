@@ -1,4 +1,4 @@
-"""Verify the Claw payload and hand new installations to the pinned Asahi engine."""
+"""Verify the Yu OS payload and hand new installations to the pinned Asahi engine."""
 
 import json
 import os

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://yuos.dev/wire/v1/mcp_call_context.schema.json",
   "title": "MCP call context",
-  "description": "Authenticated call identity and lineage injected by the Claw MCP Gateway over the private App-host transport. Caller-supplied MCP arguments must never populate this object.",
+  "description": "Authenticated call identity and lineage injected by the Yu OS MCP Gateway over the private App-host transport. Caller-supplied MCP arguments must never populate this object.",
   "type": "object",
   "required": ["wire_version", "call_id", "trace_id", "caller"],
   "additionalProperties": false,

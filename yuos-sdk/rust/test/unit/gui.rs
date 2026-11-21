@@ -96,7 +96,7 @@ fn overlay_ignores_executable_environment_override() {
     assert!(
         error.kind() == std::io::ErrorKind::NotFound
             || (error.kind() == std::io::ErrorKind::PermissionDenied
-                && error.to_string().starts_with("untrusted Ask Claw launcher")),
+                && error.to_string().starts_with("untrusted Ask Yu OS launcher")),
         "expected a missing or untrusted fixed launcher, got {error}"
     );
 }

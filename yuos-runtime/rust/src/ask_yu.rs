@@ -1,4 +1,4 @@
-//! Typed launch contract for the desktop "Ask Claw" overlay.
+//! Typed launch contract for the desktop "Ask Yu OS" overlay.
 //!
 //! Bundled desktop apps own small, app-specific context structs and implement
 //! [`Context`] for them. This module owns the stable envelope, JSON encoding,
@@ -55,7 +55,7 @@ const ACTIVATION_FD_FLAG: &str = "--activation-fd";
 #[cfg(target_os = "linux")]
 static SDK_ENDPOINT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
-/// A host-owned, typed description of the context for an Ask Claw request.
+/// A host-owned, typed description of the context for an Ask Yu OS request.
 ///
 /// Implementations must serialize as a JSON object. The runtime inserts the
 /// stable `app` field, so implementations must not define that field.
@@ -67,50 +67,50 @@ pub trait Context: Serialize {
 /// Errors produced while encoding a typed host context.
 #[derive(Debug, thiserror::Error)]
 pub enum ContextError {
-    #[error("Ask Claw context serialization failed: {0}")]
+    #[error("Ask Yu OS context serialization failed: {0}")]
     Serialization(#[from] serde_json::Error),
 
-    #[error("Ask Claw context for {app} must serialize as a JSON object")]
+    #[error("Ask Yu OS context for {app} must serialize as a JSON object")]
     NotAnObject { app: &'static str },
 
-    #[error("Ask Claw context for {app} must not define the reserved `app` field")]
+    #[error("Ask Yu OS context for {app} must not define the reserved `app` field")]
     ReservedAppField { app: &'static str },
 
-    #[error("Ask Claw app id must not be empty")]
+    #[error("Ask Yu OS app id must not be empty")]
     EmptyAppId,
 
-    #[error("Ask Claw context is {actual} bytes; the limit is {limit} bytes")]
+    #[error("Ask Yu OS context is {actual} bytes; the limit is {limit} bytes")]
     TooLarge { actual: usize, limit: usize },
 
-    #[error("Ask Claw fixed context fields leave no room for bounded text")]
+    #[error("Ask Yu OS fixed context fields leave no room for bounded text")]
     NoRoomForText,
 }
 
 /// Errors while reading and validating an explicit socket activation.
 #[derive(Debug, thiserror::Error)]
 pub enum ActivationInputError {
-    #[error("Ask Claw activation cannot contain both inline and socket context")]
+    #[error("Ask Yu OS activation cannot contain both inline and socket context")]
     ConflictingContext,
 
-    #[error("Ask Claw activation is {actual} bytes; the limit is {limit} bytes")]
+    #[error("Ask Yu OS activation is {actual} bytes; the limit is {limit} bytes")]
     TooLarge { actual: usize, limit: usize },
 
-    #[error("failed to read Ask Claw activation socket: {0}")]
+    #[error("failed to read Ask Yu OS activation socket: {0}")]
     Io(#[from] io::Error),
 
-    #[error("Ask Claw activation is malformed: {0}")]
+    #[error("Ask Yu OS activation is malformed: {0}")]
     Malformed(#[from] serde_json::Error),
 
-    #[error("Ask Claw activation context is invalid: {0}")]
+    #[error("Ask Yu OS activation context is invalid: {0}")]
     InvalidContext(&'static str),
 
-    #[error("Ask Claw does not accept payload-bearing {0} arguments")]
+    #[error("Ask Yu OS does not accept payload-bearing {0} arguments")]
     ProhibitedArgument(&'static str),
 
-    #[error("Ask Claw socket activation requires a valid inherited descriptor")]
+    #[error("Ask Yu OS socket activation requires a valid inherited descriptor")]
     MissingReadyChannel,
 
-    #[error("failed to use Ask Claw activation socket: {0}")]
+    #[error("failed to use Ask Yu OS activation socket: {0}")]
     ReadyIo(#[source] io::Error),
 
     #[error(transparent)]
@@ -120,7 +120,7 @@ pub enum ActivationInputError {
 /// Errors when the OS cannot protect anonymous handoff data from peer processes.
 #[derive(Debug, thiserror::Error)]
 pub enum IsolationError {
-    #[error("Ask Claw private context handoff requires Linux")]
+    #[error("Ask Yu OS private context handoff requires Linux")]
     UnsupportedPlatform,
 
     #[error("failed to read kernel.yama.ptrace_scope: {0}")]
@@ -129,7 +129,7 @@ pub enum IsolationError {
     #[error("invalid kernel.yama.ptrace_scope value: {0}")]
     InvalidPtraceScope(String),
 
-    #[error("Ask Claw private context requires kernel.yama.ptrace_scope=2 or stronger")]
+    #[error("Ask Yu OS private context requires kernel.yama.ptrace_scope=2 or stronger")]
     InsufficientPtraceScope,
 
     #[error("failed to mark the current process non-dumpable: {0}")]
@@ -142,43 +142,43 @@ pub enum LaunchError {
     #[error(transparent)]
     Context(#[from] ContextError),
 
-    #[error("Ask Claw activation serialization failed: {0}")]
+    #[error("Ask Yu OS activation serialization failed: {0}")]
     ActivationSerialization(#[source] serde_json::Error),
 
-    #[error("Ask Claw activation is {actual} bytes; the limit is {limit} bytes")]
+    #[error("Ask Yu OS activation is {actual} bytes; the limit is {limit} bytes")]
     ActivationTooLarge { actual: usize, limit: usize },
 
     #[error(transparent)]
     Isolation(#[from] IsolationError),
 
-    #[error("failed to start Ask Claw launcher worker: {0}")]
+    #[error("failed to start Ask Yu OS launcher worker: {0}")]
     ThreadSpawn(#[source] io::Error),
 
-    #[error("failed to create Ask Claw readiness channel: {0}")]
+    #[error("failed to create Ask Yu OS readiness channel: {0}")]
     ReadyChannel(#[source] io::Error),
 
-    #[error("packaged Ask Claw executable is unavailable: {0}")]
+    #[error("packaged Ask Yu OS executable is unavailable: {0}")]
     ExecutableUnavailable(#[source] io::Error),
 
-    #[error("packaged Ask Claw executable failed trust validation: {0}")]
+    #[error("packaged Ask Yu OS executable failed trust validation: {0}")]
     UntrustedExecutable(PathBuf),
 
-    #[error("failed to spawn Ask Claw: {0}")]
+    #[error("failed to spawn Ask Yu OS: {0}")]
     Spawn(#[source] io::Error),
 
-    #[error("Ask Claw exited before readiness with status {0:?}")]
+    #[error("Ask Yu OS exited before readiness with status {0:?}")]
     ChildExited(Option<i32>),
 
-    #[error("Ask Claw readiness handshake failed: {0}")]
+    #[error("Ask Yu OS readiness handshake failed: {0}")]
     Ready(#[source] io::Error),
 
-    #[error("Ask Claw readiness or context write timed out after {0:?}")]
+    #[error("Ask Yu OS readiness or context write timed out after {0:?}")]
     Timeout(Duration),
 
-    #[error("failed to write Ask Claw context: {0}")]
+    #[error("failed to write Ask Yu OS context: {0}")]
     Write(#[source] io::Error),
 
-    #[error("failed while reaping Ask Claw: {0}")]
+    #[error("failed while reaping Ask Yu OS: {0}")]
     Wait(#[source] io::Error),
 }
 
@@ -889,7 +889,7 @@ fn bind_sdk_listener() -> io::Result<(UnixListener, String)> {
     if endpoint.len() + 1 > 108 {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "Ask Claw socket endpoint is too long",
+            "Ask Yu OS socket endpoint is too long",
         ));
     }
     // SAFETY: every syscall receives initialized values and checked lengths;
@@ -1023,7 +1023,7 @@ fn sdk_peer_credentials(stream: &UnixStream) -> io::Result<(libc::pid_t, libc::u
     Ok((credentials.pid, credentials.uid))
 }
 
-/// Schedule Ask Claw without blocking the caller's UI thread.
+/// Schedule Ask Yu OS without blocking the caller's UI thread.
 ///
 /// Serialization and process-isolation checks complete before returning.
 /// Process launch failures are logged by the worker with their typed error.
@@ -1034,7 +1034,7 @@ pub fn launch<C: Context>(context: &C) -> Result<(), LaunchError> {
     spawn_prepared(payload, program).map(|_| ())
 }
 
-/// Schedule a transient Ask Claw overlay with a bounded auto-submit query.
+/// Schedule a transient Ask Yu OS overlay with a bounded auto-submit query.
 pub fn launch_query(query: &str) -> Result<(), LaunchError> {
     require_process_handoff_isolation()?;
     if query.len() > MAX_CONTEXT_BYTES {
@@ -1057,10 +1057,10 @@ fn spawn_prepared(
     program: TrustedExecutable,
 ) -> Result<thread::JoinHandle<()>, LaunchError> {
     thread::Builder::new()
-        .name("ask-claw-launch".to_string())
+        .name("ask-yu-launch".to_string())
         .spawn(move || {
             if let Err(error) = launch_prepared_with_program(&payload, HANDSHAKE_TIMEOUT, program) {
-                eprintln!("Ask Claw launch failed: {error}");
+                eprintln!("Ask Yu OS launch failed: {error}");
             }
         })
         .map_err(LaunchError::ThreadSpawn)
@@ -1097,6 +1097,6 @@ fn spawn_prepared_for_test(
 mod tests {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/test/unit/ask_claw.rs"
+        "/test/unit/ask_yu.rs"
     ));
 }

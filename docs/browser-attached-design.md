@@ -29,9 +29,9 @@ Headless screenshot output is a bounded PNG returned only to the requesting
 App, which writes it to a new authorized file. No renderer path or profile
 is copied to the desktop.
 
-## Claw Agent chat side panel
+## Yu OS Agent chat side panel
 
-Pin and click the Claw Agent extension in Helium to open chat beside the page.
+Pin and click the Yu OS Agent extension in Helium to open chat beside the page.
 It uses the same model configuration and durable Jobs as the desktop Agent.
 The panel shows streamed replies, approval waits, and Stop cancels the current
 Job. Closing the panel detaches the view, not the Job; reopening it in the same

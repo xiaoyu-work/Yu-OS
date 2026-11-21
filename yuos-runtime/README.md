@@ -18,7 +18,7 @@ only with the OS and supported only for its bundled/trusted clients:
 | `yuos_runtime::pkg` | (not applicable) | Route `pkg.*` ops similarly |
 | `yuos_runtime::notify` | (not applicable) | Route `notify.*` ops similarly |
 | `yuos_runtime::net` | (not applicable) | Route `net.*` ops similarly |
-| `yuos_runtime::ask_claw` | (not applicable) | Serialize bounded typed desktop context and directly supervise a transient Agent overlay |
+| `yuos_runtime::ask_yu` | (not applicable) | Serialize bounded typed desktop context and directly supervise a transient Agent overlay |
 | (not applicable) | `yuos_runtime.snapshot` | Copy-on-write before every gated fs mutation |
 | (not applicable) | `yuos_runtime.browser_bridge` | Send attached-browser actions to the daemon-owned typed provider over a bounded private stdin bridge |
 | (not applicable) | `yuos_runtime.network_diagnostics` | Send host-network inspection and bounded probe requests to the daemon-owned typed provider |
@@ -111,10 +111,10 @@ journal bracket unresolved and refuses replay until operator resolution.
 The provider does not implement rollback: the App owns its plan baseline and
 snapshot. See [file-change plans](../docs/file-change-plans.md).
 
-## Ask Claw desktop integration
+## Ask Yu OS desktop integration
 
-Bundled desktop apps implement `yuos_runtime::ask_claw::Context` on a narrow
-app-local `Serialize` type, then call `ask_claw::launch`. The runtime inserts
+Bundled desktop apps implement `yuos_runtime::ask_yu::Context` on a narrow
+app-local `Serialize` type, then call `ask_yu::launch`. The runtime inserts
 the app identity, serializes with `serde_json`, rejects non-object/reserved or
 larger-than-32-KiB contexts, wraps it in a typed activation, and sends it over
 an inherited AF_UNIX socketpair directly to a transient Agent UI. The call runs on a
@@ -126,7 +126,7 @@ content enters argv, D-Bus, audit records, a process registry, the environment,
 or the filesystem.
 
 Launcher-style surfaces that already own a user query call
-`ask_claw::launch_query`; the same typed activation, bounds, background worker,
+`ask_yu::launch_query`; the same typed activation, bounds, background worker,
 and private socket handoff apply. Reducers never construct an Agent command.
 
 Production launches use only the packaged absolute
@@ -157,7 +157,7 @@ The Terminal adapter uses the runtime's encoded-size predicate to drop oldest
 lines first and then truncate at a UTF-8 boundary, retaining `app`, `mode`,
 `cwd`, and `truncated` metadata while still opening the overlay.
 
-The Ask Claw path does not alter or depend on the generic `yuos_runtime::exec`
+The Ask Yu OS path does not alter or depend on the generic `yuos_runtime::exec`
 start/stop contract.
 
 ## Relationship to `yuos-sdk`

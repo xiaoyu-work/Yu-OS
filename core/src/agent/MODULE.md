@@ -70,7 +70,7 @@ surfaces.
 | `mod.rs` | Agent module composition and top-level `yu agent` routing |
 | `command_catalog.rs` | Recursive-discovery metadata for the internal `agent dev` namespace |
 | `conversation_commands.rs` | `ask`/`chat` routing and the compatible plain-text conversation interface |
-| `terminal/` | Claw-owned ratatui state, renderer, direct broker client, stream projection and model catalogue |
+| `terminal/` | Yu OS-owned ratatui state, renderer, direct broker client, stream projection and model catalogue |
 | `session_commands.rs` | Conversation recall, session listing, titles, counts, purge, and statistics |
 | `memory_commands.rs` | App memory, notes, semantic memory, and memory-learning commands |
 | `skills_commands.rs` | Installed Skill inspection, provenance guards, usage, and hub operations |

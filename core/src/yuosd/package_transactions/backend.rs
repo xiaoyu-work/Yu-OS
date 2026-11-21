@@ -373,7 +373,7 @@ pub(super) async fn prepare(owner: u32, id: &str, operation: &Operation) -> Resu
         if let Some(installed) = current.version.as_deref() {
             use crate::update::debver::Version;
             if Version::parse(installed)? >= Version::parse(version)? {
-                return Err("That Claw App release is not newer than the installed version".into());
+                return Err("That Yu OS App release is not newer than the installed version".into());
             }
         }
     }
@@ -479,7 +479,7 @@ pub(super) async fn prepare(owner: u32, id: &str, operation: &Operation) -> Resu
                         })
                 })
         }) {
-            return Err("The requested release is not in the current signed Claw Apps catalog".into());
+            return Err("The requested release is not in the current signed Yu OS Apps catalog".into());
         }
     }
     for (package, app_payload) in packages.iter().zip(&payloads) {

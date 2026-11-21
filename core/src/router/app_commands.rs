@@ -969,7 +969,7 @@ fn scaffold_main_py(id: &str, want_ops: bool, want_desktop: bool) -> String {
         out.push_str("def run_gui(ctx):\n");
         out.push_str("    \"\"\"Draw your own window here (any toolkit). World A:\n");
         out.push_str("    the OS does not own the UI. Use ctx.files for any file\n");
-        out.push_str("    arguments, and ctx.open_agent_overlay() to summon Claw.\n");
+        out.push_str("    arguments, and ctx.open_agent_overlay() to summon Yu OS.\n");
         out.push_str("    \"\"\"\n");
         out.push_str("    print(f\"[{ctx.app_id}] GUI launch; files={ctx.files}\")\n\n\n");
     }

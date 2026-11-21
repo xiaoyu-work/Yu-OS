@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace Claw {
+namespace Yu OS {
     namespace {
         constexpr uint32_t MAX_PICTURE = 640;
         constexpr uint32_t MAX_WINDOW  = 4096;
@@ -86,7 +86,7 @@ namespace Claw {
             if (!window)
                 return false;
             const auto& app = window->metadata().appID();
-            return app != "claw-desktop-reviews" && app != "polkit-mate-authentication-agent-1" && window->mapped() && !window->isHidden() && window->m_ruleApplicator &&
+            return app != "yuos-desktop-reviews" && app != "polkit-mate-authentication-agent-1" && window->mapped() && !window->isHidden() && window->m_ruleApplicator &&
                 !window->m_ruleApplicator->noScreenShare().valueOrDefault() && !g_pSessionLockManager->isSessionLocked() && Desktop::focusState()->window() == window &&
                 g_pHyprRenderer->shouldRenderWindow(window);
         }
@@ -103,7 +103,7 @@ namespace Claw {
             g_pHyprOpenGL->bindFramebuffer(GL_READ_FRAMEBUFFER, frame->getFBID());
             SP<Render::GL::CGLFramebuffer> preview;
             if (region.width != size.x || region.height != size.y) {
-                preview = dynamicPointerCast<Render::GL::CGLFramebuffer>(g_pHyprRenderer->createFB("Claw visual preview"));
+                preview = dynamicPointerCast<Render::GL::CGLFramebuffer>(g_pHyprRenderer->createFB("Yu OS visual preview"));
                 if (!preview || !preview->alloc(size.x, size.y, DRM_FORMAT_ABGR8888))
                     return {};
                 g_pHyprOpenGL->bindFramebuffer(GL_DRAW_FRAMEBUFFER, preview->getFBID());

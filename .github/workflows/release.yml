@@ -166,7 +166,7 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.CLAW_OS_APT_SIGNING_PASSPHRASE }}
         run: bash packaging/deb/build-debs.sh agent
 
-      - name: Exercise the Claw-owned Agent TUI
+      - name: Exercise the Yu OS-owned Agent TUI
         run: bash scripts/ci/test-agent-package.sh tui
 
       - name: Verify Agent ownership, App APT inputs and signed release manifest

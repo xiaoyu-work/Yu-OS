@@ -84,8 +84,8 @@ does not grant App or desktop-resource authority.
 ## Private App MCP calls
 
 MCP-first Apps serve their manifest-declared tools over private stdio owned
-by the Claw App Host. For every `tools/call`, the Gateway replaces any
-caller-supplied Claw metadata and injects a value conforming to
+by the Yu OS App Host. For every `tools/call`, the Gateway replaces any
+caller-supplied Yu OS metadata and injects a value conforming to
 `mcp_call_context.schema.json` under
 `_meta["yuos.dev/call-context"]`. It binds the authenticated workload
 principal to the call/trace correlation, owner, task/session, and

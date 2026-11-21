@@ -40,9 +40,9 @@ import {
 } from "./generated";
 import { yuCallJson } from "./transport";
 
-const ASK_CLAW_LAUNCHER = "/usr/local/bin/yuos-ask-launcher";
-const ASK_CLAW_PROTOCOL = 1;
-const ASK_CLAW_REQUEST_LIMIT = 32 * 1024;
+const ASK_YU_LAUNCHER = "/usr/local/bin/yuos-ask-launcher";
+const ASK_YU_PROTOCOL = 1;
+const ASK_YU_REQUEST_LIMIT = 32 * 1024;
 
 /** Propose this filtered view's native inode. Pending is not selected content. */
 export function requestFileRead(node: number): GuiFileRead {
@@ -160,7 +160,7 @@ export class GuiContext {
   }
 
   /**
-   * Summon the system "Ask Claw" agent overlay through the fixed packaged
+   * Summon the system "Ask Yu OS" agent overlay through the fixed packaged
    * launcher's authenticated Unix-socket protocol. Pass
    * `hint` to ground the agent's first response in the app's current
    * state without polluting the visible chat transcript.
@@ -172,8 +172,8 @@ export class GuiContext {
    * box with no desktop shell).
    */
   async openAgentOverlay(hint?: string): Promise<void> {
-    validateAskClawLauncher();
-    const child = spawn(ASK_CLAW_LAUNCHER, ["--protocol", String(ASK_CLAW_PROTOCOL)], {
+    validateAskYuLauncher();
+    const child = spawn(ASK_YU_LAUNCHER, ["--protocol", String(ASK_YU_PROTOCOL)], {
       stdio: ["ignore", "pipe", "ignore"],
     });
     try {
@@ -181,7 +181,7 @@ export class GuiContext {
         let settled = false;
         const timer = setTimeout(() => {
           settled = true;
-          reject(new Error("Ask Claw launcher announcement timed out"));
+          reject(new Error("Ask Yu OS launcher announcement timed out"));
         }, 5000);
         let line = "";
         child.once("error", (err) => {
@@ -196,7 +196,7 @@ export class GuiContext {
           if (line.length > 256) {
             settled = true;
             clearTimeout(timer);
-            reject(new Error("Ask Claw socket announcement is too long"));
+            reject(new Error("Ask Yu OS socket announcement is too long"));
             return;
           }
           const newline = line.indexOf("\n");
@@ -208,15 +208,15 @@ export class GuiContext {
         });
       });
       const match = announcement.match(/^SOCKET 1 @([^\n]+)\n$/);
-      if (!match) throw new Error("invalid Ask Claw socket announcement");
+      if (!match) throw new Error("invalid Ask Yu OS socket announcement");
 
       const payload = Buffer.from(JSON.stringify({
-        protocol: ASK_CLAW_PROTOCOL,
+        protocol: ASK_YU_PROTOCOL,
         app: this.appId,
         hint: hint ?? null,
       }), "utf8");
-      if (payload.length > ASK_CLAW_REQUEST_LIMIT) {
-        throw new Error("Ask Claw request exceeds the protocol limit");
+      if (payload.length > ASK_YU_REQUEST_LIMIT) {
+        throw new Error("Ask Yu OS request exceeds the protocol limit");
       }
       await new Promise<void>((resolve, reject) => {
         const socket = createConnection({ path: `\0${match[1]}` });
@@ -224,7 +224,7 @@ export class GuiContext {
         const timer = setTimeout(() => {
           settled = true;
           socket.destroy();
-          reject(new Error("Ask Claw launcher readiness timed out"));
+          reject(new Error("Ask Yu OS launcher readiness timed out"));
         }, 5000);
         let phase: "ready" | "accepted" = "ready";
         let input = Buffer.alloc(0);
@@ -242,7 +242,7 @@ export class GuiContext {
               settled = true;
               clearTimeout(timer);
               socket.destroy();
-              reject(new Error("unexpected Ask Claw launcher handshake"));
+              reject(new Error("unexpected Ask Yu OS launcher handshake"));
               return;
             }
             input = input.subarray(8);
@@ -256,7 +256,7 @@ export class GuiContext {
               settled = true;
               clearTimeout(timer);
               socket.destroy();
-              reject(new Error("unexpected Ask Claw acceptance response"));
+              reject(new Error("unexpected Ask Yu OS acceptance response"));
               return;
             }
             settled = true;
@@ -269,7 +269,7 @@ export class GuiContext {
           if (settled) return;
           settled = true;
           clearTimeout(timer);
-          reject(new Error("Ask Claw launcher closed the socket"));
+          reject(new Error("Ask Yu OS launcher closed the socket"));
         });
       });
       child.unref();
@@ -280,14 +280,14 @@ export class GuiContext {
   }
 }
 
-function validateAskClawLauncher(): void {
+function validateAskYuLauncher(): void {
   for (const path of ["/usr", "/usr/local", "/usr/local/bin"]) {
     const info = lstatSync(path);
     if (info.isSymbolicLink() || !info.isDirectory() || info.uid !== 0 || (info.mode & 0o022) !== 0) {
-      throw new Error(`untrusted Ask Claw launcher parent: ${path}`);
+      throw new Error(`untrusted Ask Yu OS launcher parent: ${path}`);
     }
   }
-  const info = lstatSync(ASK_CLAW_LAUNCHER);
+  const info = lstatSync(ASK_YU_LAUNCHER);
   if (
     info.isSymbolicLink() ||
     !info.isFile() ||
@@ -295,7 +295,7 @@ function validateAskClawLauncher(): void {
     (info.mode & 0o111) === 0 ||
     (info.mode & 0o022) !== 0
   ) {
-    throw new Error("untrusted Ask Claw launcher");
+    throw new Error("untrusted Ask Yu OS launcher");
   }
 }
 

@@ -221,8 +221,8 @@ resource limits, bounded output and a twenty-second deadline. APT cache writes
 are disabled; temporary backing files share the existing finite 256-MiB
 workspace ceiling instead of a zero file-size limit that kills APT reads.
 Errors do not export backend diagnostics or credentials. The authenticated
-desktop-only actions discover current signed Claw App releases and configured
-Flatpak user/system metadata. They can refresh APT indexes, Claw Apps metadata
+desktop-only actions discover current signed Yu OS App releases and configured
+Flatpak user/system metadata. They can refresh APT indexes, Yu OS Apps metadata
 and Flatpak AppStream, but cannot install or update a payload. Paths, sources
 and helpers are selected by the OS, not the caller. The desktop package uses
 the matching versioned Store provider.

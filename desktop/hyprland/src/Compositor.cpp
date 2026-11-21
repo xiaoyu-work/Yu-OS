@@ -1,6 +1,6 @@
 
 #include "Compositor.hpp"
-#include "../../hyprland-claw/Claw.hpp"
+#include "../../hyprland-claw/Yu OS.hpp"
 #include "../../hyprland-claw/Hyprland.hpp"
 #include "helpers/MiscFunctions.hpp"
 #include "render/decorations/DecorationPositioner.hpp"
@@ -269,7 +269,7 @@ static std::vector<SP<Aquamarine::IOutput>> pendingOutputs;
 //
 
 static bool filterGlobals(const wl_client* client, const wl_global* global, void* data) {
-    return Claw::globalAllowed(client, global, !g_pProtocolManager || g_pProtocolManager->isGlobalPrivileged(global));
+    return Yu OS::globalAllowed(client, global, !g_pProtocolManager || g_pProtocolManager->isGlobalPrivileged(global));
 }
 
 //
@@ -290,7 +290,7 @@ void CCompositor::initServer(std::string socketName, int socketFd) {
 
     m_wlEventLoop = wl_display_get_event_loop(m_wlDisplay);
 
-    if (!Claw::attach(m_wlDisplay,
+    if (!Yu OS::attach(m_wlDisplay,
                       {
                           .stop = [this] { stopCompositor(); },
                           .retireContexts =
@@ -298,10 +298,10 @@ void CCompositor::initServer(std::string socketName, int socketFd) {
                                   if (PROTO::securityContext)
                                       PROTO::securityContext->retireClaw(token);
                               },
-                          .installSelection = Claw::installSelection,
-                          .desktop          = Claw::desktop,
+                          .installSelection = Yu OS::installSelection,
+                          .desktop          = Yu OS::desktop,
                       }))
-        throwError("Claw display authority could not attach to Wayland");
+        throwError("Yu OS display authority could not attach to Wayland");
 
     // register crit signal handler
     m_critSigSource = wl_event_loop_add_signal(m_wlEventLoop, SIGTERM, handleCritSignal, nullptr);
@@ -470,8 +470,8 @@ void CCompositor::initServer(std::string socketName, int socketFd) {
     }
     pendingOutputs.clear();
 
-    if (!Claw::ready(m_wlDisplaySocket))
-        throwError("Claw display readiness could not be authenticated");
+    if (!Yu OS::ready(m_wlDisplaySocket))
+        throwError("Yu OS display readiness could not be authenticated");
 }
 
 void CCompositor::initAllSignals() {
@@ -622,7 +622,7 @@ void CCompositor::cleanup() {
     g_pXWayland.reset();
 
     wl_display_destroy_clients(g_pCompositor->m_wlDisplay);
-    Claw::clearSelection();
+    Yu OS::clearSelection();
 
     State::monitorState()->finish();
     State::fallbackState().reset();
@@ -659,7 +659,7 @@ void CCompositor::cleanup() {
     Config::watcher().reset();
     g_pAsyncResourceGatherer.reset();
 
-    Claw::shutdown();
+    Yu OS::shutdown();
 
     if (m_aqBackend)
         m_aqBackend.reset();

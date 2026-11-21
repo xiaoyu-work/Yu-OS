@@ -3,7 +3,7 @@
 //! `com.yuos.Theme.{Light,Dark}` are *derived* configs: every field
 //! is produced by running `ThemeBuilder::build()` over the matching
 //! `com.yuos.Theme.{Light,Dark}.Builder` values. The two had drifted
-//! apart — the builders carried the Claw brand palette while the
+//! apart — the builders carried the Yu OS brand palette while the
 //! derived themes still held stock COSMIC greys, so booting into light
 //! mode rendered a grey desktop instead of the cool blue-white one the
 //! brand calls for.
@@ -95,7 +95,7 @@ fn regen(schema_dir: &Path, mode: &str, is_dark: bool) {
     let mut theme = builder.build();
 
     // `build()` names the theme after the seed palette ("cosmic-light").
-    // The shipped schema is the Claw-branded one, so keep whatever name
+    // The shipped schema is the Yu OS-branded one, so keep whatever name
     // is already on disk rather than reverting to the upstream label.
     if let Ok(existing) = fs::read_to_string(theme_dir.join("name"))
         && let Ok(name) = ron::from_str::<String>(existing.trim())

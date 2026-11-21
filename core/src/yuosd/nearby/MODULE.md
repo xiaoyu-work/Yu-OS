@@ -18,7 +18,7 @@ definition; CLI, TUI, authenticated Web and native bridge are consumers.
 Only Root owns `/var/lib/yuos/nearby/<uid>`. Upload offsets and metadata are
 synced before acknowledgement. Incoming/outgoing staging is private and retired
 after checked containment; imported files remain owner-owned in
-`~/Downloads/Claw Nearby/<transfer UUID>`. Partial import failure retains exact
+`~/Downloads/Yu OS Nearby/<transfer UUID>`. Partial import failure retains exact
 affected paths, fails the window and never reports a completed receive.
 
 Sender names, peer IDs and offered sizes are untrusted metadata. Actual file

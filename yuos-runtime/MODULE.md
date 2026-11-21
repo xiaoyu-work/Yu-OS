@@ -16,7 +16,7 @@ with Yu OS.
 - Bind bundled Python App business handlers to manifest-authoritative MCP tools.
 - Transport bounded file replacement requests on stdin through the broker,
   without direct-write fallbacks or parent-directory mount grants.
-- Own the typed, bounded Ask Claw context and desktop overlay launch contract.
+- Own the typed, bounded Ask Yu OS context and desktop overlay launch contract.
 - Carry bundled attached-browser requests over stdin to the typed daemon
   provider without exposing the browser socket to App sandboxes.
 - Keep bundled-app conveniences separate from the public SDK.
@@ -37,7 +37,7 @@ with Yu OS.
 | `rust/src/filesystem.rs` | App-safe controlled text-file provider client; complete reads and atomic unique replacements, no App intercall |
 | `rust/src/desktop.rs` | Fixed native editor activation through the controlled desktop provider |
 | `rust/src/capture.rs` | Typed non-interactive screenshot client; SDK stdin, exact destination confirmation, no App invocation or desktop transport |
-| `rust/src/ask_claw.rs` | Typed context serialization, authenticated/readiness-gated Unix sockets, process isolation, and asynchronous child supervision |
+| `rust/src/ask_yu.rs` | Typed context serialization, authenticated/readiness-gated Unix sockets, process isolation, and asynchronous child supervision |
 | `README.md` | Boundary and usage |
 
 ## Dependencies
@@ -56,7 +56,7 @@ not private dispatcher/provider code. Its `self:summarize` memory requests
 remain separate from other identities, and failures must propagate.
 
 Inherited desktop apps keep app-specific `Serialize` context structs in their
-small `claw_glue` modules and call `yuos_runtime::ask_claw::launch`. They do not
+small `claw_glue` modules and call `yuos_runtime::ask_yu::launch`. They do not
 name the Agent UI executable, construct activation flags, or assemble JSON.
 The Agent UI consumes the same runtime-owned activation type; context-bearing
 launches remain transient while context-free activation may use D-Bus.

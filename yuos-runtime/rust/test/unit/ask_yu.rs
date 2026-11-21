@@ -33,7 +33,7 @@ impl TestEnvironment {
 
 impl Drop for TestEnvironment {
     fn drop(&mut self) {
-        for name in ["YUOS_KERNEL_BIN", "ASK_CLAW_TEST_CAPTURE"] {
+        for name in ["YUOS_KERNEL_BIN", "ASK_YU_TEST_CAPTURE"] {
             std::env::remove_var(name);
         }
     }
@@ -486,7 +486,7 @@ fn parent_waits_for_ready_before_writing_private_context() {
         concat!(
             "#!/usr/bin/python3\n",
             "import ctypes, json, os, select, socket, struct, sys\n",
-            "base = os.environ['ASK_CLAW_TEST_CAPTURE']\n",
+            "base = os.environ['ASK_YU_TEST_CAPTURE']\n",
             "libc = ctypes.CDLL(None)\n",
             "libc.prctl(4, 0, 0, 0, 0)\n",
             "open(base + '.dumpable', 'w').write(str(libc.prctl(3, 0, 0, 0, 0)))\n",
@@ -506,7 +506,7 @@ fn parent_waits_for_ready_before_writing_private_context() {
     )
     .unwrap();
     std::fs::set_permissions(&fake_ui, std::fs::Permissions::from_mode(0o700)).unwrap();
-    std::env::set_var("ASK_CLAW_TEST_CAPTURE", &capture_base);
+    std::env::set_var("ASK_YU_TEST_CAPTURE", &capture_base);
 
     let secret = "nested-secret-value";
     let payload = prepare_launch(&TestContext {

@@ -1,6 +1,6 @@
-# Claw Agent terminal
+# Yu OS Agent terminal
 
-`yu agent chat` provides a Claw-owned full-screen terminal UI. Its renderer,
+`yu agent chat` provides a Yu OS-owned full-screen terminal UI. Its renderer,
 state machine, key handling, broker client and stream projection live under
 `core/src/agent/terminal/` and compile into `yu`. There is no downloaded or
 separately packaged TUI executable, compatibility app server, or second Agent
@@ -8,7 +8,7 @@ backend.
 
 ## Launch
 
-Run as the ordinary account that configured the Claw Agent:
+Run as the ordinary account that configured the Yu OS Agent:
 
 ```bash
 yu agent chat
@@ -35,14 +35,14 @@ printf 'Explain the current task\n/quit\n' | yu agent chat
 ```
 
 `--no-stream` and `--show-tools` retain their line-interface behavior. They
-cannot be combined with `--tui`. The Claw UI does not accept another
+cannot be combined with `--tui`. The Yu OS UI does not accept another
 frontend's flags after `--`.
 
 ## Presentation
 
 The UI has five stable regions while work is active:
 
-1. A Claw header with canonical conversation title, model, session and task
+1. A Yu OS header with canonical conversation title, model, session and task
    state.
 2. A scrollable transcript with separate user, assistant, reasoning, tool,
    approval, system and error entries.
@@ -94,7 +94,7 @@ Controls:
 - `PageUp` / `PageDown` scroll the transcript.
 - `Up` / `Down` navigate multiline input, prompt history, command suggestions
   or an active picker according to focus.
-- `Ctrl-K` or typing `/` opens the supported Claw command palette; `Tab`
+- `Ctrl-K` or typing `/` opens the supported Yu OS command palette; `Tab`
   completes the selected match.
 - `Ctrl-O` prepares `/attach`; enter or drag a PNG, JPEG, GIF or WebP path
   beneath the verified owner home. `/attach clear` removes pending images.
@@ -124,16 +124,16 @@ Controls:
   refused while tasks are active and preserves conversations and execution
   evidence.
   Press `h` for Hooks Center: `l`, `a` and `c` toggle the closed built-in
-  logging, supplemental audit and checkpoint hooks for future tasks. Claw
+  logging, supplemental audit and checkpoint hooks for future tasks. Yu OS
   accepts no command/env hook payload through this panel.
   Press `c` for MCP Center. It lists bounded configured/verified server
   metadata without starting or probing a server and hides command, args, env,
   cwd, URL and credentials.
   Press `e` for Extensions Center. It shows verified, disabled and quarantined
-  Apps, Skills and selected Agent extensions under Claw's single extension
+  Apps, Skills and selected Agent extensions under Yu OS's single extension
   model; installation and activation remain separate OS-reviewed operations.
   Press `u` for Usage Center. `d`, `w` and `c` select daily, weekly and
-  cumulative owner-ledger totals. Claw shows recorded token/cache/duration
+  cumulative owner-ledger totals. Yu OS shows recorded token/cache/duration
   values and does not infer monetary cost.
   Press `d` for Debug Center. It combines narrow broker health with safe
   effective runtime switches while omitting credentials, headers, URLs, MCP
@@ -142,7 +142,7 @@ Controls:
   Copilot credential and retains provider config/history. The panel reports
   foreign-agent import unavailable rather than scanning other App data without
   an authenticated OS import service.
-- `Super+Shift+A` opens Voice Center and shows the configured Claw STT/TTS models,
+- `Super+Shift+A` opens Voice Center and shows the configured Yu OS STT/TTS models,
   voice and output format. It does not substitute a Codex voice backend.
   Desktop consumes the global shortcut first and already owns bounded
   recording/transcription; terminal-only sessions use enhanced keyboard
@@ -227,7 +227,7 @@ never treated as the user's model selection.
 
 ## Commands
 
-The completion palette stays limited to Claw entry points and common
+The completion palette stays limited to Yu OS entry points and common
 conversation actions. Object-specific actions belong in the panel opened by
 the entry point rather than appearing as separate top-level commands:
 
@@ -270,7 +270,7 @@ terminal view without deleting canonical history. The terminal deliberately
 does not present a permanent-delete action unless the backend can provide that
 exact contract.
 
-`/archive` and `/rewind` open a Claw-owned confirmation panel that states the
+`/archive` and `/rewind` open a Yu OS-owned confirmation panel that states the
 durability and external-effect consequences before any broker mutation.
 
 `/model` without an ID opens a searchable configured-provider picker. `/resume`
@@ -380,7 +380,7 @@ permission, or creates a receipt.
 ## Backend ownership
 
 ```text
-Claw ratatui renderer
+Yu OS ratatui renderer
   -> canonical agent.conversation.* broker routes
   -> durable task submit/stream/list/get/cancel/retry routes
   -> protected pending/recent approval reads and root-owned decisions
@@ -401,7 +401,7 @@ is the bounded owner-scoped view returned by the conversation service. Fork
 and rewind reuse its verified task/message bindings and fail closed for active,
 legacy, partial or clipped history.
 
-Per-task model selection is constrained to the configured Claw provider's
+Per-task model selection is constrained to the configured Yu OS provider's
 catalogue. It does not rewrite provider choice, credentials, fallback policy,
 capabilities or another task's configuration.
 
@@ -516,7 +516,7 @@ The debug-center scenario uses narrow daemon health and verifies the safe
 diagnostic panel without reading broad daemon context or configuration secrets.
 The account-center scenario requires confirmation before fixed Copilot logout
 and never scans foreign-agent configuration roots.
-The voice-settings scenario proves the TUI projects the configured Claw
+The voice-settings scenario proves the TUI projects the configured Yu OS
 STT/TTS models while leaving realtime microphone capture unavailable.
 The review scenario renders only authenticated Activity plan references and
 App-reported receipt diffs, with no workspace scan or apply action.

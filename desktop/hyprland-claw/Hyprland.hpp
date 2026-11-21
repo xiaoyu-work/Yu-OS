@@ -5,7 +5,7 @@
 #include <optional>
 #include <string>
 
-namespace Claw {
+namespace Yu OS {
     bool                       installSelection(ClawSelection* selection);
     void                       clearSelection();
     std::optional<std::string> desktop(const ClawDesktopRequest& request);

@@ -11,7 +11,7 @@ close-on-exec descriptor receipt, closed messages, deadlines and exact FD counts
 `wire.rs` separates login activation, PAM lifetime and compositor commands.
 The broker-to-supervisor channel also carries the closed signed App launch
 target, an ordinary XDG desktop-entry ID, or the fixed request to show the
-Claw Agent UI, with a correlated submission acknowledgement. It carries no
+Yu OS Agent UI, with a correlated submission acknowledgement. It carries no
 command line, executable path, or App permission decision.
 The same channel accepts an exact lock request and readiness reply. Only the
 supervisor-to-compositor channel may attach the actual locker descriptor; the

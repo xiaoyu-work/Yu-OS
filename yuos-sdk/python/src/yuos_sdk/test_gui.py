@@ -84,14 +84,14 @@ class OverlayTests(unittest.TestCase):
         ctx = gui.GuiContext(app_id="notes")
         os.environ["YUOS_AGENT_UI_BIN"] = "/nonexistent/attacker"
         def trusted_parents_missing_launcher(path):
-            if path == gui.ASK_CLAW_LAUNCHER:
+            if path == gui.ASK_YU_LAUNCHER:
                 raise FileNotFoundError(path)
             return SimpleNamespace(st_mode=stat.S_IFDIR | 0o755, st_uid=0)
         try:
             with patch.object(gui.os, "lstat", side_effect=trusted_parents_missing_launcher) as inspect:
                 with self.assertRaises(FileNotFoundError):
                     ctx.open_agent_overlay()
-            self.assertEqual(inspect.call_args_list[-1].args, (gui.ASK_CLAW_LAUNCHER,))
+            self.assertEqual(inspect.call_args_list[-1].args, (gui.ASK_YU_LAUNCHER,))
         finally:
             os.environ.pop("YUOS_AGENT_UI_BIN", None)
 

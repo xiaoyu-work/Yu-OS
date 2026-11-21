@@ -59,8 +59,8 @@ fn review() -> SystemReview {
     serde_json::from_value(json!({
         "schema_version":1, "id":"approval-1", "revision":3, "kind":"capability",
         "status":"pending", "status_message":null,
-        "subject":{"app_id":null,"name":"Claw Agent","version":null,"publisher":null},
-        "initiator":"Claw Agent", "context":[{"label":"Requester-supplied reason","value":"Read the requested report"}],
+        "subject":{"app_id":null,"name":"Yu OS Agent","version":null,"publisher":null},
+        "initiator":"Yu OS Agent", "context":[{"label":"Requester-supplied reason","value":"Read the requested report"}],
         "permissions":[{
             "id":"approval-1","verb":"fs.read","label":"Read files","blurb":"Read the specified files.",
             "risk":"medium","scope":{"kind":"fixed","description":"/tmp/report.txt"},

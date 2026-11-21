@@ -22,7 +22,7 @@ cd core
 cargo build --release
 ```
 
-The Claw-owned terminal UI is compiled into `yu` by the ordinary core build.
+The Yu OS-owned terminal UI is compiled into `yu` by the ordinary core build.
 It has no separately fetched frontend source or runtime binary.
 
 ### Build the OS display runtime
@@ -304,7 +304,7 @@ node). It is not a seam unless all three roles are present:
    interface is what makes them interchangeable. Example:
    `agent::memory::sqlite_fts::MemoryDb` and
    `agent::memory::semantic`.
-3. **Consumer** — typically a model-facing `cos_*` tool, or another
+3. **Consumer** — typically a model-facing `yu_*` tool, or another
    subsystem that goes through the definition. Example: the
    `yu_memory` / `yu_recall` tools.
 

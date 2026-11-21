@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tools/install-browser-agent.sh
 #
-# Install the Claw Agent WebExtension and its Native Messaging host system-wide.
+# Install the Yu OS Agent WebExtension and its Native Messaging host system-wide.
 #
 #   - WebExtension source       → /usr/share/claw/extensions/claw-agent-browser/
 #   - OS transport (Python)     → /usr/lib/yuos/browser-native-host.py
@@ -78,7 +78,7 @@ fi
 cat > "${NM_MANIFEST}" <<EOF
 {
   "name": "com.yuos.browser",
-  "description": "Claw Agent — bridge between Chromium and the yu kernel",
+  "description": "Yu OS Agent — bridge between Chromium and the yu kernel",
   "path": "${HOST_LAUNCHER}",
   "type": "stdio",
   "allowed_origins": [${ALLOWED_ORIGINS}]
@@ -90,7 +90,7 @@ if [[ -x "${CHAT_HOST}" ]]; then
   cat > "${CHAT_MANIFEST}" <<EOF
 {
   "name": "com.yuos.browser_chat",
-  "description": "Claw Agent chat for Helium",
+  "description": "Yu OS Agent chat for Helium",
   "path": "${CHAT_HOST}",
   "type": "stdio",
   "allowed_origins": [${ALLOWED_ORIGINS}]
@@ -134,7 +134,7 @@ Next steps:
   4. Re-run this script with CLAW_EXT_ID=<id> to pin Native Messaging
      and the extension allowlist to that ID:
        CLAW_EXT_ID=<id> sudo ${BASH_SOURCE[0]}
-  5. Reload the extension or restart Helium; pin Claw Agent to open chat with one click.
+  5. Reload the extension or restart Helium; pin Yu OS Agent to open chat with one click.
 
 To verify the bridge:
   ls -l \$XDG_RUNTIME_DIR/claw-browser.sock     # socket should exist

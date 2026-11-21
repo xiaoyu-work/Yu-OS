@@ -29,7 +29,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 
-PASSWORD = "Claw-fixture-only-42"
+PASSWORD = "Yu OS-fixture-only-42"
 HELPER = Path("/usr/local/bin/yuos-approval-helper")
 ACTION = "org.yuos.approval.decide"
 SOCKET = Path("/run/yuos/yuosd.sock")
@@ -202,7 +202,7 @@ def web_identity(uid):
 
 
 class WebClient:
-    def __init__(self, cos, uid, home, root):
+    def __init__(self, yu, uid, home, root):
         command("ip", "link", "set", "lo", "up")
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
@@ -212,7 +212,7 @@ class WebClient:
         self.token = None
         self.log = (root / "web.log").open("w+")
         self.process = subprocess.Popen(
-            [str(cos), "agent", "serve", "--port", str(port), "--token", self.bootstrap],
+            [str(yu), "agent", "serve", "--port", str(port), "--token", self.bootstrap],
             stdin=subprocess.DEVNULL, stdout=self.log, stderr=self.log, cwd=home,
             preexec_fn=lambda: web_identity(uid),
             env={
@@ -286,8 +286,8 @@ class WebClient:
         assert "Password:" not in output, "OS password prompts must not fall back to the terminal"
 
 
-def exercise_web_authorization(cos, uid, other_uid, home, root):
-    with contextlib.closing(WebClient(cos, uid, home, root)) as web:
+def exercise_web_authorization(yu, uid, other_uid, home, root):
+    with contextlib.closing(WebClient(yu, uid, home, root)) as web:
         conversation = rpc("agent.conversation.create", {"title": "Viewing fixture"}, uid)
         conversation_id = conversation["result"]["conversation"]["id"]
         viewer_id = uuid.uuid4().hex
@@ -514,7 +514,7 @@ def run(args):
             passwd.write_text(
                 "root:x:0:0:root:/root:/bin/sh\n"
                 f"polkitd:x:{polkit.pw_uid}:{polkit.pw_gid}:PolicyKit:/:/usr/sbin/nologin\n"
-                f"claw-auth-fixture:x:{uid}:{uid}:Claw auth fixture:{home}:/bin/sh\n"
+                f"claw-auth-fixture:x:{uid}:{uid}:Yu OS auth fixture:{home}:/bin/sh\n"
                 f"claw-other-fixture:x:{other_uid}:{other_uid}:Other fixture:/nonexistent:/bin/sh\n"
             )
             group = root / "group"
@@ -737,7 +737,7 @@ def run(args):
                 with contextlib.closing(Terminal(
                     ["/usr/local/bin/yu", "agent", "chat", "--tui"], uid, uid, home,
                 )) as terminal:
-                    terminal.expect(b"New Claw conversation")
+                    terminal.expect(b"New Yu OS conversation")
                     offset = len(terminal.output)
                     terminal.send(f"/approval {request['id']}".encode())
                     time.sleep(0.2)

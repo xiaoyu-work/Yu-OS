@@ -31,7 +31,7 @@ launch target or logind provider. The default vendor-signed `yuos-launcher`
 window started by that supervisor may submit a selected desktop entry
 through the same gate; it cannot start the Agent, issue power actions, or
 spawn itself. Its overlay still requires its own `ui.panel` admission.
-Selections owned by a Claw App always require its verified signed target.
+Selections owned by a Yu OS App always require its verified signed target.
 An ordinary Linux desktop entry selected by either system launcher goes to
 the same display supervisor as an entry ID only. It receives no App session,
 managed capabilities or privileged process environment. Other GUIs retain

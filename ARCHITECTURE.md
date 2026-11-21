@@ -62,7 +62,7 @@ route.
 | `yuos-extension-host` | Purpose-bound isolated-UID process: a task Host runs dynamic App/MCP code and signed Agent extension observers behind independently bounded canonical, event, and priority control lanes and relays authenticated App calls, while an owner/App service Host runs persistent App MCP code behind broker-owned private sockets; only App/MCP children receive the route-filtered broker proxy | `core/src/bin/yuos-extension-host.rs`, `core/src/extension_host/`, `core/src/yuosd/app_services.rs` |
 | Agent extension ABI | Explicit authenticated-package registry, provider-attempt/tool observation FIFO, absolute event deadlines, independently acknowledged detach with supervisor containment escalation, per-extension capability references, and default-deny exact-action mediation | `core/src/agent_extensions/`, `core/src/provenance/`, `core/src/extension_host/abi.rs` |
 | Agent runtime | Multi-turn model/tool loop, prompt assembly, hooks, progress, compression, and tool dispatch | `core/src/agent/runtime/` |
-| Agent terminal frontend | Claw-owned ratatui presentation that consumes canonical conversation, task, model, tool and approval services directly; no external TUI process or compatibility protocol | `core/src/agent/terminal/`, `core/src/yuosd/conversations.rs` |
+| Agent terminal frontend | Yu OS-owned ratatui presentation that consumes canonical conversation, task, model, tool and approval services directly; no external TUI process or compatibility protocol | `core/src/agent/terminal/`, `core/src/yuosd/conversations.rs` |
 | Model-input trust | Closed trust lattice, model-input source registry, labelled segments, and the bounded data fence for non-policy content | `core/src/agent/trust/` |
 | LLM abstraction | Provider registry, wire adapters, streaming accumulation, fallback chain, credentials, and usage | `core/src/agent/llm/` |
 | Tool/capability layer | Model-visible tool registry, guardrails, MCP attachment, scope checks, and approval boundaries | `core/src/agent/tools/`, `core/src/caps/` |
@@ -907,7 +907,7 @@ supplementary groups from the system account database, never from an isolated
 extension's execution GID. Synchronous filesystem guards change only the
 provider thread's credentials and restore them before yielding or returning.
 
-Bundled desktop apps launch Ask Claw through `yuos_runtime::ask_claw`. Their
+Bundled desktop apps launch Ask Yu OS through `yuos_runtime::ask_yu`. Their
 thin `claw_glue` adapters define only typed, app-specific context fields; the
 runtime owns bounded JSON serialization, anonymous process-bound stdin
 handoff, executable selection, readiness and write deadlines, exact-child
@@ -1601,17 +1601,17 @@ frame. Provider image limits and Activity monetary/execution policy still
 apply; transport base64 is not counted as literal model text by context
 estimation, and images are never silently compressed to satisfy a provider.
 
-Interactive `yu agent chat` adds only a Claw-owned presentation path in front
+Interactive `yu agent chat` adds only a Yu OS-owned presentation path in front
 of this same task flow:
 
 ```text
 yu agent chat
-  -> in-process Claw ratatui renderer
+  -> in-process Yu OS ratatui renderer
   -> agent.conversation.* plus existing task/approval broker routes
   -> yuos-agentd and the shared guarded Agent runtime above
 ```
 
-The renderer is source-owned by Claw and never creates another Agent backend,
+The renderer is source-owned by Yu OS and never creates another Agent backend,
 transport protocol, provider, tool registry, approval authority, audit log,
 task queue or canonical history store. It uses canonical `ses_*` session IDs
 directly. Verified message/task bindings allow retained history, fork, and
@@ -2557,8 +2557,8 @@ sibling below the shared protocol floor enforced on installed machines.
   `/usr/local/bin/yuos-agent-ui` directly for ordinary window and context-free
   overlay activation. There is no Python App manifest or proxy launcher for
   the Agent UI.
-- Desktop Ask Claw launchers and the Agent UI share the
-  `yuos_runtime::ask_claw` activation contract; host reducers never name the
+- Desktop Ask Yu OS launchers and the Agent UI share the
+  `yuos_runtime::ask_yu` activation contract; host reducers never name the
   Agent UI executable or hand-build context JSON. The runtime directly spawns
   a transient UI with an inherited AF_UNIX socketpair and withholds the bounded payload until
   the child signals that Yama isolation, non-dumpable state, and private

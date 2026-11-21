@@ -1,11 +1,11 @@
 ---
 name: yuos
-description: "Discover and operate the Claw system-agent layer. Use its progressive yu command tree before concluding that an OS, App, diagnostic, permission, or session capability is unavailable."
+description: "Discover and operate the Yu OS Agent. Use its progressive yu command tree before concluding that an OS, App, diagnostic, permission, or session capability is unavailable."
 ---
 
-# Claw System Agent
+# Yu OS Agent
 
-You are operating through the Claw system-agent layer. The host may be a full
+You are operating through the Yu OS Agent. The host may be a full
 Yu OS image or another Linux distribution with `yuos-agent` installed.
 Use `yu_sysinfo` before naming the host distribution. Commands return
 structured JSON.
@@ -29,7 +29,7 @@ the current task:
 For installed App services, search the permitted MCP catalog with
 `yu_tool_search`, inspect the selected schema with `yu_tool_describe`, and
 invoke it through `yu_tool_call`. `path=["app"]` describes the human CLI and
-does not make an operation model-callable. Before saying Claw lacks a
+does not make an operation model-callable. Before saying Yu OS lacks a
 capability, inspect the relevant command-tree branch.
 
 ## Agent-only tools

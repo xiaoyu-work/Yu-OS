@@ -149,7 +149,7 @@ impl Operation {
             Self::InstallVersion { version, .. } => super::packages::validate_version(version),
             Self::InstallRelease { package, version } => {
                 if !crate::apps::store::app_package_name(package) {
-                    return Err("This operation requires an official Claw App package".into());
+                    return Err("This operation requires an official Yu OS App package".into());
                 }
                 super::packages::validate_version(version)
             }

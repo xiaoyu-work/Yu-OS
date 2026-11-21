@@ -36,7 +36,7 @@ fn app() -> App {
         Conversation {
             id: "ses_001953abcdef0_123456789abc".into(),
             workspace_id:None,
-            title: "Claw terminal test".into(),
+            title: "Yu OS terminal test".into(),
             archived: false,
             history_truncated: false,
             messages: vec![
@@ -443,11 +443,11 @@ fn copy_and_export_use_only_redacted_visible_text() {
 #[test]
 fn composer_edits_unicode_by_character_not_byte() {
     let mut app = app();
-    app.insert_text("Claw 配额");
+    app.insert_text("Yu OS 配额");
     app.move_left();
     app.backspace();
     app.insert_char('好');
-    assert_eq!(app.input, "Claw 好额");
+    assert_eq!(app.input, "Yu OS 好额");
     app.cursor = 0;
     app.delete();
     assert_eq!(app.input, "law 好额");
@@ -951,7 +951,7 @@ fn appearance_controls_are_terminal_local() {
     assert_eq!(app.theme_name(), "blue");
     assert_eq!(
         app.terminal_title().as_deref(),
-        Some("Claw - Claw terminal test")
+        Some("Yu OS - Yu OS terminal test")
     );
     assert!(app.compact_statusline);
     assert_eq!(app.keymap_name(), "vim");
@@ -1632,7 +1632,7 @@ fn approvals_default_to_readable_authorize_once() {
         status: "pending".into(),
         session: "ses_001953abcdef0_123456789abc".into(),
         requested_at: 1_767_225_600,
-        requester: Some("Claw Agent".into()),
+        requester: Some("Yu OS Agent".into()),
         risk: Some("high".into()),
         decided_at: None,
         duration: None,
@@ -1805,8 +1805,8 @@ fn ratatui_frame_is_claw_owned_and_contains_core_state() {
         .map(|cell| cell.symbol())
         .collect::<String>();
     assert!(output.contains("CLAW AGENT"));
-    assert!(output.contains("Claw terminal test"));
-    assert!(output.contains("Claw completed the work."));
+    assert!(output.contains("Yu OS terminal test"));
+    assert!(output.contains("Yu OS completed the work."));
     assert!(output.contains("yu_sysinfo"));
     assert!(output.contains("Running yu_sysinfo"));
     assert!(output.contains("waiting for result"));
@@ -2008,7 +2008,7 @@ fn approval_center_keeps_history_read_only_and_pending_decisions_exact() {
         status: "pending".into(),
         session: "ses_001953abcdef0_123456789abc".into(),
         requested_at: 1_767_225_600,
-        requester: Some("Claw Agent".into()),
+        requester: Some("Yu OS Agent".into()),
         risk: Some("high".into()),
         decided_at: None,
         duration: None,

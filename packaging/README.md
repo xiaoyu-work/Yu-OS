@@ -36,9 +36,9 @@ packaging/
 
 | Package | Contains | Architecture | Depends |
 |---|---|---|---|
-| `yuos-agent` | `yu` with the Claw-owned TUI, `yuosd`, `yuos-agentd`, browser provider, semantic binaries, skills, SDK/runtime, trust roots, Agent system/user units and App channel configuration; no App payloads | `amd64`, `arm64` | Debian/Ubuntu runtime libraries, `systemd`, and `pkexec`; recommends `yuos-apps-agent` and Helium |
+| `yuos-agent` | `yu` with the Yu OS-owned TUI, `yuosd`, `yuos-agentd`, browser provider, semantic binaries, skills, SDK/runtime, trust roots, Agent system/user units and App channel configuration; no App payloads | `amd64`, `arm64` | Debian/Ubuntu runtime libraries, `systemd`, and `pkexec`; recommends `yuos-apps-agent` and Helium |
 | `yuos-base` | `yuos-init`, managed agent-home setup, Yu OS boot/service policy, and model-specific udev/libinput rules | `all` | `yuos-agent` |
-| `yuos-desktop` | Protected Hyprland, graphical login and Agent, system services, and the signed Desktop Shell (Quickshell, Caelestia and private Qt) | `amd64`, `arm64` | `yuos-base`, `yuos-display-session-v2`, `yuos-apps-agent`, every individual graphical Claw App package and the Thunderbird integration |
+| `yuos-desktop` | Protected Hyprland, graphical login and Agent, system services, and the signed Desktop Shell (Quickshell, Caelestia and private Qt) | `amd64`, `arm64` | `yuos-base`, `yuos-display-session-v2`, `yuos-apps-agent`, every individual graphical Yu OS App package and the Thunderbird integration |
 
 Keep the [hardware workarounds](../docs/image-architecture.md#hardware-enablement) in `deb/yuos-base/hardware/`. Base stages the system udev and libinput data; Desktop stages the same libinput quirk source into Hyprland's private libinput database. Both packages use the existing signed release path.
 
@@ -113,7 +113,7 @@ ordinary owner reviews still control those resources.
 
 Agent and Desktop each ship a Root-owned list of the exact signed App
 envelopes selected from their authenticated APT inputs. Agent owns the
-headless selection; Desktop owns the additional GUI Apps. Claw's system Shell
+headless selection; Desktop owns the additional GUI Apps. Yu OS's system Shell
 retains its fixed startup policy. The broker still verifies the installed App
 and binds the selected entry. An App ID, publisher, installation path or
 manifest flag alone cannot opt an App into this policy.
@@ -707,7 +707,7 @@ Never apply this CI-only cleanup to a developer host.
 CI publishes the repo to GitHub Pages. The default URL hard-coded in the
 `apt-source` rootfs feature is `https://xiaoyu-work.github.io/Yu-OS/apt`.
 
-End-user setup on a non-Claw-OS Debian/Ubuntu machine:
+End-user setup on a non-Yu OS-OS Debian/Ubuntu machine:
 
 ```bash
 curl -fsSL https://xiaoyu-work.github.io/Yu-OS/apt/yuos-archive-keyring.gpg \

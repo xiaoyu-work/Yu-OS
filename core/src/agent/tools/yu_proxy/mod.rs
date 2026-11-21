@@ -297,7 +297,7 @@ const PRIMITIVES: &[PrimitiveSpec] = &[
     PrimitiveSpec {
         name: "yu_sysinfo",
         description: "Read live Linux system telemetry. Commands:\n\
-                      identity: info (host distribution + Claw Agent layer) | env | uptime | who | desktop;\n\
+                      identity: info (host distribution + Yu OS Agent layer) | env | uptime | who | desktop;\n\
                       load: resources | loadavg | sensors | cgroup;\n\
                       processes: proc | process <pid> [pid ...] (owner, command, cwd, ancestry) | top [--top N --by cpu|mem --interval ms] | threads <pid> | port <port>;\n\
                       network: net | net_rate [--interval ms];\n\

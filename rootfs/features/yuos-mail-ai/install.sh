@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# rootfs/features/yuos-mail-ai/install.sh — wire the Claw Mail AI
+# rootfs/features/yuos-mail-ai/install.sh — wire the Yu OS Mail AI
 # Thunderbird MailExtension and its Python Native Messaging host into
 # the rootfs.
 #

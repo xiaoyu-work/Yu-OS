@@ -443,7 +443,7 @@ impl App {
             );
         }
         if self.conversation.messages.is_empty() {
-            self.push_system("New Claw conversation. Type /help for terminal commands.");
+            self.push_system("New Yu OS conversation. Type /help for terminal commands.");
             return;
         }
         for message in self.conversation.messages.clone() {
@@ -508,7 +508,7 @@ impl App {
 
     pub fn finish_task(&mut self, job: &Job) {
         if self.active_task.as_deref() != Some(job.id.as_str()) {
-            self.push_error("Claw returned a terminal result for another task.");
+            self.push_error("Yu OS returned a terminal result for another task.");
             return;
         }
         if !self.task_had_assistant_text {
@@ -523,7 +523,7 @@ impl App {
         match job.status.as_str() {
             "ok" => {}
             "cancelled" => self.push_system("Task cancelled."),
-            "error" => self.push_error(job.error.as_deref().unwrap_or("Claw task failed.")),
+            "error" => self.push_error(job.error.as_deref().unwrap_or("Yu OS task failed.")),
             status => self.push_error(&format!("Task ended with unexpected status {status}.")),
         }
         self.detach_task();
@@ -1167,7 +1167,7 @@ impl App {
 
     pub fn terminal_title(&self) -> Option<String> {
         self.terminal_title_enabled
-            .then(|| format!("Claw - {}", self.conversation.title))
+            .then(|| format!("Yu OS - {}", self.conversation.title))
     }
 
     pub fn begin_side_conversation(&mut self, parent_id: String, side_id: String) {
@@ -1260,7 +1260,7 @@ impl App {
     }
 
     pub fn export_markdown(&self) -> Result<String, String> {
-        let mut output = String::from("# Claw conversation\n\n");
+        let mut output = String::from("# Yu OS conversation\n\n");
         let mut messages = 0usize;
         for entry in &self.entries {
             let heading = match &entry.kind {

@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace Claw {
+namespace Yu OS {
     class CSelectionSource final : public IDataSource {
       public:
         CSelectionSource(ClawSelection* selection, std::vector<std::string> mimes);

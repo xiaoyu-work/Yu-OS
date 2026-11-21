@@ -112,7 +112,7 @@ pub struct AgentApiManifest {
     pub summary: HashMap<String, String>,
 
     /// `"upstream"` (the project itself ships the manifest),
-    /// `"claw-adapter"` (Claw maintains a wrapper around it),
+    /// `"claw-adapter"` (Yu OS maintains a wrapper around it),
     /// `"plugin"` (an extension to a host app), or anything else for
     /// forward compatibility.
     #[serde(default)]

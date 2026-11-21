@@ -12,7 +12,7 @@ struct wl_client;
 struct wl_display;
 struct wl_global;
 
-namespace Claw {
+namespace Yu OS {
     struct SOrigin {
         uint32_t kind  = 0;
         uint64_t token = 0;

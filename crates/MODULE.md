@@ -9,7 +9,7 @@ CLI, semantic, and embedding surfaces.
 
 - Isolate reusable binaries/libraries from the core dispatcher.
 - Maintain explicit Cargo package boundaries.
-- Preserve vendored Obscura internals separately from first-party Claw crates.
+- Preserve vendored Obscura internals separately from first-party Yu OS crates.
 
 ## Key Files
 

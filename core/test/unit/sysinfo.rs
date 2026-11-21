@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn info_distinguishes_ubuntu_host_from_claw_agent() {
+fn info_distinguishes_ubuntu_host_from_yuos_agent() {
     let info = info_from_os_release(
         Some(
             "NAME=\"Ubuntu\"\n\

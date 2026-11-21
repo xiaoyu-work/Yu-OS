@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-Own the Claw-specific integration boundary around the complete
+Own the Yu OS-specific integration boundary around the complete
 [Hyprland source](../hyprland/). The replacement stack uses Hyprland,
 Quickshell and the independently source-owned
 [Caelestia frontend](https://github.com/xiaoyu-work/yuos-app/tree/main/products/desktop-shell).
@@ -21,13 +21,13 @@ No nested Git repository or runtime submodule download is required.
 Upstream code, file modes, licenses and notices are retained; existing
 upstream whitespace is not reformatted during import.
 
-Claw-specific integration belongs here or in the owning OS definition/provider,
+Yu OS-specific integration belongs here or in the owning OS definition/provider,
 not in the App repository. Any hooks added to upstream compositor files
 must remain narrow and preserve the original source license.
 
 The [native authority bridge](../../crates/claw-compositor/MODULE.md) now
 provides a GPL-3.0-only static library and the C ABI in
-`include/claw_compositor.h`. `Claw.cpp` implements the native Wayland client
+`include/claw_compositor.h`. `Yu OS.cpp` implements the native Wayland client
 watcher, Root-origin assignment, standard-global filtering, lease dispatch and
 actual client/listener retirement callbacks. The compositor links this adapter
 unconditionally and authenticates its Root control descriptor before creating
@@ -72,13 +72,13 @@ does not store a password or enable persistent auto-login. Later logins
 and pre-provisioned profiles use the account picker.
 The first owner can choose a bundled animal or cartoon avatar. The helper
 stores the selection through AccountsService; sign-in and lock only load
-bundled PNGs from the system avatar directory and otherwise use the Claw mark.
+bundled PNGs from the system avatar directory and otherwise use the Yu OS mark.
 Settings → Sign-in can opt the current account into greetd's once-per-boot
 initial session after administrator authentication. The Root configuration
 snapshot refuses an ineligible account and still runs the ordinary PAM
 account/session stack. It records no password. A normal logout always goes
 back to the greeter; the separate lock PAM service is unchanged.
-On Desktop, Claw's User Manager gives new users the supplemental
+On Desktop, Yu OS's User Manager gives new users the supplemental
 `claw-desktop-users` group. Standard users do not need `sudo`. The socket's
 additional ACL admits the desktop App lifecycle and a closed set of providers;
 normal Root/owner/App checks still apply. Machine settings require the exact
@@ -87,7 +87,7 @@ Settings Users can create a standard or administrator account with a
 password, or reset the password of a selected local account. The OS keeps
 that input out of the App credential store and process arguments.
 The wizard keeps its glass panels. The greeter and the in-session locker use
-the original Claw wallpaper full-screen, with a large clock at the top and the
+the original Yu OS wallpaper full-screen, with a large clock at the top and the
 account and password at the bottom. Cage and Qt Quick render the pre-login UI
 in software; the authenticated desktop retains its normal graphics backend.
 Before greetd starts, the OS hides the text cursor on its configured graphics
@@ -102,7 +102,7 @@ The subscriber's `--desktop` mode attaches to the Root login binding. It runs
 post-login configuration only on installed profiles that request it, starts
 the FileManager1 facade, and asks the Root supervisor to launch the signed
 system shell with its fixed [desktop startup rights](../../core/src/yuosd/gui/MODULE.md).
-The [desktop review presenter](session/claw-desktop-reviews) opens a compact,
+The [desktop review presenter](session/yuos-desktop-reviews) opens a compact,
 centered window for one pending request. It puts the action, target and choices
 first; full disclosure remains available under **Request details**. Accepting
 still uses the polkit helper; declining uses the owner-only cancellation route

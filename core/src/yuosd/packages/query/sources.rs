@@ -60,8 +60,8 @@ pub(super) async fn refresh() -> Result<Value, String> {
         let errors = [
             apt.err(),
             match catalog {
-                Ok(result) => result.err().map(|error| format!("Claw Apps: {error}")),
-                Err(_) => Some("Claw Apps catalog refresh timed out".into()),
+                Ok(result) => result.err().map(|error| format!("Yu OS Apps: {error}")),
+                Err(_) => Some("Yu OS Apps catalog refresh timed out".into()),
             },
         ]
         .into_iter()
@@ -111,7 +111,7 @@ async fn refresh_apt() -> Result<(), String> {
 pub(super) async fn store(owner: u32) -> Result<Value, String> {
     let catalog = tokio::time::timeout(Duration::from_secs(45), app_store::package_catalog())
         .await
-        .map_err(|_| "Claw Apps catalog request timed out")??;
+        .map_err(|_| "Yu OS Apps catalog request timed out")??;
     let installed = super::execute(
         "/usr/bin/dpkg-query",
         &[

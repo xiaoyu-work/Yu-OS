@@ -1,6 +1,6 @@
 fn main() {
-    if let Err(error) = yuos_runtime::ask_claw::run_sdk_launcher() {
-        eprintln!("Ask Claw launcher failed: {error}");
+    if let Err(error) = yuos_runtime::ask_yu::run_sdk_launcher() {
+        eprintln!("Ask Yu OS launcher failed: {error}");
         std::process::exit(1);
     }
 }

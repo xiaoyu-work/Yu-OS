@@ -69,11 +69,11 @@ fn boundary<T>(failure: T, operation: impl FnOnce() -> Result<T, Error>) -> T {
     match catch_unwind(AssertUnwindSafe(operation)) {
         Ok(Ok(value)) => value,
         Ok(Err(error)) => {
-            let _ = writeln!(std::io::stderr(), "Claw compositor control: {error}");
+            let _ = writeln!(std::io::stderr(), "Yu OS compositor control: {error}");
             failure
         }
         Err(_) => {
-            let _ = writeln!(std::io::stderr(), "Claw compositor control panicked");
+            let _ = writeln!(std::io::stderr(), "Yu OS compositor control panicked");
             failure
         }
     }

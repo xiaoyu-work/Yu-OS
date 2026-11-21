@@ -42,7 +42,7 @@ fn prompt_catalog_contains_metadata_but_not_skill_body() {
     write_skill(
         system.path(),
         "yuos",
-        "Operate the Claw system layer",
+        "Operate the Yu OS system layer",
         "SECRET_INSTRUCTION_BODY",
     );
     let load = layered(system.path(), user.path());
@@ -50,7 +50,7 @@ fn prompt_catalog_contains_metadata_but_not_skill_body() {
     let catalog = render_prompt_catalog(&load).expect("catalog");
 
     assert!(catalog.contains("\"id\": \"yuos\""));
-    assert!(catalog.contains("Operate the Claw system layer"));
+    assert!(catalog.contains("Operate the Yu OS system layer"));
     assert!(catalog.contains("\"source\": \"builtin\""));
     assert!(catalog.contains("command=read"));
     assert!(catalog.contains("command=resource"));
@@ -64,7 +64,7 @@ fn instruction_disclosure_returns_body_and_resource_names_only() {
     write_skill(
         system.path(),
         "yuos",
-        "Operate the Claw system layer",
+        "Operate the Yu OS system layer",
         "Use the matching playbook.",
     );
     add_resource(system.path(), "yuos", "diagnostics.md", "PRIVATE_RESOURCE_CONTENT");
@@ -84,7 +84,7 @@ fn instruction_disclosure_returns_body_and_resource_names_only() {
 fn resource_disclosure_reads_one_requested_file() {
     let system = tempdir().unwrap();
     let user = tempdir().unwrap();
-    write_skill(system.path(), "yuos", "Claw", "Read details as needed.");
+    write_skill(system.path(), "yuos", "Yu OS", "Read details as needed.");
     add_resource(
         system.path(),
         "yuos",
@@ -105,7 +105,7 @@ fn resource_disclosure_reads_one_requested_file() {
 fn resource_disclosure_rejects_escape_and_absolute_paths() {
     let system = tempdir().unwrap();
     let user = tempdir().unwrap();
-    write_skill(system.path(), "yuos", "Claw", "Body");
+    write_skill(system.path(), "yuos", "Yu OS", "Body");
     let skill = &layered(system.path(), user.path()).skills["yuos"];
 
     assert!(disclose_resource(skill, "../secret").is_err());
@@ -123,7 +123,7 @@ fn resource_disclosure_rejects_symlinks() {
     let system = tempdir().unwrap();
     let user = tempdir().unwrap();
     let outside = tempdir().unwrap();
-    write_skill(system.path(), "yuos", "Claw", "Body");
+    write_skill(system.path(), "yuos", "Yu OS", "Body");
     fs::write(outside.path().join("secret.md"), "SECRET").unwrap();
     symlink(
         outside.path().join("secret.md"),
@@ -144,7 +144,7 @@ fn resource_disclosure_rejects_symlinks() {
 fn builtin_skill_skips_third_party_guard() {
     let system = tempdir().unwrap();
     let user = tempdir().unwrap();
-    write_skill(system.path(), "yuos", "Claw", "Body");
+    write_skill(system.path(), "yuos", "Yu OS", "Body");
     fs::File::create(system.path().join("yuos").join("large.bin"))
         .unwrap()
         .set_len(6 * 1024 * 1024)

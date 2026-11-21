@@ -7,8 +7,8 @@ Call the `yu_watch` tool — **not the shell** — for event-driven watching bac
 `yu_watch` takes `{ "command": "<verb>", "args": [...] }`. Verbs: `file`, `dir`, `proc`, `on`, `multi`, `history`.
 
 ```json
-{ "command": "file", "args": ["/home/cos/output.txt", "--timeout", "30"] }
-{ "command": "dir",  "args": ["/home/cos/results",     "--timeout", "60"] }
+{ "command": "file", "args": ["/home/operator/output.txt", "--timeout", "30"] }
+{ "command": "dir",  "args": ["/home/operator/results",     "--timeout", "60"] }
 { "command": "proc", "args": ["build-1",               "--timeout", "300"] }
 ```
 
@@ -19,8 +19,8 @@ Returns on the first event from any source.
 ```json
 { "command": "multi",
   "args": [
-    "--file", "/home/cos/main.py",
-    "--dir",  "/home/cos/output/",
+    "--file", "/home/operator/main.py",
+    "--dir",  "/home/operator/output/",
     "--proc", "worker-1",
     "--service", "my-api",
     "--timeout", "60"

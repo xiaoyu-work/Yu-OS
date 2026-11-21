@@ -12,7 +12,7 @@ hl.config({
 
 hl.window_rule({
     name = "claw-permission-request",
-    match = { class = "^claw-desktop-reviews$" },
+    match = { class = "^yuos-desktop-reviews$" },
     float = true,
     center = true,
     rounding = 14,

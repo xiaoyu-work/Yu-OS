@@ -41,7 +41,7 @@ The existing runtime ABI remains 1, but Agent provides
 require `yuos-app-runtime-v1 (>= 0.2.1)`. Old/unversioned Provides cannot
 satisfy that dependency. Agent recommends only `yuos-apps-agent`; native
 packages can be selected independently on Ubuntu/WSL without the full OS
-Desktop. `apt install yuos-desktop` installs all Claw Apps, including the
+Desktop. `apt install yuos-desktop` installs all Yu OS Apps, including the
 headless set and the individually packaged graphical Apps and Thunderbird
 integration. It replaces the separately named Shell package and removes the
 obsolete `yuos-apps-desktop` metapackage if present. Configure both signed
@@ -180,7 +180,7 @@ On an affected x86 machine that was installed before the board options shipped, 
 
 An [experimental Snapdragon X install](image-architecture.md#experimental-snapdragon-x-boot) keeps the chosen board in `/etc/default/grub.d/60-yuos-qualcomm.cfg`. Kernel upgrades generate boot entries only for kernels that still ship that board's tree and a matching initramfs. Keep the last working kernel until its replacement has booted on the device.
 
-The [vendor kernel profiles](image-architecture.md#experimental-vendor-kernels) install a pinned kernel alongside Debian's default. Claw's regular APT upgrades do not replace the pinned platform kernel, NVIDIA driver or Apple stage-two bundle. To update a profile, build it with reviewed newer pins, update the matching packages together and verify the new boot image before discarding the old one.
+The [vendor kernel profiles](image-architecture.md#experimental-vendor-kernels) install a pinned kernel alongside Debian's default. Yu OS's regular APT upgrades do not replace the pinned platform kernel, NVIDIA driver or Apple stage-two bundle. To update a profile, build it with reviewed newer pins, update the matching packages together and verify the new boot image before discarding the old one.
 
 Each published package version is generated from the Git commit count and SHA,
 for example `0.1.0+git1226.g876f3ad810ca`. A later repository build therefore
@@ -380,7 +380,7 @@ replacing the configured system language. Until the matching
 Desktop package installs the graphical review presenter, approval remains
 available through the existing `yu review` interface.
 On systems with initramfs-tools, Desktop configuration requests an initramfs
-update so the Claw boot theme is included on the next boot.
+update so the Yu OS boot theme is included on the next boot.
 
 The Agent package also installs `pkexec` and its polkit runtime. Protected
 Web/native review decisions and `yu review` use the installed
@@ -389,7 +389,7 @@ Upgrading an installation that lacks `pkexec` pulls it in without changing
 existing approval records. Ordinary attended TUI one-shot approval stays
 inline through the broker's kernel-presence check, with no OS-password prompt.
 
-Claw's fixed approval-helper policy requires `auth_self` for active, inactive
+Yu OS's fixed approval-helper policy requires `auth_self` for active, inactive
 and sessionless callers. WSL processes can have a terminal but no local logind
 seat/session; rejecting that category prevented even a password prompt.
 This permits authentication, not automatic approval: the helper still binds
@@ -530,7 +530,7 @@ upgrade replaces the whole set. Agent tasks run in `yuos-agentd` processes that
   lesser account to drop to. On a single-account image, create an ordinary user
   and submit as that user.
 
-The Claw Agent terminal renderer is compiled into `yu`, so upgrading
+The Yu OS Agent terminal renderer is compiled into `yu`, so upgrading
 `yuos-agent` replaces the terminal and line interfaces together. It has no
 separate frontend binary, self-updater or compatibility protocol. Canonical
 conversations, credentials and task state remain in their existing stores.
@@ -540,7 +540,7 @@ available.
 An upgrade from the temporary external-frontend package removes its
 package-owned `/usr/lib/yuos/tui` bundle. The package does not delete
 owner-controlled terminal preference/cache directories; they are no longer
-read by the Claw-owned renderer and may be removed manually after inspection.
+read by the Yu OS-owned renderer and may be removed manually after inspection.
 
 Confirm both binaries and the running daemon after an upgrade:
 
@@ -744,9 +744,9 @@ On an existing system, first upgrade `yuos-agent` to install that source,
 then run `sudo apt update` and upgrade `yuos-app-browser` and the Desktop
 package together. The Browser App requires `yuos-browser-render-v1`.
 Existing per-user default overrides and Chromium profile data are not changed.
-Load the Claw extension in Helium to use the signed-in path.
+Load the Yu OS extension in Helium to use the signed-in path.
 
-To enable the Claw Agent side panel on an existing Desktop installation, update
+To enable the Yu OS Agent side panel on an existing Desktop installation, update
 the Desktop and Browser App, rerun `tools/install-browser-agent.sh` with the
 same `CLAW_EXT_ID`, and reload the extension. Pin the extension to open chat from
 the toolbar. If the local desktop Agent bridge is unavailable, open the
@@ -947,7 +947,7 @@ Shell. Install them together and sign in again; it does not fall back to
 window polling. Files needs its matching App build to remain running after
 its last window closes and reopen from the Dock. An App that exits or does
 not implement reopening keeps its own lifecycle.
-The Quiet Shell's Claw AI button needs the matching Agent supervisor, which
+The Quiet Shell's Yu OS AI button needs the matching Agent supervisor, which
 starts the existing native Agent UI in the current authenticated display.
 The Launcher also needs the matching signed `yuos-app-launcher-desktop`
 package. That package keeps its Debian name and `com.yuos.Launcher`
@@ -999,24 +999,24 @@ greetd/logind/KMS/LSM acceptance remain rollout requirements.
 
 ## Desktop App Store
 
-**Claw Apps** lists current signed releases from `yuos-app` for this machine,
+**Yu OS Apps** lists current signed releases from `yuos-app` for this machine,
 including independently published capability clients. Install and Update
 select the exact published Debian release. **Linux Apps** browses the OS's
 APT AppStream catalog and configured, GPG-verified Flatpak remotes. The
-**Updates** page separates Claw Apps from Linux Apps and system packages;
+**Updates** page separates Yu OS Apps from Linux Apps and system packages;
 shared system packages remain in the latter section. The Agent Web App Store
-only lists Claw Apps with Web interfaces, not these Linux catalogs.
+only lists Yu OS Apps with Web interfaces, not these Linux catalogs.
 
-**Check for updates** refreshes APT indexes, the signed Claw Apps catalog,
+**Check for updates** refreshes APT indexes, the signed Yu OS Apps catalog,
 and Flatpak AppStream without installing or updating any payload. If the
-official App APT source is configured, `yuosd` also checks APT and Claw Apps
+official App APT source is configured, `yuosd` also checks APT and Yu OS Apps
 shortly after startup and hourly. A source failure is reported separately
 from having no updates. On desktop the `yuos-software-store-v1` dependency
 requires a matching Agent package; older Store clients continue to use their
 existing package queries and intents.
 
 Installs and updates require protected OS review; acceptance means queued,
-not installed. Claw App delivery retains its independent per-App reviews.
+not installed. Yu OS App delivery retains its independent per-App reviews.
 Flatpak is limited to the exact app ref, configured installation/remotes and
 reviewed deployment commits. The OS verifies the result as the requesting
 desktop user, including for system-wide installs and updates. Local archives,

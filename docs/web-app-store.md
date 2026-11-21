@@ -4,11 +4,11 @@
 existing authenticated Agent Web UI. It does not use the static marketing
 desktop. Ordinary App controls use `yuosd` App services without creating an
 Agent task or contacting a model.
-Only released Claw Apps with authenticated Web interfaces are offered there.
+Only released Yu OS Apps with authenticated Web interfaces are offered there.
 The Linux package browser and native application launcher belong to the
 desktop and are not Web Store entries, even if older releases shipped Web
 helpers for them. Use the [desktop App Store](updating.md#desktop-app-store)
-for native and Linux software. A Claw App with its own Web interface can
+for native and Linux software. A Yu OS App with its own Web interface can
 appear in both stores. Removing a listing neither uninstalls it nor revokes
 its existing Agent tools.
 

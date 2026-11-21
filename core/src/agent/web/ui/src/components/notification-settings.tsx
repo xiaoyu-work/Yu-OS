@@ -63,7 +63,7 @@ export function NotificationSettings({ preferences, onSave, onClose, onSaved }: 
                 enabled={draft.web_enabled} severity={draft.web_min_severity}
                 onToggle={(web_enabled) => setDraft({ ...draft, web_enabled })}
                 onSeverity={(web_min_severity) => setDraft({ ...draft, web_min_severity })} />
-              <Channel icon={Monitor} label="Desktop popups" description="Notifications on your Claw desktop"
+              <Channel icon={Monitor} label="Desktop popups" description="Notifications on your Yu OS desktop"
                 enabled={draft.desktop_enabled} severity={draft.desktop_min_severity}
                 onToggle={(desktop_enabled) => setDraft({ ...draft, desktop_enabled })}
                 onSeverity={(desktop_min_severity) => setDraft({ ...draft, desktop_min_severity })} />

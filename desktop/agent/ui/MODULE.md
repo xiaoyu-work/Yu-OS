@@ -254,7 +254,7 @@ inventory. Neither Activity views nor policy settings replace review decisions,
 display authority or connection-bound notification presentation.
 
 Initial CLI arguments and subsequent single-instance D-Bus activation use
-`yuos_runtime::ask_claw::{UiArguments, Activation}`. Keep executable names,
+`yuos_runtime::ask_yu::{UiArguments, Activation}`. Keep executable names,
 overlay flags, and context serialization out of the UI and host apps. Shared
 launches carry one bounded length-prefixed activation over an inherited Unix
 socket only when `--context-socket --activation-fd` is explicit; the new

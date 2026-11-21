@@ -26,7 +26,7 @@
 //!         let ctx = gui::Context::from_env().expect("authenticated GUI context");
 //!         // draw your own window using ctx.app_id / ctx.files,
 //!         // call crate::ai / crate::tools for kernel-mediated work,
-//!         // and ctx.open_agent_overlay(None) to summon "Ask Claw".
+//!         // and ctx.open_agent_overlay(None) to summon "Ask Yu OS".
 //!     }
 //! }
 //! ```
@@ -45,13 +45,13 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 #[cfg(target_os = "linux")]
-const ASK_CLAW_LAUNCHER: &str = "/usr/local/bin/yuos-ask-launcher";
+const ASK_YU_LAUNCHER: &str = "/usr/local/bin/yuos-ask-launcher";
 #[cfg(target_os = "linux")]
-const ASK_CLAW_PROTOCOL: u32 = 1;
+const ASK_YU_PROTOCOL: u32 = 1;
 #[cfg(target_os = "linux")]
-const ASK_CLAW_REQUEST_LIMIT: usize = 32 * 1024;
+const ASK_YU_REQUEST_LIMIT: usize = 32 * 1024;
 #[cfg(target_os = "linux")]
-const ASK_CLAW_TIMEOUT: Duration = Duration::from_secs(5);
+const ASK_YU_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Returns `true` when the current process was spawned as a desktop GUI.
 ///
@@ -245,9 +245,9 @@ impl Context {
         Ok(Self { app_id, files })
     }
 
-    /// Summon the system "Ask Claw" agent overlay.
+    /// Summon the system "Ask Yu OS" agent overlay.
     ///
-    /// This uses the fixed packaged Ask Claw launcher and its versioned
+    /// This uses the fixed packaged Ask Yu OS launcher and its versioned
     /// authenticated Unix-socket protocol. Pass `hint` to ground the agent's first response in
     /// the app's current state (e.g. the open document) without
     /// polluting the visible chat transcript. The overlay is detached —
@@ -261,14 +261,14 @@ impl Context {
             let _ = hint;
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Unsupported,
-                "Ask Claw private activation requires Linux",
+                "Ask Yu OS private activation requires Linux",
             ));
         }
         #[cfg(target_os = "linux")]
         {
             validate_launcher()?;
-            let mut child = Command::new(ASK_CLAW_LAUNCHER)
-                .args(["--protocol", &ASK_CLAW_PROTOCOL.to_string()])
+            let mut child = Command::new(ASK_YU_LAUNCHER)
+                .args(["--protocol", &ASK_YU_PROTOCOL.to_string()])
                 .stdin(Stdio::null())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null())
@@ -276,7 +276,7 @@ impl Context {
             let Some(stdout) = child.stdout.take() else {
                 return Err(stop_launcher(
                     &mut child,
-                    std::io::Error::other("Ask Claw launcher readiness channel unavailable"),
+                    std::io::Error::other("Ask Yu OS launcher readiness channel unavailable"),
                 ));
             };
             let (sender, receiver) = mpsc::sync_channel(1);
@@ -289,7 +289,7 @@ impl Context {
                         if ready.len() > 256 || !ready.ends_with('\n') {
                             Err(std::io::Error::new(
                                 std::io::ErrorKind::InvalidData,
-                                "invalid Ask Claw socket announcement",
+                                "invalid Ask Yu OS socket announcement",
                             ))
                         } else {
                             Ok(ready)
@@ -297,7 +297,7 @@ impl Context {
                     });
                 let _ = sender.send(result);
             });
-            let announcement = match receiver.recv_timeout(ASK_CLAW_TIMEOUT) {
+            let announcement = match receiver.recv_timeout(ASK_YU_TIMEOUT) {
                 Ok(Ok(announcement)) => announcement,
                 Ok(Err(error)) => return Err(stop_launcher(&mut child, error)),
                 Err(_) => {
@@ -305,15 +305,15 @@ impl Context {
                     let _ = child.wait();
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::TimedOut,
-                        "Ask Claw launcher readiness timed out",
+                        "Ask Yu OS launcher readiness timed out",
                     ));
                 }
             };
             let endpoint = announcement
-                .strip_prefix(&format!("SOCKET {ASK_CLAW_PROTOCOL} @"))
+                .strip_prefix(&format!("SOCKET {ASK_YU_PROTOCOL} @"))
                 .and_then(|value| value.strip_suffix('\n'))
                 .filter(|value| !value.is_empty())
-                .ok_or_else(|| std::io::Error::other("invalid Ask Claw socket announcement"));
+                .ok_or_else(|| std::io::Error::other("invalid Ask Yu OS socket announcement"));
             let endpoint = match endpoint {
                 Ok(endpoint) => endpoint,
                 Err(error) => {
@@ -334,10 +334,10 @@ impl Context {
                     return Err(error);
                 }
             };
-            if let Err(error) = socket.set_read_timeout(Some(ASK_CLAW_TIMEOUT)) {
+            if let Err(error) = socket.set_read_timeout(Some(ASK_YU_TIMEOUT)) {
                 return Err(stop_launcher(&mut child, error));
             }
-            if let Err(error) = socket.set_write_timeout(Some(ASK_CLAW_TIMEOUT)) {
+            if let Err(error) = socket.set_write_timeout(Some(ASK_YU_TIMEOUT)) {
                 return Err(stop_launcher(&mut child, error));
             }
             let mut ready = [0_u8; 8];
@@ -349,10 +349,10 @@ impl Context {
             if ready != *b"READY 1\n" {
                 let _ = child.kill();
                 let _ = child.wait();
-                return Err(std::io::Error::other("invalid Ask Claw socket handshake"));
+                return Err(std::io::Error::other("invalid Ask Yu OS socket handshake"));
             }
             let request = serde_json::json!({
-                "protocol": ASK_CLAW_PROTOCOL,
+                "protocol": ASK_YU_PROTOCOL,
                 "app": self.app_id,
                 "hint": hint,
             });
@@ -365,12 +365,12 @@ impl Context {
                     ));
                 }
             };
-            if payload.len() > ASK_CLAW_REQUEST_LIMIT {
+            if payload.len() > ASK_YU_REQUEST_LIMIT {
                 let _ = child.kill();
                 let _ = child.wait();
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
-                    "Ask Claw request exceeds the protocol limit",
+                    "Ask Yu OS request exceeds the protocol limit",
                 ));
             }
             if let Err(error) = socket
@@ -389,14 +389,14 @@ impl Context {
                 let _ = child.kill();
                 let _ = child.wait();
                 return Err(std::io::Error::other(
-                    "invalid Ask Claw acceptance response",
+                    "invalid Ask Yu OS acceptance response",
                 ));
             }
             drop(socket);
             let child = std::sync::Arc::new(std::sync::Mutex::new(Some(child)));
             let reaper_child = std::sync::Arc::clone(&child);
             if let Err(error) = std::thread::Builder::new()
-                .name("ask-claw-sdk-reaper".into())
+                .name("ask-yu-sdk-reaper".into())
                 .spawn(move || {
                     if let Some(mut child) = reaper_child
                         .lock()
@@ -441,11 +441,11 @@ fn validate_launcher() -> std::io::Result<()> {
         {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
-                "untrusted Ask Claw launcher parent",
+                "untrusted Ask Yu OS launcher parent",
             ));
         }
     }
-    let metadata = std::fs::symlink_metadata(ASK_CLAW_LAUNCHER)?;
+    let metadata = std::fs::symlink_metadata(ASK_YU_LAUNCHER)?;
     if metadata.file_type().is_symlink()
         || !metadata.is_file()
         || metadata.uid() != 0
@@ -454,7 +454,7 @@ fn validate_launcher() -> std::io::Result<()> {
     {
         return Err(std::io::Error::new(
             std::io::ErrorKind::PermissionDenied,
-            "untrusted Ask Claw launcher",
+            "untrusted Ask Yu OS launcher",
         ));
     }
     Ok(())

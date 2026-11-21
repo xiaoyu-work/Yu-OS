@@ -165,13 +165,13 @@ receivers, credentials, capacity or corrupt progress are explicit holds.
 ## File System
 
 ```bash
-yu app fs ls /home/cos
-yu app fs read /home/cos/file.txt
-yu app fs write /home/cos/output.txt --content='hello'
-yu app fs stat /home/cos/file.txt
-yu app fs search "pattern" /home/cos
-yu app fs rm /home/cos/tmp
-yu app fs mkdir /home/cos/new-dir
+yu app fs ls /home/operator
+yu app fs read /home/operator/file.txt
+yu app fs write /home/operator/output.txt --content='hello'
+yu app fs stat /home/operator/file.txt
+yu app fs search "pattern" /home/operator
+yu app fs rm /home/operator/tmp
+yu app fs mkdir /home/operator/new-dir
 ```
 
 Filesystem commands use the MCP-only contract. Writes require explicit
@@ -204,7 +204,7 @@ yu app db databases
 ```bash
 yu app net fetch https://api.example.com/data
 yu app net fetch https://api.example.com/data --method POST --data '{"key": "value"}'
-yu app net download https://example.com/file.zip --output /home/cos/file.zip
+yu app net download https://example.com/file.zip --output /home/operator/file.zip
 ```
 
 ## Key-Value Store
@@ -441,8 +441,8 @@ passes volume-deletion or force flags and requires explicit confirmation.
 
 ```bash
 yu app config-editor inspect /etc/hosts
-yu app config-editor validate /etc/hosts /home/cos/hosts.new
-yu app config-editor apply /etc/hosts /home/cos/hosts.new --confirm
+yu app config-editor validate /etc/hosts /home/operator/hosts.new
+yu app config-editor apply /etc/hosts /home/operator/hosts.new --confirm
 yu app config-editor restore /etc/hosts <backup-token> --confirm
 ```
 
@@ -475,12 +475,12 @@ in-memory and persisted to a bounded rotating JSONL log under
 ## Backup Center
 
 ```bash
-yu app backup-center init /media/cos/backup/repo default/restic
-yu app backup-center backup /media/cos/backup/repo /home/cos/Documents default/restic
-yu app backup-center snapshots /media/cos/backup/repo default/restic
-yu app backup-center check /media/cos/backup/repo default/restic
-yu app backup-center restore /media/cos/backup/repo latest /home/cos/restore default/restic --confirm
-yu app backup-center retention /media/cos/backup/repo default/restic 7 4 12 --confirm
+yu app backup-center init /media/operator/backup/repo default/restic
+yu app backup-center backup /media/operator/backup/repo /home/operator/Documents default/restic
+yu app backup-center snapshots /media/operator/backup/repo default/restic
+yu app backup-center check /media/operator/backup/repo default/restic
+yu app backup-center restore /media/operator/backup/repo latest /home/operator/restore default/restic --confirm
+yu app backup-center retention /media/operator/backup/repo default/restic 7 4 12 --confirm
 ```
 
 Backup Center runs Restic as the requesting user. Repositories must live on a
@@ -503,7 +503,7 @@ yu app firewall-manager clear --confirm
 yu app firewall-manager restore <backup-token> --confirm
 ```
 
-Firewall Manager owns only the dedicated `inet claw_agent` table and never
+Firewall Manager owns only the dedicated `inet yuos_agent` table and never
 flushes distribution or administrator tables. Rules are generated from
 validated direction/protocol/port/CIDR/interface fields, checked and applied as
 one nft transaction, then verified by managed rule comments. Every mutation
@@ -537,7 +537,7 @@ UID/GID, and supplementary memberships are included in rollback.
 yu app printer-manager status
 yu app printer-manager capabilities office
 yu app printer-manager jobs office
-yu app printer-manager print office /home/cos/document.pdf --copies 2 --sides two-sided-long-edge
+yu app printer-manager print office /home/operator/document.pdf --copies 2 --sides two-sided-long-edge
 yu app printer-manager cancel office-42 --confirm
 ```
 
@@ -554,7 +554,7 @@ by the requesting CUPS username.
 yu app clipboard-manager status
 yu app clipboard-manager types
 yu app clipboard-manager read text/plain
-yu app clipboard-manager write /home/cos/note.txt text/plain
+yu app clipboard-manager write /home/operator/note.txt text/plain
 yu app clipboard-manager clear --confirm
 ```
 
@@ -571,7 +571,7 @@ sessions; normal COSMIC desktop access uses the installed Wayland data-control
 
 ```bash
 yu app camera-manager status
-yu app camera-manager capture 42 100 /home/cos/Pictures/capture.png png 1920 1080
+yu app camera-manager capture 42 100 /home/operator/Pictures/capture.png png 1920 1080
 ```
 
 Camera discovery reads only PipeWire `Video/Source` nodes. Capture requires
@@ -607,7 +607,7 @@ yu app display-manager position HDMI-A-1 1920 0
 yu app display-manager mode HDMI-A-1 2560 1440 --refresh 144 --transform normal
 yu app display-manager mirror HDMI-A-1 eDP-1
 yu app display-manager brightness intel_backlight 70
-yu app display-manager apply-layout /home/cos/layout.kdl --confirm
+yu app display-manager apply-layout /home/operator/layout.kdl --confirm
 yu app display-manager restore <backup-token> --confirm
 ```
 
@@ -661,7 +661,7 @@ requesting desktop user, never as root. Accuracy can be `country`, `city`,
 `zone1970.tab` offline and returns advisory IANA timezone candidates without
 changing the system timezone; this timezone-matching step makes no network
 request. GeoClue may use whichever location sources the system administrator
-enabled. The image allows `com.yuos.Agent` through GeoClue because Claw's
+enabled. The image allows `com.yuos.Agent` through GeoClue because Yu OS's
 session capability approval is the built-in authorization mechanism.
 
 ## Package Management
@@ -685,7 +685,7 @@ rollback.
 ## Native System Services
 
 Use the `systemd` app for native systemd units. This is distinct from the
-`yu_service` tool, which manages Claw-defined service manifests.
+`yu_service` tool, which manages Yu OS-defined service manifests.
 
 ```bash
 yu app systemd status ssh.service

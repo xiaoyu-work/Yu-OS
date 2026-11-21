@@ -1,4 +1,4 @@
-# Ask Claw launcher protocol v1
+# Ask Yu OS launcher protocol v1
 
 All SDK GUI bindings invoke the fixed trusted helper:
 

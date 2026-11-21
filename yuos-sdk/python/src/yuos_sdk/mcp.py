@@ -1,6 +1,6 @@
 """Manifest-bound MCP server runtime for Yu OS Apps.
 
-This is the public way for an App to expose a private Claw service.
+This is the public way for an App to expose a private Yu OS service.
 The Gateway authenticates the non-App caller, derives exact
 capabilities from the verified manifest, and then forwards the call to
 this runtime over the App Host's private stdio transport.
@@ -117,7 +117,7 @@ class _ToolArgumentError(ValueError):
 
 @dataclass(frozen=True)
 class McpPrincipal:
-    """Authenticated workload identity supplied by the Claw Gateway."""
+    """Authenticated workload identity supplied by the Yu OS Gateway."""
 
     kind: str
     id: str
@@ -283,7 +283,7 @@ class App:
     Construct with :meth:`from_manifest`, bind each declared tool with
     ``@app.tool(name)``, then call :meth:`serve`. Direct construction is
     rejected because code-authored tool schemas and unauthenticated calls
-    are not part of the Claw App service contract.
+    are not part of the Yu OS App service contract.
     """
 
     name: str

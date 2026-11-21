@@ -2,7 +2,7 @@
 
 The desktop profile builds Hyprland and the graphical Agent against Debian 13.
 `yuos-desktop` also contains the signed Desktop Shell (Quickshell, Caelestia
-and private Qt). Every other Claw App is installed by default through its own
+and private Qt). Every other Yu OS App is installed by default through its own
 package. The build stops if the approved Shell input or signed App APT inputs
 are unavailable.
 
@@ -43,7 +43,7 @@ The local desktop VM opens the graphical setup wizard without asking you to
 sign in. Create your account, optionally choose an avatar, and select
 **Finish** to enter the desktop.
 After logout or reboot, sign in with that account and password. Sign-in and
-lock show the Claw wallpaper full-screen, with the time above and the
+lock show the Yu OS wallpaper full-screen, with the time above and the
 password field at the bottom. First-run setup keeps its frosted-glass panels.
 
 The signed system shell starts with its built-in desktop permissions.
@@ -56,9 +56,9 @@ screen and uses a compact layout on narrow displays. A VM uses the mode its
 virtual display advertises; resizing the viewer window is hypervisor-specific.
 
 With the matching signed Shell, selecting an installed App in the desktop
-menu submits its launch without a separate review. Claw Apps keep their
+menu submits its launch without a separate review. Yu OS Apps keep their
 signed identity and separate permission checks; ordinary Linux desktop apps
-open as the logged-in user and receive no Claw App authority. Shutdown and
+open as the logged-in user and receive no Yu OS App authority. Shutdown and
 restart from the system menu go directly to the OS;
 other Apps and the Agent receive no power permission from a menu click.
 

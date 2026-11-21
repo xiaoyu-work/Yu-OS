@@ -13,7 +13,7 @@
 #include <xcb/xcb_icccm.h>
 
 #include "XWayland.hpp"
-#include "../../../hyprland-claw/Claw.hpp"
+#include "../../../hyprland-claw/Yu OS.hpp"
 #include "../Compositor.hpp"
 #include "../protocols/core/Seat.hpp"
 #include "../managers/eventLoop/EventLoopManager.hpp"
@@ -745,7 +745,7 @@ void CXWM::handleSelectionRequest(xcb_selection_request_event_t* e) {
         return;
     }
 
-    if (sel != &m_dndSelection && !Claw::permitted(g_pXWayland->m_server->m_xwaylandClient, CLAW_SELECTION_READ)) {
+    if (sel != &m_dndSelection && !Yu OS::permitted(g_pXWayland->m_server->m_xwaylandClient, CLAW_SELECTION_READ)) {
         selectionSendNotify(e, false);
         return;
     }
@@ -826,7 +826,7 @@ bool CXWM::handleSelectionXFixesNotify(xcb_xfixes_selection_notify_event_t* e) {
     if (sel == &m_dndSelection)
         return true;
 
-    if (!Claw::permitted(g_pXWayland->m_server->m_xwaylandClient, CLAW_SELECTION_WRITE))
+    if (!Yu OS::permitted(g_pXWayland->m_server->m_xwaylandClient, CLAW_SELECTION_WRITE))
         return true;
 
     if (e->owner == XCB_WINDOW_NONE) {
@@ -1342,7 +1342,7 @@ void CXWM::initSelection() {
 }
 
 void CXWM::setClipboardToWayland(SXSelection& sel) {
-    if (&sel != &m_dndSelection && !Claw::permitted(g_pXWayland->m_server->m_xwaylandClient, CLAW_SELECTION_WRITE))
+    if (&sel != &m_dndSelection && !Yu OS::permitted(g_pXWayland->m_server->m_xwaylandClient, CLAW_SELECTION_WRITE))
         return;
     auto source = makeShared<CXDataSource>(sel);
     if (source->mimes().empty()) {
@@ -1480,7 +1480,7 @@ SP<IDataOffer> CXWM::createX11DataOffer(SP<CWLSurfaceResource> surf, SP<IDataSou
 }
 
 void SXSelection::onSelection() {
-    if (!Claw::permitted(g_pXWayland->m_server->m_xwaylandClient, CLAW_SELECTION_READ))
+    if (!Yu OS::permitted(g_pXWayland->m_server->m_xwaylandClient, CLAW_SELECTION_READ))
         return;
     const bool isClipboard = this == &g_pXWayland->m_wm->m_clipboard;
     const bool isPrimary   = this == &g_pXWayland->m_wm->m_primarySelection;
@@ -1579,7 +1579,7 @@ static int readDataSource(int fd, uint32_t mask, void* data) {
 }
 
 bool SXSelection::sendData(xcb_selection_request_event_t* e, std::string mime) {
-    if (this != &g_pXWayland->m_wm->m_dndSelection && !Claw::permitted(g_pXWayland->m_server->m_xwaylandClient, CLAW_SELECTION_READ))
+    if (this != &g_pXWayland->m_wm->m_dndSelection && !Yu OS::permitted(g_pXWayland->m_server->m_xwaylandClient, CLAW_SELECTION_READ))
         return false;
     WP<IDataSource> selection;
     if (this == &g_pXWayland->m_wm->m_clipboard)

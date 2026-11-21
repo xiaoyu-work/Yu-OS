@@ -226,7 +226,6 @@ fn canonical_entity(entity: &str) -> &str {
         | "linux_distribution"
         | "linux_distro" => "os",
         "yuos_agent"
-        | "claw_agent"
         | "claw_daemon"
         | "yuosd"
         | "yu_agent"

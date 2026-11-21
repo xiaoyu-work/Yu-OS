@@ -631,7 +631,7 @@ impl BrokerBackend {
             Ok::<_, String>((home, ready))
         })
         .await
-        .map_err(|_| "Claw model readiness check failed".to_string())??;
+        .map_err(|_| "Yu OS model readiness check failed".to_string())??;
         let catalog = super::models::catalog(Arc::new(config.agent.clone()), ready).await?;
         Ok(Self {
             info: BackendInfo {
@@ -717,7 +717,7 @@ impl Backend for BrokerBackend {
         let values = value
             .get("conversations")
             .and_then(Value::as_array)
-            .ok_or("Claw returned no conversation list")?;
+            .ok_or("Yu OS returned no conversation list")?;
         Ok(ConversationList {
             conversations: values
                 .iter()
@@ -831,53 +831,53 @@ impl Backend for BrokerBackend {
         )
         .await
         .map_err(|_| {
-            StreamError::Retryable("Claw broker task stream timed out".to_string())
+            StreamError::Retryable("Yu OS broker task stream timed out".to_string())
         })?
         .map_err(|error| StreamError::Retryable(error.to_string()))?;
         let value = if response.ok {
             response
                 .result
-                .ok_or_else(|| StreamError::Fatal("Claw broker returned no result".to_string()))?
+                .ok_or_else(|| StreamError::Fatal("Yu OS broker returned no result".to_string()))?
         } else {
             return Err(StreamError::Fatal(
                 response
                     .error
                     .map(|error| format!("{}: {}", error.code, error.message))
-                    .unwrap_or_else(|| "Claw broker returned no error".to_string()),
+                    .unwrap_or_else(|| "Yu OS broker returned no error".to_string()),
             ));
         };
         let next = value
             .get("cursor")
             .and_then(Value::as_u64)
-            .ok_or_else(|| StreamError::Fatal("Claw task stream omitted its cursor".to_string()))?;
+            .ok_or_else(|| StreamError::Fatal("Yu OS task stream omitted its cursor".to_string()))?;
         let records = value
             .get("events")
             .and_then(Value::as_array)
             .cloned()
-            .ok_or_else(|| StreamError::Fatal("Claw task stream omitted its events".to_string()))?;
+            .ok_or_else(|| StreamError::Fatal("Yu OS task stream omitted its events".to_string()))?;
         if next < cursor || (!records.is_empty() && next == cursor) || records.len() > 16_384 {
             return Err(StreamError::Fatal(
-                "Claw task stream returned an invalid cursor or event count".to_string(),
+                "Yu OS task stream returned an invalid cursor or event count".to_string(),
             ));
         }
         let terminal = value
             .get("terminal")
             .and_then(Value::as_bool)
             .ok_or_else(|| {
-                StreamError::Fatal("Claw task stream omitted its terminal state".to_string())
+                StreamError::Fatal("Yu OS task stream omitted its terminal state".to_string())
             })?;
         let job = parse_job(
             value
                 .get("job")
                 .cloned()
                 .ok_or_else(|| {
-                    StreamError::Fatal("Claw task stream omitted its job".to_string())
+                    StreamError::Fatal("Yu OS task stream omitted its job".to_string())
                 })?,
         )
         .map_err(StreamError::Fatal)?;
         if job.id != task_id {
             return Err(StreamError::Fatal(
-                "Claw task stream changed task identity".to_string(),
+                "Yu OS task stream changed task identity".to_string(),
             ));
         }
         Ok(StreamFrame {
@@ -893,7 +893,7 @@ impl Backend for BrokerBackend {
             .call(Command::TaskCancel, json!({ "id": task_id }))
             .await?;
         if value.get("id").and_then(Value::as_str) != Some(task_id) {
-            return Err("Claw cancelled a different task".into());
+            return Err("Yu OS cancelled a different task".into());
         }
         if value.get("cancelled").and_then(Value::as_bool) != Some(true)
             && value.get("cancel_requested").and_then(Value::as_bool) != Some(true)
@@ -910,9 +910,9 @@ impl Backend for BrokerBackend {
         let values = value
             .get("jobs")
             .and_then(Value::as_array)
-            .ok_or("Claw task list omitted jobs")?;
+            .ok_or("Yu OS task list omitted jobs")?;
         if values.len() > 100 {
-            return Err("Claw task list exceeded its terminal bound".into());
+            return Err("Yu OS task list exceeded its terminal bound".into());
         }
         values.iter().map(parse_task_summary).collect()
     }
@@ -924,7 +924,7 @@ impl Backend for BrokerBackend {
                 .await?,
         )?;
         if job.id != task_id {
-            return Err("Claw returned a different task".into());
+            return Err("Yu OS returned a different task".into());
         }
         Ok(job)
     }
@@ -936,7 +936,7 @@ impl Backend for BrokerBackend {
                 .await?,
         )?;
         if job.id == task_id || job.status != "pending" {
-            return Err("Claw returned an invalid retry task".into());
+            return Err("Yu OS returned an invalid retry task".into());
         }
         Ok(job)
     }
@@ -954,9 +954,9 @@ impl Backend for BrokerBackend {
         let values = value
             .get("notifications")
             .and_then(Value::as_array)
-            .ok_or("Claw notification list omitted notifications")?;
+            .ok_or("Yu OS notification list omitted notifications")?;
         if values.len() > 100 {
-            return Err("Claw notification list exceeded its terminal bound".into());
+            return Err("Yu OS notification list exceeded its terminal bound".into());
         }
         Ok(NotificationPage {
             notifications: values
@@ -967,7 +967,7 @@ impl Backend for BrokerBackend {
                 .get("unread")
                 .and_then(Value::as_u64)
                 .and_then(|value| usize::try_from(value).ok())
-                .ok_or("Claw notification list omitted unread count")?,
+                .ok_or("Yu OS notification list omitted unread count")?,
         })
     }
 
@@ -984,7 +984,7 @@ impl Backend for BrokerBackend {
         };
         let notification = parse_notification(&self.call(command, json!({ "id": id })).await?)?;
         if notification.id != id {
-            return Err("Claw mutated a different notification".into());
+            return Err("Yu OS mutated a different notification".into());
         }
         Ok(notification)
     }
@@ -1033,9 +1033,9 @@ impl Backend for BrokerBackend {
         let activities = value
             .get("activities")
             .and_then(Value::as_array)
-            .ok_or("Claw Activity list omitted activities")?;
+            .ok_or("Yu OS Activity list omitted activities")?;
         if activities.len() > 100 {
-            return Err("Claw Activity list exceeded its terminal bound".into());
+            return Err("Yu OS Activity list exceeded its terminal bound".into());
         }
         activities.iter().map(parse_activity).collect()
     }
@@ -1048,21 +1048,21 @@ impl Backend for BrokerBackend {
         let activity = parse_activity(
             value
                 .get("activity")
-                .ok_or("Claw Activity detail omitted activity")?,
+                .ok_or("Yu OS Activity detail omitted activity")?,
         )?;
         if activity.id != id {
-            return Err("Claw returned a different Activity".into());
+            return Err("Yu OS returned a different Activity".into());
         }
         let jobs = value
             .get("jobs")
             .and_then(Value::as_array)
-            .ok_or("Claw Activity detail omitted jobs")?;
+            .ok_or("Yu OS Activity detail omitted jobs")?;
         let sessions = value
             .get("sessions")
             .and_then(Value::as_array)
-            .ok_or("Claw Activity detail omitted sessions")?;
+            .ok_or("Yu OS Activity detail omitted sessions")?;
         if jobs.len() > 100 || sessions.len() > 100 {
-            return Err("Claw Activity detail exceeded its terminal bound".into());
+            return Err("Yu OS Activity detail exceeded its terminal bound".into());
         }
         Ok(ActivityDetail {
             activity,
@@ -1076,7 +1076,7 @@ impl Backend for BrokerBackend {
                     session
                         .as_str()
                         .map(str::to_string)
-                        .ok_or_else(|| "Claw Activity session is not a string".to_string())
+                        .ok_or_else(|| "Yu OS Activity session is not a string".to_string())
                 })
                 .collect::<Result<_, _>>()?,
         })
@@ -1106,7 +1106,7 @@ impl Backend for BrokerBackend {
         }
         let activity = parse_activity(&self.call(Command::ActivityTransition, params).await?)?;
         if activity.id != id || activity.state != state {
-            return Err("Claw returned a mismatched Activity transition".into());
+            return Err("Yu OS returned a mismatched Activity transition".into());
         }
         Ok(activity)
     }
@@ -1125,7 +1125,7 @@ impl Backend for BrokerBackend {
         let job = parse_job(self.call(Command::ActivityRun, params).await?)?;
         if job.activity_id.as_deref() != Some(id) || job.workspace.as_deref() != Some(workspace) {
             return Err(
-                "Claw returned an Activity task with mismatched identity or workspace".into(),
+                "Yu OS returned an Activity task with mismatched identity or workspace".into(),
             );
         }
         Ok(job)
@@ -1141,13 +1141,13 @@ impl Backend for BrokerBackend {
             .await?;
         let activity_id = required_string(&value, "activity_id")?;
         if activity_id != id {
-            return Err("Claw returned attention for another Activity".into());
+            return Err("Yu OS returned attention for another Activity".into());
         }
         let activity_state = required_string(&value, "activity_state")?;
         let presentation = serde_json::to_string_pretty(&value)
-            .map_err(|_| "Claw Activity attention could not be rendered".to_string())?;
+            .map_err(|_| "Yu OS Activity attention could not be rendered".to_string())?;
         if presentation.len() > 512 * 1024 {
-            return Err("Claw Activity attention exceeded its terminal bound".into());
+            return Err("Yu OS Activity attention exceeded its terminal bound".into());
         }
         Ok(ActivityAttention {
             activity_id,
@@ -1173,7 +1173,7 @@ impl Backend for BrokerBackend {
         let work = self.call(Command::ActivityWorkGet,json!({"id":id})).await?;
         for response in [&execution, &monetary, &scheduling, &capability, &work] {
             if response.get("activity_id").and_then(Value::as_str) != Some(id) {
-                return Err("Claw returned controls for another Activity".into());
+                return Err("Yu OS returned controls for another Activity".into());
             }
 
             if let Some(state) = work.get("work").filter(|state|!state.is_null()) {
@@ -1323,7 +1323,7 @@ impl Backend for BrokerBackend {
             .await?;
         for response in [&objects, &receipts, &object_state] {
             if response.get("activity_id").and_then(Value::as_str) != Some(id) {
-                return Err("Claw returned evidence for another Activity".into());
+                return Err("Yu OS returned evidence for another Activity".into());
             }
         }
         let object_rows = bounded_array(&objects, "objects", 32)?;
@@ -1367,9 +1367,9 @@ impl Backend for BrokerBackend {
             },
         });
         let presentation = serde_json::to_string_pretty(&evidence)
-            .map_err(|_| "Claw Activity evidence could not be rendered".to_string())?;
+            .map_err(|_| "Yu OS Activity evidence could not be rendered".to_string())?;
         if presentation.len() > 2 * 1024 * 1024 {
-            return Err("Claw Activity evidence exceeded its terminal bound".into());
+            return Err("Yu OS Activity evidence exceeded its terminal bound".into());
         }
         Ok(ActivityEvidence {
             activity_id: id.to_string(),
@@ -1380,11 +1380,11 @@ impl Backend for BrokerBackend {
     async fn activity_review(&self, id: &str) -> Result<ActivityReview, String> {
         let evidence = self.activity_evidence(id).await?;
         let value: Value = serde_json::from_str(&evidence.presentation)
-            .map_err(|_| "Claw Activity evidence could not be reviewed".to_string())?;
+            .map_err(|_| "Yu OS Activity evidence could not be reviewed".to_string())?;
         let staged = value
             .get("staged_file_plans")
             .cloned()
-            .ok_or("Claw Activity evidence omitted staged file plans")?;
+            .ok_or("Yu OS Activity evidence omitted staged file plans")?;
         let review = json!({
             "activity_id": id,
             "authority": "Review is presentation only. Plans and diffs are App-reported proposals; no target is read or changed here.",
@@ -1392,9 +1392,9 @@ impl Backend for BrokerBackend {
             "next": "Inspect or apply a selected plan explicitly through the normal Files App permission path."
         });
         let presentation = serde_json::to_string_pretty(&review)
-            .map_err(|_| "Claw file-change review could not be rendered".to_string())?;
+            .map_err(|_| "Yu OS file-change review could not be rendered".to_string())?;
         if presentation.len() > 1024 * 1024 {
-            return Err("Claw file-change review exceeded its terminal bound".into());
+            return Err("Yu OS file-change review exceeded its terminal bound".into());
         }
         Ok(ActivityReview {
             activity_id: id.to_string(),
@@ -1432,12 +1432,12 @@ impl Backend for BrokerBackend {
             || value.get("executed").and_then(Value::as_bool) != Some(false)
             || value.get("effects_confirmed").and_then(Value::as_bool) != Some(false)
         {
-            return Err("Claw returned an unsafe or mismatched operation preview".into());
+            return Err("Yu OS returned an unsafe or mismatched operation preview".into());
         }
         let presentation = serde_json::to_string_pretty(&value)
-            .map_err(|_| "Claw operation preview could not be rendered".to_string())?;
+            .map_err(|_| "Yu OS operation preview could not be rendered".to_string())?;
         if presentation.len() > 256 * 1024 {
-            return Err("Claw operation preview exceeded its terminal bound".into());
+            return Err("Yu OS operation preview exceeded its terminal bound".into());
         }
         Ok(ActivityOperationPreview {
             activity_id: id.to_string(),
@@ -1452,7 +1452,7 @@ impl Backend for BrokerBackend {
         let requests = value
             .get("requests")
             .and_then(Value::as_array)
-            .ok_or("Claw approval list omitted requests")?;
+            .ok_or("Yu OS approval list omitted requests")?;
         let status = self
             .call(Command::PermissionStatus, json!({ "ids": ids }))
             .await?;
@@ -1478,13 +1478,13 @@ impl Backend for BrokerBackend {
         let pending = pending
             .get("requests")
             .and_then(Value::as_array)
-            .ok_or("Claw pending approval list omitted requests")?;
+            .ok_or("Yu OS pending approval list omitted requests")?;
         let recent = recent
             .get("requests")
             .and_then(Value::as_array)
-            .ok_or("Claw recent approval list omitted requests")?;
+            .ok_or("Yu OS recent approval list omitted requests")?;
         if pending.len() > 32 || recent.len() > 32 {
-            return Err("Claw approval list exceeded its terminal bound".into());
+            return Err("Yu OS approval list exceeded its terminal bound".into());
         }
         let mut approvals = pending
             .iter()
@@ -1511,7 +1511,7 @@ impl Backend for BrokerBackend {
         let statuses = value
             .get("statuses")
             .and_then(Value::as_array)
-            .ok_or("Claw approval status list omitted statuses")?
+            .ok_or("Yu OS approval status list omitted statuses")?
             .iter()
             .map(|status| {
                 Ok((
@@ -1524,7 +1524,7 @@ impl Backend for BrokerBackend {
             approval.status = statuses
                 .get(&approval.id)
                 .cloned()
-                .ok_or_else(|| format!("Claw omitted status for approval {}", approval.id))?;
+                .ok_or_else(|| format!("Yu OS omitted status for approval {}", approval.id))?;
         }
         Ok(approvals)
     }
@@ -1565,9 +1565,9 @@ impl Backend for BrokerBackend {
         let loaded =
             tokio::task::spawn_blocking(crate::agent::skills::loader::load_catalog_default)
                 .await
-                .map_err(|_| "Claw Skill catalogue is unavailable".to_string())?;
+                .map_err(|_| "Yu OS Skill catalogue is unavailable".to_string())?;
         if loaded.skills.len() + loaded.errors.len() + loaded.disabled.len() > 1_000 {
-            return Err("Claw Skill catalogue exceeds its terminal bound".into());
+            return Err("Yu OS Skill catalogue exceeds its terminal bound".into());
         }
         Ok(loaded
             .skills
@@ -1644,7 +1644,7 @@ impl Backend for BrokerBackend {
             )
         })
         .await
-        .map_err(|_| "Claw platform discovery failed".to_string())?;
+        .map_err(|_| "Yu OS platform discovery failed".to_string())?;
         let presentation = serde_json::to_string_pretty(&json!({
             "authority": "Read-only verified inventory. This panel starts no MCP server, executes no App, and activates no extension.",
             "skills": skills.into_iter().map(|skill| skill.id).collect::<Vec<_>>(),
@@ -1663,9 +1663,9 @@ impl Backend for BrokerBackend {
             "memory_sessions": memory.get("n").cloned().unwrap_or(Value::Null),
             "usage": usage,
         }))
-        .map_err(|_| "Claw platform overview could not be rendered".to_string())?;
+        .map_err(|_| "Yu OS platform overview could not be rendered".to_string())?;
         if presentation.len() > 512 * 1024 {
-            return Err("Claw platform overview exceeded its terminal bound".into());
+            return Err("Yu OS platform overview exceeded its terminal bound".into());
         }
         Ok(PlatformOverview { presentation })
     }
@@ -1707,7 +1707,7 @@ impl Backend for BrokerBackend {
         let config = self.config.clone();
         tokio::task::spawn_blocking(move || build_mcp_overview(&config))
             .await
-            .map_err(|_| "Claw MCP inventory reader failed".to_string())
+            .map_err(|_| "Yu OS MCP inventory reader failed".to_string())
     }
 
     async fn extensions_overview(&self) -> Result<ExtensionsOverview, String> {
@@ -1715,7 +1715,7 @@ impl Backend for BrokerBackend {
         let owner_uid = self.owner_uid;
         tokio::task::spawn_blocking(move || build_extensions_overview(&config, owner_uid))
             .await
-            .map_err(|_| "Claw extension inventory reader failed".to_string())
+            .map_err(|_| "Yu OS extension inventory reader failed".to_string())
     }
 
     async fn usage_overview(&self, period: UsagePeriod) -> Result<UsageOverview, String> {
@@ -1741,9 +1741,9 @@ impl Backend for BrokerBackend {
         let health: RawDaemonHealth = serde_json::from_value(
             self.call(Command::DaemonHealth, json!({})).await?,
         )
-        .map_err(|error| format!("invalid Claw daemon health response: {error}"))?;
+        .map_err(|error| format!("invalid Yu OS daemon health response: {error}"))?;
         if health.daemon != "yuosd" || health.status != "ok" {
-            return Err("invalid Claw daemon health response: daemon is not healthy".to_string());
+            return Err("invalid Yu OS daemon health response: daemon is not healthy".to_string());
         }
         Ok(DebugOverview {
             daemon: health.daemon,
@@ -1805,7 +1805,7 @@ impl Backend for BrokerBackend {
             }
         })
         .await
-        .map_err(|_| "Claw voice settings reader failed".to_string())
+        .map_err(|_| "Yu OS voice settings reader failed".to_string())
     }
 }
 
@@ -2128,16 +2128,16 @@ async fn request(
         crate::yuosd::client::request(socket, Request::new(command, params)),
     )
     .await
-    .map_err(|_| "Claw broker request timed out; its outcome is unknown".to_string())??;
+    .map_err(|_| "Yu OS broker request timed out; its outcome is unknown".to_string())??;
     if response.ok {
         response
             .result
-            .ok_or_else(|| "Claw broker returned no result".to_string())
+            .ok_or_else(|| "Yu OS broker returned no result".to_string())
     } else {
         Err(response
             .error
             .map(|error| format!("{}: {}", error.code, error.message))
-            .unwrap_or_else(|| "Claw broker returned no error".to_string()))
+            .unwrap_or_else(|| "Yu OS broker returned no error".to_string()))
     }
 }
 
@@ -2154,10 +2154,10 @@ async fn initial_request(
     .await
     .map_err(|_| {
         if replay_safe {
-            InitialConnectionError::Retryable("Claw broker request timed out".to_string())
+            InitialConnectionError::Retryable("Yu OS broker request timed out".to_string())
         } else {
             InitialConnectionError::Fatal(
-                "Claw conversation creation timed out; its outcome is unknown".to_string(),
+                "Yu OS conversation creation timed out; its outcome is unknown".to_string(),
             )
         }
     })?
@@ -2166,20 +2166,20 @@ async fn initial_request(
             InitialConnectionError::Retryable(error.to_string())
         } else {
             InitialConnectionError::Fatal(format!(
-                "Claw conversation creation may have reached the broker: {error}"
+                "Yu OS conversation creation may have reached the broker: {error}"
             ))
         }
     })?;
     if response.ok {
         response
             .result
-            .ok_or_else(|| InitialConnectionError::Fatal("Claw broker returned no result".into()))
+            .ok_or_else(|| InitialConnectionError::Fatal("Yu OS broker returned no result".into()))
     } else {
         Err(InitialConnectionError::Fatal(
             response
                 .error
                 .map(|error| format!("{}: {}", error.code, error.message))
-                .unwrap_or_else(|| "Claw broker returned no error".to_string()),
+                .unwrap_or_else(|| "Yu OS broker returned no error".to_string()),
         ))
     }
 }
@@ -2188,7 +2188,7 @@ fn parse_conversation(value: Value) -> Result<Conversation, String> {
     let value = value
         .get("conversation")
         .filter(|value| value.is_object())
-        .ok_or("Claw returned no conversation")?;
+        .ok_or("Yu OS returned no conversation")?;
     let messages = value
         .get("messages")
         .and_then(Value::as_array)
@@ -2209,7 +2209,7 @@ fn parse_conversation(value: Value) -> Result<Conversation, String> {
         .and_then(Value::as_array)
         .map_or(Ok(Vec::new()), |jobs| {
             if jobs.len() > 1_000 {
-                return Err("Claw conversation job list exceeded its terminal bound".to_string());
+                return Err("Yu OS conversation job list exceeded its terminal bound".to_string());
             }
             jobs.iter()
                 .map(|job| {
@@ -2287,7 +2287,7 @@ fn parse_job(value: Value) -> Result<Job, String> {
             .get("turns_used")
             .and_then(Value::as_u64)
             .map(|turns| {
-                u32::try_from(turns).map_err(|_| "Claw task turn count is too large".to_string())
+                u32::try_from(turns).map_err(|_| "Yu OS task turn count is too large".to_string())
             })
             .transpose()?,
     })
@@ -2354,12 +2354,12 @@ fn parse_approval(value: &Value, status: &str) -> Result<ApprovalRequest, String
 
 fn parse_approval_states(value: &Value, ids: &[String]) -> Result<Vec<ApprovalState>, String> {
     let states: Vec<ApprovalState> = serde_json::from_value(
-        value.get("statuses").cloned().ok_or("Claw omitted approval statuses")?
+        value.get("statuses").cloned().ok_or("Yu OS omitted approval statuses")?
     ).map_err(|error| format!("invalid approval statuses: {error}"))?;
     if states.len() != ids.len()
         || ids.iter().any(|id| states.iter().filter(|state| &state.id == id).count() != 1)
     {
-        return Err("Claw approval statuses changed the requested identities".into());
+        return Err("Yu OS approval statuses changed the requested identities".into());
     }
     Ok(states)
 }
@@ -2501,7 +2501,7 @@ fn required_string(value: &Value, key: &str) -> Result<String, String> {
         .get(key)
         .and_then(Value::as_str)
         .map(str::to_string)
-        .ok_or_else(|| format!("Claw response omitted {key}"))
+        .ok_or_else(|| format!("Yu OS response omitted {key}"))
 }
 
 fn optional_string(value: &Value, key: &str) -> Option<String> {
@@ -2512,16 +2512,16 @@ fn required_bool(value: &Value, key: &str) -> Result<bool, String> {
     value
         .get(key)
         .and_then(Value::as_bool)
-        .ok_or_else(|| format!("Claw response omitted {key}"))
+        .ok_or_else(|| format!("Yu OS response omitted {key}"))
 }
 
 fn required_u32(value: &Value, key: &str) -> Result<u32, String> {
     value
         .get(key)
         .and_then(Value::as_u64)
-        .ok_or_else(|| format!("Claw response omitted {key}"))
+        .ok_or_else(|| format!("Yu OS response omitted {key}"))
         .and_then(|value| {
-            u32::try_from(value).map_err(|_| format!("Claw response {key} is too large"))
+            u32::try_from(value).map_err(|_| format!("Yu OS response {key} is too large"))
         })
 }
 
@@ -2529,9 +2529,9 @@ fn required_u16(value: &Value, key: &str) -> Result<u16, String> {
     value
         .get(key)
         .and_then(Value::as_u64)
-        .ok_or_else(|| format!("Claw response omitted {key}"))
+        .ok_or_else(|| format!("Yu OS response omitted {key}"))
         .and_then(|value| {
-            u16::try_from(value).map_err(|_| format!("Claw response {key} is too large"))
+            u16::try_from(value).map_err(|_| format!("Yu OS response {key} is too large"))
         })
 }
 
@@ -2539,7 +2539,7 @@ fn optional_u16(value: &Value, key: &str) -> Result<Option<u16>, String> {
     value
         .get(key)
         .and_then(Value::as_u64)
-        .map(|value| u16::try_from(value).map_err(|_| format!("Claw response {key} is too large")))
+        .map(|value| u16::try_from(value).map_err(|_| format!("Yu OS response {key} is too large")))
         .transpose()
 }
 
@@ -2547,7 +2547,7 @@ fn optional_object(value: &Value, key: &str) -> Result<Option<Value>, String> {
     match value.get(key) {
         Some(Value::Null) | None => Ok(None),
         Some(value) if value.is_object() => Ok(Some(value.clone())),
-        Some(_) => Err(format!("Claw response {key} is not an object")),
+        Some(_) => Err(format!("Yu OS response {key} is not an object")),
     }
 }
 
@@ -2569,7 +2569,7 @@ fn verify_activity_policy_ack(value: &Value, id: &str) -> Result<(), String> {
     if value.get("activity_id").and_then(Value::as_str) != Some(id)
         || value.get("revision").and_then(Value::as_u64).is_none()
     {
-        return Err("Claw returned a mismatched Activity control acknowledgement".into());
+        return Err("Yu OS returned a mismatched Activity control acknowledgement".into());
     }
     Ok(())
 }
@@ -2578,9 +2578,9 @@ fn bounded_array<'a>(value: &'a Value, key: &str, limit: usize) -> Result<&'a Ve
     let values = value
         .get(key)
         .and_then(Value::as_array)
-        .ok_or_else(|| format!("Claw response omitted {key}"))?;
+        .ok_or_else(|| format!("Yu OS response omitted {key}"))?;
     if values.len() > limit {
-        return Err(format!("Claw response {key} exceeded its terminal bound"));
+        return Err(format!("Yu OS response {key} exceeded its terminal bound"));
     }
     Ok(values)
 }

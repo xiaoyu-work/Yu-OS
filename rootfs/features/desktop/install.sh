@@ -57,7 +57,7 @@ test -x "$ROOTFS/usr/libexec/claw-hyprland/Hyprland"
 test -x "$ROOTFS/usr/libexec/claw-hyprland/claw-lockscreen"
 test -x "$ROOTFS/usr/libexec/claw-greeter"
 test -x "$ROOTFS/usr/libexec/claw-create-local-owner"
-test -x "$ROOTFS/usr/libexec/claw-desktop-reviews"
+test -x "$ROOTFS/usr/libexec/yuos-desktop-reviews"
 test -s "$ROOTFS/usr/share/backgrounds/yuos/yuos-default.jpg"
 test -f "$ROOTFS/etc/pam.d/claw-desktop-lock"
 shell_manifest=/usr/lib/yuos/apps/desktop-shell/app.json

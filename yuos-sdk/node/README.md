@@ -19,7 +19,7 @@ npm install \
 
 | Module       | What                                                          | Equivalent CLI                       |
 |--------------|---------------------------------------------------------------|--------------------------------------|
-| `mcp`        | Manifest-bound MCP App service runtime over private stdio      | launched by the Claw App Host        |
+| `mcp`        | Manifest-bound MCP App service runtime over private stdio      | launched by the Yu OS App Host        |
 | `ai`         | Stable gated `chat` / `chat-untrusted` access                 | `yu ai chat --app <id>`             |
 | `tools`      | Call catalog tools the model proposes (`call`, `catalog`)      | `yu ai tool <name> --app <id>`      |
 | `gui`        | Desktop GUI bootstrap (kernel context, agent overlay)          | launched via `yu app <id> --gui`    |

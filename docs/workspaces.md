@@ -166,7 +166,7 @@ same-account programs, unmanaged App internals or manual terminal edits.
 ## Human presentations
 
 - **CLI:** `yu workspace` uses the shared owner broker and exact revisions.
-- **Claw TUI:** `/workspace` is the only name for the model-independent center.
+- **Yu OS TUI:** `/workspace` is the only name for the model-independent center.
   Its picker, context/notes, tags, local search/readiness and Activity assignment
   use owned asynchronous requests. Enter starts another bound conversation.
   Protected approvals retain focus; closing a center does not replay or stop work.

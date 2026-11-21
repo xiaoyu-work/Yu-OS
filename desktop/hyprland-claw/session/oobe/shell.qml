@@ -404,7 +404,7 @@ ShellRoot {
                     color: theme.error
                     text: setup.confirmation !== "" && !setup.matchingPassword ? qsTr("Passwords don't match.")
                         : setup.state.finishError === "usernameTaken" ? qsTr("That username is already in use.")
-                        : setup.state.finishError === "invalidAvatar" ? qsTr("Choose an available avatar or use the Claw logo.")
+                        : setup.state.finishError === "invalidAvatar" ? qsTr("Choose an available avatar or use the Yu OS logo.")
                         : qsTr("Check the account and setup fields, then try again.")
                     wrapMode: Text.Wrap
                 }
@@ -448,7 +448,7 @@ ShellRoot {
                             }
                             Label {
                                 Layout.fillWidth: true
-                                text: account.avatars.find(item => item.id === setup.avatar)?.name ?? qsTr("Claw logo")
+                                text: account.avatars.find(item => item.id === setup.avatar)?.name ?? qsTr("Yu OS logo")
                                 color: theme.muted
                                 font.pixelSize: 12
                                 elide: Text.ElideRight
@@ -456,7 +456,7 @@ ShellRoot {
                         }
                         ActionButton {
                             text: qsTr("Reset")
-                            Accessible.name: qsTr("Use the Claw logo")
+                            Accessible.name: qsTr("Use the Yu OS logo")
                             enabled: setup.avatar !== ""
                             implicitHeight: 30
                             leftPadding: 8

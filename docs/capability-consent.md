@@ -130,7 +130,7 @@ handles or secret scope values.
 
 `dangerous_tools` is retained only as a compatibility prompt for tools that do
 not expose a capability-aware execution boundary. Capability-aware core
-`cos_*` primitive proxies may contain both read and write commands, so their
+`yu_*` primitive proxies may contain both read and write commands, so their
 tool name is too coarse and no longer intercepts execution.
 
 - Use `auto_deny_tools` for a hard operator block on an entire tool.

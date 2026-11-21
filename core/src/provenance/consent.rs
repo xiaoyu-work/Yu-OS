@@ -75,7 +75,7 @@ fn is_tty(_fd: i32) -> bool {
 /// even though the human is present.
 fn active_session() -> Option<String> {
     if std::env::var_os("YUOS_SESSION").is_some() {
-        return Some("a Claw session (YUOS_SESSION is set)".to_string());
+        return Some("a Yu OS session (YUOS_SESSION is set)".to_string());
     }
     let running = super::runtime::pending_or_running(super::runtime::current_owner());
     if running > 0 {

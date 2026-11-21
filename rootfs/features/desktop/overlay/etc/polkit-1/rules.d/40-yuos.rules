@@ -19,7 +19,7 @@ polkit.addRule(function(action, subject) {
     if (!subject.local) return;
     if (!subject.active) return;
 
-    // App store: installing / removing flatpak apps from Claw Store is
+    // App store: installing / removing flatpak apps from Yu OS Store is
     // the single most common reason the user sees an auth prompt.
     // Going through `yu app pkg need` is gated by the system agent
     // approval flow anyway, so dropping the password prompt here is

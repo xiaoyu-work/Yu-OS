@@ -25,11 +25,11 @@ impl Drop for EnvVarGuard {
 #[test]
 fn scaffold_is_returned_when_no_extra() {
     let p = build_system_prompt(None);
-    assert!(p.contains("YuOS"));
-    assert!(p.contains("You are Claw,"));
-    assert!(p.contains("cos_"));
+    assert!(p.contains("Yu OS Agent"));
+    assert!(p.contains("You are Yu OS Agent,"));
+    assert!(p.contains("`yu_*`"));
     assert!(!p.contains("kernel-resident"));
-    assert!(p.contains("does not imply that the host operating system is YuOS"));
+    assert!(p.contains("does not imply that the host operating system is Yu OS"));
     assert!(p.contains("`yuos: true`"));
 }
 
@@ -89,7 +89,7 @@ fn scaffold_requires_recursive_cli_discovery_before_claiming_unsupported() {
     let prompt = build_system_prompt(None);
     assert!(prompt.contains("call `yu_help` with `path=[]`"));
     assert!(prompt.contains("one level at a time"));
-    assert!(prompt.contains("Never claim that a Claw capability is unsupported"));
+    assert!(prompt.contains("Never claim that a Yu OS capability is unsupported"));
     assert!(prompt.contains("never executes them"));
 }
 
@@ -157,7 +157,7 @@ fn owner_writable_extra_file_is_prelude_data_not_policy() {
 #[test]
 fn missing_extra_file_is_silent() {
     let p = build_system_prompt(Some(Path::new("/nonexistent/yuos-prompt.md")));
-    assert!(p.contains("YuOS"));
+    assert!(p.contains("Yu OS Agent"));
 }
 
 #[test]
@@ -207,7 +207,7 @@ fn skill_catalog_is_metadata_only_and_traced() {
     fs::create_dir_all(&dir).unwrap();
     fs::write(
         dir.join("SKILL.md"),
-        "---\nname: yuos\ndescription: Claw system operations\n---\nHIDDEN_BODY\n",
+        "---\nname: yuos\ndescription: Yu OS system operations\n---\nHIDDEN_BODY\n",
     )
     .unwrap();
     crate::test_env::sign_test_package(&dir, crate::provenance::PackageKind::Skill, "yuos");
@@ -224,11 +224,11 @@ fn skill_catalog_is_metadata_only_and_traced() {
 
     // The catalogue is extension metadata, so it is *not* in the policy
     // channel — it is prelude data carried in a fenced user message.
-    assert!(!prompt.contains("Claw system operations"));
+    assert!(!prompt.contains("Yu OS system operations"));
     assert!(!prompt.contains("HIDDEN_BODY"));
     assert_eq!(segments.len(), 1);
     assert_eq!(segments[0].source(), INJECTED_SOURCE_SKILLS_CATALOG);
-    assert!(segments[0].content.contains("Claw system operations"));
+    assert!(segments[0].content.contains("Yu OS system operations"));
     assert!(segments[0].content.contains("yu_skill"));
     assert!(!segments[0].content.contains("HIDDEN_BODY"));
     // A Skill's own metadata is extension metadata, never policy, even

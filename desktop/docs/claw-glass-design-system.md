@@ -1,4 +1,4 @@
-# Claw Glass — Desktop Design System
+# Yu OS Glass — Desktop Design System
 
 The single source of truth for the Yu OS desktop visual language. Every
 system app and applet must conform to this. It is implemented at the toolkit
@@ -10,7 +10,7 @@ apply structure, spacing, and the documented component treatments.
 - **Frosted glass, always.** App chrome and floating surfaces are translucent
   and blurred (`is_frosted` on by default). Depth comes from the compositor's
   dual-Kawase blur + layered drop shadows, not from heavy borders.
-- **One accent: Claw brand blue `#005CFE`.** Used for primary actions,
+- **One accent: Yu OS brand blue `#005CFE`.** Used for primary actions,
   selection, focus rings, active states, and brand moments. Do not introduce
   other accent hues per-app.
 - **Bright, never flat-gray, never dead-charcoal.** Light is a cool blue-white
@@ -89,7 +89,7 @@ For EVERY app redesign, first gather and copy from the best real-world designs:
    color palette (hex), typography (family/weight/size/hierarchy), shape
    language (radii/borders/shadow), component treatments, motion/depth cues,
    plus anything else relevant.
-4. **Reconcile** with Claw Glass — keep brand blue + frosted + bright/no-gray,
+4. **Reconcile** with Yu OS Glass — keep brand blue + frosted + bright/no-gray,
    but copy the reference's structure, spacing, hierarchy, and detail quality.
 5. **Implement** to match the analyzed reference as closely as libcosmic/iced
    allows.

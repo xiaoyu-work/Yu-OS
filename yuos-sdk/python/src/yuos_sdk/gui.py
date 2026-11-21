@@ -38,7 +38,7 @@ it uses for one-shot operations and branches on the GUI launch::
 * ``ctx.files``   — file paths the launcher passed (``%F``), if any.
 * ``ctx.ai``      — the :mod:`yuos_sdk.ai` module (gated model access).
 * ``ctx.tools``   — the :mod:`yuos_sdk.tools` module (call other apps).
-* ``ctx.open_agent_overlay(hint=...)`` — summon the "Ask Claw" overlay.
+* ``ctx.open_agent_overlay(hint=...)`` — summon the "Ask Yu OS" overlay.
 
 The app's own files, sockets, and rendering are World A: use plain
 stdlib for them. The kernel only interposes when you reach for ``ai`` /
@@ -63,9 +63,9 @@ from . import ai, tools
 from . import generated
 from .kernel import call_json_with_stdin_binary
 
-ASK_CLAW_LAUNCHER = "/usr/local/bin/yuos-ask-launcher"
-ASK_CLAW_PROTOCOL = 1
-ASK_CLAW_REQUEST_LIMIT = 32 * 1024
+ASK_YU_LAUNCHER = "/usr/local/bin/yuos-ask-launcher"
+ASK_YU_PROTOCOL = 1
+ASK_YU_REQUEST_LIMIT = 32 * 1024
 
 
 def request_file_read(node: int) -> generated.GuiFileRead:
@@ -179,7 +179,7 @@ class GuiContext:
     tools: Any = tools
 
     def open_agent_overlay(self, hint: Optional[str] = None) -> None:
-        """Summon the system "Ask Claw" agent overlay.
+        """Summon the system "Ask Yu OS" agent overlay.
 
         This uses the fixed packaged launcher's authenticated Unix-socket
         protocol. Pass ``hint`` to ground the agent's first response
@@ -191,7 +191,7 @@ class GuiContext:
         """
         _validate_launcher()
         child = subprocess.Popen(  # noqa: S603 - fixed trusted absolute path
-            [ASK_CLAW_LAUNCHER, "--protocol", "1"],
+            [ASK_YU_LAUNCHER, "--protocol", "1"],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
@@ -200,36 +200,36 @@ class GuiContext:
             assert child.stdout is not None
             announced, _, _ = select.select([child.stdout], [], [], 5)
             announcement = child.stdout.readline(257) if announced else b""
-            prefix = f"SOCKET {ASK_CLAW_PROTOCOL} @".encode()
+            prefix = f"SOCKET {ASK_YU_PROTOCOL} @".encode()
             if (
                 len(announcement) > 256
                 or not announcement.startswith(prefix)
                 or not announcement.endswith(b"\n")
             ):
-                raise RuntimeError("invalid Ask Claw socket announcement")
+                raise RuntimeError("invalid Ask Yu OS socket announcement")
             endpoint = announcement[len(prefix) : -1]
             if not endpoint:
-                raise RuntimeError("empty Ask Claw socket endpoint")
-            request = {"protocol": ASK_CLAW_PROTOCOL, "app": self.app_id, "hint": hint}
+                raise RuntimeError("empty Ask Yu OS socket endpoint")
+            request = {"protocol": ASK_YU_PROTOCOL, "app": self.app_id, "hint": hint}
             payload = json.dumps(request, separators=(",", ":")).encode()
-            if len(payload) > ASK_CLAW_REQUEST_LIMIT:
-                raise ValueError("Ask Claw request exceeds the protocol limit")
+            if len(payload) > ASK_YU_REQUEST_LIMIT:
+                raise ValueError("Ask Yu OS request exceeds the protocol limit")
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as channel:
                 channel.settimeout(5)
                 channel.connect(b"\0" + endpoint)
                 if _read_exact(channel, 8) != b"READY 1\n":
-                    raise RuntimeError("unexpected Ask Claw launcher handshake")
+                    raise RuntimeError("unexpected Ask Yu OS launcher handshake")
                 channel.sendall(struct.pack(">I", len(payload)) + payload)
                 channel.shutdown(socket.SHUT_WR)
                 if _read_exact(channel, 11) != b"ACCEPTED 1\n":
-                    raise RuntimeError("unexpected Ask Claw acceptance response")
+                    raise RuntimeError("unexpected Ask Yu OS acceptance response")
         except Exception:
             child.kill()
             child.wait()
             raise
         try:
             threading.Thread(
-                target=child.wait, name="ask-claw-sdk-reaper", daemon=True
+                target=child.wait, name="ask-yu-sdk-reaper", daemon=True
             ).start()
         except Exception:
             child.kill()
@@ -242,7 +242,7 @@ def _read_exact(channel: socket.socket, length: int) -> bytes:
     while len(chunks) < length:
         chunk = channel.recv(length - len(chunks))
         if not chunk:
-            raise RuntimeError("Ask Claw launcher closed the socket")
+            raise RuntimeError("Ask Yu OS launcher closed the socket")
         chunks.extend(chunk)
     return bytes(chunks)
 
@@ -256,8 +256,8 @@ def _validate_launcher() -> None:
             or info.st_uid != 0
             or info.st_mode & 0o022
         ):
-            raise PermissionError(f"untrusted Ask Claw launcher parent: {path}")
-    info = os.lstat(ASK_CLAW_LAUNCHER)
+            raise PermissionError(f"untrusted Ask Yu OS launcher parent: {path}")
+    info = os.lstat(ASK_YU_LAUNCHER)
     if (
         stat.S_ISLNK(info.st_mode)
         or not stat.S_ISREG(info.st_mode)
@@ -265,7 +265,7 @@ def _validate_launcher() -> None:
         or not info.st_mode & 0o111
         or info.st_mode & 0o022
     ):
-        raise PermissionError("untrusted Ask Claw launcher")
+        raise PermissionError("untrusted Ask Yu OS launcher")
 
 
 def context(files: Optional[List[str]] = None) -> GuiContext:

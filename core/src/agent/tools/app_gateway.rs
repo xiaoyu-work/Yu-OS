@@ -1,6 +1,6 @@
 //! Trusted invocation policy for manifest-declared App MCP services.
 //!
-//! This module owns the boundary between an authenticated Claw caller and an
+//! This module owns the boundary between an authenticated Yu OS caller and an
 //! App service. Tool arguments select work; they never supply identity or
 //! authority.
 

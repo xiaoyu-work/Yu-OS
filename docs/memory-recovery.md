@@ -25,7 +25,7 @@ database/WAL/SHM family into a private snapshot, then opens only that snapshot.
 The live files remain byte-for-byte unchanged, including when SQLite would
 otherwise create or rewrite `-shm`. WAL validation covers the format version,
 header checksum, page size, every frame's page/commit fields, salts, and rolling
-checksum. Diagnosis may therefore wait for an active Claw memory handle to
+checksum. Diagnosis may therefore wait for an active Yu OS memory handle to
 close. The FTS check builds a temporary in-memory index from authoritative
 `messages` rows and compares token instances.
 
@@ -160,7 +160,7 @@ Every mutating attempt writes metadata-only `started` and
 `completed`/`failed` records to `memory.db.repair.jsonl`. The log contains
 actions, counts, paths, and errors, but no message or prompt bodies. Normal
 memory handles keep a shared lifecycle lock, while repair requires the
-exclusive lock, so replacement cannot race an active Claw writer. An
+exclusive lock, so replacement cannot race an active Yu OS writer. An
 incomplete quarantine attempt blocks normal database startup. Replacement
 files use an attempt-specific staging name and carry an internal completion
 marker bound to the attempt and quarantined source. The marker and recovered
@@ -170,10 +170,10 @@ database or deletes sidecars that hold the only copy of recovered rows.
 
 ## Recovery Limit
 
-Claw does not attempt page-level or byte-level salvage. For a malformed WAL it
+Yu OS does not attempt page-level or byte-level salvage. For a malformed WAL it
 recovers only rows already present in a separately validated copy of the main
 database; it does not replay suspect WAL frames. If that standalone main copy
 also fails SQLite integrity/schema validation, repair creates an empty, healthy
 replacement and reports the recovery warning. Operators can retain or inspect
-the quarantined evidence with external forensic tooling; Claw never deletes it
+the quarantined evidence with external forensic tooling; Yu OS never deletes it
 automatically.

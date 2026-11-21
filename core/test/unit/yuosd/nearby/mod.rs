@@ -10,7 +10,7 @@ pub(super) fn fixture() -> NearbyView {
             driver: Some("fixture".into()),
             diagnostics: Vec::new(),
         },
-        inbox: "/home/user/Downloads/Claw Nearby".into(),
+        inbox: "/home/user/Downloads/Yu OS Nearby".into(),
         uploads: Vec::new(),
         session: Some(NearbySession {
             id: uuid::Uuid::new_v4().to_string(),

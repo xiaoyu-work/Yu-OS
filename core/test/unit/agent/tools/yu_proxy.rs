@@ -17,8 +17,8 @@ fn names_are_unique_and_snake_cased() {
     for spec in PRIMITIVES {
         assert!(seen.insert(spec.name), "duplicate name {}", spec.name);
         assert!(
-            spec.name.starts_with("cos_"),
-            "name {} should start with cos_",
+            spec.name.starts_with("yu_"),
+            "name {} should start with yu_",
             spec.name
         );
         assert!(

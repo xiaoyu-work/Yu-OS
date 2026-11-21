@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tools/install-mail-ai.sh
 #
-# Install the Claw Mail AI WebExtension and Native Messaging registration
+# Install the Yu OS Mail AI WebExtension and Native Messaging registration
 # for Thunderbird. The shared App, SDK and trusted launcher must already be
 # installed together by yuos-agent; this script never overwrites them.
 #
@@ -71,7 +71,7 @@ install -d -m 0755 "$(dirname "${NM_MANIFEST}")"
 cat > "${NM_MANIFEST}" <<EOF
 {
   "name": "os.yuos.mail_ai",
-  "description": "Claw Mail AI — Native Messaging bridge between Thunderbird and apps/mail-ai",
+  "description": "Yu OS Mail AI — Native Messaging bridge between Thunderbird and apps/mail-ai",
   "path": "${HOST_LAUNCHER}",
   "type": "stdio",
   "allowed_extensions": ["${EXT_ID}"]
@@ -154,11 +154,11 @@ cat <<MSG
 
 Verify:
   1. Restart Thunderbird.
-  2. Look for the Claw AI button on the toolbar and a "Mail Assistant"
+  2. Look for the Yu OS AI button on the toolbar and a "Mail Assistant"
      entry in the Spaces sidebar.
-  3. Open a message — click the Claw AI button in the message header
+  3. Open a message — click the Yu OS AI button in the message header
      to see a Summary popup.
-  4. Open Tools → Add-ons and Themes → check that "Claw Mail AI" is
+  4. Open Tools → Add-ons and Themes → check that "Yu OS Mail AI" is
      installed and enabled.
   5. To debug the Native Messaging bridge:
        journalctl --user -t thunderbird

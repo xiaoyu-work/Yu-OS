@@ -40,7 +40,7 @@ pub const SCHEMA_V1: &str = "claw.provenance/v1";
 pub const ALG_ED25519: &str = "ed25519";
 
 /// Domain separator mixed into the canonical signing bytes. A
-/// signature produced for some other Claw structure can never be
+/// signature produced for some other Yu OS structure can never be
 /// replayed as a package signature.
 const CANON_DOMAIN: &[u8] = b"claw-provenance/v1\x00package-envelope\x00";
 

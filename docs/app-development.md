@@ -197,7 +197,7 @@ your `main.py`
 ([`core/src/bridge.rs:31-60`](../core/src/bridge.rs)), so plain
 `import` statements just work — no `pip install` necessary.
 
-Off-system (writing code on a non-Claw-OS machine) you can either:
+Off-system (writing code on a non-Yu OS-OS machine) you can either:
 
 * set `YUOS_SDK_PYTHON_DIR=/path/to/dir` and arrange both
   `yuos_sdk/` and `yuos_runtime/` as subdirectories of that

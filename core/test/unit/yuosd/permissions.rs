@@ -19,7 +19,7 @@ fn pending_for(owner_uid: u32) -> String {
         Scope::path("/home/owner/report.txt"),
         "session-a",
         "Write the requested report",
-        Some("Claw Agent".into()),
+        Some("Yu OS Agent".into()),
         Some(owner_uid),
     )
     .unwrap()

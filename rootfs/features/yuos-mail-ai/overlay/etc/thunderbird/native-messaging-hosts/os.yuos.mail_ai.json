@@ -1,6 +1,6 @@
 {
   "name": "os.yuos.mail_ai",
-  "description": "Claw Mail AI — Native Messaging bridge between Thunderbird and apps/mail-ai",
+  "description": "Yu OS Mail AI — Native Messaging bridge between Thunderbird and apps/mail-ai",
   "path": "/usr/lib/yuos/yuos-mail-ai-host",
   "type": "stdio",
   "allowed_extensions": ["yu-mail-ai@yuos.io"]

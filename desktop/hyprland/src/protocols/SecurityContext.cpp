@@ -1,6 +1,6 @@
 #include "SecurityContext.hpp"
 #include "../Compositor.hpp"
-#include "../../../hyprland-claw/Claw.hpp"
+#include "../../../hyprland-claw/Yu OS.hpp"
 #include <sys/socket.h>
 using namespace Hyprutils::OS;
 
@@ -33,7 +33,7 @@ CSecurityContextSandboxedClient::CSecurityContextSandboxedClient(CFileDescriptor
     wl_list_init(&m_destroyListener.listener.link);
     if (!clientFD_.setFlags(clientFD_.getFlags() | FD_CLOEXEC))
         return;
-    m_client = Claw::createClient(clientFD_.take(), {clawOrigin, clawToken});
+    m_client = Yu OS::createClient(clientFD_.take(), {clawOrigin, clawToken});
     if (!m_client)
         return;
 
@@ -120,7 +120,7 @@ CSecurityContext::CSecurityContext(SP<CWpSecurityContextV1> resource_, int liste
             r->error(WP_SECURITY_CONTEXT_V1_ERROR_ALREADY_USED, "Context already committed");
             return;
         }
-        if (!Claw::listenerAdded({m_clawOrigin, m_clawToken})) {
+        if (!Yu OS::listenerAdded({m_clawOrigin, m_clawToken})) {
             wl_client_post_implementation_error(r->client(), "No live Root context authority");
             return;
         }
@@ -146,7 +146,7 @@ CSecurityContext::~CSecurityContext() {
     if (m_closeSource)
         wl_event_source_remove(m_closeSource);
     if (m_clawListener)
-        Claw::listenerRemoved({m_clawOrigin, m_clawToken});
+        Yu OS::listenerRemoved({m_clawOrigin, m_clawToken});
 }
 
 bool CSecurityContext::good() {
@@ -169,7 +169,7 @@ void CSecurityContext::onListen(uint32_t mask) {
         return;
     }
 
-    if (!Claw::acceptsContext({m_clawOrigin, m_clawToken}, clientFD.get()))
+    if (!Yu OS::acceptsContext({m_clawOrigin, m_clawToken}, clientFD.get()))
         return;
     auto newClient = CSecurityContextSandboxedClient::create(std::move(clientFD), m_clawOrigin, m_clawToken);
     if UNLIKELY (!newClient) {
@@ -199,8 +199,8 @@ CSecurityContextManagerResource::CSecurityContextManagerResource(SP<CWpSecurityC
     m_resource->setCreateListener([](CWpSecurityContextManagerV1* r, uint32_t id, int32_t lfd, int32_t cfd) {
         CFileDescriptor listen{lfd};
         CFileDescriptor close{cfd};
-        Claw::SOrigin   origin{};
-        if (!Claw::contextOrigin(r->client(), origin)) {
+        Yu OS::SOrigin   origin{};
+        if (!Yu OS::contextOrigin(r->client(), origin)) {
             wl_client_post_implementation_error(r->client(), "No Root context creator authority");
             return;
         }

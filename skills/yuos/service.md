@@ -19,7 +19,7 @@ yu service logs my-api --tail 50
 yu service register \
   --name my-api \
   --command "python app.py" \
-  --workdir /home/cos/api \
+  --workdir /home/operator/api \
   --health-url http://localhost:8000/health \
   --credentials OPENAI_KEY,DB_URL \
   --pre-start "python migrate.py" \

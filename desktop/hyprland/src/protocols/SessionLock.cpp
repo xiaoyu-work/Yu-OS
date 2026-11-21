@@ -1,5 +1,5 @@
 #include "SessionLock.hpp"
-#include "../../../hyprland-claw/Claw.hpp"
+#include "../../../hyprland-claw/Yu OS.hpp"
 #include "../managers/SeatManager.hpp"
 #include "FractionalScale.hpp"
 #include "LockNotify.hpp"
@@ -192,7 +192,7 @@ void CSessionLockProtocol::destroyResource(CSessionLockSurface* surf) {
 }
 
 void CSessionLockProtocol::onLock(CExtSessionLockManagerV1* pMgr, uint32_t id) {
-    if (!Claw::permitted(pMgr->client(), CLAW_SESSION_LOCK)) {
+    if (!Yu OS::permitted(pMgr->client(), CLAW_SESSION_LOCK)) {
         wl_client_post_implementation_error(pMgr->client(), "No OS lockscreen authority");
         return;
     }

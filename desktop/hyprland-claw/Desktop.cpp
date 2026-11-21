@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include "Hyprland.hpp"
-#include "Claw.hpp"
+#include "Yu OS.hpp"
 #include "../hyprland/src/config/shared/actions/ConfigActions.hpp"
 #include "../hyprland/src/desktop/state/FocusState.hpp"
 #include "../hyprland/src/desktop/state/WindowState.hpp"
@@ -20,7 +20,7 @@
 #include <sstream>
 #include <vector>
 
-namespace Claw {
+namespace Yu OS {
     std::string desktopVisual(const ClawDesktopRequest& request, const PHLWINDOW& window);
     bool visualReady(const PHLWINDOW& window);
 

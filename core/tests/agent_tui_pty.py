@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the Claw-owned Agent TUI through a Linux PTY."""
+"""Exercise the Yu OS-owned Agent TUI through a Linux PTY."""
 
 import argparse
 import contextlib
@@ -458,7 +458,7 @@ class FixtureBroker:
                     ),
                     "requested_at": 1767225600,
                     "risk": "low" if metadata else "high",
-                    "requester": "Claw Agent",
+                    "requester": "Yu OS Agent",
                 }]
             }
         if method == "permission.recent" and self.case == "approval-center":
@@ -471,7 +471,7 @@ class FixtureBroker:
                     "reason": "Fetch public release metadata",
                     "requested_at": 1767225500,
                     "risk": "medium",
-                    "requester": "Claw Agent",
+                    "requester": "Yu OS Agent",
                     "decision": {
                         "outcome": "approved",
                         "decided_at": 1767225550,
@@ -1360,7 +1360,7 @@ def run(cos, case, transcript, original_namespace, trace):
                 master,
                 output,
                 time.monotonic() + 10,
-                lambda data: b"Claw broker is unavailable; retrying" in data,
+                lambda data: b"Yu OS broker is unavailable; retrying" in data,
             )
             broker = FixtureBroker(broker_path, case)
         broker.thread.start()
@@ -1476,7 +1476,7 @@ def run(cos, case, transcript, original_namespace, trace):
                     master,
                     output,
                     time.monotonic() + 15,
-                    lambda data: b"Claw - Terminal integration fixture" in data,
+                    lambda data: b"Yu OS - Terminal integration fixture" in data,
                 )
                 settled = time.monotonic() + 0.4
                 read_terminal(
@@ -1607,7 +1607,7 @@ def run(cos, case, transcript, original_namespace, trace):
                     output,
                     time.monotonic() + 15,
                     lambda data: b"Extensions Center" in data
-                    and b"One authenticated Claw extension model" in data,
+                    and b"One authenticated Yu OS extension model" in data,
                 )
                 os.write(master, b"\x1b")
                 time.sleep(0.4)
@@ -2473,9 +2473,9 @@ def run(cos, case, transcript, original_namespace, trace):
                     master,
                     output,
                     time.monotonic() + 15,
-                    lambda data: b"--- Claw transcript snapshot ---" in data
+                    lambda data: b"--- Yu OS transcript snapshot ---" in data
                     and ANSWER.encode() in data
-                    and b"--- end Claw transcript snapshot ---" in data,
+                    and b"--- end Yu OS transcript snapshot ---" in data,
                 )
             if case == "agents":
                 send_prompt(master, output, "/agents")

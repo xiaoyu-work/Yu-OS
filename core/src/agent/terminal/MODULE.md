@@ -1,8 +1,8 @@
-# Claw Agent terminal module
+# Yu OS Agent terminal module
 
 ## Responsibility
 
-Own the in-process terminal presentation for the shared Claw Agent backend.
+Own the in-process terminal presentation for the shared Yu OS Agent backend.
 This module renders UI and translates human input into existing canonical
 conversation, durable task, model, Skill and approval operations. It does not
 own execution, persistence, provider credentials, capabilities, consent or
@@ -15,7 +15,7 @@ audit.
 | `mod.rs` | CLI options, terminal lifecycle, async event loop, commands and task streaming |
 | `actions.rs`, `requests.rs` | Owned asynchronous request snapshots, UI-thread completion updates and independent cancellation |
 | `state.rs` | Bounded transcript, composer, durable-task handles, approval and session state |
-| `commands.rs` | Closed Claw slash catalogue and canonical conversation/model/Skill actions |
+| `commands.rs` | Closed Yu OS slash catalogue and canonical conversation/model/Skill actions |
 | `stream.rs` | Durable task submission, identity/model acknowledgement and stream polling |
 | `ui.rs`, `ui/progress.rs`, `ui/permission.rs` | ratatui layout, live execution animation, wrapped permission viewport, styling, transcript projection and cursor |
 | `presentation.rs` | Redacted model/tool/reasoning/progress projection |
@@ -155,7 +155,7 @@ audit.
   discovered server metadata without starting/probing a server or exposing its
   command, arguments, environment, working directory, URL or credentials.
 - The Platform Extensions Center projects verified, disabled and quarantined
-  Apps, Skills and selected Agent extensions as one Claw extension model.
+  Apps, Skills and selected Agent extensions as one Yu OS extension model.
   It never creates a separate Plugin authority or installs/activates content.
 - The Platform Usage Center queries the owner-scoped canonical AI ledger for
   daily, weekly or cumulative totals. It bounds provider/model breakdowns and
@@ -167,7 +167,7 @@ audit.
   performs confirmed broker logout. It never reads secret values. Foreign-agent
   import stays unavailable until an authenticated OS importer exists; the
   renderer never scans another App's data roots.
-- `Super+Shift+A` opens Voice Center and reports the configured Claw STT/TTS provider, model, voice and
+- `Super+Shift+A` opens Voice Center and reports the configured Yu OS STT/TTS provider, model, voice and
   format without reading credentials. Realtime start/mute/stop in the terminal
   remains unavailable until Desktop's bounded recorder/transcription boundary
   is shared with the TUI. Desktop consumes the same global binding first;

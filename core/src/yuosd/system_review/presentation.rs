@@ -239,7 +239,7 @@ pub(super) fn legacy(owner: u32, review: LegacyReview) -> Result<SystemReview, S
         name: if restoration {
             "App permission restoration"
         } else if request.context.is_some() {
-            "Claw Agent"
+            "Yu OS Agent"
         } else {
             "System capability request"
         }

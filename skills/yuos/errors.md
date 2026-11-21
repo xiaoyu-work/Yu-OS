@@ -68,10 +68,10 @@ Every error response includes a `code` field for programmatic handling:
 ## Handling Errors
 
 ```python
-result = cos("credential", "load", ["OPENAI_KEY"])
+result = yu("credential", "load", ["OPENAI_KEY"])
 if "code" in result:
     if result["code"] == "auth.credential_expired":
-        cos("credential", "oauth-refresh", ["google"])
+        yu("credential", "oauth-refresh", ["google"])
     elif result["code"] == "auth.credential_not_found":
         # prompt user to configure
     elif result["code"].startswith("limit."):

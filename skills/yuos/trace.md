@@ -9,7 +9,7 @@ Call the `yu_trace` tool — **not the shell** — to record a tree-structured j
 ```json
 { "command": "start", "args": ["refactor-task"] }
 { "command": "span",  "args": ["analyze"] }
-// ...do work via other cos_* tools...
+// ...do work via other yu_* tools...
 { "command": "span-end", "args": [] }
 { "command": "span",  "args": ["verify"] }
 // ...
@@ -17,7 +17,7 @@ Call the `yu_trace` tool — **not the shell** — to record a tree-structured j
 { "command": "end",   "args": ["refactor-task"] }
 ```
 
-Once a trace is open, other `cos_*` tool calls in the same session are automatically attached to it — you do not need to thread IDs through every call.
+Once a trace is open, other `yu_*` tool calls in the same session are automatically attached to it — you do not need to thread IDs through every call.
 
 ## View
 

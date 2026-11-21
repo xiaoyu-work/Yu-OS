@@ -22,7 +22,7 @@ fn write_builtin(root: &Path, body: &str) {
     fs::create_dir_all(&dir).unwrap();
     fs::write(
         dir.join("SKILL.md"),
-        format!("---\nname: yuos\ndescription: Claw system operations\n---\n{body}\n"),
+        format!("---\nname: yuos\ndescription: Yu OS system operations\n---\n{body}\n"),
     )
     .unwrap();
     fs::write(dir.join("network.md"), "NETWORK_RESOURCE").unwrap();
@@ -41,7 +41,7 @@ async fn list_discloses_metadata_without_body() {
     assert!(!result.is_error);
     assert!(result.content.contains("source=skills_catalog"));
     assert!(result.content.contains("trust=extension-metadata"));
-    assert!(result.content.contains("Claw system operations"));
+    assert!(result.content.contains("Yu OS system operations"));
     assert!(!result.content.contains("INSTRUCTION_BODY"));
 }
 
@@ -189,7 +189,7 @@ async fn repository_builtin_skill_is_readable_progressively() {
 
     let instructions = tool.exec(json!({"command": "read", "id": "yuos"})).await;
     assert!(!instructions.is_error);
-    assert!(instructions.content.contains("Claw System Agent"));
+    assert!(instructions.content.contains("Yu OS Agent"));
     assert!(instructions.content.contains("diagnostics.md"));
     assert!(!instructions.content.contains("Establish the symptom"));
 

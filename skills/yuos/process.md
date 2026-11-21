@@ -1,6 +1,6 @@
 # Process Sessions
 
-Call the `yu_proc` tool — **not the shell** — to spawn, query, and control long-running processes registered with cos. There is no user-facing `yu proc` CLI command.
+Call the `yu_proc` tool — **not the shell** — to spawn, query, and control long-running processes managed by Yu OS. There is no user-facing `yu proc` CLI command.
 
 ## Tool shape
 

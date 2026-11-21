@@ -108,7 +108,7 @@ owns the single automatic desktop consumer and the original App popup
 lifetime. The OS shell descriptor carries public cards and exact presentation
 actions, not a raw App bus or a model/UI prerequisite.
 
-Helium's Claw Agent side panel uses the same authenticated bridge and Job
+Helium's Yu OS Agent side panel uses the same authenticated bridge and Job
 stream through the Desktop-owned chat Native Messaging client. Chat streams
 also emit `task_status` on nonterminal Job state changes so the browser can
 show permission waits; existing clients can ignore the additive event.

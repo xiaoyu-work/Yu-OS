@@ -183,10 +183,10 @@ fn render_voice_overview(frame: &mut Frame<'_>, screen: Rect, app: &App) {
     let configured = |value| if value { "configured" } else { "not configured" };
     let lines = vec![
         Line::styled(
-            "Claw voice models",
+            "Yu OS voice models",
             Style::default().fg(accent(app)).add_modifier(Modifier::BOLD),
         ),
-        Line::raw("Voice uses the OS-configured Claw media providers, not a Codex backend."),
+        Line::raw("Voice uses the OS-configured Yu OS media providers, not a Codex backend."),
         Line::raw(""),
         Line::styled("Speech to text", Style::default().fg(Color::Yellow)),
         Line::raw(format!(
@@ -317,7 +317,7 @@ fn render_agent_hooks(frame: &mut Frame<'_>, screen: Rect, app: &App) {
             format!("[l] logging: {}", enabled(settings.logging)),
             Style::default().fg(Color::Yellow),
         ),
-        Line::raw("    Emits structured lifecycle events to Claw tracing."),
+        Line::raw("    Emits structured lifecycle events to Yu OS tracing."),
         Line::styled(
             format!("[a] audit: {}", enabled(settings.audit)),
             Style::default().fg(Color::Yellow),
@@ -458,11 +458,11 @@ fn render_extensions_overview(frame: &mut Frame<'_>, screen: Rect, app: &App) {
     );
     let mut lines = vec![
         Line::styled(
-            "One authenticated Claw extension model",
+            "One authenticated Yu OS extension model",
             Style::default().fg(accent(app)).add_modifier(Modifier::BOLD),
         ),
         Line::raw("Apps, Skills, and Agent extensions share one model; MCP stays in MCP Center."),
-        Line::raw("Claw has no separate Plugin authority."),
+        Line::raw("Yu OS has no separate Plugin authority."),
         Line::raw("This inventory executes and activates nothing; package changes stay in OS review flows."),
         Line::raw(""),
     ];
@@ -545,7 +545,7 @@ fn render_usage_overview(frame: &mut Frame<'_>, screen: Rect, app: &App) {
             format!("Owner Agent usage - {}", overview.period.label()),
             Style::default().fg(accent(app)).add_modifier(Modifier::BOLD),
         ),
-        Line::raw("Canonical ledger totals only; Claw does not infer monetary cost."),
+        Line::raw("Canonical ledger totals only; Yu OS does not infer monetary cost."),
         Line::raw(""),
         Line::raw(format!(
             "calls {}  success {}  error {}  duration {} ms",
@@ -733,7 +733,7 @@ fn render_account_overview(frame: &mut Frame<'_>, screen: Rect, app: &App) {
         Line::raw("Provider configuration and conversation history are never deleted by logout."),
         Line::raw(""),
         Line::styled("Import", Style::default().fg(Color::Yellow)),
-        Line::raw("No authenticated foreign-agent importer is registered in this Claw build."),
+        Line::raw("No authenticated foreign-agent importer is registered in this Yu OS build."),
         Line::raw("The renderer will not scan Claude, Cursor, Codex, or other App data roots."),
         Line::raw("Use an explicit OS-reviewed import service when one is installed."),
     ]);
@@ -1773,7 +1773,7 @@ fn render_approval_detail(frame: &mut Frame<'_>, screen: Rect, app: &App) {
     lines.extend(scope.lines().map(|line| Line::raw(line.to_string())));
     lines.push(Line::raw(""));
     lines.push(Line::styled(
-        "Why Claw requested this",
+        "Why Yu OS requested this",
         Style::default()
             .fg(Color::Cyan)
             .add_modifier(Modifier::BOLD),

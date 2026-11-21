@@ -256,14 +256,14 @@ impl Window {
                             "desktop_id": AGENT_DESKTOP_ID,
                             "submitted": result.is_ok(),
                         }));
-                        result.map_err(|error| format!("Claw AI did not confirm opening: {error}"))?;
+                        result.map_err(|error| format!("Yu OS AI did not confirm opening: {error}"))?;
                         Ok(status("submitted"))
                     }
                     (Verb::DESKTOP_LAUNCH, desktop_id) => {
                         let resolved = find_signed_target(desktop_id)?;
                         let Some((target, _)) = resolved else {
                             if desktop_id.starts_with("com.yuos.") {
-                                return Err("no installed signed Claw App owns that desktop entry".into());
+                                return Err("no installed signed Yu OS App owns that desktop entry".into());
                             }
                             let view = self.owner_menu(process, &cap)?;
                             let deadline = Instant::now() + view.expires_in.min(Duration::from_secs(2));
@@ -533,7 +533,7 @@ fn selected_capability(verb: Verb, selection: &str) -> Result<Cap, String> {
 
 fn resolve_target(desktop_id: &str) -> Result<(LaunchTarget, String), String> {
     find_signed_target(desktop_id)?
-        .ok_or_else(|| "no installed signed Claw App owns that desktop entry".into())
+        .ok_or_else(|| "no installed signed Yu OS App owns that desktop entry".into())
 }
 
 fn find_signed_target(desktop_id: &str) -> Result<Option<(LaunchTarget, String)>, String> {

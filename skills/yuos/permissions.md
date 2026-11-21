@@ -23,7 +23,7 @@ Two layers of permissions in Yu OS:
            "--", "analyze.py"] }
 { "command": "spawn",
   "args": ["--session", "builder-1", "--role", "worker",
-           "--scope-path", "/home/cos/project",
+           "--scope-path", "/home/operator/project",
            "--", "build.py"] }
 ```
 

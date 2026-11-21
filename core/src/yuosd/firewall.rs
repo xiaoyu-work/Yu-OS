@@ -14,7 +14,7 @@ use super::authority::{Authorized, Decision};
 use super::client_identity::ClientIdentity;
 
 const TABLE_FAMILY: &str = "inet";
-const TABLE_NAME: &str = "claw_agent";
+const TABLE_NAME: &str = "yuos_agent";
 const TOOL_TIMEOUT: Duration = Duration::from_secs(60);
 const LOCK_TIMEOUT: Duration = Duration::from_secs(5);
 const STREAM_CAP_BYTES: usize = 2 * 1024 * 1024;

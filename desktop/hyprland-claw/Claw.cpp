@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-#include "Claw.hpp"
+#include "Yu OS.hpp"
 #include <algorithm>
 #include <iostream>
 #include <memory>
@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <wayland-server-core.h>
 
-namespace Claw {
+namespace Yu OS {
     class CController;
 
     struct SClient {
@@ -146,7 +146,7 @@ namespace Claw {
         const bool admitted = record->admitted;
         m_clients.emplace(client, std::move(record));
         if (!admitted)
-            wl_client_post_implementation_error(client, "Claw display connection has no live authenticated origin");
+            wl_client_post_implementation_error(client, "Yu OS display connection has no live authenticated origin");
     }
 
     void CController::removeClient(SClient* client) {
@@ -241,7 +241,7 @@ namespace Claw {
         if (m_stopping)
             return;
         m_stopping = true;
-        std::cerr << "Claw compositor authority unavailable; stopping display\n";
+        std::cerr << "Yu OS compositor authority unavailable; stopping display\n";
         if (m_backend.stop)
             m_backend.stop();
     }

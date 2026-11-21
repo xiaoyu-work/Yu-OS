@@ -177,7 +177,7 @@ pub const CATALOG: &[CapMeta] = &[
         Verb::NET_FIREWALL,
         ScopeKind::Name,
         LocalizedStr::new("Manage host firewall rules"),
-        LocalizedStr::new("Add, remove, clear, or restore scoped nftables rules in Claw's dedicated firewall table."),
+        LocalizedStr::new("Add, remove, clear, or restore scoped nftables rules in Yu OS's dedicated firewall table."),
         "🧱",
         Risk::Critical,
     ),
@@ -859,7 +859,7 @@ pub const CATALOG: &[CapMeta] = &[
 
     // -- Attached browser -------------------------------------------------
     // Gates the user's GUI browser (Chromium with the user's profile)
-    // when reached through the Claw agent WebExtension + Native Messaging
+    // when reached through the Yu OS agent WebExtension + Native Messaging
     // host. Per-page actions are host-scoped.
     CapMeta::new(
         Verb::BROWSER_TABS_READ,

@@ -55,7 +55,7 @@ pub(super) fn apply_record(app: &mut App, record: &Value) -> Result<RecordOutcom
                     return Err("task workspace evidence does not match the submitted task".into());
                 }
             }
-            _ => app.push_system("Claw reported progress this terminal cannot display."),
+            _ => app.push_system("Yu OS reported progress this terminal cannot display."),
         }
         return Ok(outcome);
     }
@@ -64,7 +64,7 @@ pub(super) fn apply_record(app: &mut App, record: &Value) -> Result<RecordOutcom
         .get("event")
         .ok_or("task stream record omitted event and progress")?;
     let event: StreamEvent = serde_json::from_value(event.clone())
-        .map_err(|_| "Claw returned an unsupported stream event".to_string())?;
+        .map_err(|_| "Yu OS returned an unsupported stream event".to_string())?;
     match event {
         StreamEvent::TextDelta { text } => app.push_assistant_delta(&text),
         StreamEvent::Message(response) => {

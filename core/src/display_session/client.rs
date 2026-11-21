@@ -102,7 +102,7 @@ fn desktop_session(subscription: &Subscription) -> Result<(), Error> {
             "could not initialize the authenticated desktop user environment",
         ));
     }
-    let presenter = "/usr/libexec/claw-desktop-reviews";
+    let presenter = "/usr/libexec/yuos-desktop-reviews";
     if !Path::new(presenter).try_exists()? {
         eprintln!("Graphical reviews are unavailable until the Desktop package is updated");
         return run_desktop(&command, subscription);

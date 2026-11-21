@@ -2,7 +2,7 @@
 //
 // The provider-neutral types are authoritative: a segment is fenced
 // once, by its ingestion adapter, and the fence travels inside the
-// content. These tests assert every adapter Claw ships preserves that
+// content. These tests assert every adapter Yu OS ships preserves that
 // — in the streaming and non-streaming request builders alike — and
 // that a hostile payload cannot escape its fence or reach the policy
 // channel through any provider's wire shape.

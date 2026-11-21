@@ -132,7 +132,7 @@ let runtimeProgressObserved = false;
 let inlineApprovalDecided = false;
 const memoryNotes = new Map([["USER.md", "Prefer concise replies."], ["MEMORY.md", "OS and Agent experience."]]);
 const nearby = {
-  schema: 1, owner_uid: 1000, inbox: "/home/user/Downloads/Claw Nearby", uploads: [],
+  schema: 1, owner_uid: 1000, inbox: "/home/user/Downloads/Yu OS Nearby", uploads: [],
   probe: { available: true, mode: "exclusive", driver: "synthetic-radio", diagnostics: [] }, session: null,
 };
 let providerReady = true;

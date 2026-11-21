@@ -214,7 +214,7 @@ func Context(files []string) (*GuiContext, error) {
 	return &GuiContext{AppID: appID, Files: files}, nil
 }
 
-// OpenAgentOverlay summons the system "Ask Claw" agent overlay through the
+// OpenAgentOverlay summons the system "Ask Yu OS" agent overlay through the
 // fixed packaged launcher's authenticated Unix-socket protocol. Pass a
 // non-empty hint to ground the agent's first response in the app's
 // current state without polluting the visible chat transcript.
@@ -223,7 +223,7 @@ func Context(files []string) (*GuiContext, error) {
 // app's stdio or event loop. Returns an error if the overlay binary is
 // missing (e.g. a headless box with no desktop shell).
 func (c *GuiContext) OpenAgentOverlay(hint string) error {
-	if err := validateAskClawLauncher(); err != nil {
+	if err := validateAskYuLauncher(); err != nil {
 		return err
 	}
 	cmd := exec.Command(askClawLauncher, "--protocol", fmt.Sprint(askClawProtocol))
@@ -247,12 +247,12 @@ func (c *GuiContext) OpenAgentOverlay(hint string) error {
 			return
 		}
 		if len(line) > 256 {
-			announced <- announcementResult{err: fmt.Errorf("Ask Claw socket announcement is too long")}
+			announced <- announcementResult{err: fmt.Errorf("Ask Yu OS socket announcement is too long")}
 			return
 		}
 		prefix := fmt.Sprintf("SOCKET %d @", askClawProtocol)
 		if !strings.HasPrefix(line, prefix) || !strings.HasSuffix(line, "\n") {
-			announced <- announcementResult{err: fmt.Errorf("invalid Ask Claw socket announcement")}
+			announced <- announcementResult{err: fmt.Errorf("invalid Ask Yu OS socket announcement")}
 			return
 		}
 		announced <- announcementResult{
@@ -271,12 +271,12 @@ func (c *GuiContext) OpenAgentOverlay(hint string) error {
 	case <-time.After(5 * time.Second):
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
-		return fmt.Errorf("Ask Claw launcher readiness timed out")
+		return fmt.Errorf("Ask Yu OS launcher readiness timed out")
 	}
 	if endpoint == "@" {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
-		return fmt.Errorf("empty Ask Claw socket endpoint")
+		return fmt.Errorf("empty Ask Yu OS socket endpoint")
 	}
 	connection, err := net.DialTimeout("unix", endpoint, 5*time.Second)
 	if err != nil {
@@ -297,7 +297,7 @@ func (c *GuiContext) OpenAgentOverlay(hint string) error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("unexpected Ask Claw launcher handshake")
+		return fmt.Errorf("unexpected Ask Yu OS launcher handshake")
 	}
 	request := map[string]any{"protocol": askClawProtocol, "app": c.AppID, "hint": hint}
 	payload, err := json.Marshal(request)
@@ -309,7 +309,7 @@ func (c *GuiContext) OpenAgentOverlay(hint string) error {
 	if len(payload) > askClawRequestLimit {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
-		return fmt.Errorf("Ask Claw request exceeds the protocol limit")
+		return fmt.Errorf("Ask Yu OS request exceeds the protocol limit")
 	}
 	frame := make([]byte, 4+len(payload))
 	binary.BigEndian.PutUint32(frame, uint32(len(payload)))
@@ -323,7 +323,7 @@ func (c *GuiContext) OpenAgentOverlay(hint string) error {
 	if !ok {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
-		return fmt.Errorf("Ask Claw launcher did not provide a Unix socket")
+		return fmt.Errorf("Ask Yu OS launcher did not provide a Unix socket")
 	}
 	if err := unixConnection.CloseWrite(); err != nil {
 		_ = cmd.Process.Kill()
@@ -337,13 +337,13 @@ func (c *GuiContext) OpenAgentOverlay(hint string) error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("unexpected Ask Claw acceptance response")
+		return fmt.Errorf("unexpected Ask Yu OS acceptance response")
 	}
 	go func() { _ = cmd.Wait() }()
 	return nil
 }
 
-func validateAskClawLauncher() error {
+func validateAskYuLauncher() error {
 	for _, path := range []string{"/usr", "/usr/local", "/usr/local/bin"} {
 		info, err := os.Lstat(path)
 		if err != nil {
@@ -352,7 +352,7 @@ func validateAskClawLauncher() error {
 		statInfo, ok := info.Sys().(*syscall.Stat_t)
 		if !ok || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() ||
 			statInfo.Uid != 0 || info.Mode().Perm()&0o022 != 0 {
-			return fmt.Errorf("untrusted Ask Claw launcher parent: %s", path)
+			return fmt.Errorf("untrusted Ask Yu OS launcher parent: %s", path)
 		}
 	}
 	info, err := os.Lstat(askClawLauncher)
@@ -363,7 +363,7 @@ func validateAskClawLauncher() error {
 	if !ok || info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() ||
 		statInfo.Uid != 0 || info.Mode().Perm()&0o111 == 0 ||
 		info.Mode().Perm()&0o022 != 0 {
-		return fmt.Errorf("untrusted Ask Claw launcher")
+		return fmt.Errorf("untrusted Ask Yu OS launcher")
 	}
 	return nil
 }

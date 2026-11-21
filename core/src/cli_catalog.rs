@@ -133,7 +133,7 @@ pub fn builtin_namespaces() -> Vec<NamespaceEntry> {
             "sys",
             "System information - hardware, OS, environment, resources, and live Linux telemetry",
             vec![
-                ("info", "Get host distribution, architecture, hostname, and Claw Agent identity"),
+                ("info", "Get host distribution, architecture, hostname, and Yu OS Agent identity"),
                 ("env", "List environment variables, optionally filtered by pattern"),
                 ("uptime", "Show system uptime"),
                 ("who", "List logged-in users"),

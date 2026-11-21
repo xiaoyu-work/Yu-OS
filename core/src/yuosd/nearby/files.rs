@@ -93,7 +93,7 @@ impl Store {
     }
 
     pub fn inbox(&self) -> PathBuf {
-        self.home.join("Downloads").join("Claw Nearby")
+        self.home.join("Downloads").join("Yu OS Nearby")
     }
 
     pub fn save(&self, view: &NearbyView) -> Result<(), String> {
@@ -477,7 +477,7 @@ impl Store {
                 child(parent, name, libc::O_RDONLY | libc::O_DIRECTORY, 0)
             };
             let downloads = mkdir(&home, "Downloads")?;
-            let inbox = mkdir(&downloads, "Claw Nearby")?;
+            let inbox = mkdir(&downloads, "Yu OS Nearby")?;
             let destination = mkdir(&inbox, transfer)?;
             for name in names {
                 if !file_name(name) {

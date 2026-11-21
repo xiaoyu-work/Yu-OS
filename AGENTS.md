@@ -53,7 +53,7 @@ editing additional surfaces.
 | Staged file plan or guarded replacement | `docs/file-change-plans.md`, `core/src/yuosd/file_changes.rs`, `packaging/apps.lock.json` | Exact session capabilities, authenticated App calls, indeterminate journal handling, external App-owned plans and shared receipts; never restore an OS-local App copy |
 | App execution from a leased Agent task | `core/src/extension_host/`, `core/src/yuosd/app_services.rs`, `core/src/agentd/` | Isolated task/service Hosts, exact per-call authority, broker admission, runtime provenance, cancellation and Activity receipts; no dynamic App code in the model worker |
 | Agent ask/chat loop | `core/src/agent/runtime/loop_.rs`, `core/src/agent/runtime/turn.rs` | `prompt/`, `tools/`, `memory/`, `llm/` |
-| Agent terminal frontend | `core/src/agent/terminal/`, `docs/agent-terminal.md` | Claw-owned ratatui renderer, canonical conversations/tasks/approvals/Activities, `/workspace` context domains and `/directory` filesystem cwd, plain chat compatibility; external TUI binaries and compatibility protocols are not runtime dependencies |
+| Agent terminal frontend | `core/src/agent/terminal/`, `docs/agent-terminal.md` | Yu OS-owned ratatui renderer, canonical conversations/tasks/approvals/Activities, `/workspace` context domains and `/directory` filesystem cwd, plain chat compatibility; external TUI binaries and compatibility protocols are not runtime dependencies |
 | Request context, memory selection, or context budget | `core/src/agent/context/`, `core/src/agent/runtime/context.rs` | `prompt/`, memory tools, continuation/compaction recording; the model chooses additional reads through guarded tools |
 | Agent worker process / broker isolation | `core/src/agentd/`, `core/src/bin/yuos-agentd.rs` | `yuosd/server.rs`, `agent/service.rs`, `yuosd.service`, `packaging/deb/build-debs.sh` |
 | Dynamic App/MCP extension isolation | `core/src/extension_host/`, `core/src/bin/yuos-extension-host.rs` | `agentd/`, `yuosd/server.rs`, App/MCP tool integration, `yuosd.service`, packaging |
@@ -373,7 +373,7 @@ owner-visible evidence rather than silently rewriting a conversation.
 
 Deletion removes shared bytes/tags and disables associated automatic work,
 pauses preserved goals and requests ordinary standalone/Activity Job
-cancellation. Unconfirmed retirement stays pending. Cover CLI, Claw TUI,
+cancellation. Unconfirmed retirement stays pending. Cover CLI, Yu OS TUI,
 authenticated Agent Web and native Agent presentations at exact displayed
 revisions, and update [`docs/workspaces.md`](docs/workspaces.md).
 

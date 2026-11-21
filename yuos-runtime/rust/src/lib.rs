@@ -14,7 +14,7 @@
 //!
 //! | Module        | Wire family | Equivalent route           |
 //! |---------------|-------------|----------------------------|
-//! | [`ask_claw`]  | desktop     | supervised Agent overlay   |
+//! | [`ask_yu`]  | desktop     | supervised Agent overlay   |
 //! | [`policy`]    | `policy`    | hidden policy bridge       |
 //! | [`fs`]        | `app`       | `yu app fs ...`           |
 //! | [`filesystem`] | system    | controlled text-file provider |
@@ -38,7 +38,7 @@
 
 pub use yuos_sdk::{call, call_typed, yu_call_json, BridgeError, Error};
 
-pub mod ask_claw;
+pub mod ask_yu;
 pub mod capture;
 pub mod exec;
 pub mod desktop;

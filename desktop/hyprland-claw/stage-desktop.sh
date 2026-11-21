@@ -110,7 +110,7 @@ ln -s ../yuos-update-offline.service "$units/system-update.target.wants/"
 ln -s ../yuos-update-automatic.timer "$units/timers.target.wants/"
 install -Dm0755 "$session/claw-create-local-owner" "$stage/usr/libexec/claw-create-local-owner"
 install -Dm0755 "$session/claw-desktop-locales" "$stage/usr/libexec/claw-desktop-locales"
-install -Dm0755 "$session/claw-desktop-reviews" "$stage/usr/libexec/claw-desktop-reviews"
+install -Dm0755 "$session/yuos-desktop-reviews" "$stage/usr/libexec/yuos-desktop-reviews"
 install -Dm0644 "$session/greetd.toml" "$stage/etc/greetd/claw-desktop.toml"
 install -Dm0644 "$session/greetd.conf" "$stage/usr/lib/systemd/system/greetd.service.d/claw-desktop.conf"
 install -Dm0644 "$session/claw-desktop-accounts.conf" \

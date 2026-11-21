@@ -20,7 +20,7 @@ conversation and execution evidence.
 
 The inventory also includes `agent.hooks.get/set` for closed built-in hook
 settings. Arbitrary commands, environment values and trust decisions are not
-part of this Claw route.
+part of this Yu OS route.
 
 `notification.view` reports an owner-scoped, bounded conversation-view hint.
 Its viewer/revision and optional session select only notification presentation;

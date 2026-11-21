@@ -156,7 +156,7 @@ def main() -> None:
     try:
         port, token = read_endpoint()
     except FileNotFoundError:
-        raise ValueError("Desktop Agent bridge is not running. Open the Claw Agent desktop app and try again.") from None
+        raise ValueError("Desktop Agent bridge is not running. Open the Yu OS Agent desktop app and try again.") from None
     threading.Thread(target=exit_on_disconnect, daemon=True).start()
     connection = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
     try:

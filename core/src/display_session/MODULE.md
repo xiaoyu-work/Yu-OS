@@ -60,14 +60,14 @@ owner socket enumeration. The Desktop source path has no old compositor fallback
 
 Desktop-menu effects go from the broker to its authenticated Root display
 supervisor on the same epoch. The live system shell can submit owner
-clicks directly; the OS-started Claw Launcher can only submit App selections.
+clicks directly; the OS-started Yu OS Launcher can only submit App selections.
 Other callers require their normal authorization for signed App launches.
 The supervisor pins the publisher and content digest for `yu app <id> --gui`.
 For genuinely unmanaged Linux entries it starts the fixed `gtk4-launch`
 with a desktop-entry ID instead. In both cases it launches as the logged-in
 user inside the display workload. Native XDG activation uses the ordinary
 user bus and cannot inherit any managed App grant. The
-reserved Claw AI menu entry instead opens the protected `yuos-agent-ui` with no
+reserved Yu OS AI menu entry instead opens the protected `yuos-agent-ui` with no
 arguments in that display as the same owner. It does not record audio or send
 an Agent request. Submission does not prove a window appeared.
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include "../include/claw_compositor.h"
-#include "../Claw.hpp"
+#include "../Yu OS.hpp"
 #include <cstdlib>
 #include <iostream>
 
@@ -25,19 +25,19 @@ int main() {
         return 8;
     if (claw_selection_send(nullptr, nullptr, 0, -1))
         return 9;
-    if (Claw::initialize())
+    if (Yu OS::initialize())
         return 10;
-    if (Claw::permitted(nullptr, CLAW_PANEL))
+    if (Yu OS::permitted(nullptr, CLAW_PANEL))
         return 11;
-    Claw::SOrigin origin{};
-    if (Claw::contextOrigin(nullptr, origin))
+    Yu OS::SOrigin origin{};
+    if (Yu OS::contextOrigin(nullptr, origin))
         return 12;
     ClawDesktopRequest desktop{};
     if (claw_compositor_take_desktop(nullptr, 1, &desktop))
         return 13;
     if (claw_compositor_desktop_response(nullptr, 1, nullptr, 0))
         return 14;
-    Claw::shutdown();
+    Yu OS::shutdown();
     std::cout << "Native compositor ABI rejects unauthenticated startup and invalid handles\n";
     return 0;
 }

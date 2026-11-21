@@ -6,7 +6,7 @@
 #include "init/initHelpers.hpp"
 #include "ipc/s1/S1.hpp"
 #include "helpers/env/Env.hpp"
-#include "../../hyprland-claw/Claw.hpp"
+#include "../../hyprland-claw/Yu OS.hpp"
 
 #include <csignal>
 #include <cstdio>
@@ -199,8 +199,8 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (!verifyConfig && !Claw::initialize()) {
-        std::println(stderr, "[ ERROR ] Claw Root display activation is required.");
+    if (!verifyConfig && !Yu OS::initialize()) {
+        std::println(stderr, "[ ERROR ] Yu OS Root display activation is required.");
         return 1;
     }
 

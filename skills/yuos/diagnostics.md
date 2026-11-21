@@ -28,7 +28,7 @@ Use `--quick` when latency matters. For storage questions, pass `--path` only
 for a directory the user actually asked about:
 
 ```json
-{"command":"run","args":["--domain","storage","--path","/home/cos","disk is full"]}
+{"command":"run","args":["--domain","storage","--path","/home/operator","disk is full"]}
 ```
 
 ## 3. Form hypotheses

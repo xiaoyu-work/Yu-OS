@@ -86,7 +86,7 @@ impl Request {
                 super::validate_version(version.as_str())?;
             }
             (Action::InstallRelease, _, _) | (_, Some(_), _) => {
-                return Err("An exact release requires one Claw App package and version".into());
+                return Err("An exact release requires one Yu OS App package and version".into());
             }
             _ => {}
         }

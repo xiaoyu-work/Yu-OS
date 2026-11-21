@@ -595,7 +595,7 @@ pub struct McpService {
     #[serde(default)]
     pub lifecycle: McpLifecycle,
 
-    /// Which authenticated Claw principals may address this service.
+    /// Which authenticated Yu OS principals may address this service.
     /// This is a restriction only; callers still need exact invoke
     /// authority and every tool's capabilities.
     #[serde(default)]
