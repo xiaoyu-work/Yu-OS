@@ -38,6 +38,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  YUOS_APT_SIGNING_FINGERPRINT: "CB53349313705C3BCB1C2F84BEB2F1F489A298CA"
 
 jobs:
   prepare:

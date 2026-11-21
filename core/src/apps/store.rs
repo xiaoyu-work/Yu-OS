@@ -18,7 +18,7 @@ use crate::provenance::VerifiedPackage;
 
 pub(crate) const REPOSITORY: &str = "xiaoyu-work/yuos-app";
 pub(crate) const INDEX_URL: &str = "https://xiaoyu-work.github.io/yuos-app/store/index.json";
-pub(crate) const ARCHIVE_FINGERPRINT: &str = "ADBA1957E712B6C80B4CC8736C044D6F411416AF";
+pub(crate) const ARCHIVE_FINGERPRINT: &str = "298947DD10F7AA7B826CB5E955F6681DBB421765";
 pub(crate) const MAX_METADATA: usize = 8 * 1024 * 1024;
 #[cfg(test)]
 pub(crate) const MAX_DOWNLOAD: u64 = 256 * 1024 * 1024;

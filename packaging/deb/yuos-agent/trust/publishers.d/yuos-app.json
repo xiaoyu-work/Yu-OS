@@ -2,9 +2,9 @@
   "schema": "yuos.trust/v1",
   "keys": [
     {
-      "key_id": "sha256:9a41c8abdd30942c7917211cf90c3230ed48734f6329eb7ee98e57fcd6545555",
+      "key_id": "sha256:446530c9189e8aff4a5db3871f3ac8ed82b2f06e1c0423c4bfb28babd81f5ed1",
       "algorithm": "ed25519",
-      "public_key": "1a738dec9e6d9e62806feca51bc3d715a8eebcdc5dfaa4531a9b8124f66b2e95",
+      "public_key": "2595e72462fed84555604ea15078ee3382258ebb4e5a69868f83eaa4bb14e3e4",
       "usages": ["package-signing"],
       "kinds": ["app"],
       "status": "active",

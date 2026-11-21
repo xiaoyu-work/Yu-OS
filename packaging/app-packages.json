@@ -5,7 +5,7 @@
   "component": "main",
   "architectures": ["amd64", "arm64"],
   "signing_key": "core/assets/app-store-archive-key.asc",
-  "signing_fingerprint": "ADBA1957E712B6C80B4CC8736C044D6F411416AF",
+  "signing_fingerprint": "298947DD10F7AA7B826CB5E955F6681DBB421765",
   "runtime_minimum": "0.1.0",
   "headless_set": "yuos-apps-agent",
   "desktop_extras": ["yuos-app-mail-desktop"]
