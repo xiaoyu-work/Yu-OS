@@ -1,10 +1,10 @@
 //! Deterministic system-diagnosis orchestration.
 //!
-//! `yu agent diagnose` and the `cos_diagnose` agent tool use the same
+//! `yu agent diagnose` and the `yu_diagnose` agent tool use the same
 //! read-only pipeline:
 //!
 //! 1. Route the symptom to a diagnostic domain.
-//! 2. Select a bounded set of `cos_sysinfo` probes.
+//! 2. Select a bounded set of `yu_sysinfo` probes.
 //! 3. Collect structured evidence.
 //! 4. Apply conservative, explicit thresholds.
 //! 5. Return findings with evidence references and confidence.

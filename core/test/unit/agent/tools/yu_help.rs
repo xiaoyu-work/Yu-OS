@@ -1,0 +1,213 @@
+use super::*;
+
+#[tokio::test]
+async fn stdio_discovery_explains_the_human_host_transport_without_exposing_a_tool() {
+    let schema = parse(YuHelp.exec(json!({"path": ["app", "stdio"]})).await);
+    assert_eq!(schema["command"], "yu app stdio");
+    assert_eq!(schema["model_callable"], false);
+    assert!(schema["model_tool"].is_null());
+    assert_eq!(schema["output_format"], "opaque");
+    assert_eq!(schema["stdin"], true);
+    assert_eq!(schema["parameters"][0]["name"], "id");
+    assert_eq!(schema["parameters"][1]["name"], "operation");
+    assert!(schema["parameters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|parameter| parameter["name"] != "program"));
+}
+
+fn parse(result: ToolResult) -> Value {
+    assert!(!result.is_error, "unexpected discovery error: {result:?}");
+    serde_json::from_str(&result.content).expect("discovery result must be JSON")
+}
+
+#[tokio::test]
+async fn walks_root_to_agent_usage_without_executing_a_command() {
+    let tool = YuHelp;
+
+    let root = parse(tool.exec(json!({"path": []})).await);
+    assert!(root["primitives"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|entry| entry["name"] == "agent"));
+
+    let agent = parse(tool.exec(json!({"path": ["agent"]})).await);
+    assert_eq!(agent["kind"], "namespace");
+    assert!(agent["commands"].get("usage").is_some());
+
+    let usage = parse(tool.exec(json!({"path": ["agent", "usage"]})).await);
+    assert_eq!(usage["kind"], "namespace");
+    assert_eq!(usage["command"], "yu agent usage");
+    assert_eq!(usage["model_tool"], "yu_usage");
+}
+
+#[tokio::test]
+async fn leaf_discovery_includes_the_shared_cli_schema() {
+    let result = parse(
+        YuHelp
+            .exec(json!({"path": ["checkpoint", "rollback"]}))
+            .await,
+    );
+    assert_eq!(result["schema_available"], true);
+    assert!(result["parameters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|parameter| parameter["name"] == "checkpoint_id"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn activity_discovery_is_read_only_and_does_not_grant_model_control() {
+    let _lock = crate::test_env::lock_env();
+    let data = tempfile::tempdir().unwrap();
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
+    let result = parse(
+        YuHelp
+            .exec(json!({"path": ["activity", "complete"]}))
+            .await,
+    );
+    assert_eq!(result["found"], true);
+    assert_eq!(result["model_callable"], false);
+    assert!(result["parameters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|parameter| parameter["name"] == "--note" && parameter["required"] == true));
+    assert!(!data.path().join("activities.db").exists());
+}
+
+#[tokio::test]
+async fn rejects_flags_operands_and_hidden_routes() {
+    let tool = YuHelp;
+    for input in [
+        json!({"path": ["--help"]}),
+        json!({"path": ["__policy"]}),
+        json!({"path": ["agent", "usage", "overall", "extra", "too-deep"]}),
+        json!({"path": [], "command": "agent"}),
+    ] {
+        let result = tool.exec(input).await;
+        assert!(result.is_error, "expected structural rejection: {result:?}");
+    }
+}
+
+#[test]
+fn accepts_namespaced_app_operation_names_without_allowing_traversal() {
+    assert!(valid_segment("notes.create"));
+    assert!(!valid_segment(".hidden"));
+    assert!(!valid_segment("notes..create"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn discovers_namespaced_app_operation() {
+    let _lock = crate::test_env::lock_env();
+    let apps = tempfile::tempdir().unwrap();
+    let app = apps.path().join("notes");
+    std::fs::create_dir_all(&app).unwrap();
+    std::fs::write(
+        app.join("app.json"),
+        r#"{
+            "id":"notes",
+            "version":"0.1",
+            "name": {"en": "Notes"},
+            "operations":{
+                "notes.create":{"label": {"en": "Create note"}}
+            }
+        }"#,
+    )
+    .unwrap();
+    // `yu_help` is a model-visible surface, so it only advertises Apps
+    // whose provenance authenticated.
+    crate::test_env::sign_test_package(&app, crate::provenance::PackageKind::App, "notes");
+    let _apps_dir = crate::test_env::TestEnvVarGuard::set("YUOS_APPS_DIR", apps.path());
+
+    let result = parse(
+        YuHelp
+            .exec(json!({"path": ["app", "notes", "notes.create"]}))
+            .await,
+    );
+    assert_eq!(result["found"], true);
+    assert_eq!(result["command"], "yu app notes notes.create");
+    assert_eq!(result["model_callable"], false);
+    assert!(result["model_tool"].is_null());
+}
+
+#[tokio::test]
+async fn recursively_discovers_nested_agent_commands() {
+    let tool = YuHelp;
+    let dev = parse(tool.exec(json!({"path": ["agent", "dev"]})).await);
+    assert_eq!(dev["kind"], "namespace");
+    assert!(dev["subcommands"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("usage")));
+
+    let legacy_usage = parse(tool.exec(json!({"path": ["agent", "dev", "usage"]})).await);
+    assert_eq!(legacy_usage["canonical_command"], "yu agent usage");
+    assert_eq!(legacy_usage["model_tool"], "yu_usage");
+
+    let setup = parse(
+        tool.exec(json!({"path": ["agent", "setup", "text", "providers"]}))
+            .await,
+    );
+    assert_eq!(setup["found"], true);
+    assert_eq!(setup["command"], "yu agent setup text providers");
+
+    let budget = parse(tool.exec(json!({"path": ["agent", "budget"]})).await);
+    assert_eq!(budget["kind"], "namespace");
+    let user = parse(
+        tool.exec(json!({"path": ["agent", "budget", "user"]}))
+            .await,
+    );
+    assert_eq!(user["kind"], "namespace");
+    let show = parse(
+        tool.exec(json!({"path": ["agent", "budget", "user", "show"]}))
+            .await,
+    );
+    assert_eq!(show["command"], "yu agent budget user show");
+
+    let provider = parse(
+        tool.exec(json!({"path": ["agent", "usage", "provider"]}))
+            .await,
+    );
+    assert_eq!(provider["model_tool"], "yu_usage");
+
+    let skill_stats = parse(
+        tool.exec(json!({"path": ["agent", "skills", "usage", "stats"]}))
+            .await,
+    );
+    assert_eq!(skill_stats["command"], "yu agent skills usage stats");
+}
+
+#[tokio::test]
+async fn distinguishes_app_management_from_installed_apps() {
+    let tool = YuHelp;
+    let app = parse(tool.exec(json!({"path": ["app"]})).await);
+    assert!(app["management"].get("install").is_some());
+
+    let consent = parse(tool.exec(json!({"path": ["app", "consent"]})).await);
+    assert_eq!(consent["kind"], "namespace");
+    assert!(consent["subcommands"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("grant")));
+
+    let grant = parse(
+        tool.exec(json!({"path": ["app", "consent", "grant"]}))
+            .await,
+    );
+    assert_eq!(grant["command"], "yu app consent grant");
+    assert_eq!(grant["model_callable"], false);
+}
+
+#[tokio::test]
+async fn unknown_paths_return_bounded_navigation_help() {
+    let tool = YuHelp;
+    let result = parse(tool.exec(json!({"path": ["agent", "not-real"]})).await);
+    assert_eq!(result["found"], false);
+    assert!(result["available"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("usage")));
+}

@@ -1,7 +1,7 @@
-# Building the Claw OS Desktop Image
+# Building the Yu OS Desktop Image
 
 The desktop profile builds Hyprland and the graphical Agent against Debian 13.
-`claw-os-desktop` also contains the signed Desktop Shell (Quickshell, Caelestia
+`yuos-desktop` also contains the signed Desktop Shell (Quickshell, Caelestia
 and private Qt). Every other Claw App is installed by default through its own
 package. The build stops if the approved Shell input or signed App APT inputs
 are unavailable.
@@ -20,7 +20,7 @@ sudo ./presets/desktop.sh
 ```
 
 `DESKTOP_SHELL_RELEASE` is the version of an approved immutable
-`desktop-shell-v<version>` release in `xiaoyu-work/clawos-app`. Supply the
+`desktop-shell-v<version>` release in `xiaoyu-work/yuos-app`. Supply the
 same version as `desktop_shell_version` when dispatching the OS `desktop`,
 `installer` or `all` target. It is a build input, not a package the user installs. Changing
 it for a published Desktop requires a new OS package version.
@@ -28,10 +28,10 @@ The build's signature check uses Bubblewrap with only the packaged publisher;
 it does not read or change the build host's trust store.
 
 Use the native architecture and corresponding GRUB package on arm64.
-The default output is `build/claw-os-vm-amd64.vmdk`; import it into VMware.
+The default output is `build/yuos-vm-amd64.vmdk`; import it into VMware.
 See [the Azure build](building-azure.md) for a generalized Gen2 VHD.
 
-For a bootable amd64 installer, the manual **Release Claw OS → installer**
+For a bootable amd64 installer, the manual **Release Yu OS → installer**
 target builds a BIOS/UEFI Calamares ISO from the same run's verified Agent,
 Base and Desktop packages. The ISO and its SHA-256 checksum are run artifacts,
 not a public release or hardware certification. Verify a clean installation and
@@ -48,7 +48,7 @@ password field at the bottom. First-run setup keeps its frosted-glass panels.
 
 The signed system shell starts with its built-in desktop permissions.
 Other App permission requests still appear in the graphical OS review
-window. The headless VM still sets up its `cos` account on the serial console.
+window. The headless VM still sets up its `yu` account on the serial console.
 
 On an installed machine, the greeter and desktop use the connected display's
 preferred mode as reported by its graphics driver. The setup wizard fits that

@@ -1,6 +1,6 @@
-# Pre-configure the Claw OS apt repository on the installed system so
+# Pre-configure the Yu OS apt repository on the installed system so
 # `apt update && apt upgrade` pulls newer cos packages from
-# https://xiaoyu-work.github.io/claw-os.
+# https://xiaoyu-work.github.io/Yu-OS/apt.
 #
 # Apply this feature on headless and installed system targets, including Docker,
 # WSL, ISO, VM, and installer images.

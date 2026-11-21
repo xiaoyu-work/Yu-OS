@@ -1,7 +1,7 @@
-//! HTTP routes for `cos-agent-bridge`.
+//! HTTP routes for `yuos-agent-bridge`.
 //!
 //! Pure `/api/*` JSON+SSE surface — no static file serving. The
-//! React SPA was retired in favour of `cos-agent-ui` (native
+//! React SPA was retired in favour of `yuos-agent-ui` (native
 //! libcosmic), which talks to these endpoints directly. If a stray
 //! browser hits `/`, axum 404s, which is what we want.
 
@@ -26,7 +26,7 @@ mod voice;
 /// easily exceeds axum's 2 MiB default body limit, so raise it on this route.
 const VOICE_MAX_BYTES: usize = 25 * 1024 * 1024;
 const CONTINUITY_IMPORT_MAX_HTTP_BYTES: usize = 512 * 1024;
-const CHAT_MAX_HTTP_BYTES: usize = cos_agent_protocol::MAX_CHAT_REQUEST_BYTES;
+const CHAT_MAX_HTTP_BYTES: usize = yuos_agent_protocol::MAX_CHAT_REQUEST_BYTES;
 
 pub fn api() -> Router<AppState> {
     Router::new()

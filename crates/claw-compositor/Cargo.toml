@@ -10,5 +10,5 @@ publish = false
 crate-type = ["rlib", "staticlib"]
 
 [dependencies]
-claw-display-control = { path = "../claw-display-control" }
+yuos-display-control = { path = "../yuos-display-control" }
 libc = "0.2"

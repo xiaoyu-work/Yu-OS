@@ -14,16 +14,16 @@ struct DataDirGuard {
 impl Drop for DataDirGuard {
     fn drop(&mut self) {
         match self.prev.take() {
-            Some(v) => env::set_var("COS_DATA_DIR", v),
-            None => env::remove_var("COS_DATA_DIR"),
+            Some(v) => env::set_var("YUOS_DATA_DIR", v),
+            None => env::remove_var("YUOS_DATA_DIR"),
         }
     }
 }
 
 fn redirect_data_dir() -> DataDirGuard {
     let tmp = tempfile::tempdir().unwrap();
-    let prev = env::var_os("COS_DATA_DIR");
-    env::set_var("COS_DATA_DIR", tmp.path());
+    let prev = env::var_os("YUOS_DATA_DIR");
+    env::set_var("YUOS_DATA_DIR", tmp.path());
     DataDirGuard { prev, _tmp: tmp }
 }
 

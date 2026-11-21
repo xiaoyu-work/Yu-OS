@@ -24,7 +24,7 @@ operation or `main.py` entry.
 
 ## Shared preview service
 
-Inside an installed Linux or WSL Claw OS system:
+Inside an installed Linux or WSL Yu OS system:
 
 ```bash
 yu operation preview fs write -- /home/user/draft.md --content Draft

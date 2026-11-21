@@ -1,5 +1,5 @@
-name := 'cos-agent-ui'
-launcher-name := 'cos-ask-claw-launcher'
+name := 'yuos-agent-ui'
+launcher-name := 'yuos-ask-launcher'
 
 rootdir := ''
 prefix := '/usr/local'
@@ -18,7 +18,7 @@ default: build-release
 # Compile with debug profile
 build-debug *args:
     cargo build {{args}}
-    CARGO_TARGET_DIR={{cargo-target-dir}} cargo build --manifest-path ../../../cos-runtime/rust/Cargo.toml --bin {{launcher-name}} {{args}}
+    CARGO_TARGET_DIR={{cargo-target-dir}} cargo build --manifest-path ../../../yuos-runtime/rust/Cargo.toml --bin {{launcher-name}} {{args}}
 
 # Compile with release profile
 build-release *args: (build-debug '--release' args)
@@ -28,7 +28,7 @@ check *args:
     cargo clippy --all-features {{args}}
 
 # Install the native UI and the secure SDK launcher. The desktop entry is
-# supplied by the rootfs desktop overlay and invokes `cos-agent-ui` directly.
+# supplied by the rootfs desktop overlay and invokes `yuos-agent-ui` directly.
 install:
     install -Dm0755 {{bin-src}} {{bin-dst}}
     install -Dm0755 {{launcher-src}} {{launcher-dst}}

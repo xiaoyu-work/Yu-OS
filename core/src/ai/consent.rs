@@ -1,6 +1,6 @@
 //! Per-app user consent for AI-using Apps.
 //!
-//! Lives at `$HOME/.config/cos/consents/<app_id>.json`. Records the
+//! Lives at `$HOME/.config/yuos/consents/<app_id>.json`. Records the
 //! user's explicit approval of an App's declared AI policy at a
 //! specific moment in time. The gate refuses to run any AI call from
 //! an App that lacks a current, fresh consent record.

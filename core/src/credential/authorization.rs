@@ -98,10 +98,10 @@ pub(super) fn require_credential_access(
 /// granted ROOT whenever the policy registry could not be loaded — a clear
 /// fail-open default for a privilege check. We now distinguish:
 ///
-///   * No `COS_SESSION` env var at all → direct interactive CLI, tier 0
+///   * No `YUOS_SESSION` env var at all → direct interactive CLI, tier 0
 ///     (matches historical UX where a human at a shell is treated as root on
 ///     their own machine).
-///   * `COS_SESSION` set but the registry lookup fails or returns no tier →
+///   * `YUOS_SESSION` set but the registry lookup fails or returns no tier →
 ///     `u8::MAX`, i.e. the weakest possible tier. This causes
 ///     [`tier_grants_access`] to deny everything except `min_tier == u8::MAX`
 ///     credentials (none exist in practice), so a missing/corrupt registry can

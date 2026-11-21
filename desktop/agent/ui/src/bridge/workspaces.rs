@@ -1,7 +1,7 @@
 //! Typed human Workspace transport; no local context or file authority.
 
 use super::*;
-use cos_agent_protocol::{SessionCreateRequest, workspaces::*};
+use yuos_agent_protocol::{SessionCreateRequest, workspaces::*};
 
 #[derive(Debug, Clone)]
 pub enum ReadResult {

@@ -9,7 +9,7 @@
 //! - `messages_fts(content)` — FTS5 contentless virtual table indexed by triggers.
 //!
 //! The DB lives at `data_dir/agent/memory.db` by default and uses WAL mode so
-//! concurrent readers (e.g. the `cos_recall` tool) don't block writers.
+//! concurrent readers (e.g. the `yu_recall` tool) don't block writers.
 //!
 //! Failures are designed to be non-fatal: if `record_message` errors, the
 //! caller is expected to log and continue — losing a memory record is better
@@ -1756,7 +1756,7 @@ pub fn render_message_content(msg: &crate::agent::llm::Message) -> String {
 }
 
 /// Map a Role enum into the role string we store in the DB. Kept centralised
-/// so the cos_recall tool can pretty-print without re-deriving the strings.
+/// so the yu_recall tool can pretty-print without re-deriving the strings.
 pub fn role_str(role: crate::agent::llm::Role) -> &'static str {
     match role {
         crate::agent::llm::Role::System => "system",

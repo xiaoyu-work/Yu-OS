@@ -5,13 +5,13 @@ use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
-use claw_display_control::identity::pidfd_exited;
-use claw_display_control::wire::{
+use yuos_display_control::identity::pidfd_exited;
+use yuos_display_control::wire::{
     monotonic_ms, AuthorityCommand, AuthorityReply, CompositorCommand, CompositorReply, PamCommand,
     PamReply, SessionEvent, SessionRequest, LaunchTarget, COMPOSITOR, HOST_RETIRE_TIMEOUT,
     GuiRefusal, MENU_LAUNCH_DIGEST, MENU_LAUNCH_PUBLISHER, SESSION_DIRECTORY,
 };
-use claw_display_control::{Connection, Epoch, Error, KernelLogin, Listener, ProcessIdentity};
+use yuos_display_control::{Connection, Epoch, Error, KernelLogin, Listener, ProcessIdentity};
 
 use super::containment::{self, Containment};
 use super::locker::{Locker, Status as LockStatus, LOCK_START_MS};
@@ -34,7 +34,7 @@ struct Controllers {
     epoch: Epoch,
     login: KernelLogin,
     expires_ms: u64,
-    locale: claw_display_control::locale::LocaleEnvironment,
+    locale: yuos_display_control::locale::LocaleEnvironment,
 }
 
 impl Controllers {
@@ -380,7 +380,7 @@ impl Supervisor {
         Ok(())
     }
 
-    fn launch(&mut self, request: claw_display_control::InstanceId, expires: u64, process: DesktopProcess, from_dock: bool) -> Result<(), Error> {
+    fn launch(&mut self, request: yuos_display_control::InstanceId, expires: u64, process: DesktopProcess, from_dock: bool) -> Result<(), Error> {
         let now = monotonic_ms()?;
         let app_id = match &process {
             DesktopProcess::App(target) => Some(target.app_id.clone()),
@@ -417,7 +417,7 @@ impl Supervisor {
         )
     }
 
-    fn lock(&mut self, instance: claw_display_control::InstanceId, expires: u64) -> Result<(), Error> {
+    fn lock(&mut self, instance: yuos_display_control::InstanceId, expires: u64) -> Result<(), Error> {
         let now = monotonic_ms()?;
         let epoch = self.controllers.epoch;
         let failure = if expires <= now || expires > now.saturating_add(LOCK_START_MS) {
@@ -627,7 +627,7 @@ impl Supervisor {
     }
 
     fn start_shell(&mut self, subscriber: &Subscriber) -> Result<(), Error> {
-        const CLIENT: &str = "/usr/local/bin/claw-display-session";
+        const CLIENT: &str = "/usr/local/bin/yuos-display-session";
         self.controllers.assert_live()?;
         if self.shell_started
             || parent_pid(&subscriber.process)? != self.controllers.parent.pid()
@@ -813,7 +813,7 @@ fn spawn_desktop_process(
     process: DesktopProcess,
 ) -> Result<Child, Error> {
     const COS: &str = "/usr/local/bin/yu";
-    const AGENT: &str = "/usr/local/bin/cos-agent-ui";
+    const AGENT: &str = "/usr/local/bin/yuos-agent-ui";
     let executable = match &process {
         DesktopProcess::Native(_) => "/usr/bin/gtk4-launch",
         DesktopProcess::Agent => AGENT,
@@ -834,7 +834,7 @@ fn spawn_desktop_process(
         .env("USER", username)
         .env("LOGNAME", username)
         .env("PATH", "/usr/local/bin:/usr/bin:/bin")
-        .env("COS_APPS_DIR", "/usr/lib/cos/apps")
+        .env("YUOS_APPS_DIR", "/usr/lib/yuos/apps")
         .env("XDG_RUNTIME_DIR", &runtime)
         .env("WAYLAND_DISPLAY", display)
         .env("XDG_SESSION_TYPE", "wayland")
@@ -855,7 +855,7 @@ fn spawn_desktop_process(
         }
         DesktopProcess::Native(desktop_id) => {
             command.args(["--", &desktop_id])
-                .env_remove("COS_APPS_DIR")
+                .env_remove("YUOS_APPS_DIR")
                 .env("DBUS_SESSION_BUS_ADDRESS", format!("unix:path={runtime}/bus"))
                 .env("XDG_DATA_DIRS", std::env::join_paths([
                     home.join(".local/share/flatpak/exports/share"),

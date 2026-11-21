@@ -12,7 +12,7 @@ fn now() -> DateTime<Utc> {
 fn authorization() -> Authorization {
     Authorization {
         id: new_id(),
-        package: "claw-os-agent".to_string(),
+        package: "yuos-agent".to_string(),
         security_epoch: 1,
         version: "1:0.2.0+git100.gaaaaaaaaaaaa".to_string(),
         manifest_sha256: "a".repeat(64),
@@ -44,7 +44,7 @@ fn an_authorization_only_covers_exactly_what_it_names() {
     let subject = authorization();
     assert!(subject
         .authorizes(
-            "claw-os-agent",
+            "yuos-agent",
             "1:0.2.0+git100.gaaaaaaaaaaaa",
             1,
             &"a".repeat(64),
@@ -57,7 +57,7 @@ fn an_authorization_only_covers_exactly_what_it_names() {
     // Wrong component.
     assert!(subject
         .authorizes(
-            "claw-os-base",
+            "yuos-base",
             "1:0.2.0+git100.gaaaaaaaaaaaa",
             1,
             &"a".repeat(64),
@@ -69,7 +69,7 @@ fn an_authorization_only_covers_exactly_what_it_names() {
     // Wrong version.
     assert!(subject
         .authorizes(
-            "claw-os-agent",
+            "yuos-agent",
             "1:0.2.0+git101.gaaaaaaaaaaaa",
             1,
             &"a".repeat(64),
@@ -81,7 +81,7 @@ fn an_authorization_only_covers_exactly_what_it_names() {
     // Wrong epoch.
     assert!(subject
         .authorizes(
-            "claw-os-agent",
+            "yuos-agent",
             "1:0.2.0+git100.gaaaaaaaaaaaa",
             2,
             &"a".repeat(64),
@@ -93,7 +93,7 @@ fn an_authorization_only_covers_exactly_what_it_names() {
     // Wrong artifact.
     assert!(subject
         .authorizes(
-            "claw-os-agent",
+            "yuos-agent",
             "1:0.2.0+git100.gaaaaaaaaaaaa",
             1,
             &"c".repeat(64),
@@ -105,7 +105,7 @@ fn an_authorization_only_covers_exactly_what_it_names() {
     // Floor has moved on: a stored token cannot be replayed later.
     assert!(subject
         .authorizes(
-            "claw-os-agent",
+            "yuos-agent",
             "1:0.2.0+git100.gaaaaaaaaaaaa",
             1,
             &"a".repeat(64),
@@ -117,7 +117,7 @@ fn an_authorization_only_covers_exactly_what_it_names() {
     // Expired.
     assert!(subject
         .authorizes(
-            "claw-os-agent",
+            "yuos-agent",
             "1:0.2.0+git100.gaaaaaaaaaaaa",
             1,
             &"a".repeat(64),

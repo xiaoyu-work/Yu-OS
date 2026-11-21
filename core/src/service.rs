@@ -4,9 +4,9 @@
 /// generic system that discovers service definitions from JSON files,
 /// manages lifecycle (start/stop/restart), tracks health, and streams logs.
 ///
-/// Service definitions live in `COS_SERVICES_DIR` (default `/usr/lib/cos/services/`).
+/// Service definitions live in `YUOS_SERVICES_DIR` (default `/usr/lib/yuos/services/`).
 /// Each service is a subdirectory containing a `service.json`.
-/// Runtime state (PID files, logs) lives in `COS_DATA_DIR/services/<name>/`.
+/// Runtime state (PID files, logs) lives in `YUOS_DATA_DIR/services/<name>/`.
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
@@ -117,7 +117,7 @@ fn default_stop_timeout() -> u64 {
 
 fn services_dir() -> PathBuf {
     PathBuf::from(
-        std::env::var("COS_SERVICES_DIR").unwrap_or_else(|_| "/usr/lib/cos/services".into()),
+        std::env::var("YUOS_SERVICES_DIR").unwrap_or_else(|_| "/usr/lib/yuos/services".into()),
     )
 }
 
@@ -209,7 +209,7 @@ fn read_pid(name: &str) -> Option<(u32, Option<u64>)> {
 
 /// Parse a pid-file body into `(pid, optional starttime)`. Split out
 /// of [`read_pid`] so it is unit-testable without poking the
-/// filesystem (and without depending on the `COS_DATA_DIR` env var,
+/// filesystem (and without depending on the `YUOS_DATA_DIR` env var,
 /// which is mutated by other tests in this crate).
 fn parse_pid_file_contents(raw: &str) -> Option<(u32, Option<u64>)> {
     let s = raw.trim();

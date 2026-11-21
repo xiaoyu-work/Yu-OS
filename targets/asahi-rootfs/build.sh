@@ -22,18 +22,18 @@ fi
 
 export CLAW_PLATFORM=aarch64-apple
 "$PROJECT_DIR/rootfs/build.sh" --features "$IMAGE_FEATURES_ASAHI"
-ROOTFS="$PROJECT_DIR/build/claw-os-rootfs"
-test -s "$ROOTFS/usr/lib/cos/asahi/boot.bin"
-test -s "$ROOTFS/usr/lib/cos/asahi/boot-j700.bin"
+ROOTFS="$PROJECT_DIR/build/yuos-rootfs"
+test -s "$ROOTFS/usr/lib/yuos/asahi/boot.bin"
+test -s "$ROOTFS/usr/lib/yuos/asahi/boot-j700.bin"
 
 if [[ $mode == --installer-payload ]]; then
     identity=$(python3 "$PROJECT_DIR/scripts/platform_kernels.py" "$CLAW_PLATFORM" --describe)
     read -r _ release _ <<< "$identity"
     exec bash "$PROJECT_DIR/targets/asahi-rootfs/installer-payload.sh" "$ROOTFS" "$release" \
-        "$PROJECT_DIR/build/claw-os-asahi-arm64-installer.zip"
+        "$PROJECT_DIR/build/yuos-asahi-arm64-installer.zip"
 fi
 
-OUTPUT="$PROJECT_DIR/build/claw-os-asahi-arm64.tar.zst"
+OUTPUT="$PROJECT_DIR/build/yuos-asahi-arm64.tar.zst"
 archive=$(mktemp "$OUTPUT.XXXXXX")
 trap 'rm -f -- "$archive"' EXIT
 tar --one-file-system --numeric-owner --xattrs --acls -I 'zstd -T0' \

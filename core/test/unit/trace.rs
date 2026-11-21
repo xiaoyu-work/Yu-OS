@@ -10,17 +10,17 @@ static TRACE_INIT: Once = Once::new();
 fn unique_trace() -> String {
     let n = COUNTER.fetch_add(1, Ordering::SeqCst);
     TRACE_INIT.call_once(|| {
-        let dir = std::env::temp_dir().join(format!("cos-test-shared-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("yuos-test-shared-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
-        std::env::set_var("COS_DATA_DIR", &dir);
-        // Tests don't set COS_SESSION; the new caps gate (strict by
+        std::env::set_var("YUOS_DATA_DIR", &dir);
+        // Tests don't set YUOS_SESSION; the new caps gate (strict by
         // default) would deny every trace op without an explicit
         // permissive override.
-        std::env::set_var("COS_PERMS_MODE", "permissive");
+        std::env::set_var("YUOS_PERMS_MODE", "permissive");
     });
     // Clear trace env vars to prevent cross-test pollution
-    std::env::remove_var("COS_TRACE_ID");
-    std::env::remove_var("COS_SPAN_ID");
+    std::env::remove_var("YUOS_TRACE_ID");
+    std::env::remove_var("YUOS_SPAN_ID");
     format!("test-trace-{n}")
 }
 
@@ -59,7 +59,7 @@ fn span_adds_to_trace() {
     let _lock = ENV_LOCK.lock().unwrap();
     let id = unique_trace();
     cmd_start(&[id.clone()]).unwrap();
-    std::env::set_var("COS_TRACE_ID", &id);
+    std::env::set_var("YUOS_TRACE_ID", &id);
 
     let r = cmd_span(&["analyze".into()]).unwrap();
     assert_eq!(r["span"], "analyze");
@@ -71,7 +71,7 @@ fn span_adds_to_trace() {
     assert_eq!(trace.spans.len(), 1);
     assert_eq!(trace.spans[0].name, "analyze");
 
-    std::env::remove_var("COS_TRACE_ID");
+    std::env::remove_var("YUOS_TRACE_ID");
 }
 
 #[test]
@@ -79,14 +79,14 @@ fn nested_span() {
     let _lock = ENV_LOCK.lock().unwrap();
     let id = unique_trace();
     cmd_start(&[id.clone()]).unwrap();
-    std::env::set_var("COS_TRACE_ID", &id);
-    std::env::set_var("COS_SPAN_ID", "parent");
+    std::env::set_var("YUOS_TRACE_ID", &id);
+    std::env::set_var("YUOS_SPAN_ID", "parent");
 
     let r = cmd_span(&["child".into()]).unwrap();
     assert_eq!(r["span_path"], "parent/child");
 
-    std::env::remove_var("COS_TRACE_ID");
-    std::env::remove_var("COS_SPAN_ID");
+    std::env::remove_var("YUOS_TRACE_ID");
+    std::env::remove_var("YUOS_SPAN_ID");
 }
 
 #[test]
@@ -94,17 +94,17 @@ fn span_end_closes_span() {
     let _lock = ENV_LOCK.lock().unwrap();
     let id = unique_trace();
     cmd_start(&[id.clone()]).unwrap();
-    std::env::set_var("COS_TRACE_ID", &id);
+    std::env::set_var("YUOS_TRACE_ID", &id);
 
     cmd_span(&["test-span".into()]).unwrap();
-    std::env::set_var("COS_SPAN_ID", "test-span");
+    std::env::set_var("YUOS_SPAN_ID", "test-span");
 
     let r = cmd_span_end(&[]).unwrap();
     assert_eq!(r["span"], "test-span");
     assert!(r["ended_at"].is_string());
 
-    std::env::remove_var("COS_TRACE_ID");
-    std::env::remove_var("COS_SPAN_ID");
+    std::env::remove_var("YUOS_TRACE_ID");
+    std::env::remove_var("YUOS_SPAN_ID");
 }
 
 #[test]

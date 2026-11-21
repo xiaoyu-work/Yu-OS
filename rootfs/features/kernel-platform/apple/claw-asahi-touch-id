@@ -1,5 +1,5 @@
 #!/usr/bin/python3 -I
-"""Manage optional Touch ID on an installed Claw OS Apple Silicon system."""
+"""Manage optional Touch ID on an installed Yu OS Apple Silicon system."""
 
 import argparse
 import os
@@ -13,7 +13,7 @@ from uuid import UUID
 DT = Path("/sys/firmware/devicetree/base")
 CMDLINE = Path("/proc/cmdline")
 INITRD = Path("/etc/initrd-release")
-STORE = Path("/usr/share/cos/asahi")
+STORE = Path("/usr/share/yuos/asahi")
 CONSENT = Path("/etc/claw-asahi/touch-id")
 DROP_IN = Path("/etc/systemd/system/fprintd.service.d/80-claw-asahi-touch-id.conf")
 READY = Path("/run/claw-asahi-touch-id/ready")
@@ -22,7 +22,7 @@ SEP = Path("/dev/sep-bio")
 LID = Path("/dev/claw-asahi-touch-id-lid")
 KEYBAG = Path("/var/lib/aurora-sep-keybag.bin")
 DRIVER = Path("/sys/bus/platform/drivers/apple_sep")
-LIBRARY = Path("/usr/lib/cos/asahi/touch-id")
+LIBRARY = Path("/usr/lib/yuos/asahi/touch-id")
 BOARDS = {
     "apple,j413": "apple,t8112", "apple,j415": "apple,t8112", "apple,j493": "apple,t8112",
     "apple,j414s": "apple,t6020", "apple,j416s": "apple,t6020",

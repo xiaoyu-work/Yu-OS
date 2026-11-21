@@ -53,8 +53,8 @@ struct IsolatedEnv {
 impl Drop for IsolatedEnv {
     fn drop(&mut self) {
         match self.prev_data_dir.take() {
-            Some(value) => std::env::set_var("COS_DATA_DIR", value),
-            None => std::env::remove_var("COS_DATA_DIR"),
+            Some(value) => std::env::set_var("YUOS_DATA_DIR", value),
+            None => std::env::remove_var("YUOS_DATA_DIR"),
         }
     }
 }
@@ -62,8 +62,8 @@ impl Drop for IsolatedEnv {
 fn isolated_env() -> IsolatedEnv {
     let lock = ENV_LOCK.lock().unwrap();
     let tmp = tempfile::tempdir().expect("tempdir");
-    let prev_data_dir = std::env::var_os("COS_DATA_DIR");
-    std::env::set_var("COS_DATA_DIR", tmp.path());
+    let prev_data_dir = std::env::var_os("YUOS_DATA_DIR");
+    std::env::set_var("YUOS_DATA_DIR", tmp.path());
     IsolatedEnv {
         _lock: lock,
         prev_data_dir,
@@ -595,7 +595,7 @@ fn grant_set_consumption_is_all_or_none() {
     );
     let required = vec![
         Cap::new(Verb::SYS_IDENTITY, Scope::name("accounts")),
-        Cap::new(Verb::SYS_CONFIG, Scope::path("/etc/cos/agent.toml")),
+        Cap::new(Verb::SYS_CONFIG, Scope::path("/etc/yuos/agent.toml")),
     ];
 
     assert!(
@@ -609,7 +609,7 @@ fn grant_set_consumption_is_all_or_none() {
 
     let second = approve_for(
         Verb::SYS_CONFIG,
-        Scope::path("/etc/cos/agent.toml"),
+        Scope::path("/etc/yuos/agent.toml"),
         GrantDuration::Once,
     );
     assert!(consume_grant_set_once_for_owner(LAUNCHER, &required, Some(1000)).unwrap());
@@ -684,7 +684,7 @@ fn status_reports_the_decision_state_for_the_owner_only() {
 
     let denied = submit_owned(
         Verb::SYS_CONFIG,
-        Scope::path("/etc/cos/agent.toml"),
+        Scope::path("/etc/yuos/agent.toml"),
         LAUNCHER,
         "launch",
         None,

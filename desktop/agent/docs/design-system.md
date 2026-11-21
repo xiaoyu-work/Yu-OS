@@ -46,7 +46,7 @@ The design follows a **dark terminal aesthetic** that reflects the developer-foc
 | `accent-violet` | `violet-400` / `violet-500` | Tertiary accents |
 | `accent-amber` | `amber-400` | Warnings |
 
-> The brand blue comes from `desktop/initial-setup/res/icon.svg` (the dot on the three black claws). It is also used in every claw-os app icon. Use the exact hex `#005CFE` rather than the closest Tailwind blue shade so the marketing site, app icons, and CLI accents all match.
+> The brand blue comes from `desktop/initial-setup/res/icon.svg` (the dot on the three black claws). It is also used in every yuos app icon. Use the exact hex `#005CFE` rather than the closest Tailwind blue shade so the marketing site, app icons, and CLI accents all match.
 
 ### macOS Window Chrome
 

@@ -39,7 +39,7 @@ def source_fixture(uri, digest, *, trusted=True):
 @pytest.mark.parametrize(
     ("uri", "app_source", "os_source"),
     [
-        ("https://xiaoyu-work.github.io/clawos-app/", True, False),
+        ("https://xiaoyu-work.github.io/yuos-app/", True, False),
         ("http://deb.debian.org/debian/", False, True),
     ],
 )
@@ -60,7 +60,7 @@ def test_package_name_or_untrusted_index_cannot_authenticate_other_archive_bytes
         "package": "fixture", "version": "1.0", "architecture": "all", "sha256": "b" * 64
     }
     cache, records, sources = source_fixture(
-        "https://xiaoyu-work.github.io/clawos-app/",
+        "https://xiaoyu-work.github.io/yuos-app/",
         "a" * 64 if trusted else package["sha256"],
         trusted=trusted,
     )

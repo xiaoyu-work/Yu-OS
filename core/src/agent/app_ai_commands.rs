@@ -91,7 +91,7 @@ pub(super) fn budget_cmd(args: &[String]) -> Result<Value, String> {
 
 /// `yu agent override <show|path|effective> <app>` — read-only
 /// inspection of the per-user override file at
-/// `$HOME/.config/cos/apps/<app>.json`. There is no `set` / `write`
+/// `$HOME/.config/yuos/apps/<app>.json`. There is no `set` / `write`
 /// subcommand by design: the Cosmic Settings UI is the sole writer.
 pub(super) fn override_cmd(args: &[String]) -> Result<Value, String> {
     use crate::ai::overrides;
@@ -123,9 +123,9 @@ pub(super) fn override_cmd(args: &[String]) -> Result<Value, String> {
             let app = args
                 .get(1)
                 .ok_or_else(|| "usage: yu agent override effective <app>".to_string())?;
-            let apps_dir = std::env::var("COS_APPS_DIR")
+            let apps_dir = std::env::var("YUOS_APPS_DIR")
                 .map(std::path::PathBuf::from)
-                .unwrap_or_else(|_| std::path::PathBuf::from("/usr/lib/cos/apps"));
+                .unwrap_or_else(|_| std::path::PathBuf::from("/usr/lib/yuos/apps"));
             let installed = apps::discover_verified(&apps_dir)
                 .get(app)
                 .cloned()

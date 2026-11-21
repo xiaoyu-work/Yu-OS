@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # rootfs/features/systemd/install.sh -- verify and finish wiring the units
-# owned by claw-os-agent and claw-os-base.
+# owned by yuos-agent and yuos-base.
 #
 # Inherited from environment: ROOTFS, PROJECT_DIR, SCRIPT_DIR.
 
 set -euo pipefail
 
-for unit in clawd.service cos-home-setup.service; do
+for unit in yuosd.service yuos-home-setup.service; do
     if [ ! -f "$ROOTFS/usr/lib/systemd/system/$unit" ]; then
         echo "error: expected packaged system unit missing: $unit" >&2
         exit 1
@@ -14,21 +14,21 @@ for unit in clawd.service cos-home-setup.service; do
 done
 
 # Verify the wants symlink (postinst should have created it).
-if [ -L "$ROOTFS/etc/systemd/system/multi-user.target.wants/cos-home-setup.service" ]; then
-    echo "  :: cos-home-setup.service enabled"
+if [ -L "$ROOTFS/etc/systemd/system/multi-user.target.wants/yuos-home-setup.service" ]; then
+    echo "  :: yuos-home-setup.service enabled"
 else
-    echo "  :: WARNING — deb-systemd-helper did not enable cos-home-setup.service" >&2
+    echo "  :: WARNING — deb-systemd-helper did not enable yuos-home-setup.service" >&2
     echo "     falling back to direct symlink"
     mkdir -p "$ROOTFS/etc/systemd/system/multi-user.target.wants"
-    ln -sf /usr/lib/systemd/system/cos-home-setup.service \
-        "$ROOTFS/etc/systemd/system/multi-user.target.wants/cos-home-setup.service"
+    ln -sf /usr/lib/systemd/system/yuos-home-setup.service \
+        "$ROOTFS/etc/systemd/system/multi-user.target.wants/yuos-home-setup.service"
 fi
 
 # User indexers are global default.target services, so they also run for
 # headless/SSH user managers. Their ConditionPathIsExecutable directives
 # make missing optional binaries a clean skip.
 mkdir -p "$ROOTFS/etc/systemd/user/default.target.wants"
-for unit in claw-recoll-index.service claw-semantic.service; do
+for unit in claw-recoll-index.service yuos-semantic.service; do
     if [ -f "$ROOTFS/usr/lib/systemd/user/$unit" ]; then
         ln -sf "/usr/lib/systemd/user/$unit" \
             "$ROOTFS/etc/systemd/user/default.target.wants/$unit"
@@ -38,14 +38,14 @@ for unit in claw-recoll-index.service claw-semantic.service; do
     fi
 done
 
-if [ -L "$ROOTFS/etc/systemd/system/multi-user.target.wants/clawd.service" ]; then
-    echo "  :: clawd.service enabled as system daemon"
+if [ -L "$ROOTFS/etc/systemd/system/multi-user.target.wants/yuosd.service" ]; then
+    echo "  :: yuosd.service enabled as system daemon"
 else
-    echo "  :: WARNING — clawd.service was not enabled as a system daemon" >&2
+    echo "  :: WARNING — yuosd.service was not enabled as a system daemon" >&2
     echo "     falling back to direct symlink"
     mkdir -p "$ROOTFS/etc/systemd/system/multi-user.target.wants"
-    ln -sf /usr/lib/systemd/system/clawd.service \
-        "$ROOTFS/etc/systemd/system/multi-user.target.wants/clawd.service"
+    ln -sf /usr/lib/systemd/system/yuosd.service \
+        "$ROOTFS/etc/systemd/system/multi-user.target.wants/yuosd.service"
 fi
 
 # Enable systemd-timesyncd so the wall clock comes up correct on every

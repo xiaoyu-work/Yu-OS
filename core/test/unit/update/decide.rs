@@ -44,7 +44,7 @@ fn candidate(spec: &ManifestSpec, signature: Signature) -> Candidate {
 fn verified() -> Signature {
     Signature::Verified {
         key_id: "ABCDEF0123456789".to_string(),
-        keyring: std::path::PathBuf::from("/usr/share/keyrings/claw-os-archive-keyring.gpg"),
+        keyring: std::path::PathBuf::from("/usr/share/keyrings/yuos-archive-keyring.gpg"),
     }
 }
 
@@ -320,7 +320,7 @@ fn an_incompatible_installed_sibling_blocks_the_candidate() {
     );
     subject
         .installed
-        .insert("claw-os-base".to_string(), "0.1.0".to_string());
+        .insert("yuos-base".to_string(), "0.1.0".to_string());
     let decision = evaluate(&subject, &state, None, now());
     assert!(!decision.allowed);
     assert_eq!(decision.class, class::SET_INCOMPATIBLE);
@@ -359,7 +359,7 @@ fn prerm_refuses_an_older_incoming_version() {
     });
     let state = present(&installed, &[]);
     let decision = evaluate_incoming_version(
-        "claw-os-agent",
+        "yuos-agent",
         "1:0.2.0+git100.gaaaaaaaaaaaa",
         &state,
         None,
@@ -379,7 +379,7 @@ fn prerm_allows_a_newer_incoming_version() {
     let installed = fixture_manifest(&ManifestSpec::default());
     let state = present(&installed, &[]);
     let decision = evaluate_incoming_version(
-        "claw-os-agent",
+        "yuos-agent",
         "1:0.2.0+git900.gzzzzzzzzzzzz",
         &state,
         None,
@@ -415,7 +415,7 @@ fn a_matching_recovery_authorization_permits_one_downgrade() {
     let recovery_store = RecoveryStore::new(&store);
     let authorization = crate::update::recovery::Authorization {
         id: crate::update::recovery::new_id(),
-        package: "claw-os-agent".to_string(),
+        package: "yuos-agent".to_string(),
         security_epoch: older.manifest.security_epoch,
         version: older.version.clone(),
         manifest_sha256: older.manifest.digest.clone(),
@@ -471,7 +471,7 @@ fn an_expired_recovery_authorization_does_not_permit_a_downgrade() {
     recovery_store
         .write(&crate::update::recovery::Authorization {
             id: crate::update::recovery::new_id(),
-            package: "claw-os-agent".to_string(),
+            package: "yuos-agent".to_string(),
             security_epoch: older.manifest.security_epoch,
             version: older.version.clone(),
             manifest_sha256: older.manifest.digest.clone(),
@@ -493,8 +493,8 @@ fn an_expired_recovery_authorization_does_not_permit_a_downgrade() {
 fn installed_set_compatibility_is_reported_for_the_service_gate() {
     let manifest = fixture_manifest(&ManifestSpec::default());
     let mut installed = BTreeMap::new();
-    installed.insert("claw-os-base".to_string(), "0.1.0".to_string());
+    installed.insert("yuos-base".to_string(), "0.1.0".to_string());
     assert!(installed_set_is_compatible(&manifest, &installed).is_err());
-    installed.insert("claw-os-base".to_string(), "1:0.2.0".to_string());
+    installed.insert("yuos-base".to_string(), "1:0.2.0".to_string());
     assert!(installed_set_is_compatible(&manifest, &installed).is_ok());
 }

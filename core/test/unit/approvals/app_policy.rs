@@ -11,8 +11,8 @@ struct Fixture {
 fn fixture() -> Fixture {
     let dir = tempfile::tempdir().unwrap();
     Fixture {
-        _data: TestEnvVarGuard::set("COS_DATA_DIR", dir.path()),
-        _caps: TestEnvVarGuard::set("COS_CAPS_DATA_DIR", dir.path()),
+        _data: TestEnvVarGuard::set("YUOS_DATA_DIR", dir.path()),
+        _caps: TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", dir.path()),
         _root: dir,
     }
 }
@@ -403,8 +403,8 @@ fn revocation_survives_process_restart() {
     }
     let _lock = crate::test_env::lock_env();
     let dir = tempfile::tempdir().unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", dir.path());
-    let _caps = crate::test_env::TestEnvVarGuard::set("COS_CAPS_DATA_DIR", dir.path());
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", dir.path());
+    let _caps = crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", dir.path());
     revoke(1000, "audio-manager", cap).unwrap();
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args([

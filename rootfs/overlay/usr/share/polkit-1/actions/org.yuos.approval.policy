@@ -3,12 +3,12 @@
  "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
  "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
 <policyconfig>
-  <vendor>Claw OS</vendor>
-  <vendor_url>https://github.com/xiaoyu-work/claw-os</vendor_url>
+  <vendor>Yu OS</vendor>
+  <vendor_url>https://github.com/xiaoyu-work/Yu-OS</vendor_url>
 
   <action id="org.yuos.approval.decide">
-    <description>Confirm a Claw OS permission decision</description>
-    <message>Enter your sign-in password to confirm your choice in Claw OS.</message>
+    <description>Confirm a Yu OS permission decision</description>
+    <message>Enter your sign-in password to confirm your choice in Yu OS.</message>
     <defaults>
       <!-- WSL and headless terminals may have no local logind seat/session.
            The fixed helper still authenticates the caller and binds decisions
@@ -17,6 +17,6 @@
       <allow_inactive>auth_self</allow_inactive>
       <allow_active>auth_self</allow_active>
     </defaults>
-    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/claw-approval-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/yuos-approval-helper</annotate>
   </action>
 </policyconfig>

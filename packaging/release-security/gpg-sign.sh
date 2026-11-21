@@ -3,7 +3,7 @@
 # passphrase on any command line.
 #
 # `gpg --passphrase "$SECRET"` publishes the secret in `/proc/<pid>/cmdline`,
-# which every local process can read for as long as gpg runs. Every Claw OS
+# which every local process can read for as long as gpg runs. Every Yu OS
 # signing path therefore goes through these helpers, which hand the
 # passphrase to gpg on a pipe under `--passphrase-fd 0` and never let it
 # reach `argv` or a log.

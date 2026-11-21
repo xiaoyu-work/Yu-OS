@@ -7,7 +7,7 @@ use crate::provenance::envelope::{Envelope, ENVELOPE_FILE};
 
 fn tmpdir(label: &str) -> PathBuf {
     let p = std::env::temp_dir().join(format!(
-        "cos-prov-sign-{label}-{}",
+        "yuos-prov-sign-{label}-{}",
         uuid::Uuid::new_v4().simple()
     ));
     fs::create_dir_all(&p).unwrap();

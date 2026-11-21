@@ -270,7 +270,7 @@ fn identical_bodies_share_a_digest_and_different_ones_do_not() {
 
 #[test]
 fn handler_messages_are_reduced_to_a_class_and_a_digest() {
-    let echoed = "unknown clawd command: sk-live-provider-key";
+    let echoed = "unknown yuosd command: sk-live-provider-key";
     let unclassified = error_facts("request_failed", None, echoed);
     assert_eq!(unclassified.class, UNCLASSIFIED);
     assert_eq!(unclassified.message.bytes, echoed.len());
@@ -319,7 +319,7 @@ fn typed_app_tools_do_not_persist_caller_defined_fields() {
 #[test]
 fn discovery_and_usage_tools_log_only_bounded_shapes() {
     let help = tool_facts(
-        "cos_help",
+        "yu_help",
         &json!({"path": ["agent", "usage"], "unexpected": "secret"}),
     );
     assert!(help.known);
@@ -327,7 +327,7 @@ fn discovery_and_usage_tools_log_only_bounded_shapes() {
     assert_eq!(help.input_omitted, 1);
 
     let usage = tool_facts(
-        "cos_usage",
+        "yu_usage",
         &json!({"command": "session", "args": ["private-session-id"]}),
     );
     assert!(usage.known);
@@ -340,7 +340,7 @@ fn discovery_and_usage_tools_log_only_bounded_shapes() {
 #[test]
 fn model_authored_text_is_reduced_to_a_byte_count() {
     let facts = tool_facts(
-        "cos_imagegen",
+        "yu_imagegen",
         &json!({"prompt": "sk-live-provider-key", "provider": "noop", "n": 2}),
     );
     assert_eq!(
@@ -378,7 +378,7 @@ fn no_policy_field_is_a_known_secret_carrier() {
         "note",
         "full_name",
     ];
-    for route in crate::clawd::routes::ROUTES {
+    for route in crate::yuosd::routes::ROUTES {
         for (field, rule) in route.audit_fields {
             assert!(
                 !NEVER.contains(field) || matches!(rule, FieldRule::Size),

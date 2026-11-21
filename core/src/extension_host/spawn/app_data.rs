@@ -24,7 +24,7 @@ pub(super) struct Binding {
 
 impl Binding {
     pub fn require_current(&self) -> Result<(), String> {
-        let _owner = crate::clawd::client_identity::FsIdentityGuard::enter(self.owner_uid)?;
+        let _owner = crate::yuosd::client_identity::FsIdentityGuard::enter(self.owner_uid)?;
         let source = open_absolute_dir(&self.source)?;
         let metadata = fstat(source.as_raw_fd()).map_err(|error| error.to_string())?;
         if metadata.st_uid != self.owner_uid
@@ -48,8 +48,8 @@ pub(super) struct Prepared {
 
 impl Prepared {
     pub fn configure_environment(&self, command: &mut std::process::Command) {
-        command.env("COS_DATA_DIR", &self.view_root);
-        command.env("COS_USER_DATA_DIR", &self.view_root);
+        command.env("YUOS_DATA_DIR", &self.view_root);
+        command.env("YUOS_USER_DATA_DIR", &self.view_root);
     }
 
     pub fn install(&self) -> std::io::Result<()> {
@@ -122,7 +122,7 @@ pub(super) fn prepare_app(
     let context = crate::paths::RoutedPathContext::for_owner(owner.uid, owner.home.clone());
     let root = context.clone().scope_sync(crate::paths::user_data_dir);
     let source_path = context.scope_sync(|| {
-        let _owner = crate::clawd::client_identity::FsIdentityGuard::enter(owner.uid)?;
+        let _owner = crate::yuosd::client_identity::FsIdentityGuard::enter(owner.uid)?;
         for path in [root.join("apps"), root.join("apps").join(app)] {
             match std::fs::symlink_metadata(&path) {
                 Ok(metadata) if metadata.is_dir() && metadata.uid() == owner.uid => {}
@@ -149,7 +149,7 @@ pub(super) fn prepare_app(
         Ok(source)
     })?;
     let source = {
-        let _owner = crate::clawd::client_identity::FsIdentityGuard::enter(owner.uid)?;
+        let _owner = crate::yuosd::client_identity::FsIdentityGuard::enter(owner.uid)?;
         open_absolute_dir(&source_path)?
     };
     let metadata = fstat(source.as_raw_fd()).map_err(|error| error.to_string())?;

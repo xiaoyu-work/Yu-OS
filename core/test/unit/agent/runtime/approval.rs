@@ -13,7 +13,7 @@ fn req(name: &str, input: serde_json::Value) -> ApprovalRequest {
 #[tokio::test]
 async fn non_dangerous_tool_passes_through() {
     let gate = ApprovalGate::new(ApprovalConfig::new());
-    let out = gate.evaluate("cos_echo", &json!({}), "n/a").await;
+    let out = gate.evaluate("yu_echo", &json!({}), "n/a").await;
     assert!(matches!(out, ApprovalOutcome::Approved { .. }));
 }
 
@@ -44,21 +44,21 @@ async fn auto_approve_short_circuits() {
 
 #[tokio::test]
 async fn dangerous_no_approver_defers() {
-    let cfg = ApprovalConfig::new().dangerous("cos_proc");
+    let cfg = ApprovalConfig::new().dangerous("yu_proc");
     let gate = ApprovalGate::new(cfg);
-    let out = gate.evaluate("cos_proc", &json!({}), "kill cmd").await;
+    let out = gate.evaluate("yu_proc", &json!({}), "kill cmd").await;
     assert!(matches!(out, ApprovalOutcome::Deferred { .. }));
 }
 
 #[tokio::test]
 async fn capability_aware_tool_defers_to_exact_execution_gate() {
     let cfg = ApprovalConfig::new()
-        .dangerous("cos_proc")
-        .auto_approve("cos_proc");
+        .dangerous("yu_proc")
+        .auto_approve("yu_proc");
     let gate = ApprovalGate::new(cfg);
     let out = gate
         .evaluate_for(
-            "cos_proc",
+            "yu_proc",
             &json!({"command": "kill", "args": ["s1"]}),
             "legacy config",
             ApprovalBoundary::Capability,
@@ -74,10 +74,10 @@ async fn capability_aware_tool_defers_to_exact_execution_gate() {
 
 #[tokio::test]
 async fn auto_deny_still_blocks_capability_aware_tools() {
-    let gate = ApprovalGate::new(ApprovalConfig::new().auto_deny("cos_proc"));
+    let gate = ApprovalGate::new(ApprovalConfig::new().auto_deny("yu_proc"));
     let out = gate
         .evaluate_for(
-            "cos_proc",
+            "yu_proc",
             &json!({"command": "status", "args": ["s1"]}),
             "operator deny",
             ApprovalBoundary::Capability,
@@ -88,13 +88,13 @@ async fn auto_deny_still_blocks_capability_aware_tools() {
 
 #[tokio::test]
 async fn dangerous_with_approver_uses_approver() {
-    let cfg = ApprovalConfig::new().dangerous("cos_proc");
+    let cfg = ApprovalConfig::new().dangerous("yu_proc");
     let gate = ApprovalGate::new(cfg).with_approver(Arc::new(StaticApprover {
         outcome: ApprovalOutcome::Approved {
             note: Some("ok".to_string()),
         },
     }));
-    let out = gate.evaluate("cos_proc", &json!({}), "test").await;
+    let out = gate.evaluate("yu_proc", &json!({}), "test").await;
     match out {
         ApprovalOutcome::Approved { note } => assert_eq!(note.as_deref(), Some("ok")),
         other => panic!("expected approved, got {other:?}"),
@@ -103,13 +103,13 @@ async fn dangerous_with_approver_uses_approver() {
 
 #[tokio::test]
 async fn deferring_approver_emits_prompt() {
-    let cfg = ApprovalConfig::new().dangerous("cos_proc");
+    let cfg = ApprovalConfig::new().dangerous("yu_proc");
     let gate = ApprovalGate::new(cfg).with_approver(Arc::new(DeferringApprover));
-    let out = gate.evaluate("cos_proc", &json!({}), "kill cmd").await;
+    let out = gate.evaluate("yu_proc", &json!({}), "kill cmd").await;
     match out {
         ApprovalOutcome::Deferred { prompt } => {
             let p = prompt.unwrap();
-            assert!(p.contains("cos_proc"));
+            assert!(p.contains("yu_proc"));
             assert!(p.contains("kill cmd"));
         }
         other => panic!("expected deferred, got {other:?}"),
@@ -130,14 +130,14 @@ async fn approver_sees_full_request() {
         }
     }
     let capture = Arc::new(Capture(AtomicUsize::new(0), std::sync::Mutex::new(None)));
-    let cfg = ApprovalConfig::new().dangerous("cos_credential");
+    let cfg = ApprovalConfig::new().dangerous("yu_credential");
     let gate = ApprovalGate::new(cfg).with_approver(capture.clone());
     let _ = gate
-        .evaluate("cos_credential", &json!({"action": "set"}), "writes")
+        .evaluate("yu_credential", &json!({"action": "set"}), "writes")
         .await;
     assert_eq!(capture.0.load(Ordering::SeqCst), 1);
     let captured = capture.1.lock().unwrap().clone().unwrap();
-    assert_eq!(captured.tool_name, "cos_credential");
+    assert_eq!(captured.tool_name, "yu_credential");
     assert_eq!(captured.tool_input["action"], "set");
     assert_eq!(captured.reason, "writes");
 }
@@ -227,10 +227,10 @@ fn outcome_round_trip_for_all_variants() {
 
 #[tokio::test]
 async fn gate_clone_shares_state() {
-    let cfg = ApprovalConfig::new().dangerous("cos_proc");
+    let cfg = ApprovalConfig::new().dangerous("yu_proc");
     let gate = ApprovalGate::new(cfg).with_approver(Arc::new(DeferringApprover));
     let cloned = gate.clone();
-    let out_orig = gate.evaluate("cos_proc", &json!({}), "test").await;
-    let out_clone = cloned.evaluate("cos_proc", &json!({}), "test").await;
+    let out_orig = gate.evaluate("yu_proc", &json!({}), "test").await;
+    let out_clone = cloned.evaluate("yu_proc", &json!({}), "test").await;
     assert_eq!(out_orig, out_clone);
 }

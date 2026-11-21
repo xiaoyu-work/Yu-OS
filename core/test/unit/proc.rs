@@ -4,7 +4,7 @@ use super::*;
 fn numeric_session_id_error_redirects_to_os_process_inspection() {
     let error = session_not_found("1432043");
     assert!(error.contains("OS PID"), "got: {error}");
-    assert!(error.contains("cos_sysinfo"), "got: {error}");
+    assert!(error.contains("yu_sysinfo"), "got: {error}");
     assert!(error.contains("process"), "got: {error}");
 }
 

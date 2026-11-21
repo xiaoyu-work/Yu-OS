@@ -1,4 +1,4 @@
-//! Minimal SSE parser for the `cos-agent-bridge` chat stream.
+//! Minimal SSE parser for the `yuos-agent-bridge` chat stream.
 //!
 //! The bridge emits task identity, text deltas, tool lifecycle,
 //! warnings, per-turn usage, errors, and a final done envelope.

@@ -41,7 +41,7 @@
 //!                        they choose.
 //!
 //! Apps do **not** pick the model — the OS owner configures one
-//! provider/model in `/etc/cos/agent.toml` and the gate uses it for
+//! provider/model in `/etc/yuos/agent.toml` and the gate uses it for
 //! every App call.
 //!
 //! Identity
@@ -50,7 +50,7 @@
 //! Per `docs/app-ai-integration.md` §3, an App's identity is established
 //! **only** when the kernel itself spawns the App (`yu app <id> <op>`).
 //! The kernel creates a registered App session and binds it to the spawned
-//! process. `COS_SESSION` routes the request; the broker authenticates the
+//! process. `YUOS_SESSION` routes the request; the broker authenticates the
 //! peer (or its verified worker relay), registered App and live transient
 //! grant. No registry or provider credentials are needed inside the App.
 //! Every chat uses this broker path, with no local-execution fallback.
@@ -237,7 +237,7 @@ pub fn chat_cmd(args: &[String]) -> Result<Value, String> {
 
 fn read_input_file(path: &str) -> Result<String, String> {
     use std::io::Read;
-    let limit = crate::clawd::wire::bounded::FILE_TEXT_MAX_BYTES;
+    let limit = crate::yuosd::wire::bounded::FILE_TEXT_MAX_BYTES;
     let mut input = String::new();
     std::fs::File::open(path)
         .and_then(|file| file.take((limit + 1) as u64).read_to_string(&mut input))
@@ -251,19 +251,19 @@ fn read_input_file(path: &str) -> Result<String, String> {
 fn broker_chat(req: gate::ChatRequest) -> Result<Value, String> {
     // This is a routing identifier only. The broker authenticates the process
     // and resolves its live App grant; no registry or credentials enter workers.
-    let session = std::env::var("COS_SESSION")
+    let session = std::env::var("YUOS_SESSION")
         .map_err(|_| super::permission_denied("App session is required", None))?;
     let params = serde_json::json!({
         "session": session, "app_id": req.app_id, "origin": req.origin,
         "prompt": req.prompt, "system": req.system, "max_units": req.max_units,
         "tools": req.tools,
     });
-    let command = crate::clawd::routes::Command::AiChat;
+    let command = crate::yuosd::routes::Command::AiChat;
     (command.route().decode)(params.clone())
         .map_err(|_| super::invalid_args("AI request exceeds the bounded chat contract"))?;
-    let response = crate::clawd::client::request_blocking(
-        crate::paths::clawd_socket_path(),
-        crate::clawd::protocol::Request::build(command, params),
+    let response = crate::yuosd::client::request_blocking(
+        crate::paths::yuosd_socket_path(),
+        crate::yuosd::protocol::Request::build(command, params),
     )
     .map_err(|error| super::wire_error("KERNEL_UNAVAILABLE", error.to_string(), None))?;
     if response.ok {
@@ -288,21 +288,21 @@ fn broker_chat(req: gate::ChatRequest) -> Result<Value, String> {
 /// Verify the caller is the App they claim to be.
 ///
 /// `arg_app` is the `--app <id>` value parsed from the CLI; `env_app`
-/// is the current process's `COS_APP_ID` claim (or `None` if unset).
+/// is the current process's `YUOS_APP_ID` claim (or `None` if unset).
 /// [`enforce_identity_for`] additionally verifies the registered App
 /// session and process ancestry.
 ///
-/// A bare-process invocation (no `COS_APP_ID`) is rejected with a
+/// A bare-process invocation (no `YUOS_APP_ID`) is rejected with a
 /// dev-friendly hint; an env value that disagrees with `--app` is
 /// rejected as cross-App impersonation.
 fn enforce_identity(arg_app: &str, env_app: Option<&str>) -> Result<(), String> {
     match env_app {
         None => Err(format!(
             "`yu ai chat` must be invoked by the kernel via `yu app {arg_app} <op>`. \
-             COS_APP_ID is not set, so the claimed App identity is missing."
+             YUOS_APP_ID is not set, so the claimed App identity is missing."
         )),
         Some(env) if env != arg_app => Err(format!(
-            "identity mismatch: --app={arg_app} but COS_APP_ID={env}. \
+            "identity mismatch: --app={arg_app} but YUOS_APP_ID={env}. \
              An App may only request AI calls for its registered identity."
         )),
         Some(_) => Ok(()),
@@ -311,9 +311,9 @@ fn enforce_identity(arg_app: &str, env_app: Option<&str>) -> Result<(), String> 
 
 /// Convenience wrapper used by sibling subcommands (`yu ai tool`)
 /// that want the same identity enforcement as `yu ai chat`. Reads
-/// `COS_APP_ID` from the current process env.
+/// `YUOS_APP_ID` from the current process env.
 pub fn enforce_identity_for(arg_app: &str) -> Result<(), String> {
-    enforce_identity(arg_app, std::env::var("COS_APP_ID").ok().as_deref())?;
+    enforce_identity(arg_app, std::env::var("YUOS_APP_ID").ok().as_deref())?;
     let session = crate::proc::current_session_info_for_caps()
         .ok_or_else(|| "App identity session is not registered".to_string())?;
     if session.app_id.as_deref() != Some(arg_app) {

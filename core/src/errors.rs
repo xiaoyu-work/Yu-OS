@@ -1,4 +1,4 @@
-/// Standard error codes for Claw OS.
+/// Standard error codes for Yu OS.
 ///
 /// Agents can match on `code` field instead of parsing error messages.
 /// Code format: <category>.<specific> (e.g., "auth.tier_denied")

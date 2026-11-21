@@ -1,6 +1,6 @@
 //! In-tree cryptographic primitives — SHA-256 and HMAC-SHA-256.
 //!
-//! `cos` deliberately avoids pulling external crypto crates for these
+//! `yu` deliberately avoids pulling external crypto crates for these
 //! basics: SHA-256 is a stable spec (FIPS 180-4) and HMAC-SHA-256 is a
 //! 30-line construction over it. Keeping them in-tree lets us:
 //!

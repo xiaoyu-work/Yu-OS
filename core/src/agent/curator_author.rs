@@ -127,7 +127,7 @@ pub fn render_frontmatter(draft: &SkillDraft) -> String {
         yaml_escape(&draft.description)
     ));
     out.push_str(&format!("version: {}\n", "0.1.0"));
-    out.push_str(&format!("author: {}\n", "cos-curator"));
+    out.push_str(&format!("author: {}\n", "yuos-curator"));
     out.push_str(&format!(
         "confidence: {}\n",
         match draft.confidence {

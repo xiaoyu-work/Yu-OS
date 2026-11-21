@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# packaging/deb/build-debs.sh -- assemble claw-os-agent and claw-os-base
+# packaging/deb/build-debs.sh -- assemble yuos-agent and yuos-base
 # from already-built binaries and source-tree files.
 #
 # Output: $PROJECT_DIR/build/debs/
@@ -14,7 +14,7 @@
 #   target/<RUST_TARGET>/release/yu          (built by cargo for $ARCH)
 #   build/app-packages/                       (authenticated independent App APT inputs)
 #   skills/                                               (source tree)
-#   rootfs/overlay/etc/cos/*, rootfs/overlay/usr/...      (source tree)
+#   rootfs/overlay/etc/yuos/*, rootfs/overlay/usr/...      (source tree)
 #   rootfs/features/systemd/overlay/usr/lib/systemd/...   (source tree)
 #
 # Architecture: $ARCH (default = host). Switches both the Rust target
@@ -28,8 +28,8 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 source "$PROJECT_DIR/scripts/lib/arch.sh"
 
-OUT_DIR="${COS_DEB_OUT_DIR:-$PROJECT_DIR/build/debs}"
-STAGE_DIR="${COS_DEB_STAGE_DIR:-$PROJECT_DIR/build/deb-staging}"
+OUT_DIR="${YUOS_DEB_OUT_DIR:-$PROJECT_DIR/build/debs}"
+STAGE_DIR="${YUOS_DEB_STAGE_DIR:-$PROJECT_DIR/build/deb-staging}"
 
 source "$PROJECT_DIR/scripts/lib/package-version.sh"
 VERSION="$(package_version "$PROJECT_DIR")"
@@ -83,24 +83,24 @@ fi
 # encodes the epoch colon as %3a in artifact file names.
 FILE_VERSION="${VERSION//:/%3a}"
 
-echo ":: claw-os deb build — version $VERSION arch $DEB_ARCH"
+echo ":: yuos deb build — version $VERSION arch $DEB_ARCH"
 
 rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR" "$OUT_DIR"
 # The package contract has exactly three names. Never let obsolete local
 # artifacts leak into a newly generated repository.
-find "$OUT_DIR" -maxdepth 1 -type f -name 'claw-os-*.deb' \
-    ! -name 'claw-os-agent_*.deb' \
-    ! -name 'claw-os-base_*.deb' \
-    ! -name 'claw-os-desktop_*.deb' \
+find "$OUT_DIR" -maxdepth 1 -type f -name 'yuos-*.deb' \
+    ! -name 'yuos-agent_*.deb' \
+    ! -name 'yuos-base_*.deb' \
+    ! -name 'yuos-desktop_*.deb' \
     -delete
 case "$PACKAGE_SET" in
     all)
-        rm -f "$OUT_DIR"/claw-os-agent_*_"$DEB_ARCH".deb
-        rm -f "$OUT_DIR"/claw-os-base_*_all.deb
+        rm -f "$OUT_DIR"/yuos-agent_*_"$DEB_ARCH".deb
+        rm -f "$OUT_DIR"/yuos-base_*_all.deb
         ;;
-    agent) rm -f "$OUT_DIR"/claw-os-agent_*_"$DEB_ARCH".deb ;;
-    base) rm -f "$OUT_DIR"/claw-os-base_*_all.deb ;;
+    agent) rm -f "$OUT_DIR"/yuos-agent_*_"$DEB_ARCH".deb ;;
+    base) rm -f "$OUT_DIR"/yuos-base_*_all.deb ;;
 esac
 
 ###############################################################################
@@ -191,7 +191,7 @@ ensure_cargo() {
     fi
     if ! command -v cargo >/dev/null 2>&1; then
         echo "error: cargo not found — the Rust toolchain is required to build the" >&2
-        echo "       cos / clawd binaries. Install it with:" >&2
+        echo "       cos / yuosd binaries. Install it with:" >&2
         echo "         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y" >&2
         echo "         . \"\$HOME/.cargo/env\"" >&2
         echo "       (when building under sudo, the toolchain is still found via" >&2
@@ -263,16 +263,16 @@ ensure_bin() {
 
 ensure_calendar_reader() {
     local path
-    if path="$(find_bin claw-calendar-reader)"; then
+    if path="$(find_bin yuos-calendar-reader)"; then
         echo "$path"
         return 0
     fi
     ensure_cargo
     ( cd "$PROJECT_DIR" && cargo build --release --locked --target "$RUST_TARGET" \
         --target-dir "$PROJECT_DIR/target" \
-        --manifest-path desktop/services/claw-applet-services/Cargo.toml \
-        --bin claw-calendar-reader ) >&2
-    find_bin claw-calendar-reader
+        --manifest-path desktop/services/yuos-applet-services/Cargo.toml \
+        --bin yuos-calendar-reader ) >&2
+    find_bin yuos-calendar-reader
 }
 
 ensure_launcher_backend() {
@@ -297,7 +297,7 @@ ensure_nearby_bin() {
     ensure_cargo
     ( cd "$PROJECT_DIR" && cargo build --release --locked --target "$target" \
         --target-dir "$PROJECT_DIR/target" \
-        --manifest-path crates/claw-nearby/Cargo.toml --bins ) >&2
+        --manifest-path crates/yuos-nearby/Cargo.toml --bins ) >&2
     find_bin "$bin"
 }
 
@@ -350,9 +350,9 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 SECURITY_EPOCH="$(policy_field security_epoch)"
 SECURITY_ABI="$(policy_field abi)"
-MIN_AGENT_VERSION="$(policy_field minimum_compatible.claw-os-agent)"
-MIN_BASE_VERSION="$(policy_field minimum_compatible.claw-os-base)"
-MIN_DESKTOP_VERSION="$(policy_field minimum_compatible.claw-os-desktop)"
+MIN_AGENT_VERSION="$(policy_field minimum_compatible.yuos-agent)"
+MIN_BASE_VERSION="$(policy_field minimum_compatible.yuos-base)"
+MIN_DESKTOP_VERSION="$(policy_field minimum_compatible.yuos-desktop)"
 RELEASE_SECURITY_SUITE="${SUITE:-trixie}"
 # Reproducible timestamps: two builds of the same commit must produce
 # byte-identical manifests, so the embedded digests are stable.
@@ -361,19 +361,19 @@ if [ -z "${SOURCE_DATE_EPOCH:-}" ]; then
     [ -n "$SOURCE_DATE_EPOCH" ] && export SOURCE_DATE_EPOCH
 fi
 
-# Emit <stage>/usr/lib/cos/release-security/<package>/manifest.json{,.asc}.
+# Emit <stage>/usr/lib/yuos/release-security/<package>/manifest.json{,.asc}.
 #
 # Every package writes into its **own** subdirectory. Two packages must
 # never own the same regular file: dpkg would let whichever unpacked
 # last decide what the others' maintainer scripts read.
 write_release_manifest() {
     local package="$1" stage="$2" arch="$3"
-    install -d -m 0755 "$stage/usr/lib/cos/release-security"
+    install -d -m 0755 "$stage/usr/lib/yuos/release-security"
     claw_write_release_manifest \
         "$RELEASE_SECURITY_KEY_ID" "$RELEASE_SECURITY_PASSPHRASE" \
         "$MAKE_MANIFEST" "$package" "$VERSION" "$arch" \
         "$RELEASE_SECURITY_SUITE" "$stage" "$RELEASE_SECURITY_POLICY" \
-        "$stage/usr/lib/cos/release-security/$package/manifest.json" || exit 1
+        "$stage/usr/lib/yuos/release-security/$package/manifest.json" || exit 1
 }
 
 # Render the shared preinst with this package's identity and its signed
@@ -389,22 +389,22 @@ render_security_preinst() {
 SYSTEM_UNITS_SRC="$PROJECT_DIR/rootfs/features/systemd/overlay/usr/lib/systemd/system"
 
 ###############################################################################
-# 1. claw-os-agent
+# 1. yuos-agent
 ###############################################################################
 if [ "$PACKAGE_SET" = "all" ] || [ "$PACKAGE_SET" = "agent" ]; then
-echo "===> staging claw-os-agent"
-AGENT_STAGE="$STAGE_DIR/claw-os-agent"
+echo "===> staging yuos-agent"
+AGENT_STAGE="$STAGE_DIR/yuos-agent"
 mkdir -p \
     "$AGENT_STAGE/DEBIAN" \
     "$AGENT_STAGE/etc/apt/apt.conf.d" \
-    "$AGENT_STAGE/etc/cos" \
-    "$AGENT_STAGE/etc/cos/trust/publishers.d" \
-    "$AGENT_STAGE/usr/lib/cos/apt" \
-    "$AGENT_STAGE/usr/lib/cos/bin" \
-    "$AGENT_STAGE/usr/lib/cos/python" \
-    "$AGENT_STAGE/usr/lib/cos/release-security" \
-    "$AGENT_STAGE/usr/lib/cos/skills" \
-    "$AGENT_STAGE/usr/lib/cos/trust/publishers.d" \
+    "$AGENT_STAGE/etc/yuos" \
+    "$AGENT_STAGE/etc/yuos/trust/publishers.d" \
+    "$AGENT_STAGE/usr/lib/yuos/apt" \
+    "$AGENT_STAGE/usr/lib/yuos/bin" \
+    "$AGENT_STAGE/usr/lib/yuos/python" \
+    "$AGENT_STAGE/usr/lib/yuos/release-security" \
+    "$AGENT_STAGE/usr/lib/yuos/skills" \
+    "$AGENT_STAGE/usr/lib/yuos/trust/publishers.d" \
     "$AGENT_STAGE/usr/lib/systemd/system" \
     "$AGENT_STAGE/usr/lib/systemd/user" \
     "$AGENT_STAGE/usr/local/bin" \
@@ -413,19 +413,19 @@ chmod 0755 "$AGENT_STAGE/DEBIAN"
 
 # Extension-provenance trust roots.
 #
-#   /usr/lib/cos/trust/publishers.d — vendor keys shipped by this package
-#   /etc/cos/trust/publishers.d     — operator-managed keys (never shipped)
+#   /usr/lib/yuos/trust/publishers.d — vendor keys shipped by this package
+#   /etc/yuos/trust/publishers.d     — operator-managed keys (never shipped)
 #
 # Both must be root-owned and free of group/world write bits; the loader
 # refuses a root that fails those checks and reports it as a diagnostic
 # rather than silently widening trust. Ownership is asserted by dpkg
 # (packages install as root); the modes are set explicitly here.
 chmod 0755 \
-    "$AGENT_STAGE/usr/lib/cos/trust" \
-    "$AGENT_STAGE/usr/lib/cos/trust/publishers.d" \
-    "$AGENT_STAGE/etc/cos/trust" \
-    "$AGENT_STAGE/etc/cos/trust/publishers.d"
-VENDOR_TRUST_SRC="$SCRIPT_DIR/claw-os-agent/trust/publishers.d"
+    "$AGENT_STAGE/usr/lib/yuos/trust" \
+    "$AGENT_STAGE/usr/lib/yuos/trust/publishers.d" \
+    "$AGENT_STAGE/etc/yuos/trust" \
+    "$AGENT_STAGE/etc/yuos/trust/publishers.d"
+VENDOR_TRUST_SRC="$SCRIPT_DIR/yuos-agent/trust/publishers.d"
 if [ -d "$VENDOR_TRUST_SRC" ]; then
     for trust_file in "$VENDOR_TRUST_SRC"/*.json; do
         [ -e "$trust_file" ] || continue
@@ -435,124 +435,124 @@ if [ -d "$VENDOR_TRUST_SRC" ]; then
             exit 1
         fi
         install -m 0644 "$trust_file" \
-            "$AGENT_STAGE/usr/lib/cos/trust/publishers.d/$(basename "$trust_file")"
+            "$AGENT_STAGE/usr/lib/yuos/trust/publishers.d/$(basename "$trust_file")"
     done
 fi
 
-render_control "$SCRIPT_DIR/claw-os-agent/control" "$AGENT_STAGE/DEBIAN/control"
-install -m 644 "$SCRIPT_DIR/claw-os-agent/conffiles" "$AGENT_STAGE/DEBIAN/conffiles"
+render_control "$SCRIPT_DIR/yuos-agent/control" "$AGENT_STAGE/DEBIAN/control"
+install -m 644 "$SCRIPT_DIR/yuos-agent/conffiles" "$AGENT_STAGE/DEBIAN/conffiles"
 install -Dm0644 "$PROJECT_DIR/core/assets/app-store-archive-key.asc" \
-    "$AGENT_STAGE/usr/share/keyrings/claw-apps-archive-key.asc"
-install -Dm0644 "$SCRIPT_DIR/claw-os-agent/claw-apps.sources" \
+    "$AGENT_STAGE/usr/share/keyrings/yuos-apps-archive-key.asc"
+install -Dm0644 "$SCRIPT_DIR/yuos-agent/claw-apps.sources" \
     "$AGENT_STAGE/etc/apt/sources.list.d/claw-apps.sources"
-install -Dm0644 "$SCRIPT_DIR/claw-os-agent/helium-archive-key.asc" \
+install -Dm0644 "$SCRIPT_DIR/yuos-agent/helium-archive-key.asc" \
     "$AGENT_STAGE/usr/share/keyrings/claw-helium-archive-key.asc"
-install -Dm0644 "$SCRIPT_DIR/claw-os-agent/claw-helium.sources" \
+install -Dm0644 "$SCRIPT_DIR/yuos-agent/claw-helium.sources" \
     "$AGENT_STAGE/etc/apt/sources.list.d/claw-helium.sources"
-install -Dm0644 "$SCRIPT_DIR/claw-os-agent/claw-helium.pref" \
+install -Dm0644 "$SCRIPT_DIR/yuos-agent/claw-helium.pref" \
     "$AGENT_STAGE/etc/apt/preferences.d/claw-helium.pref"
-render_control "$SCRIPT_DIR/claw-os-agent/postinst" "$AGENT_STAGE/DEBIAN/postinst.body"
+render_control "$SCRIPT_DIR/yuos-agent/postinst" "$AGENT_STAGE/DEBIAN/postinst.body"
 {
-    cat "$SCRIPT_DIR/claw-os-agent/extension-identities.sh"
+    cat "$SCRIPT_DIR/yuos-agent/extension-identities.sh"
     tail -n +2 "$AGENT_STAGE/DEBIAN/postinst.body"
 } > "$AGENT_STAGE/DEBIAN/postinst"
 rm -f "$AGENT_STAGE/DEBIAN/postinst.body"
 chmod 0755 "$AGENT_STAGE/DEBIAN/postinst"
-install -m 755 "$SCRIPT_DIR/claw-os-agent/prerm" "$AGENT_STAGE/DEBIAN/prerm"
+install -m 755 "$SCRIPT_DIR/yuos-agent/prerm" "$AGENT_STAGE/DEBIAN/prerm"
 {
-    cat "$SCRIPT_DIR/claw-os-agent/extension-identities.sh"
-    tail -n +2 "$SCRIPT_DIR/claw-os-agent/postrm"
+    cat "$SCRIPT_DIR/yuos-agent/extension-identities.sh"
+    tail -n +2 "$SCRIPT_DIR/yuos-agent/postrm"
 } > "$AGENT_STAGE/DEBIAN/postrm"
 chmod 0755 "$AGENT_STAGE/DEBIAN/postrm"
 install -d -m 755 "$AGENT_STAGE/usr/lib/sysusers.d"
-install -d -m 755 "$AGENT_STAGE/usr/lib/cos/extensions"
-install -m 644 "$SCRIPT_DIR/claw-os-agent/claw-os-agent.sysusers" \
-    "$AGENT_STAGE/usr/lib/sysusers.d/claw-os-agent.conf"
+install -d -m 755 "$AGENT_STAGE/usr/lib/yuos/extensions"
+install -m 644 "$SCRIPT_DIR/yuos-agent/yuos-agent.sysusers" \
+    "$AGENT_STAGE/usr/lib/sysusers.d/yuos-agent.conf"
 
-COS_BIN="$(ensure_bin yu yu)" || { echo "error: yu binary not built" >&2; exit 1; }
-CLAWD_BIN="$(ensure_bin clawd yu)" || { echo "error: clawd binary not built" >&2; exit 1; }
-# The unprivileged agent worker. clawd refuses to run agent tasks without
+YUOS_BIN="$(ensure_bin yu yu)" || { echo "error: yu binary not built" >&2; exit 1; }
+YUOSD_BIN="$(ensure_bin yuosd yu)" || { echo "error: yuosd binary not built" >&2; exit 1; }
+# The unprivileged agent worker. yuosd refuses to run agent tasks without
 # it, so it ships in lockstep with the broker it is spawned by.
-AGENTD_BIN="$(ensure_bin claw-agentd yu)" || {
-    echo "error: claw-agentd binary not built" >&2; exit 1; }
-EXTENSION_HOST_BIN="$(ensure_bin claw-extension-host yu)" || {
-    echo "error: claw-extension-host binary not built" >&2; exit 1; }
+AGENTD_BIN="$(ensure_bin yuos-agentd yu)" || {
+    echo "error: yuos-agentd binary not built" >&2; exit 1; }
+EXTENSION_HOST_BIN="$(ensure_bin yuos-extension-host yu)" || {
+    echo "error: yuos-extension-host binary not built" >&2; exit 1; }
 CALENDAR_READER_BIN="$(ensure_calendar_reader)" || {
-    echo "error: claw-calendar-reader binary not built" >&2; exit 1; }
-NEARBY_WORKER_BIN="$(ensure_nearby_bin claw-nearby-worker)" || {
-    echo "error: claw-nearby-worker binary not built" >&2; exit 1; }
-NEARBY_RADIO_BIN="$(ensure_nearby_bin claw-nearby-radio)" || {
-    echo "error: claw-nearby-radio binary not built" >&2; exit 1; }
-APPROVAL_HELPER_BIN="$(ensure_bin claw-approval-helper yu)" || {
-    echo "error: claw-approval-helper binary not built" >&2; exit 1; }
-APP_RUNNER_BIN="$(ensure_bin claw-app-runner yu)" || {
-    echo "error: claw-app-runner binary not built" >&2; exit 1; }
-GUI_RUNNER_BIN="$(ensure_bin claw-gui-runner yu)" || {
-    echo "error: claw-gui-runner binary not built" >&2; exit 1; }
-DISPLAY_HOST_BIN="$(ensure_bin claw-display-host yu)" || {
-    echo "error: claw-display-host binary not built" >&2; exit 1; }
-DISPLAY_SESSION_BIN="$(ensure_bin claw-display-session yu)" || {
-    echo "error: claw-display-session binary not built" >&2; exit 1; }
-FILE_MANAGER_BIN="$(ensure_bin claw-file-manager yu)" || {
-    echo "error: claw-file-manager binary not built" >&2; exit 1; }
-NOTIFICATION_PANEL_BIN="$(ensure_bin claw-notification-panel yu)" || {
-    echo "error: claw-notification-panel binary not built" >&2; exit 1; }
+    echo "error: yuos-calendar-reader binary not built" >&2; exit 1; }
+NEARBY_WORKER_BIN="$(ensure_nearby_bin yuos-nearby-worker)" || {
+    echo "error: yuos-nearby-worker binary not built" >&2; exit 1; }
+NEARBY_RADIO_BIN="$(ensure_nearby_bin yuos-nearby-radio)" || {
+    echo "error: yuos-nearby-radio binary not built" >&2; exit 1; }
+APPROVAL_HELPER_BIN="$(ensure_bin yuos-approval-helper yu)" || {
+    echo "error: yuos-approval-helper binary not built" >&2; exit 1; }
+APP_RUNNER_BIN="$(ensure_bin yuos-app-runner yu)" || {
+    echo "error: yuos-app-runner binary not built" >&2; exit 1; }
+GUI_RUNNER_BIN="$(ensure_bin yuos-gui-runner yu)" || {
+    echo "error: yuos-gui-runner binary not built" >&2; exit 1; }
+DISPLAY_HOST_BIN="$(ensure_bin yuos-display-host yu)" || {
+    echo "error: yuos-display-host binary not built" >&2; exit 1; }
+DISPLAY_SESSION_BIN="$(ensure_bin yuos-display-session yu)" || {
+    echo "error: yuos-display-session binary not built" >&2; exit 1; }
+FILE_MANAGER_BIN="$(ensure_bin yuos-file-manager yu)" || {
+    echo "error: yuos-file-manager binary not built" >&2; exit 1; }
+NOTIFICATION_PANEL_BIN="$(ensure_bin yuos-notification-panel yu)" || {
+    echo "error: yuos-notification-panel binary not built" >&2; exit 1; }
 LAUNCHER_BACKEND_BIN="$(ensure_launcher_backend)" || {
     echo "error: OS Launcher backend binary not built" >&2; exit 1; }
-APP_APT_HOOK_BIN="$(ensure_bin claw-app-apt-hook yu)" || {
-    echo "error: claw-app-apt-hook binary not built" >&2; exit 1; }
-PAM_DISPLAY_MODULE="$(ensure_bin libpam_claw_display.so claw-display-login "${RUST_TARGET/-musl/-gnu}")" || {
+APP_APT_HOOK_BIN="$(ensure_bin yuos-app-apt-hook yu)" || {
+    echo "error: yuos-app-apt-hook binary not built" >&2; exit 1; }
+PAM_DISPLAY_MODULE="$(ensure_bin libpam_claw_display.so yuos-display-login "${RUST_TARGET/-musl/-gnu}")" || {
     echo "error: native GNU PAM display module not built (libpam0g-dev is required)" >&2; exit 1; }
-MAIL_AI_HOST_BIN="$(ensure_bin claw-mail-ai-host yu)" || {
-    echo "error: claw-mail-ai-host binary not built" >&2; exit 1; }
+MAIL_AI_HOST_BIN="$(ensure_bin yuos-mail-ai-host yu)" || {
+    echo "error: yuos-mail-ai-host binary not built" >&2; exit 1; }
 # The update downgrade-protection verifier. Maintainer scripts, the APT
 # pre-install hook and operators all call this one binary instead of
 # re-deriving Debian version ordering in shell.
-SECURITY_FLOOR_BIN="$(ensure_bin claw-security-floor yu)" || {
-    echo "error: claw-security-floor binary not built" >&2; exit 1; }
+SECURITY_FLOOR_BIN="$(ensure_bin yuos-security-floor yu)" || {
+    echo "error: yuos-security-floor binary not built" >&2; exit 1; }
 
-echo "  :: yu                     <- $COS_BIN"
-echo "  :: clawd                  <- $CLAWD_BIN"
-echo "  :: claw-agentd            <- $AGENTD_BIN"
-echo "  :: claw-extension-host    <- $EXTENSION_HOST_BIN"
-echo "  :: claw-approval-helper   <- $APPROVAL_HELPER_BIN"
-echo "  :: claw-app-runner        <- $APP_RUNNER_BIN"
-echo "  :: claw-gui-runner        <- $GUI_RUNNER_BIN"
-echo "  :: claw-display-host      <- $DISPLAY_HOST_BIN"
-echo "  :: claw-display-session   <- $DISPLAY_SESSION_BIN"
-echo "  :: claw-file-manager      <- $FILE_MANAGER_BIN"
-echo "  :: claw-notification-panel <- $NOTIFICATION_PANEL_BIN"
-echo "  :: claw-app-apt-hook      <- $APP_APT_HOOK_BIN"
+echo "  :: yu                     <- $YUOS_BIN"
+echo "  :: yuosd                  <- $YUOSD_BIN"
+echo "  :: yuos-agentd            <- $AGENTD_BIN"
+echo "  :: yuos-extension-host    <- $EXTENSION_HOST_BIN"
+echo "  :: yuos-approval-helper   <- $APPROVAL_HELPER_BIN"
+echo "  :: yuos-app-runner        <- $APP_RUNNER_BIN"
+echo "  :: yuos-gui-runner        <- $GUI_RUNNER_BIN"
+echo "  :: yuos-display-host      <- $DISPLAY_HOST_BIN"
+echo "  :: yuos-display-session   <- $DISPLAY_SESSION_BIN"
+echo "  :: yuos-file-manager      <- $FILE_MANAGER_BIN"
+echo "  :: yuos-notification-panel <- $NOTIFICATION_PANEL_BIN"
+echo "  :: yuos-app-apt-hook      <- $APP_APT_HOOK_BIN"
 echo "  :: pam_claw_display.so    <- $PAM_DISPLAY_MODULE"
-echo "  :: claw-mail-ai-host      <- $MAIL_AI_HOST_BIN"
-echo "  :: claw-security-floor    <- $SECURITY_FLOOR_BIN"
-install -m 755 "$COS_BIN" "$AGENT_STAGE/usr/local/bin/yu"
-install -m 755 "$CLAWD_BIN" "$AGENT_STAGE/usr/local/bin/clawd"
-install -m 755 "$AGENTD_BIN" "$AGENT_STAGE/usr/local/bin/claw-agentd"
-install -m 755 "$EXTENSION_HOST_BIN" "$AGENT_STAGE/usr/local/bin/claw-extension-host"
-install -Dm0755 "$CALENDAR_READER_BIN" "$AGENT_STAGE/usr/lib/cos/bin/claw-calendar-reader"
-install -Dm0755 "$NEARBY_WORKER_BIN" "$AGENT_STAGE/usr/lib/cos/bin/claw-nearby-worker"
-install -Dm0755 "$NEARBY_RADIO_BIN" "$AGENT_STAGE/usr/lib/cos/bin/claw-nearby-radio"
-install -Dm0644 "$PROJECT_DIR/crates/claw-nearby/OWLY-LICENSE" \
-    "$AGENT_STAGE/usr/share/doc/claw-os-agent/nearby-owly.LICENSE"
-install -Dm0644 "$PROJECT_DIR/crates/claw-nearby/PROVENANCE.md" \
-    "$AGENT_STAGE/usr/share/doc/claw-os-agent/nearby-PROVENANCE.md"
-install -Dm0644 "$PROJECT_DIR/crates/claw-nearby/vendor/owlyd/PROVENANCE.md" \
-    "$AGENT_STAGE/usr/share/doc/claw-os-agent/vendor/owlyd/PROVENANCE.md"
-install -Dm0644 "$PROJECT_DIR/crates/claw-nearby/vendor/owlyd/LICENSE" \
-    "$AGENT_STAGE/usr/share/doc/claw-os-agent/vendor/owlyd/LICENSE"
-install -Dm0644 "$PROJECT_DIR/desktop/services/claw-applet-services/LICENSE" \
-    "$AGENT_STAGE/usr/share/doc/claw-os-agent/calendar-reader.LICENSE"
-install -m 755 "$APPROVAL_HELPER_BIN" "$AGENT_STAGE/usr/local/bin/claw-approval-helper"
-install -m 755 "$APP_RUNNER_BIN" "$AGENT_STAGE/usr/local/bin/claw-app-runner"
-install -m 755 "$GUI_RUNNER_BIN" "$AGENT_STAGE/usr/local/bin/claw-gui-runner"
-install -m 755 "$DISPLAY_SESSION_BIN" "$AGENT_STAGE/usr/local/bin/claw-display-session"
-install -m 755 "$DISPLAY_HOST_BIN" "$AGENT_STAGE/usr/lib/cos/bin/claw-display-host"
-install -m 755 "$FILE_MANAGER_BIN" "$AGENT_STAGE/usr/lib/cos/bin/claw-file-manager"
-install -m 755 "$NOTIFICATION_PANEL_BIN" "$AGENT_STAGE/usr/lib/cos/bin/claw-notification-panel"
-install -m 755 "$APP_APT_HOOK_BIN" "$AGENT_STAGE/usr/lib/cos/bin/claw-app-apt-hook"
+echo "  :: yuos-mail-ai-host      <- $MAIL_AI_HOST_BIN"
+echo "  :: yuos-security-floor    <- $SECURITY_FLOOR_BIN"
+install -m 755 "$YUOS_BIN" "$AGENT_STAGE/usr/local/bin/yu"
+install -m 755 "$YUOSD_BIN" "$AGENT_STAGE/usr/local/bin/yuosd"
+install -m 755 "$AGENTD_BIN" "$AGENT_STAGE/usr/local/bin/yuos-agentd"
+install -m 755 "$EXTENSION_HOST_BIN" "$AGENT_STAGE/usr/local/bin/yuos-extension-host"
+install -Dm0755 "$CALENDAR_READER_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-calendar-reader"
+install -Dm0755 "$NEARBY_WORKER_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-nearby-worker"
+install -Dm0755 "$NEARBY_RADIO_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-nearby-radio"
+install -Dm0644 "$PROJECT_DIR/crates/yuos-nearby/OWLY-LICENSE" \
+    "$AGENT_STAGE/usr/share/doc/yuos-agent/nearby-owly.LICENSE"
+install -Dm0644 "$PROJECT_DIR/crates/yuos-nearby/PROVENANCE.md" \
+    "$AGENT_STAGE/usr/share/doc/yuos-agent/nearby-PROVENANCE.md"
+install -Dm0644 "$PROJECT_DIR/crates/yuos-nearby/vendor/owlyd/PROVENANCE.md" \
+    "$AGENT_STAGE/usr/share/doc/yuos-agent/vendor/owlyd/PROVENANCE.md"
+install -Dm0644 "$PROJECT_DIR/crates/yuos-nearby/vendor/owlyd/LICENSE" \
+    "$AGENT_STAGE/usr/share/doc/yuos-agent/vendor/owlyd/LICENSE"
+install -Dm0644 "$PROJECT_DIR/desktop/services/yuos-applet-services/LICENSE" \
+    "$AGENT_STAGE/usr/share/doc/yuos-agent/calendar-reader.LICENSE"
+install -m 755 "$APPROVAL_HELPER_BIN" "$AGENT_STAGE/usr/local/bin/yuos-approval-helper"
+install -m 755 "$APP_RUNNER_BIN" "$AGENT_STAGE/usr/local/bin/yuos-app-runner"
+install -m 755 "$GUI_RUNNER_BIN" "$AGENT_STAGE/usr/local/bin/yuos-gui-runner"
+install -m 755 "$DISPLAY_SESSION_BIN" "$AGENT_STAGE/usr/local/bin/yuos-display-session"
+install -m 755 "$DISPLAY_HOST_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-display-host"
+install -m 755 "$FILE_MANAGER_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-file-manager"
+install -m 755 "$NOTIFICATION_PANEL_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-notification-panel"
+install -m 755 "$APP_APT_HOOK_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-app-apt-hook"
 install -Dm0644 "$PROJECT_DIR/tools/app_apt_metadata.py" \
-    "$AGENT_STAGE/usr/lib/cos/app-apt-metadata.py"
+    "$AGENT_STAGE/usr/lib/yuos/app-apt-metadata.py"
 case "$DEB_ARCH" in
     amd64) PAM_MULTIARCH=x86_64-linux-gnu ;;
     arm64) PAM_MULTIARCH=aarch64-linux-gnu ;;
@@ -560,41 +560,41 @@ case "$DEB_ARCH" in
 esac
 install -Dm0644 "$PAM_DISPLAY_MODULE" \
     "$AGENT_STAGE/usr/lib/$PAM_MULTIARCH/security/pam_claw_display.so"
-install -m 755 "$MAIL_AI_HOST_BIN" "$AGENT_STAGE/usr/lib/cos/claw-mail-ai-host"
+install -m 755 "$MAIL_AI_HOST_BIN" "$AGENT_STAGE/usr/lib/yuos/yuos-mail-ai-host"
 install -Dm0644 "$PROJECT_DIR/tools/browser_native_host.py" \
-    "$AGENT_STAGE/usr/lib/cos/browser-native-host.py"
-install -m 755 "$SECURITY_FLOOR_BIN" "$AGENT_STAGE/usr/lib/cos/bin/claw-security-floor"
+    "$AGENT_STAGE/usr/lib/yuos/browser-native-host.py"
+install -m 755 "$SECURITY_FLOOR_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-security-floor"
 install -m 755 "$SCRIPT_DIR/common/security-floor-hook" \
-    "$AGENT_STAGE/usr/lib/cos/apt/security-floor-hook"
-install -m 644 "$SCRIPT_DIR/common/50claw-os-security-floor" \
-    "$AGENT_STAGE/etc/apt/apt.conf.d/50claw-os-security-floor"
+    "$AGENT_STAGE/usr/lib/yuos/apt/security-floor-hook"
+install -m 644 "$SCRIPT_DIR/common/50yuos-security-floor" \
+    "$AGENT_STAGE/etc/apt/apt.conf.d/50yuos-security-floor"
 
 install -m 644 \
     "$PROJECT_DIR/rootfs/overlay/usr/share/polkit-1/actions/org.yuos.approval.policy" \
     "$AGENT_STAGE/usr/share/polkit-1/actions/org.yuos.approval.policy"
 
 CLAW_SEMANTIC_DAEMON_BIN="$(
-    ensure_bin claw-semantic-daemon claw-semantic "${RUST_TARGET/-musl/-gnu}"
-)" || { echo "error: claw-semantic-daemon binary not built" >&2; exit 1; }
+    ensure_bin yuos-semantic-daemon yuos-semantic "${RUST_TARGET/-musl/-gnu}"
+)" || { echo "error: yuos-semantic-daemon binary not built" >&2; exit 1; }
 CLAW_SEMANTIC_CLI_BIN="$(
-    ensure_bin claw-semantic claw-semantic "${RUST_TARGET/-musl/-gnu}"
-)" || { echo "error: claw-semantic binary not built" >&2; exit 1; }
-echo "  :: claw-semantic-daemon  <- $CLAW_SEMANTIC_DAEMON_BIN"
-echo "  :: claw-semantic         <- $CLAW_SEMANTIC_CLI_BIN"
+    ensure_bin yuos-semantic yuos-semantic "${RUST_TARGET/-musl/-gnu}"
+)" || { echo "error: yuos-semantic binary not built" >&2; exit 1; }
+echo "  :: yuos-semantic-daemon  <- $CLAW_SEMANTIC_DAEMON_BIN"
+echo "  :: yuos-semantic         <- $CLAW_SEMANTIC_CLI_BIN"
 install -m 755 "$CLAW_SEMANTIC_DAEMON_BIN" \
-    "$AGENT_STAGE/usr/local/bin/claw-semantic-daemon"
-install -m 755 "$CLAW_SEMANTIC_CLI_BIN" "$AGENT_STAGE/usr/local/bin/claw-semantic"
+    "$AGENT_STAGE/usr/local/bin/yuos-semantic-daemon"
+install -m 755 "$CLAW_SEMANTIC_CLI_BIN" "$AGENT_STAGE/usr/local/bin/yuos-semantic"
 
-install -m 644 "$PROJECT_DIR/rootfs/overlay/etc/cos/profile.sh" \
-    "$AGENT_STAGE/etc/cos/profile.sh"
-sed -i "s/COS_VERSION=\".*\"/COS_VERSION=\"$VERSION\"/" \
-    "$AGENT_STAGE/etc/cos/profile.sh"
+install -m 644 "$PROJECT_DIR/rootfs/overlay/etc/yuos/profile.sh" \
+    "$AGENT_STAGE/etc/yuos/profile.sh"
+sed -i "s/YUOS_VERSION=\".*\"/YUOS_VERSION=\"$VERSION\"/" \
+    "$AGENT_STAGE/etc/yuos/profile.sh"
 
 if [ -d "$PROJECT_DIR/skills" ]; then
-    cp -a "$PROJECT_DIR/skills/." "$AGENT_STAGE/usr/lib/cos/skills/"
-    find "$AGENT_STAGE/usr/lib/cos/skills" -type d -exec chmod 0755 {} +
+    cp -a "$PROJECT_DIR/skills/." "$AGENT_STAGE/usr/lib/yuos/skills/"
+    find "$AGENT_STAGE/usr/lib/yuos/skills" -type d -exec chmod 0755 {} +
     while IFS= read -r -d '' skill_file; do
-        relative_path="${skill_file#"$AGENT_STAGE/usr/lib/cos/skills/"}"
+        relative_path="${skill_file#"$AGENT_STAGE/usr/lib/yuos/skills/"}"
         git_mode="$(
             git -C "$PROJECT_DIR" ls-files --stage -- "skills/$relative_path" \
                 | awk 'NR == 1 { print $1 }'
@@ -604,116 +604,116 @@ if [ -d "$PROJECT_DIR/skills" ]; then
         else
             chmod 0644 "$skill_file"
         fi
-    done < <(find "$AGENT_STAGE/usr/lib/cos/skills" -type f -print0)
+    done < <(find "$AGENT_STAGE/usr/lib/yuos/skills" -type f -print0)
 fi
 
-SDK_PY_SRC="$PROJECT_DIR/claw-os-sdk/python/src/claw_os_sdk"
-RUNTIME_PY_SRC="$PROJECT_DIR/cos-runtime/python/src/cos_runtime"
+SDK_PY_SRC="$PROJECT_DIR/yuos-sdk/python/src/yuos_sdk"
+RUNTIME_PY_SRC="$PROJECT_DIR/yuos-runtime/python/src/yuos_runtime"
 if [ ! -d "$SDK_PY_SRC" ] || [ ! -d "$RUNTIME_PY_SRC" ]; then
     echo "error: Python SDK/runtime source trees are required" >&2
     exit 1
 fi
-cp -a "$SDK_PY_SRC" "$AGENT_STAGE/usr/lib/cos/python/claw_os_sdk"
-cp -a "$RUNTIME_PY_SRC" "$AGENT_STAGE/usr/lib/cos/python/cos_runtime"
+cp -a "$SDK_PY_SRC" "$AGENT_STAGE/usr/lib/yuos/python/yuos_sdk"
+cp -a "$RUNTIME_PY_SRC" "$AGENT_STAGE/usr/lib/yuos/python/yuos_runtime"
 python3 "$SCRIPT_DIR/native_runtime_assets.py" --root "$AGENT_STAGE" \
     --launcher-binary "$LAUNCHER_BACKEND_BIN"
-find "$AGENT_STAGE/usr/lib/cos/python" -name '__pycache__' -type d \
+find "$AGENT_STAGE/usr/lib/yuos/python" -name '__pycache__' -type d \
     -exec rm -rf {} + 2>/dev/null || true
 
 USER_UNITS_SRC="$PROJECT_DIR/rootfs/features/systemd/overlay/usr/lib/systemd/user"
-install -m 644 "$SYSTEM_UNITS_SRC/clawd.service" \
-    "$AGENT_STAGE/usr/lib/systemd/system/clawd.service"
-NEARBY_ASSETS="$SCRIPT_DIR/claw-os-agent/nearby"
-install -Dm0644 "$NEARBY_ASSETS/claw-nearby-radio.service" \
-    "$AGENT_STAGE/usr/lib/systemd/system/claw-nearby-radio.service"
+install -m 644 "$SYSTEM_UNITS_SRC/yuosd.service" \
+    "$AGENT_STAGE/usr/lib/systemd/system/yuosd.service"
+NEARBY_ASSETS="$SCRIPT_DIR/yuos-agent/nearby"
+install -Dm0644 "$NEARBY_ASSETS/yuos-nearby-radio.service" \
+    "$AGENT_STAGE/usr/lib/systemd/system/yuos-nearby-radio.service"
 install -Dm0644 "$NEARBY_ASSETS/io.github.t4t5.Owly.service" \
     "$AGENT_STAGE/usr/share/dbus-1/system-services/io.github.t4t5.Owly.service"
 install -Dm0644 "$NEARBY_ASSETS/io.github.t4t5.Owly.conf" \
     "$AGENT_STAGE/usr/share/dbus-1/system.d/io.github.t4t5.Owly.conf"
-install -Dm0644 "$NEARBY_ASSETS/90-claw-nearby-unmanaged.conf" \
-    "$AGENT_STAGE/usr/lib/NetworkManager/conf.d/90-claw-nearby-unmanaged.conf"
-install -Dm0644 "$NEARBY_ASSETS/10-claw-nearby-awdl0.link" \
-    "$AGENT_STAGE/usr/lib/systemd/network/10-claw-nearby-awdl0.link"
+install -Dm0644 "$NEARBY_ASSETS/90-yuos-nearby-unmanaged.conf" \
+    "$AGENT_STAGE/usr/lib/NetworkManager/conf.d/90-yuos-nearby-unmanaged.conf"
+install -Dm0644 "$NEARBY_ASSETS/10-yuos-nearby-awdl0.link" \
+    "$AGENT_STAGE/usr/lib/systemd/network/10-yuos-nearby-awdl0.link"
 install -m 644 "$USER_UNITS_SRC/claw-recoll-index.service" \
     "$AGENT_STAGE/usr/lib/systemd/user/claw-recoll-index.service"
-install -m 644 "$USER_UNITS_SRC/claw-semantic.service" \
-    "$AGENT_STAGE/usr/lib/systemd/user/claw-semantic.service"
+install -m 644 "$USER_UNITS_SRC/yuos-semantic.service" \
+    "$AGENT_STAGE/usr/lib/systemd/user/yuos-semantic.service"
 
-echo "  :: dpkg-deb --build claw-os-agent"
+echo "  :: dpkg-deb --build yuos-agent"
 python3 "$PROJECT_DIR/scripts/app_packages.py" check \
     --variant agent --architecture "$DEB_ARCH" --stage "$AGENT_STAGE" \
     --preinstall-policy stage >/dev/null
-write_release_manifest claw-os-agent "$AGENT_STAGE" "$DEB_ARCH"
-render_security_preinst claw-os-agent "$AGENT_STAGE"
+write_release_manifest yuos-agent "$AGENT_STAGE" "$DEB_ARCH"
+render_security_preinst yuos-agent "$AGENT_STAGE"
 mv "$AGENT_STAGE/DEBIAN/preinst" "$AGENT_STAGE/DEBIAN/preinst.security"
 {
-    cat "$SCRIPT_DIR/claw-os-agent/extension-identities.sh"
-    sed '1d;$d' "$SCRIPT_DIR/claw-os-agent/preinst"
+    cat "$SCRIPT_DIR/yuos-agent/extension-identities.sh"
+    sed '1d;$d' "$SCRIPT_DIR/yuos-agent/preinst"
     tail -n +2 "$AGENT_STAGE/DEBIAN/preinst.security"
 } > "$AGENT_STAGE/DEBIAN/preinst"
 rm -f "$AGENT_STAGE/DEBIAN/preinst.security"
 chmod 0755 "$AGENT_STAGE/DEBIAN/preinst"
 $FAKEROOT $DPKG_DEB --root-owner-group --build "$AGENT_STAGE" \
-    "$OUT_DIR/claw-os-agent_${FILE_VERSION}_${DEB_ARCH}.deb" >/dev/null
+    "$OUT_DIR/yuos-agent_${FILE_VERSION}_${DEB_ARCH}.deb" >/dev/null
 fi
 
 ###############################################################################
-# 2. claw-os-base (architecture-independent Claw OS integration)
+# 2. yuos-base (architecture-independent Yu OS integration)
 ###############################################################################
 if [ "$PACKAGE_SET" = "all" ] || [ "$PACKAGE_SET" = "base" ]; then
-echo "===> staging claw-os-base"
-BASE_STAGE="$STAGE_DIR/claw-os-base"
+echo "===> staging yuos-base"
+BASE_STAGE="$STAGE_DIR/yuos-base"
 mkdir -p \
     "$BASE_STAGE/DEBIAN" \
     "$BASE_STAGE/etc/default" \
-    "$BASE_STAGE/usr/lib/cos/init" \
-    "$BASE_STAGE/usr/lib/cos/release-security" \
+    "$BASE_STAGE/usr/lib/yuos/init" \
+    "$BASE_STAGE/usr/lib/yuos/release-security" \
     "$BASE_STAGE/usr/lib/systemd/system" \
     "$BASE_STAGE/usr/local/bin"
 chmod 0755 "$BASE_STAGE/DEBIAN"
 
-render_control "$SCRIPT_DIR/claw-os-base/control" "$BASE_STAGE/DEBIAN/control"
-install -m 644 "$SCRIPT_DIR/claw-os-base/conffiles" "$BASE_STAGE/DEBIAN/conffiles"
-install -m 644 "$SCRIPT_DIR/claw-os-base/triggers" "$BASE_STAGE/DEBIAN/triggers"
-render_control "$SCRIPT_DIR/claw-os-base/postinst" "$BASE_STAGE/DEBIAN/postinst"
+render_control "$SCRIPT_DIR/yuos-base/control" "$BASE_STAGE/DEBIAN/control"
+install -m 644 "$SCRIPT_DIR/yuos-base/conffiles" "$BASE_STAGE/DEBIAN/conffiles"
+install -m 644 "$SCRIPT_DIR/yuos-base/triggers" "$BASE_STAGE/DEBIAN/triggers"
+render_control "$SCRIPT_DIR/yuos-base/postinst" "$BASE_STAGE/DEBIAN/postinst"
 chmod 0755 "$BASE_STAGE/DEBIAN/postinst"
-install -m 755 "$SCRIPT_DIR/claw-os-base/prerm" "$BASE_STAGE/DEBIAN/prerm"
-install -m 755 "$SCRIPT_DIR/claw-os-base/postrm" "$BASE_STAGE/DEBIAN/postrm"
+install -m 755 "$SCRIPT_DIR/yuos-base/prerm" "$BASE_STAGE/DEBIAN/prerm"
+install -m 755 "$SCRIPT_DIR/yuos-base/postrm" "$BASE_STAGE/DEBIAN/postrm"
 
-install -m 755 "$PROJECT_DIR/rootfs/overlay/usr/local/bin/cos-init" \
-    "$BASE_STAGE/usr/local/bin/cos-init"
-install -m 755 "$PROJECT_DIR/rootfs/overlay/usr/lib/cos/init/setup-home.sh" \
-    "$BASE_STAGE/usr/lib/cos/init/setup-home.sh"
-install -m 755 "$PROJECT_DIR/rootfs/overlay/usr/lib/cos/init/remove-home-overlay.sh" \
-    "$BASE_STAGE/usr/lib/cos/init/remove-home-overlay.sh"
-install -m 644 "$SYSTEM_UNITS_SRC/cos-home-setup.service" \
-    "$BASE_STAGE/usr/lib/systemd/system/cos-home-setup.service"
-install -m 644 "$PROJECT_DIR/rootfs/features/systemd/overlay/etc/default/cos-home" \
-    "$BASE_STAGE/etc/default/cos-home"
+install -m 755 "$PROJECT_DIR/rootfs/overlay/usr/local/bin/yuos-init" \
+    "$BASE_STAGE/usr/local/bin/yuos-init"
+install -m 755 "$PROJECT_DIR/rootfs/overlay/usr/lib/yuos/init/setup-home.sh" \
+    "$BASE_STAGE/usr/lib/yuos/init/setup-home.sh"
+install -m 755 "$PROJECT_DIR/rootfs/overlay/usr/lib/yuos/init/remove-home-overlay.sh" \
+    "$BASE_STAGE/usr/lib/yuos/init/remove-home-overlay.sh"
+install -m 644 "$SYSTEM_UNITS_SRC/yuos-home-setup.service" \
+    "$BASE_STAGE/usr/lib/systemd/system/yuos-home-setup.service"
+install -m 644 "$PROJECT_DIR/rootfs/features/systemd/overlay/etc/default/yuos-home" \
+    "$BASE_STAGE/etc/default/yuos-home"
 
-HARDWARE_SRC="$SCRIPT_DIR/claw-os-base/hardware"
+HARDWARE_SRC="$SCRIPT_DIR/yuos-base/hardware"
 install -Dm0755 "$HARDWARE_SRC/claw-hardware-setup" "$BASE_STAGE/usr/sbin/claw-hardware-setup"
-install -Dm0755 "$HARDWARE_SRC/claw-driver-setup" "$BASE_STAGE/usr/lib/cos/hw/claw-driver-setup"
+install -Dm0755 "$HARDWARE_SRC/claw-driver-setup" "$BASE_STAGE/usr/lib/yuos/hw/claw-driver-setup"
 install -Dm0755 "$HARDWARE_SRC/import-board-firmware" "$BASE_STAGE/usr/sbin/claw-import-board-firmware"
 install -Dm0755 "$HARDWARE_SRC/claw-qnn-run" "$BASE_STAGE/usr/bin/claw-qnn-run"
-install -Dm0755 "$HARDWARE_SRC/claw-os-input-initramfs" \
-    "$BASE_STAGE/usr/share/initramfs-tools/hooks/claw-os-input"
-install -Dm0644 "$HARDWARE_SRC/qualcomm-boot.sh" "$BASE_STAGE/usr/lib/cos/hw/qualcomm-boot.sh"
-install -Dm0755 "$HARDWARE_SRC/configure-qualcomm-boot" "$BASE_STAGE/usr/lib/cos/hw/configure-qualcomm-boot"
-install -Dm0755 "$HARDWARE_SRC/configure-romulus-resume" "$BASE_STAGE/usr/lib/cos/hw/configure-romulus-resume"
+install -Dm0755 "$HARDWARE_SRC/yuos-input-initramfs" \
+    "$BASE_STAGE/usr/share/initramfs-tools/hooks/yuos-input"
+install -Dm0644 "$HARDWARE_SRC/qualcomm-boot.sh" "$BASE_STAGE/usr/lib/yuos/hw/qualcomm-boot.sh"
+install -Dm0755 "$HARDWARE_SRC/configure-qualcomm-boot" "$BASE_STAGE/usr/lib/yuos/hw/configure-qualcomm-boot"
+install -Dm0755 "$HARDWARE_SRC/configure-romulus-resume" "$BASE_STAGE/usr/lib/yuos/hw/configure-romulus-resume"
 install -Dm0755 "$HARDWARE_SRC/09_claw_qualcomm" "$BASE_STAGE/etc/grub.d/09_claw_qualcomm"
-install -Dm0644 "$HARDWARE_SRC/69-claw-os-hardware.rules" \
-    "$BASE_STAGE/usr/lib/udev/rules.d/69-claw-os-hardware.rules"
-install -Dm0644 "$HARDWARE_SRC/99-claw-os-hardware.quirks" \
-    "$BASE_STAGE/usr/share/libinput/99-claw-os-hardware.quirks"
+install -Dm0644 "$HARDWARE_SRC/69-yuos-hardware.rules" \
+    "$BASE_STAGE/usr/lib/udev/rules.d/69-yuos-hardware.rules"
+install -Dm0644 "$HARDWARE_SRC/99-yuos-hardware.quirks" \
+    "$BASE_STAGE/usr/share/libinput/99-yuos-hardware.quirks"
 install -Dm0644 "$HARDWARE_SRC/omarchy.LICENSE" \
-    "$BASE_STAGE/usr/share/doc/claw-os-base/omarchy-hardware.LICENSE"
+    "$BASE_STAGE/usr/share/doc/yuos-base/omarchy-hardware.LICENSE"
 
-echo "  :: dpkg-deb --build claw-os-base"
-write_release_manifest claw-os-base "$BASE_STAGE" all
-render_security_preinst claw-os-base "$BASE_STAGE"
+echo "  :: dpkg-deb --build yuos-base"
+write_release_manifest yuos-base "$BASE_STAGE" all
+render_security_preinst yuos-base "$BASE_STAGE"
 $FAKEROOT $DPKG_DEB --root-owner-group --build "$BASE_STAGE" \
-    "$OUT_DIR/claw-os-base_${FILE_VERSION}_all.deb" >/dev/null
+    "$OUT_DIR/yuos-base_${FILE_VERSION}_all.deb" >/dev/null
 fi
 
 ###############################################################################

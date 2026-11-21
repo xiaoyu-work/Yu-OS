@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 ///
 /// Sessions auto-register the moment they enter the agent loop and
 /// auto-unregister on exit, so the live list mirrors what's actively
-/// running in this `cos` process. Note that this does NOT cross
+/// running in this `yu` process. Note that this does NOT cross
 /// process boundaries — to interrupt sessions running under a
 /// separate `yu agent service` worker, use the IPC `service cancel`
 /// surface (different mechanism, persisted job-cancellation

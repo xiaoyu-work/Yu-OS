@@ -44,22 +44,22 @@ fi
 # 1b. Kernel command line, as a grub.d drop-in.
 #
 # It has to be a drop-in, and it has to sort after grub-disk's
-# 50-claw-os.cfg: grub-mkconfig reads /etc/default/grub first and the
+# 50-yuos.cfg: grub-mkconfig reads /etc/default/grub first and the
 # drop-ins after, so anything this feature wrote to /etc/default/grub for
-# GRUB_CMDLINE_LINUX_DEFAULT was silently overwritten by 50-claw-os.cfg —
+# GRUB_CMDLINE_LINUX_DEFAULT was silently overwritten by 50-yuos.cfg —
 # the serial console never actually reached the kernel.
 #
-# `splash` is kept from 50-claw-os.cfg: it is what starts plymouth, which
+# `splash` is kept from 50-yuos.cfg: it is what starts plymouth, which
 # covers the boot-to-greeter transition.
 mkdir -p "$ROOTFS/etc/default/grub.d"
 if [[ -f "$ROOTFS/etc/greetd/claw-desktop.toml" ]]; then
-    cat > "$ROOTFS/etc/default/grub.d/60-claw-os-vm.cfg" <<'EOF'
+    cat > "$ROOTFS/etc/default/grub.d/60-yuos-vm.cfg" <<'EOF'
 # Keep the serial console for recovery, without Plymouth switching to text.
 GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 audit=1 console=tty0 console=ttyS0,115200n8 plymouth.ignore-serial-consoles"
 EOF
 else
-    cat > "$ROOTFS/etc/default/grub.d/60-claw-os-vm.cfg" <<'EOF'
-# Claw OS VM overrides. Sorts after 50-claw-os.cfg, so this wins.
+    cat > "$ROOTFS/etc/default/grub.d/60-yuos-vm.cfg" <<'EOF'
+# Yu OS VM overrides. Sorts after 50-yuos.cfg, so this wins.
 GRUB_CMDLINE_LINUX_DEFAULT="quiet splash console=tty0 console=ttyS0,115200n8 video=1920x1080"
 EOF
 fi

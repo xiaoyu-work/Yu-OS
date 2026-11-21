@@ -4,7 +4,7 @@ use std::sync::Once;
 static INIT: Once = Once::new();
 
 fn test_dir() -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("cos-test-shared-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("yuos-test-shared-{}", std::process::id()));
     INIT.call_once(|| {
         let _ = fs::create_dir_all(&dir);
     });

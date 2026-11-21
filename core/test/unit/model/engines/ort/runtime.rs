@@ -19,7 +19,7 @@ pub fn set_test_override(rt: Option<Arc<OrtRuntime>>) -> Option<Arc<OrtRuntime>>
 #[test]
 fn load_missing_file_returns_not_installed() {
     let p = std::env::temp_dir().join(format!(
-        "cos-ort-runtime-missing-{}-{}.dll",
+        "yuos-ort-runtime-missing-{}-{}.dll",
         std::process::id(),
         uuid::Uuid::new_v4()
     ));
@@ -36,7 +36,7 @@ fn load_missing_file_returns_not_installed() {
 #[test]
 fn load_garbage_file_returns_library_load_failed() {
     let p = std::env::temp_dir().join(format!(
-        "cos-ort-runtime-garbage-{}-{}.dll",
+        "yuos-ort-runtime-garbage-{}-{}.dll",
         std::process::id(),
         uuid::Uuid::new_v4()
     ));

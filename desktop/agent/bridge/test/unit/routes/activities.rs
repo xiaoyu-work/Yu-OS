@@ -6,7 +6,7 @@ use axum::{
     middleware,
     response::IntoResponse,
 };
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     CURRENT_PROTOCOL_VERSION_HEADER_VALUE, ErrorEnvelope, PROTOCOL_VERSION_HEADER,
 };
 use tower::ServiceExt as _;
@@ -15,7 +15,7 @@ fn router() -> Router {
     let state = AppState {
         port: 0,
         auth_token: "activity-test-token".into(),
-        clawd: clawd_client::Client::new("missing-activity-test.sock"),
+        yuosd: yuosd_client::Client::new("missing-activity-test.sock"),
     };
     crate::routes::api()
         .route_layer(middleware::from_fn_with_state(
@@ -235,7 +235,7 @@ async fn receipt_surface_does_not_expose_authoring_mutation_or_execution() {
 
 #[tokio::test]
 async fn broker_refusals_are_errors_not_local_success() {
-    let error = upstream_error(BrokerError::Remote(clawd_client::RemoteError {
+    let error = upstream_error(BrokerError::Remote(yuosd_client::RemoteError {
         code: BrokerErrorCode::NotAuthorized,
         message: "not authorized".into(),
         data: None,

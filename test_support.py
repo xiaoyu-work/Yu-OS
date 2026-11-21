@@ -13,7 +13,7 @@ def authenticated_mcp_params(params, *, call_id="test-call"):
 
     value = dict(params or {})
     meta = dict(value.get("_meta", {}))
-    meta["claw-os.dev/call-context"] = {
+    meta["yuos.dev/call-context"] = {
         "wire_version": 1,
         "call_id": call_id,
         "trace_id": "test-trace",
@@ -37,8 +37,8 @@ def mcp_process(app_dir, *, env):
     assert manifest["runtime"] == "python"
     entry = manifest["mcp"].get("entry", "server.py")
     environment = {
-        **env, "COS_APP_ID": manifest["id"],
-        "COS_APP_MANIFEST": str(app_dir / "app.json"),
+        **env, "YUOS_APP_ID": manifest["id"],
+        "YUOS_APP_MANIFEST": str(app_dir / "app.json"),
         "PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1",
     }
     with tempfile.TemporaryFile(mode="w+t") as errors:

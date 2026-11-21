@@ -180,7 +180,7 @@ def locked_app_paths(lock, source):
 
 
 def desktop_apps():
-    return (ROOT / "packaging/deb/claw-os-desktop/apps.list").read_text().split()
+    return (ROOT / "packaging/deb/yuos-desktop/apps.list").read_text().split()
 
 
 def stage_shared(destination, *, lock=None):
@@ -188,7 +188,7 @@ def stage_shared(destination, *, lock=None):
     source = prepare_sources(lock)
     locked_app_paths(lock, source)
     destination = destination.resolve()
-    python = destination / "usr/lib/cos/python"
+    python = destination / "usr/lib/yuos/python"
     result = subprocess.check_output(
         [sys.executable, "-B", str(source / "tools/stage.py"),
          "--shared", "--root", str(destination)],

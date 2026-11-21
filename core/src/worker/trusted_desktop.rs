@@ -108,8 +108,8 @@ const ALLOWLIST: &[Row] = &[
         transports: NO_TRANSPORT,
     },
     Row {
-        app_id: "claw-launcher",
-        system_program: "/usr/bin/claw-launcher",
+        app_id: "yuos-launcher",
+        system_program: "/usr/bin/yuos-launcher",
         transports: NO_TRANSPORT,
     },
     Row {
@@ -180,7 +180,7 @@ pub fn classify(
     }
     // An approved root is a prefix test; this is the ownership test the
     // prefix does not make. A bind mount or symlink chain that lands a
-    // user-writable tree under `/usr/lib/cos` fails here.
+    // user-writable tree under `/usr/lib/yuos` fails here.
     let dir = package.dir().canonicalize().ok()?;
     crate::provenance::fsec::require_secure_location(&dir, &[0]).ok()?;
 
@@ -212,7 +212,7 @@ fn root_owned(path: &Path) -> Option<()> {
 /// came from. Nothing about the owner's runtime directory — its uid,
 /// its layout — crosses the boundary, and two launches for different
 /// owners look identical from inside.
-pub const SANDBOX_SESSION_BUS: &str = "/run/cos/session-bus";
+pub const SANDBOX_SESSION_BUS: &str = "/run/yuos/session-bus";
 
 /// Bind mounts and environment for the granted transports.
 ///
@@ -238,7 +238,7 @@ pub fn transport_mounts(
                     Ok(socket) => socket,
                     Err(BusRefusal(reason)) => {
                         tracing::warn!(
-                            target: "cos_app",
+                            target: "yu_app",
                             %reason,
                             "no session bus transport for this launch"
                         );
@@ -558,7 +558,7 @@ fn verify_bus_socket(
     // naming them here means a future runtime-directory change cannot
     // quietly make one reachable.
     for reserved in [
-        crate::paths::clawd_socket_path(),
+        crate::paths::yuosd_socket_path(),
         crate::paths::runtime_dir(),
         PathBuf::from(super::linux_egress_socket()),
         PathBuf::from("/run/systemd"),

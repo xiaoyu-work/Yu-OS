@@ -1,0 +1,20 @@
+Package: yuos-base
+Version: __VERSION__
+Section: admin
+Priority: optional
+Architecture: all
+Maintainer: Yu OS <noreply@github.com>
+Homepage: https://github.com/xiaoyu-work/Yu-OS
+XB-YuOS-Security-Epoch: __SECURITY_EPOCH__
+XB-YuOS-Abi: __ABI__
+Depends: yuos-agent (>= __MIN_AGENT__), yuos-abi-__ABI__,
+ systemd, systemd-coredump,
+ init-system-helpers (>= 1.52), python3
+Description: Yu OS distribution integration layer
+ Extends `yuos-agent` with the recovery helper, managed OverlayFS
+ agent home, boot/service policies, and device-specific Linux workarounds
+ used by Yu OS images and installed systems.
+ .
+ This package is not required on Debian or Ubuntu hosts that only want
+ the reusable system agent. It deliberately owns no agent runtime,
+ headless app, browser, branding, launcher, or desktop files.

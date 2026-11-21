@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
-. /usr/lib/cos/hw/n1x-boot.sh
+. /usr/lib/yuos/hw/n1x-boot.sh
 
 claw_n1x_present || exit 0
 
@@ -19,11 +19,11 @@ configure_boot() {
         esac
     fi
 
-    config=/etc/default/grub.d/61-claw-os-n1x.cfg
-    header='# Managed by Claw OS NVIDIA N1x setup.'
+    config=/etc/default/grub.d/61-yuos-n1x.cfg
+    header='# Managed by Yu OS NVIDIA N1x setup.'
     if [ -e "$config" ] || [ -L "$config" ]; then
         if [ -L "$config" ] || [ ! -f "$config" ] || [ "$(head -n 1 "$config")" != "$header" ]; then
-            echo "Claw OS N1x: refusing to replace $config" >&2
+            echo "Yu OS N1x: refusing to replace $config" >&2
             return 1
         fi
     fi
@@ -49,7 +49,7 @@ setup_cpu() {
 
 case "$#:${1:-}" in
     1:boot) configure_boot ;;
-    1:gpu-memory) exec /usr/lib/cos/hw/claw-n1x-gpu-memory ;;
+    1:gpu-memory) exec /usr/lib/yuos/hw/claw-n1x-gpu-memory ;;
     1:cpu) setup_cpu /sys/devices/system/cpu/cpufreq/policy* ;;
     2:cpu)
         case "$2" in

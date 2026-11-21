@@ -5,7 +5,7 @@
 Own the Claw-specific integration boundary around the complete
 [Hyprland source](../hyprland/). The replacement stack uses Hyprland,
 Quickshell and the independently source-owned
-[Caelestia frontend](https://github.com/xiaoyu-work/clawos-app/tree/main/products/desktop-shell).
+[Caelestia frontend](https://github.com/xiaoyu-work/yuos-app/tree/main/products/desktop-shell).
 It does not replace the system Agent.
 
 Desktop source builds select only the Root-integrated Hyprland executable.
@@ -56,7 +56,7 @@ capture file or global input interface is created.
 Neither the App nor the Agent receives a raw
 Hyprland control socket. The existing display supervisor forwards authenticated
 response descriptors without interpreting them as grants. The
-[public window provider](../../core/src/clawd/desktop/windows.rs) uses this
+[public window provider](../../core/src/yuosd/desktop/windows.rs) uses this
 channel, binds opaque IDs to the display epoch and observes effects without
 replaying mutations. It provides the native workspace, output and keyboard
 presentation model without an App-side Hyprland IPC client.
@@ -101,7 +101,7 @@ both. `claw-desktop-locales` generates the Debian locales used by the picker.
 The subscriber's `--desktop` mode attaches to the Root login binding. It runs
 post-login configuration only on installed profiles that request it, starts
 the FileManager1 facade, and asks the Root supervisor to launch the signed
-system shell with its fixed [desktop startup rights](../../core/src/clawd/gui/MODULE.md).
+system shell with its fixed [desktop startup rights](../../core/src/yuosd/gui/MODULE.md).
 The [desktop review presenter](session/claw-desktop-reviews) opens a compact,
 centered window for one pending request. It puts the action, target and choices
 first; full disclosure remains available under **Request details**. Accepting
@@ -130,8 +130,8 @@ bindings without launching a second panel, wallpaper process or terminal.
 ## Required contracts
 
 - Preserve the [Root display/PAM lifetime](../../core/src/display_session/MODULE.md)
-  and the closed [display control protocol](../../crates/claw-display-control/MODULE.md).
-- Preserve the [GUI Host](../../core/src/clawd/gui/MODULE.md), exact instance
+  and the closed [display control protocol](../../crates/yuos-display-control/MODULE.md).
+- Preserve the [GUI Host](../../core/src/yuosd/gui/MODULE.md), exact instance
   identity, independent clipboard read/write and panel rights, expiry and
   checked client/listener retirement.
 - Keep window/display services behind the existing broker capability and audit
@@ -200,7 +200,7 @@ establish official APT or deployable-image acceptance.
 The existing protocol baseline runs from the OS repository root:
 
 ```bash
-cargo test -p claw-display-control --locked -- --test-threads=1
+cargo test -p yuos-display-control --locked -- --test-threads=1
 ```
 
 Native build, actual isolated GUI/display acceptance and package/update checks

@@ -5,7 +5,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use crate::clawd::client_identity::FsIdentityGuard;
+use crate::yuosd::client_identity::FsIdentityGuard;
 
 /// Source pins stay separate from the Home-relative names used by selected-file authority.
 pub(crate) struct MetadataRoot {
@@ -77,7 +77,7 @@ impl MetadataRoot {
             };
             root_path.push(name);
             crate::worker::derive::reject_forbidden_for_owner(&root_path, home)?;
-            root = crate::clawd::filesystem::open_at(
+            root = crate::yuosd::filesystem::open_at(
                 &root,
                 name,
                 libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_NONBLOCK,

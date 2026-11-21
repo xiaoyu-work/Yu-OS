@@ -21,7 +21,7 @@ use super::canonical;
 use super::decide::Decision;
 
 /// Root-owned decision log.
-pub const LOG_PATH: &str = "/var/log/cos/security-floor.jsonl";
+pub const LOG_PATH: &str = "/var/log/yuos/security-floor.jsonl";
 
 /// Where the log lives under an alternate root.
 pub fn log_path(root: &Path) -> PathBuf {
@@ -89,7 +89,7 @@ fn forward_to_system_journal(stage: &str, decision: &Decision, package: &str, ve
     let priority = if decision.allowed { "notice" } else { "err" };
     let _ = std::process::Command::new(logger)
         .arg("--tag")
-        .arg("claw-security-floor")
+        .arg("yuos-security-floor")
         .arg("--priority")
         .arg(format!("auth.{priority}"))
         .arg("--")

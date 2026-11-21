@@ -24,13 +24,13 @@ pub(crate) struct ManifestSpec {
 impl Default for ManifestSpec {
     fn default() -> Self {
         let mut minimum_compatible = BTreeMap::new();
-        minimum_compatible.insert("claw-os-agent".to_string(), "1:0.2.0".to_string());
-        minimum_compatible.insert("claw-os-base".to_string(), "1:0.2.0".to_string());
+        minimum_compatible.insert("yuos-agent".to_string(), "1:0.2.0".to_string());
+        minimum_compatible.insert("yuos-base".to_string(), "1:0.2.0".to_string());
         let mut protocols = BTreeMap::new();
         protocols.insert("agentd_worker".to_string(), 5);
         protocols.insert("broker_envelope".to_string(), 2);
         Self {
-            package: "claw-os-agent",
+            package: "yuos-agent",
             version: "1:0.2.0+git100.gaaaaaaaaaaaa",
             security_epoch: 1,
             abi: 1,
@@ -58,8 +58,8 @@ pub(crate) fn manifest_bytes(spec: &ManifestSpec) -> Vec<u8> {
     let document = json!({
         "abi": spec.abi,
         "components": [{
-            "name": "clawd",
-            "path": "/usr/local/bin/clawd",
+            "name": "yuosd",
+            "path": "/usr/local/bin/yuosd",
             "sha256": spec.component_digest,
         }],
         "format": manifest::FORMAT,
@@ -168,7 +168,7 @@ fn every_gated_package_owns_at_least_one_tracked_component() {
 
 #[test]
 fn the_helper_itself_is_a_critical_component() {
-    let helper = component("claw-security-floor").expect("helper is tracked");
+    let helper = component("yuos-security-floor").expect("helper is tracked");
     assert!(
         helper.critical,
         "a replaced verifier must be detected like any other security component"

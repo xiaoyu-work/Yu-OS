@@ -14,7 +14,7 @@ fn unconfigured_cfg() -> crate::config::AgentConfig {
     crate::config::AgentConfig::default()
 }
 
-// The wizard tests below mutate the process-wide COS_CONFIG_PATH
+// The wizard tests below mutate the process-wide YUOS_CONFIG_PATH
 // env var and write to that path. Cargo runs tests in parallel, so
 // we serialize them through a static mutex to avoid races.
 fn env_lock() -> std::sync::MutexGuard<'static, ()> {
@@ -72,10 +72,10 @@ impl CredentialTestEnv {
         let credentials_dir = root.join("credentials");
         let root_key = root.join("credential-root.key");
         Self {
-            _credentials_dir: EnvVarGuard::set("COS_CREDENTIALS_DIR", &credentials_dir),
-            _root_key: EnvVarGuard::set("COS_CREDENTIAL_ROOT_KEY_PATH", &root_key),
-            _permissions: EnvVarGuard::set("COS_PERMS_MODE", "permissive"),
-            _session: EnvVarGuard::remove("COS_SESSION"),
+            _credentials_dir: EnvVarGuard::set("YUOS_CREDENTIALS_DIR", &credentials_dir),
+            _root_key: EnvVarGuard::set("YUOS_CREDENTIAL_ROOT_KEY_PATH", &root_key),
+            _permissions: EnvVarGuard::set("YUOS_PERMS_MODE", "permissive"),
+            _session: EnvVarGuard::remove("YUOS_SESSION"),
             root,
         }
     }
@@ -579,10 +579,10 @@ fn bare_setup_on_non_tty_requires_modality() {
 fn bare_status_defaults_to_all_modalities() {
     let _g = env_lock();
     let tmp_dir =
-        std::env::temp_dir().join(format!("cos-setup-test-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-setup-test-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&tmp_dir).unwrap();
     let cfg_path = tmp_dir.join("config.json");
-    std::env::set_var("COS_CONFIG_PATH", &cfg_path);
+    std::env::set_var("YUOS_CONFIG_PATH", &cfg_path);
 
     // No positional modality, just --status: should fan out to all.
     let v = run(&["--status".into()]).expect("status ok");
@@ -597,7 +597,7 @@ fn bare_status_defaults_to_all_modalities() {
         );
     }
 
-    std::env::remove_var("COS_CONFIG_PATH");
+    std::env::remove_var("YUOS_CONFIG_PATH");
     std::fs::remove_dir_all(&tmp_dir).ok();
 }
 
@@ -641,10 +641,10 @@ fn reset_writes_mock_provider_to_config() {
     let _g = env_lock();
     use std::path::PathBuf;
     let tmp_dir =
-        std::env::temp_dir().join(format!("cos-setup-test-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-setup-test-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&tmp_dir).unwrap();
     let cfg_path: PathBuf = tmp_dir.join("config.json");
-    std::env::set_var("COS_CONFIG_PATH", &cfg_path);
+    std::env::set_var("YUOS_CONFIG_PATH", &cfg_path);
     // Pre-seed with a non-mock provider.
     std::fs::write(
         &cfg_path,
@@ -663,7 +663,7 @@ fn reset_writes_mock_provider_to_config() {
         "expected reset to write provider=mock, got {text}"
     );
 
-    std::env::remove_var("COS_CONFIG_PATH");
+    std::env::remove_var("YUOS_CONFIG_PATH");
     std::fs::remove_dir_all(&tmp_dir).ok();
 }
 
@@ -671,10 +671,10 @@ fn reset_writes_mock_provider_to_config() {
 fn reset_media_writes_none_provider_to_config() {
     let _g = env_lock();
     let tmp_dir =
-        std::env::temp_dir().join(format!("cos-setup-test-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-setup-test-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&tmp_dir).unwrap();
     let cfg_path = tmp_dir.join("config.json");
-    std::env::set_var("COS_CONFIG_PATH", &cfg_path);
+    std::env::set_var("YUOS_CONFIG_PATH", &cfg_path);
     std::fs::write(
             &cfg_path,
             r#"{"tts":{"provider":"openai","model":"tts-1","api_key_credential":"tts_openai_api_key"}}"#,
@@ -689,7 +689,7 @@ fn reset_media_writes_none_provider_to_config() {
     assert_eq!(parsed["tts"]["provider"].as_str(), Some("none"));
     assert!(parsed["tts"]["api_key_credential"].is_null());
 
-    std::env::remove_var("COS_CONFIG_PATH");
+    std::env::remove_var("YUOS_CONFIG_PATH");
     std::fs::remove_dir_all(&tmp_dir).ok();
 }
 
@@ -698,33 +698,33 @@ fn status_returns_provider_and_ready_flag() {
     let _g = env_lock();
     // Use a tmp config path so we don't depend on the user's real config.
     let tmp_dir =
-        std::env::temp_dir().join(format!("cos-setup-test-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-setup-test-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&tmp_dir).unwrap();
     let cfg_path = tmp_dir.join("config.json");
-    std::env::set_var("COS_CONFIG_PATH", &cfg_path);
+    std::env::set_var("YUOS_CONFIG_PATH", &cfg_path);
 
     let v = status_cmd(Modality::Llm).expect("status ok");
     assert!(v.get("ready").and_then(|b| b.as_bool()).is_some());
     assert!(v.get("provider").and_then(|s| s.as_str()).is_some());
 
-    std::env::remove_var("COS_CONFIG_PATH");
+    std::env::remove_var("YUOS_CONFIG_PATH");
     std::fs::remove_dir_all(&tmp_dir).ok();
 }
 
 #[test]
 fn config_path_defaults_to_user_config_dir() {
-    // Regression: agent config used to default to /etc/cos/config.json,
+    // Regression: agent config used to default to /etc/yuos/config.json,
     // which non-root users couldn't write to — saving Azure in
     // cosmic-settings then silently failed. With per-user paths,
-    // config_path() must land under COS_USER_CONFIG_DIR.
+    // config_path() must land under YUOS_USER_CONFIG_DIR.
     let _g = env_lock();
     let tmp =
-        std::env::temp_dir().join(format!("cos-setup-user-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-setup-user-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&tmp).unwrap();
-    let prev_path = std::env::var_os("COS_CONFIG_PATH");
-    let prev_user = std::env::var_os("COS_USER_CONFIG_DIR");
-    std::env::remove_var("COS_CONFIG_PATH");
-    std::env::set_var("COS_USER_CONFIG_DIR", &tmp);
+    let prev_path = std::env::var_os("YUOS_CONFIG_PATH");
+    let prev_user = std::env::var_os("YUOS_USER_CONFIG_DIR");
+    std::env::remove_var("YUOS_CONFIG_PATH");
+    std::env::set_var("YUOS_USER_CONFIG_DIR", &tmp);
 
     let p = config_path();
     assert_eq!(p, tmp.join("config.json"));
@@ -735,11 +735,11 @@ fn config_path_defaults_to_user_config_dir() {
     assert_eq!(v["agent"]["provider"], "azure");
 
     match prev_user {
-        Some(v) => std::env::set_var("COS_USER_CONFIG_DIR", v),
-        None => std::env::remove_var("COS_USER_CONFIG_DIR"),
+        Some(v) => std::env::set_var("YUOS_USER_CONFIG_DIR", v),
+        None => std::env::remove_var("YUOS_USER_CONFIG_DIR"),
     }
     if let Some(v) = prev_path {
-        std::env::set_var("COS_CONFIG_PATH", v);
+        std::env::set_var("YUOS_CONFIG_PATH", v);
     }
     std::fs::remove_dir_all(&tmp).ok();
 }
@@ -748,10 +748,10 @@ fn config_path_defaults_to_user_config_dir() {
 fn status_all_reports_every_modality() {
     let _g = env_lock();
     let tmp_dir =
-        std::env::temp_dir().join(format!("cos-setup-test-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-setup-test-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&tmp_dir).unwrap();
     let cfg_path = tmp_dir.join("config.json");
-    std::env::set_var("COS_CONFIG_PATH", &cfg_path);
+    std::env::set_var("YUOS_CONFIG_PATH", &cfg_path);
 
     let v = status_cmd(Modality::All).expect("status ok");
     let modalities = v
@@ -765,7 +765,7 @@ fn status_all_reports_every_modality() {
         );
     }
 
-    std::env::remove_var("COS_CONFIG_PATH");
+    std::env::remove_var("YUOS_CONFIG_PATH");
     std::fs::remove_dir_all(&tmp_dir).ok();
 }
 
@@ -1067,10 +1067,10 @@ fn user_facing_providers_hides_mock_and_llama_local() {
 fn azure_apply_without_base_url_errors() {
     let _g = env_lock();
     let tmp_dir =
-        std::env::temp_dir().join(format!("cos-setup-test-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-setup-test-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&tmp_dir).unwrap();
     let cfg_path = tmp_dir.join("config.json");
-    std::env::set_var("COS_CONFIG_PATH", &cfg_path);
+    std::env::set_var("YUOS_CONFIG_PATH", &cfg_path);
 
     let err = run(&[
         "text".into(),
@@ -1086,7 +1086,7 @@ fn azure_apply_without_base_url_errors() {
     assert!(err.contains("azure"), "{err}");
     assert!(err.contains("--base-url"), "{err}");
 
-    std::env::remove_var("COS_CONFIG_PATH");
+    std::env::remove_var("YUOS_CONFIG_PATH");
     std::fs::remove_dir_all(&tmp_dir).ok();
 }
 
@@ -1094,10 +1094,10 @@ fn azure_apply_without_base_url_errors() {
 fn azure_apply_persists_base_url_with_api_version() {
     let _g = env_lock();
     let tmp_dir =
-        std::env::temp_dir().join(format!("cos-setup-test-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-setup-test-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&tmp_dir).unwrap();
     let cfg_path = tmp_dir.join("config.json");
-    std::env::set_var("COS_CONFIG_PATH", &cfg_path);
+    std::env::set_var("YUOS_CONFIG_PATH", &cfg_path);
 
     let v = run(&[
         "text".into(),
@@ -1131,7 +1131,7 @@ fn azure_apply_persists_base_url_with_api_version() {
         Some("https://acme.openai.azure.com/?api-version=2024-12-01-preview")
     );
 
-    std::env::remove_var("COS_CONFIG_PATH");
+    std::env::remove_var("YUOS_CONFIG_PATH");
     std::fs::remove_dir_all(&tmp_dir).ok();
 }
 
@@ -1139,10 +1139,10 @@ fn azure_apply_persists_base_url_with_api_version() {
 fn azure_apply_rejects_deployment_in_base_url() {
     let _g = env_lock();
     let tmp_dir =
-        std::env::temp_dir().join(format!("cos-setup-test-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-setup-test-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&tmp_dir).unwrap();
     let cfg_path = tmp_dir.join("config.json");
-    std::env::set_var("COS_CONFIG_PATH", &cfg_path);
+    std::env::set_var("YUOS_CONFIG_PATH", &cfg_path);
 
     let err = run(&[
         "text".into(),
@@ -1161,7 +1161,7 @@ fn azure_apply_rejects_deployment_in_base_url() {
     .unwrap_err();
     assert!(err.contains("resource root"), "msg was: {err}");
 
-    std::env::remove_var("COS_CONFIG_PATH");
+    std::env::remove_var("YUOS_CONFIG_PATH");
     std::fs::remove_dir_all(&tmp_dir).ok();
 }
 
@@ -1175,10 +1175,10 @@ fn status_media_reports_base_url_and_api_version_split() {
     // a TTS block (the parser is provider-agnostic).
     let _g = env_lock();
     let tmp_dir =
-        std::env::temp_dir().join(format!("cos-setup-test-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-setup-test-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&tmp_dir).unwrap();
     let cfg_path = tmp_dir.join("config.json");
-    std::env::set_var("COS_CONFIG_PATH", &cfg_path);
+    std::env::set_var("YUOS_CONFIG_PATH", &cfg_path);
     std::fs::write(
             &cfg_path,
             r#"{"tts":{"provider":"openai","model":"tts-1","base_url":"https://acme.example.com/v1?api-version=2024-12-01-preview","api_key_env":"__TTS_TEST_KEY__"}}"#,
@@ -1194,7 +1194,7 @@ fn status_media_reports_base_url_and_api_version_split() {
     assert_eq!(v["endpoint"].as_str(), Some("https://acme.example.com/v1"));
     assert_eq!(v["api_version"].as_str(), Some("2024-12-01-preview"));
 
-    std::env::remove_var("COS_CONFIG_PATH");
+    std::env::remove_var("YUOS_CONFIG_PATH");
     std::fs::remove_dir_all(&tmp_dir).ok();
 }
 
@@ -1214,10 +1214,10 @@ fn status_media_reason_is_envelope_shape_when_not_ready() {
     // gets seeded by whichever test ran first).
     let _g = env_lock();
     let tmp_dir =
-        std::env::temp_dir().join(format!("cos-setup-test-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-setup-test-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&tmp_dir).unwrap();
     let cfg_path = tmp_dir.join("config.json");
-    std::env::set_var("COS_CONFIG_PATH", &cfg_path);
+    std::env::set_var("YUOS_CONFIG_PATH", &cfg_path);
     std::fs::write(
         &cfg_path,
         r#"{
@@ -1260,7 +1260,7 @@ fn status_media_reason_is_envelope_shape_when_not_ready() {
         );
     }
 
-    std::env::remove_var("COS_CONFIG_PATH");
+    std::env::remove_var("YUOS_CONFIG_PATH");
     std::fs::remove_dir_all(&tmp_dir).ok();
 }
 
@@ -1268,11 +1268,11 @@ fn status_media_reason_is_envelope_shape_when_not_ready() {
 fn status_embed_auto_prompts_when_local_stack_missing() {
     let _g = env_lock();
     let tmp_dir =
-        std::env::temp_dir().join(format!("cos-setup-test-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-setup-test-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&tmp_dir).unwrap();
     let cfg_path = tmp_dir.join("config.json");
     let missing_model_dir = tmp_dir.join("missing-qwen3");
-    std::env::set_var("COS_CONFIG_PATH", &cfg_path);
+    std::env::set_var("YUOS_CONFIG_PATH", &cfg_path);
     std::fs::write(
         &cfg_path,
         json!({
@@ -1301,7 +1301,7 @@ fn status_embed_auto_prompts_when_local_stack_missing() {
         v["reason"]
     );
 
-    std::env::remove_var("COS_CONFIG_PATH");
+    std::env::remove_var("YUOS_CONFIG_PATH");
     std::fs::remove_dir_all(&tmp_dir).ok();
 }
 
@@ -1325,10 +1325,10 @@ fn apply_embed_local_rejects_missing_local_stack() {
 
     let _g = env_lock();
     let tmp_dir =
-        std::env::temp_dir().join(format!("cos-setup-test-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-setup-test-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&tmp_dir).unwrap();
     let cfg_path = tmp_dir.join("config.json");
-    std::env::set_var("COS_CONFIG_PATH", &cfg_path);
+    std::env::set_var("YUOS_CONFIG_PATH", &cfg_path);
 
     let err = run(&[
         "embed".into(),
@@ -1346,6 +1346,6 @@ fn apply_embed_local_rejects_missing_local_stack() {
     );
     assert_eq!(envelope["fix"].as_str(), Some("yu agent setup embed"));
 
-    std::env::remove_var("COS_CONFIG_PATH");
+    std::env::remove_var("YUOS_CONFIG_PATH");
     std::fs::remove_dir_all(&tmp_dir).ok();
 }

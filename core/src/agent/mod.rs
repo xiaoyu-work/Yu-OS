@@ -57,7 +57,7 @@ mod vision_commands;
 
 use serde_json::Value;
 
-use crate::clawd::agent_client;
+use crate::yuosd::agent_client;
 
 pub(crate) use command_catalog::dev_help;
 pub(crate) use diagnostic_commands::{

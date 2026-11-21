@@ -2,8 +2,8 @@ use super::*;
 use serde_json::json;
 
 /// Points both durable capability-decision sinks at one temp dir:
-/// `caps.jsonl` follows `COS_LOG_DIR`, the system-operations journal
-/// follows `COS_DATA_DIR`. Field order matters — the env guards
+/// `caps.jsonl` follows `YUOS_LOG_DIR`, the system-operations journal
+/// follows `YUOS_DATA_DIR`. Field order matters — the env guards
 /// restore the previous values on drop and the shared env lock is
 /// declared last so it is released only after that restore.
 struct SinkDirs {
@@ -17,8 +17,8 @@ impl SinkDirs {
     fn new() -> Self {
         let lock = crate::test_env::lock_env();
         let dir = tempfile::tempdir().unwrap();
-        let log_dir = crate::test_env::TestEnvVarGuard::set("COS_LOG_DIR", dir.path());
-        let data_dir = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", dir.path());
+        let log_dir = crate::test_env::TestEnvVarGuard::set("YUOS_LOG_DIR", dir.path());
+        let data_dir = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", dir.path());
         Self {
             _dir: dir,
             _log_dir: log_dir,
@@ -65,14 +65,14 @@ fn log_cap_decision_writes_under_log_dir() {
 }
 
 /// Regression: `log_cap_decision` used to return early when the
-/// caller's environment carried `COS_CAPS_AUDIT=0`. That handed the
+/// caller's environment carried `YUOS_CAPS_AUDIT=0`. That handed the
 /// process under enforcement a switch for its own audit trail — it
 /// could drop its denials and keep running. The variable must now be
 /// inert, and both decision classes must reach both sinks.
 #[test]
 fn env_var_cannot_suppress_cap_decisions() {
     let _sinks = SinkDirs::new();
-    let _flag = crate::test_env::TestEnvVarGuard::set("COS_CAPS_AUDIT", "0");
+    let _flag = crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_AUDIT", "0");
 
     log_cap_decision(json!({
         "session_id": "s-1",
@@ -107,12 +107,12 @@ fn env_var_cannot_suppress_cap_decisions() {
 }
 
 /// The audited process controls its whole environment, so no value
-/// of `COS_CAPS_AUDIT` may change what is recorded.
+/// of `YUOS_CAPS_AUDIT` may change what is recorded.
 #[test]
 fn no_value_of_the_legacy_env_var_changes_recording() {
     for value in ["0", "false", "off", "no", "", "1"] {
         let _sinks = SinkDirs::new();
-        let _flag = crate::test_env::TestEnvVarGuard::set("COS_CAPS_AUDIT", value);
+        let _flag = crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_AUDIT", value);
 
         log_cap_decision(json!({
             "session_id": "s-1",
@@ -124,7 +124,7 @@ fn no_value_of_the_legacy_env_var_changes_recording() {
         assert_eq!(
             lines.len(),
             1,
-            "COS_CAPS_AUDIT={value:?} changed recording: {lines:?}"
+            "YUOS_CAPS_AUDIT={value:?} changed recording: {lines:?}"
         );
         assert_eq!(lines[0]["decision"], json!("deny"));
     }

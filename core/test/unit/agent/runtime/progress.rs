@@ -28,10 +28,10 @@ fn recording_progress_completes_tool_invocation() {
     let sink = recording_progress(null_progress(), db.clone(), "session-1", true);
     sink.on_tool_start(
         "call-1",
-        "cos_proc",
+        "yu_proc",
         &serde_json::json!({"command": "list"}),
     );
-    sink.on_tool_result("call-1", "cos_proc", false, 42, 128, "permission denied");
+    sink.on_tool_result("call-1", "yu_proc", false, 42, 128, "permission denied");
 
     let rows = db.recent_tool_invocations("session-1", 10).unwrap();
     assert_eq!(rows.len(), 1);
@@ -94,9 +94,9 @@ fn truncate_respects_utf8_boundary() {
 
 #[test]
 fn format_header_includes_all_fields() {
-    let h = format_result_header("id-1", "cos_sysinfo", true, 1234, 56);
+    let h = format_result_header("id-1", "yu_sysinfo", true, 1234, 56);
     assert!(h.contains("id=id-1"));
-    assert!(h.contains("name=cos_sysinfo"));
+    assert!(h.contains("name=yu_sysinfo"));
     assert!(h.contains("ok"));
     assert!(!h.contains("ERROR"));
     assert!(h.contains("ms=1234"));
@@ -105,7 +105,7 @@ fn format_header_includes_all_fields() {
 
 #[test]
 fn format_header_renders_error_status() {
-    let h = format_result_header("id-1", "cos_sysinfo", false, 0, 0);
+    let h = format_result_header("id-1", "yu_sysinfo", false, 0, 0);
     assert!(h.contains("ERROR"));
     assert!(!h.contains(" ok "));
 }

@@ -23,11 +23,11 @@ not task working directories, App private stores, or execution grants.
 | `context_access.rs` | Non-portable visibility epochs and closed temporary-context replay constraints; original evidence remains |
 | `boundary.rs` | Read-source constraints carried through worker gates and attenuated Root App grants |
 | `gateway.rs` | Bounded task-local context/recall/report operations with no owner or domain selector |
-| `../../../crates/clawd-client/src/workspaces.rs` | Closed shared wire definitions and input bounds |
+| `../../../crates/yuosd-client/src/workspaces.rs` | Closed shared wire definitions and input bounds |
 | `../activities/sqlite/workspaces.rs` | Schema-10 transactional provider in `activities.db` |
-| `../clawd/workspaces.rs` | Owner management, source validation and deletion coordination |
-| `../clawd/owner_files.rs` | Shared no-symlink descriptor traversal |
-| `../clawd/workspaces/reads.rs` | Root live-tag/source reads, scoped memory gateway, local file search and index diagnostics |
+| `../yuosd/workspaces.rs` | Owner management, source validation and deletion coordination |
+| `../yuosd/owner_files.rs` | Shared no-symlink descriptor traversal |
+| `../yuosd/workspaces/reads.rs` | Root live-tag/source reads, scoped memory gateway, local file search and index diagnostics |
 | `../agent/terminal/workspaces.rs`, `../agent/terminal/plain.rs` | TUI center and plain chat over the same durable Root backend |
 | `../agent/web/routes/workspaces.rs`, `../agent/web/ui/src/pages/workspaces.tsx` | Authenticated Web adapter and exact-revision human forms |
 
@@ -82,5 +82,5 @@ pagination preserves the link, target and displayed content revision.
 
 ```bash
 cargo test -p yu activities::sqlite::workspaces:: -- --test-threads=1
-cargo test -p clawd-client --lib --locked
+cargo test -p yuosd-client --lib --locked
 ```

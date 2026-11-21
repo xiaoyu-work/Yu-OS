@@ -7,10 +7,10 @@ Requires=claw-ipu7-init.service
 After=claw-ipu7-init.service dev-ipu7\x2dpsys0.device
 
 [Service]
-ExecCondition=/usr/lib/cos/ipu7/claw-ipu7-camera supported
-ExecStart=/usr/lib/cos/ipu7/claw-ipu7-camera relay
-Environment=LD_LIBRARY_PATH=/usr/lib/cos/ipu7
-Environment=GST_PLUGIN_PATH=/usr/lib/cos/ipu7/gstreamer-1.0
+ExecCondition=/usr/lib/yuos/ipu7/claw-ipu7-camera supported
+ExecStart=/usr/lib/yuos/ipu7/claw-ipu7-camera relay
+Environment=LD_LIBRARY_PATH=/usr/lib/yuos/ipu7
+Environment=GST_PLUGIN_PATH=/usr/lib/yuos/ipu7/gstreamer-1.0
 Environment=GST_REGISTRY=/run/claw-ipu7/registry.bin
 RuntimeDirectory=claw-ipu7
 RuntimeDirectoryMode=0700

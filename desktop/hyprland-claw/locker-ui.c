@@ -73,7 +73,7 @@ static void clock_tick(int fd, short events, void *data) {
 }
 
 static cairo_surface_t *load_avatar(uid_t uid) {
-	static const char directory[] = "/usr/share/claw-os/avatars/";
+	static const char directory[] = "/usr/share/yuos/avatars/";
 	char object[64];
 	snprintf(object, sizeof(object), "/org/freedesktop/Accounts/User%u", (unsigned)uid);
 	sd_bus *bus = NULL;
@@ -101,10 +101,10 @@ static cairo_surface_t *load_avatar(uid_t uid) {
 }
 
 void claw_lock_style_start(struct swaylock_state *state) {
-	wallpaper = load_background_image("/usr/share/backgrounds/claw-os/yuos-default.jpg");
+	wallpaper = load_background_image("/usr/share/backgrounds/yuos/yuos-default.jpg");
 	avatar = load_avatar(getuid());
 	if (!avatar) {
-		logo = cairo_image_surface_create_from_png("/usr/share/claw-os/oobe/logo.png");
+		logo = cairo_image_surface_create_from_png("/usr/share/yuos/oobe/logo.png");
 	}
 
 	const struct passwd *owner = getpwuid(getuid());

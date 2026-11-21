@@ -4,7 +4,7 @@
  "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
 <policyconfig>
   <action id="org.yuos.local-desktop-setup.create-owner">
-    <description>Create the first local Claw OS account</description>
+    <description>Create the first local Yu OS account</description>
     <message>Authorization is required to create the first local account</message>
     <defaults>
       <allow_any>no</allow_any>

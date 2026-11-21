@@ -126,13 +126,13 @@ pub enum Message {
     SessionForked(Result<SessionSummary, String>),
     FollowUpQueued {
         prompt: String,
-        result: Result<cos_agent_protocol::TaskStarted, String>,
+        result: Result<yuos_agent_protocol::TaskStarted, String>,
     },
     RetryHistory,
     SessionsFetched(Result<Vec<SessionSummary>, String>),
     HistoryFetched {
         session_id: String,
-        result: Result<cos_agent_protocol::HistoryResponse, String>,
+        result: Result<yuos_agent_protocol::HistoryResponse, String>,
     },
     ProvisionalResolved {
         session_index: usize,
@@ -1350,8 +1350,8 @@ fn open_uri(uri: &str) -> std::io::Result<()> {
         .map(|_| ())
 }
 
-fn parse_arguments() -> (cos_runtime::ask_claw::UiArguments,bool) {
-    let mut parsed = cos_runtime::ask_claw::parse_ui_arguments(env::args().skip(1));
+fn parse_arguments() -> (yuos_runtime::ask_claw::UiArguments,bool) {
+    let mut parsed = yuos_runtime::ask_claw::parse_ui_arguments(env::args().skip(1));
     let count=parsed.unknown.iter().filter(|argument|argument.as_str()=="--nearby").count();
     if count>1 || count>0 && (parsed.overlay || parsed.voice || parsed.query.is_some()
         || parsed.context.is_some() || parsed.context_socket) {
@@ -1361,8 +1361,8 @@ fn parse_arguments() -> (cos_runtime::ask_claw::UiArguments,bool) {
     let nearby=count==1;
     parsed.unknown.retain(|argument|argument!="--nearby");
     if parsed.help {
-        eprintln!("{}", cos_runtime::ask_claw::UI_USAGE);
-        eprintln!("cos-agent-ui --nearby  Open Nearby Sharing without starting an Agent task");
+        eprintln!("{}", yuos_runtime::ask_claw::UI_USAGE);
+        eprintln!("yuos-agent-ui --nearby  Open Nearby Sharing without starting an Agent task");
         std::process::exit(0);
     }
     for argument in &parsed.unknown {
@@ -1371,7 +1371,7 @@ fn parse_arguments() -> (cos_runtime::ask_claw::UiArguments,bool) {
     (parsed,nearby)
 }
 
-fn flags_from_arguments(parsed: cos_runtime::ask_claw::UiArguments) -> Flags {
+fn flags_from_arguments(parsed: yuos_runtime::ask_claw::UiArguments) -> Flags {
     let activation = match parsed.activation_from_process_socket() {
         Ok(activation) => activation,
         Err(error) => {
@@ -1409,7 +1409,7 @@ enum UiLaunchMode {
 }
 
 impl UiLaunchMode {
-    fn from_arguments(arguments: &cos_runtime::ask_claw::UiArguments) -> Self {
+    fn from_arguments(arguments: &yuos_runtime::ask_claw::UiArguments) -> Self {
         if !arguments.overlay {
             Self::Window
         } else if arguments.context_socket

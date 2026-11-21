@@ -1,6 +1,6 @@
 //! Human controls for the shared, explicitly enabled Activity work loop.
 
-use crate::clawd::routes::Command;
+use crate::yuosd::routes::Command;
 use serde_json::{json, Value};
 
 pub(super) fn parse(command: &str, args: &[String]) -> Result<(Command, Value), String> {

@@ -498,24 +498,24 @@ pub fn nested_commands(path: &[&str]) -> Option<Vec<CommandEntry>> {
 
 fn model_tool_for(namespace: &str, command: &str) -> Option<&'static str> {
     match namespace {
-        "sys" => Some("cos_sysinfo"),
-        "service" => Some("cos_service"),
-        "checkpoint" => Some("cos_checkpoint"),
-        "credential" if command == "oauth-login" => Some("cos_oauth_login"),
-        "credential" => Some("cos_credential"),
-        "cron" => Some("cos_cron"),
+        "sys" => Some("yu_sysinfo"),
+        "service" => Some("yu_service"),
+        "checkpoint" => Some("yu_checkpoint"),
+        "credential" if command == "oauth-login" => Some("yu_oauth_login"),
+        "credential" => Some("yu_credential"),
+        "cron" => Some("yu_cron"),
         "model"
             if matches!(
                 command,
                 "list" | "import" | "load" | "unload" | "infer" | "status" | "bench" | "rm"
             ) =>
         {
-            Some("cos_model")
+            Some("yu_model")
         }
         "agent" => match command {
-            "doctor" => Some("cos_doctor"),
-            "diagnose" => Some("cos_diagnose"),
-            "usage" => Some("cos_usage"),
+            "doctor" => Some("yu_doctor"),
+            "diagnose" => Some("yu_diagnose"),
+            "usage" => Some("yu_usage"),
             _ => None,
         },
         _ => None,

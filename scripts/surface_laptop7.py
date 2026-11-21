@@ -139,7 +139,7 @@ def romulus_touchpad_configs(recipes, stage):
 
 
 def snapdragon_packages(release, source, provenance, work, out, package):
-    name = "claw-os-surface-snapdragon-radio"
+    name = "yuos-surface-snapdragon-radio"
     stage = work / "romulus-radio"
     fixes = work / "romulus-fixes"
     key = "surface-snapdragon-fixes"
@@ -168,7 +168,7 @@ if [[ ! -r "$vendor_path" || "$(<"$vendor_path")" != 'Microsoft Corporation' ]];
 if [[ ! -r $compatible ]] || ! grep -qzxE '{'|'.join(boards)}' "$compatible"; then""")
     compatible = "\n".join(f"ConditionFirmware=|device-tree-compatible({board})" for board in boards)
     replace(bt, 'ConditionFirmware=smbios-field(sys_vendor = "Microsoft Corporation")', compatible)
-    package(stage, out, name, "1-2+clawos5", "arm64", "bash, bluez, iproute2, systemd, udev",
+    package(stage, out, name, "1-2+yuos5", "arm64", "bash, bluez, iproute2, systemd, udev",
             "Wi-Fi and Bluetooth addresses for Snapdragon Surface Laptop 7, Laptop 8 and Pro 11",
             {key: provenance[key]}, None)
     if "surface-snapdragon-iptsd" not in source:
@@ -177,9 +177,9 @@ if [[ ! -r $compatible ]] || ! grep -qzxE '{'|'.join(boards)}' "$compatible"; th
         raise ValueError("build the Snapdragon touchpad package in an arm64 Debian 13 environment")
     extract(source[key], fixes, prefixes=("pkgbuilds/iptsd/",))
     recipes = fixes / "pkgbuilds/iptsd"
-    iptsd = "claw-os-surface-snapdragon-iptsd"
-    romulus = "claw-os-surface-snapdragon-touchpad"
-    version = "3.1.0-5+clawos6"
+    iptsd = "yuos-surface-snapdragon-iptsd"
+    romulus = "yuos-surface-snapdragon-touchpad"
+    version = "3.1.0-5+yuos6"
     common = work / "snapdragon-iptsd"
     touchpad(source["surface-snapdragon-iptsd"], recipes, work, common, relaxed_probe=True)
     stage_file(work / "iptsd/LICENSE", common / "usr/share/doc" / iptsd / "copyright")
@@ -248,12 +248,12 @@ def camera_packages(source, fixes, work, out):
     replace(camera / "src/ipa/simple/data/meson.build", "    'imx471.yaml',\n",
             "    'imx471.yaml',\n    'ov02c10.yaml',\n")
     changelog = camera / "debian/changelog"
-    version = "0.7.2-1+clawos1"
+    version = "0.7.2-1+yuos1"
     write_file(changelog, f"""libcamera ({version}) unstable; urgency=medium
 
   * Build the Surface Laptop 7 IPU7 camera integration.
 
- -- Claw OS <noreply@github.com>  Wed, 18 Nov 2026 00:00:00 +0000
+ -- Yu OS <noreply@github.com>  Wed, 18 Nov 2026 00:00:00 +0000
 
 """ + changelog.read_text())
     subprocess.run(
@@ -292,7 +292,7 @@ def build_surface(profile, source, provenance, work, out, package, *, debian=Fal
     arch = subprocess.check_output(["dpkg", "--print-architecture"], text=True).strip()
     if arch != profile["arch"] or "ID=debian" not in os_release or "VERSION_CODENAME=trixie" not in os_release:
         raise ValueError("build the Intel Surface Laptop 7 packages on amd64 Debian 13 (trixie)")
-    name = "claw-os-surface-laptop-7"
+    name = "yuos-surface-laptop-7"
     if debian:
         from platform_kernels import digest
 
@@ -322,11 +322,11 @@ def build_surface(profile, source, provenance, work, out, package, *, debian=Fal
     camera_packages(source, fixes, work, out)
     stage_file(fixes / "LICENSE", stage / "usr/share/doc" / name / "copyright")
     if debian:
-        write_file(stage / "etc/default/grub.d/60-claw-os-surface-laptop-7.cfg",
+        write_file(stage / "etc/default/grub.d/60-yuos-surface-laptop-7.cfg",
                    f'GRUB_TOP_LEVEL="/boot/vmlinuz-{release}"\n')
     refresh = f"depmod -a '{release}'\nupdate-initramfs -u -k '{release}'\n"
-    package(stage, out, name, version + "+clawos1", profile["arch"],
+    package(stage, out, name, version + "+yuos1", profile["arch"],
             f"linux-image-{release} (= {version}), kmod, initramfs-tools, libc6, libgcc-s1, libstdc++6",
-            "Claw OS drivers for Surface Laptop 7 for Business (Intel)", provenance,
+            "Yu OS drivers for Surface Laptop 7 for Business (Intel)", provenance,
             '[ "$1" = configure ] || exit 0\n' + refresh,
             f"""[ "$1" = remove ] && [ -d '/lib/modules/{release}' ] || exit 0\n""" + refresh)

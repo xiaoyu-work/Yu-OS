@@ -12,7 +12,7 @@ receipt to complete an Activity.
 
 ## Execute through the normal App boundary
 
-Inside an installed Linux or WSL Claw OS environment:
+Inside an installed Linux or WSL Yu OS environment:
 
 ```bash
 yu operation execute kv get \
@@ -23,7 +23,7 @@ yu operation execute kv get \
 Use an existing Activity ID. The Activity must be active before starting the
 operation. This command validates the App and invocation, then uses the same
 `agent.invoke`, App permission, provenance, sandbox, and audit path as
-`yu app`. It does not run App code inside root `clawd`, bypass approval, or
+`yu app`. It does not run App code inside root `yuosd`, bypass approval, or
 start an LLM to decide what to execute. Caller stdin is not forwarded through
 this entry point; use explicitly declared arguments.
 

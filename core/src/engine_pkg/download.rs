@@ -99,7 +99,7 @@ pub async fn stream_to_temp(opts: &DownloadOpts<'_>) -> Result<DownloadResult, D
 
     let suffix = url_extension(opts.url).unwrap_or_else(|| ".bin".to_string());
     let mut tmp = tempfile::Builder::new()
-        .prefix("cos-engine-dl-")
+        .prefix("yuos-engine-dl-")
         .suffix(&suffix)
         .tempfile()?;
     let mut hasher = Sha256Stream::new();

@@ -38,7 +38,7 @@ fn durable_directory_preflight_fails_before_mutation() {
     let dir = tempfile::tempdir().unwrap();
     let target = dir.path().join("one").join("two");
     let _guard =
-        crate::test_env::TestEnvVarGuard::set("COS_TEST_PERSISTENCE_FAILPOINT", "dir_fsync");
+        crate::test_env::TestEnvVarGuard::set("YUOS_TEST_PERSISTENCE_FAILPOINT", "dir_fsync");
     assert!(ensure_durable_private_dir(&target).is_err());
     assert!(!dir.path().join("one").exists());
 }
@@ -50,7 +50,7 @@ fn visible_directory_creation_error_is_recoverable_only_after_revalidation() {
     let target = dir.path().join("one");
     {
         let _guard = crate::test_env::TestEnvVarGuard::set(
-            "COS_TEST_PERSISTENCE_FAILPOINT",
+            "YUOS_TEST_PERSISTENCE_FAILPOINT",
             "after_dir_create",
         );
         assert!(ensure_durable_private_dir(&target).is_err());
@@ -73,7 +73,7 @@ fn atomic_write_propagates_every_durability_barrier_failure() {
     ] {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("state.json");
-        let _guard = crate::test_env::TestEnvVarGuard::set("COS_TEST_PERSISTENCE_FAILPOINT", point);
+        let _guard = crate::test_env::TestEnvVarGuard::set("YUOS_TEST_PERSISTENCE_FAILPOINT", point);
         let error = atomic_write_with_fsync(&path, b"value").unwrap_err();
         assert!(error.to_string().contains("failpoint"), "{point}: {error}");
         if matches!(point, "file_open" | "file_write" | "file_fsync") {

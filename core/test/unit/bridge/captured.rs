@@ -51,13 +51,13 @@ mod process {
     use std::time::Duration;
 
     #[test]
-    #[ignore = "requires COS_CAPTURED_TEST_RUNNER pointing at the real Linux runner"]
+    #[ignore = "requires YUOS_CAPTURED_TEST_RUNNER pointing at the real Linux runner"]
     fn pre_sandbox_custody_gate_preserves_stdio_and_refuses_unbound_execution() {
         use std::io::Write;
         use std::os::unix::process::CommandExt;
         use std::process::{Command, Stdio};
 
-        let runner = std::env::var_os("COS_CAPTURED_TEST_RUNNER").expect("real runner input");
+        let runner = std::env::var_os("YUOS_CAPTURED_TEST_RUNNER").expect("real runner input");
         let root = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
         let marker = root.path().join("custody-started");
         let payload = vec![0, 1, b'\n', 255, b'{', b'}'];
@@ -71,7 +71,7 @@ mod process {
                 "import pathlib,sys;pathlib.Path(sys.argv[1]).write_bytes(b'started');sys.stdout.buffer.write(sys.stdin.buffer.read())",
                 marker.to_str().unwrap(),
             ]).env_clear().env("PATH", "/usr/bin:/bin")
-                .env("HOME", root.path()).env("COS_DATA_DIR", root.path().join("state"))
+                .env("HOME", root.path()).env("YUOS_DATA_DIR", root.path().join("state"))
                 .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
             unsafe {
                 command.pre_exec(move || {
@@ -143,11 +143,11 @@ mod process {
     }
 
     #[test]
-    #[ignore = "requires Linux worker sandbox and COS_CAPTURED_TEST_RUNNER pointing at the real runner"]
+    #[ignore = "requires Linux worker sandbox and YUOS_CAPTURED_TEST_RUNNER pointing at the real runner"]
     fn real_runner_waits_for_binding_and_preserves_app_input() {
         let _environment = crate::test_env::lock_env();
         assert!(crate::worker::availability().is_available());
-        let runner = std::env::var_os("COS_CAPTURED_TEST_RUNNER").expect("real runner input");
+        let runner = std::env::var_os("YUOS_CAPTURED_TEST_RUNNER").expect("real runner input");
         let _runner = crate::test_env::TestEnvVarGuard::set("CLAW_APP_RUNNER_BIN", &runner);
         let root = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
         let marker = root.path().join("apps/gate-probe/started");

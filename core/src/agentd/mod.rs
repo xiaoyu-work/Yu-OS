@@ -1,26 +1,26 @@
 //! `agentd` — the out-of-process agent runtime.
 //!
 //! Provider HTTP clients, streaming parsers, prompt assembly and tool
-//! orchestration run in a short-lived `claw-agentd` process owned by the
+//! orchestration run in a short-lived `yuos-agentd` process owned by the
 //! task's submitter. Dynamic App and MCP code runs in the separate,
 //! task-owned [`crate::extension_host`] process; neither executes inside
-//! root `clawd`.
+//! root `yuosd`.
 //!
 //! ## Processes
 //!
-//! * **`clawd`** stays the authority. It owns the task queue, the
+//! * **`yuosd`** stays the authority. It owns the task queue, the
 //!   ownership/lease record, session capability derivation, the audit
 //!   log and every privileged primitive. It supervises workers but does
 //!   not run the live model/tool loop in its own address space —
 //!   [`guard`] turns each of those surfaces into a hard error inside
 //!   the broker.
-//! * **`claw-agentd`** is spawned per task by [`supervisor`]. It starts
+//! * **`yuos-agentd`** is spawned per task by [`supervisor`]. It starts
 //!   as root only long enough to `exec`; [`spawn`] clears supplementary
 //!   groups, drops gid then uid to the task owner, sets
 //!   `PR_SET_NO_NEW_PRIVS`, applies a `0077` umask, replaces the
 //!   environment with an allowlist and closes every inherited
 //!   descriptor except the job channel.
-//! * **`claw-extension-host`** is spawned by [`supervisor`] under a leased
+//! * **`yuos-extension-host`** is spawned by [`supervisor`] under a leased
 //!   isolated execution identity. It owns dynamic processes and exposes a worker-bound
 //!   control socket plus a broker-owned, route-filtered proxy.
 //!
@@ -40,7 +40,7 @@
 //! routes in [`protocol::WORKER_ROUTES`], bounded Activity reporting,
 //! and narrow permission mediation. App execution uses the isolated extension Host. There
 //! is no general broker proxy, admin, scheduler or permission-decision route,
-//! and `/run/cos/clawd.sock` stays
+//! and `/run/yuos/yuosd.sock` stays
 //! `0660 root:sudo` with the worker's supplementary groups cleared, so
 //! the worker cannot reach the broker socket at all. Even a leaked fd
 //! is therefore only ever an authority to report on, and ask consent
@@ -57,7 +57,7 @@
 //! The consent store is root-owned and the worker has no broker route,
 //! so a denied capability check reaches consent through
 //! [`crate::caps::approval_gateway`]: the worker names the exact verb
-//! and canonical scope it was refused, and nothing else. `clawd` takes
+//! and canonical scope it was refused, and nothing else. `yuosd` takes
 //! owner, session and task from the verified grant, spends an
 //! exactly-matching approved grant one-shot or files/dedupes a pending
 //! request under that identity, and answers with a bounded id or a

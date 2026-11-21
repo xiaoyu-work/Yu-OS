@@ -42,8 +42,8 @@ fn report() -> ReceiptReport {
 fn task_receipts_use_the_broker_association_and_keep_caller_reported_provenance() {
     let _lock = crate::test_env::lock_env();
     let data = tempfile::tempdir().unwrap();
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", data.path());
-    let _apps = TestEnvVarGuard::set("COS_APPS_DIR", data.path().join("no-apps"));
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
+    let _apps = TestEnvVarGuard::set("YUOS_APPS_DIR", data.path().join("no-apps"));
     let (store, activity, job) = fixture(data.path());
     let report = report();
     let mut used = 0;
@@ -86,8 +86,8 @@ fn task_receipts_use_the_broker_association_and_keep_caller_reported_provenance(
 fn missing_foreign_or_mismatched_associations_never_select_another_activity() {
     let _lock = crate::test_env::lock_env();
     let data = tempfile::tempdir().unwrap();
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", data.path());
-    let _apps = TestEnvVarGuard::set("COS_APPS_DIR", data.path().join("no-apps"));
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
+    let _apps = TestEnvVarGuard::set("YUOS_APPS_DIR", data.path().join("no-apps"));
     let (store, activity, job) = fixture(data.path());
     let service = activities::open_default().unwrap();
     let foreign = service.create(2000, draft()).unwrap();
@@ -118,8 +118,8 @@ fn missing_foreign_or_mismatched_associations_never_select_another_activity() {
 fn late_receipts_do_not_reopen_an_activity_and_reporting_is_bounded() {
     let _lock = crate::test_env::lock_env();
     let data = tempfile::tempdir().unwrap();
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", data.path());
-    let _apps = TestEnvVarGuard::set("COS_APPS_DIR", data.path().join("no-apps"));
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
+    let _apps = TestEnvVarGuard::set("YUOS_APPS_DIR", data.path().join("no-apps"));
     let (store, activity, job) = fixture(data.path());
     let service = activities::open_default().unwrap();
     service
@@ -145,8 +145,8 @@ fn late_receipts_do_not_reopen_an_activity_and_reporting_is_bounded() {
 fn a_task_link_failure_reports_partial_persistence_and_allows_record_only_retry() {
     let _lock = crate::test_env::lock_env();
     let data = tempfile::tempdir().unwrap();
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", data.path());
-    let _apps = TestEnvVarGuard::set("COS_APPS_DIR", data.path().join("no-apps"));
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
+    let _apps = TestEnvVarGuard::set("YUOS_APPS_DIR", data.path().join("no-apps"));
     let (store, activity, job) = fixture(data.path());
     let stream = store
         .root()

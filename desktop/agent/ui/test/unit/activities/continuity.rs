@@ -1,6 +1,6 @@
 use super::*;
 use crate::activities::Response;
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     ActivityState, ImportedActivity, ImportedActivityResource,
 };
 use serde_json::json;
@@ -13,7 +13,7 @@ const SNAPSHOT: &str = "sha256:6d8c822b0519a02e7ab1ebeab48392cb83756fa9cc8b6d39e
 fn document() -> ActivityContinuityDocument {
     ActivityContinuityDocument::from_json(
         serde_json::to_string(&json!({
-            "kind": "claw_os.activity_continuity",
+            "kind": "yuos.activity_continuity",
             "schema_version": 1,
             "lineage": {"id": LINEAGE, "revision": 7},
             "snapshot": SNAPSHOT,
@@ -170,8 +170,8 @@ fn duplicate_version_bounds_and_unknown_authority_failures_are_visible() {
     let valid = document().to_json().unwrap();
     for invalid in [
         valid.replacen(
-            r#""kind":"claw_os.activity_continuity""#,
-            r#""kind":"claw_os.activity_continuity","kind":"claw_os.activity_continuity""#,
+            r#""kind":"yuos.activity_continuity""#,
+            r#""kind":"yuos.activity_continuity","kind":"yuos.activity_continuity""#,
             1,
         ),
         valid.replacen(r#""schema_version":1"#, r#""schema_version":2"#, 1),

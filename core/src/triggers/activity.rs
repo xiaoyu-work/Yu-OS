@@ -157,7 +157,7 @@ pub(super) fn emit(
 ) {
     let audit = json!({
         "ts": chrono::Utc::now(),
-        "event": "clawd.trigger.delivery",
+        "event": "yuosd.trigger.delivery",
         "rule_id": crate::audit_policy::safe_identity(rule_id),
         "activity_id": activity_id.map(crate::audit_policy::safe_identity),
         "owner_uid": owner_uid,
@@ -168,7 +168,7 @@ pub(super) fn emit(
         "source": "scheduled-trigger",
         "attended": false,
     });
-    if let Err(error) = crate::clawd::audit::append_jsonl(&audit) {
+    if let Err(error) = crate::yuosd::audit::append_jsonl(&audit) {
         tracing::warn!(trigger_id = %rule_id, %error, "failed to audit trigger delivery");
     }
     if matches!(
@@ -210,7 +210,7 @@ pub(super) fn emit(
     draft.job_id = Some(rule_id.to_string());
     draft.task_id = diagnostic.job_id.clone();
     draft.session_id = diagnostic.session_id.clone();
-    if let Err(error) = crate::clawd::notifications::publish_for_owner(owner_uid, draft) {
+    if let Err(error) = crate::yuosd::notifications::publish_for_owner(owner_uid, draft) {
         tracing::warn!(trigger_id = %rule_id, owner_uid, %error, "failed to notify trigger delivery");
     }
 }

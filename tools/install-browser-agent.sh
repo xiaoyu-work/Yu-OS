@@ -4,10 +4,10 @@
 # Install the Claw Agent WebExtension and its Native Messaging host system-wide.
 #
 #   - WebExtension source       → /usr/share/claw/extensions/claw-agent-browser/
-#   - OS transport (Python)     → /usr/lib/cos/browser-native-host.py
+#   - OS transport (Python)     → /usr/lib/yuos/browser-native-host.py
 #   - Chromium managed policy   → /etc/chromium/policies/managed/claw-agent.json
 #   - Chromium NM host manifest → /etc/chromium/native-messaging-hosts/com.yuos.browser.json
-#   - Native host launcher      → /usr/lib/cos/claw-browser-host
+#   - Native host launcher      → /usr/lib/yuos/claw-browser-host
 #   - Separate chat NM manifest → /etc/chromium/native-messaging-hosts/com.yuos.browser_chat.json
 #
 # Run as root.  Re-run is idempotent (overwrites).
@@ -23,9 +23,9 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 EXT_DEST="/usr/share/claw/extensions/claw-agent-browser"
-HOST_LAUNCHER="/usr/lib/cos/claw-browser-host"
-HOST_IMPL="/usr/lib/cos/browser-native-host.py"
-CHAT_HOST="/usr/lib/cos/browser-chat-native-host"
+HOST_LAUNCHER="/usr/lib/yuos/claw-browser-host"
+HOST_IMPL="/usr/lib/yuos/browser-native-host.py"
+CHAT_HOST="/usr/lib/yuos/browser-chat-native-host"
 NM_MANIFEST="/etc/chromium/native-messaging-hosts/com.yuos.browser.json"
 CHAT_MANIFEST="/etc/chromium/native-messaging-hosts/com.yuos.browser_chat.json"
 POLICY_FILE="/etc/chromium/policies/managed/claw-agent.json"
@@ -47,7 +47,7 @@ if [[ -e "${CHAT_HOST}" || -L "${CHAT_HOST}" ]]; then
 fi
 for file in "${files[@]}"; do
   if [[ ! -f "${file}" || -L "${file}" ]]; then
-    echo "missing installed Browser asset: ${file}; install claw-app-browser and the matching claw-os-agent first" >&2
+    echo "missing installed Browser asset: ${file}; install yuos-app-browser and the matching yuos-agent first" >&2
     exit 1
   fi
   mode="$(stat -c %a "${file}")"

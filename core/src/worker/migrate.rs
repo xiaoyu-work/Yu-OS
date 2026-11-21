@@ -2,7 +2,7 @@
 //!
 //! Before workers were isolated, every bundled App wrote into the
 //! *owner's* data root: `calendar/events.db`, `kv.json`, `logs/`, a
-//! gateway's `apps/<id>/state.json`, and so on. `COS_DATA_DIR` now
+//! gateway's `apps/<id>/state.json`, and so on. `YUOS_DATA_DIR` now
 //! names the App's own partition of that root, so those paths would
 //! silently resolve somewhere new and the existing state would look
 //! like it had vanished.
@@ -63,9 +63,9 @@ pub(crate) enum Legacy {
 /// Every bundled App that read or wrote the owner data root directly,
 /// with the exact relative paths it used.
 ///
-/// Derived from the `COS_DATA_DIR` uses in `apps/`; adapters take no
+/// Derived from the `YUOS_DATA_DIR` uses in `apps/`; adapters take no
 /// data directory. Kernel-owned state — `sessions/`, `agent/`,
-/// `journal/`, `approvals/`, `clawd/`, `credentials/` and the session
+/// `journal/`, `approvals/`, `yuosd/`, `credentials/` and the session
 /// registry inside `proc/` — is deliberately absent: it is not App
 /// state, it stays outside every partition, and the paths that need it
 /// go through the launch broker instead.
@@ -112,7 +112,7 @@ pub(crate) const LEGACY_APP_STATE: &[(&str, &[Legacy])] = &[
 ];
 
 /// Marker recording that this partition has been brought forward.
-const MARKER: &str = ".cos-state-version";
+const MARKER: &str = ".yuos-state-version";
 
 /// Roots beneath the owner data root that hold kernel state. No table
 /// entry may name one, or anything inside one, as a whole directory:
@@ -127,7 +127,7 @@ const SHARED_KERNEL_ROOTS: &[&str] = &[
     "agent",
     "apps",
     "approvals",
-    "clawd",
+    "yuosd",
     "credentials",
     "journal",
     "models",
@@ -157,7 +157,7 @@ const PROTECTED_NAMES: &[&str] = &[
     "registry.tmp",
     "meta.json",
     MARKER,
-    ".cos-state-version.new",
+    ".yuos-state-version.new",
 ];
 
 /// Bump when [`LEGACY_APP_STATE`] gains entries an existing partition
@@ -326,7 +326,7 @@ fn marker_version(partition: &Path) -> Result<u32, String> {
 /// must not be the one that decides a destination is a collision.
 fn write_marker(partition: &Path) -> Result<(), String> {
     use std::io::Write;
-    let mut temp = tempfile::Builder::new().prefix(".cos-state-version.")
+    let mut temp = tempfile::Builder::new().prefix(".yuos-state-version.")
         .tempfile_in(partition).map_err(|error| format!("create App state version: {error}"))?;
     let final_path = partition.join(MARKER);
     temp.write_all(CURRENT_VERSION.to_string().as_bytes())

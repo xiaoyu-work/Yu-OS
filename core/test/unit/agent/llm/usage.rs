@@ -337,7 +337,7 @@ fn breakdowns_are_capped_without_losing_total_usage() {
     assert!(summary.breakdown_truncated);
     assert!(
         serde_json::to_vec(&summary).unwrap().len()
-            < crate::clawd::wire::MAX_RESPONSE_BYTES
+            < crate::yuosd::wire::MAX_RESPONSE_BYTES
     );
 }
 
@@ -365,7 +365,7 @@ fn capped_summary_fits_broker_response_with_escape_heavy_keys() {
     assert_eq!(summary.by_session.len(), MAX_BREAKDOWN_BUCKETS);
     assert_eq!(summary.total.finish_reasons["other"], MAX_BREAKDOWN_BUCKETS as u64);
     assert!(
-        encoded.len() < crate::clawd::wire::MAX_RESPONSE_BYTES,
+        encoded.len() < crate::yuosd::wire::MAX_RESPONSE_BYTES,
         "bounded summary is {} bytes",
         encoded.len()
     );

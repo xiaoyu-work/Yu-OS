@@ -66,12 +66,12 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/api/app-store") {
       if (!catalogAvailable) return json({ error: "Official release catalog unavailable" }, 503);
       return json({ architecture: "amd64", installed: installed ? [app] : [], catalog: {
-        schema: "claw.app-store/v2", repository: "xiaoyu-work/clawos-app", runtime_abi: 1,
+        schema: "claw.app-store/v2", repository: "xiaoyu-work/yuos-app", runtime_abi: 1,
         generation: "1", expires_at: new Date(Date.now() + 86400000).toISOString(),
-        packages: [{ package: "claw-cap-storage-sdk", version: "1.0.0", architecture: "all",
+        packages: [{ package: "yuos-cap-storage-sdk", version: "1.0.0", architecture: "all",
           size: 8192, sha256: "f".repeat(64), apps: ["db", "kv"] }],
         apps: [{ app_id: "kv", app_version: app.version, release_version: "1.0.0", architecture: "all",
-          artifact: { file: `claw-app-snapshot-${digest}.tar.gz`, size: 4096, sha256: digest, media_type: "application/gzip" },
+          artifact: { file: `yuos-app-snapshot-${digest}.tar.gz`, size: 4096, sha256: digest, media_type: "application/gzip" },
           provenance: { content_digest: app.content_digest },
           delivery: { kind: "apt", package_sha256: "f".repeat(64) },
           display: { name: app.name, description: "Persistent string key-value storage",
@@ -233,7 +233,7 @@ try {
   catalogAvailable = false;
   await send("Page.navigate", { url: `${origin}/#/apps` });
   await wait("document.body.innerText.includes('Key-Value Store')");
-  console.log("PASS Store fixture presentation, exact-revision install review, isolated product UI, real form clicks, same-App calls and offline installed access (not production clawd acceptance)");
+  console.log("PASS Store fixture presentation, exact-revision install review, isolated product UI, real form clicks, same-App calls and offline installed access (not production yuosd acceptance)");
 } finally {
   if (socket?.readyState === WebSocket.OPEN) socket.close();
   chrome.kill();
@@ -246,7 +246,7 @@ try {
 
 async function installedProduct() {
   assert.equal(process.platform, "linux");
-  assert.equal(process.env.COS_APP_APT_PROCESS, "1");
+  assert.equal(process.env.YUOS_APP_APT_PROCESS, "1");
   assert.notEqual(process.getuid(), 0);
   const origin = new URL(process.env.APP_STORE_INSTALLED_ORIGIN);
   assert.equal(origin.protocol, "http:");

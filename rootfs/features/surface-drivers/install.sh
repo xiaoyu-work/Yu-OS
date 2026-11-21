@@ -3,7 +3,7 @@ set -euo pipefail
 
 [[ $DEB_ARCH == amd64 && -z ${CLAW_PLATFORM:-} ]] || exit 0
 
-cache=/usr/share/cos/driver-cache/surface-laptop-7-intel
+cache=/usr/share/yuos/driver-cache/surface-laptop-7-intel
 work=$(mktemp -d "$ROOTFS/tmp/claw-surface.XXXXXX")
 trap 'rm -rf -- "$work"' EXIT
 inside=${work#"$ROOTFS"}
@@ -28,7 +28,7 @@ install -Dm0644 "$PROJECT_DIR/packaging/platform-kernels.json" "$work/packaging/
 chroot "$ROOTFS" env PYTHONDONTWRITEBYTECODE=1 python3 "$inside/scripts/platform_kernels.py" \
     x86-surface-laptop-7-intel --debian-kernel "$version" --output "$cache"
 install -d "$ROOTFS/usr/lib/modules/$version/updates/claw-surface"
-dpkg-deb --fsys-tarfile "$ROOTFS$cache"/claw-os-surface-laptop-7_*.deb |
+dpkg-deb --fsys-tarfile "$ROOTFS$cache"/yuos-surface-laptop-7_*.deb |
     tar --extract --to-stdout "./usr/lib/modules/$version/updates/claw-surface/surface_aggregator_registry.ko" \
     >"$ROOTFS/usr/lib/modules/$version/updates/claw-surface/surface_aggregator_registry.ko"
 # This file survives media initramfs regeneration, but is removed on installation.

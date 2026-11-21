@@ -4,9 +4,9 @@ use std::path::Path;
 use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 
-pub use claw_display_control::session::Subscription;
-use claw_display_control::wire::SessionEvent;
-use claw_display_control::Error;
+pub use yuos_display_control::session::Subscription;
+use yuos_display_control::wire::SessionEvent;
+use yuos_display_control::Error;
 
 pub fn run() -> Result<(), Error> {
     let mut arguments = std::env::args_os().skip(1);
@@ -84,7 +84,7 @@ fn desktop_session(subscription: &Subscription) -> Result<(), Error> {
             .env("GDK_BACKEND", "wayland")
             .env("QT_QPA_PLATFORM", "wayland")
             .env("MOZ_ENABLE_WAYLAND", "1")
-            .env_remove("COS_SESSION");
+            .env_remove("YUOS_SESSION");
         command
     };
     if !command("/usr/bin/dbus-update-activation-environment")
@@ -117,7 +117,7 @@ fn run_desktop(
     command: &impl Fn(&str) -> Command,
     subscription: &Subscription,
 ) -> Result<(), Error> {
-    if Path::new("/etc/cos/first-run").is_file() {
+    if Path::new("/etc/yuos/first-run").is_file() {
         let entrypoint = "/usr/libexec/claw-oobe";
         let mut setup = command(entrypoint).spawn()?;
         wait_for_entrypoint(subscription, &mut setup)?;
@@ -140,7 +140,7 @@ fn run_desktop(
         ));
     }
     let result = (|| {
-        let mut files = command("/usr/lib/cos/bin/claw-file-manager").spawn()?;
+        let mut files = command("/usr/lib/yuos/bin/yuos-file-manager").spawn()?;
         let result = subscription.run_shell();
         stop_child(&mut files)?;
         result

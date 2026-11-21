@@ -1,4 +1,4 @@
-# desktop — claw-os desktop environment build + runtime dependencies.
+# desktop — yuos desktop environment build + runtime dependencies.
 #
 # Target distro: Debian 13 "trixie" (kernel 6.12 LTS, PipeWire 1.4, Mesa 24).
 #
@@ -182,7 +182,7 @@ libclang-dev
 # --- Fonts and icons ---
 # Inter is the default UI font (com.yuos.Tk interface_font = "Inter").
 # JetBrains Mono is the default monospace (monospace_font = "JetBrains Mono"),
-# used by cos-term, cos-edit and any libcosmic monospace context.
+# used by yuos-term, yuos-edit and any libcosmic monospace context.
 # Noto Sans CJK provides Chinese/Japanese/Korean fallback;
 # Noto Color Emoji handles emoji.
 # Shared icon themes remain available to native Apps.
@@ -206,7 +206,7 @@ xkb-data
 locales
 
 # --- Input methods (CJK + extensible framework) ---
-# fcitx5 is the modern multi-language IME framework. Claw OS ships
+# fcitx5 is the modern multi-language IME framework. Yu OS ships
 # zh / ja / ko locale data, fonts and dictionaries, so users on real
 # hardware can switch to Pinyin / Mozc / Hangul out of the box without
 # touching apt. Hyprland implements Wayland input and
@@ -243,7 +243,7 @@ systemd-timesyncd
 # udisks2: D-Bus API the desktop uses to mount/unmount USB sticks
 # and external disks. Without it, plugging a USB stick into a
 # real laptop does literally nothing (cosmic-files won't see it).
-# The polkit rule shipped in 40-clawos.rules lets active sudo
+# The polkit rule shipped in 40-yuos.rules lets active sudo
 # users drive it without password prompts.
 udisks2
 # Mount Windows / Mac USB drives. The vast majority of USB sticks
@@ -345,7 +345,7 @@ plymouth
 plymouth-themes
 
 # --- Default user-facing GUI apps ---
-# Helium is installed from its signed archive by the cos-core feature.
+# Helium is installed from its signed archive by the yuos-core feature.
 
 # Thunderbird is the default mail / news / calendar client. The AI
 # Agent's email App uses the account-scoped OS mail bridge to the same

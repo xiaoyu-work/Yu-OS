@@ -3,7 +3,7 @@ use super::*;
 use std::sync::Once;
 static PERMS_INIT: Once = Once::new();
 fn perms_init() {
-    PERMS_INIT.call_once(|| std::env::set_var("COS_PERMS_MODE", "permissive"));
+    PERMS_INIT.call_once(|| std::env::set_var("YUOS_PERMS_MODE", "permissive"));
 }
 use std::fs;
 
@@ -12,7 +12,7 @@ use std::fs;
 #[test]
 fn next_id_empty_dir() {
     perms_init();
-    let dir = std::env::temp_dir().join("cos-cp-test-empty");
+    let dir = std::env::temp_dir().join("yuos-cp-test-empty");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
 
@@ -24,7 +24,7 @@ fn next_id_empty_dir() {
 #[test]
 fn next_id_sequential() {
     perms_init();
-    let dir = std::env::temp_dir().join("cos-cp-test-seq");
+    let dir = std::env::temp_dir().join("yuos-cp-test-seq");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
 
@@ -39,7 +39,7 @@ fn next_id_sequential() {
 #[test]
 fn next_id_with_gap() {
     perms_init();
-    let dir = std::env::temp_dir().join("cos-cp-test-gap");
+    let dir = std::env::temp_dir().join("yuos-cp-test-gap");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
 
@@ -55,7 +55,7 @@ fn next_id_with_gap() {
 #[test]
 fn next_id_ignores_non_numeric() {
     perms_init();
-    let dir = std::env::temp_dir().join("cos-cp-test-nonnum");
+    let dir = std::env::temp_dir().join("yuos-cp-test-nonnum");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
 
@@ -110,7 +110,7 @@ fn meta_json_has_expected_fields() {
 #[test]
 fn walk_upper_created_files() {
     perms_init();
-    let root = std::env::temp_dir().join("cos-cp-walk-created");
+    let root = std::env::temp_dir().join("yuos-cp-walk-created");
     let _ = fs::remove_dir_all(&root);
 
     let base_layer = root.join("base");
@@ -145,7 +145,7 @@ fn walk_upper_created_files() {
 #[test]
 fn walk_upper_modified_files() {
     perms_init();
-    let root = std::env::temp_dir().join("cos-cp-walk-modified");
+    let root = std::env::temp_dir().join("yuos-cp-walk-modified");
     let _ = fs::remove_dir_all(&root);
 
     let base_layer = root.join("base");
@@ -181,7 +181,7 @@ fn walk_upper_modified_files() {
 #[test]
 fn walk_upper_subdirectory() {
     perms_init();
-    let root = std::env::temp_dir().join("cos-cp-walk-subdir");
+    let root = std::env::temp_dir().join("yuos-cp-walk-subdir");
     let _ = fs::remove_dir_all(&root);
 
     let base_layer = root.join("base");
@@ -246,7 +246,7 @@ fn sanitize_empty() {
 #[test]
 fn count_files_empty() {
     perms_init();
-    let dir = std::env::temp_dir().join("cos-cp-count-empty");
+    let dir = std::env::temp_dir().join("yuos-cp-count-empty");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
 
@@ -258,7 +258,7 @@ fn count_files_empty() {
 #[test]
 fn count_files_with_content() {
     perms_init();
-    let dir = std::env::temp_dir().join("cos-cp-count-files");
+    let dir = std::env::temp_dir().join("yuos-cp-count-files");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(dir.join("sub")).unwrap();
 
@@ -275,7 +275,7 @@ fn count_files_with_content() {
 #[test]
 fn dir_size_basic() {
     perms_init();
-    let dir = std::env::temp_dir().join("cos-cp-dirsize");
+    let dir = std::env::temp_dir().join("yuos-cp-dirsize");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
 
@@ -292,7 +292,7 @@ fn dir_size_basic() {
 #[test]
 fn copy_dir_recursive_works() {
     perms_init();
-    let root = std::env::temp_dir().join("cos-cp-copydir");
+    let root = std::env::temp_dir().join("yuos-cp-copydir");
     let _ = fs::remove_dir_all(&root);
 
     let src = root.join("src");
@@ -320,7 +320,7 @@ fn copy_dir_recursive_works() {
 #[test]
 fn copy_dir_recursive_preserves_symlinks() {
     perms_init();
-    let root = std::env::temp_dir().join("cos-cp-copydir-symlinks");
+    let root = std::env::temp_dir().join("yuos-cp-copydir-symlinks");
     let _ = fs::remove_dir_all(&root);
 
     let src = root.join("src");
@@ -394,7 +394,7 @@ fn copy_dir_recursive_preserves_symlinks() {
 #[test]
 fn existing_ids_empty() {
     perms_init();
-    let dir = std::env::temp_dir().join("cos-cp-ids-empty");
+    let dir = std::env::temp_dir().join("yuos-cp-ids-empty");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
 
@@ -406,7 +406,7 @@ fn existing_ids_empty() {
 #[test]
 fn existing_ids_mixed() {
     perms_init();
-    let dir = std::env::temp_dir().join("cos-cp-ids-mixed");
+    let dir = std::env::temp_dir().join("yuos-cp-ids-mixed");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
 
@@ -481,7 +481,7 @@ fn format_bytes_mb() {
 
 // -- quota --
 
-// Quota and namespace tests share a single COS_DATA_DIR (set via Once)
+// Quota and namespace tests share a single YUOS_DATA_DIR (set via Once)
 // and use a Mutex to serialize because they share global state (quota.json,
 // namespace dirs).
 use std::sync::Mutex;
@@ -491,11 +491,11 @@ static CP_LOCK: Mutex<()> = Mutex::new(());
 fn cp_setup() -> std::sync::MutexGuard<'static, ()> {
     let guard = CP_LOCK.lock().unwrap();
     CP_INIT.call_once(|| {
-        let dir = std::env::temp_dir().join(format!("cos-test-shared-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("yuos-test-shared-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
-        std::env::set_var("COS_DATA_DIR", &dir);
+        std::env::set_var("YUOS_DATA_DIR", &dir);
     });
-    std::env::remove_var("COS_SESSION");
+    std::env::remove_var("YUOS_SESSION");
     guard
 }
 
@@ -537,7 +537,7 @@ fn namespace_create_list_destroy() {
 #[test]
 fn namespace_invalid_name() {
     perms_init();
-    std::env::remove_var("COS_SESSION");
+    std::env::remove_var("YUOS_SESSION");
     let r = create_namespace("bad/name");
     assert!(r.is_err());
 }

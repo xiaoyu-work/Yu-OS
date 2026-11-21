@@ -5,7 +5,7 @@ use std::io::{IsTerminal, Read};
 use serde_json::{json, Value};
 
 use crate::activities::ObjectStateDraft;
-use crate::clawd::routes::Command;
+use crate::yuosd::routes::Command;
 
 pub(super) fn parse(command: &str, args: &[String]) -> Result<(Command, Value), String> {
     let activity = args.first().ok_or("an Activity ID is required")?;

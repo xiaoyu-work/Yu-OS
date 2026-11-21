@@ -16,7 +16,7 @@ export type ContinuityExecutionLimits = {
   expires_at: string;
 };
 export type ContinuityDocument = {
-  kind: "claw_os.activity_continuity";
+  kind: "yuos.activity_continuity";
   schema_version: 1;
   lineage: { id: string; revision: string };
   snapshot: string;
@@ -287,8 +287,8 @@ function readShape(value: unknown): ContinuityDocument {
   const root = object(value, [
     "kind", "schema_version", "lineage", "snapshot", "intent", "references", "rules",
   ], "document");
-  if (root.kind !== "claw_os.activity_continuity") {
-    throw new Error("Activity continuity kind must be claw_os.activity_continuity.");
+  if (root.kind !== "yuos.activity_continuity") {
+    throw new Error("Activity continuity kind must be yuos.activity_continuity.");
   }
   if (integer(root.schema_version, "schema version", 0, 0xffff_ffff) !== 1) {
     throw new Error("Unsupported Activity continuity schema version; supported version is 1.");
@@ -341,7 +341,7 @@ function readShape(value: unknown): ContinuityDocument {
     throw new Error("Activity continuity snapshot digest is invalid.");
   }
   return {
-    kind: "claw_os.activity_continuity",
+    kind: "yuos.activity_continuity",
     schema_version: 1,
     lineage: {
       id: canonicalUuid(lineage.id, "lineage id"),
@@ -423,7 +423,7 @@ export function continuityJson(document: ContinuityDocument): string {
 }
 
 export function continuityFilename(document: ContinuityDocument): string {
-  return `claw-os-activity-${document.lineage.id}.json`;
+  return `yuos-activity-${document.lineage.id}.json`;
 }
 
 function importedActivity(value: unknown, document: ContinuityDocument): Activity {

@@ -20,7 +20,7 @@ audit.
 | `ui.rs`, `ui/progress.rs`, `ui/permission.rs` | ratatui layout, live execution animation, wrapped permission viewport, styling, transcript projection and cursor |
 | `presentation.rs` | Redacted model/tool/reasoning/progress projection |
 | `approvals.rs` | Exact owner-scoped status refresh, stale-read generations and modal lifecycle cleanup |
-| `backend.rs` | Narrow typed consumer of canonical `clawd` routes, including attended one-shot decisions |
+| `backend.rs` | Narrow typed consumer of canonical `yuosd` routes, including attended one-shot decisions |
 | `models.rs` | Configured-provider model catalogue without provider mutation |
 | `nearby.rs` | Model-independent `/share` center over the shared nearby service, stable exact offer selection, progress, refresh and detach-only close |
 | `workspaces.rs`, `plain.rs` | Model-independent semantic `/workspace` center, exact sharing revisions and plain chat using canonical Root conversations/Jobs |
@@ -67,7 +67,7 @@ audit.
   the runtime progress record proves dispatch, then animate **Running** with
   task/tool elapsed time. A disconnect or detached stream makes unfinished
   execution explicitly unconfirmed; it never preserves a false running claim.
-- Approval keys send one exact decision to `clawd`; the renderer itself remains
+- Approval keys send one exact decision to `yuosd`; the renderer itself remains
   non-authoritative.
 - Approval presentation resolves every internal verb through the shared
   capability catalog and renders its localized label, explanatory blurb and a
@@ -136,7 +136,7 @@ audit.
 - Appearance also switches between the default Emacs-style bindings and a
   bounded Vim composer with explicit NORMAL/INSERT modes. Active-task `Esc`
   always retains its cancellation meaning.
-- `/agents` projects only actual `cos_delegate` tool calls from the redacted
+- `/agents` projects only actual `yu_delegate` tool calls from the redacted
   parent transcript. Current delegate children are ephemeral, so the panel
   does not invent durable identities or unsupported switching.
 - `/side` creates a backend-checked canonical fork only while idle. `/side
@@ -146,10 +146,10 @@ audit.
   authenticated MCP packages, Apps/extensions, memory-session count and owner
   usage. It starts or executes none of them and omits commands/environment.
 - The Platform Memory Center reuses the future-task memory option and sends an
-  explicitly confirmed `memory.reset` through `clawd`. Reset removes learned
+  explicitly confirmed `memory.reset` through `yuosd`. Reset removes learned
   notes/App/semantic memory only; conversation and execution evidence remain.
 - The Platform Hooks Center reads and writes only the closed built-in
-  logging/audit/checkpoint set through `clawd`. Changes apply to future tasks;
+  logging/audit/checkpoint set through `yuosd`. Changes apply to future tasks;
   no command, environment, third-party handler or renderer-owned trust exists.
 - The Platform MCP Center lists bounded operator-configured and verified
   discovered server metadata without starting/probing a server or exposing its
@@ -176,7 +176,7 @@ audit.
   highlighted action, Left/Right changes it, `a`/`d` remain direct shortcuts,
   key repeats are ignored, and Esc/Ctrl+C stops the task without deciding.
   Both decisions remain inside the alternate-screen TUI: no `pkexec`, polkit,
-  password prompt or terminal handoff occurs. `clawd` derives owner and local
+  password prompt or terminal handoff occurs. `yuosd` derives owner and local
   terminal presence from the kernel peer, accepts only `once`, and refuses
   owner selectors or reusable duration. An exact approved request already
   consumed by its task is still a confirmed decision, not a failure or a new

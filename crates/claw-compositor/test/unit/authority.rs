@@ -110,7 +110,7 @@ fn expired_or_overlong_leases_are_rejected_without_overflow() {
 fn native_selection_handoff_rechecks_display_and_request_expiry() {
     let selection = PendingSelection {
         payload: Arc::new(Payload {
-            entries: vec![claw_display_control::selection::Entry {
+            entries: vec![yuos_display_control::selection::Entry {
                 mime: "text/plain".into(),
                 data: b"owner selection".to_vec(),
             }],

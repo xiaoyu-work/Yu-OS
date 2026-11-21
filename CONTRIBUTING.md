@@ -1,4 +1,4 @@
-# Contributing to Claw OS
+# Contributing to Yu OS
 
 Coding agents and contributors should read [`AGENTS.md`](AGENTS.md) for task
 routing and authoritative validation commands, then
@@ -22,7 +22,7 @@ cd core
 cargo build --release
 ```
 
-The Claw-owned terminal UI is compiled into `cos` by the ordinary core build.
+The Claw-owned terminal UI is compiled into `yu` by the ordinary core build.
 It has no separately fetched frontend source or runtime binary.
 
 ### Build the OS display runtime
@@ -31,14 +31,14 @@ The unpublished OS display runtime has separate native build inputs. From the
 repository root, with the PAM development library installed:
 
 ```bash
-cargo build -p yu --bin claw-display-host --bin claw-display-session --bin claw-gui-runner --locked
-cargo build -p claw-display-login --locked
-cargo test -p claw-display-control -p claw-display-login --locked -- --test-threads=1
+cargo build -p yu --bin yuos-display-host --bin yuos-display-session --bin yuos-gui-runner --locked
+cargo build -p yuos-display-login --locked
+cargo test -p yuos-display-control -p yuos-display-login --locked -- --test-threads=1
 ```
 
 The PAM module must target GNU/glibc, including when the core package uses musl.
 These commands do not install or restart a desktop. The
-[private authenticated fixture](crates/claw-display-login/MODULE.md) uses
+[private authenticated fixture](crates/yuos-display-login/MODULE.md) uses
 isolated mounts and disposable login state; do not substitute a live login.
 
 ### Build the Rootfs + Docker Image
@@ -50,22 +50,22 @@ sudo ./rootfs/build.sh
 # Build the Docker image
 ./build.sh docker
 
-# Or via cos-ctl
-./cli/cos-ctl build
+# Or via yuos-ctl
+./cli/yuos-ctl build
 ```
 
 ### Build a WSL2 Distribution
 
 ```bash
-# Produces build/claw-os-wsl-amd64.wsl
+# Produces build/yuos-wsl-amd64.wsl
 sudo ./build.sh wsl
 ```
 
 On Windows, import and launch from PowerShell:
 
 ```powershell
-wsl --install --from-file .\build\claw-os-wsl-amd64.wsl `
-    --name claw-os --location C:\WSL\claw-os --version 2
+wsl --install --from-file .\build\yuos-wsl-amd64.wsl `
+    --name yuos --location C:\WSL\yuos --version 2
 
 # Or run the helper:
 .\targets\wsl\install.ps1
@@ -78,15 +78,15 @@ wsl --install --from-file .\build\claw-os-wsl-amd64.wsl `
 sudo apt install squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin \
                  grub-common mtools
 
-# Produces build/claw-os-live-amd64.iso (hybrid BIOS+UEFI bootable)
+# Produces build/yuos-live-amd64.iso (hybrid BIOS+UEFI bootable)
 sudo ./build.sh iso-live
 
 # Boot in QEMU (BIOS):
-qemu-system-x86_64 -m 2G -cdrom build/claw-os-live-amd64.iso -nographic
+qemu-system-x86_64 -m 2G -cdrom build/yuos-live-amd64.iso -nographic
 
 # Boot in QEMU (UEFI, requires ovmf package):
 qemu-system-x86_64 -m 2G -bios /usr/share/ovmf/OVMF.fd \
-                   -cdrom build/claw-os-live-amd64.iso
+                   -cdrom build/yuos-live-amd64.iso
 ```
 
 ### Build a VM Disk Image
@@ -95,7 +95,7 @@ qemu-system-x86_64 -m 2G -bios /usr/share/ovmf/OVMF.fd \
 # Host requirements (Debian/Ubuntu):
 sudo apt install qemu-utils parted dosfstools mtools rsync
 
-# Produces build/claw-os-vm-amd64.qcow2 (hybrid BIOS+UEFI bootable)
+# Produces build/yuos-vm-amd64.qcow2 (hybrid BIOS+UEFI bootable)
 sudo ./build.sh vm
 
 # Multiple formats in one build:
@@ -105,7 +105,7 @@ sudo FORMATS="qcow2 vmdk vhdx" ./build.sh vm
 # for guest resize / clipboard (preset wrapper sets the desktop features):
 sudo ./presets/desktop.sh
 # ...or spell out the equivalent FEATURES manually:
-sudo FEATURES=base,cos-core,systemd,kernel,desktop,vmware,copilot-cli,grub-disk,vm,apt-source,local-user \
+sudo FEATURES=base,yuos-core,systemd,kernel,desktop,vmware,copilot-cli,grub-disk,vm,apt-source,local-user \
      FORMATS=vmdk ./build.sh vm
 
 # Larger disk:
@@ -113,10 +113,10 @@ sudo SIZE=16G ./build.sh vm
 
 # Boot in QEMU (BIOS):
 qemu-system-x86_64 -m 2G -nographic \
-    -drive file=build/claw-os-vm-amd64.qcow2,format=qcow2,if=virtio
+    -drive file=build/yuos-vm-amd64.qcow2,format=qcow2,if=virtio
 
 # Boot in Hyper-V Gen 2 (UEFI): disable Secure Boot first
-#   Set-VMFirmware -VMName claw-os -EnableSecureBoot Off
+#   Set-VMFirmware -VMName yuos -EnableSecureBoot Off
 ```
 
 ### Build an Installable ISO
@@ -126,27 +126,27 @@ qemu-system-x86_64 -m 2G -nographic \
 sudo apt install squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin \
                  grub-common mtools
 
-# Produces build/claw-os-installer-amd64.iso (hybrid BIOS+UEFI bootable).
+# Produces build/yuos-installer-amd64.iso (hybrid BIOS+UEFI bootable).
 # This ISO boots into a kiosk-mode Calamares installer that copies the
 # live system to a real disk and configures GRUB on the target.
 sudo ./build.sh iso-installer
 
 # Test in QEMU with an empty target disk:
-qemu-img create -f qcow2 build/claw-os-target.qcow2 16G
+qemu-img create -f qcow2 build/yuos-target.qcow2 16G
 qemu-system-x86_64 -m 4G \
-    -cdrom build/claw-os-installer-amd64.iso \
-    -drive file=build/claw-os-target.qcow2,format=qcow2,if=virtio \
+    -cdrom build/yuos-installer-amd64.iso \
+    -drive file=build/yuos-target.qcow2,format=qcow2,if=virtio \
     -boot d
 ```
 
-The installed system has the Claw OS apt repository pre-configured, so
-`sudo apt update && sudo apt full-upgrade` will pull newer Claw OS packages.
+The installed system has the Yu OS apt repository pre-configured, so
+`sudo apt update && sudo apt full-upgrade` will pull newer Yu OS packages.
 See [`docs/updating.md`](docs/updating.md) for the unified update path across
 installed targets.
 
 ### `apt` repository
 
-The manually dispatched **Release Claw OS** workflow (`release.yml`) accepts
+The manually dispatched **Release Yu OS** workflow (`release.yml`) accepts
 `agent`, `base`, `core`, `desktop`, `images`, `website`, or `all`. Package targets remain
 independently publishable. Agent and Base use source assets and compiled
 binaries without a rootfs; Desktop retains its dedicated rootfs build.
@@ -174,12 +174,12 @@ a temporary branch to dispatch it. GitHub blocks creating branches under `ci/`.
 The repository is consumable as:
 
 ```bash
-curl -fsSL https://xiaoyu-work.github.io/claw-os/claw-os-archive-keyring.gpg \
-  | sudo tee /usr/share/keyrings/claw-os-archive-keyring.gpg >/dev/null
-echo "deb [signed-by=/usr/share/keyrings/claw-os-archive-keyring.gpg] https://xiaoyu-work.github.io/claw-os trixie main" \
-  | sudo tee /etc/apt/sources.list.d/claw-os.list
+curl -fsSL https://xiaoyu-work.github.io/Yu-OS/apt/yuos-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/yuos-archive-keyring.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/yuos-archive-keyring.gpg] https://xiaoyu-work.github.io/Yu-OS/apt trixie main" \
+  | sudo tee /etc/apt/sources.list.d/yuos.list
 sudo apt update
-sudo apt install claw-os-agent
+sudo apt install yuos-agent
 ```
 
 For details see `packaging/README.md`.
@@ -195,8 +195,8 @@ module tags. It does not publish to PyPI, npm, or crates.io.
 
 ```bash
 # Point cos to local apps directory
-COS_APPS_DIR=./apps COS_DATA_DIR=/tmp/cos-data ./core/target/debug/yu sys info
-COS_APPS_DIR=./apps COS_DATA_DIR=/tmp/cos-data ./core/target/debug/yu fs ls .
+YUOS_APPS_DIR=./apps YUOS_DATA_DIR=/tmp/yuos-data ./core/target/debug/yu sys info
+YUOS_APPS_DIR=./apps YUOS_DATA_DIR=/tmp/yuos-data ./core/target/debug/yu fs ls .
 ```
 
 ### Run Tests
@@ -221,7 +221,7 @@ policy/memory exports under its own identity, consent and budget. Its fixture
 calls must use isolated synthetic wire peers, never paid/live models.
 All 75 original App sources and their common libraries are external. The OS
 has no `apps/` source tree. App `shared/python` stages separately into
-`usr/lib/cos/python`, beside OS SDK/runtime, through
+`usr/lib/yuos/python`, beside OS SDK/runtime, through
 `python3 scripts/app_sources.py --stage-shared <root>`. Its helper tests/vectors
 belong to App `tests/shared`. Current Agent package assembly remains
 compatibility delivery, not the independent App APT ownership cutover.
@@ -238,27 +238,27 @@ cargo test -p yu --test app_source_fixtures -- --test-threads=1
 # Exact CI lint.
 (cd core && cargo clippy -- -D warnings)
 
-# OS Capture helpers: private PNG/interactive portal, real clawd children and checked Close.
+# OS Capture helpers: private PNG/interactive portal, real yuosd children and checked Close.
 GITHUB_WORKSPACE="$PWD" RUNNER_TEMP="$PWD/build" \
   bash scripts/ci/test-boundaries.sh capture
 
-# OS-owned Python tests, from the repository root. App tests live in clawos-app.
-PYTHONPATH=claw-os-sdk/python/src:cos-runtime/python/src \
-  python3 -m pytest -q adapters claw-os-sdk/python/src cos-runtime/python/src \
+# OS-owned Python tests, from the repository root. App tests live in yuos-app.
+PYTHONPATH=yuos-sdk/python/src:yuos-runtime/python/src \
+  python3 -m pytest -q adapters yuos-sdk/python/src yuos-runtime/python/src \
     packaging/deb/tests/test_app_sources.py
 
 # Browser broker.
-cargo test -p yu --lib clawd::browser -- --test-threads=1
+cargo test -p yu --lib yuosd::browser -- --test-threads=1
 
 # OS Applet providers build independently, without App sources or GUI inputs.
-cargo test --manifest-path desktop/services/claw-applet-services/Cargo.toml --lib --locked -- --test-threads=1
-cargo test --manifest-path desktop/services/claw-applet-services/Cargo.toml --features provider --locked -- --test-threads=1
+cargo test --manifest-path desktop/services/yuos-applet-services/Cargo.toml --lib --locked -- --test-threads=1
+cargo test --manifest-path desktop/services/yuos-applet-services/Cargo.toml --features provider --locked -- --test-threads=1
 ```
 
 ### Project Structure
 
 ```
-claw-os/
+yuos/
 ├── core/              Rust binary (cos)
 │   └── src/
 │       ├── main.rs        Entry point
@@ -267,7 +267,7 @@ claw-os/
 │       ├── router.rs      Command dispatch
 │       ├── sandbox.rs     Namespace + cgroup isolation
 │       ├── proc.rs        Process session manager
-│       ├── clawd/browser/ Private Helium rendering
+│       ├── yuosd/browser/ Private Helium rendering
 │       ├── bridge.rs      Python app subprocess bridge
 │       ├── audit.rs       JSONL audit logging
 │       ├── sysinfo.rs     Native system info
@@ -278,8 +278,8 @@ claw-os/
 │   └── docker/          Dockerfiles + build.sh for the docker target
 ├── web/               React/Vite Linux desktop + embedded marketing website
 ├── build.sh           Top-level dispatcher (./build.sh <target>)
-├── cli/               cos-ctl management tool
-├── clients/           Bridge (LLM ↔ Claw OS)
+├── cli/               yuos-ctl management tool
+├── clients/           Bridge (LLM ↔ Yu OS)
 └── .github/workflows/ Test and publication workflows
 ```
 
@@ -306,14 +306,14 @@ node). It is not a seam unless all three roles are present:
    `agent::memory::semantic`.
 3. **Consumer** — typically a model-facing `cos_*` tool, or another
    subsystem that goes through the definition. Example: the
-   `cos_memory` / `cos_recall` tools.
+   `yu_memory` / `yu_recall` tools.
 
 One role alone does not constitute a seam. A concrete type with no
 interface is not a seam (it is an implementation). An interface
 with no consumer is speculative. An interface with a single
 hard-wired provider that callers reach past is not a seam either.
 
-**Why this matters here.** Claw OS wants to run agent work in a
+**Why this matters here.** Yu OS wants to run agent work in a
 sandbox or on another machine without forking every subsystem.
 That property only holds if filesystem, subprocess, memory, and
 network all share the same three-role shape: pointing the provider
@@ -362,10 +362,10 @@ The file/radio helper is an independent workspace, not another core member.
 From the repository root on Linux/WSL:
 
 ```sh
-cargo test -p clawd-client --lib --locked
+cargo test -p yuosd-client --lib --locked
 cargo test -p yu --lib nearby -- --test-threads=1
-cargo test --manifest-path crates/claw-nearby/Cargo.toml --locked
-cargo test --manifest-path crates/claw-nearby/vendor/owlyd/Cargo.toml --test service --locked
+cargo test --manifest-path crates/yuos-nearby/Cargo.toml --locked
+cargo test --manifest-path crates/yuos-nearby/vendor/owlyd/Cargo.toml --test service --locked
 python3 -B packaging/deb/tests/test_nearby.py
 ```
 

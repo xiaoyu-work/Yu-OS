@@ -34,7 +34,7 @@ separate description from system authority.
 
 ## Dependencies
 
-Capability definitions are stable inputs to `clawd`, app discovery, sessions,
+Capability definitions are stable inputs to `yuosd`, app discovery, sessions,
 and agent tools. Validation occurs before side effects. Consumers request the
 narrowest scope and do not reinterpret scope strings independently.
 `Scope::human_target` is a shared presentation-only summary. It performs no
@@ -57,7 +57,7 @@ to policy validation or pure matching, or promise a filesystem transaction.
 
 `caps/` is the *vocabulary*, not the authority. A `CapSet` describes what some
 principal may do; it never establishes that they may do it. The thing that
-decides is `clawd::authority`, which holds grants bound to an authenticated
+decides is `yuosd::authority`, which holds grants bound to an authenticated
 process and hands each broker route one decision. A serialized `CapSet` found on
 disk, in a request body, or in a session row is a description to be re-derived
 and clamped — never promoted.
@@ -67,7 +67,7 @@ only after the owning operation validates its arguments. A primitive may also
 bind consent to a validated operation digest when executable arguments carry
 authority beyond the capability scope. Attended denials may create a bounded
 approval request; unattended denials never prompt. A worker approval is
-redeemed through `clawd::authority` at the final gate.
+redeemed through `yuosd::authority` at the final gate.
 
 `ui.panel` is the high-risk, resourceless desktop overlay capability, with
 canonical `Scope::Wild`. It is separate from ordinary `ui.window`, global
@@ -83,7 +83,7 @@ actions/private popup mute (`ipc.invoke`). Only an explicit selected signed
 GUI declaration and live grant bind it. The provider exports leased display
 projections, never a global inbox or raw bus. `ui.panel` only permits the
 surface; `ui.notify` and `data.inbox.read` retain their existing producer and
-own-source meanings. See the [GUI resource contract](../clawd/gui/MODULE.md#notification-presentation).
+own-source meanings. See the [GUI resource contract](../yuosd/gui/MODULE.md#notification-presentation).
 
 ## Tests
 
@@ -97,7 +97,7 @@ enforcement test.
 Media Player's status and six playback controls use separate
 `desktop.media.observe` / `desktop.media.control` name scopes, fixed to
 `cosmic-player`. Neither is ambient authority or session-bus access.
-Their provider and private-bus tests are under `clawd/media_player`.
+Their provider and private-bus tests are under `yuosd/media_player`.
 
 A broker-authenticated, identity-matched non-App task scope checks its granted
 capabilities without opening the extension runtime's protected write lock.

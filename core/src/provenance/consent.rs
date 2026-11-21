@@ -74,8 +74,8 @@ fn is_tty(_fd: i32) -> bool {
 /// exactly the escalation this guard exists to stop, so it is refused
 /// even though the human is present.
 fn active_session() -> Option<String> {
-    if std::env::var_os("COS_SESSION").is_some() {
-        return Some("a Claw session (COS_SESSION is set)".to_string());
+    if std::env::var_os("YUOS_SESSION").is_some() {
+        return Some("a Claw session (YUOS_SESSION is set)".to_string());
     }
     let running = super::runtime::pending_or_running(super::runtime::current_owner());
     if running > 0 {
@@ -117,7 +117,7 @@ pub fn require_developer_consent(
         stderr,
         "\n\
          ── Developer trust ────────────────────────────────────────────\n\
-         You are about to run UNSIGNED code with Claw OS authority.\n\
+         You are about to run UNSIGNED code with Yu OS authority.\n\
          \n\
            kind    {kind}\n\
            id      {id}\n\

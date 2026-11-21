@@ -11,7 +11,7 @@ system callers that request AI work outside the interactive agent loop.
 - Apply consent and budget decisions.
 - Build provider-neutral requests through the configured agent provider.
 - Record usage and deny direct provider ownership by apps.
-- Serve SDK `yu ai chat` through the authenticated `clawd` `ai.chat` route.
+- Serve SDK `yu ai chat` through the authenticated `yuosd` `ai.chat` route.
   Workers receive neither the session registry, provider credentials nor network
   access. The gate uses the live exact App capability, owner configuration,
   verified manifest, consent, budget and safety policy; no local fallback exists.

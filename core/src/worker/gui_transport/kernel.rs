@@ -2,7 +2,7 @@ use std::io;
 use std::mem::{size_of, zeroed};
 use std::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, OwnedFd};
 
-use claw_display_control::ProcessIdentity;
+use yuos_display_control::ProcessIdentity;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -133,7 +133,7 @@ impl Listener {
 
     pub fn subject(&self, notice: &Notice) -> io::Result<Subject> {
         self.valid(notice.id)?;
-        let status = claw_display_control::identity::read_bounded(
+        let status = yuos_display_control::identity::read_bounded(
             &format!("/proc/{}/status", notice.tid),
             16384,
         )

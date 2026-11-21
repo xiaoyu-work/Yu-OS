@@ -1,0 +1,63 @@
+[Unit]
+Description=Yu OS — System Agent Daemon (yuosd)
+Documentation=https://github.com/xiaoyu-work/Yu-OS
+After=basic.target
+
+[Service]
+Type=simple
+Group=root
+UMask=0077
+ExecStart=/usr/local/bin/yuosd --socket /run/yuos/yuosd.sock
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+Environment=YUOS_BIN=/usr/local/bin/yu
+Environment=YUOS_DATA_DIR=/var/lib/yuos
+Environment=YUOS_RUNTIME_DIR=/run/yuos
+Environment=YUOS_LOG_DIR=/var/log/yuos
+Environment=YUOSD_SOCKET=/run/yuos/yuosd.sock
+Environment=YUOSD_SOCKET_MODE=0660
+Environment=YUOSD_SOCKET_GROUP=sudo
+# Agent runtime isolation: the model/tool loop never runs in this
+# process. yuosd spawns /usr/local/bin/yuos-agentd per task, dropped to
+# the task owner with supplementary groups cleared, NoNewPrivs set, its
+# own session/process group, and only a private job channel on fd 3.
+# Dynamic App and MCP code runs one boundary farther out in
+# /usr/local/bin/yuos-extension-host. The host uses an exclusive unmapped uid
+# and receives only per-task control and route-filtered proxy sockets.
+# Tasks owned by root are refused: the runtime has no account to drop
+# to. Set YUOSD_AGENTD=off to stop running agent tasks; every other
+# yuosd primitive keeps working.
+Environment=YUOSD_AGENTD=on
+Environment=YUOS_AGENTD_BIN=/usr/local/bin/yuos-agentd
+Environment=YUOS_EXTENSION_HOST_BIN=/usr/local/bin/yuos-extension-host
+Environment=YUOS_EXTENSION_EXEC_GROUP=yuos-extension
+Environment=YUOSD_EXTENSION_HOST_NAMESPACES=on
+Environment=YUOSD_AGENTD_MAX_WORKERS=4
+Environment=YUOSD_AGENTD_LEASE_SECS=900
+# System-vitals heartbeat: cheap reflex loop that samples kernel vitals,
+# emits context.events on threshold crossings (the trigger engine turns
+# matching ones into agent jobs), and drives cron/triggers ticks so no
+# external systemd .timer is needed. Set YUOSD_HEARTBEAT=off to disable.
+Environment=YUOSD_HEARTBEAT=on
+Environment=YUOSD_HEARTBEAT_INTERVAL_SECS=60
+RuntimeDirectory=yuos
+RuntimeDirectoryMode=0751
+StateDirectory=yuos
+# 0711: traversable, never listable. An unprivileged yuos-agentd worker
+# walks through /var/lib/yuos to its own /var/lib/yuos/users/<uid> agent
+# state, which yuosd creates owned by that account with mode 0700. Every
+# other subtree below stays 0700 root.
+StateDirectoryMode=0711
+LogsDirectory=yuos
+LogsDirectoryMode=0700
+# Bubblewrap configures private loopback before installing the worker socket filter.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+NoNewPrivileges=true
+PrivateTmp=true
+# Required for per-task cgroup-v2 CPU/memory/pids limits and cgroup.kill.
+# yuosd fails agent tasks closed if the delegated subtree is unavailable.
+Delegate=yes
+
+[Install]
+WantedBy=multi-user.target

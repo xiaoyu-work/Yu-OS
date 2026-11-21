@@ -227,7 +227,7 @@ fn unpin_clears_the_pin_flag() {
 /// of a release asset that does NOT publish a SHA-256 digest
 /// must be refused, because the kernel would otherwise execute
 /// unverified native code shipped by the publisher's CDN. The
-/// `COS_ENGINE_TRUST_UNVERIFIED=1` env var is the documented
+/// `YUOS_ENGINE_TRUST_UNVERIFIED=1` env var is the documented
 /// emergency override.
 ///
 /// We test the decision helper directly — the rest of the
@@ -237,7 +237,7 @@ fn unpin_clears_the_pin_flag() {
 fn digest_required() {
     // Clean env to a known state. Use a unique key with
     // env::remove because cargo test runs in a shared process.
-    std::env::remove_var("COS_ENGINE_TRUST_UNVERIFIED");
+    std::env::remove_var("YUOS_ENGINE_TRUST_UNVERIFIED");
 
     // No digest, no override → refuse with a clear message.
     let err = check_digest_requirement("llama-cpp", "b4001", "llama-cpp.tar.gz", None)
@@ -247,12 +247,12 @@ fn digest_required() {
         "error must explain the refusal reason, got: {err}",
     );
     assert!(
-        err.contains("COS_ENGINE_TRUST_UNVERIFIED"),
+        err.contains("YUOS_ENGINE_TRUST_UNVERIFIED"),
         "error must mention the override env var, got: {err}",
     );
 
     // Override → allowed.
-    std::env::set_var("COS_ENGINE_TRUST_UNVERIFIED", "1");
+    std::env::set_var("YUOS_ENGINE_TRUST_UNVERIFIED", "1");
     assert!(check_digest_requirement(
         "llama-cpp",
         "b4001",
@@ -260,10 +260,10 @@ fn digest_required() {
         None
     )
     .is_ok());
-    std::env::remove_var("COS_ENGINE_TRUST_UNVERIFIED");
+    std::env::remove_var("YUOS_ENGINE_TRUST_UNVERIFIED");
 
     // Empty / "0" must NOT be treated as on.
-    std::env::set_var("COS_ENGINE_TRUST_UNVERIFIED", "0");
+    std::env::set_var("YUOS_ENGINE_TRUST_UNVERIFIED", "0");
     assert!(check_digest_requirement(
         "llama-cpp",
         "b4001",
@@ -271,7 +271,7 @@ fn digest_required() {
         None
     )
     .is_err());
-    std::env::set_var("COS_ENGINE_TRUST_UNVERIFIED", "");
+    std::env::set_var("YUOS_ENGINE_TRUST_UNVERIFIED", "");
     assert!(check_digest_requirement(
         "llama-cpp",
         "b4001",
@@ -279,7 +279,7 @@ fn digest_required() {
         None
     )
     .is_err());
-    std::env::remove_var("COS_ENGINE_TRUST_UNVERIFIED");
+    std::env::remove_var("YUOS_ENGINE_TRUST_UNVERIFIED");
 
     // With a digest, the check passes regardless of env state.
     assert!(check_digest_requirement(

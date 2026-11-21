@@ -1,6 +1,6 @@
 //! The narrow per-launch broker endpoint.
 //!
-//! A sandboxed worker never sees the real `/run/cos/clawd.sock`. It
+//! A sandboxed worker never sees the real `/run/yuos/yuosd.sock`. It
 //! sees this endpoint, bind-mounted at the same path inside its mount
 //! namespace, and it is the only route from hostile code to kernel
 //! authority.
@@ -11,12 +11,12 @@
 //! namespace cannot present its own App session grant: that grant is
 //! bound to its process tree, and the daemon sees a connection arriving
 //! from the launcher instead. The launcher therefore holds an opaque
-//! *relay grant* — issued by `clawd` when the session was bound, bound
+//! *relay grant* — issued by `yuosd` when the session was bound, bound
 //! `Process`-tight to the launcher, naming exactly one session,
 //! carrying no capabilities of its own — and forwards each call through
 //! the `app_session.relay` route.
 //!
-//! `clawd` remains the final authority on every relayed call. It
+//! `yuosd` remains the final authority on every relayed call. It
 //! decodes the inner route's typed body, resolves the *live* App
 //! session grant, takes its own decision, and makes the owning provider
 //! spend the exact capability before any effect happens. The admission
@@ -40,8 +40,8 @@
 //!   header-then-body read, explicit read/write deadlines, and a
 //!   bounded number of concurrent connections.
 //! * **Local policy answers.** `worker.policy.check` is answered from
-//!   the same live set without touching `clawd`, which is what
-//!   `yu __policy check` — and therefore `cos_runtime.policy` — needs
+//!   the same live set without touching `yuosd`, which is what
+//!   `yu __policy check` — and therefore `yuos_runtime.policy` — needs
 //!   inside the sandbox.
 //!
 //! The relay handle never crosses into the sandbox, never appears in a
@@ -57,9 +57,9 @@ use serde_json::Value;
 
 use super::provider::BrokerAuthority;
 use crate::caps::{Cap, CapSet, Scope, Verb};
-use crate::clawd::protocol::{BrokerError, BrokerErrorKind, ErrorBody};
-use crate::clawd::routes::Command;
-use crate::clawd::wire::{
+use crate::yuosd::protocol::{BrokerError, BrokerErrorKind, ErrorBody};
+use crate::yuosd::routes::Command;
+use crate::yuosd::wire::{
     Fault, Response, HEADER_BYTES, KIND_REQUEST, KIND_RESPONSE, MAX_REQUEST_BYTES, PROTOCOL_VERSION,
 };
 
@@ -136,7 +136,7 @@ impl BrokerEndpoint {
                 let stop = Arc::clone(&stop);
                 let stats = Arc::clone(&stats);
                 std::thread::Builder::new()
-                    .name("cos-worker-broker".to_string())
+                    .name("yuos-worker-broker".to_string())
                     .spawn(move || {
                         for stream in listener.incoming() {
                             if stop.load(Ordering::Relaxed) {
@@ -151,7 +151,7 @@ impl BrokerEndpoint {
                             let authority = Arc::clone(&authority);
                             let stats_for_thread = Arc::clone(&stats);
                             let spawned = std::thread::Builder::new()
-                                .name("cos-worker-broker-conn".to_string())
+                                .name("yuos-worker-broker-conn".to_string())
                                 .spawn(move || {
                                     match serve(stream, &authority, owner_uid) {
                                         Outcome::Served => {
@@ -364,7 +364,7 @@ fn read_request(stream: &mut std::os::unix::net::UnixStream) -> Result<Option<Ve
         Err(_) => return Err(Fault::TruncatedFrame),
     }
     let len =
-        crate::clawd::transport::frame::parse_header(&header, KIND_REQUEST, MAX_REQUEST_BYTES)?;
+        crate::yuosd::transport::frame::parse_header(&header, KIND_REQUEST, MAX_REQUEST_BYTES)?;
     let mut body = vec![0_u8; len];
     stream
         .read_exact(&mut body)
@@ -422,12 +422,12 @@ fn is_forbidden(command: Command) -> bool {
 
 /// Verbs that make a route worth relaying at all.
 ///
-/// An *admission* filter, never authorization: `clawd` re-derives the
+/// An *admission* filter, never authorization: `yuosd` re-derives the
 /// exact capability the inner route needs from its typed body and makes
 /// the owning provider spend it against the live session grant. The
 /// only job here is to refuse an obviously pointless round trip — a
 /// launch holding just `fs.read` cannot open a conversation about the
-/// firewall. An unmapped route is refused, so a newly added `clawd`
+/// firewall. An unmapped route is refused, so a newly added `yuosd`
 /// route is closed to workers until somebody decides otherwise.
 fn required_verbs(command: Command) -> &'static [Verb] {
     match command.as_str() {
@@ -528,7 +528,7 @@ fn admit(command: Command, authority: &BrokerAuthority) -> Result<(), String> {
 /// Answer one capability question from the launch's *live* authority.
 ///
 /// Advisory by design: it tells an App what its own kernel checks will
-/// say, read from the same routed registry row `clawd` and
+/// say, read from the same routed registry row `yuosd` and
 /// `caps::require` read, so a transient capability appears and
 /// disappears with the call it was granted for.
 fn policy_check(authority: &BrokerAuthority, params: &Value) -> Value {
@@ -573,7 +573,7 @@ pub(crate) fn policy_response(
 ///
 /// The App's summaries belong in the owner's cross-App memory, but the
 /// database is not mounted into the sandbox and must not be: a bind
-/// would hand hostile code every other source's rows and the `cos`
+/// would hand hostile code every other source's rows and the `yu`
 /// process inside the sandbox cannot resolve a session row anyway.
 /// Instead the launcher — which already runs as the owner — re-parses
 /// the call through the bridge's own typed argument handling and takes
@@ -634,7 +634,7 @@ fn relay(
     let handle = authority
         .relay_handle()
         .ok_or_else(|| BrokerError::authorization("this worker holds no relay authority"))?;
-    let request = crate::clawd::protocol::Request::build(
+    let request = crate::yuosd::protocol::Request::build(
         Command::AppSessionRelay,
         serde_json::json!({
             "session_id": authority.session_id,
@@ -644,7 +644,7 @@ fn relay(
         }),
     );
     let response =
-        crate::clawd::client::request_blocking(crate::clawd::config::socket_path(), request)
+        crate::yuosd::client::request_blocking(crate::yuosd::config::socket_path(), request)
             .map_err(|error| {
                 if error.may_have_dispatched() {
                     BrokerError::indeterminate(
@@ -753,7 +753,7 @@ fn respond_fault(stream: &mut std::os::unix::net::UnixStream, id: &str, fault: F
 #[cfg(unix)]
 fn write_response(stream: &mut std::os::unix::net::UnixStream, body: &Value) {
     let encoded = serde_json::to_vec(body).unwrap_or_default();
-    let _ = stream.write_all(&crate::clawd::transport::frame::encode_frame(
+    let _ = stream.write_all(&crate::yuosd::transport::frame::encode_frame(
         KIND_RESPONSE,
         &encoded,
     ));
@@ -851,7 +851,7 @@ fn ask_sandbox_memory(command: &str, args: &[String]) -> Result<Result<Value, St
 fn sandbox_exchange(command: &str, params: Value) -> Result<Value, String> {
     use std::os::unix::net::UnixStream;
 
-    let socket = crate::paths::clawd_socket_path();
+    let socket = crate::paths::yuosd_socket_path();
     let mut stream = UnixStream::connect(&socket)
         .map_err(|error| format!("worker sandbox authority is unreachable: {error}"))?;
     let _ = stream.set_read_timeout(Some(IO_DEADLINE));
@@ -865,7 +865,7 @@ fn sandbox_exchange(command: &str, params: Value) -> Result<Value, String> {
     });
     let encoded = serde_json::to_vec(&body).map_err(|error| error.to_string())?;
     stream
-        .write_all(&crate::clawd::transport::frame::encode_frame(
+        .write_all(&crate::yuosd::transport::frame::encode_frame(
             KIND_REQUEST,
             &encoded,
         ))
@@ -875,7 +875,7 @@ fn sandbox_exchange(command: &str, params: Value) -> Result<Value, String> {
         .read_exact(&mut header)
         .map_err(|error| format!("worker sandbox authority read failed: {error}"))?;
     let len =
-        crate::clawd::transport::frame::parse_header(&header, KIND_RESPONSE, MAX_RELAY_RESPONSE)
+        crate::yuosd::transport::frame::parse_header(&header, KIND_RESPONSE, MAX_RELAY_RESPONSE)
             .map_err(|fault| format!("worker sandbox authority refused: {}", fault.message()))?;
     let mut response = vec![0_u8; len];
     stream

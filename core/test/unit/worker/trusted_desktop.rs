@@ -10,7 +10,7 @@ fn every_fixed_row_names_exactly_its_system_program() {
         ("cosmic-store", "/usr/bin/cosmic-store"),
         ("cosmic-settings", "/usr/bin/cosmic-settings"),
         ("cosmic-term", "/usr/bin/cosmic-term"),
-        ("claw-launcher", "/usr/bin/claw-launcher"),
+        ("yuos-launcher", "/usr/bin/yuos-launcher"),
         ("cosmic-player", "/usr/bin/cosmic-player"),
         ("cosmic-screenshot", "/usr/bin/cosmic-screenshot"),
         ("cosmic-notifications", "/usr/bin/cosmic-notifications"),
@@ -183,7 +183,7 @@ fn owner_uid_for_test() -> u32 {
 #[cfg(unix)]
 fn fixture_runtime_dir() -> std::path::PathBuf {
     use std::os::unix::fs::PermissionsExt;
-    let dir = std::env::temp_dir().join(format!("cos-bus-{}", uuid::Uuid::new_v4().simple()));
+    let dir = std::env::temp_dir().join(format!("yuos-bus-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir(&dir).expect("fixture runtime dir");
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
     dir
@@ -286,9 +286,9 @@ fn only_an_owner_owned_socket_named_bus_inside_the_runtime_dir_resolves() {
     // Traversal that would climb out of it.
     assert!(refused(&dir.join("../bus")).contains("`..`"));
 
-    // Claw OS's own endpoints are named explicitly, so a future
+    // Yu OS's own endpoints are named explicitly, so a future
     // runtime-directory change cannot quietly make one reachable.
-    assert!(refused(&crate::paths::clawd_socket_path()).contains("kernel-owned endpoint"));
+    assert!(refused(&crate::paths::yuosd_socket_path()).contains("kernel-owned endpoint"));
     assert!(
         refused(std::path::Path::new(crate::worker::linux_egress_socket()))
             .contains("kernel-owned endpoint")
@@ -348,7 +348,7 @@ fn a_launch_that_cannot_authenticate_a_bus_gets_no_mount_at_all() {
     for address in [
         "unix:abstract=/tmp/dbus-abcdef,guid=deadbeef",
         "unix:path=/nonexistent/bus",
-        "unix:path=/run/cos/clawd.sock",
+        "unix:path=/run/yuos/yuosd.sock",
         "tcp:host=127.0.0.1,port=1234",
         "unix:path=/run/user/1000/bus;unix:path=/tmp/evil",
         "",

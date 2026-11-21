@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Yu OS
 Comment=Yu OS desktop
-Exec=/usr/local/bin/claw-display-session --desktop
-TryExec=/usr/local/bin/claw-display-session
+Exec=/usr/local/bin/yuos-display-session --desktop
+TryExec=/usr/local/bin/yuos-display-session
 Type=Application
 DesktopNames=Hyprland

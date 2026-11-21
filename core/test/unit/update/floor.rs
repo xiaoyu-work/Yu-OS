@@ -45,8 +45,8 @@ fn a_committed_floor_reloads_with_a_matching_digest() {
     assert_eq!(loaded.generation, 1);
     assert_eq!(loaded.digest, floor.digest);
     assert_eq!(
-        loaded.packages["claw-os-agent"].version,
-        floor.packages["claw-os-agent"].version
+        loaded.packages["yuos-agent"].version,
+        floor.packages["yuos-agent"].version
     );
 }
 
@@ -264,7 +264,7 @@ fn an_authorized_recovery_may_record_an_older_release() {
         )
         .expect("an operator authorization permits the regression");
     assert_eq!(
-        next.packages["claw-os-agent"].version,
+        next.packages["yuos-agent"].version,
         "1:0.2.0+git100.gaaaaaaaaaaaa"
     );
     // The generation still moves forward, so the recovery is itself
@@ -339,11 +339,11 @@ fn a_revoked_signing_key_is_dropped_from_the_trusted_set() {
 #[test]
 fn measuring_a_component_records_the_installed_path_not_the_staged_one() {
     let root = scratch_root("measure");
-    let staged = root.join("usr/local/bin/clawd");
+    let staged = root.join("usr/local/bin/yuosd");
     std::fs::create_dir_all(staged.parent().unwrap()).unwrap();
     std::fs::write(&staged, b"binary").unwrap();
-    let measured = measure_component("clawd", &staged).unwrap();
-    assert_eq!(measured.path, "/usr/local/bin/clawd");
+    let measured = measure_component("yuosd", &staged).unwrap();
+    assert_eq!(measured.path, "/usr/local/bin/yuosd");
     assert_eq!(measured.sha256, crate::crypto::sha256_hex(b"binary"));
     assert_eq!(measured.size, 6);
 }
@@ -356,7 +356,7 @@ fn measuring_refuses_a_symlinked_component() {
     std::fs::write(&real, b"binary").unwrap();
     let link = root.join("link");
     std::os::unix::fs::symlink(&real, &link).unwrap();
-    assert!(measure_component("clawd", &link).is_err());
+    assert!(measure_component("yuosd", &link).is_err());
 }
 
 #[cfg(unix)]
@@ -455,7 +455,7 @@ fn a_commit_prepared_from_a_superseded_floor_is_refused() {
         panic!("expected a present floor");
     };
     assert_eq!(
-        floor.packages["claw-os-agent"].version,
+        floor.packages["yuos-agent"].version,
         "1:0.2.0+git200.gbbbbbbbbbbbb"
     );
 }

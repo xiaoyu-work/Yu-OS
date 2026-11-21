@@ -69,7 +69,7 @@ pub(super) fn ask_cmd(args: &[String]) -> Result<Value, String> {
                 .into(),
         );
     }
-    let envelope = crate::clawd::agent_client::ask_in_space(
+    let envelope = crate::yuosd::agent_client::ask_in_space(
         &prompt,session_id.as_deref(),workspace_id.as_deref(),timeout_ms.unwrap_or(24*60*60*1000),
     )?;
     if full {

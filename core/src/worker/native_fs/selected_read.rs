@@ -173,7 +173,7 @@ pub(crate) struct ReadPermit {
 impl ReadPermit {
     pub(crate) fn new(
         candidate: Arc<FileCandidate>,
-        authorized: &crate::clawd::authority::Authorized,
+        authorized: &crate::yuosd::authority::Authorized,
         capability: &crate::caps::Cap,
         deadline: Instant,
         check: Arc<dyn ReadLeaseCheck>,
@@ -311,9 +311,9 @@ impl ReadProvider {
                 if !parent.metadata().map_err(|error| error.to_string())?.is_dir() {
                     return Err("save selection parent is not a directory".into());
                 }
-                let _owner = crate::clawd::client_identity::FsIdentityGuard::enter(shared.owner)
+                let _owner = crate::yuosd::client_identity::FsIdentityGuard::enter(shared.owner)
                     .map_err(|error| error.to_string())?;
-                match crate::clawd::filesystem::open_at(&parent, name, libc::O_PATH | libc::O_NOFOLLOW, 0) {
+                match crate::yuosd::filesystem::open_at(&parent, name, libc::O_PATH | libc::O_NOFOLLOW, 0) {
                     Err(error) if error.raw_os_error() == Some(libc::ENOENT) => {}
                     _ => return Err("save target changed before pinning".into()),
                 }

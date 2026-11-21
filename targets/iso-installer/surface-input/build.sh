@@ -10,7 +10,7 @@ work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
 layer=$work/layer
 payload=$work/payload
-cache=$rootfs/usr/share/cos/driver-cache
+cache=$rootfs/usr/share/yuos/driver-cache
 
 copy_payload() {
     install -Dm"${2:-0644}" "$payload/$1" "$layer/$1"
@@ -18,15 +18,15 @@ copy_payload() {
 
 case "$profile" in
     amd64)
-        package=claw-os-surface-laptop-7
+        package=yuos-surface-laptop-7
         dpkg-deb -x "$cache"/surface-laptop-7-intel/"${package}"_*.deb "$payload"
         copy_payload etc/iptsd.d/99-surface-laptop-7-touchpad.conf
         copy_payload usr/share/libinput/65-claw-surface.quirks
         ;;
     aarch64-qualcomm)
-        package=claw-os-surface-snapdragon-iptsd
+        package=yuos-surface-snapdragon-iptsd
         dpkg-deb -x "$cache"/surface-laptop-7-snapdragon/"${package}"_*.deb "$payload"
-        dpkg-deb -x "$cache"/surface-laptop-7-snapdragon/claw-os-surface-snapdragon-touchpad_*.deb "$payload"
+        dpkg-deb -x "$cache"/surface-laptop-7-snapdragon/yuos-surface-snapdragon-touchpad_*.deb "$payload"
         ;;
     x86-surface-laptop-7-intel)
         test -x "$rootfs/usr/bin/iptsd"
@@ -55,7 +55,7 @@ units=$layer/usr/lib/systemd/system
 install -Dm0644 "$assets/$service" "$units/$service"
 install -d "$units/getty@tty1.service.wants"
 ln -s "../$service" "$units/getty@tty1.service.wants/$service"
-install -Dm0755 "$assets/claw-installer-surface-input" "$layer/usr/lib/cos/init/claw-installer-surface-input"
+install -Dm0755 "$assets/claw-installer-surface-input" "$layer/usr/lib/yuos/init/claw-installer-surface-input"
 install -Dm0644 "$assets/90-claw-installer-surface-input.rules" "$layer/usr/lib/udev/rules.d/90-claw-installer-surface-input.rules"
 
 # Calamares unpacks only filesystem.squashfs; live-boot mounts this layer above it.

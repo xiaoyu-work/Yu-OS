@@ -14,7 +14,7 @@
 //!
 //! * [`ProgressSink::on_tool_start`] — right before the tool runs,
 //!   so the UI can show a "running …" indicator with heartbeat dots
-//!   while a slow tool (e.g. `cos_sysinfo largest_files /`) crunches
+//!   while a slow tool (e.g. `yu_sysinfo largest_files /`) crunches
 //!   the filesystem.
 //! * [`ProgressSink::on_tool_result`] — right after the tool returns,
 //!   so diagnostic sinks can record latency and a bounded output preview.
@@ -34,8 +34,8 @@
 //!   terminal stream, so a diagnostic client can see a unified log:
 //!
 //!   ```text
-//!   [tool_use id=toolu_X name=cos_sysinfo] {"command":"largest_files", ...}
-//!   [tool_result id=toolu_X name=cos_sysinfo ok ms=8421 bytes=1240]
+//!   [tool_use id=toolu_X name=yu_sysinfo] {"command":"largest_files", ...}
+//!   [tool_result id=toolu_X name=yu_sysinfo ok ms=8421 bytes=1240]
 //!   {"search_root":"/", "files":[...], ...}
 //!   ```
 //!
@@ -102,7 +102,7 @@ pub trait ProgressSink: Send + Sync {
 }
 
 /// Drop-everything implementation, used by non-interactive paths
-/// (clawd jobs, JSON output mode) where progress events would just
+/// (yuosd jobs, JSON output mode) where progress events would just
 /// pollute structured output. Hand this out as the default when a
 /// caller doesn't care about progress.
 pub struct NullProgressSink;
@@ -399,7 +399,7 @@ impl Heartbeat {
 /// shape and so a future renderer can swap colouring/icons in one
 /// place.
 ///
-/// Example: `[tool_result id=toolu_AB1 name=cos_sysinfo ok ms=8421 bytes=1240]`
+/// Example: `[tool_result id=toolu_AB1 name=yu_sysinfo ok ms=8421 bytes=1240]`
 pub fn format_result_header(
     id: &str,
     name: &str,

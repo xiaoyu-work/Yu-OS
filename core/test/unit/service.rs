@@ -3,7 +3,7 @@ use super::*;
 use std::sync::Once;
 static PERMS_INIT: Once = Once::new();
 fn perms_init() {
-    PERMS_INIT.call_once(|| std::env::set_var("COS_PERMS_MODE", "permissive"));
+    PERMS_INIT.call_once(|| std::env::set_var("YUOS_PERMS_MODE", "permissive"));
 }
 
 #[test]
@@ -36,9 +36,9 @@ fn test_deserialize_service_def_full() {
     perms_init();
     let json = r#"{
             "name": "browser",
-            "description": "cos-browser CDP server",
-            "command": "cos-browser serve --port 9222",
-            "workdir": "/var/lib/cos/browser",
+            "description": "yuos-browser CDP server",
+            "command": "yuos-browser serve --port 9222",
+            "workdir": "/var/lib/yuos/browser",
             "env": {"KEY": "val"},
             "health": {
                 "url": "http://localhost:9222/json/version",
@@ -51,9 +51,9 @@ fn test_deserialize_service_def_full() {
         }"#;
     let def: ServiceDef = serde_json::from_str(json).unwrap();
     assert_eq!(def.name, "browser");
-    assert_eq!(def.description, "cos-browser CDP server");
-    assert_eq!(def.command, "cos-browser serve --port 9222");
-    assert_eq!(def.workdir.as_deref(), Some("/var/lib/cos/browser"));
+    assert_eq!(def.description, "yuos-browser CDP server");
+    assert_eq!(def.command, "yuos-browser serve --port 9222");
+    assert_eq!(def.workdir.as_deref(), Some("/var/lib/yuos/browser"));
     assert_eq!(def.env.get("KEY").unwrap(), "val");
     let h = def.health.unwrap();
     assert_eq!(h.url.as_deref(), Some("http://localhost:9222/json/version"));
@@ -279,10 +279,10 @@ fn test_stop_all_dispatch() {
 fn test_register_with_lifecycle() {
     perms_init();
     // Use a temp services dir for this test
-    let tmp_dir = std::env::temp_dir().join("cos-test-register-lifecycle");
+    let tmp_dir = std::env::temp_dir().join("yuos-test-register-lifecycle");
     let _ = fs::remove_dir_all(&tmp_dir);
     let _ = fs::create_dir_all(&tmp_dir);
-    std::env::set_var("COS_SERVICES_DIR", tmp_dir.to_string_lossy().as_ref());
+    std::env::set_var("YUOS_SERVICES_DIR", tmp_dir.to_string_lossy().as_ref());
 
     let result = cmd_register(&[
         "--name".into(),
@@ -535,7 +535,7 @@ fn parse_command_flag_value_with_quoted_path() {
 
 /// Parser regression for the new `pid:starttime` format.
 /// Verifies both forms round-trip without depending on the
-/// `COS_DATA_DIR` env var (which is concurrently mutated by
+/// `YUOS_DATA_DIR` env var (which is concurrently mutated by
 /// other tests in this crate and races with file-IO setup).
 #[test]
 fn parse_pid_file_contents_handles_both_formats() {

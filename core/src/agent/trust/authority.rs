@@ -18,7 +18,7 @@
 //!
 //! What *does* decide is unchanged: `crate::caps` for capability
 //! scopes, the guarded tool registry and guardrails for tool exposure,
-//! the approvals store for user decisions, and `clawd` for privileged
+//! the approvals store for user decisions, and `yuosd` for privileged
 //! operations. Each of those takes a typed kernel or user decision.
 //! None of them takes a segment, a label, or model text.
 

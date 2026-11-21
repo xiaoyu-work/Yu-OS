@@ -5,7 +5,7 @@
 * `Valid-Until`, when present, must not already have passed, and a
   near-expiry index is reported.
 
-Claw OS indexes intentionally have no expiry or maximum age. This does not
+Yu OS indexes intentionally have no expiry or maximum age. This does not
 prove recency or detect a frozen origin; signatures, snapshot checksums and
 the installed security floor remain separate protections.
 """

@@ -91,7 +91,7 @@ pub fn raise(class: Class, partition: &str, detail: &str) {
     if let Err(error) = append(&record) {
         tracing::error!(error = %error, "failed to write the session journal alarm file");
     }
-    crate::clawd::system_journal::record_journal_alarm(class.as_str(), partition, detail);
+    crate::yuosd::system_journal::record_journal_alarm(class.as_str(), partition, detail);
 }
 
 fn admit(class: Class) -> Option<u64> {

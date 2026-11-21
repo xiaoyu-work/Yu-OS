@@ -5,7 +5,7 @@ use std::path::PathBuf;
 fn engine_version_from_lib_path_unix_layout() {
     let version = crate::engine_pkg::ORT_GENAI_KNOWN_GOOD_VERSION;
     let p = PathBuf::from(format!(
-        "/var/lib/cos/engines/ort-genai/{version}/lib/libonnxruntime-genai.so"
+        "/var/lib/yuos/engines/ort-genai/{version}/lib/libonnxruntime-genai.so"
     ));
     assert_eq!(engine_version_from_lib_path(&p), Some(version.into()));
 }

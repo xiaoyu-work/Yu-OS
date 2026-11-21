@@ -10,9 +10,9 @@ static HISTORY_LOCK: Mutex<()> = Mutex::new(());
 
 fn setup_shared_dir() {
     INIT.call_once(|| {
-        let dir = std::env::temp_dir().join(format!("cos-test-shared-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("yuos-test-shared-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
-        std::env::set_var("COS_DATA_DIR", &dir);
+        std::env::set_var("YUOS_DATA_DIR", &dir);
     });
 }
 
@@ -20,7 +20,7 @@ fn setup_shared_dir() {
 fn unique_test_dir(prefix: &str) -> PathBuf {
     let n = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
-    std::env::temp_dir().join(format!("cos-watch-{prefix}-{pid}-{n}"))
+    std::env::temp_dir().join(format!("yuos-watch-{prefix}-{pid}-{n}"))
 }
 
 #[test]
@@ -169,7 +169,7 @@ fn test_watch_history_empty() {
     let _lock = HISTORY_LOCK.lock().unwrap();
 
     // Clean the watch subdir so we get a fresh history.
-    let watch_dir = PathBuf::from(std::env::var("COS_DATA_DIR").unwrap()).join("watch");
+    let watch_dir = PathBuf::from(std::env::var("YUOS_DATA_DIR").unwrap()).join("watch");
     let _ = fs::remove_dir_all(&watch_dir);
 
     let result = cmd_watch_history(&[]);
@@ -184,7 +184,7 @@ fn test_watch_history_write_and_read() {
     let _lock = HISTORY_LOCK.lock().unwrap();
 
     // Clean the watch subdir so we get a fresh history.
-    let data_dir = PathBuf::from(std::env::var("COS_DATA_DIR").unwrap());
+    let data_dir = PathBuf::from(std::env::var("YUOS_DATA_DIR").unwrap());
     let watch_dir = data_dir.join("watch");
     let _ = fs::remove_dir_all(&watch_dir);
     fs::create_dir_all(&watch_dir).unwrap();
@@ -238,7 +238,7 @@ fn test_log_watch_event() {
     let _lock = HISTORY_LOCK.lock().unwrap();
 
     // Clean the watch subdir so we get a fresh history.
-    let data_dir = PathBuf::from(std::env::var("COS_DATA_DIR").unwrap());
+    let data_dir = PathBuf::from(std::env::var("YUOS_DATA_DIR").unwrap());
     let watch_dir = data_dir.join("watch");
     let _ = fs::remove_dir_all(&watch_dir);
 

@@ -23,7 +23,7 @@ struct Fixture {
     app_id: String,
     caps: CapSet,
     extension_host_binary: PathBuf,
-    cos_binary: PathBuf,
+    yu_binary: PathBuf,
     app_runner_binary: PathBuf,
     operation: String,
     operation_args: Vec<String>,
@@ -69,7 +69,7 @@ fn counter(path: &std::path::Path) -> u64 {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "requires Root/private-/run, COS_ACTIVITY_HOST_FIXTURE, installed verified/reviewed App, reserved UID pool, cgroup.kill, idmapped mounts, bubblewrap and fresh binaries"]
+#[ignore = "requires Root/private-/run, YUOS_ACTIVITY_HOST_FIXTURE, installed verified/reviewed App, reserved UID pool, cgroup.kill, idmapped mounts, bubblewrap and fresh binaries"]
 async fn activity_task_and_service_hosts_preserve_real_effects_receipts_and_limits() {
     let _lock = crate::test_env::lock_env();
     require_private_root();
@@ -84,7 +84,7 @@ async fn activity_task_and_service_hosts_preserve_real_effects_receipts_and_limi
     let _broker_flag = BrokerFlag(crate::agentd::guard::is_broker_process());
     crate::agentd::guard::mark_broker_process();
     let fixture_path = PathBuf::from(
-        std::env::var_os("COS_ACTIVITY_HOST_FIXTURE")
+        std::env::var_os("YUOS_ACTIVITY_HOST_FIXTURE")
             .expect("prepared root-owned fixture descriptor"),
     );
     root_file(&fixture_path);
@@ -112,7 +112,7 @@ async fn activity_task_and_service_hosts_preserve_real_effects_receipts_and_limi
     }
     for binary in [
         &fixture.extension_host_binary,
-        &fixture.cos_binary,
+        &fixture.yu_binary,
         &fixture.app_runner_binary,
     ] {
         root_file(binary);
@@ -133,20 +133,20 @@ async fn activity_task_and_service_hosts_preserve_real_effects_receipts_and_limi
             .tempdir_in("/run")
             .unwrap();
         std::fs::set_permissions(runtime.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
-        let _data = TestEnvVarGuard::set("COS_DATA_DIR", &fixture.data_root);
-        let _caps = TestEnvVarGuard::set("COS_CAPS_DATA_DIR", &fixture.caps_root);
-        let _runtime = TestEnvVarGuard::set("COS_RUNTIME_DIR", runtime.path().join("runtime"));
-        let _apps = TestEnvVarGuard::set("COS_APPS_DIR", &fixture.apps_root);
+        let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", &fixture.data_root);
+        let _caps = TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", &fixture.caps_root);
+        let _runtime = TestEnvVarGuard::set("YUOS_RUNTIME_DIR", runtime.path().join("runtime"));
+        let _apps = TestEnvVarGuard::set("YUOS_APPS_DIR", &fixture.apps_root);
         let _extension =
-            TestEnvVarGuard::set("COS_EXTENSION_HOST_BIN", &fixture.extension_host_binary);
-        let _cos = TestEnvVarGuard::set("COS_BIN", &fixture.cos_binary);
-        let _runner = TestEnvVarGuard::set("COS_APP_RUNNER_BIN", &fixture.app_runner_binary);
+            TestEnvVarGuard::set("YUOS_EXTENSION_HOST_BIN", &fixture.extension_host_binary);
+        let _cos = TestEnvVarGuard::set("YUOS_BIN", &fixture.yu_binary);
+        let _runner = TestEnvVarGuard::set("YUOS_APP_RUNNER_BIN", &fixture.app_runner_binary);
         let verified =
             crate::apps::find_verified_fresh(&fixture.apps_root, &fixture.app_id).unwrap();
         let package =
             crate::provenance::runtime::PackageRef::of(verified.require_verified().unwrap());
         let identity = spawn::resolve_identity(fixture.owner_uid).unwrap();
-        let primary = runtime.path().join("clawd.sock");
+        let primary = runtime.path().join("yuosd.sock");
         let listener = std::os::unix::net::UnixListener::bind(&primary).unwrap();
         let raw = std::ffi::CString::new(primary.as_os_str().as_encoded_bytes()).unwrap();
         assert_eq!(unsafe { libc::chown(raw.as_ptr(), 0, identity.gid) }, 0);
@@ -158,7 +158,7 @@ async fn activity_task_and_service_hosts_preserve_real_effects_receipts_and_limi
         // must fail this opt-in run instead of producing a success-shaped skip.
         broker.extension_containment().unwrap();
         broker.extension_identity_pool().unwrap();
-        let manager = crate::clawd::app_services::AppServiceManager::new(broker.clone());
+        let manager = crate::yuosd::app_services::AppServiceManager::new(broker.clone());
         state.install_app_service_manager(&manager).unwrap();
         let service = crate::activities::open_default().unwrap();
         let activity = service.create(fixture.owner_uid, serde_json::from_value(json!({
@@ -239,13 +239,13 @@ async fn activity_task_and_service_hosts_preserve_real_effects_receipts_and_limi
         )
         .unwrap();
         std::fs::set_permissions(&context, std::fs::Permissions::from_mode(0o644)).unwrap();
-        let shim = runtime.path().join("claw-agentd");
+        let shim = runtime.path().join("yuos-agentd");
         std::fs::write(&shim, format!(
-            "#!/bin/sh\nexport COS_ACTIVITY_EXTENSION_PROCESS_CONTEXT={}\nexec {} --exact {} --ignored --nocapture --test-threads=1\n",
+            "#!/bin/sh\nexport YUOS_ACTIVITY_EXTENSION_PROCESS_CONTEXT={}\nexec {} --exact {} --ignored --nocapture --test-threads=1\n",
             quote(&context), quote(&std::env::current_exe().unwrap()), CHILD,
         )).unwrap();
         std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755)).unwrap();
-        let _worker = TestEnvVarGuard::set("COS_AGENTD_BIN", &shim);
+        let _worker = TestEnvVarGuard::set("YUOS_AGENTD_BIN", &shim);
         let store = Store::open_default().unwrap();
         let before = counter(&fixture.counter_file);
         let job = store

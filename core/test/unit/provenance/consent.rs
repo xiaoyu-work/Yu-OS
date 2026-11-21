@@ -63,10 +63,10 @@ fn auto_yes_does_not_satisfy_consent() {
 #[test]
 fn an_active_session_blocks_the_decision() {
     let _guard = crate::test_env::lock_env();
-    let _session = crate::test_env::TestEnvVarGuard::set("COS_SESSION", "sess-active");
+    let _session = crate::test_env::TestEnvVarGuard::set("YUOS_SESSION", "sess-active");
     // The session check runs after the TTY check, so on a captured
     // stdio test process we assert the guard function itself.
     assert!(active_session().is_some());
     let what = active_session().unwrap();
-    assert!(what.contains("COS_SESSION"), "{what}");
+    assert!(what.contains("YUOS_SESSION"), "{what}");
 }

@@ -123,7 +123,7 @@ impl HttpTransport {
 
 fn build_http_client() -> std::result::Result<reqwest::Client, reqwest::Error> {
     reqwest::Client::builder()
-        .user_agent(concat!("cos-agent/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("yuos-agent/", env!("CARGO_PKG_VERSION")))
         .connect_timeout(Duration::from_secs(5))
         .pool_idle_timeout(Duration::from_secs(60))
         .build()

@@ -17,7 +17,7 @@ fn normalizes_documented_operating_system_aliases() {
 
 #[test]
 fn normalizes_system_agent_deployment_aliases() {
-    for entity in ["claw-agent", "cos_agent", "system agent deployment"] {
+    for entity in ["claw-agent", "yu_agent", "system agent deployment"] {
         let fact = normalize_fact(
             "environment",
             entity,
@@ -27,7 +27,7 @@ fn normalizes_system_agent_deployment_aliases() {
             None,
         )
         .unwrap();
-        assert_eq!(fact.slot.key(), "claw_os.installation");
+        assert_eq!(fact.slot.key(), "yuos.installation");
         assert_eq!(fact.slot.value, "installed");
     }
 }

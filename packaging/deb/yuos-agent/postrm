@@ -1,0 +1,54 @@
+#!/bin/sh
+# yuos-agent postrm -- purge systemd state owned by the agent package.
+#
+# The update-security floor under /var/lib/yuos/security is deliberately
+# NOT removed, on remove or on purge. It is the record of the newest
+# Yu OS release this machine has ever accepted; deleting it would let
+# a later `apt install yuos-agent=<old-version>` reinstate a
+# superseded, still validly signed release with nothing to compare
+# against. Removing it is an explicit, documented operator action —
+# see docs/updating.md.
+
+set -e
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if ! command -v identity_purge_owned >/dev/null 2>&1 &&
+    [ -f "$SCRIPT_DIR/extension-identities.sh" ]; then
+    . "$SCRIPT_DIR/extension-identities.sh"
+fi
+
+DPKG_ROOT="${DPKG_ROOT:-}"
+
+case "$1" in
+    purge)
+        if [ -z "$DPKG_ROOT" ]; then
+            command -v identity_purge_owned >/dev/null 2>&1 &&
+                identity_purge_owned
+        fi
+        rm -f "$DPKG_ROOT/etc/systemd/user/default.target.wants/claw-recoll-index.service"
+        rm -f "$DPKG_ROOT/etc/systemd/user/default.target.wants/yuos-semantic.service"
+        if [ -z "$DPKG_ROOT" ] && [ -x /usr/bin/deb-systemd-helper ]; then
+            deb-systemd-helper purge yuosd.service >/dev/null || true
+            deb-systemd-helper purge yuos-browser.service >/dev/null || true
+        fi
+        # Candidate manifests staged by a preinst are scratch data, not
+        # floor state, so they are the only thing cleaned up here.
+        rm -rf "$DPKG_ROOT/var/lib/yuos/security/staging"
+        ;;
+    abort-install|abort-upgrade|failed-upgrade)
+        if [ -z "$DPKG_ROOT" ]; then
+            command -v identity_recover_partial >/dev/null 2>&1 &&
+                identity_recover_partial
+            command -v identity_rollback_pending >/dev/null 2>&1 &&
+                identity_rollback_pending
+        fi
+        ;;
+    remove|upgrade|disappear)
+        ;;
+    *)
+        echo "postrm called with unknown argument '$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

@@ -61,7 +61,7 @@ def package(stage, out, name, version, arch, depends, description, provenance, p
     transition = f"Breaks: {replaces}\nReplaces: {replaces}\n" if replaces else ""
     (metadata / "control").write_text(
         f"Package: {name}\nVersion: {version}\nArchitecture: {arch}\n"
-        f"Maintainer: Claw OS <noreply@github.com>\nSection: kernel\nPriority: optional\n"
+        f"Maintainer: Yu OS <noreply@github.com>\nSection: kernel\nPriority: optional\n"
         f"{transition}Depends: {depends}\nDescription: {description}\n",
         encoding="utf-8",
     )
@@ -120,7 +120,7 @@ def build_arm_kernel(release, tree, source, work, stage, *, board_tools):
     subprocess.run([tree / "scripts/config", "--file", config, "--set-str", "LOCALVERSION",
                     "-" + release.split("-", 1)[1], "--disable", "LOCALVERSION_AUTO",
                     "--enable", "DEBUG_INFO_COMPRESSED_ZSTD", *options], check=True)
-    env = dict(os.environ, KBUILD_BUILD_HOST="clawos", KBUILD_BUILD_USER="clawos")
+    env = dict(os.environ, KBUILD_BUILD_HOST="yuos", KBUILD_BUILD_USER="yuos")
     make = ["make", "-C", tree, "ARCH=arm64"]
     subprocess.run([*make, "olddefconfig"], env=env, check=True)
     actual_release = subprocess.check_output([*make, "-s", "kernelrelease"], env=env, text=True).strip()
@@ -200,7 +200,7 @@ def kernel_package(profile, source, provenance, work, out, *, board_tools=False)
             patch = ROOT / "packaging/surface-romulus-camss.patch"
             provenance[patch.stem] = {
                 "sha256": digest(patch),
-                "source": f"https://github.com/xiaoyu-work/claw-os/blob/main/packaging/{patch.name}",
+                "source": f"https://github.com/xiaoyu-work/Yu-OS/blob/main/packaging/{patch.name}",
             }
     else:
         raise ValueError(f"{release}: no platform kernel source configured")
@@ -212,24 +212,24 @@ def kernel_package(profile, source, provenance, work, out, *, board_tools=False)
         if "romulus" in profile:
             romulus_trees(boards, work, provenance, board_tools)
             thinkpad_camera_trees(boards, work, provenance)
-            version += "+clawos3"
+            version += "+yuos3"
         else:
-            version += "+clawos1"
+            version += "+yuos1"
         write_qualcomm_boards(boards)
     if "boot" in profile:
         config = stage / "usr/lib/modprobe.d/90-claw-apple-speakers.conf"
         config.parent.mkdir(parents=True)
-        loader = f"/usr/lib/cos/asahi/claw-asahi-audio load '{release}'" if "asahi_audio" in profile else "/bin/false"
+        loader = f"/usr/lib/yuos/asahi/claw-asahi-audio load '{release}'" if "asahi_audio" in profile else "/bin/false"
         # Keep alias autoload blocked; the install hook admits only calibrated boards.
         config.write_text(f"blacklist snd_soc_macaudio\ninstall snd_soc_macaudio {loader}\n", encoding="utf-8")
         # This Aurora release can write shared Secure Enclave state. Never probe it before owner consent.
         config.with_name("90-claw-apple-touch-id.conf").write_text(
-            "blacklist apple_sep\ninstall apple_sep /usr/lib/cos/asahi/claw-asahi-touch-id load\n", encoding="utf-8")
+            "blacklist apple_sep\ninstall apple_sep /usr/lib/yuos/asahi/claw-asahi-touch-id load\n", encoding="utf-8")
         if "asahi_audio" in profile:
-            version += "+clawos2"
+            version += "+yuos2"
     package(
         stage, out, name, version, profile["arch"], "kmod, initramfs-tools, linux-base",
-        f"Claw OS platform Linux kernel ({release})", provenance,
+        f"Yu OS platform Linux kernel ({release})", provenance,
         f"""[ "$1" = configure ] || exit 0\ndepmod -a '{release}'\n""" + kernel_hooks(release, "postinst"),
         """case "$1" in remove|purge) ;; *) exit 0 ;; esac\n""" + kernel_hooks(release, "postrm"),
     )
@@ -254,7 +254,7 @@ def romulus_trees(boards, work, provenance, include_ir):
         subprocess.run(["dtc", "-@", "-I", "dts", "-O", "dtb", "-o", overlays[name], source], check=True)
         provenance[Path(file).stem] = {
             "sha256": digest(source),
-            "source": f"https://github.com/xiaoyu-work/claw-os/blob/main/packaging/{file}",
+            "source": f"https://github.com/xiaoyu-work/Yu-OS/blob/main/packaging/{file}",
             "board_reference": reference,
         }
 
@@ -313,7 +313,7 @@ def nvidia_package(profile, source, provenance, work, out, kernel_version):
     options.parent.mkdir(parents=True)
     options.write_text("options nvidia_drm modeset=1 fbdev=1\nsoftdep nvidia post: nvidia_drm\n", encoding="utf-8")
     package(
-        stage, out, "claw-os-nvidia-platform", version + "+clawos2", profile["arch"],
+        stage, out, "yuos-nvidia-platform", version + "+yuos2", profile["arch"],
         f"linux-image-{release.lower()} (= {kernel_version}), libglvnd0, libegl1, libgl1, libgbm1, libx11-6, libxext6, libvulkan1, "
         "libnvidia-egl-gbm1, libnvidia-egl-wayland1",
         "Matched NVIDIA platform kernel modules and driver libraries", provenance,
@@ -350,7 +350,7 @@ def proart_p14_firmware(profile, source, provenance, work, out):
     key = profile["speaker_firmware"]
     license_key = "n1x-proart-p14-license"
     stage = work / "proart-p14-audio"
-    name = "claw-os-proart-p14-audio"
+    name = "yuos-proart-p14-audio"
     prefix = "cs35l56-b0-dsp1-misc-104333a1"
     # ASUS appends the driver as a 7-Zip archive; do not run the Windows installer.
     carrier = source[key].read_bytes()
@@ -375,7 +375,7 @@ def proart_p14_firmware(profile, source, provenance, work, out):
         (target / f"{original}.xz").write_bytes(lzma.compress(payload, check=lzma.CHECK_CRC32))
         (target / f"{prefix}-spkid1{suffix}.xz").symlink_to(f"{original}.xz")
     copy_required(source[license_key], stage / "usr/share/doc" / name / "copyright")
-    package(stage, out, name, "1.0.678.52824-1+clawos1", profile["arch"], "firmware-cirrus",
+    package(stage, out, name, "1.0.678.52824-1+yuos1", profile["arch"], "firmware-cirrus",
             "ASUS ProArt P14 H7407BA Cirrus amplifier firmware and tuning",
             {name: provenance[name] for name in (key, license_key)}, None)
 

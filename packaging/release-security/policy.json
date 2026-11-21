@@ -3,106 +3,106 @@
   "components": [
     {
       "critical": true,
-      "name": "clawd",
-      "package": "claw-os-agent",
-      "path": "/usr/local/bin/clawd"
+      "name": "yuosd",
+      "package": "yuos-agent",
+      "path": "/usr/local/bin/yuosd"
     },
     {
       "critical": true,
-      "name": "claw-agentd",
-      "package": "claw-os-agent",
-      "path": "/usr/local/bin/claw-agentd"
+      "name": "yuos-agentd",
+      "package": "yuos-agent",
+      "path": "/usr/local/bin/yuos-agentd"
     },
     {
       "critical": true,
-      "name": "claw-extension-host",
-      "package": "claw-os-agent",
-      "path": "/usr/local/bin/claw-extension-host"
+      "name": "yuos-extension-host",
+      "package": "yuos-agent",
+      "path": "/usr/local/bin/yuos-extension-host"
     },
     {
       "critical": true,
-      "name": "claw-approval-helper",
-      "package": "claw-os-agent",
-      "path": "/usr/local/bin/claw-approval-helper"
+      "name": "yuos-approval-helper",
+      "package": "yuos-agent",
+      "path": "/usr/local/bin/yuos-approval-helper"
     },
     {
       "critical": true,
-      "name": "claw-app-runner",
-      "package": "claw-os-agent",
-      "path": "/usr/local/bin/claw-app-runner"
+      "name": "yuos-app-runner",
+      "package": "yuos-agent",
+      "path": "/usr/local/bin/yuos-app-runner"
     },
     {
       "critical": true,
-      "name": "claw-security-floor",
-      "package": "claw-os-agent",
-      "path": "/usr/lib/cos/bin/claw-security-floor"
+      "name": "yuos-security-floor",
+      "package": "yuos-agent",
+      "path": "/usr/lib/yuos/bin/yuos-security-floor"
     },
     {
       "critical": true,
-      "name": "claw-calendar-reader",
-      "package": "claw-os-agent",
-      "path": "/usr/lib/cos/bin/claw-calendar-reader"
+      "name": "yuos-calendar-reader",
+      "package": "yuos-agent",
+      "path": "/usr/lib/yuos/bin/yuos-calendar-reader"
     },
     {
       "critical": true,
-      "name": "claw-nearby-worker",
-      "package": "claw-os-agent",
-      "path": "/usr/lib/cos/bin/claw-nearby-worker"
+      "name": "yuos-nearby-worker",
+      "package": "yuos-agent",
+      "path": "/usr/lib/yuos/bin/yuos-nearby-worker"
     },
     {
       "critical": true,
-      "name": "claw-nearby-radio",
-      "package": "claw-os-agent",
-      "path": "/usr/lib/cos/bin/claw-nearby-radio"
+      "name": "yuos-nearby-radio",
+      "package": "yuos-agent",
+      "path": "/usr/lib/yuos/bin/yuos-nearby-radio"
     },
     {
       "critical": true,
       "name": "yu",
-      "package": "claw-os-agent",
+      "package": "yuos-agent",
       "path": "/usr/local/bin/yu"
     },
     {
       "critical": false,
-      "name": "cos-init",
-      "package": "claw-os-base",
-      "path": "/usr/local/bin/cos-init"
+      "name": "yuos-init",
+      "package": "yuos-base",
+      "path": "/usr/local/bin/yuos-init"
     },
     {
       "critical": false,
-      "name": "cos-agent-bridge",
-      "package": "claw-os-desktop",
-      "path": "/usr/local/bin/cos-agent-bridge"
+      "name": "yuos-agent-bridge",
+      "package": "yuos-desktop",
+      "path": "/usr/local/bin/yuos-agent-bridge"
     },
     {
       "critical": false,
       "name": "browser-chat-native-host",
-      "package": "claw-os-desktop",
-      "path": "/usr/lib/cos/browser-chat-native-host"
+      "package": "yuos-desktop",
+      "path": "/usr/lib/yuos/browser-chat-native-host"
     },
     {
       "critical": false,
-      "name": "cos-agent-ui",
-      "package": "claw-os-desktop",
-      "path": "/usr/local/bin/cos-agent-ui"
+      "name": "yuos-agent-ui",
+      "package": "yuos-desktop",
+      "path": "/usr/local/bin/yuos-agent-ui"
     },
     {
       "critical": false,
-      "name": "cos-ask-claw-launcher",
-      "package": "claw-os-desktop",
-      "path": "/usr/local/bin/cos-ask-claw-launcher"
+      "name": "yuos-ask-launcher",
+      "package": "yuos-desktop",
+      "path": "/usr/local/bin/yuos-ask-launcher"
     }
   ],
   "format": "claw.release-security-policy/v1",
   "manifest_validity_days": 400,
   "minimum_compatible": {
-    "claw-os-agent": "1:0.2.1",
-    "claw-os-base": "1:0.2.0",
-    "claw-os-desktop": "1:0.2.1"
+    "yuos-agent": "1:0.1.0",
+    "yuos-base": "1:0.1.0",
+    "yuos-desktop": "1:0.1.0"
   },
   "packages": [
-    "claw-os-agent",
-    "claw-os-base",
-    "claw-os-desktop"
+    "yuos-agent",
+    "yuos-base",
+    "yuos-desktop"
   ],
   "protocols": {
     "agentd_worker": 22,

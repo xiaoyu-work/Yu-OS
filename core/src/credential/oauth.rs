@@ -208,10 +208,10 @@ pub(super) fn direct_oauth_refresh(
 pub(super) fn request_brokered_oauth_refresh(name: &str, namespace: &str) -> Result<Value, String> {
     let session = crate::proc::current_session_id()
         .ok_or_else(|| "OAuth refresh broker requires an active session".to_string())?;
-    let response = crate::clawd::client::request_blocking(
-        crate::paths::clawd_socket_path(),
-        crate::clawd::protocol::Request::build(
-            crate::clawd::routes::Command::CredentialOauthRefresh,
+    let response = crate::yuosd::client::request_blocking(
+        crate::paths::yuosd_socket_path(),
+        crate::yuosd::protocol::Request::build(
+            crate::yuosd::routes::Command::CredentialOauthRefresh,
             json!({
                 "session": session,
                 "namespace": namespace,
@@ -225,7 +225,7 @@ pub(super) fn request_brokered_oauth_refresh(name: &str, namespace: &str) -> Res
         Err(response
             .error
             .map(|error| error.message)
-            .unwrap_or_else(|| "clawd OAuth refresh failed".to_string()))
+            .unwrap_or_else(|| "yuosd OAuth refresh failed".to_string()))
     }
 }
 
@@ -287,7 +287,7 @@ fn load_authorized_oauth_credential(
     store.load(&id, true).map_err(|error| error.to_string())
 }
 
-/// Load refresh material inside clawd after the credential OAuth route has
+/// Load refresh material inside yuosd after the credential OAuth route has
 /// authorized the peer and assumed its filesystem identity.
 fn load_broker_oauth_credential(
     store: &dyn CredentialStore,

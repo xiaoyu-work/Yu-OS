@@ -118,7 +118,7 @@ fn activity_object_transport_uses_the_versioned_endpoint_and_typed_components() 
     let endpoint = endpoint(3, 3);
     let body = ActivityObjectAttachRequest {
         label: "Release status".into(),
-        object: cos_agent_protocol::AppObjectReference {
+        object: yuos_agent_protocol::AppObjectReference {
             app_id: "kv".into(),
             object_type: "entry".into(),
             object_id: " a/b?x=1&y=2 ".into(),
@@ -156,7 +156,7 @@ fn activity_continuity_transport_is_authenticated_versioned_and_owner_free() {
     assert!(export.body().is_none());
 
     let document: ActivityContinuityDocument = serde_json::from_value(serde_json::json!({
-        "kind": "claw_os.activity_continuity",
+        "kind": "yuos.activity_continuity",
         "schema_version": 1,
         "lineage": {"id": "00000000-0000-4000-8000-000000000123", "revision": 7},
         "snapshot": "sha256:6d8c822b0519a02e7ab1ebeab48392cb83756fa9cc8b6d39e94b01ab1682882b",
@@ -179,7 +179,7 @@ fn activity_continuity_transport_is_authenticated_versioned_and_owner_free() {
     }))
     .unwrap();
     let body = ActivityContinuityImportRequest {
-        placement: cos_agent_protocol::ActivityExecutionPlacement::Local,
+        placement: yuos_agent_protocol::ActivityExecutionPlacement::Local,
         document: document.to_json().unwrap(),
     };
     let (import, selected) = continuity_import_request(&endpoint, &body).unwrap();
@@ -268,7 +268,7 @@ fn activity_object_state_list_transport_preserves_exact_reference_and_bounds() {
 
 #[test]
 fn activity_object_state_record_transport_reuses_uuid_and_serializes_only_the_draft() {
-    use cos_agent_protocol::{ObjectStateContent, ObjectStateDraft};
+    use yuos_agent_protocol::{ObjectStateContent, ObjectStateDraft};
     let endpoint = endpoint(3, 3);
     let body = ActivityObjectStateRecordRequest {
         entry: ObjectStateDraft {
@@ -306,7 +306,7 @@ fn activity_object_state_record_transport_reuses_uuid_and_serializes_only_the_dr
 
 #[test]
 fn activity_execution_limits_transport_is_authenticated_versioned_and_keeps_activity_only_in_path() {
-    use cos_agent_protocol::ExecutionLimitsDraft;
+    use yuos_agent_protocol::ExecutionLimitsDraft;
     let endpoint = endpoint(3, 3);
     let id = "activity/id?not-a-query";
     let (get, selected) = execution_limits_get_request(&endpoint, id).unwrap();
@@ -374,7 +374,7 @@ fn activity_execution_limits_toggle_transport_preserves_large_cas_and_has_no_res
 
 #[test]
 fn activity_monetary_budget_transport_is_authenticated_versioned_and_preserves_u64_cas() {
-    use cos_agent_protocol::{MonetaryBudgetDraft, MonetaryCurrency};
+    use yuos_agent_protocol::{MonetaryBudgetDraft, MonetaryCurrency};
     let endpoint = endpoint(3, 3);
     let id = "activity/id?not-a-query";
     let (get, selected) = monetary_budget_get_request(&endpoint, id).unwrap();

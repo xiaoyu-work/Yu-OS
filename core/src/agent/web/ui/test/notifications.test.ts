@@ -60,11 +60,11 @@ describe("notification state", () => {
   });
 
   test("maps trusted notification actions into local routes", () => {
-    expect(notificationActionRoute("clawos://agent/approvals")).toBe("/approvals");
-    expect(notificationActionRoute("clawos://agent/session/session-1")).toBe(
+    expect(notificationActionRoute("yuos://agent/approvals")).toBe("/approvals");
+    expect(notificationActionRoute("yuos://agent/session/session-1")).toBe(
       "/chat/session-1",
     );
     expect(notificationActionRoute("https://example.com", "task-1")).toBe("/tasks");
-    expect(notificationActionRoute("clawos://agent/session/../bad")).toBeNull();
+    expect(notificationActionRoute("yuos://agent/session/../bad")).toBeNull();
   });
 });

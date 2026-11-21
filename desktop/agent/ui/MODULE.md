@@ -3,7 +3,7 @@
 ## Purpose
 
 `desktop/agent/ui/` is the native libcosmic Agent client. It presents the
-versioned desktop Agent protocol without importing clawd or core models.
+versioned desktop Agent protocol without importing yuosd or core models.
 
 ## State ownership
 
@@ -26,7 +26,7 @@ versioned desktop Agent protocol without importing clawd or core models.
 | `src/nearby.rs` | Independent Nearby Sharing center, local file chooser, exact offer/peer controls, fetched progress and generation-safe responses; no local transfer or radio authority |
 | `src/workspaces.rs`, `src/bridge/workspaces.rs` | Fluent semantic Workspace center, exact context/sharing revisions, local file/folder selection and scoped source/search/index presentation over shared DTOs |
 | `src/queue_panel.rs` | Fetched per-Job follow-up previews, individual cancellation and exact selected-list confirmation; no local queue or cancellation authority |
-| `src/overlay.rs` | Deferred context submission, file-picker focus, and layer-surface lifecycle; activation type is owned by `cos-runtime` |
+| `src/overlay.rs` | Deferred context submission, file-picker focus, and layer-surface lifecycle; activation type is owned by `yuos-runtime` |
 | `src/views.rs` | Read-only widget composition for reasoning summaries, cumulative usage, safe tool status/metrics, selected-image metadata, and other presentation state |
 | `src/styles.rs` | Presentation styles |
 | `src/bridge.rs`, `src/sse.rs`, `src/recorder.rs` | Protocol transport, SSE decoding, and audio capture/upload adapters |
@@ -247,14 +247,14 @@ mandatory recompression. The chooser bounds the actual read as well as file
 metadata, and Chat/follow-up HTTP frames allow 32 MiB for encoded transport.
 
 The broker client also serves the separate
-[OS system-review presenter](../../../crates/clawd-client/MODULE.md).
+[OS system-review presenter](../../../crates/yuosd-client/MODULE.md).
 Activity additions must retain its root-peer checks and displayed-revision
 semantics, plus the mainline notification consumer's acknowledge/dismiss
 inventory. Neither Activity views nor policy settings replace review decisions,
 display authority or connection-bound notification presentation.
 
 Initial CLI arguments and subsequent single-instance D-Bus activation use
-`cos_runtime::ask_claw::{UiArguments, Activation}`. Keep executable names,
+`yuos_runtime::ask_claw::{UiArguments, Activation}`. Keep executable names,
 overlay flags, and context serialization out of the UI and host apps. Shared
 launches carry one bounded length-prefixed activation over an inherited Unix
 socket only when `--context-socket --activation-fd` is explicit; the new
@@ -266,23 +266,23 @@ rejected; the inherited socket descriptor is the only
 private activation path.
 
 The install target and runtime launch target are both fixed at
-`/usr/local/bin/cos-agent-ui`. The same recipe installs
-`/usr/local/bin/cos-ask-claw-launcher` for public SDK bindings.
+`/usr/local/bin/yuos-agent-ui`. The same recipe installs
+`/usr/local/bin/yuos-ask-launcher` for public SDK bindings.
 
 ## Tests
 
 Private-access unit tests mirror production modules under `test/unit/`.
 
 ```bash
-cargo test --manifest-path desktop/agent/Cargo.toml -p cos-agent-ui activit -- --test-threads=1
-cargo test --manifest-path desktop/agent/Cargo.toml -p clawd-client review -- --test-threads=1
-cargo test --manifest-path desktop/agent/Cargo.toml -p cos-agent-bridge notifications -- --test-threads=1
-cargo test --manifest-path desktop/agent/Cargo.toml -p cos-agent-ui activation -- --test-threads=1
-cargo test --manifest-path desktop/agent/Cargo.toml -p cos-agent-protocol -p cos-agent-bridge -p cos-agent-ui execution_limits -- --test-threads=1
-cargo test --manifest-path desktop/agent/Cargo.toml -p cos-agent-protocol -p cos-agent-bridge -p cos-agent-ui capability_policy -- --test-threads=1
-cargo test --manifest-path desktop/agent/Cargo.toml -p cos-agent-protocol -p cos-agent-bridge -p cos-agent-ui continuity -- --test-threads=1
-cargo test --manifest-path desktop/agent/Cargo.toml -p cos-agent-ui
-cargo clippy --manifest-path desktop/agent/Cargo.toml -p cos-agent-ui -- -D warnings
+cargo test --manifest-path desktop/agent/Cargo.toml -p yuos-agent-ui activit -- --test-threads=1
+cargo test --manifest-path desktop/agent/Cargo.toml -p yuosd-client review -- --test-threads=1
+cargo test --manifest-path desktop/agent/Cargo.toml -p yuos-agent-bridge notifications -- --test-threads=1
+cargo test --manifest-path desktop/agent/Cargo.toml -p yuos-agent-ui activation -- --test-threads=1
+cargo test --manifest-path desktop/agent/Cargo.toml -p yuos-agent-protocol -p yuos-agent-bridge -p yuos-agent-ui execution_limits -- --test-threads=1
+cargo test --manifest-path desktop/agent/Cargo.toml -p yuos-agent-protocol -p yuos-agent-bridge -p yuos-agent-ui capability_policy -- --test-threads=1
+cargo test --manifest-path desktop/agent/Cargo.toml -p yuos-agent-protocol -p yuos-agent-bridge -p yuos-agent-ui continuity -- --test-threads=1
+cargo test --manifest-path desktop/agent/Cargo.toml -p yuos-agent-ui
+cargo clippy --manifest-path desktop/agent/Cargo.toml -p yuos-agent-ui -- -D warnings
 ```
 
 The matching `../protocol/` and `../bridge/` Activity tests cover additive v1

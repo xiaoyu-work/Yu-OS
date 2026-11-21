@@ -20,7 +20,7 @@ fn note_search_validates_missing_queries_and_extra_arguments() {
 fn note_search_cli_reports_literal_scope_and_read_revision() {
     let _lock = crate::test_env::lock_env();
     let directory = tempfile::tempdir().unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", directory.path());
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", directory.path());
     let store = memory::notes::NotesStore::system_default();
     store.write("deploy.md", "us-west-2 first, us-west-2 second").unwrap();
     store.write("other.md", "unrelated").unwrap();
@@ -58,9 +58,9 @@ fn semantic_no_subcommand_errs_with_usage() {
 // -----------------------------------------------------------------
 
 /// Pin the curator default log under a per-test temp dir so we
-/// don't trample the real machine's `%ProgramData%\cos\` state.
+/// don't trample the real machine's `%ProgramData%\yuos\` state.
 /// Returns a guard that holds the crate-wide env lock for the
-/// test's lifetime: each call mutates `COS_DATA_DIR`, and two
+/// test's lifetime: each call mutates `YUOS_DATA_DIR`, and two
 /// tests running in parallel would otherwise observe each
 /// other's data directory (cargo test runs many threads).
 /// The guard derefs to `&Path` so existing `dir.join(...)`
@@ -86,7 +86,7 @@ impl LearnDataDir {
 fn isolate_cos_data_dir(tag: &str) -> LearnDataDir {
     let env = crate::test_env::lock_env();
     let dir = std::env::temp_dir().join(format!(
-        "cos-learn-cli-{tag}-{}-{}",
+        "yuos-learn-cli-{tag}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -94,7 +94,7 @@ fn isolate_cos_data_dir(tag: &str) -> LearnDataDir {
             .subsec_nanos()
     ));
     std::fs::create_dir_all(&dir).unwrap();
-    std::env::set_var("COS_DATA_DIR", &dir);
+    std::env::set_var("YUOS_DATA_DIR", &dir);
     LearnDataDir {
         path: dir,
         _env: env,

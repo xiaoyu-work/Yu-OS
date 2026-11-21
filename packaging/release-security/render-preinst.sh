@@ -11,7 +11,7 @@
 #   render-preinst.sh PACKAGE VERSION EPOCH STAGE_DIR OUTPUT
 #
 # STAGE_DIR is the package staging root; the manifest is read from
-# STAGE_DIR/usr/lib/cos/release-security/PACKAGE/manifest.json and its detached
+# STAGE_DIR/usr/lib/yuos/release-security/PACKAGE/manifest.json and its detached
 # signature, when one was produced, from the matching `.asc`.
 
 set -euo pipefail
@@ -29,8 +29,8 @@ OUTPUT="$5"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE="$SCRIPT_DIR/../deb/common/security-floor.preinst"
-MANIFEST="$STAGE_DIR/usr/lib/cos/release-security/$PACKAGE/manifest.json"
-SIGNATURE="$STAGE_DIR/usr/lib/cos/release-security/$PACKAGE/manifest.json.asc"
+MANIFEST="$STAGE_DIR/usr/lib/yuos/release-security/$PACKAGE/manifest.json"
+SIGNATURE="$STAGE_DIR/usr/lib/yuos/release-security/$PACKAGE/manifest.json.asc"
 
 if [ ! -f "$TEMPLATE" ]; then
     echo "error: preinst template not found: $TEMPLATE" >&2

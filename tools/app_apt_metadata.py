@@ -12,7 +12,7 @@ def app_repository(uri):
         parsed.scheme == "https"
         and parsed.hostname == "xiaoyu-work.github.io"
         and parsed.port in (None, 443)
-        and parsed.path.rstrip("/") == "/clawos-app"
+        and parsed.path.rstrip("/") == "/yuos-app"
     )
 
 

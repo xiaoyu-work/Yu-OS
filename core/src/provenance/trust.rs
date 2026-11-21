@@ -5,10 +5,10 @@
 //!
 //! | Tier | Root | Required owner |
 //! | --- | --- | --- |
-//! | [`TrustTier::Vendor`] | `/usr/lib/cos/trust/publishers.d` | `root` |
-//! | [`TrustTier::System`] | `/etc/cos/trust/publishers.d` | `root` |
-//! | [`TrustTier::User`] | `~/.config/cos/trust/publishers.d` | the owner |
-//! | [`TrustTier::Developer`] | `~/.config/cos/trust/developer.d` | the owner |
+//! | [`TrustTier::Vendor`] | `/usr/lib/yuos/trust/publishers.d` | `root` |
+//! | [`TrustTier::System`] | `/etc/yuos/trust/publishers.d` | `root` |
+//! | [`TrustTier::User`] | `~/.config/yuos/trust/publishers.d` | the owner |
+//! | [`TrustTier::Developer`] | `~/.config/yuos/trust/developer.d` | the owner |
 //!
 //! Every root — and every ancestor directory up to `/` — must be a
 //! non-symlink directory owned by the required uid and free of
@@ -21,7 +21,7 @@
 //! There is deliberately no environment variable that appends a trust
 //! root, relaxes the ownership checks, or disables verification. The
 //! per-user root is resolved from the passwd entry of the effective
-//! uid, not from `HOME`/`COS_USER_CONFIG_DIR`, so redirecting the
+//! uid, not from `HOME`/`YUOS_USER_CONFIG_DIR`, so redirecting the
 //! process environment cannot point trust at attacker-controlled
 //! files. Tests and embedders build a store explicitly with
 //! [`TrustStore::load_roots`]; that is a compiled-in call, not ambient
@@ -55,14 +55,14 @@ pub const DEV_TRUST_SCHEMA_V1: &str = "claw.trust-dev/v1";
 pub const USAGE_PACKAGE_SIGNING: &str = "package-signing";
 
 /// Root-owned vendor trust root shipped by the Debian/rootfs package.
-pub const VENDOR_TRUST_ROOT: &str = "/usr/lib/cos/trust/publishers.d";
+pub const VENDOR_TRUST_ROOT: &str = "/usr/lib/yuos/trust/publishers.d";
 /// Root-owned operator trust root.
-pub const SYSTEM_TRUST_ROOT: &str = "/etc/cos/trust/publishers.d";
-const SYSTEM_TRUST_STATE_DIR: &str = "/etc/cos/trust";
+pub const SYSTEM_TRUST_ROOT: &str = "/etc/yuos/trust/publishers.d";
+const SYSTEM_TRUST_STATE_DIR: &str = "/etc/yuos/trust";
 /// Per-user publisher trust root, relative to the owner's home.
-pub const USER_TRUST_SUBDIR: &str = ".config/cos/trust/publishers.d";
+pub const USER_TRUST_SUBDIR: &str = ".config/yuos/trust/publishers.d";
 /// Per-user developer trust root, relative to the owner's home.
-pub const DEV_TRUST_SUBDIR: &str = ".config/cos/trust/developer.d";
+pub const DEV_TRUST_SUBDIR: &str = ".config/yuos/trust/developer.d";
 
 const MAX_TRUST_FILE_BYTES: u64 = 1024 * 1024;
 const MAX_TRUST_FILES: usize = 256;
@@ -285,8 +285,8 @@ pub struct TrustRootSpec {
 
 impl TrustRootSpec {
     /// Directory holding the domain's `state.json`. For the system
-    /// domain that is `/etc/cos/trust`; for an owner it is
-    /// `~/.config/cos/trust`. Both are the parent of the roots
+    /// domain that is `/etc/yuos/trust`; for an owner it is
+    /// `~/.config/yuos/trust`. Both are the parent of the roots
     /// themselves, except for the packaged vendor root.
     pub fn state_dir(&self) -> PathBuf {
         if self.domain == TrustDomain::System && self.path == Path::new(VENDOR_TRUST_ROOT) {

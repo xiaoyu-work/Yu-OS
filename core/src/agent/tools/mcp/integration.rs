@@ -5,7 +5,7 @@
 //! lifecycle:
 //!
 //! * spawn each configured server locally for direct runtimes, or attach it
-//!   through the task-owned extension host for `claw-agentd`,
+//!   through the task-owned extension host for `yuos-agentd`,
 //! * run `initialize` + `tools/list`,
 //! * register every advertised tool under a non-model-visible internal policy
 //!   identity (`mcp_<server>_<remote>`),
@@ -899,7 +899,7 @@ async fn attach_server_into(
     }
     if crate::paths::is_routed_job() {
         return Err(
-            "the task extension host is unavailable; refusing to start MCP code in claw-agentd"
+            "the task extension host is unavailable; refusing to start MCP code in yuos-agentd"
                 .to_string(),
         );
     }
@@ -935,7 +935,7 @@ async fn attach_server_local_with_attachment(
 ) -> Result<McpServerHandle, String> {
     if crate::paths::is_routed_job() {
         return Err(
-            "MCP execution must be delegated to claw-extension-host; refusing to run it in claw-agentd"
+            "MCP execution must be delegated to yuos-extension-host; refusing to run it in yuos-agentd"
                 .to_string(),
         );
     }
@@ -1039,7 +1039,7 @@ async fn attach_server_local_with_attachment(
     let timeout_dur = spec.timeout_duration();
     let init_fut = client.initialize(
         Implementation {
-            name: "cos-agent".to_string(),
+            name: "yuos-agent".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
         },
         ClientCapabilities::default(),
@@ -1169,7 +1169,7 @@ pub(crate) async fn attach_http_server(
     let timeout_dur = spec.timeout_duration();
     let init_fut = client.initialize(
         Implementation {
-            name: "cos-agent".to_string(),
+            name: "yuos-agent".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
         },
         ClientCapabilities::default(),
@@ -1243,7 +1243,7 @@ fn safe_env_allowlist() -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
         ("LC_ALL".into(), "C.UTF-8".into()),
         ("TZ".into(), "UTC".into()),
     ];
-    const SAFE_COS: &[&str] = &["COS_TRACE_ID", "COS_SPAN_ID", "COS_VERSION"];
+    const SAFE_COS: &[&str] = &["YUOS_TRACE_ID", "YUOS_SPAN_ID", "YUOS_VERSION"];
     for key in SAFE_COS {
         if let Ok(value) = std::env::var(key) {
             out.push(((*key).into(), value.into()));
@@ -1253,7 +1253,7 @@ fn safe_env_allowlist() -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
 }
 
 fn reserved_environment_key(key: &str) -> bool {
-    key.starts_with("COS_")
+    key.starts_with("YUOS_")
         || matches!(
             key,
             "HOME" | "USER" | "LOGNAME" | "PATH" | "SHELL" | "TMPDIR" | "TMP" | "TEMP"

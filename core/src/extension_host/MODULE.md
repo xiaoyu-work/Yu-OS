@@ -3,13 +3,13 @@
 ## Purpose
 
 `extension_host/` keeps dynamic App, MCP, and Agent extension code outside both
-privileged `clawd` and the model/tool worker. Each `claw-extension-host` has an
+privileged `yuosd` and the model/tool worker. Each `yuos-extension-host` has an
 explicit purpose. A short-lived task Host is controlled by the exact
-`claw-agentd` worker; it runs one-shot Apps, configured MCP servers, and Agent
+`yuos-agentd` worker; it runs one-shot Apps, configured MCP servers, and Agent
 extension observers, and relays App calls. An owner/App-scoped service Host is
-controlled by the exact root `clawd` process and executes persistent App MCP
+controlled by the exact root `yuosd` process and executes persistent App MCP
 services. Both use package-reserved locked accounts leased per active
-task/service with the dedicated `cos-extension` primary gid. The controller
+task/service with the dedicated `yuos-extension` primary gid. The controller
 uses a purpose-bound control socket to attach, call, cancel, and detach
 extensions.
 
@@ -29,7 +29,7 @@ extensions.
   provider routes for their nearest registered App/MCP session.
 - Let task Hosts run one-shot Apps and configured MCP servers and relay typed
   Agent-to-App calls, but never execute those relayed calls; never run their code
-  in `clawd` or `claw-agentd`.
+  in `yuosd` or `yuos-agentd`.
 - Reject App-owned task bindings on App launch and typed App-call paths.
 - Let service Hosts execute only daemon-authorized calls for their exact bound
   App/package and warm `always-on` MCP children.
@@ -83,34 +83,34 @@ extensions.
 | `spawn/app_data.rs` | Exact owner/App persistent directory binding, private UID/GID-mapped service view, source freshness and checked unmount |
 | `spawn/task_data.rs` | Per-registration Task App data views; exact Host/owner binding, bounded mount admission and task-owned cleanup |
 | `child_isolation.rs` | Per-App/MCP bubblewrap PID/proc/empty-root isolation and verified snapshots |
-| `client.rs` | Purpose-bound controller client used by task workers and `clawd` |
+| `client.rs` | Purpose-bound controller client used by task workers and `yuosd` |
 | `host.rs` | Host process, purpose-specific control admission, App/MCP lifecycle and cancellation |
 | `broker.rs` | Per-Host broker proxy socket, SCM credential verification, purpose/route/session allowlists |
-| `../bin/claw-extension-host.rs` | Installed host executable |
+| `../bin/yuos-extension-host.rs` | Installed host executable |
 
 ## Authority and Data Flow
 
 ```text
-clawd task supervisor
+yuosd task supervisor
   -> lease task identity and spawn task Host controlled by exact worker
   -> sign purpose + controller/Host identities into the worker grant
   -> heartbeat renews private broker lease -> typed deadline ack to worker
 
-claw-agentd registry/App call
+yuos-agentd registry/App call
   -> versioned lane-specific control request to exact task Host pid
   -> task Host starts/calls a one-shot App, MCP, or Agent extension child, or
-     relays a typed App call through its private broker -> clawd app_service.call
+     relays a typed App call through its private broker -> yuosd app_service.call
   -> daemon re-authorizes and selects owner/App service Host
   -> caller-deadline, single-use action and mount-identity authorization
   -> service Host validates daemon-canonical arguments without re-resolving paths
   -> service Host starts/calls App MCP child
   -> child policy check reads its root-maintained session row
-  -> child privileged request uses COS_EXTENSION_BROKER_SOCKET
-  -> clawd verifies per-message credentials and nearest child session
+  -> child privileged request uses YUOS_EXTENSION_BROKER_SOCKET
+  -> yuosd verifies per-message credentials and nearest child session
   -> normal route registry, capability authority, provider check and audit
 ```
 
-The private proxy is not `/run/cos/clawd.sock`. It belongs to the leased
+The private proxy is not `/run/yuos/yuosd.sock`. It belongs to the leased
 extension uid and rejects every other uid before checking whether the kernel
 pid/start-time is the exact host or a descendant bound to the nearest App/MCP
 session.
@@ -191,7 +191,7 @@ owner before the first retirement wait; checked release is retryable and does
 not surrender the UID lock on failure. Existing durable cleanup records still
 govern recovery after broker restart, with no new quarantine-file format.
 Other known owners remain independent. See
-[`app_services/retirement.rs`](../clawd/app_services/retirement.rs).
+[`app_services/retirement.rs`](../yuosd/app_services/retirement.rs).
 
 App-service Hosts additionally receive only their bound App's existing
 `<owner-data-root>/apps/<app-id>` partition. Root reuses the normal partition
@@ -235,7 +235,7 @@ Configured external MCP and Agent-extension scratch state remain private and
 temporary. Cross-App Calendar resource reads still require their own provider
 binding; this does not expose one App's private files to another.
 
-The uid pool is the fixed package-created account set `cos-ext-00..63`
+The uid pool is the fixed package-created account set `yuos-ext-00..63`
 (`61000..61063`), outside systemd DynamicUser. Identities `00..55` are reserved
 for task Hosts and `56..63` for App service Hosts, so persistent services
 cannot exhaust task execution. Concurrent Hosts never share an extension uid.
@@ -256,7 +256,7 @@ App-service children use the persistent partition described above rather than
 the service Host's disposable data directory; no owner-wide root is exposed.
 
 For a call-scoped App, that final sandbox starts with only the trusted
-`claw-app-runner` blocked on a private stdin gate. Package code cannot execute
+`yuos-app-runner` blocked on a private stdin gate. Package code cannot execute
 until the service Host has bound the runner session and atomically consumed
 the daemon's single-use authorization. Releasing the gate then replaces the
 runner with the signed package entrypoint. The token is only a sequencing
@@ -281,7 +281,7 @@ bash packaging/deb/tests/test-agentd-packaging.sh
 
 The ignored `extension_host::spawn::app_data::tests` private cases require Root
 in a fresh mount namespace. `persistent_service_data_survives_uid_and_host_replacement`
-also takes an explicitly built `COS_APP_DATA_TEST_COS` binary. It runs real
+also takes an explicitly built `YUOS_APP_DATA_TEST_COS` binary. It runs real
 sandboxed MCP/SQLite writes through two distinct execution UIDs and mount
 lifetimes, then reads the same files from the owner view. The companion case
 refuses aliases, foreign owners, nested mounts and replaced bindings. These
@@ -289,7 +289,7 @@ are storage/isolation checks, not a release or complete installed-App acceptance
 
 `spawn::task_data::tests::task_app_registration_binds_persistent_data_after_authorization`
 uses the same private Root requirements, CLI input, and an explicitly built
-`COS_APP_DATA_TEST_RUNNER`. It exercises signed
+`YUOS_APP_DATA_TEST_RUNNER`. It exercises signed
 ordinary App operations through real broker registration, process binding and
 the worker sandbox across two Task Host namespaces/UIDs. Unknown/denied
 operations and forged owner/task/path inputs must create no data view.

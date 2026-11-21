@@ -50,12 +50,12 @@ test("official Store Apps bind the exact APT package rather than a snapshot inst
   const checksum = "b".repeat(64);
   const delivery = "c".repeat(64);
   const value = { architecture: "amd64", installed: [], catalog: {
-    schema: "claw.app-store/v2", repository: "xiaoyu-work/clawos-app", runtime_abi: 1,
+    schema: "claw.app-store/v2", repository: "xiaoyu-work/yuos-app", runtime_abi: 1,
     generation: "1", expires_at: new Date(Date.now() + 86_400_000).toISOString(),
-    packages: [{ package: "claw-cap-storage-sdk", version: "0.2.1", architecture: "all",
+    packages: [{ package: "yuos-cap-storage-sdk", version: "0.2.1", architecture: "all",
       size: 8192, sha256: delivery, apps: ["db", "kv"] }],
     apps: [{ app_id: "kv", app_version: "1.0.0", release_version: "0.2.1", architecture: "all",
-      artifact: { file: `claw-app-snapshot-${checksum}.tar.gz`, size: 4096,
+      artifact: { file: `yuos-app-snapshot-${checksum}.tar.gz`, size: 4096,
         sha256: checksum, media_type: "application/gzip" },
       provenance: { content_digest: `sha256:${checksum}` },
       display: { name: "Key-value", description: "", source_name: "storage-sdk", source_kind: "capability" },

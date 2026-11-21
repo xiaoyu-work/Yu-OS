@@ -112,8 +112,8 @@ def main():
     args = parser.parse_args()
     if os.geteuid() != 0:
         raise ValueError("import requires root")
-    if not Path("/usr/lib/cos/asahi/boot.bin").is_file():
-        raise ValueError("the installed system does not have the Claw OS Apple Silicon profile")
+    if not Path("/usr/lib/yuos/asahi/boot.bin").is_file():
+        raise ValueError("the installed system does not have the Yu OS Apple Silicon profile")
     if not ESP_ID.is_file() or not (DT / "compatible").read_bytes().startswith(b"apple,"):
         raise ValueError("boot on an enrolled Apple Silicon Asahi installation first")
     if args.from_esp:

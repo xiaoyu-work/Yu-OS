@@ -9,9 +9,9 @@ use std::ptr;
 use std::sync::Arc;
 use std::thread::ThreadId;
 
-use claw_display_control::desktop::{self, Command as DesktopCommand};
-use claw_display_control::selection::Payload;
-use claw_display_control::Error;
+use yuos_display_control::desktop::{self, Command as DesktopCommand};
+use yuos_display_control::selection::Payload;
+use yuos_display_control::Error;
 
 use crate::authority::{Authority, Origin};
 

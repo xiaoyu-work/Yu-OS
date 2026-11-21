@@ -1,7 +1,7 @@
 use super::*;
 
-fn cfg() -> CosConfig {
-    CosConfig::default()
+fn cfg() -> YuConfig {
+    YuConfig::default()
 }
 
 // ---- TTS ---------------------------------------------------------------

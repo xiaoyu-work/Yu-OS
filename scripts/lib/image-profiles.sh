@@ -11,22 +11,22 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
 fi
 
 # Shared non-desktop runtime used by WSL and Docker.
-IMAGE_FEATURES_HEADLESS_RUNTIME="base,cos-core,browser,systemd,gpu-drivers,apt-source,qwen3-embedding"
+IMAGE_FEATURES_HEADLESS_RUNTIME="base,yuos-core,browser,systemd,gpu-drivers,apt-source,qwen3-embedding"
 
 # Local virtual-machine profiles. local-user enables first-run setup without
 # preseeded credentials. Cloud platforms create accounts through cloud-init.
-IMAGE_FEATURES_VM="base,cos-core,systemd,kernel,grub-disk,vm,gpu-drivers,apt-source,local-user"
-IMAGE_FEATURES_DESKTOP_VM="base,cos-core,systemd,kernel,desktop,vmware,copilot-cli,grub-disk,vm,apt-source,local-user"
+IMAGE_FEATURES_VM="base,yuos-core,systemd,kernel,grub-disk,vm,gpu-drivers,apt-source,local-user"
+IMAGE_FEATURES_DESKTOP_VM="base,yuos-core,systemd,kernel,desktop,vmware,copilot-cli,grub-disk,vm,apt-source,local-user"
 
 # Generalized Azure profiles. They must never include local-user.
-IMAGE_FEATURES_AZURE="base,cos-core,systemd,kernel,grub-disk,vm,gpu-drivers,apt-source,cloud-init,azure"
-IMAGE_FEATURES_AZURE_DESKTOP="base,cos-core,systemd,kernel,desktop,copilot-cli,grub-disk,vm,apt-source,cloud-init,azure"
+IMAGE_FEATURES_AZURE="base,yuos-core,systemd,kernel,grub-disk,vm,gpu-drivers,apt-source,cloud-init,azure"
+IMAGE_FEATURES_AZURE_DESKTOP="base,yuos-core,systemd,kernel,desktop,copilot-cli,grub-disk,vm,apt-source,cloud-init,azure"
 
 # Bootable media profiles.
-IMAGE_FEATURES_LIVE="base,cos-core,systemd,kernel,wifi-board-data,live,gpu-drivers,apt-source"
-IMAGE_FEATURES_INSTALLER="base,cos-core,systemd,kernel,wifi-board-data,grub-disk,live,installer,gpu-drivers,apt-source"
-IMAGE_FEATURES_DESKTOP_INSTALLER="base,cos-core,systemd,kernel,wifi-board-data,grub-disk,desktop,live,installer,gpu-drivers,apt-source"
-IMAGE_FEATURES_ASAHI="base,cos-core,systemd,kernel,desktop,grub-disk,apt-source,kernel-platform,local-user"
+IMAGE_FEATURES_LIVE="base,yuos-core,systemd,kernel,wifi-board-data,live,gpu-drivers,apt-source"
+IMAGE_FEATURES_INSTALLER="base,yuos-core,systemd,kernel,wifi-board-data,grub-disk,live,installer,gpu-drivers,apt-source"
+IMAGE_FEATURES_DESKTOP_INSTALLER="base,yuos-core,systemd,kernel,wifi-board-data,grub-disk,desktop,live,installer,gpu-drivers,apt-source"
+IMAGE_FEATURES_ASAHI="base,yuos-core,systemd,kernel,desktop,grub-disk,apt-source,kernel-platform,local-user"
 
 case ",$IMAGE_FEATURES_VM," in
     *,local-user,*) ;;

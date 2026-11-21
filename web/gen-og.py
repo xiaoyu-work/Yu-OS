@@ -160,7 +160,7 @@ def make() -> None:
     draw.text((wm_x, foot_y + 20), "Yu OS", font=_load_font(32, "bold"), fill=(11, 18, 32, 255))
 
     meta_font = _load_font(20, "mono")
-    meta = "xiaoyu-work.github.io/claw-os"
+    meta = "xiaoyu-work.github.io/Yu-OS"
     meta_w = draw.textlength(meta, font=meta_font)
     draw.text(
         (W - MARGIN - meta_w, foot_y + 32),

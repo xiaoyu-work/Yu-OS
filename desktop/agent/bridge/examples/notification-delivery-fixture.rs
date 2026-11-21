@@ -12,7 +12,7 @@ async fn main() -> anyhow::Result<()> {
         "private bus required"
     );
     let presenter = std::fs::metadata(path)?;
-    let client = clawd_client::Client::from_env()?;
+    let client = yuosd_client::Client::from_env()?;
     let bus = zbus::Connection::session().await?;
     println!("ready");
     notifications::run_connection(&client, &bus, &presenter).await

@@ -2,7 +2,7 @@ use super::*;
 
 fn tempdir(label: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
-        "cos-shell-hooks-{label}-{}",
+        "yuos-shell-hooks-{label}-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&dir).unwrap();
@@ -36,7 +36,7 @@ fn render_bash_includes_trap_and_prompt_command() {
 #[test]
 fn render_init_uses_timeout_wrapper_in_all_dialects() {
     // Regression for the "stalled cos blocks the user's shell"
-    // bug. Every dialect must guard its `cos` invocation with
+    // bug. Every dialect must guard its `yu` invocation with
     // a timeout wrapper.
     for shell in [Shell::Bash, Shell::Zsh, Shell::Fish] {
         let s = render_init(shell);

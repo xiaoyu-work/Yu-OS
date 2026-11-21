@@ -175,9 +175,9 @@ fn main() {
     let output = std::process::Command::new(&binary)
         .args(&prepared.entry_argv)
         .env_clear()
-        .env("COS_APP_GUI", "1")
-        .env("COS_COMMAND", "--gui")
-        .env("COS_ARGS_JSON", &prepared.user_args_json)
+        .env("YUOS_APP_GUI", "1")
+        .env("YUOS_COMMAND", "--gui")
+        .env("YUOS_ARGS_JSON", &prepared.user_args_json)
         .output()
         .unwrap();
     assert!(output.status.success(), "{:?}", output.status);

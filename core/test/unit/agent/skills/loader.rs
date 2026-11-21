@@ -243,16 +243,16 @@ fn allowed_tools_round_trip() {
     write_skill(
         tmp.path(),
         "with-tools",
-        "---\nname: with-tools\nallowed-tools: [cos_fs, cos_exec]\n---\n",
+        "---\nname: with-tools\nallowed-tools: [yu_fs, yu_exec]\n---\n",
     );
     let r = load_dir(tmp.path(), &LoadOptions::default());
     let s = &r.skills["with-tools"];
-    assert_eq!(s.manifest.allowed_tools, vec!["cos_fs", "cos_exec"]);
+    assert_eq!(s.manifest.allowed_tools, vec!["yu_fs", "yu_exec"]);
 }
 
 #[test]
 fn load_default_does_not_panic_on_missing_dir() {
-    // Don't mess with COS_DATA_DIR (parallel-test safety); just
+    // Don't mess with YUOS_DATA_DIR (parallel-test safety); just
     // make sure the function survives the default path being
     // absent. If the system happens to have skills, we still
     // get a valid LoadResult.
@@ -263,13 +263,13 @@ fn load_default_does_not_panic_on_missing_dir() {
 fn layered_load_includes_builtin_and_user_skills() {
     let system = tempdir().unwrap();
     let user = tempdir().unwrap();
-    write_skill(system.path(), "claw-os", &minimal("claw-os"));
+    write_skill(system.path(), "yuos", &minimal("yuos"));
     write_skill(user.path(), "my-skill", &minimal("my-skill"));
 
     let result = load_layered(system.path(), user.path(), &LoadOptions::default());
 
     assert_eq!(result.loaded_count(), 2);
-    assert_eq!(result.skills["claw-os"].origin, SkillOrigin::BuiltIn);
+    assert_eq!(result.skills["yuos"].origin, SkillOrigin::BuiltIn);
     assert_eq!(result.skills["my-skill"].origin, SkillOrigin::User);
 }
 
@@ -279,32 +279,32 @@ fn layered_shadowing_follows_verified_publisher_not_path_order() {
     // same package, so it may replace the built-in.
     let system = tempdir().unwrap();
     let user = tempdir().unwrap();
-    write_skill(system.path(), "claw-os", &minimal("vendor-claw-os"));
-    write_skill(user.path(), "claw-os", &minimal("user-claw-os"));
+    write_skill(system.path(), "yuos", &minimal("vendor-yuos"));
+    write_skill(user.path(), "yuos", &minimal("user-yuos"));
 
     let result = load_layered(system.path(), user.path(), &LoadOptions::default());
 
     assert_eq!(result.loaded_count(), 1);
-    assert_eq!(result.skills["claw-os"].manifest.name, "user-claw-os");
-    assert_eq!(result.skills["claw-os"].origin, SkillOrigin::User);
+    assert_eq!(result.skills["yuos"].manifest.name, "user-yuos");
+    assert_eq!(result.skills["yuos"].origin, SkillOrigin::User);
 }
 
 #[test]
 fn layered_load_refuses_shadowing_by_a_different_publisher() {
     let system = tempdir().unwrap();
     let user = tempdir().unwrap();
-    write_skill(system.path(), "claw-os", &minimal("vendor-claw-os"));
+    write_skill(system.path(), "yuos", &minimal("vendor-yuos"));
 
     // A second publisher signs a same-id skill into the user root.
     let stranger = crate::provenance::sign::SigningKeyFile::generate(None).unwrap();
-    let dir = user.path().join("claw-os");
+    let dir = user.path().join("yuos");
     fs::create_dir_all(&dir).unwrap();
-    fs::write(dir.join("SKILL.md"), minimal("user-claw-os")).unwrap();
+    fs::write(dir.join("SKILL.md"), minimal("user-yuos")).unwrap();
     crate::provenance::sign::sign_directory(
         &dir,
         &crate::provenance::sign::SignRequest {
             kind: crate::provenance::PackageKind::Skill,
-            id: "claw-os".to_string(),
+            id: "yuos".to_string(),
             version: "0.0.0-test".to_string(),
             manifest_schema: "test".to_string(),
             manifest_path: "SKILL.md".to_string(),
@@ -318,21 +318,21 @@ fn layered_load_refuses_shadowing_by_a_different_publisher() {
     let result = load_layered(system.path(), user.path(), &LoadOptions::default());
 
     assert_eq!(result.loaded_count(), 1);
-    assert_eq!(result.skills["claw-os"].manifest.name, "vendor-claw-os");
-    assert_eq!(result.skills["claw-os"].origin, SkillOrigin::BuiltIn);
+    assert_eq!(result.skills["yuos"].manifest.name, "vendor-yuos");
+    assert_eq!(result.skills["yuos"].origin, SkillOrigin::BuiltIn);
     // The stranger's package does not even verify, so it is quarantined
     // rather than silently shadowing the built-in.
     assert!(result
         .errors
         .keys()
-        .any(|k| k.starts_with("claw-os")));
+        .any(|k| k.starts_with("yuos")));
 }
 
 #[test]
 fn metadata_only_load_drops_instruction_bodies() {
     let system = tempdir().unwrap();
     let user = tempdir().unwrap();
-    write_skill(system.path(), "claw-os", &minimal("claw-os"));
+    write_skill(system.path(), "yuos", &minimal("yuos"));
     let options = LoadOptions {
         include_body: false,
         ..LoadOptions::default()
@@ -340,12 +340,12 @@ fn metadata_only_load_drops_instruction_bodies() {
 
     let result = load_layered(system.path(), user.path(), &options);
 
-    assert_eq!(result.skills["claw-os"].manifest.name, "claw-os");
-    assert!(result.skills["claw-os"].body.is_empty());
+    assert_eq!(result.skills["yuos"].manifest.name, "yuos");
+    assert!(result.skills["yuos"].body.is_empty());
     assert_eq!(
-        result.skills["claw-os"].body_bytes,
-        "body for claw-os\n".len()
+        result.skills["yuos"].body_bytes,
+        "body for yuos\n".len()
     );
-    let hydrated = hydrate(&result.skills["claw-os"], &LoadOptions::default()).unwrap();
-    assert_eq!(hydrated.body, "body for claw-os\n");
+    let hydrated = hydrate(&result.skills["yuos"], &LoadOptions::default()).unwrap();
+    assert_eq!(hydrated.body, "body for yuos\n");
 }

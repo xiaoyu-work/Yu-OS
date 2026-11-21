@@ -33,9 +33,9 @@ esac
 for profile in /usr/share/alsa/ucm2/conf.d/macaudio/*" J$model.conf"; do
     [ -s "$profile" ] || exit 1
 done
-[ -x "/usr/lib/cos/asahi/$daemon" ] &&
-    [ -s "/usr/share/cos/asahi/speaker-protection/apple/j$model.conf" ] &&
-    [ -s "/usr/share/cos/asahi/speakers/j$model.conf" ] &&
+[ -x "/usr/lib/yuos/asahi/$daemon" ] &&
+    [ -s "/usr/share/yuos/asahi/speaker-protection/apple/j$model.conf" ] &&
+    [ -s "/usr/share/yuos/asahi/speakers/j$model.conf" ] &&
     [ -s /usr/share/wireplumber/wireplumber.conf.d/99-asahi.conf ] || exit 1
 case "$(/usr/bin/systemctl is-enabled "$unit" 2>/dev/null || true)" in
     masked|masked-runtime|not-found|"") exit 1 ;;

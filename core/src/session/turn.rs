@@ -3,7 +3,7 @@
 //! Schema goal: any agent runtime should be able to attach to a
 //! session and resume the conversation by reading this file. The
 //! format is **deliberately OpenAI-compatible at the wire level** so
-//! the agent runtimes already running on claw-os can append turns with
+//! the agent runtimes already running on yuos can append turns with
 //! near-zero translation cost.
 //!
 //! ## File layout
@@ -71,7 +71,7 @@ pub struct Turn {
     pub content: String,
 
     /// Optional label for the runtime that produced this turn
-    /// (`"cos-agent"`, `"langchain-py"`, …). Lets a GUI badge cross-
+    /// (`"yuos-agent"`, `"langchain-py"`, …). Lets a GUI badge cross-
     /// runtime sessions and lets curators filter by source.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime: Option<String>,

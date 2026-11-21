@@ -1,4 +1,4 @@
-//! `POST /api/chat` — a durable `clawd` task projected as Web SSE.
+//! `POST /api/chat` — a durable `yuosd` task projected as Web SSE.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -19,7 +19,7 @@ use crate::agent::llm::StreamEvent;
 use crate::agent::runtime::turn_lease::TurnLease;
 use crate::agent::web::sse;
 use crate::agent::web::state::AppState;
-use crate::clawd::routes::Command;
+use crate::yuosd::routes::Command;
 
 type SseFrame = Result<bytes::Bytes, std::io::Error>;
 
@@ -38,7 +38,7 @@ pub struct ChatRequest {
     #[serde(default = "default_true")]
     pub use_memory: bool,
     #[serde(default)]
-    pub notification_viewer: Option<crate::clawd::wire::requests::NotificationViewer>,
+    pub notification_viewer: Option<crate::yuosd::wire::requests::NotificationViewer>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -121,7 +121,7 @@ pub async fn attach(
     Path(task_id): Path<String>,
     Json(request): Json<TaskStreamRequest>,
 ) -> Response {
-    let job = match super::clawd::request(Command::TaskGet, json!({ "id": task_id })).await {
+    let job = match super::yuosd::request(Command::TaskGet, json!({ "id": task_id })).await {
         Ok(job) => job,
         Err(error) => return error.into_api_error().into_response(),
     };
@@ -225,7 +225,7 @@ async fn drive_chat(
     requested_session: Option<String>,
     provisional_session: String,
     use_memory: bool,
-    notification_viewer: Option<crate::clawd::wire::requests::NotificationViewer>,
+    notification_viewer: Option<crate::yuosd::wire::requests::NotificationViewer>,
     tx: mpsc::Sender<SseFrame>,
     disconnected: Arc<AtomicBool>,
     turn_lease: TurnLease,
@@ -249,7 +249,7 @@ async fn drive_chat(
     .await
 }
 
-async fn with_request_snapshot<F, R>(config: Arc<crate::config::CosConfig>, future: F) -> R
+async fn with_request_snapshot<F, R>(config: Arc<crate::config::YuConfig>, future: F) -> R
 where
     F: std::future::Future<Output = R>,
 {
@@ -263,7 +263,7 @@ async fn drive_chat_scoped(
     requested_session: Option<String>,
     provisional_session: String,
     use_memory: bool,
-    notification_viewer: Option<crate::clawd::wire::requests::NotificationViewer>,
+    notification_viewer: Option<crate::yuosd::wire::requests::NotificationViewer>,
     tx: mpsc::Sender<SseFrame>,
     disconnected: Arc<AtomicBool>,
     turn_lease: TurnLease,
@@ -292,7 +292,7 @@ async fn drive_chat_scoped(
     if let Some(session_id) = requested_session {
         params["session_id"] = json!(session_id);
     }
-    let submitted = super::clawd::request(Command::TaskSubmit, params)
+    let submitted = super::yuosd::request(Command::TaskSubmit, params)
         .await
         .map_err(|error| format!("task submission failed: {}", error.message()))?;
     let task_id = required_field(&submitted, "id")?.to_string();
@@ -306,7 +306,7 @@ async fn drive_chat_scoped(
             Ok(lease) => lease,
             Err(_) => {
                 cancel_task(&task_id).await;
-                return Err("clawd assigned a session that already has an active turn".to_string());
+                return Err("yuosd assigned a session that already has an active turn".to_string());
             }
         };
         turn_lease = Some(actual_lease);
@@ -358,7 +358,7 @@ async fn relay_task_stream(
                     .to_string(),
             );
         }
-        let frame = super::clawd::request(
+        let frame = super::yuosd::request(
             Command::TaskStream,
             json!({
                 "id": task_id,
@@ -644,7 +644,7 @@ fn required_field<'a>(value: &'a Value, key: &str) -> Result<&'a str, String> {
 }
 
 async fn cancel_task(task_id: &str) {
-    if let Err(error) = super::clawd::request(Command::TaskCancel, json!({ "id": task_id })).await {
+    if let Err(error) = super::yuosd::request(Command::TaskCancel, json!({ "id": task_id })).await {
         tracing::warn!(task = task_id, error = %error.message(), "failed to cancel Web task");
     }
 }

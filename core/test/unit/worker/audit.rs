@@ -26,7 +26,7 @@ fn policy() -> LaunchPolicy {
             )],
         },
         env: std::collections::BTreeMap::from([(
-            "COS_SESSION".to_string(),
+            "YUOS_SESSION".to_string(),
             "app-9f3c".to_string(),
         )]),
         limits: Limits::operation(),

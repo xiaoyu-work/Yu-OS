@@ -34,7 +34,7 @@ enum ReportCommand {
 #[async_trait]
 impl Tool for WorkspaceTool {
     fn name(&self) -> &str {
-        "cos_workspace"
+        "yu_workspace"
     }
     fn description(&self) -> &str {
         "Read the current Root-selected Workspace background, sourced shared notes, live read-only files \
@@ -108,7 +108,7 @@ pub(crate) fn read_result(value: &Value) -> ToolResult {
         Some("agent_report") => SourceKind::WorkspaceAgentReport,
         _ => SourceKind::WorkspaceSharedSource,
     };
-    super::cos_proxy::memory::memory_result_with_class(
+    super::yu_proxy::memory::memory_result_with_class(
         kind,
         kind.class().least(TrustClass::UserControlledContext),
         value,

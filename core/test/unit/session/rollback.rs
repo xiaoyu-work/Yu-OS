@@ -17,27 +17,27 @@ fn rollback_rechecks_caps() {
     let _lock = crate::test_env::lock_env();
 
     // Isolate the on-disk session store under a tempdir so the
-    // test doesn't touch /var/lib/cos or another test's data.
+    // test doesn't touch /var/lib/yuos or another test's data.
     let dir = tempfile::tempdir().expect("tempdir");
-    let prev_data = std::env::var_os("COS_DATA_DIR");
-    std::env::set_var("COS_DATA_DIR", dir.path());
+    let prev_data = std::env::var_os("YUOS_DATA_DIR");
+    std::env::set_var("YUOS_DATA_DIR", dir.path());
 
     // Capability decisions are always recorded, so redirect the
     // caps.jsonl sink into the same tempdir rather than letting the
     // replay checks below write to /var/log.
-    let prev_log = std::env::var_os("COS_LOG_DIR");
-    std::env::set_var("COS_LOG_DIR", dir.path());
+    let prev_log = std::env::var_os("YUOS_LOG_DIR");
+    std::env::set_var("YUOS_LOG_DIR", dir.path());
 
     // Force caps::require to deny every call:
     //   - Strict mode: missing session ⇒ denied.
-    //   - COS_SESSION unset ⇒ also denied.
-    let prev_mode = std::env::var_os("COS_PERMS_MODE");
-    let prev_session = std::env::var_os("COS_SESSION");
-    std::env::set_var("COS_PERMS_MODE", "strict");
-    std::env::remove_var("COS_SESSION");
+    //   - YUOS_SESSION unset ⇒ also denied.
+    let prev_mode = std::env::var_os("YUOS_PERMS_MODE");
+    let prev_session = std::env::var_os("YUOS_SESSION");
+    std::env::set_var("YUOS_PERMS_MODE", "strict");
+    std::env::remove_var("YUOS_SESSION");
 
     // Create a session and append one fs.write mutation. We do
-    // this AFTER setting strict mode + clearing COS_SESSION so
+    // this AFTER setting strict mode + clearing YUOS_SESSION so
     // the caps check at replay time hits the "no session" branch.
     let sid = store::create("test").expect("create session");
     let mutation = MutationRecord::new(Mutation::FsWrite {
@@ -64,17 +64,17 @@ fn rollback_rechecks_caps() {
 
     // Restore env so we don't poison neighbouring tests.
     match prev_data {
-        Some(v) => std::env::set_var("COS_DATA_DIR", v),
-        None => std::env::remove_var("COS_DATA_DIR"),
+        Some(v) => std::env::set_var("YUOS_DATA_DIR", v),
+        None => std::env::remove_var("YUOS_DATA_DIR"),
     }
 
     #[tokio::test]
     async fn accepted_package_inverse_stops_ordered_replay_until_root_confirms_completion() {
         let _lock = crate::test_env::lock_env();
         let directory = tempfile::tempdir().unwrap();
-        let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", directory.path());
-        let _log = crate::test_env::TestEnvVarGuard::set("COS_LOG_DIR", directory.path());
-        let _mode = crate::test_env::TestEnvVarGuard::set("COS_PERMS_MODE", "strict");
+        let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", directory.path());
+        let _log = crate::test_env::TestEnvVarGuard::set("YUOS_LOG_DIR", directory.path());
+        let _mode = crate::test_env::TestEnvVarGuard::set("YUOS_PERMS_MODE", "strict");
         let session = store::create("isolated retained package inverse").unwrap();
         let mut sequences = Vec::new();
         for package in ["older-fixture", "newer-fixture"] {
@@ -144,15 +144,15 @@ fn rollback_rechecks_caps() {
         }).await;
     }
     match prev_log {
-        Some(v) => std::env::set_var("COS_LOG_DIR", v),
-        None => std::env::remove_var("COS_LOG_DIR"),
+        Some(v) => std::env::set_var("YUOS_LOG_DIR", v),
+        None => std::env::remove_var("YUOS_LOG_DIR"),
     }
     match prev_mode {
-        Some(v) => std::env::set_var("COS_PERMS_MODE", v),
-        None => std::env::remove_var("COS_PERMS_MODE"),
+        Some(v) => std::env::set_var("YUOS_PERMS_MODE", v),
+        None => std::env::remove_var("YUOS_PERMS_MODE"),
     }
     match prev_session {
-        Some(v) => std::env::set_var("COS_SESSION", v),
-        None => std::env::remove_var("COS_SESSION"),
+        Some(v) => std::env::set_var("YUOS_SESSION", v),
+        None => std::env::remove_var("YUOS_SESSION"),
     }
 }

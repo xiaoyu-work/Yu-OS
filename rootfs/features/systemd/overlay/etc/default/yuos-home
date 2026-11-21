@@ -1,0 +1,6 @@
+# /etc/default/yuos-home — admin-editable target for yuos-home-setup.service.
+#
+# Sourced by the systemd unit on boot. Leave unset so the helper resolves
+# the first real login user's passwd home. Desktop first boot writes the
+# selected user's canonical home here after AccountsService creates it.
+# YUOS_HOME=/home/example

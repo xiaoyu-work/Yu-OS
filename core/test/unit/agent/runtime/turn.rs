@@ -280,15 +280,15 @@ fn one_proxy_uses_capability_consent_for_read_and_write_commands() {
         .unwrap(),
     )
     .unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", tmp.path());
-    let _log = crate::test_env::TestEnvVarGuard::set("COS_LOG_DIR", tmp.path());
-    let _session = crate::test_env::TestEnvVarGuard::set("COS_SESSION", "mixed-session");
-    let _mode = crate::test_env::TestEnvVarGuard::set("COS_PERMS_MODE", "strict");
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", tmp.path());
+    let _log = crate::test_env::TestEnvVarGuard::set("YUOS_LOG_DIR", tmp.path());
+    let _session = crate::test_env::TestEnvVarGuard::set("YUOS_SESSION", "mixed-session");
+    let _mode = crate::test_env::TestEnvVarGuard::set("YUOS_PERMS_MODE", "strict");
 
     let mut registry = ToolRegistry::new();
     registry.register(Arc::new(
-        crate::agent::tools::cos_proxy::CosPrimitiveTool::new(
-            "cos_mixed",
+        crate::agent::tools::yu_proxy::YuPrimitiveTool::new(
+            "yu_mixed",
             "mixed capability proxy",
             mixed_capability_primitive,
             &["read", "write"],
@@ -297,8 +297,8 @@ fn one_proxy_uses_capability_consent_for_read_and_write_commands() {
     ));
     registry.set_approval(crate::agent::runtime::approval::ApprovalGate::new(
         crate::agent::runtime::approval::ApprovalConfig::new()
-            .dangerous("cos_mixed")
-            .auto_approve("cos_mixed"),
+            .dangerous("yu_mixed")
+            .auto_approve("yu_mixed"),
     ));
 
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -316,7 +316,7 @@ fn one_proxy_uses_capability_consent_for_read_and_write_commands() {
             &ResolvedToolKind::Registry,
             &ToolCall {
                 id: "read".to_string(),
-                name: "cos_mixed".to_string(),
+                name: "yu_mixed".to_string(),
                 input: serde_json::json!({"command": "read", "args": [read_path.clone()]}),
             },
             Some("mixed-session"),
@@ -333,7 +333,7 @@ fn one_proxy_uses_capability_consent_for_read_and_write_commands() {
             &ResolvedToolKind::Registry,
             &ToolCall {
                 id: "write".to_string(),
-                name: "cos_mixed".to_string(),
+                name: "yu_mixed".to_string(),
                 input: serde_json::json!({"command": "write", "args": [write_path.clone()]}),
             },
             Some("mixed-session"),

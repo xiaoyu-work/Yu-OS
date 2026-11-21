@@ -1,0 +1,19 @@
+[Unit]
+Description=Install verified Yu OS updates before sign-in
+DefaultDependencies=no
+Requires=sysinit.target
+After=sysinit.target local-fs.target
+Before=system-update.target shutdown.target
+Conflicts=shutdown.target yuosd.service greetd.service apt-daily.service apt-daily-upgrade.service
+ConditionPathIsSymbolicLink=/system-update
+
+[Service]
+Type=oneshot
+ExecCondition=/usr/libexec/yuos-updates offline-pending
+ExecStart=/usr/libexec/yuos-updates offline
+ExecStopPost=/usr/libexec/yuos-updates finish-offline
+TimeoutStartSec=35min
+StandardOutput=journal+console
+
+[Install]
+WantedBy=system-update.target

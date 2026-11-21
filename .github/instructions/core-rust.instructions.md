@@ -1,5 +1,5 @@
 ---
-applyTo: "core/**/*.rs,crates/claw-*/**/*.rs,crates/cos-*/**/*.rs,claw-os-sdk/rust/**/*.rs,cos-runtime/rust/**/*.rs"
+applyTo: "core/**/*.rs,crates/claw-*/**/*.rs,crates/cos-*/**/*.rs,yuos-sdk/rust/**/*.rs,yuos-runtime/rust/**/*.rs"
 ---
 
 # Core Rust
@@ -7,7 +7,7 @@ applyTo: "core/**/*.rs,crates/claw-*/**/*.rs,crates/cos-*/**/*.rs,claw-os-sdk/ru
 - Read `core/MODULE.md`; for agent code also read
   `core/src/agent/MODULE.md`.
 - Preserve the definition → provider → consumer dependency direction.
-- Do not bypass `clawd`, capability scopes, the guarded tool registry, hooks,
+- Do not bypass `yuosd`, capability scopes, the guarded tool registry, hooks,
   session persistence, or audit logging.
 - Validate external identifiers, paths, and arguments before authorization or
   side effects.

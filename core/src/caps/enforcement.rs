@@ -13,7 +13,7 @@
 //! The check flow:
 //!
 //! ```text
-//!   read COS_SESSION   ──┐                       ┌─→ Ok(())  if cap covers
+//!   read YUOS_SESSION   ──┐                       ┌─→ Ok(())  if cap covers
 //!                        ├→ load session info ──┤
 //!   load proc registry ──┘   ├ PID ancestry     └─→ Err(Denial { reason, … })
 //!                            ├ caps present?
@@ -24,12 +24,12 @@
 //!
 //! Modes are determined by environment, in priority order:
 //!
-//!   * `COS_PERMS_MODE=strict` (default) — every guarded op requires a
-//!     session with caps. Unset `COS_SESSION`, missing session, or
+//!   * `YUOS_PERMS_MODE=strict` (default) — every guarded op requires a
+//!     session with caps. Unset `YUOS_SESSION`, missing session, or
 //!     missing `caps` field → deny.
-//!   * `COS_PERMS_MODE=permissive` — opt-in escape hatch for first-boot
+//!   * `YUOS_PERMS_MODE=permissive` — opt-in escape hatch for first-boot
 //!     installer scripts that run before the session registry exists.
-//!     Unset `COS_SESSION` is allowed; missing session is allowed;
+//!     Unset `YUOS_SESSION` is allowed; missing session is allowed;
 //!     missing caps is allowed.
 //!
 //! Strict is the only safe default for an agent-native OS — the kernel
@@ -78,14 +78,14 @@ pub(crate) fn require_capability_reference(verb: Verb, scope: &Scope) -> Result<
 // Mode
 // ---------------------------------------------------------------------------
 
-/// Enforcement mode. Picked up from the `COS_PERMS_MODE` env var at
+/// Enforcement mode. Picked up from the `YUOS_PERMS_MODE` env var at
 /// every call (so tests can flip it without restarting the process).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
     /// Opt-in escape hatch for development: allow when there is no
     /// session, no registry entry, or no `caps` on the session. Only
     /// sessions that have explicit `caps` are gated. Set
-    /// `COS_PERMS_MODE=permissive` to use this.
+    /// `YUOS_PERMS_MODE=permissive` to use this.
     Permissive,
     /// Default. All gated operations require a session with caps.
     /// Anything else is denied.
@@ -97,7 +97,7 @@ impl Mode {
         if process_has_no_new_privs() {
             return Mode::Strict;
         }
-        match std::env::var("COS_PERMS_MODE").as_deref() {
+        match std::env::var("YUOS_PERMS_MODE").as_deref() {
             Ok("permissive") => Mode::Permissive,
             // Includes the explicit "strict" value and any other value
             // (typos default to the safer mode).
@@ -171,7 +171,7 @@ pub(crate) fn require_current_session_identity(
     session_pid: u32,
 ) -> Result<(), String> {
     if crate::proc::current_session_id().as_deref() != Some(session_id) {
-        return Err("COS_SESSION does not match the selected registry row".to_string());
+        return Err("YUOS_SESSION does not match the selected registry row".to_string());
     }
     if session_pid == 0 {
         return Err("registered session process is not bound".to_string());
@@ -210,9 +210,9 @@ fn validate_process_identity(
         return Err("App session process has not been bound yet".to_string());
     }
     if let Some(app_id) = session.app_id.as_deref() {
-        if std::env::var("COS_APP_ID").ok().as_deref() != Some(app_id) {
+        if std::env::var("YUOS_APP_ID").ok().as_deref() != Some(app_id) {
             return Err(format!(
-                "COS_APP_ID does not match registered App identity `{app_id}`"
+                "YUOS_APP_ID does not match registered App identity `{app_id}`"
             ));
         }
         if !app_session_process_is_current(session) {
@@ -389,7 +389,7 @@ fn require_with_operation(
 /// Every attended strict-mode capability denial gets one, not only
 /// the high-risk ones. Unattended work fails closed and must receive
 /// its exact authority when it is scheduled. The system-Agent baseline
-/// ([`crate::clawd::system_caps`]) deliberately withholds low- and
+/// ([`crate::yuosd::system_caps`]) deliberately withholds low- and
 /// medium-risk authority whose *resource* is dangerous — an arbitrary
 /// host, a new process, another user's file — so a risk floor here
 /// would leave those denials with no route to consent at all, and the
@@ -479,9 +479,9 @@ fn attach_approval_request(
                 }));
                 denial.hint = Some(match pending.request_id {
                     Some(id) => format!(
-                        "approval request {id} is pending; approve it in Claw OS, then retry"
+                        "approval request {id} is pending; approve it in Yu OS, then retry"
                     ),
-                    None => "an approval request is pending; approve it in Claw OS, then retry"
+                    None => "an approval request is pending; approve it in Yu OS, then retry"
                         .to_string(),
                 });
             }
@@ -528,7 +528,7 @@ fn attach_approval_request(
                 request_id: Some(id.clone()),
             }));
             denial.hint = Some(format!(
-                "approval request {id} is pending; approve it in Claw OS, then retry"
+                "approval request {id} is pending; approve it in Yu OS, then retry"
             ));
         }
         Err(error) => {
@@ -595,7 +595,7 @@ fn require_impl(
             return match mode {
                 Mode::Permissive => Ok(()),
                 Mode::Strict => Err(Denial::no_session(verb, scope)
-                    .with_hint("set COS_SESSION before invoking gated operations")),
+                    .with_hint("set YUOS_SESSION before invoking gated operations")),
             }
         }
     };
@@ -843,9 +843,9 @@ fn build_cap_audit_record(
     result: &Result<(), Denial>,
     operation_digest: Option<&str>,
 ) -> serde_json::Value {
-    let agent = std::env::var("COS_AGENT_LABEL")
+    let agent = std::env::var("YUOS_AGENT_LABEL")
         .ok()
-        .or_else(|| std::env::var("COS_APP_ID").ok());
+        .or_else(|| std::env::var("YUOS_APP_ID").ok());
 
     let (decision, reason, hint, approval) = match result {
         Ok(()) => (

@@ -1,8 +1,8 @@
 //! Keeps the live model/tool runtime out of the root broker process.
 //!
-//! `clawd` and `claw-agentd` are built from the same library, so the
+//! `yuosd` and `yuos-agentd` are built from the same library, so the
 //! agent runtime is reachable from the broker binary by construction.
-//! What matters is that it never *executes* there: the `clawd` entry
+//! What matters is that it never *executes* there: the `yuosd` entry
 //! point calls [`mark_broker_process`] before anything else, and every
 //! surface that would pull a provider HTTP client, an MCP client, a
 //! model-visible tool registry or a dynamically launched App into the
@@ -11,14 +11,14 @@
 //!
 //! The flag is process-wide and one-way on purpose. A worker never sets
 //! it, so the same code paths behave exactly as before once execution
-//! has moved to the unprivileged `claw-agentd` process.
+//! has moved to the unprivileged `yuos-agentd` process.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static BROKER_PROCESS: AtomicBool = AtomicBool::new(false);
 
 /// Declare this process the privileged broker. Called once from
-/// `clawd`'s `main` before the daemon opens its socket.
+/// `yuosd`'s `main` before the daemon opens its socket.
 pub fn mark_broker_process() {
     BROKER_PROCESS.store(true, Ordering::SeqCst);
 }
@@ -32,8 +32,8 @@ pub fn is_broker_process() -> bool {
 pub fn ensure_agent_runtime_allowed(surface: &str) -> Result<(), String> {
     if is_broker_process() {
         return Err(format!(
-            "agent runtime surface `{surface}` is not available inside the clawd broker \
-             process; agent work runs in the unprivileged claw-agentd worker"
+            "agent runtime surface `{surface}` is not available inside the yuosd broker \
+             process; agent work runs in the unprivileged yuos-agentd worker"
         ));
     }
     Ok(())

@@ -6,9 +6,9 @@ use crate::agent::run;
 // -----------------------------------------------------------------
 
 /// Pin the curator default log under a per-test temp dir so we
-/// don't trample the real machine's `%ProgramData%\cos\` state.
+/// don't trample the real machine's `%ProgramData%\yuos\` state.
 /// Returns a guard that holds the crate-wide env lock for the
-/// test's lifetime: each call mutates `COS_DATA_DIR`, and two
+/// test's lifetime: each call mutates `YUOS_DATA_DIR`, and two
 /// tests running in parallel would otherwise observe each
 /// other's data directory (cargo test runs many threads).
 /// The guard derefs to `&Path` so existing `dir.join(...)`
@@ -34,7 +34,7 @@ impl LearnDataDir {
 fn isolate_cos_data_dir(tag: &str) -> LearnDataDir {
     let env = crate::test_env::lock_env();
     let dir = std::env::temp_dir().join(format!(
-        "cos-learn-cli-{tag}-{}-{}",
+        "yuos-learn-cli-{tag}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -42,7 +42,7 @@ fn isolate_cos_data_dir(tag: &str) -> LearnDataDir {
             .subsec_nanos()
     ));
     std::fs::create_dir_all(&dir).unwrap();
-    std::env::set_var("COS_DATA_DIR", &dir);
+    std::env::set_var("YUOS_DATA_DIR", &dir);
     LearnDataDir {
         path: dir,
         _env: env,
@@ -63,7 +63,7 @@ fn context_hints_invalid_cwd_errs() {
 #[test]
 fn context_hints_finds_real_markers_in_temp_dir() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-context-hints-{}",
+        "yuos-context-hints-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&dir).unwrap();
@@ -80,7 +80,7 @@ fn context_hints_finds_real_markers_in_temp_dir() {
 #[test]
 fn context_hints_render_returns_summary_paragraph() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-context-hints-render-{}",
+        "yuos-context-hints-render-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&dir).unwrap();
@@ -100,7 +100,7 @@ fn context_hints_render_returns_summary_paragraph() {
 #[test]
 fn context_hints_recursive_with_depth() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-context-hints-deep-{}",
+        "yuos-context-hints-deep-{}",
         uuid::Uuid::new_v4().simple()
     ));
     let nested = dir.join("apps").join("web");
@@ -215,7 +215,7 @@ fn context_build_with_text_extracts_references() {
 #[test]
 fn context_build_with_cwd_picks_up_hints() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-context-build-{}",
+        "yuos-context-build-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&dir).unwrap();

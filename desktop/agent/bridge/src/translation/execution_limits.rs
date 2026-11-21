@@ -1,6 +1,6 @@
 //! Closed presentation DTOs; owner identity is supplied by the bridge, not HTTP input.
 
-use cos_agent_protocol::{ActivityExecutionLimits, ActivityExecutionLimitsResponse};
+use yuos_agent_protocol::{ActivityExecutionLimits, ActivityExecutionLimitsResponse};
 use serde_json::Value;
 
 pub fn get(

@@ -1,0 +1,41 @@
+Package: yuos-agent
+Version: __VERSION__
+Section: admin
+Priority: optional
+Architecture: __ARCH__
+Maintainer: Yu OS <noreply@github.com>
+Homepage: https://github.com/xiaoyu-work/Yu-OS
+Provides: yuos-abi-__ABI__, yuos-app-runtime-v1 (= __APP_RUNTIME_VERSION__), yuos-display-session-v2, yuos-file-manager-v1 (= 1), yuos-app-permissions-v1, yuos-capture-v1, yuos-media-player-v1, yuos-notifications-v1, yuos-calendar-read-v1 (= 1), yuos-observation-v1 (= 1), yuos-clipboard-history-v1 (= 1), yuos-launcher-backend-v1 (= 1), pop-launcher (= 2.0.0), yuos-browser-bridge-v1 (= 1), yuos-nearby-v1, yuos-desktop-settings-v1,
+ yuos-browser-render-v1 (= 1), yuos-software-store-v1 (= 1)
+Breaks: yuos-base (<< __MIN_BASE__), yuos-desktop (<< __MIN_DESKTOP__)
+Conflicts: owly, pop-launcher
+XB-YuOS-Security-Epoch: __SECURITY_EPOCH__
+XB-YuOS-Abi: __ABI__
+Depends: bash, coreutils, libc-bin, libgcc-s1, ca-certificates, bubblewrap (>= 0.8.0), curl, gpgv, python3, python3-apt,
+ python3-gi, gir1.2-appstream-1.0,
+ python3-idna (>= 3.3), python3-idna (<< 4), sudo, systemd, pkexec, polkitd, libpam0g,
+ init-system-helpers (>= 1.52),
+ libnss3, libxss1, libasound2, libatk1.0-0, libatk-bridge2.0-0,
+ libcups2, libdrm2, libdbus-1-3, libxcomposite1, libxdamage1,
+ libxfixes3, libxrandr2, libgbm1, libpango-1.0-0, libcairo2,
+ fonts-liberation, xdg-utils
+Recommends: helium-bin (>= 0.22.1.1-1), yuos-apps-agent,
+ nodejs, python3-pip, git, ripgrep, jq, sqlite3
+Suggests: systemd-coredump, network-manager, bluez, hostapd, iw, iproute2
+Description: reusable Yu OS system agent for Debian and Ubuntu
+ Installs the complete headless Yu OS agent stack: `yu`, `yuosd`,
+ `yuos-agentd`, `yuos-extension-host`, the Claw-owned terminal UI, browser and
+ semantic runtimes, capability and approval enforcement, audit/session
+ persistence, skills and SDK/runtime libraries. Headless Apps and their common
+ libraries are separately owned packages recommended through yuos-apps-agent.
+ .
+ The package also installs and enables the privileged `yuosd` system
+ service. Agent work itself runs in unprivileged, per-task
+ `yuos-agentd` and task-owned `yuos-extension-host` processes that `yuosd`
+ supervises. Browser and user indexing services are installed but remain
+ opt-in or condition-gated.
+ OS desktop packages use its Root PAM display activation and supervised GUI
+ transport helpers; their presence does not grant any App a GUI resource.
+ It does not alter the host's home layout, boot identity, desktop
+ environment, PAM policy, or firmware policy. Helium is optional on
+ agent-only installs and required by the Browser App.

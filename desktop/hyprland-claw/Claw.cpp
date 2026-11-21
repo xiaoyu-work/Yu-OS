@@ -371,7 +371,7 @@ namespace Claw {
             return rights & CLAW_PANEL;
         if (interface == "zwlr_data_control_manager_v1" || interface == "ext_data_control_manager_v1")
             return rights & (CLAW_SELECTION_READ | CLAW_SELECTION_WRITE);
-        return !privileged || (rights & CLAW_OS_SESSION);
+        return !privileged || (rights & YUOS_DESKTOP_SESSION);
     }
 
     bool contextOrigin(wl_client* client, SOrigin& result) {

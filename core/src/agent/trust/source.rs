@@ -615,17 +615,17 @@ impl SourceKind {
         // The progressive bridge surfaces App/MCP tool definitions.
         if matches!(
             tool_name,
-            "cos_tool_search" | "cos_tool_describe" | "cos_tool_call"
+            "yu_tool_search" | "yu_tool_describe" | "yu_tool_call"
         ) {
             return Self::McpToolMetadata;
         }
         match tool_name {
-            "cos_workspace" => Self::WorkspaceSharedSource,
-            "cos_app_memory" => Self::AppMemory,
-            "cos_tts" | "cos_stt" | "cos_imagegen" | "cos_vision" => Self::MediaTranscript,
-            "cos_skill" => Self::SkillInstructions,
-            "cos_recall" | "cos_recall_semantic" | "cos_memory" => Self::RecalledMemory,
-            "cos_todo" => Self::TodoList,
+            "yu_workspace" => Self::WorkspaceSharedSource,
+            "yu_app_memory" => Self::AppMemory,
+            "yu_tts" | "yu_stt" | "yu_imagegen" | "yu_vision" => Self::MediaTranscript,
+            "yu_skill" => Self::SkillInstructions,
+            "yu_recall" | "yu_recall_semantic" | "yu_memory" => Self::RecalledMemory,
+            "yu_todo" => Self::TodoList,
             // MCP App tools are registered under `app_`; the App, not the
             // kernel, authored the returned bytes.
             name if name.starts_with("app_") => Self::AppToolResult,

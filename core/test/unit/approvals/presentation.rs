@@ -3,9 +3,9 @@ use super::*;
 fn isolated(test: impl FnOnce(&std::path::Path)) {
     let _lock = crate::test_env::lock_env();
     let root = tempfile::tempdir().unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", root.path().join("data"));
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().join("data"));
     let _caps =
-        crate::test_env::TestEnvVarGuard::set("COS_CAPS_DATA_DIR", root.path().join("caps"));
+        crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", root.path().join("caps"));
     test(root.path());
 }
 

@@ -9,17 +9,17 @@ use crate::caps::test_env_lock::env_lock;
 fn capture_stdin_bridge_needs_a_real_human_terminal_or_existing_session() {
     let _lock = env_lock();
     let _data = redirect_data_dir();
-    let _session = crate::test_env::TestEnvVarGuard::remove("COS_SESSION");
-    let _app = crate::test_env::TestEnvVarGuard::remove("COS_APP_ID");
-    let _mcp = crate::test_env::TestEnvVarGuard::remove("COS_MCP_SERVER");
+    let _session = crate::test_env::TestEnvVarGuard::remove("YUOS_SESSION");
+    let _app = crate::test_env::TestEnvVarGuard::remove("YUOS_APP_ID");
+    let _mcp = crate::test_env::TestEnvVarGuard::remove("YUOS_MCP_SERVER");
     let args = ["__capture", "screenshot", "--request-stdin"].map(String::from);
     assert!(bootstrap_user_cli_session_impl(&args, false).is_none());
     {
-        let _app = crate::test_env::TestEnvVarGuard::set("COS_APP_ID", "cosmic-screenshot");
+        let _app = crate::test_env::TestEnvVarGuard::set("YUOS_APP_ID", "cosmic-screenshot");
         assert!(bootstrap_user_cli_session_impl(&args, true).is_none());
     }
     {
-        let _mcp = crate::test_env::TestEnvVarGuard::set("COS_MCP_SERVER", "1");
+        let _mcp = crate::test_env::TestEnvVarGuard::set("YUOS_MCP_SERVER", "1");
         assert!(bootstrap_user_cli_session_impl(&args, true).is_none());
     }
     let guard = bootstrap_user_cli_session_impl(&args, true)
@@ -33,7 +33,7 @@ fn capture_stdin_bridge_needs_a_real_human_terminal_or_existing_session() {
     drop(guard);
 }
 
-/// Returns a fresh tempdir and sets `COS_DATA_DIR` to point at it.
+/// Returns a fresh tempdir and sets `YUOS_DATA_DIR` to point at it.
 /// Restores any previous value when the guard is dropped.
 struct DataDirGuard {
     prev: Option<std::ffi::OsString>,
@@ -42,15 +42,15 @@ struct DataDirGuard {
 impl Drop for DataDirGuard {
     fn drop(&mut self) {
         match self.prev.take() {
-            Some(v) => env::set_var("COS_DATA_DIR", v),
-            None => env::remove_var("COS_DATA_DIR"),
+            Some(v) => env::set_var("YUOS_DATA_DIR", v),
+            None => env::remove_var("YUOS_DATA_DIR"),
         }
     }
 }
 fn redirect_data_dir() -> DataDirGuard {
     let tmp = tempfile::tempdir().expect("tempdir");
-    let prev = env::var_os("COS_DATA_DIR");
-    env::set_var("COS_DATA_DIR", tmp.path());
+    let prev = env::var_os("YUOS_DATA_DIR");
+    env::set_var("YUOS_DATA_DIR", tmp.path());
     DataDirGuard { prev, _tmp: tmp }
 }
 
@@ -58,16 +58,16 @@ fn redirect_data_dir() -> DataDirGuard {
 fn bootstrap_is_noop_when_session_already_set() {
     let _lock = env_lock();
     let _data = redirect_data_dir();
-    let prev = env::var("COS_SESSION").ok();
-    env::set_var("COS_SESSION", "outer-session-id");
+    let prev = env::var("YUOS_SESSION").ok();
+    env::set_var("YUOS_SESSION", "outer-session-id");
 
     let guard = bootstrap_user_cli_session_impl(&["agent".into()], true);
-    assert!(guard.is_none(), "should not bootstrap when COS_SESSION is set");
-    assert_eq!(env::var("COS_SESSION").unwrap(), "outer-session-id");
+    assert!(guard.is_none(), "should not bootstrap when YUOS_SESSION is set");
+    assert_eq!(env::var("YUOS_SESSION").unwrap(), "outer-session-id");
 
     match prev {
-        Some(v) => env::set_var("COS_SESSION", v),
-        None => env::remove_var("COS_SESSION"),
+        Some(v) => env::set_var("YUOS_SESSION", v),
+        None => env::remove_var("YUOS_SESSION"),
     }
 }
 
@@ -75,13 +75,13 @@ fn bootstrap_is_noop_when_session_already_set() {
 fn bootstrap_registers_session_and_grants_ai_chat() {
     let _lock = env_lock();
     let _data = redirect_data_dir();
-    env::remove_var("COS_SESSION");
-    env::remove_var("COS_PERMS_MODE");
+    env::remove_var("YUOS_SESSION");
+    env::remove_var("YUOS_PERMS_MODE");
 
     let guard =
         bootstrap_user_cli_session_impl(&["agent".into()], true)
             .expect("bootstrap should succeed");
-    let sid = env::var("COS_SESSION").expect("COS_SESSION should be set");
+    let sid = env::var("YUOS_SESSION").expect("YUOS_SESSION should be set");
     assert!(sid.starts_with("cli-"), "session id format: {sid}");
 
     // The freshly-bootstrapped session must satisfy the caps gate
@@ -101,8 +101,8 @@ fn bootstrap_registers_session_and_grants_ai_chat() {
     assert!(has_ai_chat, "admin session should hold ai.chat");
 
     drop(guard);
-    // After drop the row is gone and COS_SESSION is cleared.
-    assert!(env::var("COS_SESSION").is_err());
+    // After drop the row is gone and YUOS_SESSION is cleared.
+    assert!(env::var("YUOS_SESSION").is_err());
     let raw_after = std::fs::read_to_string(&reg_path).unwrap();
     let v_after: serde_json::Value = serde_json::from_str(&raw_after).unwrap();
     assert_eq!(
@@ -116,10 +116,10 @@ fn bootstrapped_admin_cli_can_store_credentials_and_enter_oauth_login() {
     let _lock = env_lock();
     let _data = redirect_data_dir();
     let credentials = tempfile::tempdir().unwrap();
-    let previous_credentials = env::var_os("COS_CREDENTIALS_DIR");
-    env::set_var("COS_CREDENTIALS_DIR", credentials.path());
-    env::remove_var("COS_SESSION");
-    env::remove_var("COS_PERMS_MODE");
+    let previous_credentials = env::var_os("YUOS_CREDENTIALS_DIR");
+    env::set_var("YUOS_CREDENTIALS_DIR", credentials.path());
+    env::remove_var("YUOS_SESSION");
+    env::remove_var("YUOS_PERMS_MODE");
 
     let guard = bootstrap_user_cli_session_impl(
         &["credential".into(), "oauth-login".into(), "google".into()],
@@ -138,8 +138,8 @@ fn bootstrapped_admin_cli_can_store_credentials_and_enter_oauth_login() {
 
     drop(guard);
     match previous_credentials {
-        Some(value) => env::set_var("COS_CREDENTIALS_DIR", value),
-        None => env::remove_var("COS_CREDENTIALS_DIR"),
+        Some(value) => env::set_var("YUOS_CREDENTIALS_DIR", value),
+        None => env::remove_var("YUOS_CREDENTIALS_DIR"),
     }
 
     assert!(stored.is_ok(), "{stored:?}");
@@ -147,9 +147,9 @@ fn bootstrapped_admin_cli_can_store_credentials_and_enter_oauth_login() {
     assert!(!login.contains("must be run directly"));
 }
 
-/// Per-user data dir override: sets `COS_USER_DATA_DIR` to a
+/// Per-user data dir override: sets `YUOS_USER_DATA_DIR` to a
 /// fresh tempdir so the per-user-default test isn't subject to
-/// the real `$HOME/.local/share/cos` contents.
+/// the real `$HOME/.local/share/yuos` contents.
 struct UserDataDirGuard {
     prev: Option<std::ffi::OsString>,
     _tmp: tempfile::TempDir,
@@ -157,21 +157,21 @@ struct UserDataDirGuard {
 impl Drop for UserDataDirGuard {
     fn drop(&mut self) {
         match self.prev.take() {
-            Some(v) => env::set_var("COS_USER_DATA_DIR", v),
-            None => env::remove_var("COS_USER_DATA_DIR"),
+            Some(v) => env::set_var("YUOS_USER_DATA_DIR", v),
+            None => env::remove_var("YUOS_USER_DATA_DIR"),
         }
     }
 }
 fn redirect_user_data_dir() -> UserDataDirGuard {
     let tmp = tempfile::tempdir().expect("tempdir");
-    let prev = env::var_os("COS_USER_DATA_DIR");
-    env::set_var("COS_USER_DATA_DIR", tmp.path());
+    let prev = env::var_os("YUOS_USER_DATA_DIR");
+    env::set_var("YUOS_USER_DATA_DIR", tmp.path());
     UserDataDirGuard { prev, _tmp: tmp }
 }
 
-/// When `COS_DATA_DIR` is unset (the normal case for a user
-/// invoking `cos` from a shell), the bootstrapped session row
-/// must land in the per-user data dir — *not* `/var/lib/cos`,
+/// When `YUOS_DATA_DIR` is unset (the normal case for a user
+/// invoking `yu` from a shell), the bootstrapped session row
+/// must land in the per-user data dir — *not* `/var/lib/yuos`,
 /// which is `root:root 0755` on a real install. This is the
 /// regression that produced
 ///   `Permission denied (no active session): secret.write on *`
@@ -180,18 +180,18 @@ fn redirect_user_data_dir() -> UserDataDirGuard {
 #[test]
 fn bootstrap_writes_to_user_data_dir_when_cos_data_dir_unset() {
     let _lock = env_lock();
-    let prev_data = env::var_os("COS_DATA_DIR");
-    env::remove_var("COS_DATA_DIR");
+    let prev_data = env::var_os("YUOS_DATA_DIR");
+    env::remove_var("YUOS_DATA_DIR");
     let user_data = redirect_user_data_dir();
-    env::remove_var("COS_SESSION");
-    env::remove_var("COS_PERMS_MODE");
+    env::remove_var("YUOS_SESSION");
+    env::remove_var("YUOS_PERMS_MODE");
 
     let guard = bootstrap_user_cli_session_impl(&["agent".into()], true)
         .expect("bootstrap should succeed in per-user data dir");
-    let sid = env::var("COS_SESSION").expect("COS_SESSION should be set");
+    let sid = env::var("YUOS_SESSION").expect("YUOS_SESSION should be set");
 
     // The row must exist under the user data dir, not under any
-    // /var/lib/cos path. Reading user_data_dir() directly to avoid
+    // /var/lib/yuos path. Reading user_data_dir() directly to avoid
     // depending on the test guard's internal tempdir handle.
     let user_reg = crate::paths::user_data_dir().join("proc/registry.json");
     let raw = std::fs::read_to_string(&user_reg)
@@ -211,7 +211,7 @@ fn bootstrap_writes_to_user_data_dir_when_cos_data_dir_unset() {
     assert!(has_ai_chat, "user-dir session should hold ai.chat");
 
     drop(guard);
-    assert!(env::var("COS_SESSION").is_err());
+    assert!(env::var("YUOS_SESSION").is_err());
     let raw_after = std::fs::read_to_string(&user_reg).unwrap();
     let v_after: serde_json::Value = serde_json::from_str(&raw_after).unwrap();
     assert_eq!(
@@ -222,23 +222,23 @@ fn bootstrap_writes_to_user_data_dir_when_cos_data_dir_unset() {
 
     drop(user_data);
     match prev_data {
-        Some(v) => env::set_var("COS_DATA_DIR", v),
-        None => env::remove_var("COS_DATA_DIR"),
+        Some(v) => env::set_var("YUOS_DATA_DIR", v),
+        None => env::remove_var("YUOS_DATA_DIR"),
     }
 }
 
 /// Sanity check that `caps::require` succeeds for a session
 /// living in the per-user registry. Guards against future
 /// regressions where `caps::enforcement` accidentally hard-codes
-/// `/var/lib/cos` for its registry read.
+/// `/var/lib/yuos` for its registry read.
 #[test]
 fn enforcement_reads_per_user_registry() {
     let _lock = env_lock();
-    let prev_data = env::var_os("COS_DATA_DIR");
-    env::remove_var("COS_DATA_DIR");
+    let prev_data = env::var_os("YUOS_DATA_DIR");
+    env::remove_var("YUOS_DATA_DIR");
     let _user_data = redirect_user_data_dir();
-    env::remove_var("COS_SESSION");
-    env::set_var("COS_PERMS_MODE", "strict");
+    env::remove_var("YUOS_SESSION");
+    env::set_var("YUOS_PERMS_MODE", "strict");
 
     let guard =
         bootstrap_user_cli_session_impl(&["agent".into()], true)
@@ -252,9 +252,9 @@ fn enforcement_reads_per_user_registry() {
     );
 
     drop(guard);
-    env::remove_var("COS_PERMS_MODE");
+    env::remove_var("YUOS_PERMS_MODE");
     match prev_data {
-        Some(v) => env::set_var("COS_DATA_DIR", v),
-        None => env::remove_var("COS_DATA_DIR"),
+        Some(v) => env::set_var("YUOS_DATA_DIR", v),
+        None => env::remove_var("YUOS_DATA_DIR"),
     }
 }

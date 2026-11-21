@@ -33,7 +33,7 @@ shared build helpers.
 | `app_packages.py` | Reauthenticate official fresh App APT indexes and final `.deb` bytes; select independent package closure and enforce one-owner OS staging |
 | `app_sources.py` | Prepare explicit immutable App test/development fixtures; never a production package fallback |
 | `app_sources.py --write-lock <path>` | Record the selected SHA for later build steps through `CLAW_APP_SOURCE_LOCK`; never changes the repository selection |
-| `app_sources.py --stage-shared <root>` | Forward to the selected snapshot's public App common staging CLI; stage only App-owned support under `usr/lib/cos/python` |
+| `app_sources.py --stage-shared <root>` | Forward to the selected snapshot's public App common staging CLI; stage only App-owned support under `usr/lib/yuos/python` |
 | `app_sources.py --native` | Refresh product-declared native inputs and record their source snapshot alongside stable ignored build paths |
 
 ## Dependencies
@@ -61,7 +61,7 @@ No fixture catalog, signing root, installed-state replacement or App source
 is used. The script refuses non-hosted environments; never run it on a shared
 developer host. Multi-architecture package/signature checks remain separate.
 
-The `capture` selection runs both real `clawd` helpers as a non-Root owner inside
+The `capture` selection runs both real `yuosd` helpers as a non-Root owner inside
 separate private mount/PID/network namespaces. Isolated synthetic portals check
 Root-only dispatch, PNG transfer, cancellation and refusal, plus interactive
 clipboard results, deferred human responses and checked Close. No App executable
@@ -71,7 +71,7 @@ The separate `native-capture` selection prepares the real App-owned Capture
 ELF and all original icons/licenses with the public pin. Cases34-39 enter actual
 PAM/common Host/private broker, settle the independent screen/notification/Home
 metadata and exact creation reviews, and require the actual protected
-`/usr/local/bin/clawd` helper at the private portal. File metadata, clipboard,
+`/usr/local/bin/yuosd` helper at the private portal. File metadata, clipboard,
 user cancellation, delayed-Close revocation/logout, original non-interactive
 selected output and no-clobber refusal have separate observations. Capture has
 no App-owned pixel surface; a synthetic frame/title cannot satisfy this gate.
@@ -133,7 +133,7 @@ This is a clean-GHA-only acceptance gate, not evidence that Terminal has passed
 or permission to publish/adopt another platform. Its public 0.2.1 ABI-1 input
 is restricted to the already approved archive digest.
 
-`--product calendar` prepares the original `claw-applet-calendar` ELF for the
+`--product calendar` prepares the original `yuos-applet-calendar` ELF for the
 distinct `panel-calendar` identity, including its original desktop entry,
 symbolic actions icon and GPL license; it neither invents metainfo nor copies
 an unused argv-adapter license. `test-boundaries.sh native-calendar` adds case
@@ -158,7 +158,7 @@ App hook or arbitrary sleep. A persistent hover can otherwise make the toolkit
 destroy the agenda and create its sibling tooltip. The witness keeps its
 single agenda lifetime and never substitutes stale-generation pixels or ACKs.
 
-Only this lane builds the existing OS `claw-calendar-reader` and stages it at
+Only this lane builds the existing OS `yuos-calendar-reader` and stages it at
 its fixed service path inside the fresh isolated bootstrap. No provider enters
 the App payload. The Root fixture creates a synthetic canonical owner Calendar
 SQLite store (including one all-day event spanning the current real UTC day

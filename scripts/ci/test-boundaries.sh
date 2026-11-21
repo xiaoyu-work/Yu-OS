@@ -5,7 +5,7 @@ cd "${GITHUB_WORKSPACE:?GITHUB_WORKSPACE is required}"
 : "${RUNNER_TEMP:?RUNNER_TEMP is required}"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$GITHUB_WORKSPACE/target}"
 
-cos_test_binary() {
+yu_test_binary() {
     python3 - "$1" "${2:-yu}" "${3:-lib}" "$GITHUB_WORKSPACE/core/Cargo.toml" <<'PY'
 import json
 import sys
@@ -38,21 +38,21 @@ private_extension_case() {
             mount -t tmpfs -o mode=0755,nosuid,nodev tmpfs /var/lib
             mount -t tmpfs -o mode=0700,nosuid,nodev tmpfs /root
             mount -t tmpfs -o mode=0755,nosuid,nodev tmpfs /usr/local/bin
-            install -o root -g root -m0755 "$1" /usr/local/bin/claw-app-runner
+            install -o root -g root -m0755 "$1" /usr/local/bin/yuos-app-runner
             shift
             exec "$@"
-        ' private-extension-case "$CARGO_TARGET_DIR/debug/claw-app-runner" "$@"
+        ' private-extension-case "$CARGO_TARGET_DIR/debug/yuos-app-runner" "$@"
 }
 
 nearby() {
-    cargo test --manifest-path crates/claw-nearby/Cargo.toml --locked
-    cargo clippy --manifest-path crates/claw-nearby/Cargo.toml --all-targets --locked -- -D warnings
-    cargo test --manifest-path crates/claw-nearby/vendor/owlyd/Cargo.toml --test service --locked
+    cargo test --manifest-path crates/yuos-nearby/Cargo.toml --locked
+    cargo clippy --manifest-path crates/yuos-nearby/Cargo.toml --all-targets --locked -- -D warnings
+    cargo test --manifest-path crates/yuos-nearby/vendor/owlyd/Cargo.toml --test service --locked
     cargo test -p yu --lib --locked --no-run --message-format=json-render-diagnostics \
         > "$RUNNER_TEMP/nearby-tests.jsonl"
-    test_binary="$(cos_test_binary "$RUNNER_TEMP/nearby-tests.jsonl")"
+    test_binary="$(yu_test_binary "$RUNNER_TEMP/nearby-tests.jsonl")"
     sudo timeout 60 unshare --mount --net --fork \
-        "$test_binary" clawd::nearby:: --include-ignored --test-threads=1
+        "$test_binary" yuosd::nearby:: --include-ignored --test-threads=1
     python3 -B packaging/deb/tests/test_nearby.py
 }
 
@@ -64,11 +64,11 @@ app_apt() {
     local node_binary
     node_binary="$(readlink -f -- "$(command -v node)")"
     python3 -I -c 'import apt_pkg'
-    cargo build -p yu --bin yu --bin claw-app-runner --bin claw-app-apt-hook --bin claw-extension-host --locked
+    cargo build -p yu --bin yu --bin yuos-app-runner --bin yuos-app-apt-hook --bin yuos-extension-host --locked
     cargo test -p yu --lib --locked --no-run --message-format=json-render-diagnostics \
         > "$CARGO_TARGET_DIR/app-apt-tests.jsonl"
     local test_binary listing fixture
-    test_binary="$(cos_test_binary "$CARGO_TARGET_DIR/app-apt-tests.jsonl")"
+    test_binary="$(yu_test_binary "$CARGO_TARGET_DIR/app-apt-tests.jsonl")"
     listing="$("$test_binary" --list)"
     local fixtures=(
         private_apt_bundle_requires_both_reviews_and_owns_shared_dependency
@@ -83,7 +83,7 @@ app_apt() {
         private_installed_product_web_calls_real_kv_without_model
     )
     for fixture in "${fixtures[@]}" private_apt_foreign_uid_probe private_apt_retained_peer private_apt_ordinary_actor; do
-        grep -Fx -- "clawd::app_store::apt::tests::$fixture: test" \
+        grep -Fx -- "yuosd::app_store::apt::tests::$fixture: test" \
             <<< "$listing" > /dev/null
     done
     local parent_mnt parent_pid parent_net
@@ -92,14 +92,14 @@ app_apt() {
     parent_net="$(readlink /proc/self/ns/net)"
     for fixture in "${fixtures[@]}"; do
         sudo timeout --kill-after=5 150 unshare --mount --pid --net --fork --mount-proc --kill-child=KILL \
-            env COS_APP_APT_TEST_HOOK="$CARGO_TARGET_DIR/debug/claw-app-apt-hook" \
-                COS_APP_APT_TEST_COS="$CARGO_TARGET_DIR/debug/yu" \
-                COS_APP_APT_TEST_RUNNER="$CARGO_TARGET_DIR/debug/claw-app-runner" \
-                COS_APP_APT_TEST_HOST="$CARGO_TARGET_DIR/debug/claw-extension-host" \
-                COS_APP_APT_TEST_NODE="$node_binary" \
-                COS_APP_APT_PARENT_MNT="$parent_mnt" \
-                COS_APP_APT_PARENT_PID="$parent_pid" \
-                COS_APP_APT_PARENT_NET="$parent_net" \
+            env YUOS_APP_APT_TEST_HOOK="$CARGO_TARGET_DIR/debug/yuos-app-apt-hook" \
+                YUOS_APP_APT_TEST_COS="$CARGO_TARGET_DIR/debug/yu" \
+                YUOS_APP_APT_TEST_RUNNER="$CARGO_TARGET_DIR/debug/yuos-app-runner" \
+                YUOS_APP_APT_TEST_HOST="$CARGO_TARGET_DIR/debug/yuos-extension-host" \
+                YUOS_APP_APT_TEST_NODE="$node_binary" \
+                YUOS_APP_APT_PARENT_MNT="$parent_mnt" \
+                YUOS_APP_APT_PARENT_PID="$parent_pid" \
+                YUOS_APP_APT_PARENT_NET="$parent_net" \
             bash --noprofile --norc -c '
                 set -euo pipefail
                 mount --make-rprivate /
@@ -107,29 +107,29 @@ app_apt() {
                 status=0
                 "$1" --exact "$2" --ignored --nocapture --test-threads=1 || status=$?
                 exit "$status"
-            ' private-app-apt "$test_binary" "clawd::app_store::apt::tests::$fixture"
+            ' private-app-apt "$test_binary" "yuosd::app_store::apt::tests::$fixture"
     done
 }
 
 capture() {
     command -v dbus-daemon >/dev/null
-    cargo build -p yu --bin clawd --locked
+    cargo build -p yu --bin yuosd --locked
     mkdir -p "$RUNNER_TEMP"
     cargo test -p yu --lib --locked --no-run --message-format=json-render-diagnostics \
         > "$RUNNER_TEMP/capture-tests.jsonl"
     local test_binary fixture listing
-    test_binary="$(cos_test_binary "$RUNNER_TEMP/capture-tests.jsonl")"
+    test_binary="$(yu_test_binary "$RUNNER_TEMP/capture-tests.jsonl")"
     listing="$("$test_binary" --list)"
     for fixture in \
-        clawd::capture::portal::tests::private_os_portal_helper_uses_root_dispatch_without_app_program \
-        clawd::capture::portal::interactive::tests::private_interactive_helper_reports_only_after_os_portal_close
+        yuosd::capture::portal::tests::private_os_portal_helper_uses_root_dispatch_without_app_program \
+        yuosd::capture::portal::interactive::tests::private_interactive_helper_reports_only_after_os_portal_close
     do
         grep -Fx -- "$fixture: test" <<< "$listing" >/dev/null
         sudo timeout --kill-after=5 45 unshare --mount --pid --net --fork --mount-proc --kill-child=KILL \
-            env "COS_CAPTURE_TEST_CLAWD=$CARGO_TARGET_DIR/debug/clawd" \
-                "COS_CAPTURE_PARENT_MNT=$(readlink /proc/self/ns/mnt)" \
-                "COS_CAPTURE_PARENT_PID=$(readlink /proc/self/ns/pid)" \
-                "COS_CAPTURE_PARENT_NET=$(readlink /proc/self/ns/net)" \
+            env "YUOS_CAPTURE_TEST_YUOSD=$CARGO_TARGET_DIR/debug/yuosd" \
+                "YUOS_CAPTURE_PARENT_MNT=$(readlink /proc/self/ns/mnt)" \
+                "YUOS_CAPTURE_PARENT_PID=$(readlink /proc/self/ns/pid)" \
+                "YUOS_CAPTURE_PARENT_NET=$(readlink /proc/self/ns/net)" \
             bash --noprofile --norc -c '
                 set -euo pipefail
                 mount --make-rprivate /
@@ -140,12 +140,12 @@ capture() {
 }
 
 app_bind() {
-    cargo build -p yu --bin yu --bin claw-app-runner --locked
+    cargo build -p yu --bin yu --bin yuos-app-runner --locked
     sudo apt-get install -y --no-install-recommends acl
     cargo test -p yu --lib --locked --no-run --message-format=json-render-diagnostics \
         > "$CARGO_TARGET_DIR/ordinary-custody-tests.jsonl"
     local test_binary
-    test_binary="$(cos_test_binary "$CARGO_TARGET_DIR/ordinary-custody-tests.jsonl")"
+    test_binary="$(yu_test_binary "$CARGO_TARGET_DIR/ordinary-custody-tests.jsonl")"
     local listing
     listing="$("$test_binary" --list)"
     local gate
@@ -154,7 +154,7 @@ app_bind() {
         pre_sandbox_custody_gate_preserves_stdio_and_refuses_unbound_execution
     do
         grep -Fx -- "bridge::captured::tests::process::$gate: test" <<< "$listing" > /dev/null
-        COS_CAPTURED_TEST_RUNNER="$CARGO_TARGET_DIR/debug/claw-app-runner" \
+        YUOS_CAPTURED_TEST_RUNNER="$CARGO_TARGET_DIR/debug/yuos-app-runner" \
             "$test_binary" --exact "bridge::captured::tests::process::$gate" \
             --ignored --nocapture --test-threads=1
     done
@@ -170,8 +170,8 @@ app_bind() {
         grep -Fx -- "extension_host::spawn::task_data::tests::store_custody::$fixture: test" \
             <<< "$listing" > /dev/null
         sudo timeout 150 unshare --mount --net --fork \
-            env COS_ORDINARY_TEST_COS="$CARGO_TARGET_DIR/debug/yu" \
-                COS_ORDINARY_TEST_RUNNER="$CARGO_TARGET_DIR/debug/claw-app-runner" \
+            env YUOS_ORDINARY_TEST_COS="$CARGO_TARGET_DIR/debug/yu" \
+                YUOS_ORDINARY_TEST_RUNNER="$CARGO_TARGET_DIR/debug/yuos-app-runner" \
             bash --noprofile --norc -c '
                 set -euo pipefail
                 mount --make-rprivate /
@@ -183,19 +183,19 @@ app_bind() {
 
 calendar() {
     cargo build -p yu --bin yu --locked
-    cargo build --manifest-path desktop/services/claw-applet-services/Cargo.toml \
+    cargo build --manifest-path desktop/services/yuos-applet-services/Cargo.toml \
         --features provider --bins --locked --target-dir "$RUNNER_TEMP/calendar-target"
     cargo test -p yu --lib --locked --no-run --message-format=json-render-diagnostics \
         > "$RUNNER_TEMP/calendar-tests.jsonl"
-    test_binary="$(cos_test_binary "$RUNNER_TEMP/calendar-tests.jsonl")"
+    test_binary="$(yu_test_binary "$RUNNER_TEMP/calendar-tests.jsonl")"
     sudo timeout 120 unshare --mount --net --fork \
-        env COS_CALENDAR_COS="$CARGO_TARGET_DIR/debug/yu" \
-            COS_CALENDAR_READER="$RUNNER_TEMP/calendar-target/debug/claw-calendar-reader" \
-            COS_CALENDAR_PROVIDER="$RUNNER_TEMP/calendar-target/debug/claw-os-applet-provider" \
+        env YUOS_CALENDAR_COS="$CARGO_TARGET_DIR/debug/yu" \
+            YUOS_CALENDAR_READER="$RUNNER_TEMP/calendar-target/debug/yuos-calendar-reader" \
+            YUOS_CALENDAR_PROVIDER="$RUNNER_TEMP/calendar-target/debug/yuos-applet-provider" \
         bash --noprofile --norc -c '
             set -euo pipefail
             mount --make-rprivate /
-            exec "$1" --exact clawd::calendar::tests::process::calendar_mcp_to_broker_reader_and_public_sdk \
+            exec "$1" --exact yuosd::calendar::tests::process::calendar_mcp_to_broker_reader_and_public_sdk \
                 --ignored --nocapture --test-threads=1
         ' private-calendar "$test_binary"
     sudo timeout 30 "$test_binary" \
@@ -205,7 +205,7 @@ calendar() {
 
 extensions() {
     sudo apt-get install -y --no-install-recommends acl binutils
-    cargo build -p yu --bin claw-agentd --bin claw-extension-host --bin claw-app-runner
+    cargo build -p yu --bin yuos-agentd --bin yuos-extension-host --bin yuos-app-runner
     cargo test -p yu \
         --test agentd_process_boundary \
         --test extension_host_boundary \
@@ -213,34 +213,34 @@ extensions() {
         > "$RUNNER_TEMP/extension-tests.jsonl"
     cargo test -p yu --lib --locked --no-run --message-format=json-render-diagnostics \
         > "$RUNNER_TEMP/service-retirement-tests.jsonl"
-    service_test_binary="$(cos_test_binary "$RUNNER_TEMP/service-retirement-tests.jsonl")"
+    service_test_binary="$(yu_test_binary "$RUNNER_TEMP/service-retirement-tests.jsonl")"
     private_extension_case 120 \
-        env COS_SERVICE_RETIREMENT_HOST="$CARGO_TARGET_DIR/debug/claw-extension-host" \
-        "$service_test_binary" --exact clawd::app_services::retirement::tests::process::service_retirement_keeps_custody_until_cleanup_succeeds \
+        env YUOS_SERVICE_RETIREMENT_HOST="$CARGO_TARGET_DIR/debug/yuos-extension-host" \
+        "$service_test_binary" --exact yuosd::app_services::retirement::tests::process::service_retirement_keeps_custody_until_cleanup_succeeds \
             --ignored --nocapture --test-threads=1
     private_extension_case 30 "$service_test_binary" \
         --exact extension_host::identity::tests::checked_release_retries_authenticated_marker_cleanup \
         --ignored --nocapture --test-threads=1
 
-    local restart_case=clawd::trust_withdrawal::tests::restart_process::root_controller_restart_keeps_unconfirmed_owner_scoped_outcome
+    local restart_case=yuosd::trust_withdrawal::tests::restart_process::root_controller_restart_keeps_unconfirmed_owner_scoped_outcome
     for fixture in "$restart_case" \
-        clawd::trust_withdrawal::tests::restart_process::controller_process \
-        clawd::trust_withdrawal::tests::restart_process::foreign_owner_process
+        yuosd::trust_withdrawal::tests::restart_process::controller_process \
+        yuosd::trust_withdrawal::tests::restart_process::foreign_owner_process
     do
         "$service_test_binary" --list | grep -Fx "$fixture: test" > /dev/null
     done
     sudo timeout 120 "$service_test_binary" --exact "$restart_case" \
         --ignored --nocapture --test-threads=1
 
-    readonly root=/opt/cos-boundary-tests
+    readonly root=/opt/yuos-boundary-tests
     sudo install -d -o root -g root -m 0755 "$root"
     cleanup() {
         sudo rm -rf -- "$root"
     }
     trap cleanup EXIT
 
-    agentd_test="$(cos_test_binary "$RUNNER_TEMP/extension-tests.jsonl" agentd_process_boundary test)"
-    extension_test="$(cos_test_binary "$RUNNER_TEMP/extension-tests.jsonl" extension_host_boundary test)"
+    agentd_test="$(yu_test_binary "$RUNNER_TEMP/extension-tests.jsonl" agentd_process_boundary test)"
+    extension_test="$(yu_test_binary "$RUNNER_TEMP/extension-tests.jsonl" extension_host_boundary test)"
     lib_test=$service_test_binary
     test -n "$agentd_test"
     test -n "$extension_test"
@@ -258,39 +258,39 @@ extensions() {
     fi
 
     sudo install -o root -g root -m 0755 \
-        target/debug/claw-agentd "$root/claw-agentd"
+        target/debug/yuos-agentd "$root/yuos-agentd"
     sudo install -o root -g root -m 0755 \
-        target/debug/claw-extension-host "$root/claw-extension-host"
+        target/debug/yuos-extension-host "$root/yuos-extension-host"
     sudo install -o root -g root -m 0755 \
-        target/debug/claw-app-runner "$root/claw-app-runner"
+        target/debug/yuos-app-runner "$root/yuos-app-runner"
     sudo install -o root -g root -m 0755 \
         "$agentd_test" "$root/agentd_process_boundary"
     sudo install -o root -g root -m 0755 \
         "$extension_test" "$root/extension_host_boundary"
     sudo install -o root -g root -m 0755 \
-        "$lib_test" "$root/cos_lib_tests"
+        "$lib_test" "$root/yu_lib_tests"
 
     private_extension_case 120 env \
         HOME=/root \
         SUDO_UID="$(id -u)" \
-        COS_PRIVILEGED_EXTENSION_HOST_BIN="$root/claw-extension-host" \
+        YUOS_PRIVILEGED_EXTENSION_HOST_BIN="$root/yuos-extension-host" \
         "$root/agentd_process_boundary" --test-threads=1
     private_extension_case 120 env \
         HOME=/root \
         SUDO_UID="$(id -u)" \
-        COS_PRIVILEGED_EXTENSION_HOST_BIN="$root/claw-extension-host" \
+        YUOS_PRIVILEGED_EXTENSION_HOST_BIN="$root/yuos-extension-host" \
         "$root/extension_host_boundary" --test-threads=1
     private_extension_case 120 env \
         HOME=/root \
         SUDO_UID="$(id -u)" \
-        COS_REQUIRE_PRIVILEGED_CHILD_TESTS=1 \
-        "$root/cos_lib_tests" extension_host::child_isolation::tests \
+        YUOS_REQUIRE_PRIVILEGED_CHILD_TESTS=1 \
+        "$root/yu_lib_tests" extension_host::child_isolation::tests \
         --test-threads=1
     private_extension_case 30 env \
         HOME=/root \
         SUDO_UID="$(id -u)" \
-        "$root/cos_lib_tests" \
-        clawd::memory::tests::root_legacy_reads_never_create_or_transfer_owner_state \
+        "$root/yu_lib_tests" \
+        yuosd::memory::tests::root_legacy_reads_never_create_or_transfer_owner_state \
         --exact --ignored --test-threads=1
 }
 
@@ -301,8 +301,8 @@ display() {
         if [[ "$selection" == native-calendar || "$selection" == native-desktop-widgets ]]; then
             cargo test -p yu --lib --locked native_calendar_readiness -- --test-threads=1
             cargo test -p yu --lib --locked native_calendar_popup -- --test-threads=1
-            cargo build --manifest-path desktop/services/claw-applet-services/Cargo.toml \
-                --bin claw-calendar-reader --locked --target-dir "$CARGO_TARGET_DIR/native-calendar-service"
+            cargo build --manifest-path desktop/services/yuos-applet-services/Cargo.toml \
+                --bin yuos-calendar-reader --locked --target-dir "$CARGO_TARGET_DIR/native-calendar-service"
         fi
         if [[ "$selection" == native-terminal ]]; then
             cargo test -p yu --lib --locked native_terminal_session_selection -- --test-threads=1
@@ -313,20 +313,20 @@ display() {
                 --release --locked -p pop-launcher-bin \
                 --target-dir "$CARGO_TARGET_DIR/native-launcher-service"
         fi
-        cargo test --manifest-path crates/claw-display-login/test/headless/Cargo.toml \
+        cargo test --manifest-path crates/yuos-display-login/test/headless/Cargo.toml \
             --locked -- keyboard_plan_refuses pointer_plan_refuses calendar_snapshot --test-threads=1
         python3 -B scripts/ci/native_editor_payload.py \
             --product "${selection#native-}" \
             --output "$GITHUB_WORKSPACE/build/$selection-input" \
             --target-dir "$CARGO_TARGET_DIR/$selection"
     fi
-    cargo test -p claw-display-control -p claw-display-login --locked -- --test-threads=1
-    cargo clippy -p claw-display-control -p claw-display-login --all-targets --locked -- -D warnings
-    cargo build -p yu --locked --bin yu --bin claw-display-host \
-        --bin claw-display-session --bin claw-gui-runner --bin claw-app-runner \
-        --bin claw-file-manager --bin claw-notification-panel
+    cargo test -p yuos-display-control -p yuos-display-login --locked -- --test-threads=1
+    cargo clippy -p yuos-display-control -p yuos-display-login --all-targets --locked -- -D warnings
+    cargo build -p yu --locked --bin yu --bin yuos-display-host \
+        --bin yuos-display-session --bin yuos-gui-runner --bin yuos-app-runner \
+        --bin yuos-file-manager --bin yuos-notification-panel
     if [[ "$selection" == native-capture ]]; then
-        cargo build -p yu --locked --bin clawd
+        cargo build -p yu --locked --bin yuosd
     fi
     if [[ "$selection" == native-notifications ]]; then
         cargo build -p yu --locked --example notification-panel-fixture
@@ -337,22 +337,22 @@ display() {
             command -v "$program" >/dev/null
         done
         python3 -I -c 'import apt_pkg'
-        cargo build -p yu --locked --bin claw-app-apt-hook --bin claw-extension-host
+        cargo build -p yu --locked --bin yuos-app-apt-hook --bin yuos-extension-host
         cargo test -p yu --lib --locked -- native_package_window \
             operation_bound_grant_sets_preserve_digest_bounds_and_atomicity \
             issuance_never_extends_a_fixed_operation_deadline \
             --test-threads=1
     fi
-    cargo test -p yu --bin claw-file-manager --locked -- --test-threads=1
-    cargo build -p claw-display-login --locked
+    cargo test -p yu --bin yuos-file-manager --locked -- --test-threads=1
+    cargo build -p yuos-display-login --locked
     cargo test -p yu --lib --locked --no-run --message-format=json-render-diagnostics \
         > "$CARGO_TARGET_DIR/gui-tests.jsonl"
-    test_binary="$(cos_test_binary "$CARGO_TARGET_DIR/gui-tests.jsonl")"
-    cargo clippy --manifest-path crates/claw-display-login/test/headless/Cargo.toml \
+    test_binary="$(yu_test_binary "$CARGO_TARGET_DIR/gui-tests.jsonl")"
+    cargo clippy --manifest-path crates/yuos-display-login/test/headless/Cargo.toml \
         --locked --all-targets -- -D warnings
-    cargo build --manifest-path crates/claw-display-login/test/headless/Cargo.toml --locked
+    cargo build --manifest-path crates/yuos-display-login/test/headless/Cargo.toml --locked
     cc -std=c11 -Wall -Wextra -Werror \
-        crates/claw-display-login/test/fixtures/pam_login.c \
+        crates/yuos-display-login/test/fixtures/pam_login.c \
         -lpam -ldl -o "$CARGO_TARGET_DIR/pam-login-fixture"
     mkdir -p "$GITHUB_WORKSPACE/build"
     if [[ "$selection" == display || "$selection" == native-fs || "$selection" == native-editor || "$selection" == native-files || "$selection" == native-capture || "$selection" == native-media-player ]]; then
@@ -374,16 +374,16 @@ display() {
             selectors=(--native-fs-only)
         elif [[ "$fixture_mode" == native-calendar || "$fixture_mode" == native-desktop-widgets ]]; then
             selectors=("--$fixture_mode-only" "$GITHUB_WORKSPACE/build/$fixture_mode-input"
-                "$CARGO_TARGET_DIR/native-calendar-service/debug/claw-calendar-reader")
+                "$CARGO_TARGET_DIR/native-calendar-service/debug/yuos-calendar-reader")
         elif [[ "$fixture_mode" == native-launcher ]]; then
             selectors=("--$fixture_mode-only" "$GITHUB_WORKSPACE/build/$fixture_mode-input"
                 "$CARGO_TARGET_DIR/native-launcher-service/release/pop-launcher-bin")
         elif [[ "$fixture_mode" == native-capture ]]; then
             selectors=("--native-capture-only" "$GITHUB_WORKSPACE/build/native-capture-input"
-                "$CARGO_TARGET_DIR/debug/clawd")
+                "$CARGO_TARGET_DIR/debug/yuosd")
         elif [[ "$fixture_mode" == native-notifications || "$fixture_mode" == native-notifications-revoke ]]; then
             selectors=("--$fixture_mode-only" "$GITHUB_WORKSPACE/build/native-notifications-input"
-                "$CARGO_TARGET_DIR/debug/claw-notification-panel"
+                "$CARGO_TARGET_DIR/debug/yuos-notification-panel"
                 "$CARGO_TARGET_DIR/debug/examples/notification-panel-fixture")
         elif [[ "$fixture_mode" == native-store-package ]]; then
             selectors=(--native-store-package-only "$GITHUB_WORKSPACE/build/native-store-input")
@@ -402,20 +402,20 @@ display() {
         local isolated=(sudo timeout "$fixture_timeout" unshare --mount --net --ipc --uts --fork)
         if [[ "$fixture_mode" == native-package || "$fixture_mode" == native-store-package ]]; then
             isolated=(sudo timeout --kill-after=5 "$fixture_timeout" unshare --mount --pid --net --ipc --uts --fork --mount-proc --kill-child=KILL
-                env "COS_APP_APT_PARENT_MNT=$(readlink /proc/self/ns/mnt)"
-                    "COS_APP_APT_PARENT_PID=$(readlink /proc/self/ns/pid)"
-                    "COS_APP_APT_PARENT_NET=$(readlink /proc/self/ns/net)"
-                    "COS_APP_APT_TEST_HOOK=$CARGO_TARGET_DIR/debug/claw-app-apt-hook"
-                    "COS_APP_APT_TEST_HOST=$CARGO_TARGET_DIR/debug/claw-extension-host")
+                env "YUOS_APP_APT_PARENT_MNT=$(readlink /proc/self/ns/mnt)"
+                    "YUOS_APP_APT_PARENT_PID=$(readlink /proc/self/ns/pid)"
+                    "YUOS_APP_APT_PARENT_NET=$(readlink /proc/self/ns/net)"
+                    "YUOS_APP_APT_TEST_HOOK=$CARGO_TARGET_DIR/debug/yuos-app-apt-hook"
+                    "YUOS_APP_APT_TEST_HOST=$CARGO_TARGET_DIR/debug/yuos-extension-host")
         fi
-        "${isolated[@]}" bash --noprofile --norc crates/claw-display-login/test/fixtures/bootstrap.sh \
-            "$test_binary" "$CARGO_TARGET_DIR/debug/claw-display-host" \
+        "${isolated[@]}" bash --noprofile --norc crates/yuos-display-login/test/fixtures/bootstrap.sh \
+            "$test_binary" "$CARGO_TARGET_DIR/debug/yuos-display-host" \
             "$CARGO_TARGET_DIR/debug/claw-display-headless-fixture" \
             "$CARGO_TARGET_DIR/debug/libpam_claw_display.so" \
             "$CARGO_TARGET_DIR/pam-login-fixture" "$private" \
-            "$CARGO_TARGET_DIR/debug/yu" "$CARGO_TARGET_DIR/debug/claw-gui-runner" \
-            "$CARGO_TARGET_DIR/debug/claw-app-runner" "$CARGO_TARGET_DIR/debug/claw-gui-probe" \
-            "$CARGO_TARGET_DIR/debug/claw-display-session" "$CARGO_TARGET_DIR/debug/claw-file-manager" \
+            "$CARGO_TARGET_DIR/debug/yu" "$CARGO_TARGET_DIR/debug/yuos-gui-runner" \
+            "$CARGO_TARGET_DIR/debug/yuos-app-runner" "$CARGO_TARGET_DIR/debug/claw-gui-probe" \
+            "$CARGO_TARGET_DIR/debug/yuos-display-session" "$CARGO_TARGET_DIR/debug/yuos-file-manager" \
             "${selectors[@]}"
     done
     if [[ "$selection" != display ]]; then
@@ -454,7 +454,7 @@ display() {
         persistent_service_data_survives_uid_and_host_replacement \
         service_data_refuses_aliases_foreign_owners_submounts_and_replaced_bindings; do
         sudo timeout 90 unshare --mount --net --fork \
-            env COS_APP_DATA_TEST_COS="$CARGO_TARGET_DIR/debug/yu" \
+            env YUOS_APP_DATA_TEST_COS="$CARGO_TARGET_DIR/debug/yu" \
             bash --noprofile --norc -c '
                 set -euo pipefail
                 mount --make-rprivate /
@@ -462,8 +462,8 @@ display() {
             ' private-app-data "$test_binary" "extension_host::spawn::app_data::tests::$data_case"
     done
     sudo timeout 100 unshare --mount --net --fork \
-        env COS_APP_DATA_TEST_COS="$CARGO_TARGET_DIR/debug/yu" \
-            COS_APP_DATA_TEST_RUNNER="$CARGO_TARGET_DIR/debug/claw-app-runner" \
+        env YUOS_APP_DATA_TEST_COS="$CARGO_TARGET_DIR/debug/yu" \
+            YUOS_APP_DATA_TEST_RUNNER="$CARGO_TARGET_DIR/debug/yuos-app-runner" \
         bash --noprofile --norc -c '
             set -euo pipefail
             mount --make-rprivate /
@@ -473,9 +473,9 @@ display() {
 }
 
 applets() {
-    manifest=desktop/services/claw-applet-services/Cargo.toml
-    cargo test -p claw-os-sdk --lib --locked -- --test-threads=1
-    cargo clippy -p claw-os-sdk --all-targets --locked -- -D warnings
+    manifest=desktop/services/yuos-applet-services/Cargo.toml
+    cargo test -p yuos-sdk --lib --locked -- --test-threads=1
+    cargo clippy -p yuos-sdk --all-targets --locked -- -D warnings
     cargo test --manifest-path "$manifest" --lib --locked -- --test-threads=1
     cargo test --manifest-path "$manifest" --features provider --locked -- --test-threads=1
     cargo clippy --manifest-path "$manifest" --features provider --all-targets --locked -- -D warnings
@@ -492,9 +492,9 @@ with open(sys.argv[1], encoding="utf-8") as handle:
                if row.get("executable") and row["target"]["name"] == "kernel_policy"))
 PY
     )"
-    sudo python3 desktop/services/claw-applet-services/test/support/run_kernel_fixture.py \
+    sudo python3 desktop/services/yuos-applet-services/test/support/run_kernel_fixture.py \
         --kernel "$CARGO_TARGET_DIR/debug/yu" \
-        --provider "$CARGO_TARGET_DIR/debug/claw-os-applet-provider" \
+        --provider "$CARGO_TARGET_DIR/debug/yuos-applet-provider" \
         --test-binary "$test_binary" \
         --work-dir "$CARGO_TARGET_DIR/applet-kernel-fixtures"
 }

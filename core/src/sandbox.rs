@@ -1,7 +1,7 @@
 //! The agent's sandbox tool.
 //!
-//! Exposed only as `cos_sandbox` in
-//! [`crate::agent::tools::cos_proxy`], not as a user-facing CLI
+//! Exposed only as `yu_sandbox` in
+//! [`crate::agent::tools::yu_proxy`], not as a user-facing CLI
 //! primitive. The agent uses it to run model-generated or otherwise
 //! untrusted commands.
 //!
@@ -49,7 +49,7 @@ struct ExecRequest {
 /// Execute a command in an isolated sandbox.
 ///
 /// Args mirror the agent tool schema in
-/// `agent::tools::cos_proxy::PRIMITIVES`:
+/// `agent::tools::yu_proxy::PRIMITIVES`:
 ///   [--allow-host HOST:PORT]... [--rw] [--workspace DIR]
 ///   [--mem LIMIT] [--cpu PERCENT] [--pids MAX] [--timeout SECS]
 ///   -- <command> [args...]

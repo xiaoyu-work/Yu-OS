@@ -404,8 +404,8 @@ async fn tool_exec_clear_via_json() {
 async fn read_only_and_write_only_sessions_enforce_each_command() {
     let _lock = crate::test_env::lock_env();
     let (store, _g) = tmp_store();
-    let _mode = crate::test_env::TestEnvVarGuard::set("COS_PERMS_MODE", "strict");
-    let _caps = crate::test_env::TestEnvVarGuard::set("COS_CAPS_DATA_DIR", _g.path());
+    let _mode = crate::test_env::TestEnvVarGuard::set("YUOS_PERMS_MODE", "strict");
+    let _caps = crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", _g.path());
     store
         .write(
             "s1",
@@ -449,7 +449,7 @@ async fn read_only_and_write_only_sessions_enforce_each_command() {
 #[test]
 fn tool_metadata() {
     let tool = Todo::new(TodoStore::new(std::env::temp_dir()));
-    assert_eq!(tool.name(), "cos_todo");
+    assert_eq!(tool.name(), "yu_todo");
     assert!(tool.description().contains("task list"));
     let schema = tool.input_schema();
     assert_eq!(schema["required"][0], "command");

@@ -684,9 +684,9 @@ fn activity_operation_preview_preserves_argv_and_rejects_identity_or_effect_clai
 
 #[tokio::test]
 async fn activity_run_and_read_errors_use_the_shared_broker_without_fallback() {
-    use crate::clawd::protocol::{Request, Response};
-    use crate::clawd::transport::frame;
-    use crate::clawd::wire::{HEADER_BYTES, KIND_REQUEST, KIND_RESPONSE, MAX_REQUEST_BYTES};
+    use crate::yuosd::protocol::{Request, Response};
+    use crate::yuosd::transport::frame;
+    use crate::yuosd::wire::{HEADER_BYTES, KIND_REQUEST, KIND_RESPONSE, MAX_REQUEST_BYTES};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::UnixListener;
 
@@ -698,12 +698,12 @@ async fn activity_run_and_read_errors_use_the_shared_broker_without_fallback() {
         .strip_prefix(&current_directory)
         .map(std::path::Path::to_path_buf)
         .unwrap_or_else(|_| directory.path().to_path_buf());
-    let socket = runtime_directory.join("clawd.sock");
+    let socket = runtime_directory.join("yuosd.sock");
     let _runtime = RuntimeDirectory {
-        previous: std::env::var_os("COS_RUNTIME_DIR"),
+        previous: std::env::var_os("YUOS_RUNTIME_DIR"),
         directory,
     };
-    std::env::set_var("COS_RUNTIME_DIR", runtime_directory);
+    std::env::set_var("YUOS_RUNTIME_DIR", runtime_directory);
     let listener = UnixListener::bind(socket).unwrap();
     let job = json!({
         "id": "job-1", "status": "pending",
@@ -1196,7 +1196,7 @@ async fn activity_decode_failures_are_readable_json_errors_before_broker_access(
         (
             "POST",
             "/activities/continuity/import",
-            r#"{"placement":"local","document":{"kind":"claw_os.activity_continuity","schema_version":1,"lineage":{"id":"00000000-0000-4000-8000-000000000123","revision":"7"},"snapshot":"sha256:invalid","intent":{"title":"Release","goal":"Publish","completion_criteria":"","boundaries":""},"references":[],"rules":{"execution_limits":null,"scheduling":null}},"owner_uid":0}"#,
+            r#"{"placement":"local","document":{"kind":"yuos.activity_continuity","schema_version":1,"lineage":{"id":"00000000-0000-4000-8000-000000000123","revision":"7"},"snapshot":"sha256:invalid","intent":{"title":"Release","goal":"Publish","completion_criteria":"","boundaries":""},"references":[],"rules":{"execution_limits":null,"scheduling":null}},"owner_uid":0}"#,
         ),
         (
             "POST",
@@ -1333,8 +1333,8 @@ struct RuntimeDirectory {
 impl Drop for RuntimeDirectory {
     fn drop(&mut self) {
         match self.previous.take() {
-            Some(value) => std::env::set_var("COS_RUNTIME_DIR", value),
-            None => std::env::remove_var("COS_RUNTIME_DIR"),
+            Some(value) => std::env::set_var("YUOS_RUNTIME_DIR", value),
+            None => std::env::remove_var("YUOS_RUNTIME_DIR"),
         }
     }
 }

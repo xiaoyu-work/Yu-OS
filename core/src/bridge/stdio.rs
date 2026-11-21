@@ -123,7 +123,7 @@ fn run_app_stdio_inner(
     if matches!(launch.manifest().runtime, Runtime::Python) {
         argv.insert(0, "-I".to_string());
     }
-    let runner = Path::new("/usr/local/bin/claw-app-runner")
+    let runner = Path::new("/usr/local/bin/yuos-app-runner")
         .canonicalize()
         .map_err(|error| format!("resolve App launch runner: {error}"))?;
     program_is_trusted(&runner)?;
@@ -203,7 +203,7 @@ fn stdio_session(
     args: &[String],
 ) -> Result<(AppIdentitySession, Vec<String>), String> {
     stdio_entry(launch, operation)?;
-    if !super::use_clawd_app_session_backend()? {
+    if !super::use_yuosd_app_session_backend()? {
         return AppIdentitySession::for_operation(launch, launch.app_id(), operation, args);
     }
     let bound = super::bind_operation_args(&launch.manifest().operations[operation], args)?;
@@ -220,7 +220,7 @@ fn stdio_session(
     )?;
     let result =
         super::consent::register_with_wait(launch.app_id(), params).map_err(String::from)?;
-    let session = AppIdentitySession::from_clawd_registration(
+    let session = AppIdentitySession::from_yuosd_registration(
         launch.app_id(),
         result,
         None,
@@ -245,8 +245,8 @@ fn program_is_trusted(program: &Path) -> Result<(), String> {
 
 fn validate_runtime_overrides() -> Result<(), String> {
     for (name, expected) in [
-        ("COS_BIN", "/usr/local/bin/yu"),
-        ("COS_SDK_PYTHON_DIR", "/usr/lib/cos/python"),
+        ("YUOS_BIN", "/usr/local/bin/yu"),
+        ("YUOS_SDK_PYTHON_DIR", "/usr/lib/yuos/python"),
     ] {
         if std::env::var_os(name).is_some_and(|value| value != std::ffi::OsStr::new(expected)) {
             return Err(format!(
@@ -282,14 +282,14 @@ fn prepare_stdio_worker(
     ];
     gated_argv.extend(argv);
     let extra_env = BTreeMap::from([
-        ("COS_COMMAND".to_string(), operation.to_string()),
+        ("YUOS_COMMAND".to_string(), operation.to_string()),
         (
-            "COS_ARGS_JSON".to_string(),
+            "YUOS_ARGS_JSON".to_string(),
             serde_json::to_string(args)
                 .map_err(|error| format!("serialize App arguments: {error}"))?,
         ),
         (
-            "COS_APP_MANIFEST".to_string(),
+            "YUOS_APP_MANIFEST".to_string(),
             launch
                 .dir()
                 .join(launch.package().manifest_path())
@@ -297,10 +297,10 @@ fn prepare_stdio_worker(
                 .into_owned(),
         ),
         (
-            "COS_SDK_PYTHON_DIR".to_string(),
-            "/usr/lib/cos/python".to_string(),
+            "YUOS_SDK_PYTHON_DIR".to_string(),
+            "/usr/lib/yuos/python".to_string(),
         ),
-        ("CLAW_COS_BIN".to_string(), "/usr/local/bin/yu".to_string()),
+        ("YUOS_KERNEL_BIN".to_string(), "/usr/local/bin/yu".to_string()),
     ]);
     super::prepare_app_worker(
         session,

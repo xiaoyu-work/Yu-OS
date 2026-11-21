@@ -83,7 +83,7 @@ fi
 ln -sfn /workspace "$home/workspace"
 chown -h "$uid:$gid" "$home/workspace"
 
-printf 'COS_HOME=%s\n' "$home" > /etc/default/cos-home
+printf 'YUOS_HOME=%s\n' "$home" > /etc/default/yuos-home
 
 created_user=""
 created_group=""

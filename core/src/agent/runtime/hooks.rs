@@ -15,7 +15,7 @@
 //!     boundaries; today this is inlined in the loop, but the hook
 //!     is the migration target).
 //!   * Per-tool consent gating that's distinct from the existing
-//!     [`approval`](super::approval) flow — e.g. "if `cos_shell`
+//!     [`approval`](super::approval) flow — e.g. "if `yu_shell`
 //!     touches `/etc/`, require explicit approval even if
 //!     auto-approved by name".
 //!   * External telemetry (Langfuse / OpenTelemetry export at
@@ -692,12 +692,12 @@ impl CheckpointCreator for ProductionCheckpointCreator {
 /// `CheckpointHook` with their own list via [`CheckpointHook::with_dangerous`].
 pub fn default_dangerous_tools() -> std::collections::HashSet<String> {
     [
-        "cos_sandbox",
-        "cos_proc",
-        "cos_credential",
-        "cos_oauth_login",
-        "cos_cron",
-        "cos_netfilter",
+        "yu_sandbox",
+        "yu_proc",
+        "yu_credential",
+        "yu_oauth_login",
+        "yu_cron",
+        "yu_netfilter",
     ]
     .into_iter()
     .map(String::from)

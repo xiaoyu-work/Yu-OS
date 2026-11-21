@@ -18,21 +18,21 @@ use crate::activities::{
     MAX_TOTAL_MICROUSD,
 };
 use crate::agent::web::auth::AuthenticatedToken;
-use crate::clawd::routes::Command;
-use crate::clawd::wire::requests::{
+use crate::yuosd::routes::Command;
+use crate::yuosd::wire::requests::{
     ActivityCapabilityPolicyEnabled, ActivityCapabilityPolicyGet, ActivityCapabilityPolicySet,
     ActivityContinuityExport, ActivityContinuityImport as ActivityContinuityImportRequest,
     ActivityExecutionLimitsEnabled, ActivityExecutionLimitsGet, ActivityExecutionLimitsSet,
     ActivityMonetaryBudgetEnabled, ActivityMonetaryBudgetGet, ActivityMonetaryBudgetSet,
     ActivitySchedulingPolicyGet, ActivitySchedulingPolicySet,
 };
-use crate::clawd::wire::requests::{
+use crate::yuosd::wire::requests::{
     ActivityCreate, ActivityGet, ActivityList, ActivityObjectAttach, ActivityObjectState,
     ActivityObjectStateRecord, ActivityObjects, ActivityOperationPreview, ActivityReceipts,
     ActivityRun, ActivityTransition, ActivityUpdate, NoBody,
 };
 
-use super::clawd::ApiError;
+use super::yuosd::ApiError;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -989,10 +989,10 @@ async fn request(command: Command, body: impl Serialize) -> Result<Json<Value>, 
             Json(json!({ "error": format!("encode Activity request: {error}") })),
         )
     })?;
-    super::clawd::request(command, params)
+    super::yuosd::request(command, params)
         .await
         .map(Json)
-        .map_err(super::clawd::RpcError::into_api_error)
+        .map_err(super::yuosd::RpcError::into_api_error)
 }
 
 fn bad_request(message: impl Into<String>) -> ApiError {

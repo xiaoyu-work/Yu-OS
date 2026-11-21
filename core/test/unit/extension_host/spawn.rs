@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn host_environment_is_an_allowlist_without_broker_or_credentials() {
     for key in INHERITED_ENV_KEYS {
-        assert!(!key.starts_with("CLAWD_"), "{key}");
+        assert!(!key.starts_with("YUOSD_"), "{key}");
         let lowered = key.to_ascii_lowercase();
         for secret in ["token", "secret", "password", "credential", "api_key"] {
             assert!(!lowered.contains(secret), "{key}");
@@ -11,8 +11,8 @@ fn host_environment_is_an_allowlist_without_broker_or_credentials() {
     }
     assert!(!INHERITED_ENV_KEYS.contains(&"HOME"));
     assert!(!INHERITED_ENV_KEYS.contains(&"PATH"));
-    assert!(!INHERITED_ENV_KEYS.contains(&"COS_DATA_DIR"));
-    assert!(!INHERITED_ENV_KEYS.contains(&"COS_USER_DATA_DIR"));
+    assert!(!INHERITED_ENV_KEYS.contains(&"YUOS_DATA_DIR"));
+    assert!(!INHERITED_ENV_KEYS.contains(&"YUOS_USER_DATA_DIR"));
 }
 
 #[test]

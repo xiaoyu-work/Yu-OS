@@ -57,7 +57,7 @@ and the owner-scoped broker contract; only their presentations differ.
 | `sqlite/workspaces.rs` | Schema-10 owner context domains, shared notes, recursive source tags and Activity membership |
 | `capability_policy.rs` | Strict capability-rule DTOs, canonicalization and pure constraint decisions |
 | `sqlite/capability_policy.rs` | Owner-scoped capability policy CAS, revocation and schema-5 migration |
-| `../clawd/activities.rs` | Owner-scoped broker consumer and execution projections |
+| `../yuosd/activities.rs` | Owner-scoped broker consumer and execution projections |
 | `../activity.rs` | Terminal presentation |
 | `../../test/unit/activities/` | Domain and provider unit tests |
 
@@ -125,7 +125,7 @@ execution/continuity ledgers. Workspace deletion clears shared bytes and
 pauses member goals but does not remove their evidence or source files.
 
 `DATABASE_SCHEMA_VERSION = 10` controls SQLite `user_version` and migration.
-The broker independently owns `clawd::activities::WIRE_SCHEMA_VERSION = 1`
+The broker independently owns `yuosd::activities::WIRE_SCHEMA_VERSION = 1`
 for `activity.list` and `activity.get`; it does not emit the database version.
 The existing public `activities::SCHEMA_VERSION = 1` is retained for wire
 compatibility. Database upgrades do not change Activity response schemas or DTOs.

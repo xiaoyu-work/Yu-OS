@@ -142,7 +142,7 @@ impl SkillDisclosure {
 #[async_trait]
 impl Tool for SkillDisclosure {
     fn name(&self) -> &str {
-        "cos_skill"
+        "yu_skill"
     }
 
     fn description(&self) -> &str {
@@ -200,7 +200,7 @@ impl Tool for SkillDisclosure {
                     timestamp: Utc::now().to_rfc3339(),
                     success: result.is_ok(),
                     duration_ms: started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64,
-                    invoked_by: Some(format!("cos_skill:{command}")),
+                    invoked_by: Some(format!("yu_skill:{command}")),
                     resource_path: (command == "resource")
                         .then(|| {
                             input
@@ -217,7 +217,7 @@ impl Tool for SkillDisclosure {
                     .unwrap_or_else(crate::paths::agent_skills_usage_path);
                 let store = UsageStore::new(usage_path);
                 if let Err(error) = store.record(&record) {
-                    tracing::warn!("cos_skill: failed to record usage: {error}");
+                    tracing::warn!("yu_skill: failed to record usage: {error}");
                 }
             }
         }

@@ -143,7 +143,7 @@
         let audio = create_temp_audio(directory.path(), "wav", b"RIFF")
             .await
             .expect("create temporary audio");
-        let stub = directory.path().join("cos-stub");
+        let stub = directory.path().join("yuos-stub");
         let mut file = OpenOptions::new()
             .write(true)
             .create_new(true)

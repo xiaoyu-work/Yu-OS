@@ -1,10 +1,10 @@
-# install.ps1 — Helper to install claw-os into WSL2 on Windows.
+# install.ps1 — Helper to install yuos into WSL2 on Windows.
 #
 # Usage (run in PowerShell):
 #   .\install.ps1                                            # default settings
-#   .\install.ps1 -DistroName claw-os-dev                    # custom name
-#   .\install.ps1 -InstallPath D:\WSL\claw-os                # custom location
-#   .\install.ps1 -Package .\claw-os-wsl-amd64.wsl           # explicit package
+#   .\install.ps1 -DistroName yuos-dev                    # custom name
+#   .\install.ps1 -InstallPath D:\WSL\yuos                # custom location
+#   .\install.ps1 -Package .\yuos-wsl-amd64.wsl           # explicit package
 #
 # By default the package name is selected from the host CPU architecture
 # ($env:PROCESSOR_ARCHITECTURE → amd64 or arm64) so the same script
@@ -17,8 +17,8 @@
 
 [CmdletBinding()]
 param(
-    [string]$DistroName  = "claw-os",
-    [string]$InstallPath = "$env:LOCALAPPDATA\WSL\claw-os",
+    [string]$DistroName  = "yuos",
+    [string]$InstallPath = "$env:LOCALAPPDATA\WSL\yuos",
     [string]$Package     = ""
 )
 
@@ -26,7 +26,7 @@ $ErrorActionPreference = "Stop"
 
 if (-not $Package) {
     $archSuffix = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "amd64" }
-    $Package    = "$PSScriptRoot\..\..\build\claw-os-wsl-$archSuffix.wsl"
+    $Package    = "$PSScriptRoot\..\..\build\yuos-wsl-$archSuffix.wsl"
 }
 
 if (-not (Test-Path $Package -PathType Leaf)) {

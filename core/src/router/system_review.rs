@@ -4,20 +4,20 @@ use std::io::{BufRead, IsTerminal, Write};
 use std::path::Path;
 use std::process::Stdio;
 
-use clawd_client::system_review::{
+use yuosd_client::system_review::{
     display_text, format_terminal, AppReviewDecision, PendingReviews, PermissionSelection, ReviewAction,
     ReviewDecision, ReviewKind, ReviewStatus, ReviewSubmission, SystemReview,
 };
 use serde_json::{json, Value};
 
 use crate::apps::permission_review::PermissionReview;
-use crate::clawd::routes::Command;
+use crate::yuosd::routes::Command;
 use crate::provenance::runtime::PackageRef;
 
 fn request(command: Command, params: Value) -> Result<Value, String> {
-    let response = crate::clawd::client::request_blocking(
-        crate::clawd::config::socket_path(),
-        crate::clawd::protocol::Request::build(command, params),
+    let response = crate::yuosd::client::request_blocking(
+        crate::yuosd::config::socket_path(),
+        crate::yuosd::protocol::Request::build(command, params),
     )
     .map_err(|error| format!("system review service is unavailable: {error}"))?;
     if !response.ok {
@@ -148,7 +148,7 @@ fn helper_decision(
         .encode_for(review)
         .map_err(|error| error.to_string())?;
     let mut child = std::process::Command::new("/usr/bin/pkexec")
-        .arg("/usr/local/bin/claw-approval-helper")
+        .arg("/usr/local/bin/yuos-approval-helper")
         .arg("--system-review-json")
         .stdin(Stdio::piped())
         .stderr(Stdio::inherit())

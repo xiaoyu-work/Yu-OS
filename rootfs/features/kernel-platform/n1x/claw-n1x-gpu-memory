@@ -65,4 +65,4 @@ if __name__ == "__main__":
     try:
         main()
     except (OSError, ValueError, subprocess.SubprocessError) as error:
-        raise SystemExit(f"Claw OS N1x: {error}") from error
+        raise SystemExit(f"Yu OS N1x: {error}") from error

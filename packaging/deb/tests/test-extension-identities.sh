@@ -4,19 +4,19 @@ set -euo pipefail
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../../.." && pwd)
-HELPER="$PROJECT_DIR/packaging/deb/claw-os-agent/extension-identities.sh"
-PREINST="$PROJECT_DIR/packaging/deb/claw-os-agent/preinst"
-POSTINST="$PROJECT_DIR/packaging/deb/claw-os-agent/postinst"
-POSTRM="$PROJECT_DIR/packaging/deb/claw-os-agent/postrm"
+HELPER="$PROJECT_DIR/packaging/deb/yuos-agent/extension-identities.sh"
+PREINST="$PROJECT_DIR/packaging/deb/yuos-agent/preinst"
+POSTINST="$PROJECT_DIR/packaging/deb/yuos-agent/postinst"
+POSTRM="$PROJECT_DIR/packaging/deb/yuos-agent/postrm"
 SCRATCH="$PROJECT_DIR/.test-extension-identities.$$"
 trap 'rm -rf "$SCRATCH"' EXIT
 mkdir -p "$SCRATCH/bin" "$SCRATCH/etc" "$SCRATCH/proc" "$SCRATCH/scan" "$SCRATCH/state" "$SCRATCH/systemd"
 
 export MOCK_ETC="$SCRATCH/etc"
-export COS_IDENTITY_ETC_DIR="$SCRATCH/etc"
-export COS_IDENTITY_PROC_DIR="$SCRATCH/proc"
-export COS_IDENTITY_SYSTEMD_DIR="$SCRATCH/systemd"
-export COS_IDENTITY_STATE_DIR="$SCRATCH/state"
+export YUOS_IDENTITY_ETC_DIR="$SCRATCH/etc"
+export YUOS_IDENTITY_PROC_DIR="$SCRATCH/proc"
+export YUOS_IDENTITY_SYSTEMD_DIR="$SCRATCH/systemd"
+export YUOS_IDENTITY_STATE_DIR="$SCRATCH/state"
 export PATH="$SCRATCH/bin:$PATH"
 
 cat > "$SCRATCH/bin/id" <<'EOF'
@@ -169,8 +169,8 @@ EOF
 
 chmod +x "$SCRATCH/bin/"*
 
-sed -e 's/^COS_EXT_UID_COUNT=64$/COS_EXT_UID_COUNT=4/' \
-    -e 's/\[ "$COS_EXT_UID_COUNT" -eq 64 \]/[ "$COS_EXT_UID_COUNT" -eq 4 ]/' \
+sed -e 's/^YUOS_EXT_UID_COUNT=64$/YUOS_EXT_UID_COUNT=4/' \
+    -e 's/\[ "$YUOS_EXT_UID_COUNT" -eq 64 \]/[ "$YUOS_EXT_UID_COUNT" -eq 4 ]/' \
     "$HELPER" > "$SCRATCH/extension-identities.sh"
 # shellcheck source=/dev/null
 . "$SCRATCH/extension-identities.sh"
@@ -189,15 +189,15 @@ reset_fixture() {
     : > "$SCRATCH/etc/subuid"
     : > "$SCRATCH/etc/subgid"
     unset MOCK_FAIL_USER MOCK_PARTIAL_USERADD MOCK_HOMED_IDENTITY
-    identity_effective_gid=$COS_EXT_GID
+    identity_effective_gid=$YUOS_EXT_GID
 }
 
 populate_correct_accounts() {
-    echo "cos-extension:x:60999:" > "$SCRATCH/etc/group"
+    echo "yuos-extension:x:60999:" > "$SCRATCH/etc/group"
     for index in $(seq 0 3); do
-        name=$(printf 'cos-ext-%02d' "$index")
+        name=$(printf 'yuos-ext-%02d' "$index")
         uid=$((61000 + index))
-        echo "$name:x:$uid:60999:Claw OS extension slot $index:/nonexistent:/usr/sbin/nologin" \
+        echo "$name:x:$uid:60999:Yu OS extension slot $index:/nonexistent:/usr/sbin/nologin" \
             >> "$SCRATCH/etc/passwd"
         echo "$name:!:20000:0:99999:7:::" >> "$SCRATCH/etc/shadow"
     done
@@ -208,28 +208,28 @@ identity_provision || fail "fresh provisioning failed"
 [ "$(wc -l < "$SCRATCH/etc/passwd")" -eq 4 ] || fail "fresh install did not create test users"
 identity_finalize || fail "fresh finalize failed"
 [ "$(wc -l < "$identity_reserved_manifest")" -eq 6 ] || fail "reservation manifest incomplete"
-grep -q '^user:cos-ext-00:61000:60999$' "$identity_owned_manifest" ||
+grep -q '^user:yuos-ext-00:61000:60999$' "$identity_owned_manifest" ||
     fail "package ownership marker missing first user"
 identity_provision || fail "safe upgrade of package-owned users failed"
 identity_finalize || fail "safe upgrade finalize failed"
 [ "$(wc -l < "$SCRATCH/etc/passwd")" -eq 4 ] || fail "upgrade duplicated users"
 
 reset_fixture
-echo "cos-extension:x:998:" > "$SCRATCH/etc/group"
+echo "yuos-extension:x:998:" > "$SCRATCH/etc/group"
 identity_provision upgrade 0.1.0 || fail "safe legacy gid retention failed"
-grep -q '^cos-ext-00:x:61000:998:' "$SCRATCH/etc/passwd" ||
+grep -q '^yuos-ext-00:x:61000:998:' "$SCRATCH/etc/passwd" ||
     fail "legacy upgrade did not bind users to retained gid"
 [ "$(cat "$identity_gid_manifest")" = 998 ] ||
     fail "legacy gid reservation marker is wrong"
 identity_finalize || fail "legacy gid finalize failed"
-grep -q '^group=cos-extension:998$' "$identity_reserved_manifest" ||
+grep -q '^group=yuos-extension:998$' "$identity_reserved_manifest" ||
     fail "runtime manifest did not retain legacy gid"
 identity_provision upgrade 0.1.0 || fail "legacy gid retry failed"
 identity_finalize || fail "legacy gid retry finalize failed"
 
 reset_fixture
 {
-    echo "cos-extension:x:998:"
+    echo "yuos-extension:x:998:"
     echo "occupied:x:60999:"
 } > "$SCRATCH/etc/group"
 identity_provision upgrade 0.1.0 ||
@@ -239,25 +239,25 @@ grep -q '^occupied:x:60999:$' "$SCRATCH/etc/group" ||
 identity_rollback_pending
 
 reset_fixture
-echo "cos-extension:x:998:alice" > "$SCRATCH/etc/group"
+echo "yuos-extension:x:998:alice" > "$SCRATCH/etc/group"
 identity_provision upgrade 0.1.0 &&
     fail "legacy gid with supplementary members was accepted"
 
 reset_fixture
-echo "cos-extension:x:998:" > "$SCRATCH/etc/group"
+echo "yuos-extension:x:998:" > "$SCRATCH/etc/group"
 echo "alice:x:1000:998:Alice:/home/alice:/bin/sh" > "$SCRATCH/etc/passwd"
 identity_provision upgrade 0.1.0 &&
     fail "legacy gid with an unrelated primary user was accepted"
 
 reset_fixture
-echo "cos-extension:x:998:" > "$SCRATCH/etc/group"
+echo "yuos-extension:x:998:" > "$SCRATCH/etc/group"
 mkdir -p "$SCRATCH/proc/123"
 printf 'Name:\ttest\nGid:\t998\t998\t998\t998\n' > "$SCRATCH/proc/123/status"
 identity_provision upgrade 0.1.0 &&
     fail "legacy gid with a live process was accepted"
 
 reset_fixture
-echo "cos-extension:x:998:" > "$SCRATCH/etc/group"
+echo "yuos-extension:x:998:" > "$SCRATCH/etc/group"
 printf '998\n' > "$identity_gid_manifest"
 chmod 0600 "$identity_gid_manifest"
 identity_provision upgrade 0.1.0 ||
@@ -268,39 +268,39 @@ identity_provision upgrade 0.1.0 ||
 identity_finalize || fail "legacy retry after abort did not finalize"
 
 reset_fixture
-echo "cos-extension:x:998:" > "$SCRATCH/etc/group"
+echo "yuos-extension:x:998:" > "$SCRATCH/etc/group"
 printf '997\n' > "$identity_gid_manifest"
 chmod 0600 "$identity_gid_manifest"
 identity_provision upgrade 0.1.0 &&
     fail "mismatched partial legacy reservation was accepted"
 
 reset_fixture
-echo "cos-extension:x:998:" > "$SCRATCH/etc/group"
+echo "yuos-extension:x:998:" > "$SCRATCH/etc/group"
 identity_provision install &&
     fail "fresh install claimed an unproven arbitrary legacy gid"
 
 for legacy_gid in 61064 61183; do
     reset_fixture
-    echo "cos-extension:x:$legacy_gid:" > "$SCRATCH/etc/group"
+    echo "yuos-extension:x:$legacy_gid:" > "$SCRATCH/etc/group"
     echo "alice:$legacy_gid:1" > "$SCRATCH/etc/subgid"
     identity_provision upgrade 0.1.0 &&
         fail "exact legacy gid $legacy_gid subordinate overlap was accepted"
 done
 
 reset_fixture
-echo "cos-extension:x:61100:" > "$SCRATCH/etc/group"
+echo "yuos-extension:x:61100:" > "$SCRATCH/etc/group"
 echo "alice:61090:20" > "$SCRATCH/etc/subgid"
 identity_provision upgrade 0.1.0 &&
     fail "interior legacy gid subordinate overlap was accepted"
 
 reset_fixture
-echo "cos-extension:x:61100:" > "$SCRATCH/etc/group"
+echo "yuos-extension:x:61100:" > "$SCRATCH/etc/group"
 echo "alice:60000:2000" > "$SCRATCH/etc/subgid"
 identity_provision upgrade 0.1.0 &&
     fail "covering legacy gid subordinate overlap was accepted"
 
 reset_fixture
-echo "cos-extension:x:61100:" > "$SCRATCH/etc/group"
+echo "yuos-extension:x:61100:" > "$SCRATCH/etc/group"
 {
     echo "alice:61099:1"
     echo "bob:61101:1"
@@ -310,15 +310,15 @@ identity_provision upgrade 0.1.0 ||
 identity_rollback_pending
 
 reset_fixture
-echo "cos-extension:x:998:" > "$SCRATCH/etc/group"
+echo "yuos-extension:x:998:" > "$SCRATCH/etc/group"
 sh "$PREINST" upgrade 0.1.0 || fail "preinst legacy upgrade failed"
-grep -q '^stop clawd.service$' "$SCRATCH/etc/systemd-invoke.log" ||
-    fail "preinst did not stop clawd before migration"
+grep -q '^stop yuosd.service$' "$SCRATCH/etc/systemd-invoke.log" ||
+    fail "preinst did not stop yuosd before migration"
 [ ! -e "$identity_gid_manifest" ] ||
     fail "preinst ran identity provisioning before dependencies were configured"
 sh "$POSTRM" abort-upgrade || fail "postrm abort-upgrade rollback failed"
 sh "$POSTINST" abort-upgrade || fail "postinst abort-upgrade recovery failed"
-grep -q '^start clawd.service$' "$SCRATCH/etc/systemd-invoke.log" ||
+grep -q '^start yuosd.service$' "$SCRATCH/etc/systemd-invoke.log" ||
     fail "abort-upgrade did not restart the previous service"
 sh "$PREINST" upgrade 0.1.0 || fail "preinst retry after abort failed"
 identity_provision upgrade 0.1.0 ||
@@ -333,7 +333,7 @@ identity_finalize || fail "preexisting identities did not finalize"
 [ ! -s "$identity_owned_manifest" ] || fail "preexisting accounts were claimed as package-owned"
 
 reset_fixture
-echo "cos-extension:x:60999:" > "$SCRATCH/etc/group"
+echo "yuos-extension:x:60999:" > "$SCRATCH/etc/group"
 echo "unrelated:x:61000:60999:Unrelated:/home/unrelated:/bin/sh" > "$SCRATCH/etc/passwd"
 echo "unrelated:!:20000:0:99999:7:::" > "$SCRATCH/etc/shadow"
 if identity_provision; then
@@ -378,37 +378,37 @@ echo "alice:not-a-number:1" > "$SCRATCH/etc/subgid"
 identity_provision && fail "malformed subgid range was accepted"
 
 reset_fixture
-echo "cos-extension:x:61010:" > "$SCRATCH/etc/group"
+echo "yuos-extension:x:61010:" > "$SCRATCH/etc/group"
 identity_provision && fail "wrong fixed extension gid was accepted"
 
 reset_fixture
 populate_correct_accounts
-sed -i 's/Claw OS extension slot 0/changed comment/' "$SCRATCH/etc/passwd"
+sed -i 's/Yu OS extension slot 0/changed comment/' "$SCRATCH/etc/passwd"
 identity_provision && fail "changed account comment was accepted"
 
 reset_fixture
 populate_correct_accounts
-sed -i 's/^cos-extension:x:/cos-extension:*:/' "$SCRATCH/etc/group"
+sed -i 's/^yuos-extension:x:/yuos-extension:*:/' "$SCRATCH/etc/group"
 identity_provision && fail "changed group password field was accepted"
 
 reset_fixture
 populate_correct_accounts
-sed -i 's/^cos-ext-00:!:/cos-ext-00:!retained-hash:/' "$SCRATCH/etc/shadow"
+sed -i 's/^yuos-ext-00:!:/yuos-ext-00:!retained-hash:/' "$SCRATCH/etc/shadow"
 identity_provision && fail "locked account retaining password hash material was accepted"
 
 reset_fixture
-export MOCK_HOMED_IDENTITY=cos-ext-00
+export MOCK_HOMED_IDENTITY=yuos-ext-00
 identity_provision && fail "systemd-homed identity collision was accepted"
 
 reset_fixture
-export MOCK_FAIL_USER=cos-ext-03
+export MOCK_FAIL_USER=yuos-ext-03
 export MOCK_PARTIAL_USERADD=1
 identity_provision && fail "partial useradd failure was accepted"
 [ "$(wc -l < "$SCRATCH/etc/passwd")" -eq 1 ] ||
     fail "partial provisioning did not roll back proven package-owned users"
-grep -q '^cos-ext-03:x:61003:60999:' "$SCRATCH/etc/passwd" ||
+grep -q '^yuos-ext-03:x:61003:60999:' "$SCRATCH/etc/passwd" ||
     fail "ambiguous partial useradd record was deleted"
-grep -q '^cos-extension:x:60999:$' "$SCRATCH/etc/group" ||
+grep -q '^yuos-extension:x:60999:$' "$SCRATCH/etc/group" ||
     fail "group referenced by an ambiguous partial account was deleted"
 unset MOCK_FAIL_USER MOCK_PARTIAL_USERADD
 identity_provision || fail "retry after partial useradd did not converge"
@@ -423,18 +423,18 @@ identity_rollback_pending
 reset_fixture
 identity_provision || fail "purge fixture provisioning failed"
 identity_finalize || fail "purge fixture finalize failed"
-sed -i 's#cos-ext-00:x:61000:60999:[^:]*:/nonexistent:/usr/sbin/nologin#cos-ext-00:x:61000:60999:changed:/nonexistent:/bin/sh#' \
+sed -i 's#yuos-ext-00:x:61000:60999:[^:]*:/nonexistent:/usr/sbin/nologin#yuos-ext-00:x:61000:60999:changed:/nonexistent:/bin/sh#' \
     "$SCRATCH/etc/passwd"
 mkdir -p "$SCRATCH/proc/123"
 printf 'Name:\ttest\nUid:\t61002\t61002\t61002\t61002\n' > "$SCRATCH/proc/123/status"
 identity_purge_owned
-grep -q '^cos-ext-00:' "$SCRATCH/etc/passwd" ||
+grep -q '^yuos-ext-00:' "$SCRATCH/etc/passwd" ||
     fail "purge deleted an identity whose record no longer matched"
-! grep -q '^cos-ext-01:' "$SCRATCH/etc/passwd" ||
+! grep -q '^yuos-ext-01:' "$SCRATCH/etc/passwd" ||
     fail "purge retained a provably package-owned identity"
-grep -q '^cos-ext-02:' "$SCRATCH/etc/passwd" ||
+grep -q '^yuos-ext-02:' "$SCRATCH/etc/passwd" ||
     fail "purge deleted an identity with a live process"
-grep -q '^cos-extension:' "$SCRATCH/etc/group" ||
+grep -q '^yuos-extension:' "$SCRATCH/etc/group" ||
     fail "purge removed a group still referenced by a retained account"
 
 reset_fixture
@@ -443,12 +443,12 @@ identity_finalize || fail "quarantine purge fixture finalize failed"
 mkdir -p "$identity_quarantine_dir"
 : > "$identity_quarantine_dir/61000.state"
 identity_purge_owned
-grep -q '^cos-ext-00:' "$SCRATCH/etc/passwd" ||
+grep -q '^yuos-ext-00:' "$SCRATCH/etc/passwd" ||
     fail "purge deleted an identity with an active cleanup quarantine"
 
-[ $((COS_EXT_UID_FIRST + COS_EXT_UID_COUNT - 1)) -lt "$COS_EXT_DYNAMIC_UID_FIRST" ] ||
+[ $((YUOS_EXT_UID_FIRST + YUOS_EXT_UID_COUNT - 1)) -lt "$YUOS_EXT_DYNAMIC_UID_FIRST" ] ||
     fail "identity range overlaps systemd DynamicUser"
-[ "$COS_EXT_GID" -lt "$COS_EXT_DYNAMIC_UID_FIRST" ] ||
+[ "$YUOS_EXT_GID" -lt "$YUOS_EXT_DYNAMIC_UID_FIRST" ] ||
     fail "extension gid overlaps systemd DynamicUser"
 
 echo "ok - extension identity provisioning"

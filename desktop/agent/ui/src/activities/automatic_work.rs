@@ -5,7 +5,7 @@ use super::{
     Message as ActivityMessage, Request, Row, container, control, editable, fl, styles, text,
     theme, widget,
 };
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     ActivityAutoWork, ActivityAutoWorkResponse, AutoWorkDraft, AutoWorkEnabledRequest,
     AutoWorkEvent, AutoWorkPhase, AutoWorkSetRequest,
 };

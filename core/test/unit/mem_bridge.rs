@@ -90,7 +90,7 @@ fn a_launch_authority_answers_from_its_own_capability_set() {
 #[cfg(unix)]
 fn foreign_row() -> (tempdir::Dir, i64) {
     let data = tempdir::Dir::new("memory-oracle");
-    std::env::set_var("COS_DATA_DIR", data.path());
+    std::env::set_var("YUOS_DATA_DIR", data.path());
     let db = open_db().expect("open db");
     let store = app_memory::open_default_store();
     let outcome = runtime()
@@ -167,7 +167,7 @@ fn a_foreign_row_reads_exactly_like_a_missing_one() {
     // And the refused delete really did not happen.
     let db = open_db().expect("reopen");
     assert!(app_memory::show(&db, row_id).expect("lookup").is_some());
-    std::env::remove_var("COS_DATA_DIR");
+    std::env::remove_var("YUOS_DATA_DIR");
 }
 
 #[cfg(unix)]
@@ -186,5 +186,5 @@ fn the_owning_source_still_reads_and_deletes_its_own_row() {
     assert_eq!(removed["removed"], serde_json::json!(1));
     let db = open_db().expect("reopen");
     assert!(app_memory::show(&db, row_id).expect("lookup").is_none());
-    std::env::remove_var("COS_DATA_DIR");
+    std::env::remove_var("YUOS_DATA_DIR");
 }

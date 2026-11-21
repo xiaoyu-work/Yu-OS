@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # packaging/deb/build-desktop-deb.sh — wrap a staged desktop root into
-# claw-os-desktop_<version>_<arch>.deb.
+# yuos-desktop_<version>_<arch>.deb.
 #
 # The desktop feature builds inside the target rootfs, then installs the
 # workspace into a staging root under $ROOTFS/build. This script adds Debian
@@ -33,17 +33,17 @@ if [ ! -d "$STAGE_ROOT" ]; then
     exit 1
 fi
 if [ -e "$STAGE_ROOT/usr/share/icons/Cosmic" ] || [ -L "$STAGE_ROOT/usr/share/icons/Cosmic" ]; then
-    echo "error: shared Cosmic icons belong to claw-os-agent, not Desktop" >&2
+    echo "error: shared Cosmic icons belong to yuos-agent, not Desktop" >&2
     exit 1
 fi
 if [ -e "$STAGE_ROOT/usr/bin/pop-launcher" ] || [ -L "$STAGE_ROOT/usr/bin/pop-launcher" ] \
     || [ -e "$STAGE_ROOT/usr/lib/pop-launcher" ] || [ -L "$STAGE_ROOT/usr/lib/pop-launcher" ]; then
-    echo "error: shared Launcher runtime belongs to claw-os-agent, not Desktop" >&2
+    echo "error: shared Launcher runtime belongs to yuos-agent, not Desktop" >&2
     exit 1
 fi
 compositor="$STAGE_ROOT/usr/libexec/claw-hyprland/Hyprland"
 locker="$STAGE_ROOT/usr/libexec/claw-hyprland/claw-lockscreen"
-APPLET_PROVIDER="$STAGE_ROOT/usr/libexec/claw-os-applet-provider"
+APPLET_PROVIDER="$STAGE_ROOT/usr/libexec/yuos-applet-provider"
 for executable in "$APPLET_PROVIDER" "$compositor" "$locker"; do
 if [ ! -f "$executable" ] || [ ! -x "$executable" ] || [ -L "$executable" ]; then
     echo "error: required native desktop ELF is not a regular executable: $executable" >&2
@@ -71,13 +71,13 @@ if (
     raise SystemExit(f"error: invalid executable header or architecture for {arch}: {path}")
 PY
 done
-for binary in cos-agent-ui cos-agent-bridge cos-ask-claw-launcher; do
+for binary in yuos-agent-ui yuos-agent-bridge yuos-ask-launcher; do
     if [ ! -x "$STAGE_ROOT/usr/local/bin/$binary" ]; then
         echo "error: required desktop Agent binary missing: $binary" >&2
         exit 1
     fi
 done
-if [ ! -x "$STAGE_ROOT/usr/lib/cos/browser-chat-native-host" ]; then
+if [ ! -x "$STAGE_ROOT/usr/lib/yuos/browser-chat-native-host" ]; then
     echo "error: required Browser chat Native Messaging host missing" >&2
     exit 1
 fi
@@ -131,9 +131,9 @@ PY
 }
 SECURITY_EPOCH="$(policy_field security_epoch)"
 SECURITY_ABI="$(policy_field abi)"
-MIN_AGENT_VERSION="$(policy_field minimum_compatible.claw-os-agent)"
-MIN_BASE_VERSION="$(policy_field minimum_compatible.claw-os-base)"
-MIN_DESKTOP_VERSION="$(policy_field minimum_compatible.claw-os-desktop)"
+MIN_AGENT_VERSION="$(policy_field minimum_compatible.yuos-agent)"
+MIN_BASE_VERSION="$(policy_field minimum_compatible.yuos-base)"
+MIN_DESKTOP_VERSION="$(policy_field minimum_compatible.yuos-desktop)"
 source "$RELEASE_SECURITY_DIR/sign-manifest.sh"
 # The passphrase is needed by exactly one child command. Hold it in a
 # shell-local and drop it from the exported environment immediately, so
@@ -146,11 +146,11 @@ if [ -z "${SOURCE_DATE_EPOCH:-}" ]; then
     [ -n "$SOURCE_DATE_EPOCH" ] && export SOURCE_DATE_EPOCH
 fi
 
-DESKTOP_MANIFEST="$STAGE_ROOT/usr/lib/cos/release-security/claw-os-desktop/manifest.json"
-install -d -m 0755 "$STAGE_ROOT/usr/lib/cos/release-security"
+DESKTOP_MANIFEST="$STAGE_ROOT/usr/lib/yuos/release-security/yuos-desktop/manifest.json"
+install -d -m 0755 "$STAGE_ROOT/usr/lib/yuos/release-security"
 claw_write_release_manifest \
     "$RELEASE_SECURITY_KEY_ID" "$RELEASE_SECURITY_PASSPHRASE" \
-    "$RELEASE_SECURITY_DIR/make-manifest.py" claw-os-desktop "$VERSION" \
+    "$RELEASE_SECURITY_DIR/make-manifest.py" yuos-desktop "$VERSION" \
     "$DEB_ARCH" "${SUITE:-trixie}" "$STAGE_ROOT" "$RELEASE_SECURITY_POLICY" \
     "$DESKTOP_MANIFEST" || exit 1
 # The signing material has done its job; drop the shell-local copy too.
@@ -167,20 +167,20 @@ sed -e "s/__VERSION__/$VERSION/g" -e "s/__ARCH__/$DEB_ARCH/g" \
     -e "s/__MIN_DESKTOP__/$MIN_DESKTOP_VERSION/g" \
     -e "s/__THERMALD_DEP__/$THERMALD_DEP/g" \
     -e "s/__VAAPI_INTEL_NONFREE_DEP__/$VAAPI_INTEL_NONFREE_DEP/g" \
-    "$SCRIPT_DIR/claw-os-desktop/control" > "$STAGE_ROOT/DEBIAN/control"
-install -m 644 "$SCRIPT_DIR/claw-os-desktop/conffiles" "$STAGE_ROOT/DEBIAN/conffiles"
+    "$SCRIPT_DIR/yuos-desktop/control" > "$STAGE_ROOT/DEBIAN/control"
+install -m 644 "$SCRIPT_DIR/yuos-desktop/conffiles" "$STAGE_ROOT/DEBIAN/conffiles"
 sed -e "s/__VERSION__/$VERSION/g" \
-    "$SCRIPT_DIR/claw-os-desktop/postinst" > "$STAGE_ROOT/DEBIAN/postinst"
+    "$SCRIPT_DIR/yuos-desktop/postinst" > "$STAGE_ROOT/DEBIAN/postinst"
 chmod 0755 "$STAGE_ROOT/DEBIAN/postinst"
-install -m 755 "$SCRIPT_DIR/claw-os-desktop/prerm" "$STAGE_ROOT/DEBIAN/prerm"
+install -m 755 "$SCRIPT_DIR/yuos-desktop/prerm" "$STAGE_ROOT/DEBIAN/prerm"
 
 # The preinst carries this candidate's own signed manifest: it runs
 # before any of the package's files exist on disk.
 "$RELEASE_SECURITY_DIR/render-preinst.sh" \
-    claw-os-desktop "$VERSION" "$SECURITY_EPOCH" "$STAGE_ROOT" "$STAGE_ROOT/DEBIAN/preinst"
+    yuos-desktop "$VERSION" "$SECURITY_EPOCH" "$STAGE_ROOT" "$STAGE_ROOT/DEBIAN/preinst"
 
 # Debian encodes the epoch colon as %3a in artifact file names.
 FILE_VERSION="${VERSION//:/%3a}"
-OUT="$OUT_DIR/claw-os-desktop_${FILE_VERSION}_${DEB_ARCH}.deb"
-echo ":: dpkg-deb --build claw-os-desktop -> $OUT"
+OUT="$OUT_DIR/yuos-desktop_${FILE_VERSION}_${DEB_ARCH}.deb"
+echo ":: dpkg-deb --build yuos-desktop -> $OUT"
 $FAKEROOT "$DPKG_DEB" --root-owner-group --build "$STAGE_ROOT" "$OUT" >/dev/null

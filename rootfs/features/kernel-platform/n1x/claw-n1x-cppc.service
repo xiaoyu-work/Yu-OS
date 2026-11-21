@@ -4,7 +4,7 @@ After=systemd-udev-trigger.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/lib/cos/hw/claw-n1x-setup cpu
+ExecStart=/usr/lib/yuos/hw/claw-n1x-setup cpu
 NoNewPrivileges=yes
 
 [Install]

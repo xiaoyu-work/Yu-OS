@@ -144,15 +144,15 @@ fn stricter_helper_orders_correctly() {
 #[test]
 fn load_missing_file_returns_none() {
     let tmp = std::env::temp_dir().join(format!(
-        "cos-overrides-test-missing-{}",
+        "yuos-overrides-test-missing-{}",
         std::process::id()
     ));
-    let prev = std::env::var_os("COS_USER_CONFIG_DIR");
-    std::env::set_var("COS_USER_CONFIG_DIR", &tmp);
+    let prev = std::env::var_os("YUOS_USER_CONFIG_DIR");
+    std::env::set_var("YUOS_USER_CONFIG_DIR", &tmp);
     let got = load("never-existed");
     match prev {
-        Some(v) => std::env::set_var("COS_USER_CONFIG_DIR", v),
-        None => std::env::remove_var("COS_USER_CONFIG_DIR"),
+        Some(v) => std::env::set_var("YUOS_USER_CONFIG_DIR", v),
+        None => std::env::remove_var("YUOS_USER_CONFIG_DIR"),
     }
     assert_eq!(got.unwrap(), None);
 }
@@ -160,7 +160,7 @@ fn load_missing_file_returns_none() {
 #[test]
 fn load_parses_full_shape() {
     let tmp = std::env::temp_dir().join(format!(
-        "cos-overrides-test-full-{}",
+        "yuos-overrides-test-full-{}",
         std::process::id()
     ));
     let apps = tmp.join("apps");
@@ -175,12 +175,12 @@ fn load_parses_full_shape() {
     }"#;
     fs::write(apps.join("widget.json"), body).unwrap();
 
-    let prev = std::env::var_os("COS_USER_CONFIG_DIR");
-    std::env::set_var("COS_USER_CONFIG_DIR", &tmp);
+    let prev = std::env::var_os("YUOS_USER_CONFIG_DIR");
+    std::env::set_var("YUOS_USER_CONFIG_DIR", &tmp);
     let got = load("widget");
     match prev {
-        Some(v) => std::env::set_var("COS_USER_CONFIG_DIR", v),
-        None => std::env::remove_var("COS_USER_CONFIG_DIR"),
+        Some(v) => std::env::set_var("YUOS_USER_CONFIG_DIR", v),
+        None => std::env::remove_var("YUOS_USER_CONFIG_DIR"),
     }
 
     let ovr = got.unwrap().unwrap();
@@ -196,19 +196,19 @@ fn load_parses_full_shape() {
 #[test]
 fn load_disabled_only_parses() {
     let tmp = std::env::temp_dir().join(format!(
-        "cos-overrides-test-disabled-{}",
+        "yuos-overrides-test-disabled-{}",
         std::process::id()
     ));
     let apps = tmp.join("apps");
     fs::create_dir_all(&apps).unwrap();
     fs::write(apps.join("widget.json"), r#"{"disabled": true}"#).unwrap();
 
-    let prev = std::env::var_os("COS_USER_CONFIG_DIR");
-    std::env::set_var("COS_USER_CONFIG_DIR", &tmp);
+    let prev = std::env::var_os("YUOS_USER_CONFIG_DIR");
+    std::env::set_var("YUOS_USER_CONFIG_DIR", &tmp);
     let got = load("widget");
     match prev {
-        Some(v) => std::env::set_var("COS_USER_CONFIG_DIR", v),
-        None => std::env::remove_var("COS_USER_CONFIG_DIR"),
+        Some(v) => std::env::set_var("YUOS_USER_CONFIG_DIR", v),
+        None => std::env::remove_var("YUOS_USER_CONFIG_DIR"),
     }
 
     let ovr = got.unwrap().unwrap();
@@ -221,19 +221,19 @@ fn load_disabled_only_parses() {
 #[test]
 fn load_malformed_file_errors() {
     let tmp = std::env::temp_dir().join(format!(
-        "cos-overrides-test-bad-{}",
+        "yuos-overrides-test-bad-{}",
         std::process::id()
     ));
     let apps = tmp.join("apps");
     fs::create_dir_all(&apps).unwrap();
     fs::write(apps.join("widget.json"), "{not json").unwrap();
 
-    let prev = std::env::var_os("COS_USER_CONFIG_DIR");
-    std::env::set_var("COS_USER_CONFIG_DIR", &tmp);
+    let prev = std::env::var_os("YUOS_USER_CONFIG_DIR");
+    std::env::set_var("YUOS_USER_CONFIG_DIR", &tmp);
     let got = load("widget");
     match prev {
-        Some(v) => std::env::set_var("COS_USER_CONFIG_DIR", v),
-        None => std::env::remove_var("COS_USER_CONFIG_DIR"),
+        Some(v) => std::env::set_var("YUOS_USER_CONFIG_DIR", v),
+        None => std::env::remove_var("YUOS_USER_CONFIG_DIR"),
     }
 
     assert!(got.is_err());

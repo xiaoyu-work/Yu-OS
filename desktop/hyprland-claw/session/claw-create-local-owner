@@ -13,8 +13,8 @@ import sys
 from zoneinfo import available_timezones
 
 
-MARKER = Path("/etc/cos/local-desktop-setup")
-AVATARS = Path("/usr/share/claw-os/avatars")
+MARKER = Path("/etc/yuos/local-desktop-setup")
+AVATARS = Path("/usr/share/yuos/avatars")
 MAX_REQUEST = 256 * 1024
 ENV = {"PATH": "/usr/sbin:/usr/bin", "LANG": "C.UTF-8"}
 ACCOUNT = re.compile(r"[a-z][a-z0-9_-]{0,30}")
@@ -98,7 +98,7 @@ def initialize_home(account, data):
                   f'[Settings]\ngtk-application-prefer-dark-theme={int(not data["light"])}\n')
         if data["agent"] is not None:
             write(config / "cos/config.json", json.dumps(data["agent"]["config"]) + "\n")
-            directory = home / ".local/share/cos/credentials/agent"
+            directory = home / ".local/share/yuos/credentials/agent"
             for name, value in data["agent"]["credentials"].items():
                 write(directory / name, json.dumps(value) + "\n")
     except (OSError, ValueError):
@@ -151,7 +151,7 @@ def create_owner():
             raise
         MARKER.unlink()
     try:
-        system("systemctl", "restart", "cos-home-setup.service")
+        system("systemctl", "restart", "yuos-home-setup.service")
     except subprocess.SubprocessError:
         print("Yu OS: first owner created, but checkpoint home setup did not restart", file=sys.stderr)
 

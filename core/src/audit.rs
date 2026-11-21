@@ -166,12 +166,12 @@ pub fn log_entry(
     }
 
     // Attach trace context if available
-    if let Ok(trace_id) = std::env::var("COS_TRACE_ID") {
+    if let Ok(trace_id) = std::env::var("YUOS_TRACE_ID") {
         if !trace_id.is_empty() {
             entry["trace_id"] = json!(trace_id);
         }
     }
-    if let Ok(span_id) = std::env::var("COS_SPAN_ID") {
+    if let Ok(span_id) = std::env::var("YUOS_SPAN_ID") {
         if !span_id.is_empty() {
             entry["span_id"] = json!(span_id);
         }
@@ -195,8 +195,8 @@ pub fn log_entry(
 /// Behaviour:
 ///   - `timestamp` is auto-injected (UTC, `YYYY-MM-DDTHH:MM:SSZ`)
 ///     if the entry doesn't already have one.
-///   - `trace_id` / `span_id` are injected from `COS_TRACE_ID` /
-///     `COS_SPAN_ID` env vars when set and not already present.
+///   - `trace_id` / `span_id` are injected from `YUOS_TRACE_ID` /
+///     `YUOS_SPAN_ID` env vars when set and not already present.
 ///   - Parent directory of `audit_path` is created if missing.
 ///   - Write is appended atomically via the file-lock helper.
 ///
@@ -610,14 +610,14 @@ fn inject_standard_fields(entry: &mut serde_json::Value) {
             .entry("timestamp")
             .or_insert_with(|| json!(Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()));
         if !object.contains_key("trace_id") {
-            if let Ok(trace_id) = std::env::var("COS_TRACE_ID") {
+            if let Ok(trace_id) = std::env::var("YUOS_TRACE_ID") {
                 if !trace_id.is_empty() {
                     object.insert("trace_id".to_string(), json!(trace_id));
                 }
             }
         }
         if !object.contains_key("span_id") {
-            if let Ok(span_id) = std::env::var("COS_SPAN_ID") {
+            if let Ok(span_id) = std::env::var("YUOS_SPAN_ID") {
                 if !span_id.is_empty() {
                     object.insert("span_id".to_string(), json!(span_id));
                 }
@@ -1312,10 +1312,10 @@ fn valid_token(value: &str) -> bool {
 /// ```text
 /// {
 ///   "ts":              "2026-05-13T20:58:00Z",  // UTC, ISO-8601
-///   "session_id":      "s-1234",                // COS_SESSION
+///   "session_id":      "s-1234",                // YUOS_SESSION
 ///   "pid":             4711,                    // caller pid
-///   "agent":           "summarize",             // COS_AGENT_LABEL
-///                                               //   or COS_APP_ID
+///   "agent":           "summarize",             // YUOS_AGENT_LABEL
+///                                               //   or YUOS_APP_ID
 ///   "verb":            "ai.chat.untrusted",
 ///   "scope": {                                  // structured scope
 ///     "kind":  "name",
@@ -1338,12 +1338,12 @@ fn valid_token(value: &str) -> bool {
 ///     decision must not be able to hide it, nor to keep the allows
 ///     while dropping the denials, so both classes always reach the
 ///     system journal and `caps.jsonl`. Tests that must keep these
-///     writes off the host filesystem redirect `COS_LOG_DIR` and
-///     `COS_DATA_DIR` at a temp dir instead.
+///     writes off the host filesystem redirect `YUOS_LOG_DIR` and
+///     `YUOS_DATA_DIR` at a temp dir instead.
 ///   - `timestamp`, `trace_id`, and `span_id` come from
 ///     [`log_event`].
 pub fn log_cap_decision(entry: serde_json::Value) {
-    crate::clawd::system_journal::record_cap_decision(&entry);
+    crate::yuosd::system_journal::record_cap_decision(&entry);
     let path = crate::paths::caps_audit_log_path();
     log_event(&path, entry);
 }

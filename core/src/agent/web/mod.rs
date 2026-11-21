@@ -20,15 +20,15 @@
 //!   long-lived response).
 //! * Surfaces the same lifecycle verbs the CLI has (`ls`, `show`,
 //!   `stop`, `undo`, `resume`) as JSON endpoints.
-//! * Renders an `inbox` view fed by clawd's append-only context
+//! * Renders an `inbox` view fed by yuosd's append-only context
 //!   events log (see [`crate::paths::context_events_log_path`]) and a
 //!   `sysinfo` dashboard fed by [`crate::sysinfo`].
 //! * Surfaces the approval queue ([`crate::approvals`]) so a user can
 //!   actually answer the pending consent prompts that block agent
-//!   work in clawd-routed setups.
+//!   work in yuosd-routed setups.
 //!
 //! Auth uses a persistent 32-byte bootstrap secret loaded from
-//! `$COS_DATA_DIR/agent/web/serve.token` (auto-generated on first run).
+//! `$YUOS_DATA_DIR/agent/web/serve.token` (auto-generated on first run).
 //! The UI exchanges it once at `/api/auth/token`; normal requests use only
 //! signed Bearer access tokens. By default the server binds `127.0.0.1`.
 //! Exposing
@@ -57,7 +57,7 @@ use std::time::{Duration, Instant};
 use serde_json::{json, Value};
 
 /// Where the daemon writes its PID file. Co-located with `serve.token`
-/// under `$COS_DATA_DIR/agent/web/` so a single directory carries the
+/// under `$YUOS_DATA_DIR/agent/web/` so a single directory carries the
 /// whole serve session: token, pid, log.
 fn pid_path() -> PathBuf {
     auth::token_dir().join("serve.pid")
@@ -170,12 +170,12 @@ pub fn serve(args: &[String]) -> Result<Value, String> {
                     "flags": {
                         "--bind": "Network interface to bind. Default 127.0.0.1 (localhost only).",
                         "--port": "TCP port. Default 7878.",
-                        "--token": "Override the persistent 64-hex bootstrap secret. Default: load/generate from $COS_DATA_DIR/agent/web/serve.token.",
+                        "--token": "Override the persistent 64-hex bootstrap secret. Default: load/generate from $YUOS_DATA_DIR/agent/web/serve.token.",
                         "--open": "Open the UI. Loopback URLs carry the bootstrap in ?t= only for the frontend exchange step.",
-                        "--detach / -d": "Run in the background. Writes PID to $COS_DATA_DIR/agent/web/serve.pid and logs to serve.log (override with --log).",
+                        "--detach / -d": "Run in the background. Writes PID to $YUOS_DATA_DIR/agent/web/serve.pid and logs to serve.log (override with --log).",
                         "--stop": "Stop a previously-detached daemon (SIGTERM, then SIGKILL after 5s).",
                         "--status": "Report whether a detached daemon is running; print URL + PID if so.",
-                        "--log": "Path for the detached daemon's log file. Default $COS_DATA_DIR/agent/web/serve.log.",
+                        "--log": "Path for the detached daemon's log file. Default $YUOS_DATA_DIR/agent/web/serve.log.",
                         "--tls-cert": "PEM certificate chain. Required with --tls-key.",
                         "--tls-key": "Owner-only PEM private key. Required with --tls-cert.",
                     },
@@ -474,9 +474,9 @@ fn spawn_detached(
         .stdin(Stdio::null())
         .stdout(Stdio::from(log_clone))
         .stderr(Stdio::from(log))
-        .env("COS_SESSION", &detached_session)
-        .env("COS_PROC_DATA_DIR", crate::paths::proc_data_dir())
-        .env("COS_DETACHED_SESSION", &detached_session);
+        .env("YUOS_SESSION", &detached_session)
+        .env("YUOS_PROC_DATA_DIR", crate::paths::proc_data_dir())
+        .env("YUOS_DETACHED_SESSION", &detached_session);
 
     #[cfg(unix)]
     {
@@ -799,7 +799,7 @@ struct DetachedSessionGuard {
 impl DetachedSessionGuard {
     fn from_env() -> Self {
         Self {
-            session_id: std::env::var("COS_DETACHED_SESSION")
+            session_id: std::env::var("YUOS_DETACHED_SESSION")
                 .ok()
                 .filter(|session| !session.is_empty()),
         }

@@ -1,6 +1,6 @@
 //! Event-driven trigger engine — the proactive half of the agent OS.
 //!
-//! ClawOS already (a) ingests structured app/system events into clawd's
+//! YuOS already (a) ingests structured app/system events into yuosd's
 //! `context.event` log and (b) can run the agent autonomously as a
 //! background job (the agent service queue). What was missing was the
 //! glue between them: a rules engine that watches the event stream and,
@@ -13,7 +13,7 @@
 //! the `yu triggers <add|list|remove|enable|disable|run|tick>` CLI.
 //!
 //! `tick` is meant to be called every minute by the same external
-//! scheduler that drives `cron tick` (or by clawd). It scans
+//! scheduler that drives `cron tick` (or by yuosd). It scans
 //! `context.event` records newer than a persisted cursor and fires every
 //! enabled matching rule by enqueuing an agent job via
 //! [`crate::agent::service::Store`]; the agent-service worker then runs
@@ -165,11 +165,11 @@ fn ensure_seeded() -> Result<(), String> {
     crate::filelock::write_locked(&sentinel, "1")
 }
 
-/// Source tag emitted by the clawd heartbeat (see `clawd::heartbeat`).
+/// Source tag emitted by the yuosd heartbeat (see `yuosd::heartbeat`).
 /// Duplicated as a literal here to avoid a dependency cycle; kept in sync
-/// with `clawd::heartbeat::SOURCE`.
+/// with `yuosd::heartbeat::SOURCE`.
 const SOURCE_HEARTBEAT: &str = "heartbeat";
-const LOW_MEMORY_PROMPT: &str = "System memory is critically low. Investigate which processes are consuming the most memory (use cos_sysinfo / cos_proc), summarise the likely cause, and suggest concrete remediation. Do not kill anything without approval.";
+const LOW_MEMORY_PROMPT: &str = "System memory is critically low. Investigate which processes are consuming the most memory (use yu_sysinfo / yu_proc), summarise the likely cause, and suggest concrete remediation. Do not kill anything without approval.";
 const HIGH_LOAD_PROMPT: &str = "System load is critically high. Identify the top CPU consumers and recent journal errors, then report the likely cause and a safe remediation. Do not change system state without approval.";
 
 /// Filesystem-safe rule id (mirrors the cron / skills conventions).
@@ -583,13 +583,13 @@ pub(crate) fn fired_prompt(rule: &TriggerRule, ev: &Value) -> String {
         ),
     );
     format!(
-        "{}\n\n[Fired by ClawOS trigger '{}' on a system event. The event's own \
+        "{}\n\n[Fired by YuOS trigger '{}' on a system event. The event's own \
          fields follow as data.]\n{fenced}",
         rule.prompt, rule.id
     )
 }
 
-/// Enqueue an agent job. The agent-service worker (clawd / `yu agent`
+/// Enqueue an agent job. The agent-service worker (yuosd / `yu agent`
 /// runner) claims and executes it; this only submits.
 struct TriggerExecutionOwner {
     uid: u32,
@@ -664,7 +664,7 @@ fn prepare_job(rule: &TriggerRule, prompt: String) -> Result<crate::agent::servi
         // Provenance for the execution-time clamp: this snapshot is
         // authority the owner proved (or had approved) when the rule
         // was created, so the worker may keep its `agent.spawn` and
-        // exactly-named credentials. Only believed because `clawd`
+        // exactly-named credentials. Only believed because `yuosd`
         // writes this record as root.
         meta.origin = Some(crate::session::SessionOrigin::TriggerDelegation);
     }) {
@@ -737,7 +737,7 @@ fn publish_trigger_success(rule: &TriggerRule, job: &crate::agent::service::Job)
     draft.task_id = Some(job.id.clone());
     draft.session_id = job.session_id.clone();
     draft.job_id = Some(rule.id.clone());
-    if let Err(error) = crate::clawd::notifications::publish_for_owner(owner_uid, draft) {
+    if let Err(error) = crate::yuosd::notifications::publish_for_owner(owner_uid, draft) {
         tracing::warn!(
             trigger_id = %rule.id,
             task_id = %job.id,
@@ -778,7 +778,7 @@ fn publish_trigger_failure(rule: &TriggerRule) {
     )
     .dedupe(format!("trigger:{}:submission-failed", rule.id));
     draft.job_id = Some(rule.id.clone());
-    if let Err(error) = crate::clawd::notifications::publish_for_owner(owner_uid, draft) {
+    if let Err(error) = crate::yuosd::notifications::publish_for_owner(owner_uid, draft) {
         tracing::warn!(
             trigger_id = %rule.id,
             owner_uid,

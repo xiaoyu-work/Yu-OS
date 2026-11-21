@@ -13,7 +13,7 @@
 # Defaults: $ARCH = host arch (via dpkg --print-architecture), so scripts
 # that don't care just work on whatever machine they run on.
 #
-# Native-only policy: claw-os does not cross-compile. If $ARCH does not
+# Native-only policy: yuos does not cross-compile. If $ARCH does not
 # match the host, this lib aborts. To build a different arch, run the
 # build on a host of that arch (e.g. an arm64 VM/box for arm64 images).
 
@@ -91,10 +91,10 @@ esac
 # Native-only: refuse to build for a different arch than the host. This
 # avoids the trap of producing half-built images via qemu-user-static
 # without us realising. Override only when you know what you're doing.
-if [ "$ARCH" != "$_arch_host" ] && [ "${COS_ALLOW_CROSS:-0}" != "1" ]; then
+if [ "$ARCH" != "$_arch_host" ] && [ "${YUOS_ALLOW_CROSS:-0}" != "1" ]; then
     echo "error: ARCH=$ARCH but host is $_arch_host." >&2
-    echo "       claw-os builds natively only — run this on an $ARCH host," >&2
-    echo "       or set COS_ALLOW_CROSS=1 if you have qemu-user-static set up." >&2
+    echo "       yuos builds natively only — run this on an $ARCH host," >&2
+    echo "       or set YUOS_ALLOW_CROSS=1 if you have qemu-user-static set up." >&2
     return 1 2>/dev/null || exit 1
 fi
 

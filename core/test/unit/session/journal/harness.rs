@@ -2,7 +2,7 @@
 //
 // Every test here writes real files and takes a real flock, because
 // that is what the properties under test are made of. The harness
-// therefore rebinds `COS_DATA_DIR` to a tempdir, takes the process-wide
+// therefore rebinds `YUOS_DATA_DIR` to a tempdir, takes the process-wide
 // env lock, and drops the cached writer lease on both ends so one
 // test's epoch never leaks into the next.
 
@@ -31,8 +31,8 @@ impl Harness {
         super::clear_unresolved();
         super::alarm::reset();
         let tmp = tempfile::tempdir().expect("tempdir");
-        let previous = std::env::var_os("COS_DATA_DIR");
-        std::env::set_var("COS_DATA_DIR", tmp.path());
+        let previous = std::env::var_os("YUOS_DATA_DIR");
+        std::env::set_var("YUOS_DATA_DIR", tmp.path());
         Self {
             _lock: lock,
             previous,
@@ -161,8 +161,8 @@ impl Drop for Harness {
         super::clear_unresolved();
         super::faults::disarm();
         match self.previous.take() {
-            Some(value) => std::env::set_var("COS_DATA_DIR", value),
-            None => std::env::remove_var("COS_DATA_DIR"),
+            Some(value) => std::env::set_var("YUOS_DATA_DIR", value),
+            None => std::env::remove_var("YUOS_DATA_DIR"),
         }
     }
 }
@@ -183,7 +183,7 @@ pub(crate) fn current_uid() -> u32 {
 pub(crate) fn probe(turn: u32) -> JournalEvent {
     JournalEvent::ToolStarted {
         turn,
-        tool: Label::new("cos_todo"),
+        tool: Label::new("yu_todo"),
         tool_use_id: Label::new("tool-1"),
         known: true,
     }

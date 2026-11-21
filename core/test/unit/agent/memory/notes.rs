@@ -73,7 +73,7 @@
     }
 
     fn tmpdir(label: &str) -> PathBuf {
-        let p = std::env::temp_dir().join(format!("cos-notes-{}-{}", label, std::process::id()));
+        let p = std::env::temp_dir().join(format!("yuos-notes-{}-{}", label, std::process::id()));
         let _ = fs::remove_dir_all(&p);
         p
     }
@@ -449,7 +449,7 @@ Keep this prose editable.
         // The end-to-end guarantee: a superseded value must never reach
         // the model, even though it is still on disk.
         let dir = std::env::temp_dir().join(format!(
-            "cos-notes-tails-{}-{}",
+            "yuos-notes-tails-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

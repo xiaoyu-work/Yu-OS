@@ -1,11 +1,11 @@
 [Unit]
 Description=Install pending Yu OS hardware packages
 After=NetworkManager.service
-ConditionPathExists=/var/lib/cos/driver-setup/pending
+ConditionPathExists=/var/lib/yuos/driver-setup/pending
 
 [Service]
 Type=simple
-ExecStart=/usr/lib/cos/hw/claw-driver-setup --online
+ExecStart=/usr/lib/yuos/hw/claw-driver-setup --online
 
 [Install]
 WantedBy=multi-user.target

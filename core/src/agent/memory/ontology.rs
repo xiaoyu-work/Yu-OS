@@ -225,15 +225,15 @@ fn canonical_entity(entity: &str) -> &str {
         | "system_os"
         | "linux_distribution"
         | "linux_distro" => "os",
-        "claw_os_agent"
+        "yuos_agent"
         | "claw_agent"
         | "claw_daemon"
-        | "clawd"
-        | "cos_agent"
-        | "cos_system_agent"
+        | "yuosd"
+        | "yu_agent"
+        | "yu_system_agent"
         | "system_agent"
         | "system_agent_deployment"
-        | "agent_runtime" => "claw_os",
+        | "agent_runtime" => "yuos",
         "system_memory" | "physical_memory" | "ram" => "memory",
         "nodejs" | "node_js" => "node",
         "python3" => "python",
@@ -249,7 +249,7 @@ fn canonical_attribute<'a>(entity: &str, attribute: &'a str) -> &'a str {
             other => other,
         };
     }
-    if entity == "claw_os" {
+    if entity == "yuos" {
         return match attribute {
             "deployment" | "deployment_state" | "installed" | "install_status"
             | "installation_state" | "presence" => "installation",

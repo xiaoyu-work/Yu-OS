@@ -151,7 +151,7 @@ pub(crate) fn stage_checkpoint(
             return Err("temporary context cannot be automatically handed to another segment; inspect the result and explicitly supply a fresh next task".into());
         }
     }
-    crate::clawd::activity_receipts::attach_reported_artifacts(
+    crate::yuosd::activity_receipts::attach_reported_artifacts(
         owner,
         activity_id,
         "agent",
@@ -443,13 +443,13 @@ fn notify_review(work: &ActivityWork) {
         .push(crate::notifications::NotificationAction {
             id: "open-agent".into(),
             label: "Open Agent".into(),
-            uri: "clawos://agent".into(),
+            uri: "yuos://agent".into(),
         });
     if let Some(record) = &work.last_checkpoint {
         notification.task_id = Some(record.job_id.clone());
         notification.session_id = Some(record.session_id.clone());
     }
-    if let Err(error) = crate::clawd::notifications::publish_for_owner(work.owner_uid, notification)
+    if let Err(error) = crate::yuosd::notifications::publish_for_owner(work.owner_uid, notification)
     {
         tracing::warn!(activity_id=work.activity_id, %error, "failed to publish Activity work review");
     }

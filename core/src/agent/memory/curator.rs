@@ -513,7 +513,7 @@ Rules:
      user message that supports the fact.
   2. Use these canonical aliases:
        operating_system.{name,distribution,base_distribution} -> os.distribution
-       {claw_agent,cos_agent,system_agent}.deployment_state -> claw_os.installation
+       {claw_agent,yu_agent,system_agent}.deployment_state -> yuos.installation
        installed/install_status/installation_state -> installation
        installed_version/package_version/version_number -> version
        desired_version/version_preference -> preferred_version

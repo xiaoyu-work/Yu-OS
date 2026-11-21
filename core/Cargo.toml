@@ -1,6 +1,6 @@
 [package]
 name = "yu"
-version = "0.2.1"
+version = "0.1.0"
 edition = "2021"
 description = "Yu OS — agent-native operating system core"
 
@@ -13,56 +13,56 @@ name = "yu"
 path = "src/main.rs"
 
 [[bin]]
-name = "clawd"
-path = "src/bin/clawd.rs"
+name = "yuosd"
+path = "src/bin/yuosd.rs"
 
 [[bin]]
-name = "claw-agentd"
-path = "src/bin/claw-agentd.rs"
+name = "yuos-agentd"
+path = "src/bin/yuos-agentd.rs"
 
 [[bin]]
-name = "claw-extension-host"
-path = "src/bin/claw-extension-host.rs"
+name = "yuos-extension-host"
+path = "src/bin/yuos-extension-host.rs"
 
 [[bin]]
-name = "claw-approval-helper"
-path = "src/bin/claw-approval-helper.rs"
+name = "yuos-approval-helper"
+path = "src/bin/yuos-approval-helper.rs"
 
 [[bin]]
-name = "claw-app-runner"
-path = "src/bin/claw-app-runner.rs"
+name = "yuos-app-runner"
+path = "src/bin/yuos-app-runner.rs"
 
 [[bin]]
-name = "claw-gui-runner"
-path = "src/bin/claw-gui-runner.rs"
+name = "yuos-gui-runner"
+path = "src/bin/yuos-gui-runner.rs"
 
 [[bin]]
-name = "claw-mail-ai-host"
-path = "src/bin/claw-mail-ai-host.rs"
+name = "yuos-mail-ai-host"
+path = "src/bin/yuos-mail-ai-host.rs"
 
 [[bin]]
-name = "claw-security-floor"
-path = "src/bin/claw-security-floor.rs"
+name = "yuos-security-floor"
+path = "src/bin/yuos-security-floor.rs"
 
 [[bin]]
-name = "claw-display-host"
-path = "src/bin/claw-display-host.rs"
+name = "yuos-display-host"
+path = "src/bin/yuos-display-host.rs"
 
 [[bin]]
-name = "claw-display-session"
-path = "src/bin/claw-display-session.rs"
+name = "yuos-display-session"
+path = "src/bin/yuos-display-session.rs"
 
 [[bin]]
-name = "claw-file-manager"
-path = "src/bin/claw-file-manager.rs"
+name = "yuos-file-manager"
+path = "src/bin/yuos-file-manager.rs"
 
 [[bin]]
-name = "claw-app-apt-hook"
-path = "src/bin/claw-app-apt-hook.rs"
+name = "yuos-app-apt-hook"
+path = "src/bin/yuos-app-apt-hook.rs"
 
 [[bin]]
-name = "claw-notification-panel"
-path = "src/bin/claw-notification-panel.rs"
+name = "yuos-notification-panel"
+path = "src/bin/yuos-notification-panel.rs"
 
 [features]
 default = []
@@ -113,7 +113,7 @@ zeroize = { version = "1", features = ["serde"] }
 tokio-tungstenite = { version = "0.26", default-features = false, features = ["connect", "handshake", "rustls-tls-webpki-roots"] }
 
 # Phase 0.5 (engine package management): native runtimes (llama.cpp, ort,
-# ort-genai) are installed by `yu engine update` to /var/lib/cos/engines and
+# ort-genai) are installed by `yu engine update` to /var/lib/yuos/engines and
 # loaded at runtime via libloading. No more compile-time link.
 libloading = "0.8"
 
@@ -130,15 +130,15 @@ semver = "1"
 # rmcp = "..."
 # serde_yaml = "..."
 
-# claw-embed: pure embedding abstractions (Embedder trait + types,
-# SemanticStore). Lives in this workspace at crates/claw-embed/. We
+# yuos-embed: pure embedding abstractions (Embedder trait + types,
+# SemanticStore). Lives in this workspace at crates/yuos-embed/. We
 # depend on it so core can keep the config-aware factories
 # (`build_default`, `open_default`, `default_path`) while the storage
-# and trait definitions are reusable from claw-semantic and any other
+# and trait definitions are reusable from yuos-semantic and any other
 # future consumer.
-claw-embed = { path = "../crates/claw-embed" }
-claw-os-sdk = { path = "../claw-os-sdk/rust" }
-claw-notification-presentation = { path = "../claw-os-sdk/rust/notification-presentation" }
+yuos-embed = { path = "../crates/yuos-embed" }
+yuos-sdk = { path = "../yuos-sdk/rust" }
+yuos-notification-presentation = { path = "../yuos-sdk/rust/notification-presentation" }
 
 # `yu agent serve` — built-in web UI for headless / WSL setups. axum +
 # tower-http give us SSE streaming and a minimal HTTP surface without
@@ -155,8 +155,8 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 # `yu agent serve` stays a single self-contained file with zero
 # external assets. The `ui/dist/` directory is committed to git.
 include_dir = "0.7"
-clawd-client = { version = "0.1.0", path = "../crates/clawd-client" }
-claw-display-control = { path = "../crates/claw-display-control" }
+yuosd-client = { version = "0.1.0", path = "../crates/yuosd-client" }
+yuos-display-control = { path = "../crates/yuos-display-control" }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
@@ -168,5 +168,5 @@ wayland-client = "0.31.11"
 wayland-protocols = { version = "0.32.9", features = ["client", "staging"] }
 
 [dev-dependencies]
-claw-os-sdk = { path = "../claw-os-sdk/rust" }
+yuos-sdk = { path = "../yuos-sdk/rust" }
 zbus = { version = "=5.5.0", default-features = false, features = ["p2p"] }

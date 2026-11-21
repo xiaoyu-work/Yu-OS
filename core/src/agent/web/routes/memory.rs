@@ -1,6 +1,6 @@
-use super::clawd;
+use super::yuosd;
 use crate::agent::memory::inspection::{ForgetRequest, InspectRequest, ReadRequest, UpdateRequest};
-use crate::clawd::routes::Command;
+use crate::yuosd::routes::Command;
 use axum::{http::StatusCode, Json};
 use serde_json::Value;
 
@@ -13,10 +13,10 @@ async fn request<T: serde::Serialize>(command: Command, body: T) -> Result<Json<
             Json(serde_json::json!({"error":error.to_string()})),
         )
     })?;
-    clawd::request(command, params)
+    yuosd::request(command, params)
         .await
         .map(Json)
-        .map_err(clawd::RpcError::into_api_error)
+        .map_err(yuosd::RpcError::into_api_error)
 }
 pub async fn inspect(Json(body): Json<InspectRequest>) -> Result<Json<Value>, Failure> {
     request(Command::MemoryInspect, body).await

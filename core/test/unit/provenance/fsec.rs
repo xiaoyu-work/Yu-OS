@@ -7,7 +7,7 @@ mod unix_tests {
 
     fn tmpdir(label: &str) -> PathBuf {
         let p = std::env::temp_dir().join(format!(
-            "cos-prov-fsec-{label}-{}",
+            "yuos-prov-fsec-{label}-{}",
             uuid::Uuid::new_v4().simple()
         ));
         fs::create_dir_all(&p).unwrap();

@@ -8,18 +8,18 @@ use std::sync::{
 static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
 static INIT: Once = Once::new();
 
-/// All tests share one COS_DATA_DIR (set once). Each test uses a unique
+/// All tests share one YUOS_DATA_DIR (set once). Each test uses a unique
 /// session-id prefix so there is no cross-test interference.
 fn unique_session(prefix: &str) -> String {
     let n = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
     INIT.call_once(|| {
-        let dir = env::temp_dir().join(format!("cos-test-shared-{}", std::process::id()));
+        let dir = env::temp_dir().join(format!("yuos-test-shared-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
-        env::set_var("COS_DATA_DIR", &dir);
-        // Tests don't set COS_SESSION; flip the caps gate to its
+        env::set_var("YUOS_DATA_DIR", &dir);
+        // Tests don't set YUOS_SESSION; flip the caps gate to its
         // opt-in permissive mode so the gated dispatchers don't
         // deny every call.
-        env::set_var("COS_PERMS_MODE", "permissive");
+        env::set_var("YUOS_PERMS_MODE", "permissive");
     });
     format!("{prefix}-{n}")
 }
@@ -145,10 +145,10 @@ fn send_missing_args_returns_error() {
 fn unique_resource(prefix: &str) -> String {
     let n = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
     INIT.call_once(|| {
-        let dir = env::temp_dir().join(format!("cos-test-shared-{}", std::process::id()));
+        let dir = env::temp_dir().join(format!("yuos-test-shared-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
-        env::set_var("COS_DATA_DIR", &dir);
-        env::set_var("COS_PERMS_MODE", "permissive");
+        env::set_var("YUOS_DATA_DIR", &dir);
+        env::set_var("YUOS_PERMS_MODE", "permissive");
     });
     format!("{prefix}-{n}")
 }

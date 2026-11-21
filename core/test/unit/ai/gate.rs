@@ -234,11 +234,11 @@ fn tool_not_in_policy_display_mentions_app_tool_and_allowed() {
 
 /// Build a `Store` backed by a private on-disk SQLite file under
 /// a tempdir. Returns the tempdir so the file outlives the
-/// store; dropping it cleans up. We override `COS_DATA_DIR` so
+/// store; dropping it cleans up. We override `YUOS_DATA_DIR` so
 /// `Store::open()` uses our tempdir instead of the system path.
 fn ephemeral_budget_store_via_tempdir() -> (tempfile::TempDir, Store) {
     let dir = tempfile::tempdir().unwrap();
-    std::env::set_var("COS_DATA_DIR", dir.path());
+    std::env::set_var("YUOS_DATA_DIR", dir.path());
     let store = Store::open().expect("open store in tempdir");
     (dir, store)
 }
@@ -247,7 +247,7 @@ fn ephemeral_budget_store_via_tempdir() -> (tempfile::TempDir, Store) {
 async fn dispatched_app_request_timeout_retains_its_budget_reservation() {
     let _lock = crate::test_env::lock_env();
     let dir = tempfile::tempdir().unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", dir.path());
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", dir.path());
     let store = Store::open().unwrap();
     let call = async move {
         let mut reservation =
@@ -311,7 +311,7 @@ fn budget_refunded_on_provider_error() {
         "BudgetReservation::drop must refund the reservation when commit() was not called"
     );
 
-    std::env::remove_var("COS_DATA_DIR");
+    std::env::remove_var("YUOS_DATA_DIR");
 }
 
 #[tokio::test]
@@ -337,7 +337,7 @@ async fn system_stream_settles_reported_openai_usage_to_actuals() {
         .current(SYSTEM_AGENT_BUCKET)
         .unwrap()
         .units_used;
-    std::env::remove_var("COS_DATA_DIR");
+    std::env::remove_var("YUOS_DATA_DIR");
 
     assert!(matches!(
         events.last(),
@@ -369,7 +369,7 @@ async fn system_stream_without_compat_usage_keeps_conservative_estimate() {
         .current(SYSTEM_AGENT_BUCKET)
         .unwrap()
         .units_used;
-    std::env::remove_var("COS_DATA_DIR");
+    std::env::remove_var("YUOS_DATA_DIR");
 
     assert!(events.last().is_some_and(Result::is_ok));
     assert_eq!(

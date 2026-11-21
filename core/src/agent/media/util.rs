@@ -263,7 +263,7 @@ pub(crate) async fn build_safe_client(
     }
 
     let mut builder = reqwest::Client::builder()
-        .user_agent(concat!("cos-agent/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("yuos-agent/", env!("CARGO_PKG_VERSION")))
         .resolve_to_addrs(&host, &public_addrs);
     if timeout > Duration::ZERO {
         builder = builder.timeout(timeout);

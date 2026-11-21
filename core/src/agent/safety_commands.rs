@@ -202,7 +202,7 @@ pub(super) fn tools_cmd(args: &[String]) -> Result<Value, String> {
 /// `<tool>` and returns `{permitted, decision: "allow"|"deny", reason?}`.
 ///
 /// Useful for verifying that a `tool_allow`/`tool_deny` change in
-/// `~/.config/cos/config.json` is actually parsed the way you expect
+/// `~/.config/yuos/config.json` is actually parsed the way you expect
 /// before running a session.
 pub(super) fn guardrails_cmd(args: &[String]) -> Result<Value, String> {
     use crate::agent::tools::guardrails::Decision;

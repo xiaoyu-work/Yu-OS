@@ -52,7 +52,7 @@ fn auto_curator_respects_explicit_aux() {
 
 #[test]
 fn auto_curator_retains_the_request_config_snapshot() {
-    let mut config = crate::config::CosConfig::default();
+    let mut config = crate::config::YuConfig::default();
     config.agent.provider = "openai".into();
     config.agent.model = "gpt-4o-mini".into();
     config.agent.api_key_env = Some("OPENAI_API_KEY".into());
@@ -70,15 +70,15 @@ async fn non_routed_detached_context_keeps_process_paths() {
     let root = tempfile::tempdir().unwrap();
     let data = root.path().join("data");
     let logs = root.path().join("logs");
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", &data);
-    let _logs = crate::test_env::TestEnvVarGuard::set("COS_LOG_DIR", &logs);
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", &data);
+    let _logs = crate::test_env::TestEnvVarGuard::set("YUOS_LOG_DIR", &logs);
     let context = crate::paths::RoutedPathContext::capture();
     let curation_log = data
         .join("agent")
         .join("memory")
         .join("curation_log.json");
     let notes = NotesStore::at(data.join("agent").join("notes"));
-    let mut config = crate::config::CosConfig::default();
+    let mut config = crate::config::YuConfig::default();
     config.agent.provider = "openai".into();
     config.agent.model = "gpt-4o-mini".into();
     config.agent.api_key_env = Some("OPENAI_API_KEY".into());

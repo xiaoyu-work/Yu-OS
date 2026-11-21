@@ -22,7 +22,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Sourcing exposes the migration primitives without running the root-only main.
-. "$PROJECT_DIR/rootfs/overlay/usr/lib/cos/init/remove-home-overlay.sh"
+. "$PROJECT_DIR/rootfs/overlay/usr/lib/yuos/init/remove-home-overlay.sh"
 
 fail() {
     printf 'not ok - %s\n' "$*" >&2

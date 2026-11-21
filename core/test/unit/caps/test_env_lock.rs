@@ -1,10 +1,10 @@
 // Single process-wide mutex serialising tests across the whole
 // `caps` test surface. `bootstrap.rs` and `enforcement.rs` both
-// mutate the same set of environment variables (`COS_SESSION`,
-// `COS_DATA_DIR`, `COS_PERMS_MODE`, `COS_USER_DATA_DIR`, …); without
+// mutate the same set of environment variables (`YUOS_SESSION`,
+// `YUOS_DATA_DIR`, `YUOS_PERMS_MODE`, `YUOS_USER_DATA_DIR`, …); without
 // a shared mutex their tests race each other when cargo runs them
 // in parallel and produce spurious panics like
-// `assert_eq!(env::var("COS_SESSION").unwrap(), …)` failing because
+// `assert_eq!(env::var("YUOS_SESSION").unwrap(), …)` failing because
 // a sibling test cleared the variable mid-flight.
 
 use std::sync::{Mutex, MutexGuard};

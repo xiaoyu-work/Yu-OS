@@ -1,6 +1,6 @@
 //! Strict translation for portable continuity without importing core models.
 
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     ActivityContinuityDocument, ActivityContinuityImportAcknowledgement,
     ActivityExecutionPlacement, ActivityState, ImportedActivity, ImportedActivityResource,
 };

@@ -85,13 +85,13 @@ fn nss_reverse_lookup_detects_mapped_accounts() {
 #[test]
 fn manifest_contains_every_exact_identity() {
     let manifest = reservation_manifest(GROUP_GID);
-    assert!(manifest.starts_with("version=1\ngroup=cos-extension:60999\n"));
-    assert!(manifest.contains("identity=cos-ext-00:61000:60999:/nonexistent:/usr/sbin/nologin\n"));
-    assert!(manifest.contains("identity=cos-ext-63:61063:60999:/nonexistent:/usr/sbin/nologin\n"));
+    assert!(manifest.starts_with("version=1\ngroup=yuos-extension:60999\n"));
+    assert!(manifest.contains("identity=yuos-ext-00:61000:60999:/nonexistent:/usr/sbin/nologin\n"));
+    assert!(manifest.contains("identity=yuos-ext-63:61063:60999:/nonexistent:/usr/sbin/nologin\n"));
     assert_eq!(manifest.lines().count(), 66);
     let retained = reservation_manifest(998);
-    assert!(retained.starts_with("version=1\ngroup=cos-extension:998\n"));
-    assert!(retained.contains("identity=cos-ext-00:61000:998:"));
+    assert!(retained.starts_with("version=1\ngroup=yuos-extension:998\n"));
+    assert!(retained.contains("identity=yuos-ext-00:61000:998:"));
 }
 
 #[test]
@@ -144,7 +144,7 @@ fn retained_identity_is_not_released_until_cleanup() {
         identity: ExtensionIdentity {
             uid: FIRST_UID,
             gid: 999,
-            username: "cos-ext-00".to_string(),
+            username: "yuos-ext-00".to_string(),
         },
         lock: Some(lock),
         release_on_drop: true,

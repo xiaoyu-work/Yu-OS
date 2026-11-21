@@ -25,7 +25,7 @@ use crate::caps::CapSet;
 /// one MCP tool call is honoured while it is set and gone the moment it
 /// is cleared.
 ///
-/// `relay` is the opaque grant `clawd` issues to *this launcher
+/// `relay` is the opaque grant `yuosd` issues to *this launcher
 /// process* when the session is bound. The endpoint has to exist before
 /// the worker is spawned and the grant only exists after the spawn, so
 /// the cell is shared with the session object and filled in on bind. It
@@ -55,7 +55,7 @@ pub fn relay_slot() -> RelayHandle {
     std::sync::Arc::new(std::sync::Mutex::new(None))
 }
 
-/// Install the grant `clawd` issued at bind time.
+/// Install the grant `yuosd` issued at bind time.
 pub fn install_relay(slot: &RelayHandle, handle: Option<String>) {
     if let Ok(mut guard) = slot.lock() {
         *guard = handle;
@@ -116,10 +116,10 @@ impl BrokerAuthority {
             let handle = self
                 .relay_handle()
                 .ok_or("Root has not bound this App's liveness authority")?;
-            let response = crate::clawd::client::request_blocking(
-                crate::clawd::config::socket_path(),
-                crate::clawd::protocol::Request::build(
-                    crate::clawd::routes::Command::AppSessionCheckLive,
+            let response = crate::yuosd::client::request_blocking(
+                crate::yuosd::config::socket_path(),
+                crate::yuosd::protocol::Request::build(
+                    crate::yuosd::routes::Command::AppSessionCheckLive,
                     serde_json::json!({"session_id": self.session_id, "handle": handle}),
                 ),
             )?;
@@ -403,7 +403,7 @@ impl LaunchResources {
     }
 
     #[cfg(target_os = "linux")]
-    pub(crate) fn gui_workload(&self) -> Result<&claw_display_control::workload::Workload, String> {
+    pub(crate) fn gui_workload(&self) -> Result<&yuos_display_control::workload::Workload, String> {
         self.cgroup
             .as_ref()
             .ok_or("GUI launch has no checked cgroup governor")?

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# hot-swap-to-vmware.sh — rebuild one or more claw-os binaries, inject them
+# hot-swap-to-vmware.sh — rebuild one or more yuos binaries, inject them
 # into the qcow2 image, regenerate the VMware Fusion vmdk, and (optionally)
 # restart the Fusion VM.
 #
@@ -8,8 +8,8 @@
 #
 # TARGETs (default install path /usr/bin/<name>):
 #   cos                    — workspace root,        target/release/yu
-#   cos-agent-ui           — desktop/agent,         target/release/cos-agent-ui
-#   cos-agent-bridge       — desktop/agent,         target/release/cos-agent-bridge
+#   yuos-agent-ui           — desktop/agent,         target/release/yuos-agent-ui
+#   yuos-agent-bridge       — desktop/agent,         target/release/yuos-agent-bridge
 #   cosmic-files           — build/native-apps/cosmic-files, target/release/cosmic-files
 #   cosmic-edit            — build/native-apps/cosmic-edit, target/release/cosmic-edit
 #   cosmic-term            — build/native-apps/cosmic-term, target/release/cosmic-term
@@ -25,16 +25,16 @@
 #
 # Environment knobs:
 #   ORB_VM          OrbStack VM name (default: clawbuild)
-#   QCOW            host path to the qcow2 (default: build/claw-os-vm-arm64.qcow2)
-#   VMWAREVM        Fusion bundle dir (default: ~/Virtual Machines.localized/ClawOS.vmwarevm)
+#   QCOW            host path to the qcow2 (default: build/yuos-vm-arm64.qcow2)
+#   VMWAREVM        Fusion bundle dir (default: ~/Virtual Machines.localized/YuOS.vmwarevm)
 
 set -euo pipefail
 
 ORB_VM=${ORB_VM:-clawbuild}
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
-QCOW=${QCOW:-"$REPO_ROOT/build/claw-os-vm-arm64.qcow2"}
-VMWAREVM=${VMWAREVM:-"$HOME/Virtual Machines.localized/ClawOS.vmwarevm"}
-VMX="$VMWAREVM/ClawOS.vmx"
+QCOW=${QCOW:-"$REPO_ROOT/build/yuos-vm-arm64.qcow2"}
+VMWAREVM=${VMWAREVM:-"$HOME/Virtual Machines.localized/YuOS.vmwarevm"}
+VMX="$VMWAREVM/YuOS.vmx"
 VMDK="$VMWAREVM/disk.vmdk"
 VMRUN="/Applications/VMware Fusion.app/Contents/Public/vmrun"
 
@@ -68,16 +68,16 @@ done
 target_spec() {
   case "$1" in
     cosmic-notifications)
-      echo "Notifications requires its signed manifest and claw-os-notifications-v1; update paired Agent/Desktop packages and restart the desktop, not only the binary." >&2
+      echo "Notifications requires its signed manifest and yuos-notifications-v1; update paired Agent/Desktop packages and restart the desktop, not only the binary." >&2
       return 1
       ;;
     cosmic-player)
-      echo "Media Player requires its signed manifest and claw-os-media-player-v1; update paired Agent/Desktop packages, not only the binary." >&2
+      echo "Media Player requires its signed manifest and yuos-media-player-v1; update paired Agent/Desktop packages, not only the binary." >&2
       return 1
       ;;
     yu)                    echo ".|yu|/usr/bin/yu" ;;
-    cos-agent-ui)          echo "desktop/agent|cos-agent-ui|/usr/bin/cos-agent-ui" ;;
-    cos-agent-bridge)      echo "desktop/agent|cos-agent-bridge|/usr/bin/cos-agent-bridge" ;;
+    yuos-agent-ui)          echo "desktop/agent|yuos-agent-ui|/usr/bin/yuos-agent-ui" ;;
+    yuos-agent-bridge)      echo "desktop/agent|yuos-agent-bridge|/usr/bin/yuos-agent-bridge" ;;
     cosmic-files)          echo "build/native-apps/cosmic-files|cosmic-files|/usr/bin/cosmic-files" ;;
     cosmic-edit)           echo "build/native-apps/cosmic-edit|cosmic-edit|/usr/bin/cosmic-edit" ;;
     cosmic-term)           echo "build/native-apps/cosmic-term|cosmic-term|/usr/bin/cosmic-term" ;;

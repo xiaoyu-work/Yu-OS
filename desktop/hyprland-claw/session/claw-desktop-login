@@ -13,8 +13,8 @@ import time
 import tomllib
 
 
-SETTING = Path("/etc/cos/desktop-auto-login.json")
-SETUP = Path("/etc/cos/local-desktop-setup")
+SETTING = Path("/etc/yuos/desktop-auto-login.json")
+SETUP = Path("/etc/yuos/local-desktop-setup")
 CONFIG = Path("/etc/greetd/claw-desktop.toml")
 RUNTIME = Path("/run/claw-greetd/config.toml")
 ATTEMPT = Path("/run/claw-desktop-auto-login-attempted")
@@ -106,7 +106,7 @@ def render():
                 print(f"Yu OS: boot login VT unavailable: {error}", file=sys.stderr)
             else:
                 source += (
-                    '\n[initial_session]\ncommand = "/usr/local/bin/claw-display-session --desktop"\n'
+                    '\n[initial_session]\ncommand = "/usr/local/bin/yuos-display-session --desktop"\n'
                     f'user = "{saved["name"]}"\n'
                 )
     save(RUNTIME, source)

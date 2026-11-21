@@ -52,11 +52,11 @@ pub struct LlmRunRecord {
     /// ISO 8601 UTC, e.g. `"2026-05-05T17:30:21.123Z"`.
     pub timestamp: String,
 
-    /// `COS_TRACE_ID` env at record time, or `None`.
+    /// `YUOS_TRACE_ID` env at record time, or `None`.
     #[serde(default)]
     pub trace_id: Option<String>,
 
-    /// `COS_SPAN_ID` env at record time, or `None`.
+    /// `YUOS_SPAN_ID` env at record time, or `None`.
     #[serde(default)]
     pub span_id: Option<String>,
 
@@ -164,8 +164,8 @@ impl LlmRunRecord {
     ) -> Self {
         Self {
             timestamp: now_iso8601(),
-            trace_id: env_var_nonempty("COS_TRACE_ID"),
-            span_id: env_var_nonempty("COS_SPAN_ID"),
+            trace_id: env_var_nonempty("YUOS_TRACE_ID"),
+            span_id: env_var_nonempty("YUOS_SPAN_ID"),
             session_id: nonempty(session_id),
             provider: provider.to_string(),
             model: model.to_string(),
@@ -204,8 +204,8 @@ impl LlmRunRecord {
     ) -> Self {
         Self {
             timestamp: now_iso8601(),
-            trace_id: env_var_nonempty("COS_TRACE_ID"),
-            span_id: env_var_nonempty("COS_SPAN_ID"),
+            trace_id: env_var_nonempty("YUOS_TRACE_ID"),
+            span_id: env_var_nonempty("YUOS_SPAN_ID"),
             session_id: nonempty(session_id),
             provider: provider.to_string(),
             model: model.to_string(),
@@ -250,8 +250,8 @@ impl LlmRunRecord {
     ) -> Self {
         Self {
             timestamp: now_iso8601(),
-            trace_id: env_var_nonempty("COS_TRACE_ID"),
-            span_id: env_var_nonempty("COS_SPAN_ID"),
+            trace_id: env_var_nonempty("YUOS_TRACE_ID"),
+            span_id: env_var_nonempty("YUOS_SPAN_ID"),
             session_id: nonempty(session_id),
             provider: "gate".to_string(),
             model: model.to_string(),
@@ -296,8 +296,8 @@ impl LlmRunRecord {
     ) -> Self {
         let mut rec = Self {
             timestamp: now_iso8601(),
-            trace_id: env_var_nonempty("COS_TRACE_ID"),
-            span_id: env_var_nonempty("COS_SPAN_ID"),
+            trace_id: env_var_nonempty("YUOS_TRACE_ID"),
+            span_id: env_var_nonempty("YUOS_SPAN_ID"),
             session_id: nonempty(session_id),
             provider: "kernel".to_string(),
             model: format!("tool:{tool_name}"),

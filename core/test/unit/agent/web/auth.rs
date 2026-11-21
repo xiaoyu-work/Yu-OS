@@ -8,16 +8,16 @@ struct DataDirGuard {
 impl Drop for DataDirGuard {
     fn drop(&mut self) {
         match self.previous.take() {
-            Some(value) => std::env::set_var("COS_DATA_DIR", value),
-            None => std::env::remove_var("COS_DATA_DIR"),
+            Some(value) => std::env::set_var("YUOS_DATA_DIR", value),
+            None => std::env::remove_var("YUOS_DATA_DIR"),
         }
     }
 }
 
 fn isolated_data_dir() -> DataDirGuard {
     let temp = tempfile::tempdir().unwrap();
-    let previous = std::env::var_os("COS_DATA_DIR");
-    std::env::set_var("COS_DATA_DIR", temp.path());
+    let previous = std::env::var_os("YUOS_DATA_DIR");
+    std::env::set_var("YUOS_DATA_DIR", temp.path());
     DataDirGuard {
         previous,
         _temp: temp,

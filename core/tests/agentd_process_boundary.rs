@@ -1,7 +1,7 @@
 //! Real process-boundary checks for the `agentd` worker split.
 //!
-//! These spawn an actual `claw-agentd` child through the same
-//! `agentd::spawn` path `clawd` uses and inspect the kernel's view of
+//! These spawn an actual `yuos-agentd` child through the same
+//! `agentd::spawn` path `yuosd` uses and inspect the kernel's view of
 //! it — `/proc/<pid>/status`, `/proc/<pid>/fd`, `/proc/<pid>/environ` —
 //! rather than trusting a helper's return value.
 //!
@@ -30,14 +30,14 @@ use yu::agentd::spawn::{self, ExecutionIsolation, SpawnedWorker, WorkerIdentity}
 use yu::extension_host::protocol::HostPurpose;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 
-const WORKER_BIN: &str = env!("CARGO_BIN_EXE_claw-agentd");
-const EXTENSION_HOST_BIN: &str = env!("CARGO_BIN_EXE_claw-extension-host");
+const WORKER_BIN: &str = env!("CARGO_BIN_EXE_yuos-agentd");
+const EXTENSION_HOST_BIN: &str = env!("CARGO_BIN_EXE_yuos-extension-host");
 /// Marker placed in the *parent's* environment. The worker rebuilds its
 /// environment from an allowlist, so this must never appear in the
 /// child.
-const LEAK_MARKER: &str = "COS_AGENTD_TEST_BROKER_SECRET";
-const CGROUP_PROBE_GATE: &str = "COS_TEST_CGROUP_PROBE_GATE";
-const CGROUP_PROBE_ROOT: &str = "COS_TEST_CGROUP_PROBE_ROOT";
+const LEAK_MARKER: &str = "YUOS_AGENTD_TEST_BROKER_SECRET";
+const CGROUP_PROBE_GATE: &str = "YUOS_TEST_CGROUP_PROBE_GATE";
+const CGROUP_PROBE_ROOT: &str = "YUOS_TEST_CGROUP_PROBE_ROOT";
 const TEST_CAPABILITY_GENERATION: &str = "aaaaaaaaaaaaaaaa";
 
 fn approved_paths(identity: &WorkerIdentity) -> Vec<yu::extension_host::protocol::ApprovedPath> {
@@ -87,12 +87,12 @@ impl Drop for Harness {
             libc::close(self.leaked_fd);
         }
         std::env::remove_var(LEAK_MARKER);
-        std::env::remove_var("COS_EXTENSION_HOST_BIN");
-        std::env::remove_var("COS_RUNTIME_DIR");
+        std::env::remove_var("YUOS_EXTENSION_HOST_BIN");
+        std::env::remove_var("YUOS_RUNTIME_DIR");
         std::env::remove_var(spawn::ISOLATED_GROUP_ENV);
         std::env::remove_var(yu::extension_host::spawn::CGROUP_ROOT_ENV);
-        std::env::remove_var("COS_AGENTD_TEST_ASSIGNMENT_FAILPOINT");
-        std::env::remove_var("COS_AGENTD_TEST_COMMIT_MARKER");
+        std::env::remove_var("YUOS_AGENTD_TEST_ASSIGNMENT_FAILPOINT");
+        std::env::remove_var("YUOS_AGENTD_TEST_COMMIT_MARKER");
         let _ = std::fs::remove_dir_all(&self.runtime_dir);
         let _ = std::fs::remove_dir(&self.cgroup_root);
     }
@@ -149,8 +149,8 @@ fn harness() -> Option<Harness> {
         eprintln!("skipping: chmod runtime dir: {error}");
         return None;
     }
-    let worker_bin = runtime_dir.join("claw-agentd");
-    let extension_bin = runtime_dir.join("claw-extension-host");
+    let worker_bin = runtime_dir.join("yuos-agentd");
+    let extension_bin = runtime_dir.join("yuos-extension-host");
     if let Err(error) = std::fs::copy(WORKER_BIN, &worker_bin) {
         eprintln!("skipping: copy worker binary: {error}");
         return None;
@@ -172,7 +172,7 @@ fn harness() -> Option<Harness> {
         return None;
     }
 
-    let primary_path = runtime_dir.join("clawd.sock");
+    let primary_path = runtime_dir.join("yuosd.sock");
     let primary_listener = match std::os::unix::net::UnixListener::bind(&primary_path) {
         Ok(listener) => listener,
         Err(error) => {
@@ -197,10 +197,10 @@ fn harness() -> Option<Harness> {
         return None;
     }
 
-    std::env::set_var("COS_AGENTD_BIN", &worker_bin);
-    std::env::set_var("COS_EXTENSION_HOST_BIN", &extension_bin);
-    std::env::set_var("COS_DATA_DIR", data.path());
-    std::env::set_var("COS_RUNTIME_DIR", &runtime_dir);
+    std::env::set_var("YUOS_AGENTD_BIN", &worker_bin);
+    std::env::set_var("YUOS_EXTENSION_HOST_BIN", &extension_bin);
+    std::env::set_var("YUOS_DATA_DIR", data.path());
+    std::env::set_var("YUOS_RUNTIME_DIR", &runtime_dir);
     std::env::set_var(spawn::ISOLATED_GROUP_ENV, "nogroup");
     std::env::set_var(LEAK_MARKER, "broker-only-value");
     let execution_gid = match spawn::resolve_isolated_execution_gid() {
@@ -223,10 +223,10 @@ fn harness() -> Option<Harness> {
     let extension_identity = yu::extension_host::identity::ExtensionIdentity {
         uid: yu::extension_host::identity::FIRST_UID,
         gid: execution_gid,
-        username: "cos-ext-00".to_string(),
+        username: "yuos-ext-00".to_string(),
     };
     let cgroup_root = PathBuf::from(format!(
-        "/sys/fs/cgroup/cos-test-{}",
+        "/sys/fs/cgroup/yuos-test-{}",
         uuid::Uuid::new_v4()
             .simple()
             .to_string()
@@ -277,9 +277,9 @@ fn harness() -> Option<Harness> {
 
 fn test_broker_context(harness: &Harness) -> yu::agentd::supervisor::BrokerContext {
     yu::agentd::supervisor::BrokerContext::new(
-        yu::clawd::state::DaemonState::try_new().expect("daemon state"),
-        yu::clawd::transport::limits::Admission::new(
-            yu::clawd::transport::limits::Limits::default(),
+        yu::yuosd::state::DaemonState::try_new().expect("daemon state"),
+        yu::yuosd::transport::limits::Admission::new(
+            yu::yuosd::transport::limits::Limits::default(),
         ),
         harness.primary_path.clone(),
     )
@@ -494,7 +494,7 @@ fn extension_cgroups(root: &std::path::Path) -> Vec<PathBuf> {
             entry
                 .file_name()
                 .to_str()
-                .is_some_and(|name| name.starts_with("cos-extension-"))
+                .is_some_and(|name| name.starts_with("yuos-extension-"))
         })
         .map(|entry| entry.path())
         .collect()
@@ -571,7 +571,7 @@ fn install_daemonizing_host(harness: &Harness, exit_host: bool) -> PathBuf {
                 "    if escaped != 0:\n",
                 "        os._exit(0)\n",
                 "    ctypes.CDLL(None).prctl(1, 0, 0, 0, 0)\n",
-                "    marker = os.environ['COS_EXTENSION_CONTROL_SOCKET'] + '.escaped'\n",
+                "    marker = os.environ['YUOS_EXTENSION_CONTROL_SOCKET'] + '.escaped'\n",
                 "    with open(marker, 'w', encoding='utf-8') as output:\n",
                 "        output.write(str(os.getpid()))\n",
                 "        output.flush()\n",
@@ -609,7 +609,7 @@ fn install_crashing_control_host(harness: &Harness, marker: &std::path::Path) ->
             "        value += chunk\n",
             "    return value\n",
             "\n",
-            "control = os.environ['COS_EXTENSION_CONTROL_SOCKET']\n",
+            "control = os.environ['YUOS_EXTENSION_CONTROL_SOCKET']\n",
             "try:\n",
             "    os.unlink(control)\n",
             "except FileNotFoundError:\n",
@@ -687,7 +687,7 @@ try:
 except OSError as error:
     values["cgroup_escape"] = [-1, error.errno]
 
-report = os.environ["COS_EXTENSION_CONTROL_SOCKET"] + ".isolation"
+report = os.environ["YUOS_EXTENSION_CONTROL_SOCKET"] + ".isolation"
 with open(report, "w", encoding="utf-8") as output:
     json.dump(values, output)
     output.flush()
@@ -722,10 +722,10 @@ fn install_private_tmp_probe(harness: &Harness) -> PathBuf {
                 "#!/usr/bin/python3\n",
                 "import os\n",
                 "import time\n",
-                "shared = '/tmp/cos-extension-private-tmp-probe'\n",
+                "shared = '/tmp/yuos-extension-private-tmp-probe'\n",
                 "existed = os.path.exists(shared)\n",
                 "with open(shared, 'w', encoding='utf-8') as output:\n",
-                "    output.write(os.environ['COS_EXTENSION_TASK_ID'])\n",
+                "    output.write(os.environ['YUOS_EXTENSION_TASK_ID'])\n",
                 "persistent_errno = 0\n",
                 "try:\n",
                 "    with open("
@@ -736,7 +736,7 @@ fn install_private_tmp_probe(harness: &Harness) -> PathBuf {
                 "        output.write('forbidden')\n",
                 "except OSError as error:\n",
                 "    persistent_errno = error.errno\n",
-                "report = os.environ['COS_EXTENSION_CONTROL_SOCKET'] + '.tmp'\n",
+                "report = os.environ['YUOS_EXTENSION_CONTROL_SOCKET'] + '.tmp'\n",
                 "with open(report, 'w', encoding='utf-8') as output:\n",
                 "    output.write(('1' if existed else '0') + ':' + str(persistent_errno))\n",
                 "    output.flush()\n",
@@ -808,8 +808,8 @@ fn automatic_containment_root_child_probe() {
     assert_eq!(containment.path(), expected);
     let membership = std::fs::read_to_string("/proc/self/cgroup").expect("membership");
     assert!(
-        membership.lines().any(|line| line.ends_with("/cos-broker")),
-        "clawd probe did not move into its broker leaf: {membership}"
+        membership.lines().any(|line| line.ends_with("/yuos-broker")),
+        "yuosd probe did not move into its broker leaf: {membership}"
     );
 }
 
@@ -820,7 +820,7 @@ fn automatic_current_cgroup_setup_moves_broker_and_enables_controllers() {
         return;
     };
     let probe_root = PathBuf::from(format!(
-        "/sys/fs/cgroup/cos-auto-test-{}",
+        "/sys/fs/cgroup/yuos-auto-test-{}",
         uuid::Uuid::new_v4()
             .simple()
             .to_string()
@@ -829,7 +829,7 @@ fn automatic_current_cgroup_setup_moves_broker_and_enables_controllers() {
             .collect::<String>()
     ));
     std::fs::create_dir(&probe_root).expect("create automatic cgroup probe");
-    let stale = probe_root.join("cos-extension-stale");
+    let stale = probe_root.join("yuos-extension-stale");
     std::fs::create_dir(&stale).expect("create stale extension cgroup");
     let mut stale_child = std::process::Command::new("sleep")
         .arg("60")
@@ -876,7 +876,7 @@ fn automatic_current_cgroup_setup_moves_broker_and_enables_controllers() {
     }
     let _ = stale_child.wait();
     let stale_removed_by_setup = !stale.exists();
-    let broker = probe_root.join("cos-broker");
+    let broker = probe_root.join("yuos-broker");
     let _ = std::fs::write(probe_root.join("cgroup.kill"), b"1");
     let _ = std::fs::remove_dir(&stale);
     let _ = std::fs::remove_dir(&broker);
@@ -1009,7 +1009,7 @@ async fn a_worker_inherits_no_broker_descriptor_environment_or_privilege() {
     assert_eq!(
         primary.gid(),
         harness.identity.gid,
-        "fixture must model an owner whose primary gid can reach clawd"
+        "fixture must model an owner whose primary gid can reach yuosd"
     );
     assert_ne!(hello.gid, primary.gid());
     assert_ne!(hello.uid, 0, "the agent runtime must never run as root");
@@ -1260,10 +1260,10 @@ async fn service_owned_roots_are_hardened_before_an_extension_task() {
             "model systemd root group"
         );
     }
-    let previous_log = std::env::var_os("COS_LOG_DIR");
-    std::env::set_var("COS_LOG_DIR", &logs);
-    yu::storage::harden_clawd_runtime().expect("harden runtime root");
-    yu::storage::harden_clawd_state().expect("harden state roots");
+    let previous_log = std::env::var_os("YUOS_LOG_DIR");
+    std::env::set_var("YUOS_LOG_DIR", &logs);
+    yu::storage::harden_yuosd_runtime().expect("harden runtime root");
+    yu::storage::harden_yuosd_state().expect("harden state roots");
     assert_eq!(std::fs::metadata(&harness.runtime_dir).unwrap().gid(), 0);
     assert_eq!(std::fs::metadata(harness._data.path()).unwrap().gid(), 0);
     assert_eq!(std::fs::metadata(&logs).unwrap().gid(), 0);
@@ -1303,8 +1303,8 @@ async fn service_owned_roots_are_hardened_before_an_extension_task() {
     host.paths.cleanup().expect("clean host paths");
 
     match previous_log {
-        Some(value) => std::env::set_var("COS_LOG_DIR", value),
-        None => std::env::remove_var("COS_LOG_DIR"),
+        Some(value) => std::env::set_var("YUOS_LOG_DIR", value),
+        None => std::env::remove_var("YUOS_LOG_DIR"),
     }
 }
 
@@ -1985,7 +1985,7 @@ fn routed_registry_is_readable_but_not_writable_by_authorized_identities() {
         .expect("register routed ACL probe");
     yu::storage::install_routed_extension_reader(PROBE_UID, harness.extension_identity.uid)
         .expect("grant extension registry reader");
-    let registry = format!("/run/cos/caps/{PROBE_UID}/proc/registry.json");
+    let registry = format!("/run/yuos/caps/{PROBE_UID}/proc/registry.json");
 
     for (uid, gid) in [
         (PROBE_UID, harness.identity.gid),
@@ -2074,7 +2074,7 @@ fn routed_registry_is_readable_but_not_writable_by_authorized_identities() {
         "revoked extension uid retained ACL access"
     );
     yu::proc::deregister_session_for_owner(session_id, PROBE_UID);
-    let _ = std::fs::remove_dir_all(format!("/run/cos/caps/{PROBE_UID}"));
+    let _ = std::fs::remove_dir_all(format!("/run/yuos/caps/{PROBE_UID}"));
 }
 
 #[test]
@@ -2235,7 +2235,7 @@ async fn the_supervisor_runs_a_task_end_to_end_through_a_real_worker() {
     ));
 
     // The whole production sequence runs here: claim → spawn a real
-    // `claw-agentd` → handshake → assignment → result → finish.
+    // `yuos-agentd` → handshake → assignment → result → finish.
     let deadline = tokio::time::Instant::now() + Duration::from_secs(180);
     let finished = loop {
         if let Some((_, current)) = store.locate(&job.id).expect("locate") {
@@ -2326,7 +2326,7 @@ async fn assignment_crash_boundaries_requeue_only_before_durable_commit() {
                 Some(harness.identity.home.to_string_lossy().into_owned()),
             )
             .expect("submit");
-        std::env::set_var("COS_AGENTD_TEST_ASSIGNMENT_FAILPOINT", point);
+        std::env::set_var("YUOS_AGENTD_TEST_ASSIGNMENT_FAILPOINT", point);
 
         let marker = harness.runtime_dir.join(format!("commit-{point}.marker"));
         std::fs::write(&marker, b"").expect("create commit marker");
@@ -2337,7 +2337,7 @@ async fn assignment_crash_boundaries_requeue_only_before_durable_commit() {
             0,
             "chown commit marker"
         );
-        std::env::set_var("COS_AGENTD_TEST_COMMIT_MARKER", &marker);
+        std::env::set_var("YUOS_AGENTD_TEST_COMMIT_MARKER", &marker);
 
         let shutdown = Arc::new(AtomicBool::new(false));
         let config = SupervisorConfig {
@@ -2635,7 +2635,7 @@ async fn a_root_owned_task_never_spawns_a_worker_or_initialises_a_provider() {
     // root-owned task must happen before anything is executed, so this
     // marker must never appear.
     let marker = probe.path().join("worker-ran");
-    let fake_worker = probe.path().join("claw-agentd");
+    let fake_worker = probe.path().join("yuos-agentd");
     std::fs::write(
         &fake_worker,
         format!("#!/bin/sh\ntouch {}\n", marker.display()),
@@ -2646,7 +2646,7 @@ async fn a_root_owned_task_never_spawns_a_worker_or_initialises_a_provider() {
         std::fs::set_permissions(&fake_worker, std::fs::Permissions::from_mode(0o755))
             .expect("chmod");
     }
-    std::env::set_var("COS_AGENTD_BIN", &fake_worker);
+    std::env::set_var("YUOS_AGENTD_BIN", &fake_worker);
 
     let store = Store::with_root(queue.path().to_path_buf()).expect("store");
     let job = store
@@ -2694,7 +2694,7 @@ async fn a_root_owned_task_never_spawns_a_worker_or_initialises_a_provider() {
     shutdown.store(true, Ordering::SeqCst);
     let _ = tokio::time::timeout(Duration::from_secs(30), supervisor).await;
 
-    std::env::set_var("COS_AGENTD_BIN", WORKER_BIN);
+    std::env::set_var("YUOS_AGENTD_BIN", WORKER_BIN);
 
     assert_eq!(finished.status, JobStatus::Error);
     let error = finished.error.unwrap_or_default();
@@ -2831,7 +2831,7 @@ async fn a_same_uid_sibling_without_the_channel_cannot_become_a_worker() {
         .expect("wait");
     assert!(
         !status.success(),
-        "a worker started outside clawd must refuse to run"
+        "a worker started outside yuosd must refuse to run"
     );
 }
 

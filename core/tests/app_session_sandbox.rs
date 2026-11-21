@@ -10,7 +10,7 @@
 //!
 //! Every test is skipped, loudly, on a host that cannot enforce the
 //! policy. CI and the image builds declare the prerequisites installed
-//! by setting `COS_WORKER_SANDBOX_REQUIRED=1`; there an unavailable
+//! by setting `YUOS_WORKER_SANDBOX_REQUIRED=1`; there an unavailable
 //! sandbox is a failure rather than a skip, so a missing dependency
 //! cannot quietly turn this suite into a no-op.
 
@@ -34,7 +34,7 @@ macro_rules! require_sandbox {
     () => {
         if !sandbox_available() {
             let availability = yu::worker::availability();
-            if std::env::var_os("COS_WORKER_SANDBOX_REQUIRED").is_some() {
+            if std::env::var_os("YUOS_WORKER_SANDBOX_REQUIRED").is_some() {
                 panic!(
                     "worker sandbox prerequisites are declared installed but missing: {}",
                     availability.refusal()
@@ -59,15 +59,15 @@ macro_rules! require_sandbox {
 const FIXTURE_SERVER: &str = r#"
 import json, os, pathlib, socket as socket_mod, subprocess, sys, time
 
-DATA = os.environ.get("COS_DATA_DIR", "/tmp")
+DATA = os.environ.get("YUOS_DATA_DIR", "/tmp")
 STATE = {}
 
 
 def probe():
     out = {}
-    out["marker"] = os.environ.get("COS_WORKER_SANDBOX")
-    out["app"] = os.environ.get("COS_APP_ID")
-    out["session"] = os.environ.get("COS_SESSION")
+    out["marker"] = os.environ.get("YUOS_WORKER_SANDBOX")
+    out["app"] = os.environ.get("YUOS_APP_ID")
+    out["session"] = os.environ.get("YUOS_SESSION")
     out["env"] = sorted(os.environ)
     out["data_dir"] = DATA
     out["cwd"] = os.getcwd()
@@ -97,10 +97,10 @@ def probe():
     ]
     for label, path in (
         ("shadow", "/etc/shadow"),
-        ("cos_state", "/var/lib/cos"),
-        ("cos_runtime", "/run/cos"),
-        ("broker_sock", "/run/cos/clawd.sock"),
-        ("egress_sock", "/run/cos/worker-egress.sock"),
+        ("yu_state", "/var/lib/yuos"),
+        ("yuos_runtime", "/run/yuos"),
+        ("broker_sock", "/run/yuos/yuosd.sock"),
+        ("egress_sock", "/run/yuos/worker-egress.sock"),
     ):
         out[label] = os.path.exists(path)
     try:
@@ -123,7 +123,7 @@ def probe():
 
 
 def policy(verb, name):
-    binary = os.environ.get("CLAW_COS_BIN", "yu")
+    binary = os.environ.get("YUOS_KERNEL_BIN", "yu")
     proc = subprocess.run(
         [binary, "__policy", "check", verb, "--name", name],
         capture_output=True,
@@ -192,7 +192,7 @@ def transport_probe(socket):
     except OSError as error:
         out["runtime_dir"] = "denied:%d" % error.errno
     # The broker socket the sandbox sees is the launch's own shadow.
-    out["broker_is_real"] = os.path.realpath("/run/cos/clawd.sock").startswith("/run/user")
+    out["broker_is_real"] = os.path.realpath("/run/yuos/yuosd.sock").startswith("/run/user")
     out["env_values"] = sorted(os.environ.values())
     return out
 
@@ -341,7 +341,7 @@ impl Session {
             serde_json::json!({
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
-                "clientInfo": { "name": "cos-agent", "version": "test" },
+                "clientInfo": { "name": "yuos-agent", "version": "test" },
             }),
         );
         assert_eq!(init["result"]["serverInfo"]["name"], "probe");
@@ -527,7 +527,7 @@ fn a_session_server_runs_under_the_same_isolation_as_any_hostile_worker() {
     for leaked in [
         "OPENAI_API_KEY",
         "SSH_AUTH_SOCK",
-        "COS_PROC_DATA_DIR",
+        "YUOS_PROC_DATA_DIR",
         "DBUS_SESSION_BUS_ADDRESS",
         "XAUTHORITY",
         "WAYLAND_DISPLAY",
@@ -537,7 +537,7 @@ fn a_session_server_runs_under_the_same_isolation_as_any_hostile_worker() {
             "{leaked} reached the session: {env:?}"
         );
     }
-    assert!(env.contains(&"COS_APP_ID"), "{env:?}");
+    assert!(env.contains(&"YUOS_APP_ID"), "{env:?}");
 
     // Namespaces: private pid, mount, net, ipc, uts and user.
     let host: BTreeMap<&str, String> = ["pid", "mnt", "net", "user", "ipc", "uts"]
@@ -582,7 +582,7 @@ fn a_session_server_runs_under_the_same_isolation_as_any_hostile_worker() {
     assert_eq!(facts["root_write"], "read-only", "{facts}");
     assert_eq!(facts["own_write"], "private", "{facts}");
     assert_eq!(facts["shadow"], false, "/etc/shadow is inside: {facts}");
-    assert_eq!(facts["cos_state"], false, "kernel state is inside: {facts}");
+    assert_eq!(facts["yu_state"], false, "kernel state is inside: {facts}");
     assert_eq!(
         facts["home_entries"].as_array().map(Vec::len),
         Some(0),
@@ -617,9 +617,9 @@ fn a_session_server_runs_under_the_same_isolation_as_any_hostile_worker() {
     // The egress broker exists for brokered launches only.
     assert_eq!(facts["egress_sock"], false, "{facts}");
     // The broker socket the session *does* see is its own shadow, not
-    // the real `clawd` endpoint: `/run/cos` holds nothing else.
+    // the real `yuosd` endpoint: `/run/yuos` holds nothing else.
     assert_eq!(facts["broker_sock"], true, "{facts}");
-    assert_eq!(facts["cos_runtime"], true, "{facts}");
+    assert_eq!(facts["yuos_runtime"], true, "{facts}");
 
     // No launcher descriptor survives `execve`, and nothing the
     // sandbox cannot see by path is open in it.
@@ -638,7 +638,7 @@ fn a_session_server_runs_under_the_same_isolation_as_any_hostile_worker() {
     assert!(
         !targets
             .iter()
-            .any(|target| target.starts_with("/var/lib/cos") || target.contains("registry")),
+            .any(|target| target.starts_with("/var/lib/yuos") || target.contains("registry")),
         "a kernel-state descriptor survived the launch: {targets:?}"
     );
     assert!(
@@ -705,7 +705,7 @@ struct SessionRow {
 
 impl SessionRow {
     fn install(id: &str, proc_dir: &Path) -> Self {
-        std::env::set_var("COS_PROC_DATA_DIR", proc_dir);
+        std::env::set_var("YUOS_PROC_DATA_DIR", proc_dir);
         yu::proc::register_session(yu::proc::SessionInfo {
             session_id: id.to_string(),
             pid: std::process::id(),
@@ -741,7 +741,7 @@ impl SessionRow {
 impl Drop for SessionRow {
     fn drop(&mut self) {
         yu::proc::deregister_session(&self.id);
-        std::env::remove_var("COS_PROC_DATA_DIR");
+        std::env::remove_var("YUOS_PROC_DATA_DIR");
     }
 }
 
@@ -751,7 +751,7 @@ fn a_transient_grant_is_answered_only_while_the_call_holds_it() {
     let (package, data) = fixture_package();
     let proc_dir = tempfile::tempdir().expect("proc dir");
     let row = SessionRow::install("app-transient", proc_dir.path());
-    std::env::set_var("COS_BIN", env!("CARGO_BIN_EXE_yu"));
+    std::env::set_var("YUOS_BIN", env!("CARGO_BIN_EXE_yu"));
 
     let mut session = open_session(package.path(), data.path(), "app-transient", CapSet::new());
 
@@ -798,7 +798,7 @@ fn a_transient_grant_is_answered_only_while_the_call_holds_it() {
         "a reused worker kept the previous call's capability: {cleared}"
     );
 
-    std::env::remove_var("COS_BIN");
+    std::env::remove_var("YUOS_BIN");
     session.close();
     drop(row);
 }
@@ -1137,7 +1137,7 @@ fn a_classified_transport_binds_one_socket_and_lifts_the_tier() {
     };
     let (package, data) = fixture_package();
     // A neighbour the owner also keeps in the same runtime directory.
-    let neighbour = runtime.join("cos-test-keyring");
+    let neighbour = runtime.join("yuos-test-keyring");
     let _ = std::fs::remove_file(&neighbour);
     let _keyring = std::os::unix::net::UnixListener::bind(&neighbour).expect("neighbour");
     let bus = FixtureBus::install(&runtime);
@@ -1213,7 +1213,7 @@ fn a_classified_transport_binds_one_socket_and_lifts_the_tier() {
     // nothing else. The owner's neighbouring sockets stay on the host.
     assert_eq!(
         facts["runtime_dir"],
-        serde_json::json!(["clawd.sock", "session-bus"]),
+        serde_json::json!(["yuosd.sock", "session-bus"]),
         "more than the bus and the launch broker is visible: {facts}"
     );
     // The real daemon socket is still shadowed by the launch broker.

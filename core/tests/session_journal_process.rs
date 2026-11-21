@@ -27,7 +27,7 @@ use yu::session::journal::{
 
 /// Set by the parent when it re-executes this binary as the "crashed
 /// daemon" half of the restart tests.
-const CHILD_DATA_DIR: &str = "COS_JOURNAL_TEST_DATA_DIR";
+const CHILD_DATA_DIR: &str = "YUOS_JOURNAL_TEST_DATA_DIR";
 const CHILD_ROUTE: &str = "system.package.install";
 const CHILD_REQUEST: &str = "req-crash-1";
 
@@ -47,12 +47,12 @@ fn owner_uid() -> u32 {
     unsafe { libc::geteuid() as u32 }
 }
 
-/// Run one `#[ignore]`d test in a fresh process, with `COS_DATA_DIR`
+/// Run one `#[ignore]`d test in a fresh process, with `YUOS_DATA_DIR`
 /// pointed at `data_dir`.
 fn run_child(name: &str, data_dir: &Path) -> std::process::Output {
     Command::new(std::env::current_exe().expect("test binary"))
         .args(["--exact", "--ignored", "--nocapture", name])
-        .env("COS_DATA_DIR", data_dir)
+        .env("YUOS_DATA_DIR", data_dir)
         .env(CHILD_DATA_DIR, data_dir)
         .output()
         .expect("spawn child")
@@ -61,7 +61,7 @@ fn run_child(name: &str, data_dir: &Path) -> std::process::Output {
 fn probe() -> JournalEvent {
     JournalEvent::ToolStarted {
         turn: 0,
-        tool: Label::new("cos_todo"),
+        tool: Label::new("yu_todo"),
         tool_use_id: Label::new("t-1"),
         known: true,
     }
@@ -70,7 +70,7 @@ fn probe() -> JournalEvent {
 #[test]
 fn a_second_process_cannot_take_the_writer_lease() {
     let data_dir = temp_data_dir();
-    std::env::set_var("COS_DATA_DIR", data_dir.path());
+    std::env::set_var("YUOS_DATA_DIR", data_dir.path());
     let root = journal_root(data_dir.path());
     std::fs::create_dir_all(&root).expect("root");
     let lock = root.join("writer.lock");
@@ -99,7 +99,7 @@ fn a_second_process_cannot_take_the_writer_lease() {
 
     let _ = holder.kill();
     let _ = holder.wait();
-    std::env::remove_var("COS_DATA_DIR");
+    std::env::remove_var("YUOS_DATA_DIR");
 }
 
 fn wait_for_held(child: &mut std::process::Child) {
@@ -150,7 +150,7 @@ fn an_unresolved_mutation_refuses_its_replay_across_processes_and_restarts() {
     }
 
     // Now this process takes over as the daemon.
-    std::env::set_var("COS_DATA_DIR", data_dir.path());
+    std::env::set_var("YUOS_DATA_DIR", data_dir.path());
     let report = journal::startup_recovery(RecoverySource::DaemonStart)
         .expect("recovery runs on a chain another process wrote");
     assert_eq!(report.orphans.len(), 1, "{report:?}");
@@ -207,7 +207,7 @@ fn an_unresolved_mutation_refuses_its_replay_across_processes_and_restarts() {
         .find(|entry| entry.operation == orphan.operation)
         .expect("still in the timeline");
     assert_eq!(entry.status, "resolved-abandoned");
-    std::env::remove_var("COS_DATA_DIR");
+    std::env::remove_var("YUOS_DATA_DIR");
 }
 
 /// The "crashed daemon". Opens a bracket, never closes it, exits.
@@ -215,7 +215,7 @@ fn an_unresolved_mutation_refuses_its_replay_across_processes_and_restarts() {
 #[ignore = "spawned by an_unresolved_mutation_refuses_its_replay_across_processes_and_restarts"]
 fn child_opens_a_bracket_then_exits_without_closing_it() {
     let data_dir = std::env::var(CHILD_DATA_DIR).expect("parent must name the data dir");
-    std::env::set_var("COS_DATA_DIR", &data_dir);
+    std::env::set_var("YUOS_DATA_DIR", &data_dir);
 
     let bracket = journal::begin_mutation(MutationStart {
         partition: partition(),
@@ -238,7 +238,7 @@ fn child_opens_a_bracket_then_exits_without_closing_it() {
 #[ignore = "spawned by an_unresolved_mutation_refuses_its_replay_across_processes_and_restarts"]
 fn child_retries_the_same_operation() {
     let data_dir = std::env::var(CHILD_DATA_DIR).expect("parent must name the data dir");
-    std::env::set_var("COS_DATA_DIR", &data_dir);
+    std::env::set_var("YUOS_DATA_DIR", &data_dir);
 
     journal::startup_recovery(RecoverySource::DaemonStart).expect("recovery");
     assert!(
@@ -274,7 +274,7 @@ fn a_journal_the_daemon_cannot_write_refuses_mutations_but_still_reads() {
         return;
     }
     let data_dir = temp_data_dir();
-    std::env::set_var("COS_DATA_DIR", data_dir.path());
+    std::env::set_var("YUOS_DATA_DIR", data_dir.path());
 
     journal::record(&partition(), owner_uid(), EventSource::Kernel, probe()).expect("first append");
 
@@ -307,13 +307,13 @@ fn a_journal_the_daemon_cannot_write_refuses_mutations_but_still_reads() {
     assert!(projection.health.is_verified(), "{:?}", projection.health);
 
     std::fs::set_permissions(&chain, restore).expect("restore");
-    std::env::remove_var("COS_DATA_DIR");
+    std::env::remove_var("YUOS_DATA_DIR");
 }
 
 #[test]
 fn deleting_the_committed_head_preserves_the_chain_and_fails_mutations_closed() {
     let data_dir = temp_data_dir();
-    std::env::set_var("COS_DATA_DIR", data_dir.path());
+    std::env::set_var("YUOS_DATA_DIR", data_dir.path());
 
     journal::record(&partition(), owner_uid(), EventSource::Kernel, probe()).expect("append");
     let lease = journal::lease().expect("lease");
@@ -351,13 +351,13 @@ fn deleting_the_committed_head_preserves_the_chain_and_fails_mutations_closed() 
     let report = journal::startup_recovery(RecoverySource::DaemonStart).expect("recovery");
     assert_eq!(report.quarantined, vec![partition().key()]);
     assert_eq!(std::fs::read(&chain_path).expect("chain"), bytes);
-    std::env::remove_var("COS_DATA_DIR");
+    std::env::remove_var("YUOS_DATA_DIR");
 }
 
 #[test]
 fn a_session_that_predates_the_journal_is_adopted_read_only() {
     let data_dir = temp_data_dir();
-    std::env::set_var("COS_DATA_DIR", data_dir.path());
+    std::env::set_var("YUOS_DATA_DIR", data_dir.path());
 
     // A legacy session directory: conversation and mutation logs, and no
     // chain at all.
@@ -409,5 +409,5 @@ fn a_session_that_predates_the_journal_is_adopted_read_only() {
     assert!(projection.health.is_verified());
     assert_eq!(projection.mutations.len(), 1);
     assert_eq!(projection.mutations[0].status, "committed");
-    std::env::remove_var("COS_DATA_DIR");
+    std::env::remove_var("YUOS_DATA_DIR");
 }

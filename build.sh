@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Claw OS — top-level build dispatcher.
+# Yu OS — top-level build dispatcher.
 #
 # Delegates to targets/<target>/build.sh.  Each target produces a single
 # distribution artifact (Docker image, ISO, WSL tar, VM image, etc.) from
-# the same shared rootfs in build/claw-os-rootfs.
+# the same shared rootfs in build/yuos-rootfs.
 #
 # Usage:
 #   ./build.sh <target> [args...]

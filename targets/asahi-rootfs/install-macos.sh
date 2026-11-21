@@ -4,7 +4,7 @@ umask 077
 export LC_ALL=C
 
 fail() {
-    printf 'Claw OS: %s\n' "$*" >&2
+    printf 'Yu OS: %s\n' "$*" >&2
     exit 1
 }
 
@@ -30,21 +30,21 @@ esac
 [ -f "$payload" ] || fail "Linux payload is not a regular file"
 scripts=$(cd "$(/usr/bin/dirname "$0")" && pwd)
 . "$scripts/macos-restore-source.sh"
-valid_sha256 "$3" || fail "use the SHA-256 from the trusted Claw OS build"
+valid_sha256 "$3" || fail "use the SHA-256 from the trusted Yu OS build"
 
 model=$(/usr/sbin/sysctl -n hw.model)
 decoder=
 requirement=
 if [ "$model" = Mac17,5 ]; then
-    [ "$#" -eq 6 ] || fail "MacBook Neo requires the signed Claw OS restore helper, its SHA-256 and Apple Team ID"
+    [ "$#" -eq 6 ] || fail "MacBook Neo requires the signed Yu OS restore helper, its SHA-256 and Apple Team ID"
     helper=$4
     case "$helper" in
         /*) ;;
         *) helper="$PWD/$helper" ;;
     esac
     [ -f "$helper" ] || fail "restore helper is not a regular file"
-    valid_sha256 "$5" || fail "use the restore helper SHA-256 from the trusted Claw OS build"
-    requirement=$(restore_requirement "$6") || fail "use the Apple Team ID from the trusted Claw OS build"
+    valid_sha256 "$5" || fail "use the restore helper SHA-256 from the trusted Yu OS build"
+    requirement=$(restore_requirement "$6") || fail "use the Apple Team ID from the trusted Yu OS build"
 else
     [ "$#" -eq 3 ] || fail "the restore helper is only needed on MacBook Neo"
 fi
@@ -55,11 +55,11 @@ if [ "$model" = Mac17,5 ]; then
     decoder="$work/restore-image"
     /usr/bin/install -m 0700 "$helper" "$decoder"
     verify_sha256 "$5" "$decoder" || fail "signed restore helper checksum does not match"
-    /usr/bin/codesign --verify --strict "-R=$requirement" "$decoder" || fail "restore helper does not match the Claw OS signing identity"
+    /usr/bin/codesign --verify --strict "-R=$requirement" "$decoder" || fail "restore helper does not match the Yu OS signing identity"
 fi
 /usr/bin/install -d "$work/os" "$work/runtime"
-/bin/cp "$payload" "$work/os/claw-os.zip"
-verify_sha256 "$3" "$work/os/claw-os.zip" || fail "Linux payload checksum does not match"
+/bin/cp "$payload" "$work/os/yuos.zip"
+verify_sha256 "$3" "$work/os/yuos.zip" || fail "Linux payload checksum does not match"
 
 # AsahiLinux/asahi-installer v0.9.2, signed source dffbb38ef0c00c0431c609ecd8a00f42deb5b24c.
 fetch_pinned https://cdn.asahilinux.org/installer/installer-v0.9.2.tar.gz \
@@ -84,6 +84,6 @@ cd "$work/runtime"
 
 # Do not inherit Asahi expert, alternate restore-server, or telemetry settings.
 /usr/bin/env -i HOME="$work" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
-    DISTRO='Claw OS' DISTRO_DOCS='https://github.com/xiaoyu-work/claw-os/blob/main/docs/image-architecture.md' \
+    DISTRO='Yu OS' DISTRO_DOCS='https://github.com/xiaoyu-work/Yu-OS/blob/main/docs/image-architecture.md' \
     OMARCHY_RESTORE_IMAGE="$decoder" OMARCHY_RESTORE_IMAGE_REQUIREMENT="$requirement" \
     REPO_BASE="$work" /usr/bin/caffeinate -dis /bin/sh ./install.sh "$mode"

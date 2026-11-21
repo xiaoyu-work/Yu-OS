@@ -1,6 +1,6 @@
 use super::*;
 use crate::activities::Response;
-use cos_agent_protocol::ActivityState;
+use yuos_agent_protocol::ActivityState;
 use serde_json::json;
 use std::time::{Duration, UNIX_EPOCH};
 

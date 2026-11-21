@@ -1,10 +1,10 @@
-# Claw OS Architecture
+# Yu OS Architecture
 
 ## Purpose
 
-Claw OS is a Debian-based operating environment built around a system-level AI
+Yu OS is a Debian-based operating environment built around a system-level AI
 agent. The `yu` command exposes structured system primitives and agent
-workflows; `clawd` brokers privileged, session-scoped work; manifests and
+workflows; `yuosd` brokers privileged, session-scoped work; manifests and
 capabilities describe what apps and tools may do; image tooling packages the
 same composed rootfs for WSL, Docker, VM, ISO, Azure, and desktop targets.
 
@@ -29,7 +29,7 @@ User / desktop / external MCP client
        v                    v
  structured primitives   agent runtime
        |                    |
-       +-------> clawd <-----+
+       +-------> yuosd <-----+
                   |
           capability + audit boundary
                   |
@@ -38,9 +38,9 @@ User / desktop / external MCP client
 
 The model never owns system authority. It sees only tools admitted by the tool
 registry and capability/guardrail layers. Privileged execution crosses the
-`clawd` broker or a policy-enforced primitive.
+`yuosd` broker or a policy-enforced primitive.
 
-Agent hook preferences flow through owner-scoped `clawd` routes into the
+Agent hook preferences flow through owner-scoped `yuosd` routes into the
 owner's closed built-in hook configuration and are loaded only by future Agent
 tasks. The terminal renderer never writes hook files or supplies executable
 commands.
@@ -55,56 +55,56 @@ route.
 | Component | Responsibility | Primary source |
 | --- | --- | --- |
 | `yu` CLI and router | Parse output format, dispatch primitives, apps, hidden bridges, and `yu agent` subcommands | `core/src/main.rs`, `core/src/router.rs` |
-| `clawd` broker | Versioned framed Unix-socket RPC, per-message peer identity, declarative route registry, mandatory capability-authority middleware, privileged dispatch, task ownership/lease, worker/extension supervision, and audit hook | `core/src/bin/clawd.rs`, `core/src/clawd/server.rs`, `core/src/clawd/transport/`, `core/src/clawd/routes.rs`, `core/src/clawd/authority/` |
-| Authenticated display lifetime | Root PAM/kernel-login binding, compositor and native locker custody, display epochs and downstream session subscriptions | `core/src/display_session/`, `crates/claw-display-control/`, `crates/claw-display-login/` |
-| GUI App custody | Verified launch, explicit owner actions from the bound OS desktop, reviewed actions from ordinary Apps, independent selection rights, instance-confined transport and checked teardown | `core/src/clawd/gui/`, `core/src/worker/gui_transport/`, `desktop/hyprland-claw/` |
-| `claw-agentd` worker | Unprivileged per-task process that runs the model/tool loop after privilege drop; grant-authenticated private job channel | `core/src/bin/claw-agentd.rs`, `core/src/agentd/` |
-| `claw-extension-host` | Purpose-bound isolated-UID process: a task Host runs dynamic App/MCP code and signed Agent extension observers behind independently bounded canonical, event, and priority control lanes and relays authenticated App calls, while an owner/App service Host runs persistent App MCP code behind broker-owned private sockets; only App/MCP children receive the route-filtered broker proxy | `core/src/bin/claw-extension-host.rs`, `core/src/extension_host/`, `core/src/clawd/app_services.rs` |
+| `yuosd` broker | Versioned framed Unix-socket RPC, per-message peer identity, declarative route registry, mandatory capability-authority middleware, privileged dispatch, task ownership/lease, worker/extension supervision, and audit hook | `core/src/bin/yuosd.rs`, `core/src/yuosd/server.rs`, `core/src/yuosd/transport/`, `core/src/yuosd/routes.rs`, `core/src/yuosd/authority/` |
+| Authenticated display lifetime | Root PAM/kernel-login binding, compositor and native locker custody, display epochs and downstream session subscriptions | `core/src/display_session/`, `crates/yuos-display-control/`, `crates/yuos-display-login/` |
+| GUI App custody | Verified launch, explicit owner actions from the bound OS desktop, reviewed actions from ordinary Apps, independent selection rights, instance-confined transport and checked teardown | `core/src/yuosd/gui/`, `core/src/worker/gui_transport/`, `desktop/hyprland-claw/` |
+| `yuos-agentd` worker | Unprivileged per-task process that runs the model/tool loop after privilege drop; grant-authenticated private job channel | `core/src/bin/yuos-agentd.rs`, `core/src/agentd/` |
+| `yuos-extension-host` | Purpose-bound isolated-UID process: a task Host runs dynamic App/MCP code and signed Agent extension observers behind independently bounded canonical, event, and priority control lanes and relays authenticated App calls, while an owner/App service Host runs persistent App MCP code behind broker-owned private sockets; only App/MCP children receive the route-filtered broker proxy | `core/src/bin/yuos-extension-host.rs`, `core/src/extension_host/`, `core/src/yuosd/app_services.rs` |
 | Agent extension ABI | Explicit authenticated-package registry, provider-attempt/tool observation FIFO, absolute event deadlines, independently acknowledged detach with supervisor containment escalation, per-extension capability references, and default-deny exact-action mediation | `core/src/agent_extensions/`, `core/src/provenance/`, `core/src/extension_host/abi.rs` |
 | Agent runtime | Multi-turn model/tool loop, prompt assembly, hooks, progress, compression, and tool dispatch | `core/src/agent/runtime/` |
-| Agent terminal frontend | Claw-owned ratatui presentation that consumes canonical conversation, task, model, tool and approval services directly; no external TUI process or compatibility protocol | `core/src/agent/terminal/`, `core/src/clawd/conversations.rs` |
+| Agent terminal frontend | Claw-owned ratatui presentation that consumes canonical conversation, task, model, tool and approval services directly; no external TUI process or compatibility protocol | `core/src/agent/terminal/`, `core/src/yuosd/conversations.rs` |
 | Model-input trust | Closed trust lattice, model-input source registry, labelled segments, and the bounded data fence for non-policy content | `core/src/agent/trust/` |
 | LLM abstraction | Provider registry, wire adapters, streaming accumulation, fallback chain, credentials, and usage | `core/src/agent/llm/` |
 | Tool/capability layer | Model-visible tool registry, guardrails, MCP attachment, scope checks, and approval boundaries | `core/src/agent/tools/`, `core/src/caps/` |
 | Credential service | Validated credential identities, cryptography and master-key ownership, encrypted atomic persistence, authorization, refresh lifecycle, OAuth flows, and stable CLI facade | `core/src/credential/` |
 | Memory and sessions | SQLite/FTS memory, semantic recall, session/message persistence, curation, checkpoints, and owner-scoped learned-memory reset that preserves execution evidence | `core/src/agent/memory/`, `core/src/session/`, `core/src/checkpoint.rs` |
-| Activities | Desktop-independent persistent user goals, explicit completion, planning metadata, owner-scoped task/session/attention projections, and closed portable continuity of intent without authority or execution state | `core/src/activities/`, `core/src/clawd/activities.rs`, `core/src/clawd/activity_attention.rs`, `core/src/clawd/activity_continuity.rs`, `core/src/activity.rs` |
-| Workspaces | Owner-scoped context domains above Activities, bounded sourced context, Root-derived conversation/Job bindings, live read-only source visibility and exact temporary cross-domain selections in the existing goal database | `core/src/workspaces/`, `core/src/activities/sqlite/workspaces.rs`, `core/src/clawd/workspaces.rs`, `crates/clawd-client/src/workspaces.rs` |
-| App object catalogue | Authenticated App-owned object declarations, portable SDK references, and explicit resolution through ordinary App operations | `core/src/objects/`, `core/src/caps/manifest/objects.rs`, `core/src/clawd/activity_objects.rs` |
-| Activity object state | Bounded caller-reported observations, receipt links, planning relations and immutable correction/retraction history | `core/src/activities/object_state.rs`, `core/src/clawd/activity_object_state.rs` |
-| Operation previews | Non-executing, authenticated App effect declarations and requested target projections; never execution permission or confirmed effects | `core/src/operations/`, `core/src/clawd/operation_previews.rs` |
-| Activity execution receipts | Immutable owner-scoped caller reports, separate authenticated declaration snapshots, and normal App execution capture | `core/src/activities/receipts.rs`, `core/src/clawd/activity_receipts.rs`, `core/src/router/operation_commands.rs` |
-| Staged file changes | App-owned bounded proposals and review fingerprints, applied through exact-capability broker replacement without expanding target mounts for rename | External Files App, `core/src/clawd/file_changes.rs`, `docs/file-change-plans.md` |
-| Session event journal | Root-owned, MAC-chained record of session lifecycle and privileged mutation brackets; the ordering and recovery authority the other session/audit views project from | `core/src/session/journal/`, `core/src/clawd/journal.rs` |
+| Activities | Desktop-independent persistent user goals, explicit completion, planning metadata, owner-scoped task/session/attention projections, and closed portable continuity of intent without authority or execution state | `core/src/activities/`, `core/src/yuosd/activities.rs`, `core/src/yuosd/activity_attention.rs`, `core/src/yuosd/activity_continuity.rs`, `core/src/activity.rs` |
+| Workspaces | Owner-scoped context domains above Activities, bounded sourced context, Root-derived conversation/Job bindings, live read-only source visibility and exact temporary cross-domain selections in the existing goal database | `core/src/workspaces/`, `core/src/activities/sqlite/workspaces.rs`, `core/src/yuosd/workspaces.rs`, `crates/yuosd-client/src/workspaces.rs` |
+| App object catalogue | Authenticated App-owned object declarations, portable SDK references, and explicit resolution through ordinary App operations | `core/src/objects/`, `core/src/caps/manifest/objects.rs`, `core/src/yuosd/activity_objects.rs` |
+| Activity object state | Bounded caller-reported observations, receipt links, planning relations and immutable correction/retraction history | `core/src/activities/object_state.rs`, `core/src/yuosd/activity_object_state.rs` |
+| Operation previews | Non-executing, authenticated App effect declarations and requested target projections; never execution permission or confirmed effects | `core/src/operations/`, `core/src/yuosd/operation_previews.rs` |
+| Activity execution receipts | Immutable owner-scoped caller reports, separate authenticated declaration snapshots, and normal App execution capture | `core/src/activities/receipts.rs`, `core/src/yuosd/activity_receipts.rs`, `core/src/router/operation_commands.rs` |
+| Staged file changes | App-owned bounded proposals and review fingerprints, applied through exact-capability broker replacement without expanding target mounts for rename | External Files App, `core/src/yuosd/file_changes.rs`, `docs/file-change-plans.md` |
+| Session event journal | Root-owned, MAC-chained record of session lifecycle and privileged mutation brackets; the ordering and recovery authority the other session/audit views project from | `core/src/session/journal/`, `core/src/yuosd/journal.rs` |
 | Audit | Hash-chained JSONL events and agent audit/query commands | `core/src/audit.rs`, `core/src/agent/audit_cli.rs` |
-| Notification service | Durable owner/source-scoped records, DND/retries/channel leases, capability-bound single native presenter and OS shell descriptor | `core/src/notifications/`, `core/src/clawd/notifications.rs`, `core/src/clawd/app_notifications.rs`, `core/src/clawd/notifications/gui.rs`, `core/src/bin/claw-notification-panel.rs` |
-| Nearby sharing | Owner-scoped file sharing independent of Agent tasks, one bounded radio window, exact per-offer consent, private staging and owner inbox; non-root AirDrop parser and dedicated checked radio lease service | `core/src/clawd/nearby/`, `crates/clawd-client/src/nearby.rs`, `crates/claw-nearby/`, `docs/nearby-sharing.md` |
-| Notification presentation definition | Renderer-independent private presentation contract with bounded text/pixels; no grants, product configuration or durable notification state | `claw-os-sdk/rust/notification-presentation/`, `claw-os-sdk/wire/v1/notification-presentation.md` |
-| App client sources | Product UI/business/MCP implementations, manifests and declared entrypoints | External `clawos-app/products/` and `clawos-app/capabilities/` |
+| Notification service | Durable owner/source-scoped records, DND/retries/channel leases, capability-bound single native presenter and OS shell descriptor | `core/src/notifications/`, `core/src/yuosd/notifications.rs`, `core/src/yuosd/app_notifications.rs`, `core/src/yuosd/notifications/gui.rs`, `core/src/bin/yuos-notification-panel.rs` |
+| Nearby sharing | Owner-scoped file sharing independent of Agent tasks, one bounded radio window, exact per-offer consent, private staging and owner inbox; non-root AirDrop parser and dedicated checked radio lease service | `core/src/yuosd/nearby/`, `crates/yuosd-client/src/nearby.rs`, `crates/yuos-nearby/`, `docs/nearby-sharing.md` |
+| Notification presentation definition | Renderer-independent private presentation contract with bounded text/pixels; no grants, product configuration or durable notification state | `yuos-sdk/rust/notification-presentation/`, `yuos-sdk/wire/v1/notification-presentation.md` |
+| App client sources | Product UI/business/MCP implementations, manifests and declared entrypoints | External `yuos-app/products/` and `yuos-app/capabilities/` |
 | App/adapter integration | Provenance-gated manifest binding, authenticated App Host/bridge and protocol adapter integration | `adapters/`, `core/src/apps.rs`, `core/src/bridge.rs`, `core/src/worker/` |
-| App permission disclosure and directory installation | OS-catalog review of authenticated manifest needs and execution surfaces, with a permission-contract digest; Root-only signed directory publication shares checked retirement/admission and never grants capabilities | `core/src/apps/permission_review.rs`, `core/src/apps/installation.rs`, `core/src/clawd/app_install.rs`, `core/src/router/app_commands.rs` |
+| App permission disclosure and directory installation | OS-catalog review of authenticated manifest needs and execution surfaces, with a permission-contract digest; Root-only signed directory publication shares checked retirement/admission and never grants capabilities | `core/src/apps/permission_review.rs`, `core/src/apps/installation.rs`, `core/src/yuosd/app_install.rs`, `core/src/router/app_commands.rs` |
 | Extension provenance | Publisher signing, trust roots, package verification, and the shared bounded installer for Apps, Skills, MCP/adapter packages, and Agent extensions | `core/src/provenance/` |
 | Update freshness | Signed release-security manifest, monotonic local security floor, one-use recovery authorizations, and the install/activation/runtime gates that refuse a superseded release | `core/src/update/`, `packaging/release-security/`, `packaging/deb/common/` |
-| SDK/runtime | One public multi-language App SDK, including MCP service APIs, plus internal bundled-App policy helpers | `claw-os-sdk/`, `cos-runtime/` |
+| SDK/runtime | One public multi-language App SDK, including MCP service APIs, plus internal bundled-App policy helpers | `yuos-sdk/`, `yuos-runtime/` |
 | App development platform | Versioned, digest-pinned SDK/runtime/toolkit library artifact, independent of App releases and OS implementation checkouts | `packaging/app-platform.json`, `scripts/app_platform.py`, `docs/app-platform.md` |
-| Browser and semantic services | Brokered Helium rendering and signed-in tab operations, embedding and semantic-search services | `core/src/clawd/browser/`, `crates/claw-*` |
-| Personal-file vector index | Existing owner daemon, fixed local Qwen3 CPU inference pipe, atomic source-revision SQLite corpus and live-root reconciliation; Workspace read visibility stays broker-owned | `crates/claw-semantic/`, `crates/claw-embed/`, `core/src/model/local_embedding.rs` |
+| Browser and semantic services | Brokered Helium rendering and signed-in tab operations, embedding and semantic-search services | `core/src/yuosd/browser/`, `crates/claw-*` |
+| Personal-file vector index | Existing owner daemon, fixed local Qwen3 CPU inference pipe, atomic source-revision SQLite corpus and live-root reconciliation; Workspace read visibility stays broker-owned | `crates/yuos-semantic/`, `crates/yuos-embed/`, `core/src/model/local_embedding.rs` |
 | Desktop | Product desktop fork and native UI clients communicating through stable OS boundaries; the Agent UI and bridge share a versioned presentation protocol | `desktop/`, `desktop/agent/protocol/` |
-| Desktop Shell | Root-managed Hyprland with separately signed Quickshell/Caelestia frontend and private Qt; installed acceptance is separate from source selection | `desktop/hyprland/`, `desktop/hyprland-claw/MODULE.md`, external `clawos-app/products/desktop-shell/` |
-| Native compositor enforcement | OS-private Root display/instance enforcement, native window effects and change signals; the broker projects epoch-bound window IDs and GUI lifetime to the signed Shell | `crates/claw-compositor/`, `crates/claw-display-control/src/desktop.rs`, `core/src/clawd/gui/desktop_events.rs`, `desktop/hyprland-claw/` |
-| Migrated App products | Product UI, business implementation, MCP and upstream source live in a separate repository; Mail native build and product cutover remain in progress | [`clawos-app`](https://github.com/xiaoyu-work/clawos-app), `packaging/apps.lock.json` |
-| Shared-capability clients | Legacy facades are explicitly separate from business products; Document Engine owns `doc` and Storage SDK owns `db`, while privileged providers and SDK stay in the OS | External `clawos-app/capabilities/`, `packaging/apps.lock.json` |
+| Desktop Shell | Root-managed Hyprland with separately signed Quickshell/Caelestia frontend and private Qt; installed acceptance is separate from source selection | `desktop/hyprland/`, `desktop/hyprland-claw/MODULE.md`, external `yuos-app/products/desktop-shell/` |
+| Native compositor enforcement | OS-private Root display/instance enforcement, native window effects and change signals; the broker projects epoch-bound window IDs and GUI lifetime to the signed Shell | `crates/claw-compositor/`, `crates/yuos-display-control/src/desktop.rs`, `core/src/yuosd/gui/desktop_events.rs`, `desktop/hyprland-claw/` |
+| Migrated App products | Product UI, business implementation, MCP and upstream source live in a separate repository; Mail native build and product cutover remain in progress | [`yuos-app`](https://github.com/xiaoyu-work/yuos-app), `packaging/apps.lock.json` |
+| Shared-capability clients | Legacy facades are explicitly separate from business products; Document Engine owns `doc` and Storage SDK owns `db`, while privileged providers and SDK stay in the OS | External `yuos-app/capabilities/`, `packaging/apps.lock.json` |
 | Image composition | Reusable rootfs features and profile definitions | `rootfs/`, `scripts/lib/image-profiles.sh` |
 | Web desktop | React/Vite Linux desktop whose browser opens the embedded marketing site; independently built before Pages composition | `web/`, `.github/workflows/release.yml` (`website` target) |
 | Distribution | WSL/Docker/VM/ISO/Azure packaging, Debian packages, signed APT repo, releases | `targets/`, `packaging/`, `.github/workflows/` |
 
 ## Dependency Rules
 
-Nearby sharing follows `clawd-client::nearby` definition -> broker provider ->
+Nearby sharing follows `yuosd-client::nearby` definition -> broker provider ->
 CLI/TUI/Web/native consumers. The broker keeps the only owner/window/transfer
 state and capability decisions; clients keep presentation state only. The
 namespaced non-root file worker has no home or bus access. A separate Root
-Owly radio process, not `clawd` or the model worker, holds raw/network-admin
+Owly radio process, not `yuosd` or the model worker, holds raw/network-admin
 privileges. Its limited MIT lease-service fork propagates failed network
 retirement; Root never infers recovery from a vanished UI or successful Job.
 Received content is not opened, executed or ingested into Agent context.
@@ -172,7 +172,7 @@ Directory-install validation, private staging, replacement and recovery live
 in `apps::installation`, below CLI and Root orchestration. Installation
 and CLI lint consume the same static `apps::lint` implementation. These App
 providers consume provenance; provenance does not depend on Apps, Agent or
-`clawd`. The backend accepts a pre-publication review callback and re-verifies
+`yuosd`. The backend accepts a pre-publication review callback and re-verifies
 the reviewed package before publication, without supplying permission or
 running an App entrypoint. CLI flags, trusted terminal review, AI consent and
 post-publication presentation remain in the router. Signed directory publication
@@ -185,7 +185,7 @@ supported declared permissions for direct local launches, not for Agent
 tasks. Owner denials and separate protected decisions still apply, and a
 preinstalled selection alone does not start a background service.
 The OS terminal and native
-approval gate share the renderer-independent `clawd-client::system_review`
+approval gate share the renderer-independent `yuosd-client::system_review`
 contract, catalog labels and permission choices. Core projects both verified
 App requests and existing capability approvals. The target App's GUI metadata
 selects neither this presentation contract nor approval authority. Root-owned
@@ -201,7 +201,7 @@ No category gets implicit or cached authorization. Polkit owns the password
 exchange; the helper derives the caller from `PKEXEC_UID`, and broker decisions
 remain scoped to that owner's exact request.
 Ordinary App registration, including UID 0, uses the authenticated broker.
-Root is not a standalone App lifecycle bypass when `clawd` is unavailable.
+Root is not a standalone App lifecycle bypass when `yuosd` is unavailable.
 An owner override is not a local authorization shortcut. Registration checks
 the root peer on the actual connection and preserves structured review
 refusals. The local registration backend remains an explicit unit fixture only.
@@ -212,7 +212,7 @@ disclosed, not simulated with unenforced switches.
 The [Root display runtime](core/src/display_session/MODULE.md) binds the
 PAM-authenticated account to the kernel login identity before user startup
 customization. The broker assigns the display epoch; a protected supervisor
-starts the compositor. `claw-display-session --desktop` attaches to that
+starts the compositor. `yuos-display-session --desktop` attaches to that
 display and asks the supervisor to start the fixed, signed system desktop shell.
 Fresh local desktop images run their account wizard in Cage before greetd
 sign-in. A fixed OS helper provisions the one local owner; it grants no
@@ -220,7 +220,7 @@ display or App authority. The Cage greeter hands off through normal PAM.
 The authenticated session shows the broker's existing reviews through polkit.
 The closed control/PAM crates are internal OS interfaces, not public SDK exports.
 
-The [GUI Host](core/src/clawd/gui/MODULE.md) binds signed App execution to the
+The [GUI Host](core/src/yuosd/gui/MODULE.md) binds signed App execution to the
 existing session grant, parent delegation and revocation generation. Its
 explicit per-GUI needs (or the legacy constrained operation union when omitted)
 do not inherit MCP permissions. Optional default `desktop.entry` and named
@@ -313,7 +313,7 @@ not acquire a display dependency.
 
 The complete native Notifications fork, both private implementation crates,
 descriptor, license and original build now live in
-`clawos-app/products/notifications`. `just notifications-build` consumes the
+`yuos-app/products/notifications`. `just notifications-build` consumes the
 immutable App pin at `build/native-apps/cosmic-notifications`; no production
 source remains at `desktop/notifications`. The OS applet and panel consume
 only the existing public notification-presentation SDK records, proxy and FD
@@ -321,7 +321,7 @@ constants; config/util and their markup/image/configuration implementation
 stay App-private. Original native and OS shell renderer graphs stay separate.
 Native sources/fixture executables never enter the Agent payload. Independent
 App packages own the binary and signed descriptor and depend on Agent's
-`claw-os-notifications-v1`. MCP uses the fixed installed
+`yuos-notifications-v1`. MCP uses the fixed installed
 SDK stdin client and durable string IDs, with explicit integer/icon-path
 compatibility refusals. Source ownership is not legacy-data or visual acceptance.
 
@@ -348,7 +348,7 @@ External freedesktop clients keep their ordinary lifetime and cannot use that
 hint to affect another sender or core record.
 
 The complete `notify` Python facade/manifest/tests now also live in
-`clawos-app/products/notifications/apps/notify`, consumed at the immutable App
+`yuos-app/products/notifications/apps/notify`, consumed at the immutable App
 pin and shipped in Agent rather than Desktop. No production copy remains
 under `apps/notify`. The same typed service supports its send/list, with a distinct
 `app:notify` producer and exact action/capability authorization. Send keeps
@@ -360,7 +360,7 @@ broker session/deadline/cancellation without App-local storage or another App
 call. Legacy JSON is preserved in place, excluded from new lists, never
 automatically moved/imported/replayed; see [updating](docs/updating.md).
 
-The OS also owns the [regional settings service](claw-os-sdk/wire/v1/regional-settings.md):
+The OS also owns the [regional settings service](yuos-sdk/wire/v1/regional-settings.md):
 validated session requests spend separate `sys.locale:system`,
 `sys.language:self` and `sys.hostname:static` capabilities before invoking
 root-owned locale1, the authenticated owner's AccountsService object, or
@@ -370,7 +370,7 @@ owner preferences are independent, non-atomic effects. No broad polkit policy,
 GUI authority bootstrap or account-administration permission is inherited.
 
 Owner desktop preferences follow the same definition/provider/consumer seam:
-`clawd::desktop_preferences` selects closed versioned compositor/theme/input
+`yuosd::desktop_preferences` selects closed versioned compositor/theme/input
 resources, the pinned owner-file provider preserves existing configuration
 ownership, and native Settings consumes bounded snapshots and confirmed
 per-key writes through the published generic SDK transport. Private App HOME
@@ -396,11 +396,11 @@ authorization gate follows discovery. No matching Player, multiple instances,
 owner mismatch or spoofing is an explicit error, never an arbitrary-player
 fallback. The provider reads live native MPRIS state, holds no playback cache,
 launches no App and opens no media URL. The service is exported by Agent as
-`claw-os-media-player-v1`; Desktop depends on that versioned service.
+`yuos-media-player-v1`; Desktop depends on that versioned service.
 
 The complete 110-file native Player fork, descriptor, 72 locales, thumbnailer,
 desktop/metainfo files, icons and independent locked renderer now live in
-`clawos-app/products/media-player`. `just player-build` consumes immutable
+`yuos-app/products/media-player`. `just player-build` consumes immutable
 inputs at `build/native-apps/cosmic-player`; no production source remains at
 `desktop/player`. The managed native UI receives typed playback requests through its exact
 private GUI broker and all seven MCP calls address that same UI state. Root
@@ -414,7 +414,7 @@ Installed identities and user state stay unchanged. Private-bus/strict-worker
 acceptance does not claim interactive Wayland or real-device playback.
 
 Capture's complete native portal client, manifest, localization, resources,
-tests and original standalone build now live in `clawos-app/products/capture`.
+tests and original standalone build now live in `yuos-app/products/capture`.
 `just capture-build` composes the immutable App pin under
 `build/native-apps/cosmic-screenshot`. Its ashpd/zbus/Tokio graph has no
 libcosmic renderer or file-chooser dependency. The signed desktop package
@@ -426,7 +426,7 @@ The OS provides `system.screenshot.capture` for Capture's shared
 non-interactive native CLI/MCP implementation.
 It requires an authenticated owner/session, an explicit
 `desktop.capture:screen` grant and an exact output-directory write grant.
-The provider starts its own `clawd --capture-helper` in the authenticated
+The provider starts its own `yuosd --capture-helper` in the authenticated
 owner's session, with a closed environment and bounded execution/output.
 A private inherited socket authenticates the Root parent and its dispatch;
 no App executable or compatibility launcher runs outside the common Host.
@@ -439,7 +439,7 @@ interactive destination is admitted. Screen permission uses Settings' existing
 owner/App deny gate; no capture-specific permission store is added.
 The service needs an available owner-bound screenshot portal, not an installed
 Capture App. It never falls back to App calls.
-Desktop depends on Agent's `claw-os-capture-v1` service. Screenshot MCP loses
+Desktop depends on Agent's `yuos-capture-v1` service. Screenshot MCP loses
 its direct session-bus transport; direct human CLI requests may preserve an
 already-connected terminal, but headless callers need an authenticated session.
 
@@ -449,18 +449,18 @@ authority middleware. The selected signed GUI explicitly declares
 `desktop.capture:screen` and independently requests `ui.notify`; it never
 inherits an MCP permission union or a raw owner bus. Root retains one immutable
 correlation per window and starts its own non-root, authenticated
-`clawd --capture-gui-helper`. Region, destination and clipboard decisions remain
+`yuosd --capture-gui-helper`. Region, destination and clipboard decisions remain
 human-only in the OS portal. Returned paths are bounded metadata, not content
 authority. The human response is bounded by the original live GUI lease, not
 the non-interactive 20-second deadline. Checked GUI retirement also requires a
 terminal correlated portal response or acknowledged Close and actual helper
 exit; uncertain cleanup remains pending. App notifications use the generic
-sealed owner/App source. See [GUI custody](core/src/clawd/gui/MODULE.md#interactive-capture).
+sealed owner/App source. See [GUI custody](core/src/yuosd/gui/MODULE.md#interactive-capture).
 Private portal/process tests do not establish physical display or complete
 installed-native acceptance; publication gates and platform pins are unchanged.
 
 Products migrate individually from this repository to
-[`xiaoyu-work/clawos-app`](https://github.com/xiaoyu-work/clawos-app).
+[`xiaoyu-work/yuos-app`](https://github.com/xiaoyu-work/yuos-app).
 Mail's native source, `mail-ai`, Thunderbird-backed `email` and extension UI
 have moved; the legacy `gateway-email` App is explicitly retired without
 credential or installed-data deletion.
@@ -482,7 +482,7 @@ Explicit immutable source fixtures can still prepare/build them under
 `build/native-apps`; production never mounts or fetches those sources.
 Shared read-only Calendar,
 task-list and telemetry providers and policy checks live in
-`desktop/services/claw-applet-services`, not in an App. Agent Activity shares
+`desktop/services/yuos-applet-services`, not in an App. Agent Activity shares
 only the task-list provider; task mutations and Agent execution remain OS-owned.
 Widget Rail's presentation mapping is App-owned; OS telemetry/provider policy
 remains separate. No new state store or cross-App call is introduced.
@@ -490,9 +490,9 @@ remains separate. No new state store or cross-App call is introduced.
 App-owned, with original launcher identities and independent grants
 unchanged; installed updates remain signed APT packages.
 Standalone consumers use the public Rust SDK's versioned
-[`applet` pipe protocol](claw-os-sdk/wire/v1/applet-services.md) and the OS-owned
-`/usr/libexec/claw-os-applet-provider`, built independently from
-`desktop/services/claw-applet-services`. Its Calendar, task and telemetry access
+[`applet` pipe protocol](yuos-sdk/wire/v1/applet-services.md) and the OS-owned
+`/usr/libexec/yuos-applet-provider`, built independently from
+`desktop/services/yuos-applet-services`. Its Calendar, task and telemetry access
 checks the same separate resource scopes; its legacy Clipboard history checks
 are preflight only. Current panel history clients use the actual OS clipboard
 broker below instead. Provider/data/authority implementation is excluded from the public
@@ -501,25 +501,25 @@ the current App pin, complete authenticated GUI/resource admission, or authorize
 CopyQ/Wayland access. The removed shell links are not a source fallback.
 
 Calendar day reads now cross `system.calendar.day` under the exact
-`data.db.read:calendar` grant. `clawd` selects the authenticated owner's existing
+`data.db.read:calendar` grant. `yuosd` selects the authenticated owner's existing
 Calendar store and gives an unprivileged OS reader a private, descriptor-pinned,
 kernel-read-only/NOSYMFOLLOW directory view. Live sidecars retain SQLite's
 transaction and checkpoint semantics. The query/filter implementation stays
-in the existing GPL library; the Agent-owned `claw-calendar-reader` executable
+in the existing GPL library; the Agent-owned `yuos-calendar-reader` executable
 keeps core free of a UI/GPL library dependency. Applet clients receive only
 bounded records through their unchanged public SDK protocol. Headless and
 desktop consumers use the same broker service; no App call, source checkout
 at runtime or second Calendar data store is introduced.
 The complete standalone native Launcher is also owned by
-`clawos-app/products/launcher` and built from `build/native-apps/claw-launcher`.
-Its executable/resources and `claw-launcher` descriptor stay in the desktop
+`yuos-app/products/launcher` and built from `build/native-apps/yuos-launcher`.
+Its executable/resources and `yuos-launcher` descriptor stay in the desktop
 package. Native MCP embeds the canonical product Python backend and adapter
 inside the verified binary; it uses the OS Python SDK and exact policy/typed
 desktop launch service instead of forwarding to another App. The normal UI
 still consumes the OS-owned `desktop/launcher-backend` library/service and
 forked toolkit. This move shares Python/native MCP business logic but does not
 unify UI-service catalog/history or change isolated App data/grants.
-The complete native Editor now lives in `clawos-app/products/editor` and is
+The complete native Editor now lives in `yuos-app/products/editor` and is
 composed at `build/native-apps/cosmic-edit`. Its original locked upstream
 toolkit/file-chooser libraries are preserved; only SDK/runtime remain local
 OS dependencies. Native UI reload/save/New Window and buffer AI no longer
@@ -530,7 +530,7 @@ AI identity/consent/budget/audit and model providers remain OS-owned.
 `cosmic-edit` and its resources remain desktop-package assets with unchanged
 installed identity and user state.
 The complete native Files source/library and `cosmic-files-applet` companion
-live in `clawos-app/products/files`, composed at `build/native-apps/cosmic-files`
+live in `yuos-app/products/files`, composed at `build/native-apps/cosmic-files`
 with their original locked toolkit patches. Native UI/MCP embed the same
 product filesystem, owner-scoped Recoll and shared document parsing sources;
 the SDK/runtime still provide policy, snapshots, AI consent/budget/audit and
@@ -620,7 +620,7 @@ shared toolkit and privileged providers remain here. Native MCP retains
 page listing/search and fixed Settings activation under
 `proc.spawn:cosmic-settings`, and adds four owner-scoped permission-management
 tools under `sys.permissions:manage`. The Applications UI and MCP share
-`clawd/app_permissions.rs`; the latter reaches it through the authenticated
+`yuosd/app_permissions.rs`; the latter reaches it through the authenticated
 App Host/worker system-service route. Native owner UI uses the non-App peer
 route; neither route can approve. The existing root-owned approval generations
 also hold per-owner/App deny gates. Launch derivation and live grant spending
@@ -634,7 +634,7 @@ owner/session revocation generations still apply; neither old nor new
 restoration receipts can be spent as execution authority. Ordinary launch and
 execution grants keep their existing lifetimes and manifest/trust/caller ceilings.
 Fixed Settings activation crosses the owner's authenticated user systemd service
-manager, not a child GUI or scope beneath `clawd`. Its transient exec service
+manager, not a child GUI or scope beneath `yuosd`. Its transient exec service
 starts only `/usr/bin/cosmic-settings` with validated page arguments and a closed
 environment, observes immediate startup failure, and outlives the broker
 request. The daemon/worker `NoNewPrivileges` boundary is unchanged; only the
@@ -682,7 +682,7 @@ Background udev/systemd/journal watchers, source health, persistent event record
 and pidfd watch lifetime/deduplication remain OS-owned. Event records are not
 merged into audit, context-event or notification stores. The product also owns
 the legacy `log` App's four MCP tools, preserving separate `data.log.read/write`
-grants and its existing `COS_DATA_DIR/logs/audit.jsonl` layout. This is direct
+grants and its existing `YUOS_DATA_DIR/logs/audit.jsonl` layout. This is direct
 JSONL access, not a broker-backed system audit API: the App Host's isolated data
 directory is not the authoritative audit trail. No logs are copied or system
 audit file access expanded. Typed audit-service integration and safe manual-entry
@@ -691,7 +691,7 @@ Launcher owns the Python `launcher` App's five MCP tools, XDG catalog parsing,
 search and existing recent-history logic. Exact AppID/file grants and brokered
 native launching are preserved; desktop session validation and execution remain
 OS-owned. Recent history stays at its existing App data path, not automatically
-shared with the shell. Native `claw-launcher` UI/build/resources, its legacy
+shared with the shell. Native `yuos-launcher` UI/build/resources, its legacy
 `yu app launcher` forwarding and shared catalog/history integration remain
 pending. This source move does not introduce App-to-App calls or complete the
 native Launcher migration.
@@ -793,11 +793,11 @@ the Storage business product. DB's unchanged manifest, SQLite implementation
 and direct MCP server preserve five MCP/CLI tools, exact database read/write
 scopes, safe names, read-only connections, SQL authorizers, single-statement
 commits and the 1,000-returned-row bound. Agent still installs
-`/usr/lib/cos/apps/db`; data stays at `$COS_DATA_DIR/db/<name>.db` inside the
+`/usr/lib/yuos/apps/db`; data stays at `$YUOS_DATA_DIR/db/<name>.db` inside the
 same owner/App partition. KV and Agent memory remain separate. No SDK/provider,
 grant union, data import or new state transition moves with the source.
 KV's complete MCP-only manifest, server/data logic and tests live alongside DB,
-but retain the independent `kv` identity and `$COS_DATA_DIR/kv.json` string map.
+but retain the independent `kv` identity and `$YUOS_DATA_DIR/kv.json` string map.
 KV consumes the App-owned common `_shared.atomic` library; it does not copy a
 privileged provider or SDK. Cache refresh and locked private atomic replacement
 prevent stale reads, lost concurrent writes and publication of failed writes.
@@ -825,7 +825,7 @@ stored grants do not change. Other products call SDK AI directly, never this App
 See [the compatibility note](docs/updating.md#summarize-source-and-ai-scope-binding).
 
 DB, KV, Net and Summarize evolve through their manifest/MCP contracts, public SDK API and
-[bundled policy export](cos-runtime/README.md#bundled-client-contract), not
+[bundled policy export](yuos-runtime/README.md#bundled-client-contract), not
 cross-repository imports of private source. OS core builds do not require an
 App checkout; package composition and integration fixtures deliberately use
 the immutable App pin. Client fixtures consume full staged payloads and the
@@ -837,7 +837,7 @@ The OS has no `apps/` source tree. App `shared/python` owns `_shared`,
 `gateway._shared` and `canonical_argv`; its tests/vectors live in App
 `tests/shared`. Compatibility assembly calls the pinned public
 `tools/stage.py --shared --root <root>` once through `scripts/app_sources.py`,
-installing support into `usr/lib/cos/python` beside separately staged OS
+installing support into `usr/lib/yuos/python` beside separately staged OS
 SDK/runtime. Product payloads contain no duplicate common libraries.
 The App development platform is the versioned SDK/runtime/toolkit artifact,
 not an export of App helpers from OS source. Agent still owns the installed
@@ -863,7 +863,7 @@ This keeps local, sandboxed, and remote implementations interchangeable.
 
 ### Authority and policy
 
-- `clawd` is the privileged broker boundary.
+- `yuosd` is the privileged broker boundary.
 - The tool registry caches only immutable descriptors. Every request projects
   them through a typed context built from authenticated session identity,
   effective capabilities, source/presence, execution host, reachable
@@ -873,7 +873,7 @@ This keeps local, sandboxed, and remote implementations interchangeable.
   enforcement.
 - Runtime dispatch runs guardrails and pre/post hooks around tool calls.
 - App manifests declare capability needs; bundled apps enforce them through
-  `cos_runtime.policy`.
+  `yuos_runtime.policy`.
 - App Mesh callers require exact `agent.invoke:<app>/<tool>` authority. The
   target receives only the independently derived needs of that signed tool,
   never the caller's invoke authority.
@@ -881,7 +881,7 @@ This keeps local, sandboxed, and remote implementations interchangeable.
 
 ### AI ownership
 
-Apps use the Claw OS SDK/agent gate rather than provider SDKs. Provider choice,
+Apps use the Yu OS SDK/agent gate rather than provider SDKs. Provider choice,
 credentials, consent, budgets, model-visible logging, and fallback behavior
 remain owned by the core agent.
 
@@ -895,7 +895,7 @@ owner-partitioned AI ledger. Revoked/replaced grants cancel in-flight calls;
 dispatched reservations are conservatively charged on cancellation.
 
 Mail's UI Native Messaging host and Agent MCP server use the same installed
-package at `/usr/lib/cos/apps/mail-ai`; the desktop feature does not install a
+package at `/usr/lib/yuos/apps/mail-ai`; the desktop feature does not install a
 second implementation. The native host is limited to untrusted-content AI and
 its own memory-write scope, derived from the MCP contract. It cannot inherit
 mailbox or credential authority by adding a tool to that manifest. Full Mail
@@ -907,7 +907,7 @@ supplementary groups from the system account database, never from an isolated
 extension's execution GID. Synchronous filesystem guards change only the
 provider thread's credentials and restore them before yielding or returning.
 
-Bundled desktop apps launch Ask Claw through `cos_runtime::ask_claw`. Their
+Bundled desktop apps launch Ask Claw through `yuos_runtime::ask_claw`. Their
 thin `claw_glue` adapters define only typed, app-specific context fields; the
 runtime owns bounded JSON serialization, anonymous process-bound stdin
 handoff, executable selection, readiness and write deadlines, exact-child
@@ -987,8 +987,8 @@ Memory search returns bounded excerpts, source identity, coverage information
 and read handles. Character pages carry content revisions, and continuation
 pages reject changed sources rather than combine versions. Search relevance
 is not factual confidence; semantic timestamps describe indexing rather than
-event time. `cos_memory search` executes the model's literal note query, while
-`cos_recall show` and `cos_recall_semantic read` expand identified sources.
+event time. `yu_memory search` executes the model's literal note query, while
+`yu_recall show` and `yu_recall_semantic read` expand identified sources.
 The terminal exposes `yu agent notes search <query> [name] [limit]` and
 `yu agent recall --message <id>`.
 
@@ -1067,9 +1067,9 @@ while projecting canonical chain tails, suppressing installation/version
 contradictions by append order, and excluding expired observations; the complete
 history remains inspectable through the memory tool.
 
-Semantic primitives have a one-way dependency boundary: `claw-embed` owns
+Semantic primitives have a one-way dependency boundary: `yuos-embed` owns
 embedding, extraction, chunking, walking, and storage contracts;
-`claw-semantic` depends on those contracts and owns only filesystem daemon
+`yuos-semantic` depends on those contracts and owns only filesystem daemon
 lifecycle, configuration, service orchestration, and user-facing commands.
 
 ### Build and distribution
@@ -1082,12 +1082,12 @@ lifecycle, configuration, service orchestration, and user-facing commands.
 - Docker and WSL share one rootfs per architecture in their combined workflow.
 - Authenticity and freshness are separate properties. Repository and package
   signatures prove the publisher; a monotonic, root-owned local security floor
-  under `/var/lib/cos/security` proves the release is not superseded. Every
+  under `/var/lib/yuos/security` proves the release is not superseded. Every
   package carries its own canonical signed release-security manifest,
   `preinst`, `prerm`, the APT pre-install hook and the binaries themselves all
   decide against that floor, and the floor survives package removal.
   Unprivileged processes enforce against a minimal root-owned projection in
-  `/var/lib/cos-security` that the privileged commit publishes; the private
+  `/var/lib/yuos-security` that the privileged commit publishes; the private
   tree is never widened. Local root and whole-state replacement remain outside
   its reach; this is not hardware anti-rollback.
 
@@ -1110,7 +1110,7 @@ and where results become persistent or externally visible.
 core/src/main.rs
   -> router::dispatch
   -> cli_catalog + cli_help definitions (help/schema)
-     OR primitive module or clawd client (execution)
+     OR primitive module or yuosd client (execution)
   -> capability/policy check
   -> structured JSON result
   -> requested output formatter
@@ -1123,23 +1123,23 @@ The same public command catalogue drives progressive model discovery:
 
 ```text
 model
-  -> cos_help with path=[]
+  -> yu_help with path=[]
   -> one public namespace
   -> one public command
   -> the named model tool
   -> normal guardrail, approval, capability, and audit path
 ```
 
-`cos_help` is structural and read-only: its path contains command names, never
+`yu_help` is structural and read-only: its path contains command names, never
 flags or operands, and it cannot dispatch a CLI operation or address hidden
 `__*` routes. Command discovery therefore does not become a generic shell or a
 way around per-tool policy. Installed Apps use the parallel
-authenticated MCP App Mesh: `cos_tool_search`, `cos_tool_describe`, and
-`cos_tool_call` project only tools permitted for the current caller.
+authenticated MCP App Mesh: `yu_tool_search`, `yu_tool_describe`, and
+`yu_tool_call` project only tools permitted for the current caller.
 
 Token usage follows the same owner boundary as Agent execution. A model call to
-`cos_usage` reads the current routed owner's log. A direct
-`yu agent usage ...` client calls the typed `agent.usage` broker route; clawd
+`yu_usage` reads the current routed owner's log. A direct
+`yu agent usage ...` client calls the typed `agent.usage` broker route; yuosd
 derives the owner UID from kernel peer credentials and selects that UID's log,
 so neither path accepts a caller-supplied owner identifier.
 
@@ -1147,7 +1147,7 @@ so neither path accepts a caller-supplied owner identifier.
 
 ```text
 client (cos / bridge / rollback / approval helper)
-  -> one length-prefixed v2 envelope in a CBK1 frame on /run/cos/clawd.sock
+  -> one length-prefixed v2 envelope in a CBK1 frame on /run/yuos/yuosd.sock
   -> connection slot for the peer's accounting bucket
   -> recvmsg: kernel SCM_CREDENTIALS, SCM_RIGHTS closed and refused
   -> /proc re-verification of the sending process
@@ -1167,13 +1167,13 @@ Every message on the broker socket is one frame: a fixed 10-byte header of
 magic, kind, flags and a big-endian length, then that many bytes of UTF-8 JSON.
 The length is checked against the direction's ceiling before anything is
 allocated, and a short read is a truncation rather than a record the daemon
-waits on. `core/src/clawd/wire/` owns the envelope and the bounded field types;
-`core/src/clawd/routes.rs` is the single table that ties a wire command name to
+waits on. `core/src/yuosd/wire/` owns the envelope and the bounded field types;
+`core/src/yuosd/routes.rs` is the single table that ties a wire command name to
 its typed body, access class, mutation kind, concurrency and time budget, safe
 audit fields, authorization descriptor, and handler. It also drives stable
 unknown, malformed, unauthorized, unavailable and execution-failure responses;
-`core/src/clawd/transport/` owns framing, per-message credentials and admission
-control; `core/src/clawd/authority/` owns the grants every privileged route is
+`core/src/yuosd/transport/` owns framing, per-message credentials and admission
+control; `core/src/yuosd/authority/` owns the grants every privileged route is
 authorized against.
 
 Identity comes from the credentials Linux stamps onto each message when
@@ -1186,7 +1186,7 @@ privileged call behind an authenticated one.
 ### Capability authority
 
 Authority lives in one place and is held rather than described.
-`core/src/clawd/authority/` issues **grants**: daemon-owned records that bind an
+`core/src/yuosd/authority/` issues **grants**: daemon-owned records that bind an
 authenticated principal (uid, pid, that pid's start time, cgroup), a subject
 (session, App, task), an audience, an exact `CapSet`, an issuer, issue and
 expiry instants, a use budget, revocation state, and lineage.
@@ -1214,8 +1214,8 @@ that does not exist does.
 
 The store is in memory and dies with the daemon, so ephemeral grants fail closed
 across a restart. Scheduled work that must outlive one is re-issued from
-root-owned durable provenance through `core/src/clawd/session_scope.rs` and the
-narrow delegation policy in `core/src/clawd/system_caps.rs` — never from a
+root-owned durable provenance through `core/src/yuosd/session_scope.rs` and the
+narrow delegation policy in `core/src/yuosd/system_caps.rs` — never from a
 serialized handle or a promoted `CapSet`. Grants are bounded per owner, session
 and process, and swept when a process exits, a session finishes or is cancelled,
 a worker lease lapses, or a deadline passes.
@@ -1231,7 +1231,7 @@ yu activity / Agent Web / native desktop Agent
   -> owner-scoped ActivityService
   -> private activities.db
        |
-       +-- activity.run -> ordinary task.submit -> claw-agentd
+       +-- activity.run -> ordinary task.submit -> yuos-agentd
        +-- activity.get -> associated job/session projection
        +-- activity.attention -> Job + protected approval + NotificationService projection
        +-- activity.scheduling_policy.* -> pending shared-queue admission metadata
@@ -1353,7 +1353,7 @@ data. See [`docs/activity-execution-limits.md`](docs/activity-execution-limits.m
 The Activity service separately persists owner-defined USD micro-unit
 accounting policy and a durable per-turn reservation ledger. The agent runtime
 injects one monetary controller at the shared turn seam. Standalone execution
-uses the service directly; `claw-agentd` uses its closed task channel and the
+uses the service directly; `yuos-agentd` uses its closed task channel and the
 Root supervisor re-derives owner, Activity, Job and Session before touching the
 same database. Neither path creates another provider implementation.
 
@@ -1546,10 +1546,10 @@ See [`docs/file-change-plans.md`](docs/file-change-plans.md).
 
 ```text
 CLI / web UI / bridge
-  -> clawd agent task client (for daemon-backed work)
-  -> clawd claims the task, derives session capabilities, spawns claw-agentd
-  -> claw-agentd (task owner, no supplementary groups, NoNewPrivs)
-  -> composition snapshots Arc<CosConfig>, RegistryDeps, and RuntimeDeps
+  -> yuosd agent task client (for daemon-backed work)
+  -> yuosd claims the task, derives session capabilities, spawns yuos-agentd
+  -> yuos-agentd (task owner, no supplementary groups, NoNewPrivs)
+  -> composition snapshots Arc<YuConfig>, RegistryDeps, and RuntimeDeps
   -> runtime::loop_
   -> restore the session's frozen content-addressed *policy* prompt, or
      build + freeze it once (compiled scaffold, plus a root-owned
@@ -1564,7 +1564,7 @@ CLI / web UI / bridge
   -> user-visible stream projection (tool identity only; evidence markers hidden)
   -> session-stable tool projection:
        core tools stay direct
-       App schemas become cos_tool_search / cos_tool_describe / cos_tool_call
+       App schemas become yu_tool_search / yu_tool_describe / yu_tool_call
        MCP descriptors remain behind fixed mcp_catalog / mcp_invoke tools
   -> compact tool registry / guardrails / hooks
   -> bridge envelopes resolve to the underlying tool before policy and scheduling
@@ -1577,8 +1577,8 @@ CLI / web UI / bridge
   -> tool results appended to conversation
   -> repeat until final response or max_turns
   -> final no-tools synthesis when the work limit is reached
-  -> stream/progress/audit/result frames back to clawd over the job channel
-  -> clawd persists usage/session/audit records and finishes the task
+  -> stream/progress/audit/result frames back to yuosd over the job channel
+  -> yuosd persists usage/session/audit records and finishes the task
 ```
 
 Agent image attachments are bounded request data, not filesystem references or
@@ -1587,7 +1587,7 @@ images, with 20 MiB decoded in total and no mandatory resizing or compression.
 `task.submit` revalidates canonical
 base64, names, MIME/magic agreement and aggregate size before persisting the
 inline bytes in the owner-scoped Job. Worker protocol v15 introduced that
-verified snapshot to `claw-agentd`; the runtime adds image blocks only to the
+verified snapshot to `yuos-agentd`; the runtime adds image blocks only to the
 owner message. Conversation memory records MIME, size and digest, never image
 bytes or a client path. Task JSON responses expose the same metadata without
 base64. No temporary file, path-derived authority or App integration is
@@ -1608,7 +1608,7 @@ of this same task flow:
 yu agent chat
   -> in-process Claw ratatui renderer
   -> agent.conversation.* plus existing task/approval broker routes
-  -> claw-agentd and the shared guarded Agent runtime above
+  -> yuos-agentd and the shared guarded Agent runtime above
 ```
 
 The renderer is source-owned by Claw and never creates another Agent backend,
@@ -1617,21 +1617,21 @@ task queue or canonical history store. It uses canonical `ses_*` session IDs
 directly. Verified message/task bindings allow retained history, fork, and
 rewind presentation without cloning grants or rolling back effects.
 An Agent TUI approval remains an inline decision, matching Codex interaction:
-the TUI never invokes `pkexec` or asks for an OS password. `clawd` derives the
+the TUI never invokes `pkexec` or asks for an OS password. `yuosd` derives the
 same-owner peer and controlling-terminal presence from the kernel, accepts only
 one exact request, and remains the authority that mints and consumes the grant.
 Noninteractive input and explicit `--plain` retain the line interface. See
 [`docs/agent-terminal.md`](docs/agent-terminal.md).
 
-The `clawd` task record snapshots broker-derived source and locality, but never
+The `yuosd` task record snapshots broker-derived source and locality, but never
 durable attendance. A short, in-memory presence lease binds an attended
 submission to the authenticated client's uid, pid, process start time, and a
 deadline. The lease is installed before the pending job becomes visible under
 the same lock used to claim jobs, and failed publication removes it. It is
 consumed when a worker is claimed and disappears on delay, client exit,
-cancellation, recovery, or daemon restart. `clawd` signs that
+cancellation, recovery, or daemon restart. `yuosd` signs that
 lease, the client metadata, and a content-addressed capability generation into
-the `claw-agentd` job grant; the worker verifies them before constructing
+the `yuos-agentd` job grant; the worker verifies them before constructing
 `ToolExposureContext` and rechecks presence when projecting or executing a tool.
 Direct CLI, authenticated web and external MCP surfaces construct the same
 context from their verified process session and trusted entry-point facts.
@@ -1680,7 +1680,7 @@ use the resolved underlying tool identity. The provider tool array therefore
 stays stable for prompt caching without weakening capability or approval
 checks.
 
-Standalone and `claw-agentd` audit hooks are installed into that
+Standalone and `yuos-agentd` audit hooks are installed into that
 exact registry, and delegated children inherit it. App Mesh tools retain
 their verified package identity; Skill roots retain their trust origin. Legacy
 `config::get()` and static `with_override` callers remain source compatible,
@@ -1738,7 +1738,7 @@ observation. It must not repeat an unchanged lookup that adds no evidence.
 Existing turn/token/authorization limits still apply; unresolved gaps are
 reported explicitly rather than filled with invented memories.
 
-`cos_memory search` searches literal text within notes selected by the model;
+`yu_memory search` searches literal text within notes selected by the model;
 it is not a pre-request task classifier.
 Owner-facing Web/native Memory centers inspect these same stores through
 `memory.inspect/read/update/forget`, under the kernel-authenticated owner's
@@ -1756,9 +1756,9 @@ current truth or correct use by the answer. Worker protocol v17 preserves
 these references and safe tool metrics through the supervised process seam.
 
 The terminal equivalent is
-`yu agent notes search <query> [name] [limit]`. `cos_recall show` expands one
+`yu agent notes search <query> [name] [limit]`. `yu_recall show` expands one
 recorded message (`yu agent recall --message <id>` in the terminal).
-`cos_recall_semantic read` expands a namespace/key and supplies an original
+`yu_recall_semantic read` expands a namespace/key and supplies an original
 conversation/App read handle where that identity is known. Model-backed
 semantic searches reject incompatible models/dimensions or damaged vectors.
 App filters apply before the FTS limit, and bounded kind-filter scans disclose
@@ -1771,7 +1771,7 @@ cancels those records and creates explicit retries, and Approvals can wake a
 waiting task without requiring the user to repeat the request. The user-owned
 Web process fetches session lists and history through the owner-scoped broker
 projection. Permission grants cross the existing `pkexec` approval helper;
-same-owner denial goes directly to `clawd`, creates no authority, and cannot
+same-owner denial goes directly to `yuosd`, creates no authority, and cannot
 select another owner.
 Chat and Approvals share readable OS-owned capability-review cards. Linked
 request ids come only from the owner-checked Job, and protected review
@@ -1834,10 +1834,10 @@ into these cards, and neither binding verification nor Job completion proves
 semantic truth, effects or Activity goal achievement.
 
 `task.workspace.resolve` is the only presentation-facing workspace resolver.
-`clawd` derives the owner from peer credentials, resolves relative paths under
+`yuosd` derives the owner from peer credentials, resolves relative paths under
 the verified passwd home, and accepts only canonical, owner-owned directories
 that remain beneath that home. `task.submit` persists the returned path in the
-Job. The supervisor revalidates it before spawn, starts `claw-agentd` in that
+Job. The supervisor revalidates it before spawn, starts `yuos-agentd` in that
 cwd, carries it in worker protocol v14, and records a task-stream snapshot.
 The runtime projects the path as request-local `ProjectContext`. None of these
 steps creates or widens an `fs.*` capability.
@@ -1873,7 +1873,7 @@ Canonical `ses_*` identity remains the execution and ownership key; a stable
 root-owned UUID projection exists only for frontend compatibility and grants no
 authority. Presentation state (title, archive, soft delete) is root-owned
 session metadata. History stays in the owner's memory partition and is opened
-only from a disposable owner-identity thread; root `clawd` does not use its
+only from a disposable owner-identity thread; root `yuosd` does not use its
 privilege to read that database. The Agent worker carries its canonical Job id
 into the runtime, which transactionally records every task prompt and resulting
 assistant/tool row with one explicit outer user-message binding. Binding
@@ -1903,9 +1903,9 @@ cron / triggers / Agent task lifecycle / heartbeat / due nudges
   -> bounded NotificationDraft after the source transition is durable
   -> core notification service
   -> SQLite notification + change + per-channel delivery state
-  -> owner-scoped clawd list / subscribe / acknowledge / dismiss routes
+  -> owner-scoped yuosd list / subscribe / acknowledge / dismiss routes
        -> authenticated Agent Web SSE + browser notifications
-       -> user-session cos-agent-bridge -> Freedesktop notification D-Bus
+       -> user-session yuos-agent-bridge -> Freedesktop notification D-Bus
   -> daemon delivery lease
        -> opt-in ntfy adapter
 ```
@@ -1933,16 +1933,16 @@ record without queueing browser, desktop, or ntfy interruption; standalone Job
 delivery and critical immediate DND-bypass policy remain independent.
 
 The system daemon never opens a user's session D-Bus. The user-session Agent
-bridge claims desktop deliveries from `clawd`, posts them through
+bridge claims desktop deliveries from `yuosd`, posts them through
 `org.freedesktop.Notifications`, and reports success or retryable failure.
 External ntfy delivery is disabled by default and is enabled through
 owner-scoped preferences.
 
-A daemon-backed task no longer runs inside root `clawd`. The broker claims the
-task, derives its capabilities, and hands the work to a `claw-agentd` process
+A daemon-backed task no longer runs inside root `yuosd`. The broker claims the
+task, derives its capabilities, and hands the work to a `yuos-agentd` process
 that starts as root only long enough to `exec`: `core/src/agentd/spawn.rs`
 clears supplementary groups (including `sudo`) before dropping uid to the task
-owner and gid to the package-created `cos-extension` group, re-reads every id
+owner and gid to the package-created `yuos-extension` group, re-reads every id
 from the kernel, sets `PR_SET_NO_NEW_PRIVS`,
 gives the runtime its own session and process group, applies a `0077` umask,
 rebuilds the environment from an allowlist and closes every inherited
@@ -1951,11 +1951,11 @@ refused at `task.submit` and again before a worker could be forked: there is no
 lesser account to drop to, so running one would put the model back in a root
 process.
 
-Before every spawn, `clawd` pins the actual primary socket inode and every
-canonical ancestor, verifies that neither the task uid nor `cos-extension` gid
+Before every spawn, `yuosd` pins the actual primary socket inode and every
+canonical ancestor, verifies that neither the task uid nor `yuos-extension` gid
 can replace the path, then requires an actual post-drop `connect(2)` to fail
 with `EACCES`/`EPERM` before `exec`. The worker therefore cannot reach
-`/run/cos/clawd.sock` even when the task account's passwd primary group is the
+`/run/yuos/yuosd.sock` even when the task account's passwd primary group is the
 broker's socket group. Its only authority is the grant in
 `core/src/agentd/grant.rs`: HMAC-signed with a per-broker-process key and bound
 to owner uid, isolated gid, worker pid plus kernel start time, task and session
@@ -1968,7 +1968,7 @@ the fork, so the kernel stamps it with the broker's own identity.
 Consent still works. `core/src/caps/approval_gateway.rs` is the seam
 `caps::require` consults instead of the root-owned approvals store: the worker
 names the exact verb and canonical scope it was denied and nothing else, and
-`clawd` supplies owner, session and task from the verified grant, spends an
+`yuosd` supplies owner, session and task from the verified grant, spends an
 exactly-matching approved grant one-shot or files a deduped pending request
 under that identity. A filed request interrupts the current turn, moves the
 task from `running/` to `waiting/`, and releases the worker lease. The
@@ -1982,7 +1982,7 @@ fresh live PID/start-time/lease. Undecided requests expire after eight hours.
 There is no worker route to decide a request or obtain a reusable capability.
 
 The owner's baseline authority is still daemon policy rather than a consequence
-of process context. `core/src/clawd/system_caps.rs` records one
+of process context. `core/src/yuosd/system_caps.rs` records one
 explicit decision per catalog verb — risk is an input, not the rule — and the
 default set is only what an owner-scoped conversation needs: the owner's own
 path roots, its own memory and process-registry rows, read-only status of the
@@ -2017,8 +2017,8 @@ Provenance decides which policy a trusted-session override is clamped by.
 `SessionMeta::origin` is a typed marker written only by the daemon-side issuer
 that already authorised the work, never copied from a request, and believed only
 when the session record is root-owned — on a `0700` session directory that means
-only `clawd` could have written it. An ambient task is clamped to the baseline.
-A `clawd`-issued scheduler snapshot additionally keeps the one executor verb its
+only `yuosd` could have written it. An ambient task is clamped to the baseline.
+A `yuosd`-issued scheduler snapshot additionally keeps the one executor verb its
 subsystem proved at creation (`yu cron` → `proc.spawn`, `yu triggers` →
 `agent.spawn`) plus credentials named exactly, re-admitted verbatim from the
 snapshot so nothing widens, and bounded by the same owner home the scheduler
@@ -2049,7 +2049,7 @@ again.
 
 ```text
 bundled App returns auth_required + constrained setup.agent_action
-  -> system Agent calls dedicated cos_oauth_login tool
+  -> system Agent calls dedicated yu_oauth_login tool
   -> exact secret.write scopes are checked before provider interaction
   -> trusted system browser handles user login and consent
   -> access/refresh tokens go directly to the encrypted credential store
@@ -2076,20 +2076,20 @@ below the store boundary and cannot be imported by OAuth or CLI callers.
 ### Progressive Agent Skill disclosure
 
 ```text
-/usr/lib/cos/skills (read-only trusted vendor Skills)
+/usr/lib/yuos/skills (read-only trusted vendor Skills)
   + per-user data/agent/skills (user-installed Skills)
   -> layered loader; built-in ids cannot be silently shadowed
   -> metadata-only catalogue captured and recorded when a session freezes its
      canonical system prompt
-  -> cos_skill read: disclose one matching SKILL.md instruction body
-  -> cos_help: disclose one level of the public CLI command tree
-  -> cos_skill resource: disclose one explicitly requested child resource
+  -> yu_skill read: disclose one matching SKILL.md instruction body
+  -> yu_help: disclose one level of the public CLI command tree
+  -> yu_skill resource: disclose one explicitly requested child resource
   -> normal tool trajectory, session logging, and Skill usage record
 ```
 
 Every Skill package is authenticated by `core/src/provenance/` before it is
 loaded. Skills under the root-owned package root inherit vendor trust with a
-pinned content digest; a `COS_SYSTEM_SKILLS_DIR` override is treated as local
+pinned content digest; a `YUOS_SYSTEM_SKILLS_DIR` override is treated as local
 content rather than promoted to built-in trust. User-installed Skills require a
 valid signature from a trusted, non-revoked publisher key — there is no
 environment variable that relaxes this — and layered shadowing compares the
@@ -2107,8 +2107,8 @@ traversal, symlinks, hidden files, and oversized resources are rejected.
 publisher key -> claw.provenance/v1 envelope (kind, id, version, manifest
                  schema/path, entrypoints, resources, complete file tree,
                  content digest)
-  -> trust roots: /usr/lib/cos/trust/publishers.d, /etc/cos/trust/publishers.d,
-     ~/.config/cos/trust/publishers.d, ~/.config/cos/trust/developer.d
+  -> trust roots: /usr/lib/yuos/trust/publishers.d, /etc/yuos/trust/publishers.d,
+     ~/.config/yuos/trust/publishers.d, ~/.config/yuos/trust/developer.d
      (root/owner-owned, non-symlink, not group/world-writable; never
      environment-derived)
   -> install: bounded untrusted staging -> hostile-shape rejection -> signature
@@ -2130,7 +2130,7 @@ immediately. See [`docs/extension-provenance.md`](docs/extension-provenance.md).
 ### App invocation
 
 ```text
-installed $COS_APPS_DIR/<relative-app-path>/app.json
+installed $YUOS_APPS_DIR/<relative-app-path>/app.json
   -> provenance verification and manifest validation
   -> human CLI:
        operation schema -> effective argv -> operation capabilities
@@ -2140,7 +2140,7 @@ installed $COS_APPS_DIR/<relative-app-path>/app.json
        -> fresh signed-package verification
        -> manifest argument validation and target-capability derivation
        -> task Host authenticated relay
-       -> clawd owner/App service manager
+       -> yuosd owner/App service manager
        -> persistent App service Host -> app-mcp sandbox
        -> MCP tools/call with authenticated call context
        -> structured result -> transient authority revocation
@@ -2151,12 +2151,12 @@ app entrypoint.
 
 App identity and capabilities are issued by the daemon authority, never
 asserted by the launcher, environment, or MCP business arguments. Ordinary
-captured CLI operations remain one-shot commands. For an operation launch, `clawd` re-reads
+captured CLI operations remain one-shot commands. For an operation launch, `yuosd` re-reads
 the installed manifest, derives capabilities from the operation and effective
 arguments, and binds a strictly narrower grant to the launched process tree.
 
 A staged migration moves ordinary App calls to the `mcp.tools` contract with
-direct `claw_os_sdk.mcp` handlers. Selection is per command: an explicitly
+direct `yuos_sdk.mcp` handlers. Selection is per command: an explicitly
 declared `operations.<command>` wins; otherwise the human `yu app <id>
 <command>` resolves exactly one `<app-id>.<command>` MCP tool and uses the
 dedicated authenticated-CLI route, `app_service.cli_call` (`Access::User`).
@@ -2167,7 +2167,7 @@ The explicit, exclusive `--args-stdin` selector accepts a bounded JSON object
 of business arguments instead of argv. Both paths use the same manifest
 defaults/validation and broker authorization. Raw `--stdin` remains rejected;
 App code receives only canonical MCP arguments, never the CLI input stream.
-JSON input is capped at 1008 KiB (or a lower `COS_APP_STDIN_MAX_BYTES`), leaving
+JSON input is capped at 1008 KiB (or a lower `YUOS_APP_STDIN_MAX_BYTES`), leaving
 envelope headroom under the unchanged 1 MiB broker request cap. Only the CLI
 route's argument strings use this larger bounded allowance; general broker
 metadata retains its 64 KiB string cap and all structural limits still apply.
@@ -2193,7 +2193,7 @@ declared parent-directory capabilities. See the
 [filesystem MCP contract](docs/app-development.md#filesystem-mcp-contract).
 
 The editor's **App handlers** do not use that human App-dispatch bridge.
-`cos_runtime::filesystem` carries bounded text requests on stdin through
+`yuos_runtime::filesystem` carries bounded text requests on stdin through
 `yu __filesystem` to `system.filesystem.read` / `system.filesystem.write`.
 The broker spends exact canonical `fs.read` / `fs.write` scopes, rejects
 worker-forbidden paths, pins directory descriptors against symlink swaps,
@@ -2225,7 +2225,7 @@ classified desktop transport. `launcher.open` accepts bounded non-file URIs and
 exact canonical local paths separately, requires `fs.read` for every local
 file, converts those paths to `file://` URIs, and sends only the validated
 desktop AppID plus URIs through the typed `system.desktop.control` `launch`
-action. `clawd` independently requires the `launcher` App identity, the exact
+action. `yuosd` independently requires the `launcher` App identity, the exact
 `desktop.launch:name:<app-id>` capability, and exact `fs.read:path:<path>`
 authority for every local file URI before reconstructing the owner's
 Wayland/session-bus environment and running the image-provided `gtk4-launch`
@@ -2238,7 +2238,7 @@ projection independently.
 
 The MCP-only `browser-attached` App never receives the browser socket. Its
 private runtime helper sends a bounded JSON body over stdin to the hidden
-`yu __browser` bridge, which calls typed `system.browser.control`. `clawd`
+`yu __browser` bridge, which calls typed `system.browser.control`. `yuosd`
 requires the authenticated `browser-attached` App identity, spends the exact
 browser capability derived from the canonical URL host, verifies the owner's
 runtime directory/socket, and is the only accepted socket client. It injects
@@ -2249,7 +2249,7 @@ also rejects activation or navigation changes during the capture interval.
 
 The MCP-only `netdiag` App similarly has no host network namespace or direct
 socket path. Its private runtime helper sends a closed request through
-`yu __netdiag` to `system.network.diagnose`. `clawd` requires the authenticated
+`yu __netdiag` to `system.network.diagnose`. `yuosd` requires the authenticated
 `netdiag` App identity, spends `sys.observe:name:network` and the exact
 `net.resolve` / `net.probe` target capabilities required by the selected action,
 then reads host interface and route state or performs bounded DNS resolution
@@ -2272,14 +2272,14 @@ or a claimed CLI identity cannot erase App ownership.
 
 Agent-to-App calls use the private App Gateway. The caller must
 hold exact authority for `<app-id>/<tool-name>`, and the target manifest's
-`mcp.access` policy must admit the authenticated principal. `clawd` then
+`mcp.access` policy must admit the authenticated principal. `yuosd` then
 re-verifies the current signed package, validates the exact declared tool,
 generation, task/session identity, and deadline, and derives a separate target grant from
 that tool's `needs[]`. Caller invoke authority never enters the target grant.
 
 The authenticated local CLI path shares that authority model but derives its
 principal differently. `app_service.cli_call` accepts only the exact App id,
-tool, and arguments; `clawd` mints an `McpPrincipalKind::Cli` caller and derives
+tool, and arguments; `yuosd` mints an `McpPrincipalKind::Cli` caller and derives
 the call context, capability ceiling, verified package, owner uid, and deadline
 from the peer's kernel-reported identity, its process ancestry / registered
 launcher session, and the installed manifest — never from the request. A CLI
@@ -2292,17 +2292,17 @@ the CLI and task-host paths converge on the same owner/App service manager, so
 there is no alternate App process path.
 
 The task-owned Extension Host is the only dynamic boundary directly available
-to `claw-agentd`. Its broker-derived binding retains App ownership for bounded
+to `yuos-agentd`. Its broker-derived binding retains App ownership for bounded
 App AI, but rejects that ownership on App invocation paths. Only System Agent
 and permitted external-Agent principals can use the typed App-call path.
 The worker sends only typed App id, tool name, and
 arguments. The task Host cannot execute an App call; it relays over its private
-broker, which injects the verified task/Host lease facts. `clawd` re-authorizes
+broker, which injects the verified task/Host lease facts. `yuosd` re-authorizes
 the call, selects an owner/App-scoped service Host, and makes its canonical
 effective argument map authoritative for execution; the service Host validates
 that map against the signed schema without resolving filesystem paths again.
-For a call-scoped filesystem sandbox, `clawd` also captures the resolved mount
-plan and each source's device/inode identity. `clawd` then issues a
+For a call-scoped filesystem sandbox, `yuosd` also captures the resolved mount
+plan and each source's device/inode identity. `yuosd` then issues a
 single-use authorization, expiring at the caller deadline, bound to that Host,
 package, capability generation, caller context, tool, arguments, mount snapshot,
 and deadline. The public broker socket cannot synthesize this private Host
@@ -2310,14 +2310,14 @@ identity.
 
 The task Host lease is rolling rather than fixed at worker bootstrap. Each
 authenticated worker heartbeat extends the supervisor's task lease and the
-private broker's `ExtensionLease`; `clawd` returns the resulting absolute
+private broker's `ExtensionLease`; `yuosd` returns the resulting absolute
 deadline on the private worker channel. The worker applies that deadline to
 its installed Host client without changing the signed bootstrap binding.
 Renewals must name the exact task and remain within the protocol horizon.
 Missing, mismatched, or invalid acknowledgements cancel the worker, while the
 private broker's rolling lease remains the final authority on every relay.
 
-The service Host is controlled only by the exact root `clawd` process and owns
+The service Host is controlled only by the exact root `yuosd` process and owns
 `app-mcp` registration, process binding, execution, and teardown. `lazy`
 services survive task completion and are reclaimed after idle time;
 `always-on` services are prewarmed for routed owners and restarted within a
@@ -2339,7 +2339,7 @@ action digest prevents App/tool/argument/context substitution. Caller invoke
 authority never enters the child, and the reusable process holds no prior
 call's transient authority. A reusable child completes its zero-capability MCP
 handshake before the ticket is minted. For a call-scoped child, the sandbox
-initially executes only the trusted `claw-app-runner`, blocked on a private
+initially executes only the trusted `yuos-app-runner`, blocked on a private
 stdin gate. The service Host binds the runner's session, atomically consumes
 the daemon ticket, and only then releases the gate so the runner can `exec`
 package code and begin MCP initialization. The gate is sequencing, not
@@ -2365,12 +2365,12 @@ COMMIT remains indeterminate rather than becoming replayable work.
 
 ### Proactive scheduling
 
-`yu cron` and `yu triggers` act on the root-owned job store the `clawd`
+`yu cron` and `yu triggers` act on the root-owned job store the `yuosd`
 heartbeat drives, so a non-root CLI reaches it through the `scheduler.run`
 broker route. The daemon validates the subsystem, command, arguments, and the
 job/rule identifier before authorising anything, then resolves the caller's
 authority the same way App launches do: from the peer's uid, pid, and process
-start time, and from the nearest session `clawd` itself registered in the
+start time, and from the nearest session `yuosd` itself registered in the
 root-owned routed registry. How the caller happens to be running — terminal,
 `NoNewPrivs`, executable path — is never authority, and an App session may not
 manage proactive jobs at all.
@@ -2402,7 +2402,7 @@ after initialization fails closed even after the last Activity rule is removed.
 
 ### Worker isolation
 
-Every process Claw OS did not write — an App operation, a GUI App
+Every process Yu OS did not write — an App operation, a GUI App
 surface, an App Mesh service, an external MCP server, an adapter, a
 model-authored command — runs under one shared launch policy defined in
 `core/src/worker/`. The definition is typed and derived by trusted code
@@ -2446,8 +2446,8 @@ auto-deny, or missing approval blocks invocation.
 Dropping an attachment handle marks every internal policy entry unavailable
 and advances the shared catalogue generation before the child or hosted
 transport is detached, so a previously disclosed handle cannot race teardown.
-The registry's general `cos_tool_search` / `cos_tool_describe` /
-`cos_tool_call` schema-budget path remains available to other extension
+The registry's general `yu_tool_search` / `yu_tool_describe` /
+`yu_tool_call` schema-budget path remains available to other extension
 descriptors; MCP uses only its stricter opaque two-tool gateway and never
 creates a parallel raw-tool execution path.
 Every resolved hosted invocation emits correlated gateway and host lifecycle
@@ -2495,7 +2495,7 @@ signature, package-manifest validity and downgrade checks remain enforced.
 
 On Desktop, the authenticated Settings App requests a signed channel check or
 an administrator-authorized update through its private GUI broker. The
-Root-owned updater prepares the OS package set independently of `clawd`,
+Root-owned updater prepares the OS package set independently of `yuosd`,
 then `system-update.target` applies it before the next login. Neither
 the App nor the running desktop is the package transaction owner.
 
@@ -2509,18 +2509,18 @@ sibling below the shared protocol floor enforced on installed machines.
 
 | Entry point | Path | Notes |
 | --- | --- | --- |
-| `cos` | `core/src/main.rs` | User-facing CLI and structured primitive router |
-| `clawd` | `core/src/bin/clawd.rs` | System daemon and privileged broker |
-| `claw-agentd` | `core/src/bin/claw-agentd.rs` | Unprivileged agent worker, spawned per task by `clawd` |
+| `yu` | `core/src/main.rs` | User-facing CLI and structured primitive router |
+| `yuosd` | `core/src/bin/yuosd.rs` | System daemon and privileged broker |
+| `yuos-agentd` | `core/src/bin/yuos-agentd.rs` | Unprivileged agent worker, spawned per task by `yuosd` |
 | `yu agent ...` | `core/src/agent/mod.rs`, `core/src/agent/*_commands.rs` | Top-level routing plus responsibility-specific command handlers |
 | Agent loop | `core/src/agent/runtime/loop_.rs` | Multi-turn orchestration |
 | One agent turn | `core/src/agent/runtime/turn.rs` | Provider call and tool execution |
-| Notification service | `core/src/notifications/`, `core/src/clawd/notifications.rs` | Durable notification state, broker routes, and channel dispatch |
+| Notification service | `core/src/notifications/`, `core/src/yuosd/notifications.rs` | Durable notification state, broker routes, and channel dispatch |
 | App discovery | `core/src/apps.rs` | Provenance-gated `app.json` loading and schema generation |
 | Extension provenance | `core/src/provenance/` | Package envelope, trust roots, verification, bounded install |
-| Update downgrade protection | `core/src/update/`, `core/src/bin/claw-security-floor.rs` | Signed release manifest, security floor, recovery authorizations |
-| App client entrypoints | External `clawos-app/products/` and `clawos-app/capabilities/` | Package-declared manifests and entrypoints; no private OS-side filename list |
-| App worker runtime | `core/src/worker/`, `core/src/clawd/app_sessions.rs` | OS-owned activation, isolation and grant derivation |
+| Update downgrade protection | `core/src/update/`, `core/src/bin/yuos-security-floor.rs` | Signed release manifest, security floor, recovery authorizations |
+| App client entrypoints | External `yuos-app/products/` and `yuos-app/capabilities/` | Package-declared manifests and entrypoints; no private OS-side filename list |
+| App worker runtime | `core/src/worker/`, `core/src/yuosd/app_sessions.rs` | OS-owned activation, isolation and grant derivation |
 | Rootfs build | `rootfs/build.sh` | Feature composition |
 | Profile definitions | `scripts/lib/image-profiles.sh` | Target feature sets |
 | Top-level target build | `build.sh` | WSL/Docker/VM/ISO/Azure dispatcher |
@@ -2547,18 +2547,18 @@ sibling below the shared protocol floor enforced on installed machines.
   compatibility string APIs render only after typed ownership has ended.
 - Broker protocol refusals carry only `&'static str` text and a stable class;
   refused frames and their ancillary data are never recorded, in any form.
-- Desktop broker consumers use the unprivileged `crates/clawd-client` library
+- Desktop broker consumers use the unprivileged `crates/yuosd-client` library
   for socket discovery, v1 framing, correlation, deadlines, bounds, and stable
   errors; the library depends on neither desktop UI nor privileged core logic.
 - The desktop Agent UI and HTTP bridge compile against
-  `desktop/agent/protocol`; the bridge translates clawd/core models into this
+  `desktop/agent/protocol`; the bridge translates yuosd/core models into this
   versioned presentation contract and rejects incompatible versions explicitly.
 - The desktop entry and compositor shortcuts execute the fixed packaged
-  `/usr/local/bin/cos-agent-ui` directly for ordinary window and context-free
+  `/usr/local/bin/yuos-agent-ui` directly for ordinary window and context-free
   overlay activation. There is no Python App manifest or proxy launcher for
   the Agent UI.
 - Desktop Ask Claw launchers and the Agent UI share the
-  `cos_runtime::ask_claw` activation contract; host reducers never name the
+  `yuos_runtime::ask_claw` activation contract; host reducers never name the
   Agent UI executable or hand-build context JSON. The runtime directly spawns
   a transient UI with an inherited AF_UNIX socketpair and withholds the bounded payload until
   the child signals that Yama isolation, non-dumpable state, and private
@@ -2567,15 +2567,15 @@ sibling below the shared protocol floor enforced on installed machines.
   through a packaged helper that authenticates its direct parent with
   `SO_PEERCRED` on an abstract Unix socket.
 - Production resolves no executable input: the validated package target is
-  fixed at `/usr/local/bin/cos-agent-ui`, and tests inject binaries only through
+  fixed at `/usr/local/bin/yuos-agent-ui`, and tests inject binaries only through
   a private compile-time test seam.
-- `cos` and `clawd` speak one broker protocol version and are replaced
+- `yu` and `yuosd` speak one broker protocol version and are replaced
   together. A mismatched pair fails closed with a named protocol error; there
   is no permissive dual-stack listener.
 - Memory and audit stores are append/transaction oriented; schema and recovery
   behavior require regression tests.
 - The session event journal is evidence, never authority: replaying any of its
-  events creates no grant and no approval. Only root `clawd` appends, under a
+  events creates no grant and no approval. Only root `yuosd` appends, under a
   single writer lease and a monotonic epoch; a worker may request tool and turn
   lifecycle events only, and the event-type ACL is structural.
 - Every `Kind::Mutation` broker route appends and fsyncs a `MutationStarted`
@@ -2604,7 +2604,7 @@ sibling below the shared protocol floor enforced on installed machines.
   contracts require an explicit wire version; unsupported shapes are rejected
   rather than translated or served through a compatibility path.
 - SDK response validation and first-party MCP JSON-RPC error codes are
-  generated together from `claw-os-sdk/wire/v1/`.
+  generated together from `yuos-sdk/wire/v1/`.
 
 ## Related Design Documents
 

@@ -1,5 +1,5 @@
 /**
- * Tasks page. Lists the durable clawd queue from `/api/tasks`.
+ * Tasks page. Lists the durable yuosd queue from `/api/tasks`.
  */
 
 import { useCallback, useEffect, useState } from "react";

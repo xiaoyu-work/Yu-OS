@@ -472,9 +472,9 @@ fn model_visible_input_cannot_add_a_trust_root() {
     for root in &roots {
         let display = root.path.display().to_string();
         assert!(
-            display.starts_with("/usr/lib/cos")
-                || display.starts_with("/etc/cos")
-                || display.contains(".config/cos/trust"),
+            display.starts_with("/usr/lib/yuos")
+                || display.starts_with("/etc/yuos")
+                || display.contains(".config/yuos/trust"),
             "unexpected trust root {display}"
         );
     }

@@ -9,14 +9,14 @@ use std::time::Duration;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::Semaphore;
 
-use crate::clawd::client_identity::ClientIdentity;
-use crate::clawd::protocol::{encode_response, Response};
-use crate::clawd::routes::{Access, Command, Route};
-use crate::clawd::state::DaemonState;
-use crate::clawd::transport::frame::{PeerStream, ReadOutcome};
-use crate::clawd::transport::limits::Admission;
-use crate::clawd::transport::peer;
-use crate::clawd::wire::{Fault, Request, RequestId, MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES};
+use crate::yuosd::client_identity::ClientIdentity;
+use crate::yuosd::protocol::{encode_response, Response};
+use crate::yuosd::routes::{Access, Command, Route};
+use crate::yuosd::state::DaemonState;
+use crate::yuosd::transport::frame::{PeerStream, ReadOutcome};
+use crate::yuosd::transport::limits::Admission;
+use crate::yuosd::transport::peer;
+use crate::yuosd::wire::{Fault, Request, RequestId, MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES};
 use crate::extension_host::spawn::HostPaths;
 
 const MAX_CONNECTIONS: usize = 16;
@@ -514,7 +514,7 @@ async fn serve_connection(
         process.uid,
         process.gid,
         process.start_time_ticks,
-        crate::clawd::client_identity::AuthenticatedExtensionHost {
+        crate::yuosd::client_identity::AuthenticatedExtensionHost {
             purpose: lease.purpose,
             lease_id: lease.task_id.clone(),
             authority_session_id: lease.task_session_id.clone(),
@@ -535,7 +535,7 @@ async fn serve_connection(
 
     let response = crate::caps::activity_boundary::scope(
         lease.activity_boundary(),
-        crate::clawd::server::dispatch_verified_request(request, &client, &state, &admission),
+        crate::yuosd::server::dispatch_verified_request(request, &client, &state, &admission),
     )
     .await;
     write_response(&mut peer_stream, response).await;

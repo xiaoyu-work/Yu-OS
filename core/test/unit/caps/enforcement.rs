@@ -1,8 +1,8 @@
 use super::*;
 use std::io::Write;
 
-/// Test guard that sets `COS_DATA_DIR` to a fresh tmp dir, writes a
-/// registry JSON, sets `COS_SESSION` + `COS_PERMS_MODE`, and
+/// Test guard that sets `YUOS_DATA_DIR` to a fresh tmp dir, writes a
+/// registry JSON, sets `YUOS_SESSION` + `YUOS_PERMS_MODE`, and
 /// restores the previous env on drop.
 ///
 /// Because Rust runs unit tests in parallel by default and env vars
@@ -24,22 +24,22 @@ impl EnvGuard {
         let mut f = std::fs::File::create(proc_dir.join("registry.json")).unwrap();
         f.write_all(registry_json.as_bytes()).unwrap();
 
-        let prev_data_dir = std::env::var("COS_DATA_DIR").ok();
-        let prev_log_dir = std::env::var("COS_LOG_DIR").ok();
-        let prev_session = std::env::var("COS_SESSION").ok();
-        let prev_mode = std::env::var("COS_PERMS_MODE").ok();
+        let prev_data_dir = std::env::var("YUOS_DATA_DIR").ok();
+        let prev_log_dir = std::env::var("YUOS_LOG_DIR").ok();
+        let prev_session = std::env::var("YUOS_SESSION").ok();
+        let prev_mode = std::env::var("YUOS_PERMS_MODE").ok();
 
-        std::env::set_var("COS_DATA_DIR", tmp.path());
+        std::env::set_var("YUOS_DATA_DIR", tmp.path());
         // Redirect caps.jsonl writes into the test tmpdir so the
         // audit hook doesn't litter the host's logs dir.
-        std::env::set_var("COS_LOG_DIR", tmp.path());
+        std::env::set_var("YUOS_LOG_DIR", tmp.path());
         match session {
-            Some(s) => std::env::set_var("COS_SESSION", s),
-            None => std::env::remove_var("COS_SESSION"),
+            Some(s) => std::env::set_var("YUOS_SESSION", s),
+            None => std::env::remove_var("YUOS_SESSION"),
         }
         match mode {
-            Some(m) => std::env::set_var("COS_PERMS_MODE", m),
-            None => std::env::remove_var("COS_PERMS_MODE"),
+            Some(m) => std::env::set_var("YUOS_PERMS_MODE", m),
+            None => std::env::remove_var("YUOS_PERMS_MODE"),
         }
         Self {
             prev_data_dir,
@@ -54,27 +54,27 @@ impl EnvGuard {
 impl Drop for EnvGuard {
     fn drop(&mut self) {
         match &self.prev_data_dir {
-            Some(v) => std::env::set_var("COS_DATA_DIR", v),
-            None => std::env::remove_var("COS_DATA_DIR"),
+            Some(v) => std::env::set_var("YUOS_DATA_DIR", v),
+            None => std::env::remove_var("YUOS_DATA_DIR"),
         }
         match &self.prev_log_dir {
-            Some(v) => std::env::set_var("COS_LOG_DIR", v),
-            None => std::env::remove_var("COS_LOG_DIR"),
+            Some(v) => std::env::set_var("YUOS_LOG_DIR", v),
+            None => std::env::remove_var("YUOS_LOG_DIR"),
         }
         match &self.prev_session {
-            Some(v) => std::env::set_var("COS_SESSION", v),
-            None => std::env::remove_var("COS_SESSION"),
+            Some(v) => std::env::set_var("YUOS_SESSION", v),
+            None => std::env::remove_var("YUOS_SESSION"),
         }
         match &self.prev_mode {
-            Some(v) => std::env::set_var("COS_PERMS_MODE", v),
-            None => std::env::remove_var("COS_PERMS_MODE"),
+            Some(v) => std::env::set_var("YUOS_PERMS_MODE", v),
+            None => std::env::remove_var("YUOS_PERMS_MODE"),
         }
     }
 }
 
 // Shared env-var mutex — see `caps::test_env_lock`. Lives in the
 // parent module so it's also held by `caps::bootstrap` tests
-// (which mutate the same `COS_*` vars).
+// (which mutate the same `YUOS_*` vars).
 use crate::caps::test_env_lock::env_lock;
 
 #[tokio::test]
@@ -83,7 +83,7 @@ async fn trusted_non_app_task_checks_caps_without_opening_extension_runtime_stat
     let directory = tempfile::tempdir().unwrap();
     let blocked = directory.path().join("not-a-directory");
     std::fs::write(&blocked, "cannot hold a provenance store").unwrap();
-    let _runtime = crate::test_env::TestEnvVarGuard::set("COS_PROVENANCE_RUNTIME_DIR", blocked);
+    let _runtime = crate::test_env::TestEnvVarGuard::set("YUOS_PROVENANCE_RUNTIME_DIR", blocked);
     let uid = current_euid().unwrap();
     let base: crate::proc::SessionInfo = serde_json::from_value(serde_json::json!({
         "session_id":"task-scope","pid":std::process::id(),"command":["task"],
@@ -378,7 +378,7 @@ fn permissive_allows_session_without_caps_field() {
 fn strict_is_the_default() {
     let _lock = env_lock();
     let _g = EnvGuard::new(r#"{"sessions":[]}"#, None, None);
-    // No COS_PERMS_MODE set → strict by default → denies.
+    // No YUOS_PERMS_MODE set → strict by default → denies.
     let err = require(Verb::FS_READ, Scope::path("/etc")).unwrap_err();
     assert!(matches!(
         err.reason,
@@ -413,15 +413,15 @@ fn json_envelope_matches_denial_shape() {
 
 // ----- system-Agent baseline, end to end ---------------------------------
 
-/// Registry row carrying exactly what `clawd` hands a system Agent
+/// Registry row carrying exactly what `yuosd` hands a system Agent
 /// owned by an unprivileged account.
 fn system_agent_registry(owner_uid: u32, owner_home: &std::path::Path) -> String {
-    let caps = crate::clawd::system_caps::system_agent_caps(owner_uid, owner_home);
+    let caps = crate::yuosd::system_caps::system_agent_caps(owner_uid, owner_home);
     registry_with_caps("agent-task", &serde_json::to_string(&caps).unwrap())
 }
 
 /// Regression for the root-context ambient grant: a task owned by an
-/// unprivileged user executes inside root `clawd`, so the gate — not
+/// unprivileged user executes inside root `yuosd`, so the gate — not
 /// the process euid — is what keeps it out of `/etc/shadow`, other
 /// homes, arbitrary hosts, new processes and the credential store.
 #[test]
@@ -546,7 +546,7 @@ fn approved_host_grant_does_not_widen_siblings_or_persist() {
         assert!(require(Verb::NET_DIAL, Scope::host("api.example.com")).is_err());
     });
     // Nothing was added to the session itself.
-    let caps = crate::clawd::system_caps::system_agent_caps(1001, &owner_home);
+    let caps = crate::yuosd::system_caps::system_agent_caps(1001, &owner_home);
     assert!(!caps.covers(&super::super::cap::Cap::new(
         Verb::NET_DIAL,
         Scope::host("api.example.com")
@@ -567,7 +567,7 @@ fn delegated_scheduler_session_gates_only_its_approved_authority() {
     std::fs::create_dir_all(&neighbour).unwrap();
 
     // What `triggers::submit_job` persists, before the clamp.
-    let mut stored = crate::clawd::system_caps::system_agent_caps(1001, &owner_home);
+    let mut stored = crate::yuosd::system_caps::system_agent_caps(1001, &owner_home);
     stored.insert(super::super::cap::Cap::new(Verb::AGENT_SPAWN, Scope::Wild));
     stored.insert(super::super::cap::Cap::new(
         Verb::SECRET_READ,
@@ -587,7 +587,7 @@ fn delegated_scheduler_session_gates_only_its_approved_authority() {
         Scope::name("sshd"),
     ));
 
-    let delegated = crate::clawd::system_caps::clamp_for_origin(
+    let delegated = crate::yuosd::system_caps::clamp_for_origin(
         &stored,
         crate::session::SessionOrigin::TriggerDelegation,
         1001,
@@ -675,18 +675,18 @@ fn audit_record_wild_scope_renders_as_star() {
 
 /// Regression alongside `audit::cap_audit_tests`: `require` records
 /// through the enforcement path even when the checked process sets
-/// the retired `COS_CAPS_AUDIT=0` switch, and it records the allow
+/// the retired `YUOS_CAPS_AUDIT=0` switch, and it records the allow
 /// and the deny alike.
 #[test]
 fn require_writes_to_caps_jsonl() {
     let _lock = env_lock();
-    let _audit_flag = crate::test_env::TestEnvVarGuard::set("COS_CAPS_AUDIT", "0");
+    let _audit_flag = crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_AUDIT", "0");
 
     let caps = r#"[{"verb":"fs.read","scope":{"kind":"path","value":"/home/jay/**"}}]"#;
     let reg = registry_with_caps("s1", caps);
     let _g = EnvGuard::new(&reg, Some("s1"), Some("strict"));
 
-    // EnvGuard redirects COS_LOG_DIR to its tempdir, so writes
+    // EnvGuard redirects YUOS_LOG_DIR to its tempdir, so writes
     // land at <tmp>/caps.jsonl. One allow + one deny → two lines.
     let _ = require(Verb::FS_READ, Scope::path("/home/jay/x"));
     let _ = require(Verb::FS_DELETE, Scope::path("/home/jay/x"));

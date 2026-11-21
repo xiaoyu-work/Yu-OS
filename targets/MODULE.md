@@ -28,7 +28,7 @@ redefining the operating-system feature set.
 
 ## Dependencies
 
-Targets consume `build/claw-os-rootfs` and profile definitions. WSL and Docker
+Targets consume `build/yuos-rootfs` and profile definitions. WSL and Docker
 share one rootfs per architecture in CI. Azure obtains identity from
 cloud-init; WSL uses first-launch OOBE; Docker creates the requested user at
 container startup. These target policies must not leak back into reusable

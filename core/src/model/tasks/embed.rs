@@ -3,8 +3,8 @@
 //! Wires the global `[embed]` config block to concrete embedder
 //! implementations. The trait surface ([`Embedder`], [`EmbedRequest`],
 //! [`EmbedResponse`], [`EmbedError`], [`EmbedUsage`]) is defined in
-//! the [`claw_embed`] crate so other workspace crates (e.g.
-//! `claw-semantic`) can implement / consume embeddings without
+//! the [`yuos_embed`] crate so other workspace crates (e.g.
+//! `yuos-semantic`) can implement / consume embeddings without
 //! pulling in the entire `core` runtime.
 //!
 //! What lives here:
@@ -26,8 +26,8 @@ use crate::config::EmbedConfig;
 
 // Re-export the trait surface so existing call-sites
 // (`crate::model::tasks::embed::{Embedder, ...}`) keep compiling
-// transparently after the move to claw-embed.
-pub use claw_embed::{EmbedError, EmbedRequest, EmbedResponse, EmbedUsage, Embedder};
+// transparently after the move to yuos-embed.
+pub use yuos_embed::{EmbedError, EmbedRequest, EmbedResponse, EmbedUsage, Embedder};
 
 /// Default embedding model name. Used when [`crate::config::EmbedConfig::model`]
 /// is left empty; an explicit `model = "..."` in `[embed]` overrides this.

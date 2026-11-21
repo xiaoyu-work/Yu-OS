@@ -15,12 +15,12 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_ROOTS = ("claw-os-sdk", "cos-runtime", "desktop/toolkit", "desktop/launcher-backend")
+SOURCE_ROOTS = ("yuos-sdk", "yuos-runtime", "desktop/toolkit", "desktop/launcher-backend")
 EXPORT_NAMES = {
     "python-sdk", "python-runtime", "rust-sdk", "rust-runtime",
     "ui-toolkit", "launcher-client",
 }
-SCHEMA = "claw.app-platform/v1"
+SCHEMA = "yuos.app-platform/v1"
 SEMVER = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
 
 
@@ -149,7 +149,7 @@ def build(output, version, root=ROOT):
         raise ValueError("Commit the SDK libraries before publishing")
     timestamp = int(git(root, "show", "-s", "--format=%ct", "HEAD").strip())
     output.mkdir(parents=True, exist_ok=True)
-    name = f"claw-os-app-platform-{version}.tar.gz"
+    name = f"yuos-app-platform-{version}.tar.gz"
     destination = output / name
     checksums = output / "SHA256SUMS"
     if destination.exists() or checksums.exists():

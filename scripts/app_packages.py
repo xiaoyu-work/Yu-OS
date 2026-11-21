@@ -17,17 +17,17 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_ROOT_ENV = "CLAW_APP_PACKAGE_ROOT"
-APP_NAME = re.compile(r"claw-(?:app-|apps-|cap-)[a-z0-9][a-z0-9+.-]*\Z")
-APP_INTERFACE = re.compile(r"claw-app-(?:support|python-[a-z0-9][a-z0-9-]*)-v1\Z")
-RETIRED_DESKTOP = {"claw-apps-desktop", "claw-app-desktop-shell"}
-DESKTOP_SHELL_ROOT = "usr/lib/cos/apps/desktop-shell"
-PREINSTALLED_DIR = "usr/lib/cos/preinstalled-apps"
+APP_NAME = re.compile(r"yuos-(?:app-|apps-|cap-)[a-z0-9][a-z0-9+.-]*\Z")
+APP_INTERFACE = re.compile(r"yuos-app-(?:support|python-[a-z0-9][a-z0-9-]*)-v1\Z")
+RETIRED_DESKTOP = {"yuos-apps-desktop", "yuos-app-desktop-shell"}
+DESKTOP_SHELL_ROOT = "usr/lib/yuos/apps/desktop-shell"
+PREINSTALLED_DIR = "usr/lib/yuos/preinstalled-apps"
 APP_ENVELOPE = ".provenance.json"
 
 
 def run(arguments, **kwargs):
     private = {
-        "APT_CONFIG", "GPG_PASSPHRASE", "CLAW_OS_APT_SIGNING_PRIVATE_KEY",
+        "APT_CONFIG", "GPG_PASSPHRASE", "YUOS_APT_SIGNING_PRIVATE_KEY",
         "CLAW_APPS_APT_SIGNING_PRIVATE_KEY", "CLAW_APPS_APT_SIGNING_PASSPHRASE",
     }
     environment = {key: value for key, value in os.environ.items() if key not in private}
@@ -40,7 +40,7 @@ def run(arguments, **kwargs):
 def settings():
     value = json.loads((ROOT / "packaging/app-packages.json").read_text())
     if value["format"] != "claw.app-package-consumer/v1" or (
-        value["url"] != "https://xiaoyu-work.github.io/clawos-app/"
+        value["url"] != "https://xiaoyu-work.github.io/yuos-app/"
         or value["suite"] != "trixie" or value["component"] != "main"
         or value["architectures"] != ["amd64", "arm64"]
         or not re.fullmatch(r"[0-9A-F]{40}", value["signing_fingerprint"])
@@ -51,7 +51,7 @@ def settings():
 
 def platform():
     value = json.loads((ROOT / "packaging/app-platform.json").read_text())
-    if value["schema"] != "claw.app-platform/v1" or value["runtime_abi"] != 1 or (
+    if value["schema"] != "yuos.app-platform/v1" or value["runtime_abi"] != 1 or (
         not re.fullmatch(r"0|[1-9][0-9]*", str(value["runtime_abi"]))
         or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", value["version"])
     ):
@@ -182,7 +182,7 @@ def require_os_version(version):
     policy = json.loads((ROOT / "packaging/release-security/policy.json").read_text())
     minimum = f"{policy['security_epoch']}:{settings()['runtime_minimum']}"
     if not compare(version, "ge", minimum):
-        raise ValueError(f"OS App ownership cutover requires Agent/Desktop >= {minimum}")
+        raise ValueError(f"Official App delivery requires Agent/Desktop >= {minimum}")
 
 
 def dependencies(record):
@@ -194,7 +194,7 @@ def dependencies(record):
         if match:
             if APP_NAME.fullmatch(match[1]):
                 yield match[1], match[2], match[3]
-        elif re.search(r"\bclaw-(?:app-|apps-|cap-)", value):
+        elif re.search(r"\byuos-(?:app-|apps-|cap-)", value):
             raise ValueError("App package dependencies require an unambiguous exact owner")
 
 
@@ -209,7 +209,7 @@ def interfaces(record):
 
 
 def app_ids(record):
-    return record.get("X-Claw-App-Ids", "").replace(",", " ").split()
+    return record.get("X-YuOS-App-Ids", "").replace(",", " ").split()
 
 
 def roots(records, variant, configuration, desktop_ids):
@@ -229,7 +229,7 @@ def roots(records, variant, configuration, desktop_ids):
 
 
 def desktop_app_ids():
-    return set((ROOT / "packaging/deb/claw-os-desktop/apps.list").read_text().split())
+    return set((ROOT / "packaging/deb/yuos-desktop/apps.list").read_text().split())
 
 
 def selection(records, variant, configuration):
@@ -332,13 +332,13 @@ def package_files(path, envelopes=None):
                 if name in inventory:
                     raise ValueError("Duplicate App package payload path")
                 inventory.add(name)
-            if envelopes is not None and relative.is_relative_to("usr/lib/cos/apps") \
+            if envelopes is not None and relative.is_relative_to("usr/lib/yuos/apps") \
                     and relative.name == APP_ENVELOPE:
                 if not member.isfile() or not 0 < member.size <= 8 * 1024 * 1024:
                     raise ValueError("Preinstalled App requires a bounded provenance envelope")
                 raw = archive.extractfile(member).read()
                 body = json.loads(raw)["package"]
-                app_path = relative.parent.relative_to("usr/lib/cos/apps").as_posix()
+                app_path = relative.parent.relative_to("usr/lib/yuos/apps").as_posix()
                 if body["kind"] != "app" or body["manifest_path"] != "app.json" or app_path == "." \
                         or any(not re.fullmatch(r"[a-zA-Z0-9._-]+", part) for part in app_path.split("/")):
                     raise ValueError("Invalid preinstalled App provenance path")
@@ -357,14 +357,14 @@ def verify_packages(directory, selected, preinstalled=None):
             raise ValueError(f"Missing or changed official App artifact: {record['Package']}")
         control = fields(run(["dpkg-deb", "-f", path]).stdout.decode().strip())
         list(interfaces(control))
-        for field in ("Package", "Version", "Architecture", "Depends", "Provides", "X-Claw-App-Ids"):
+        for field in ("Package", "Version", "Architecture", "Depends", "Provides", "X-YuOS-App-Ids"):
             if control.get(field, "").replace("\n", " ") != record.get(field, "").replace("\n", " "):
                 raise ValueError(f"App artifact differs from its signed package metadata: {field}")
         envelopes = {} if preinstalled is not None and app_ids(record) else None
         inventory = package_files(path, envelopes)
         if envelopes is not None:
             if set(envelopes) != set(app_ids(record)) or any(
-                f"usr/lib/cos/apps/{app_path}/app.json" not in inventory
+                f"usr/lib/yuos/apps/{app_path}/app.json" not in inventory
                 for app_path, _ in envelopes.values()
             ):
                 raise ValueError("Preinstalled App provenance differs from the selected Debian identities")
@@ -373,7 +373,7 @@ def verify_packages(directory, selected, preinstalled=None):
             if name in owners:
                 raise ValueError(f"Multiple dpkg owners for {name}")
             if any(name == root or name.startswith(root + "/") for root in (
-                "usr/lib/cos/python/claw_os_sdk", "usr/lib/cos/python/cos_runtime",
+                "usr/lib/yuos/python/yuos_sdk", "usr/lib/yuos/python/yuos_runtime",
                 DESKTOP_SHELL_ROOT, PREINSTALLED_DIR,
             )):
                 raise ValueError("App package contains OS-owned SDK/runtime or Desktop Shell")
@@ -443,11 +443,11 @@ def check_stage(stage, owners, *, desktop=False):
         if name not in owners and path.is_dir() and not path.is_symlink():
             continue
         if name in owners or (
-            name.startswith("usr/lib/cos/apps/")
+            name.startswith("usr/lib/yuos/apps/")
             and not (desktop and name.startswith(DESKTOP_SHELL_ROOT + "/"))
         ) or (
-            name.startswith("usr/lib/cos/python/")
-            and name.split("/")[4] not in ("claw_os_sdk", "cos_runtime")
+            name.startswith("usr/lib/yuos/python/")
+            and name.split("/")[4] not in ("yuos_sdk", "yuos_runtime")
         ):
             raise ValueError(f"OS package still owns an App/support/library payload: {name}")
 

@@ -4,10 +4,10 @@ use std::collections::BTreeSet;
 use std::io::Write;
 use std::time::{Duration, Instant};
 
-use clawd_client::system_review::{ReviewKind, ReviewStatus, SystemReview};
+use yuosd_client::system_review::{ReviewKind, ReviewStatus, SystemReview};
 use serde_json::{json, Value};
 
-use super::{ClawdCallError, ClawdCommand};
+use super::{YuosdCallError, YuosdCommand};
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum PendingConsent {
@@ -15,7 +15,7 @@ enum PendingConsent {
     Capabilities(Vec<String>),
 }
 
-pub(super) fn register_with_wait(app_id: &str, params: Value) -> Result<Value, ClawdCallError> {
+pub(super) fn register_with_wait(app_id: &str, params: Value) -> Result<Value, YuosdCallError> {
     // Private Hosts cannot reach around their route-filtered broker to inspect
     // an owner's reviews. Their controller receives the original refusal.
     let can_poll_review =
@@ -25,7 +25,7 @@ pub(super) fn register_with_wait(app_id: &str, params: Value) -> Result<Value, C
         params,
         can_poll_review,
         Instant::now() + super::gui_approval_wait(app_id),
-        super::clawd_request,
+        super::yuosd_request,
         |pending, deadline| match pending {
             PendingConsent::SystemReview(id) => wait_for_review(app_id, id, deadline),
             PendingConsent::Capabilities(ids) => super::wait_for_approvals_until(ids, deadline),
@@ -38,12 +38,12 @@ fn register_with(
     params: Value,
     can_poll_review: bool,
     deadline: Instant,
-    mut request: impl FnMut(ClawdCommand, Value) -> Result<Value, ClawdCallError>,
+    mut request: impl FnMut(YuosdCommand, Value) -> Result<Value, YuosdCallError>,
     mut wait: impl FnMut(&PendingConsent, Instant) -> Result<(), String>,
-) -> Result<Value, ClawdCallError> {
+) -> Result<Value, YuosdCallError> {
     let mut completed = BTreeSet::new();
     loop {
-        let denial = match request(ClawdCommand::AppSessionRegister, params.clone()) {
+        let denial = match request(YuosdCommand::AppSessionRegister, params.clone()) {
             Ok(result) => return Ok(result),
             Err(error) => error,
         };
@@ -69,7 +69,7 @@ fn register_with(
     }
 }
 
-fn pending_consent(error: &ClawdCallError, app_id: &str) -> Result<Option<PendingConsent>, String> {
+fn pending_consent(error: &YuosdCallError, app_id: &str) -> Result<Option<PendingConsent>, String> {
     if error.code.as_deref() != Some("not_authorized") {
         return Ok(None);
     }
@@ -132,13 +132,13 @@ fn wait_for_review(app_id: &str, id: &str, deadline: Instant) -> Result<(), Stri
         || {
             // The shared broker client checks UID 0 on this same connection
             // before writing any system.review request bytes.
-            let value = super::clawd_request(ClawdCommand::SystemReviewShow, json!({"id": id}))
+            let value = super::yuosd_request(YuosdCommand::SystemReviewShow, json!({"id": id}))
                 .map_err(String::from)?;
             serde_json::from_value(value)
                 .map_err(|error| format!("invalid OS App review response: {error}"))
         },
         |review| {
-            let text = clawd_client::system_review::format_terminal(review)
+            let text = yuosd_client::system_review::format_terminal(review)
                 .map_err(|error| error.to_string())?;
             let mut stderr = std::io::stderr().lock();
             writeln!(stderr, "{text}")

@@ -53,7 +53,7 @@ def pro11_audio(profile, work, stage, source, name):
     graph, footer, tail = settings.rpartition("\n    }\n  }\n]")
     if not header or not footer or tail.strip():
         raise ValueError(f"{model}: unexpected speaker filter format")
-    filter_path = "usr/share/cos/qualcomm/denali-speakers.conf"
+    filter_path = "usr/share/yuos/qualcomm/denali-speakers.conf"
     write_file(stage / filter_path, "{\n" + dedent(graph) + "\n}\n")
     write_file(stage / "usr/share/wireplumber/wireplumber.conf.d/51-surface-pro-11-speakers.conf", f"""wireplumber.profiles = {{
   main = {{
@@ -87,7 +87,7 @@ def pro11_package(release, source, provenance, work, out, package):
     extract(source[key], recipes, prefixes=(profile_dir,))
     profile = recipes / profile_dir
     stage = work / "surface-pro-11"
-    name = "claw-os-surface-pro-11-snapdragon"
+    name = "yuos-surface-pro-11-snapdragon"
     for file, dest in (
         ("LICENSE", f"usr/share/doc/{name}/copyright"),
         ("imx681.yaml", "usr/share/libcamera/ipa/simple/imx681.yaml"),
@@ -109,7 +109,7 @@ def pro11_package(release, source, provenance, work, out, package):
         stage_file(profile / stem, stage / "usr/bin" / stem, 0o755)
     pro11_audio(profile, work, stage, source, name)
     package(stage, out, name, "1-3", "arm64",
-            f"linux-image-{release}, claw-os-surface-snapdragon-iptsd, bash, bluez, libcamera-ipa, "
+            f"linux-image-{release}, yuos-surface-snapdragon-iptsd, bash, bluez, libcamera-ipa, "
             "libspa-0.2-libcamera, python3, sudo, systemd, udev, util-linux, "
             "alsa-ucm-conf (>= 1.2.16.1-1~bpo13+1), pipewire (>= 1.4.2), wireplumber (>= 0.5.8), "
             "lsp-plugins-lv2 (>= 1.2.21)",
@@ -123,7 +123,7 @@ def pro11_sensors_package(release, source, provenance, work, out, package):
     recipes = work / "denali-sensors-recipes"
     extract(source[recipe], recipes, prefixes=(directory, "LICENSE"))
     stage = work / "denali-sensors"
-    name = "claw-os-surface-pro-11-sensors"
+    name = "yuos-surface-pro-11-sensors"
     lib = stage / "usr/lib/surface-pro-11-sensors"
     docs = stage / "usr/share/doc" / name
     stage_file(recipes / "LICENSE", docs / "omarchy-pkgs.LICENSE")

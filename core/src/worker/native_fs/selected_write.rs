@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::caps::{Cap, Verb};
-use crate::clawd::authority::Authorized;
+use crate::yuosd::authority::Authorized;
 
 use super::selected_read::{FileCandidate, ReadProvider};
 use super::{backend, ChosenWrite, Shared};
@@ -221,7 +221,7 @@ impl ReadProvider {
             .ok_or("Root scratch name is not canonical")?
             .to_string();
         let suffix = name
-            .strip_prefix(".cos-save-")
+            .strip_prefix(".yuos-save-")
             .ok_or("Root scratch name has another origin")?;
         let id = format!("ss-{suffix}");
         let parent_path = relative.parent().ok_or("Root scratch has no parent")?;

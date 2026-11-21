@@ -24,7 +24,7 @@ fn regional_capabilities_do_not_reinterpret_existing_configuration_or_identity()
 fn public_app_schema_tracks_the_capability_catalog_without_enabling_ai_bypass() {
     let schema: serde_json::Value = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../claw-os-sdk/wire/v1/manifest.schema.json"
+        "/../yuos-sdk/wire/v1/manifest.schema.json"
     ))).unwrap();
     let declared = schema["$defs"]["need"]["properties"]["verb"]["enum"]
         .as_array().unwrap();

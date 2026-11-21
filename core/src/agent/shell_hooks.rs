@@ -32,7 +32,7 @@ const MAX_LOG_BYTES: u64 = 50 * 1024 * 1024;
 const MAX_ROTATIONS: u32 = 2;
 
 /// Default per-shell-hook execution timeout. The hook is interactive
-/// telemetry; if `cos` stalls (missing config, blocked syscall, hung
+/// telemetry; if `yu` stalls (missing config, blocked syscall, hung
 /// MCP child) every prompt would otherwise block forever. 60 seconds
 /// is high enough that the rare slow auth refresh doesn't time out
 /// and low enough that operators feel the pain quickly.
@@ -100,7 +100,7 @@ pub fn default_log_path() -> PathBuf {
 /// since this is ambient telemetry, not an authoritative trace.
 ///
 /// Every invocation is wrapped with `timeout(1)` when it is on
-/// `$PATH`. The hook runs at every prompt, so a stalled `cos`
+/// `$PATH`. The hook runs at every prompt, so a stalled `yu`
 /// (hung MCP child, blocked syscall, dead-fs) would otherwise
 /// freeze the user's shell indefinitely.
 pub fn render_init(shell: Shell) -> String {

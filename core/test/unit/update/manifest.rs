@@ -7,13 +7,13 @@ fn a_well_formed_manifest_parses_and_pins_its_digest() {
     let spec = ManifestSpec::default();
     let bytes = manifest_bytes(&spec);
     let parsed = Manifest::parse(&bytes).expect("parses");
-    assert_eq!(parsed.package, "claw-os-agent");
+    assert_eq!(parsed.package, "yuos-agent");
     assert_eq!(parsed.security_epoch, 1);
     assert_eq!(parsed.digest, crate::crypto::sha256_hex(&bytes));
     assert_eq!(parsed.bytes, bytes);
     assert_eq!(
         parsed
-            .component_digest("clawd")
+            .component_digest("yuosd")
             .map(|entry| entry.sha256.as_str()),
         Some(spec.component_digest.as_str())
     );

@@ -3,22 +3,22 @@ set -euo pipefail
 
 cd "${GITHUB_WORKSPACE:?GITHUB_WORKSPACE is required}"
 : "${RUNNER_TEMP:?RUNNER_TEMP is required}"
-: "${COS_PACKAGE_VERSION:?COS_PACKAGE_VERSION is required}"
-: "${CLAW_OS_RELEASE_SECURITY_KEYRING:?CLAW_OS_RELEASE_SECURITY_KEYRING is required}"
+: "${YUOS_PACKAGE_VERSION:?YUOS_PACKAGE_VERSION is required}"
+: "${YUOS_RELEASE_SECURITY_KEYRING:?YUOS_RELEASE_SECURITY_KEYRING is required}"
 component="${1:-}"
 case "$component" in
     agent|desktop) arch="${ARCH:?ARCH is required}" ;;
     base) arch=all ;;
     *) echo "usage: $0 {agent|base|desktop}" >&2; exit 2 ;;
 esac
-file_version="${COS_PACKAGE_VERSION//:/%3a}"
-deb="build/debs/claw-os-${component}_${file_version}_${arch}.deb"
+file_version="${YUOS_PACKAGE_VERSION//:/%3a}"
+deb="build/debs/yuos-${component}_${file_version}_${arch}.deb"
 test -f "$deb"
-test "$(dpkg-deb -f "$deb" Package)" = "claw-os-$component"
-test "$(dpkg-deb -f "$deb" Version)" = "$COS_PACKAGE_VERSION"
+test "$(dpkg-deb -f "$deb" Package)" = "yuos-$component"
+test "$(dpkg-deb -f "$deb" Version)" = "$YUOS_PACKAGE_VERSION"
 test "$(dpkg-deb -f "$deb" Architecture)" = "$arch"
 
-extract="$(mktemp -d "$RUNNER_TEMP/claw-os-package-check.XXXXXX")"
+extract="$(mktemp -d "$RUNNER_TEMP/yuos-package-check.XXXXXX")"
 trap 'rm -rf -- "$extract"' EXIT
 files="$extract/files"
 dpkg-deb --fsys-tarfile "$deb" | tar -tf - > "$files"
@@ -27,69 +27,69 @@ case "$component" in
     agent)
         required=(
             usr/local/bin/yu
-            usr/local/bin/clawd
-            usr/local/bin/claw-agentd
-            usr/local/bin/claw-extension-host
-            usr/lib/cos/bin/claw-calendar-reader
-            usr/share/doc/claw-os-agent/calendar-reader.LICENSE
-            usr/lib/cos/bin/claw-nearby-worker
-            usr/lib/cos/bin/claw-nearby-radio
-            usr/share/doc/claw-os-agent/nearby-owly.LICENSE
-            usr/share/doc/claw-os-agent/nearby-PROVENANCE.md
-            usr/share/doc/claw-os-agent/vendor/owlyd/PROVENANCE.md
-            usr/share/doc/claw-os-agent/vendor/owlyd/LICENSE
-            usr/lib/systemd/system/claw-nearby-radio.service
+            usr/local/bin/yuosd
+            usr/local/bin/yuos-agentd
+            usr/local/bin/yuos-extension-host
+            usr/lib/yuos/bin/yuos-calendar-reader
+            usr/share/doc/yuos-agent/calendar-reader.LICENSE
+            usr/lib/yuos/bin/yuos-nearby-worker
+            usr/lib/yuos/bin/yuos-nearby-radio
+            usr/share/doc/yuos-agent/nearby-owly.LICENSE
+            usr/share/doc/yuos-agent/nearby-PROVENANCE.md
+            usr/share/doc/yuos-agent/vendor/owlyd/PROVENANCE.md
+            usr/share/doc/yuos-agent/vendor/owlyd/LICENSE
+            usr/lib/systemd/system/yuos-nearby-radio.service
             usr/share/dbus-1/system-services/io.github.t4t5.Owly.service
             usr/share/dbus-1/system.d/io.github.t4t5.Owly.conf
-            usr/lib/NetworkManager/conf.d/90-claw-nearby-unmanaged.conf
-            usr/lib/systemd/network/10-claw-nearby-awdl0.link
-            usr/local/bin/claw-gui-runner
-            usr/local/bin/claw-display-session
-            usr/lib/cos/bin/claw-display-host
+            usr/lib/NetworkManager/conf.d/90-yuos-nearby-unmanaged.conf
+            usr/lib/systemd/network/10-yuos-nearby-awdl0.link
+            usr/local/bin/yuos-gui-runner
+            usr/local/bin/yuos-display-session
+            usr/lib/yuos/bin/yuos-display-host
             "usr/lib/$(dpkg-architecture -a"$ARCH" -qDEB_HOST_MULTIARCH)/security/pam_claw_display.so"
-            usr/lib/sysusers.d/claw-os-agent.conf
-            usr/local/bin/claw-semantic
-            usr/local/bin/claw-semantic-daemon
-            usr/lib/cos/python/claw_os_sdk/__init__.py
-            usr/lib/cos/python/cos_runtime/__init__.py
-            usr/share/keyrings/claw-apps-archive-key.asc
+            usr/lib/sysusers.d/yuos-agent.conf
+            usr/local/bin/yuos-semantic
+            usr/local/bin/yuos-semantic-daemon
+            usr/lib/yuos/python/yuos_sdk/__init__.py
+            usr/lib/yuos/python/yuos_runtime/__init__.py
+            usr/share/keyrings/yuos-apps-archive-key.asc
             etc/apt/sources.list.d/claw-apps.sources
             usr/share/keyrings/claw-helium-archive-key.asc
             etc/apt/sources.list.d/claw-helium.sources
             etc/apt/preferences.d/claw-helium.pref
-            usr/lib/cos/bin/claw-app-apt-hook
-            usr/lib/cos/bin/claw-notification-panel
-            usr/lib/cos/app-apt-metadata.py
-            usr/lib/cos/skills/claw-os/SKILL.md
-            usr/lib/cos/skills/claw-os/diagnostics.md
-            usr/lib/systemd/system/clawd.service
-            usr/lib/cos/bin/claw-security-floor
-            usr/lib/cos/apt/security-floor-hook
-            etc/apt/apt.conf.d/50claw-os-security-floor
+            usr/lib/yuos/bin/yuos-app-apt-hook
+            usr/lib/yuos/bin/yuos-notification-panel
+            usr/lib/yuos/app-apt-metadata.py
+            usr/lib/yuos/skills/yuos/SKILL.md
+            usr/lib/yuos/skills/yuos/diagnostics.md
+            usr/lib/systemd/system/yuosd.service
+            usr/lib/yuos/bin/yuos-security-floor
+            usr/lib/yuos/apt/security-floor-hook
+            etc/apt/apt.conf.d/50yuos-security-floor
         )
-        dpkg-deb -f "$deb" Provides | grep -qw claw-os-calendar-read-v1
-        dpkg-deb -f "$deb" Provides | grep -qw claw-os-nearby-v1
-        dpkg-deb -f "$deb" Provides | grep -qw claw-os-display-session-v2
-        dpkg-deb -f "$deb" Provides | grep -qw claw-os-browser-render-v1
-        if grep -Eq '/(cos-browser(-worker)?|cos-browser\.service)$' "$files"; then
+        dpkg-deb -f "$deb" Provides | grep -qw yuos-calendar-read-v1
+        dpkg-deb -f "$deb" Provides | grep -qw yuos-nearby-v1
+        dpkg-deb -f "$deb" Provides | grep -qw yuos-display-session-v2
+        dpkg-deb -f "$deb" Provides | grep -qw yuos-browser-render-v1
+        if grep -Eq '/(yuos-browser(-worker)?|yuos-browser\.service)$' "$files"; then
             echo "error: legacy raw browser service is still packaged" >&2
             exit 1
         fi
-        if grep -Fxq './etc/cos/oauth.conf' "$files" \
-            || grep -q '/usr/lib/cos/apps/' "$files"; then
+        if grep -Fxq './etc/yuos/oauth.conf' "$files" \
+            || grep -q '/usr/lib/yuos/apps/' "$files"; then
             echo "error: Agent contains excluded OAuth configuration or App payloads" >&2
             exit 1
         fi
         dpkg-deb -x "$deb" "$extract/payload"
-        test "$(stat -c '%a' "$extract/payload/usr/lib/cos/skills/claw-os")" = "755"
-        test "$(stat -c '%a' "$extract/payload/usr/lib/cos/skills/claw-os/SKILL.md")" = "644"
+        test "$(stat -c '%a' "$extract/payload/usr/lib/yuos/skills/yuos")" = "755"
+        test "$(stat -c '%a' "$extract/payload/usr/lib/yuos/skills/yuos/SKILL.md")" = "644"
         runtime_version="$(python3 scripts/app_packages.py runtime-version)"
         dpkg-deb -f "$deb" Provides | grep -Fq "yuos-app-runtime-v1 (= $runtime_version)"
         ;;
     base)
-        required=(usr/local/bin/cos-init usr/lib/systemd/system/cos-home-setup.service)
+        required=(usr/local/bin/yuos-init usr/lib/systemd/system/yuos-home-setup.service)
         if grep -Fxq './usr/local/bin/yu' "$files" \
-            || grep -q '/usr/lib/cos/apps/' "$files"; then
+            || grep -q '/usr/lib/yuos/apps/' "$files"; then
             echo "error: Base contains Agent-owned binaries or Apps" >&2
             exit 1
         fi
@@ -100,19 +100,19 @@ case "$component" in
             usr/libexec/claw-greeter
             usr/libexec/claw-create-local-owner
             usr/libexec/claw-desktop-locales
-            usr/share/claw-os/oobe/greeter.qml
-            usr/share/claw-os/oobe/shell.qml
-            usr/share/claw-os/oobe/wallpaper-blurred.jpg
-            usr/share/backgrounds/claw-os/yuos-default.jpg
+            usr/share/yuos/oobe/greeter.qml
+            usr/share/yuos/oobe/shell.qml
+            usr/share/yuos/oobe/wallpaper-blurred.jpg
+            usr/share/backgrounds/yuos/yuos-default.jpg
             usr/share/polkit-1/actions/org.yuos.local-desktop-setup.policy
             usr/share/polkit-1/rules.d/claw-local-desktop-setup.rules
             etc/xdg/hypr/hyprland.lua
             usr/share/wayland-sessions/claw.desktop
             etc/pam.d/claw-desktop
             etc/greetd/claw-desktop.toml
-            usr/local/bin/cos-agent-ui
-            usr/local/bin/cos-agent-bridge
-            usr/local/bin/cos-ask-claw-launcher
+            usr/local/bin/yuos-agent-ui
+            usr/local/bin/yuos-agent-bridge
+            usr/local/bin/yuos-ask-launcher
             usr/share/applications/com.yuos.Agent.desktop
         )
         ;;
@@ -135,4 +135,4 @@ fi
 
 bash packaging/release-security/verify-package-manifest.sh "$deb" \
     --arch "$arch" --require-signature \
-    --keyring "$CLAW_OS_RELEASE_SECURITY_KEYRING"
+    --keyring "$YUOS_RELEASE_SECURITY_KEYRING"

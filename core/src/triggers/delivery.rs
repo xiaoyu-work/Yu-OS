@@ -122,7 +122,7 @@ fn consume(cursor: &mut TriggerCursor, rule_id: &str, line_index: Option<usize>)
 
 pub(super) fn visible_match(rule: &TriggerRule, event: &Value, raw: &str) -> bool {
     rule.owner_uid.is_some_and(|uid| {
-        crate::clawd::context_events::event_visible_to(event, (uid != 0).then_some(uid))
+        crate::yuosd::context_events::event_visible_to(event, (uid != 0).then_some(uid))
             && rule_matches(rule, event, raw)
     })
 }
@@ -525,7 +525,7 @@ pub(super) fn tick() -> Result<Value, String> {
                     continue;
                 }
                 if rule.activity_work {
-                    if !crate::clawd::context_events::event_visible_to(&event,rule.owner_uid) {
+                    if !crate::yuosd::context_events::event_visible_to(&event,rule.owner_uid) {
                         continue;
                     }
                     if let Err(error) = work::on_event(rule,line_index as u64) {

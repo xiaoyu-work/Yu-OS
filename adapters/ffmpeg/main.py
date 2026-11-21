@@ -13,7 +13,7 @@ import pathlib
 import shutil
 import subprocess
 
-from claw_os_sdk.mcp import App
+from yuos_sdk.mcp import App
 
 
 _HERE = pathlib.Path(__file__).resolve().parent

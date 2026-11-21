@@ -1,6 +1,6 @@
 # Image architecture
 
-Claw OS uses one source tree to build several distribution artifacts. The
+Yu OS uses one source tree to build several distribution artifacts. The
 pipeline is split into three layers so platform policy does not leak into the
 operating-system capabilities:
 
@@ -35,7 +35,7 @@ Examples:
 - `grub-disk` installs disk-boot configuration.
 - `vm` configures generic virtual-machine console and power behavior.
 - `local-user` enables graphical account setup on fresh local desktop VMs.
-  Headless VMs create a locked `cos` account and set its password on the
+  Headless VMs create a locked `yu` account and set its password on the
   serial console.
 - `cloud-init` adds provider-neutral first-boot provisioning.
 - `azure` requires `cloud-init`, restricts it to the Azure datasource, configures
@@ -47,7 +47,7 @@ Examples:
   ONNX Runtime/GenAI pair in the system registry for real personal-file vectors.
 
 In particular, `vm` does not create a user and `azure` does not contain the
-Claw OS application stack. Profiles compose those independent capabilities.
+Yu OS application stack. Profiles compose those independent capabilities.
 
 The local file index is independent of Workspace tags: configured personal
 directories are indexed once, while the shared broker filters each Workspace's
@@ -64,7 +64,7 @@ feature combinations. Targets use these defaults but continue to accept a
 
 | Profile | Identity model | Platform integration |
 | --- | --- | --- |
-| Local VM | Graphical account creation on desktop; locked `cos` setup on headless | Generic VM; optional VMware Tools |
+| Local VM | Graphical account creation on desktop; locked `yu` setup on headless | Generic VM; optional VMware Tools |
 | Azure | User, hostname, and SSH key supplied per instance | cloud-init, WALinuxAgent, Hyper-V |
 | WSL | User created interactively by the WSL first-launch OOBE | Modern `.wsl` package conventions |
 | Docker | User name and numeric identity supplied at container creation | Container/systemd conventions |
@@ -100,7 +100,7 @@ The following workarounds are adapted from [Omarchy's hardware setup and udev ru
 | Dell XPS with the Synaptics haptic touchpad (`VEN_06CB:00`) | Install the haptic daemon and presets offline. Use `sudo dell-xps-touchpad-haptics set low`, `mid`, or `high` to change the system setting. |
 | Elgato Cam Link 4K on the stock amd64 kernel | With the device connected during install, cache and install the matching loopback module and relay. The camera appears as a fixed 1280×720 virtual device instead of a stretched browser input. |
 | Supported Intel hybrid laptops with a system battery | Install Intel LPMD for the matched CPU family and model. This does not select Intel desktops or computers with only a battery-powered peripheral. |
-| TUXEDO laptops on the stock amd64 kernel | Install the vendor's compatibility-checked DKMS keyboard/backlight modules and matching kernel headers. Claw OS does not disable the vendor's model check or delete existing modules. |
+| TUXEDO laptops on the stock amd64 kernel | Install the vendor's compatibility-checked DKMS keyboard/backlight modules and matching kernel headers. Yu OS does not disable the vendor's model check or delete existing modules. |
 | Snapdragon ThinkPad T14s Gen 6 (`21N1`/`21N2`) | Enable the OV02C10 front camera and its privacy LED in the LCD and OLED device trees. Only the active desktop seat can access the system DMA heap used by libcamera; CMA heaps remain private. Capture has not been tested on hardware. |
 | Supported Qualcomm WCN6855, WCN7850 and QCC2072 PCI radios | For a mapped adapter missing from Debian's firmware, select its documented family record from the installed `board-2.bin`. The live and installed systems reuse that data without overriding stock or administrator-supplied files. Surface Pro 11 and Laptop 8 can use their mapped reference record. |
 | ASUS ROG Flow Z13 GZ302 | Classify the detachable keyboard's touchpad as internal so libinput can disable it while typing. |
@@ -161,7 +161,7 @@ For units with the VD55G0 infrared sensor (`MSHW0472`), the installer trees add 
 
 The Qualcomm installer builds its common kernel from the pinned upstream tree and Omarchy patch series with hibernation and the Surface lid posture fix enabled. The Surface pack restarts `iptsd` after suspend. The board trees force the multiport USB controller to reinitialize on wake rather than retain stale USB2 PHY state. Devices on that controller no longer wake the system; use the lid or power button.
 
-For manual disk hibernation on a Snapdragon Surface Laptop 7, select **Swap (with Hibernate)** in Calamares. The target needs one persistent NVMe swap partition at least as large as RAM; encrypted installations need persistent LUKS swap as well. The installer configures the initramfs and makes GRUB restore the selected board with the matched kernel. Swap files, zram, USB-backed swap, and automatic suspend-then-hibernate are not enabled for this path. Use `systemctl hibernate` to save a session to disk and power off, then boot Claw OS to restore it. Kernel lockdown may disallow hibernation; Claw OS does not change Secure Boot policy. Do not boot another OS against the same disks while the Claw OS session is hibernated. A cold boot after a failed restore requires deliberately discarding the saved session (`noresume`).
+For manual disk hibernation on a Snapdragon Surface Laptop 7, select **Swap (with Hibernate)** in Calamares. The target needs one persistent NVMe swap partition at least as large as RAM; encrypted installations need persistent LUKS swap as well. The installer configures the initramfs and makes GRUB restore the selected board with the matched kernel. Swap files, zram, USB-backed swap, and automatic suspend-then-hibernate are not enabled for this path. Use `systemctl hibernate` to save a session to disk and power off, then boot Yu OS to restore it. Kernel lockdown may disallow hibernation; Yu OS does not change Secure Boot policy. Do not boot another OS against the same disks while the Yu OS session is hibernated. A cold boot after a failed restore requires deliberately discarding the saved session (`noresume`).
 
 On other Snapdragon models, the installer carries a pinned OEM index, not the firmware itself. The pending job uses the active device tree's firmware folders to select exact members of OEM driver downloads and Windows Update cabinets. Windows Update metadata is fetched over TLS using Microsoft's pinned Update CA; public cabinet URLs can use HTTP, but only on the returned Microsoft download host without redirects, and the archive must still match its pinned SHA-256. The job verifies each selected file, extracts without running any installer, preserves firmware already present, and refreshes the boot artifacts. A missing file outside the index is not automatically downloaded. `sudo claw-import-board-firmware --qualcomm-oem` runs the same import manually, and `claw-import-board-firmware --list-missing` shows files requested by the running device tree. `sudo claw-import-board-firmware /path/to/extracted-oem-driver` imports locally supplied matching files without downloading or overwriting firmware.
 
@@ -189,29 +189,29 @@ The generic Debian kernel remains the default. Build an opt-in image on a native
 | `aarch64-n1x` / `aarch64-gb10` | Matched NVIDIA open kernel modules, GPU firmware and driver libraries. GB10 disables unsupported system sleep and limits the CPU to shallow idle to avoid the firmware's excessive wake latency. This can increase idle power use. N1x restores CPPC frequency ranges and uses a larger USB4 resource window on ASUS ProArt P14 H7407BA. |
 | `aarch64-apple` | Source-built Aurora kernel and matched Apple device trees, m1n1 and U-Boot. Use `iso-live` for pre-provisioned Asahi UEFI or `sudo ./build.sh asahi-rootfs` for a desktop rootfs archive. Generic Calamares is disabled for this profile: it does not provision macOS recovery, an Apple boot policy or a dedicated Asahi ESP. |
 
-`python3 scripts/platform_kernels.py <profile>` prepares the corresponding Debian packages and boot assets without building the full OS. Source and original vendor inputs in `packaging/platform-kernels.json` are pinned by SHA-256; Debian dependencies continue to use signed Debian APT indexes. No Omarchy archive key or binary package is used. Generated platform artifacts carry their upstream source references and are not published by the regular Claw OS APT workflow.
+`python3 scripts/platform_kernels.py <profile>` prepares the corresponding Debian packages and boot assets without building the full OS. Source and original vendor inputs in `packaging/platform-kernels.json` are pinned by SHA-256; Debian dependencies continue to use signed Debian APT indexes. No Omarchy archive key or binary package is used. Generated platform artifacts carry their upstream source references and are not published by the regular Yu OS APT workflow.
 
 Build `x86-t2` on Debian 13 amd64 with Cargo, Rust and a C linker. The T2 installer mounts the recognized internal macOS APFS volume read-only and imports only Broadcom wireless firmware. If the partition was erased, is encrypted, or is otherwise unreadable, use `sudo claw-import-t2-firmware /path/to/macos/usr/share/firmware` with a local copy and reboot. The fan service keeps the upstream firmware limits and returns fans to automatic control when it stops.
 
 For an N1x laptop with pre-release `0.x` firmware, choose the **N1x firmware framebuffer** entry on the live or installer media. After installation, the detected `0.x` BIOS keeps the NVIDIA modules disabled; the firmware framebuffer remains available. The initramfs raises a dim NVIDIA panel to a readable brightness for disk unlock when the driver exposes the backlight. Normal acceleration still requires working production firmware. After updating the BIOS, run `sudo claw-hardware-setup` and `sudo update-grub` to remove the obsolete boot guard.
 
-On an N1x with a known factory GPU memory reservation, `sudo /usr/lib/cos/hw/claw-n1x-setup gpu-memory` sets the firmware reservation to 4 GiB and requires a reboot. The installer does not change this system-wide EFI setting automatically; the command refuses unfamiliar firmware data.
+On an N1x with a known factory GPU memory reservation, `sudo /usr/lib/yuos/hw/claw-n1x-setup gpu-memory` sets the firmware reservation to 4 GiB and requires a reboot. The installer does not change this system-wide EFI setting automatically; the command refuses unfamiliar firmware data.
 
 The N1x image extracts ASUS ProArt P14 H7407BA amplifier firmware and speaker tuning from the pinned ASUS driver download, preserving the original Cirrus payloads. The driver selects them only for the CS35L56 SoundWire subsystem `1043:33A1`; an uncompressed kernel firmware match takes precedence when available.
 
-Apple provisioning must first create and enroll a dedicated Asahi boot chain without overwriting macOS or recovery. The rootfs archive is for that Linux root and ESP only. It carries the matched stage-two image built from pinned m1n1 and U-Boot source at `/usr/lib/cos/asahi/boot.bin` (`boot-j700.bin` for MacBook Neo); it does not activate either image or replace an enrolled Apple Stage 1.
+Apple provisioning must first create and enroll a dedicated Asahi boot chain without overwriting macOS or recovery. The rootfs archive is for that Linux root and ESP only. It carries the matched stage-two image built from pinned m1n1 and U-Boot source at `/usr/lib/yuos/asahi/boot.bin` (`boot-j700.bin` for MacBook Neo); it does not activate either image or replace an enrolled Apple Stage 1.
 
-On the installed system, Claw OS imports the Mac's Asahi `vendorfw/firmware.tar` and `manifest.txt` from the EFI partition identified by the boot device tree before udev coldplug and the first-run wizard. The partition is mounted read-only and existing firmware is kept. If the bundle is missing, boot continues; on an enrolled Mac, `sudo claw-asahi-import-firmware /path/to/vendorfw` can import a local copy and rebuild the initramfs. Both paths check hashes and hard links against the manifest. The live ISO does not import automatically, and the Linux importer does not download firmware. Do not bundle material from a vendor recovery or Windows image without redistribution rights.
+On the installed system, Yu OS imports the Mac's Asahi `vendorfw/firmware.tar` and `manifest.txt` from the EFI partition identified by the boot device tree before udev coldplug and the first-run wizard. The partition is mounted read-only and existing firmware is kept. If the bundle is missing, boot continues; on an enrolled Mac, `sudo claw-asahi-import-firmware /path/to/vendorfw` can import a local copy and rebuild the initramfs. Both paths check hashes and hard links against the manifest. The live ISO does not import automatically, and the Linux importer does not download firmware. Do not bundle material from a vendor recovery or Windows image without redistribution rights.
 
-On a native ARM64 Debian build host with `rsync`, `e2fsprogs` and `zip`, `sudo ./build.sh asahi-rootfs --installer-payload` builds `build/claw-os-asahi-arm64-installer.zip`. It contains an unencrypted ext4 `root.img` that grows into a larger Linux partition on boot and an `esp/` tree with ARM64 GRUB and both stage-two images. A compatible installer must select the correct stage two and write it as `m1n1/boot.bin` on the dedicated ESP. The ZIP also carries `stage1-j700.bin`, the unconfigured raw MacBook Neo boot template built from the same m1n1 source. It stays outside the ESP tree. The payload neither repartitions a disk nor authorizes Recovery and contains no per-Mac firmware.
+On a native ARM64 Debian build host with `rsync`, `e2fsprogs` and `zip`, `sudo ./build.sh asahi-rootfs --installer-payload` builds `build/yuos-asahi-arm64-installer.zip`. It contains an unencrypted ext4 `root.img` that grows into a larger Linux partition on boot and an `esp/` tree with ARM64 GRUB and both stage-two images. A compatible installer must select the correct stage two and write it as `m1n1/boot.bin` on the dedicated ESP. The ZIP also carries `stage1-j700.bin`, the unconfigured raw MacBook Neo boot template built from the same m1n1 source. It stays outside the ESP tree. The payload neither repartitions a disk nor authorizes Recovery and contains no per-Mac firmware.
 
-For experimental installation from macOS on supported M1–M3 models or MacBook Neo J700, copy the ZIP from a trusted Claw OS build and record its SHA-256 on the build host. From the Claw OS checkout on the Mac, run `sudo /bin/sh targets/asahi-rootfs/install-macos.sh --plan /path/to/claw-os-asahi-arm64-installer.zip SHA256` with that digest. The preflight checks the actual Mac, firmware choice and Linux payload without changing partitions. Both modes need temporary space for a private copy of the ZIP and internet access to obtain the verified installer. Sign in as a recognized macOS volume owner and back up macOS before replacing `--plan` with `--install`. The upstream Asahi menu handles resizing and installing into free space. Claw OS does not repair macOS Preboot, offer a whole-disk erase, or maintain existing Asahi installs. M3 Ultra and M4 or later are not admitted.
+For experimental installation from macOS on supported M1–M3 models or MacBook Neo J700, copy the ZIP from a trusted Yu OS build and record its SHA-256 on the build host. From the Yu OS checkout on the Mac, run `sudo /bin/sh targets/asahi-rootfs/install-macos.sh --plan /path/to/yuos-asahi-arm64-installer.zip SHA256` with that digest. The preflight checks the actual Mac, firmware choice and Linux payload without changing partitions. Both modes need temporary space for a private copy of the ZIP and internet access to obtain the verified installer. Sign in as a recognized macOS volume owner and back up macOS before replacing `--plan` with `--install`. The upstream Asahi menu handles resizing and installing into free space. Yu OS does not repair macOS Preboot, offer a whole-disk erase, or maintain existing Asahi installs. M3 Ultra and M4 or later are not admitted.
 
-On the Neo, append `RESTORE_HELPER RESTORE_SHA256 APPLE_TEAM_ID` to either installer invocation. Obtain the helper, its SHA-256 and the team ID from the same trusted Claw OS build. The installer verifies the digest and Apple Developer ID Application signature for `org.yuos.installer.restore-image` before running the helper. It does not download another distribution's binary. To produce the helper on an Apple Silicon Mac with Xcode and a Developer ID Application certificate, run `/bin/sh targets/asahi-rootfs/build-macos-restore-helper.sh OUTPUT_DIRECTORY "Developer ID Application: ..." APPLE_TEAM_ID`. This builds and tests the pinned Swift source, signs it with the specified identity, and records the signed binary's digest. No Neo installer run is possible without that signed helper.
+On the Neo, append `RESTORE_HELPER RESTORE_SHA256 APPLE_TEAM_ID` to either installer invocation. Obtain the helper, its SHA-256 and the team ID from the same trusted Yu OS build. The installer verifies the digest and Apple Developer ID Application signature for `org.yuos.installer.restore-image` before running the helper. It does not download another distribution's binary. To produce the helper on an Apple Silicon Mac with Xcode and a Developer ID Application certificate, run `/bin/sh targets/asahi-rootfs/build-macos-restore-helper.sh OUTPUT_DIRECTORY "Developer ID Application: ..." APPLE_TEAM_ID`. This builds and tests the pinned Swift source, signs it with the specified identity, and records the signed binary's digest. No Neo installer run is possible without that signed helper.
 
-The Neo installer selects Apple's macOS 26.6.2 `25G83` restore and collects the Neo's own radio calibration and matching Apple radio firmware before offering a resize. It binds the Neo boot objects to the new EFI partition and leaves fingerprint calibration untouched. In the new install's Recovery, the owner must explicitly authorize the Claw OS boot volume, including its custom boot arguments. The existing macOS boot policy is unchanged. Native installation and the physical peripherals have not been verified on a Mac.
+The Neo installer selects Apple's macOS 26.6.2 `25G83` restore and collects the Neo's own radio calibration and matching Apple radio firmware before offering a resize. It binds the Neo boot objects to the new EFI partition and leaves fingerprint calibration untouched. In the new install's Recovery, the owner must explicitly authorize the Yu OS boot volume, including its custom boot arguments. The existing macOS boot policy is unchanged. Native installation and the physical peripherals have not been verified on a Mac.
 
-After the Linux root boots, the fresh image opens Claw OS's graphical first-run wizard to set up networking and create the first local owner. It does not ship a default account or password. The live ISO and cloud profiles are not armed for this setup.
+After the Linux root boots, the fresh image opens Yu OS's graphical first-run wizard to set up networking and create the first local owner. It does not ship a default account or password. The live ISO and cloud profiles are not armed for this setup.
 
 The Apple Silicon build also requires GNU Make to stage the official Asahi DSP presets. The native image uses the same `speakersafetyd` 2.0.1 release as Omarchy for models with feedback sensing. On MacBook Neo J700, it instead uses the model's `speakerguardd` protection with the matched Aurora speaker, headphone and microphone profiles. WirePlumber uses the normal microphone array and leaves the always-on low-power microphone out of the desktop. The driver requires the pinned Aurora kernel and matching protection assets; the kernel keeps its gain limit unless the model's daemon holds and refreshes the lock. Unmatched models remain disabled.
 
@@ -241,8 +241,8 @@ Boot the USB before changing partitions. Verify internal input in the installer 
 Artifacts fall into two identity models.
 
 **Locally managed artifacts** need a usable account because the runtime has no
-metadata service. The default headless VM creates `cos` in a locked state and
-blocks its normal serial getty with `cos-local-first-login.service` until the
+metadata service. The default headless VM creates `yu` in a locked state and
+blocks its normal serial getty with `yuos-local-first-login.service` until the
 console user sets a password. The desktop profile creates the owner in the
 graphical setup wizard before normal sign-in. WSL creates an account
 interactively; Docker creates the requested account from `CLAW_USER`,
@@ -271,10 +271,10 @@ generalized profile.
 
 An AWS, GCP, OpenStack, or other cloud target should reuse:
 
-1. the common Claw OS features;
+1. the common Yu OS features;
 2. `kernel`, `grub-disk`, and `vm`;
 3. the provider-neutral `cloud-init` feature;
 4. a small provider feature containing only its datasource/agent policy;
 5. `generalize_cloud_image` during staged artifact finalization.
 
-It should not fork the Debian bootstrap or duplicate the Claw OS packages.
+It should not fork the Debian bootstrap or duplicate the Yu OS packages.

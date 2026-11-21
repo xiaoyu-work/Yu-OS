@@ -1,6 +1,6 @@
 use super::*;
 use crate::activities::Response;
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     ActivityReceiptOutcome, ActivityReceiptReport, ActivityState, ReceiptResultKind,
     ReceiptResultSummary,
 };

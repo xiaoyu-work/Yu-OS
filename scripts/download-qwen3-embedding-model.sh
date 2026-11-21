@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
-# Download the validated Qwen3 embedding ONNX GenAI bundle into Claw OS.
+# Download the validated Qwen3 embedding ONNX GenAI bundle into Yu OS.
 #
 # Default target layout:
-#   /var/lib/cos/models/qwen3-embedding-0.6b/v1/
+#   /var/lib/yuos/models/qwen3-embedding-0.6b/v1/
 #
 # For image builds, pass --rootfs <path> so the model lands inside the rootfs:
-#   scripts/download-qwen3-embedding-model.sh --rootfs build/claw-os-rootfs
+#   scripts/download-qwen3-embedding-model.sh --rootfs build/yuos-rootfs
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-HF_REPO="${COS_QWEN3_HF_REPO:-johnucm/Qwen-Qwen3-Embedding-0.6B-onnx}"
-HF_REVISION="${COS_QWEN3_HF_REVISION:-6051d5d707ee165ff73b92905917099fd3298af1}"
-MODEL_NAME="${COS_QWEN3_MODEL_NAME:-qwen3-embedding-0.6b}"
-MODEL_VERSION="${COS_QWEN3_MODEL_VERSION:-v1}"
+HF_REPO="${YUOS_QWEN3_HF_REPO:-johnucm/Qwen-Qwen3-Embedding-0.6B-onnx}"
+HF_REVISION="${YUOS_QWEN3_HF_REVISION:-6051d5d707ee165ff73b92905917099fd3298af1}"
+MODEL_NAME="${YUOS_QWEN3_MODEL_NAME:-qwen3-embedding-0.6b}"
+MODEL_VERSION="${YUOS_QWEN3_MODEL_VERSION:-v1}"
 
 DEFAULT_ORT_GENAI_VERSION="$(
     sed -n 's/^pub const ORT_GENAI_KNOWN_GOOD_VERSION: &str = "\(.*\)";/\1/p' \
         "$PROJECT_DIR/core/src/engine_pkg/mod.rs" 2>/dev/null | head -1
 )"
-ORT_GENAI_VERSION="${COS_QWEN3_ORT_GENAI_VERSION:-${DEFAULT_ORT_GENAI_VERSION:-0.12.2}}"
+ORT_GENAI_VERSION="${YUOS_QWEN3_ORT_GENAI_VERSION:-${DEFAULT_ORT_GENAI_VERSION:-0.12.2}}"
 
 DEFAULT_FILES=(
     added_tokens.json
@@ -47,10 +47,10 @@ usage() {
     cat <<EOF
 Usage: $0 [--rootfs <path> | --dest <path>] [--revision <rev>] [--force] [--dry-run]
 
-Downloads Hugging Face model $HF_REPO into the Claw OS model registry layout.
+Downloads Hugging Face model $HF_REPO into the Yu OS model registry layout.
 
 Options:
-  --rootfs <path>     Install into <path>/var/lib/cos/models/$MODEL_NAME/$MODEL_VERSION
+  --rootfs <path>     Install into <path>/var/lib/yuos/models/$MODEL_NAME/$MODEL_VERSION
   --dest <path>       Install directly into an explicit model version directory
   --revision <rev>    Hugging Face revision/commit (default: $HF_REVISION)
   --force             Replace an existing incomplete or complete destination
@@ -58,8 +58,8 @@ Options:
   -h, --help          Show this help
 
 Environment overrides:
-  COS_QWEN3_HF_REPO, COS_QWEN3_HF_REVISION, COS_QWEN3_MODEL_NAME,
-  COS_QWEN3_MODEL_VERSION, COS_QWEN3_FILES, COS_QWEN3_ORT_GENAI_VERSION
+  YUOS_QWEN3_HF_REPO, YUOS_QWEN3_HF_REVISION, YUOS_QWEN3_MODEL_NAME,
+  YUOS_QWEN3_MODEL_VERSION, YUOS_QWEN3_FILES, YUOS_QWEN3_ORT_GENAI_VERSION
 EOF
 }
 
@@ -115,14 +115,14 @@ if [ -n "$ROOTFS" ] && [ -n "$DEST_DIR" ]; then
 fi
 
 if [ -n "$ROOTFS" ]; then
-    DEST_DIR="$ROOTFS/var/lib/cos/models/$MODEL_NAME/$MODEL_VERSION"
+    DEST_DIR="$ROOTFS/var/lib/yuos/models/$MODEL_NAME/$MODEL_VERSION"
 elif [ -z "$DEST_DIR" ]; then
-    DEST_DIR="/var/lib/cos/models/$MODEL_NAME/$MODEL_VERSION"
+    DEST_DIR="/var/lib/yuos/models/$MODEL_NAME/$MODEL_VERSION"
 fi
 
-if [ -n "${COS_QWEN3_FILES:-}" ]; then
+if [ -n "${YUOS_QWEN3_FILES:-}" ]; then
     # shellcheck disable=SC2206 # intentional whitespace splitting for test overrides
-    FILES=(${COS_QWEN3_FILES})
+    FILES=(${YUOS_QWEN3_FILES})
 else
     FILES=("${DEFAULT_FILES[@]}")
 fi

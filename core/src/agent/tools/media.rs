@@ -1,6 +1,6 @@
 //! Media tools surfaced to the LLM.
 //!
-//! Three thin LLM-facing tools (`cos_tts`, `cos_stt`, `cos_imagegen`)
+//! Three thin LLM-facing tools (`yu_tts`, `yu_stt`, `yu_imagegen`)
 //! that route to the matching media registry. Each tool accepts a
 //! `provider` field (defaulting to "noop" when omitted) so the
 //! model can target a specific backend, and gracefully reports
@@ -101,7 +101,7 @@ impl TtsTool {
 #[async_trait]
 impl Tool for TtsTool {
     fn name(&self) -> &str {
-        "cos_tts"
+        "yu_tts"
     }
 
     fn description(&self) -> &str {
@@ -208,7 +208,7 @@ impl SttTool {
 #[async_trait]
 impl Tool for SttTool {
     fn name(&self) -> &str {
-        "cos_stt"
+        "yu_stt"
     }
 
     fn description(&self) -> &str {
@@ -248,7 +248,7 @@ impl Tool for SttTool {
             None => return ToolResult::err("missing required field: path"),
         };
 
-        // Path-safety pre-flight. Without this, `cos_stt` is an
+        // Path-safety pre-flight. Without this, `yu_stt` is an
         // unguarded "read arbitrary file" primitive that the LLM can
         // point at `/etc/passwd` or `~/.ssh/id_rsa` and exfiltrate
         // the contents via a malicious STT provider (or even via the
@@ -356,7 +356,7 @@ impl ImageGenTool {
 #[async_trait]
 impl Tool for ImageGenTool {
     fn name(&self) -> &str {
-        "cos_imagegen"
+        "yu_imagegen"
     }
 
     fn description(&self) -> &str {

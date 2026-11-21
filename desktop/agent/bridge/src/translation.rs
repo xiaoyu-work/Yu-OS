@@ -1,4 +1,4 @@
-//! Anti-corruption translation from clawd's generic JSON envelopes into the
+//! Anti-corruption translation from yuosd's generic JSON envelopes into the
 //! stable desktop presentation protocol.
 
 pub mod activities;
@@ -10,7 +10,7 @@ pub mod scheduling_priority;
 
 use std::sync::OnceLock;
 
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     CancelResponse, DeltaPayload, DonePayload, HistoryMessage, HistoryResponse, ReasoningPayload,
     SessionSummary, StreamEvent, TaskStarted, ToolResultPayload, ToolStartPayload, ToolUsePayload,
     ToolUseStartPayload, TurnDonePayload, Usage, WarningPayload,
@@ -51,11 +51,11 @@ pub struct CoreJob {
     #[serde(default)]
     pub reason: Option<String>,
     #[serde(default)]
-    pub evidence: Option<cos_agent_protocol::EvidencePresentation>,
+    pub evidence: Option<yuos_agent_protocol::EvidencePresentation>,
 }
 
 impl CoreJob {
-    pub fn into_done(self) -> Result<DonePayload, cos_agent_protocol::StreamError> {
+    pub fn into_done(self) -> Result<DonePayload, yuos_agent_protocol::StreamError> {
         match self.status.as_str() {
             "ok" => {}
             "error" | "cancelled" => {
@@ -65,12 +65,12 @@ impl CoreJob {
                     self.error
                         .unwrap_or_else(|| "agent task failed".to_string())
                 };
-                let mut error = cos_agent_protocol::StreamError::new(message);
+                let mut error = yuos_agent_protocol::StreamError::new(message);
                 error.task_status = Some(self.status);
                 return Err(error);
             }
             status => {
-                return Err(cos_agent_protocol::StreamError::new(format!(
+                return Err(yuos_agent_protocol::StreamError::new(format!(
                     "unexpected terminal task state: {status}"
                 )));
             }
@@ -179,7 +179,7 @@ struct CoreProgress {
     #[serde(default)]
     error_preview: Option<String>,
     #[serde(default)]
-    sources: Vec<cos_agent_protocol::MemoryAccess>,
+    sources: Vec<yuos_agent_protocol::MemoryAccess>,
 }
 
 const MAX_ERROR_PREVIEW_BYTES: usize = 2 * 1024;
@@ -221,8 +221,8 @@ fn bounded_redacted_text(preview: String) -> String {
 }
 
 pub fn evidence(
-    mut report: cos_agent_protocol::EvidencePresentation,
-) -> cos_agent_protocol::EvidencePresentation {
+    mut report: yuos_agent_protocol::EvidencePresentation,
+) -> yuos_agent_protocol::EvidencePresentation {
     if report.source_count == 0 {
         report.source_count = report.sources.len() as u64;
     }
@@ -264,7 +264,7 @@ pub fn task_started(value: Value) -> Result<TaskStarted, String> {
     let submission: Submission = serde_json::from_value(value)
         .map_err(|error| format!("invalid task.submit result: {error}"))?;
     if submission.id.is_empty() {
-        return Err("clawd task.submit returned an empty task id".to_string());
+        return Err("yuosd task.submit returned an empty task id".to_string());
     }
     Ok(TaskStarted {
         task_id: submission.id,
@@ -326,7 +326,7 @@ pub fn sanitize_history_messages(messages: &mut [HistoryMessage]) {
     }
 }
 
-pub fn sanitize_task_presentations(jobs: &mut [cos_agent_protocol::ConversationJob]) {
+pub fn sanitize_task_presentations(jobs: &mut [yuos_agent_protocol::ConversationJob]) {
     for job in jobs {
         if let Some(presentation) = job.presentation.as_mut() {
             presentation.evidence = presentation.evidence.take().map(evidence);
@@ -412,7 +412,7 @@ fn tool_use_event(call: CoreToolCall) -> StreamEvent {
 fn progress_event(progress: CoreProgress) -> Option<StreamEvent> {
     match progress.kind.as_str() {
         "memory_sources" if progress.sources.len() <= 16 => Some(StreamEvent::MemorySources(
-            cos_agent_protocol::MemorySourcesPayload { id:progress.id, name:progress.name, sources:progress.sources },
+            yuos_agent_protocol::MemorySourcesPayload { id:progress.id, name:progress.name, sources:progress.sources },
         )),
         "tool_start" => Some(StreamEvent::ToolStart(ToolStartPayload {
             kind: Some(progress.kind),

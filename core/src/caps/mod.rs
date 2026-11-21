@@ -1,6 +1,6 @@
-//! Capability model for Claw OS.
+//! Capability model for Yu OS.
 //!
-//! Claw OS gates every privileged action behind one primitive: a
+//! Yu OS gates every privileged action behind one primitive: a
 //! [`Cap`] — a `(verb, scope)` pair — held by the calling session in
 //! its [`CapSet`]. The kernel, built-in apps, and third-party apps all
 //! consume this same primitive; there is no second permission system

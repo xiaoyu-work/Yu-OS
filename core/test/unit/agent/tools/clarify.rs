@@ -175,7 +175,7 @@ fn outcome_cancelled_omits_null_reason() {
 #[test]
 fn tool_metadata_matches_name() {
     let c = Clarify::new();
-    assert_eq!(c.name(), "cos_clarify");
+    assert_eq!(c.name(), "yu_clarify");
     assert!(!c.description().is_empty());
     let schema = c.input_schema();
     assert_eq!(schema["type"], "object");

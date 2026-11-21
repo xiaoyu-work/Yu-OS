@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`update/` is the single place that answers "is this Claw OS release still the
+`update/` is the single place that answers "is this Yu OS release still the
 current one?". Signatures answer authenticity; nothing in a signature expires,
 so an artifact that was validly signed years ago is still validly signed today.
 This module is the freshness authority that keeps a superseded release from
@@ -15,13 +15,13 @@ being installed, activated or run.
 - Order Debian versions exactly as `dpkg` does, including epochs and `~`.
 - Own the durable, root-owned monotonic security floor and its hash-chained
   generation history.
-- Publish the unprivileged runtime projection every other Claw OS binary
+- Publish the unprivileged runtime projection every other Yu OS binary
   enforces against, and keep it in step with the authority.
 - Verify release manifests against the OpenPGP trust the machine already has,
   without generating, shipping or inventing key material.
 - Decide one refusal policy that every enforcement point shares.
 - Record one-use, narrowly scoped operator recovery authorizations.
-- Gate `clawd` startup, agent-worker spawn, and every Claw OS binary.
+- Gate `yuosd` startup, agent-worker spawn, and every Yu OS binary.
 
 ## Key Files
 
@@ -37,13 +37,13 @@ being installed, activated or run.
 | `decide.rs` | The shared refusal policy and its stable decision classes |
 | `journal.rs` | Auditable record of every decision |
 | `runtime.rs` | Startup and worker-spawn gates |
-| `cli.rs` | `claw-security-floor`, called by maintainer scripts and the APT hook |
+| `cli.rs` | `yuos-security-floor`, called by maintainer scripts and the APT hook |
 
 ## Dependencies
 
 Depends only on `crypto` (SHA-256), `provenance::fsec` (ownership/mode gating
 and `openat` reads), `debver` and `chrono`. It must not depend on `agent`,
-`apps` or the broker routes: `clawd`, `cos` and the maintainer scripts are
+`apps` or the broker routes: `yuosd`, `yu` and the maintainer scripts are
 consumers. The state path is a compiled-in absolute path — never derived from
 the environment — so no caller can point enforcement at state it controls.
 
@@ -58,7 +58,7 @@ partial transaction, and a component binary replaced behind dpkg's back.
 
 Out of scope: local root, and replacement of the complete filesystem *and*
 state together. Both can rewrite the floor alongside the binaries. Detecting
-that requires a TPM measurement or a remote attestation anchor, which Claw OS
+that requires a TPM measurement or a remote attestation anchor, which Yu OS
 does not have; this is not hardware anti-rollback.
 
 ## Tests

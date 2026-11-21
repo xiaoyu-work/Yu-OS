@@ -37,7 +37,7 @@ fn monetary_budget_translation_preserves_absence_and_configured_accounting() {
     assert_eq!(budget.spent_microusd, 2_000_000);
     assert_eq!(budget.reserved_microusd, 1_000_000);
     assert_eq!(budget.remaining_microusd(), 2_000_000);
-    assert_eq!(budget.budget.currency, cos_agent_protocol::MonetaryCurrency::Usd);
+    assert_eq!(budget.budget.currency, yuos_agent_protocol::MonetaryCurrency::Usd);
 }
 
 #[test]

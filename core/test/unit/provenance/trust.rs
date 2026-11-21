@@ -107,7 +107,7 @@ fn default_roots_are_compiled_in_and_env_free() {
     // Nothing an attacker can set in the environment may introduce a
     // trust root. Only the fixed system paths (plus the passwd-derived
     // per-user roots) may appear.
-    let guard = crate::test_env::TestEnvVarGuard::set("COS_TRUST_DIR", "/attacker/keys");
+    let guard = crate::test_env::TestEnvVarGuard::set("YUOS_TRUST_DIR", "/attacker/keys");
     let roots = TrustStore::default_roots();
     drop(guard);
     assert!(roots

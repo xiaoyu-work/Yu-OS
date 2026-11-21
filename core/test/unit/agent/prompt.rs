@@ -25,12 +25,12 @@ impl Drop for EnvVarGuard {
 #[test]
 fn scaffold_is_returned_when_no_extra() {
     let p = build_system_prompt(None);
-    assert!(p.contains("ClawOS"));
+    assert!(p.contains("YuOS"));
     assert!(p.contains("You are Claw,"));
     assert!(p.contains("cos_"));
     assert!(!p.contains("kernel-resident"));
-    assert!(p.contains("does not imply that the host operating system is ClawOS"));
-    assert!(p.contains("`claw_os: true`"));
+    assert!(p.contains("does not imply that the host operating system is YuOS"));
+    assert!(p.contains("`yuos: true`"));
 }
 
 #[test]
@@ -61,7 +61,7 @@ fn canonical_prompt_never_snapshots_profile_or_working_memory() {
 fn scaffold_steers_gui_launches_through_launcher() {
     let p = build_system_prompt(None);
     assert!(
-        p.contains("`cos_tool_search` with `server=\"launcher\"`"),
+        p.contains("`yu_tool_search` with `server=\"launcher\"`"),
         "scaffold should route launch discovery through the MCP App Mesh"
     );
     assert!(
@@ -77,9 +77,9 @@ fn scaffold_steers_gui_launches_through_launcher() {
 #[test]
 fn scaffold_explains_progressive_app_disclosure() {
     let prompt = build_system_prompt(None);
-    assert!(prompt.contains("Search the permitted catalog with `cos_tool_search`"));
-    assert!(prompt.contains("schema with `cos_tool_describe`"));
-    assert!(prompt.contains("invoke it through `cos_tool_call`"));
+    assert!(prompt.contains("Search the permitted catalog with `yu_tool_search`"));
+    assert!(prompt.contains("schema with `yu_tool_describe`"));
+    assert!(prompt.contains("invoke it through `yu_tool_call`"));
     assert!(prompt.contains("Do not guess internal `app_<id>__<tool>` names"));
     assert!(prompt.contains("never translate their arguments into CLI argv"));
 }
@@ -87,7 +87,7 @@ fn scaffold_explains_progressive_app_disclosure() {
 #[test]
 fn scaffold_requires_recursive_cli_discovery_before_claiming_unsupported() {
     let prompt = build_system_prompt(None);
-    assert!(prompt.contains("call `cos_help` with `path=[]`"));
+    assert!(prompt.contains("call `yu_help` with `path=[]`"));
     assert!(prompt.contains("one level at a time"));
     assert!(prompt.contains("Never claim that a Claw capability is unsupported"));
     assert!(prompt.contains("never executes them"));
@@ -122,7 +122,7 @@ fn scaffold_orchestrates_supported_oauth_setup() {
     let prompt = build_system_prompt(None);
     assert!(prompt.contains("`auth_required: true`"));
     assert!(prompt.contains("`setup.agent_action`"));
-    assert!(prompt.contains("`cos_oauth_login`"));
+    assert!(prompt.contains("`yu_oauth_login`"));
     assert!(prompt.contains("retry the original App operation once"));
     assert!(prompt.contains("Never ask the user to paste"));
 }
@@ -156,8 +156,8 @@ fn owner_writable_extra_file_is_prelude_data_not_policy() {
 
 #[test]
 fn missing_extra_file_is_silent() {
-    let p = build_system_prompt(Some(Path::new("/nonexistent/cos-prompt.md")));
-    assert!(p.contains("ClawOS"));
+    let p = build_system_prompt(Some(Path::new("/nonexistent/yuos-prompt.md")));
+    assert!(p.contains("YuOS"));
 }
 
 #[test]
@@ -168,8 +168,8 @@ fn no_due_nudges_means_no_due_block() {
 #[test]
 fn due_nudges_are_request_local_not_canonical_system_prompt() {
     let data = tempfile::tempdir().unwrap();
-    let _data_guard = EnvVarGuard::set("COS_DATA_DIR", data.path());
-    let _user_data_guard = EnvVarGuard::set("COS_USER_DATA_DIR", data.path());
+    let _data_guard = EnvVarGuard::set("YUOS_DATA_DIR", data.path());
+    let _user_data_guard = EnvVarGuard::set("YUOS_USER_DATA_DIR", data.path());
     let store = crate::agent::nudge::NudgeStore::new(crate::paths::agent_nudges_path());
     store
         .add(crate::agent::nudge::Nudge {
@@ -203,14 +203,14 @@ fn due_nudges_are_request_local_not_canonical_system_prompt() {
 fn skill_catalog_is_metadata_only_and_traced() {
     let system = tempfile::tempdir().unwrap();
     let user = tempfile::tempdir().unwrap();
-    let dir = system.path().join("claw-os");
+    let dir = system.path().join("yuos");
     fs::create_dir_all(&dir).unwrap();
     fs::write(
         dir.join("SKILL.md"),
-        "---\nname: claw-os\ndescription: Claw system operations\n---\nHIDDEN_BODY\n",
+        "---\nname: yuos\ndescription: Claw system operations\n---\nHIDDEN_BODY\n",
     )
     .unwrap();
-    crate::test_env::sign_test_package(&dir, crate::provenance::PackageKind::Skill, "claw-os");
+    crate::test_env::sign_test_package(&dir, crate::provenance::PackageKind::Skill, "yuos");
     let skills = crate::agent::skills::loader::load_layered(
         system.path(),
         user.path(),
@@ -229,7 +229,7 @@ fn skill_catalog_is_metadata_only_and_traced() {
     assert_eq!(segments.len(), 1);
     assert_eq!(segments[0].source(), INJECTED_SOURCE_SKILLS_CATALOG);
     assert!(segments[0].content.contains("Claw system operations"));
-    assert!(segments[0].content.contains("cos_skill"));
+    assert!(segments[0].content.contains("yu_skill"));
     assert!(!segments[0].content.contains("HIDDEN_BODY"));
     // A Skill's own metadata is extension metadata, never policy, even
     // when the package is vendor-signed.
@@ -262,9 +262,9 @@ fn traced_prompt_builder_discovers_configured_system_skills() {
         crate::provenance::PackageKind::Skill,
         "configured-skill",
     );
-    let _system_guard = EnvVarGuard::set("COS_SYSTEM_SKILLS_DIR", system.path());
-    let _data_guard = EnvVarGuard::set("COS_DATA_DIR", data.path());
-    let _user_data_guard = EnvVarGuard::set("COS_USER_DATA_DIR", data.path());
+    let _system_guard = EnvVarGuard::set("YUOS_SYSTEM_SKILLS_DIR", system.path());
+    let _data_guard = EnvVarGuard::set("YUOS_DATA_DIR", data.path());
+    let _user_data_guard = EnvVarGuard::set("YUOS_USER_DATA_DIR", data.path());
 
     let (prompt, segments) = build_system_prompt_traced(None, Some("use configured skill"));
 

@@ -23,7 +23,7 @@ use super::progressive::{self, CatalogEntry, ToolDisclosure};
 use super::{Tool, ToolResult};
 use crate::agent::llm::{self, ToolCall};
 use crate::agent::runtime::approval::ApprovalGate;
-use crate::config::CosConfig;
+use crate::config::YuConfig;
 
 #[derive(Debug, Clone)]
 pub struct RegistryPaths {
@@ -45,10 +45,10 @@ pub struct RegistryPaths {
 
 impl RegistryPaths {
     pub fn from_process() -> Self {
-        let apps_dir = std::env::var_os("COS_APPS_DIR")
+        let apps_dir = std::env::var_os("YUOS_APPS_DIR")
             .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("/usr/lib/cos/apps"));
-        let system_skills_origin = if std::env::var_os("COS_SYSTEM_SKILLS_DIR").is_some() {
+            .unwrap_or_else(|| PathBuf::from("/usr/lib/yuos/apps"));
+        let system_skills_origin = if std::env::var_os("YUOS_SYSTEM_SKILLS_DIR").is_some() {
             crate::agent::skills::loader::SkillOrigin::Local
         } else {
             crate::agent::skills::loader::SkillOrigin::BuiltIn
@@ -87,12 +87,12 @@ impl RegistryPaths {
 
 #[derive(Clone)]
 pub struct RegistryDeps {
-    pub config: Arc<CosConfig>,
+    pub config: Arc<YuConfig>,
     pub paths: RegistryPaths,
     pub memory: Option<crate::agent::memory::sqlite_fts::MemoryDb>,
     pub semantic: Option<Arc<crate::agent::memory::semantic::SemanticStore>>,
     pub runtime: crate::agent::runtime::deps::RuntimeDeps,
-    app_sessions: Vec<super::cos_apps_session::RegisteredAppSession>,
+    app_sessions: Vec<super::yu_apps_session::RegisteredAppSession>,
 }
 
 impl RegistryDeps {
@@ -103,7 +103,7 @@ impl RegistryDeps {
         )
     }
 
-    pub fn load(config: Arc<CosConfig>, paths: RegistryPaths) -> Self {
+    pub fn load(config: Arc<YuConfig>, paths: RegistryPaths) -> Self {
         Self::load_with_hooks(
             config,
             paths,
@@ -112,14 +112,14 @@ impl RegistryDeps {
     }
 
     pub fn load_with_hooks(
-        config: Arc<CosConfig>,
+        config: Arc<YuConfig>,
         paths: RegistryPaths,
         hooks: crate::agent::runtime::hooks::HookRegistry,
     ) -> Self {
         let memory = match crate::agent::memory::sqlite_fts::MemoryDb::open(&paths.memory_db_path) {
             Ok(db) => Some(db),
             Err(error) => {
-                tracing::warn!("cos_recall/cos_app_memory: failed to open memory DB: {error}");
+                tracing::warn!("yu_recall/yu_app_memory: failed to open memory DB: {error}");
                 None
             }
         };
@@ -130,14 +130,14 @@ impl RegistryDeps {
         ) {
             Ok(store) => store.map(Arc::new),
             Err(error) => {
-                tracing::warn!("cos_recall_semantic: failed to open semantic DB: {error}");
+                tracing::warn!("yu_recall_semantic: failed to open semantic DB: {error}");
                 None
             }
         };
         let app_sessions = crate::apps::discover_verified(&paths.apps_dir)
             .values()
             .filter(|app| app.manifest.mcp.is_some())
-            .map(|app| super::cos_apps_session::RegisteredAppSession {
+            .map(|app| super::yu_apps_session::RegisteredAppSession {
                 manifest: Arc::new(app.manifest.clone()),
                 app_dir: app.dir.clone(),
             })
@@ -158,7 +158,7 @@ impl RegistryDeps {
         }
     }
 
-    pub fn without_optional_resources(config: Arc<CosConfig>, paths: RegistryPaths) -> Self {
+    pub fn without_optional_resources(config: Arc<YuConfig>, paths: RegistryPaths) -> Self {
         let runtime = crate::agent::runtime::deps::RuntimeDeps::load(&paths.runtime_paths(), None)
             .with_config_snapshot(Arc::clone(&config));
         Self {
@@ -1030,8 +1030,8 @@ impl ToolRegistry {
 ///   the yu CLI for that primitive.
 /// - Authenticated MCP App tools, progressively disclosed behind the fixed
 ///   search/describe/call bridge.
-/// - `cos_memory` (notes) and, if the default memory DB opens cleanly,
-///   `cos_recall` (FTS5 history search).
+/// - `yu_memory` (notes) and, if the default memory DB opens cleanly,
+///   `yu_recall` (FTS5 history search).
 pub fn default_registry_with_deps(deps: &RegistryDeps) -> ToolRegistry {
     let mut r = ToolRegistry::new();
     r.register(Arc::new(super::builtin::Echo));
@@ -1047,22 +1047,22 @@ pub fn default_registry_with_deps(deps: &RegistryDeps) -> ToolRegistry {
         deps.paths.skills_usage_path.clone(),
         deps.paths.system_skills_origin,
     )));
-    r.register(Arc::new(super::cos_help::CosHelp));
+    r.register(Arc::new(super::yu_help::YuHelp));
     r.register(Arc::new(super::desktop_vision::DesktopVision));
-    super::cos_proxy::register_all_with_notes(&mut r, deps.runtime.notes().clone());
-    super::cos_apps_session::register_manifests(&mut r, &deps.paths.apps_dir, &deps.app_sessions);
+    super::yu_proxy::register_all_with_notes(&mut r, deps.runtime.notes().clone());
+    super::yu_apps_session::register_manifests(&mut r, &deps.paths.apps_dir, &deps.app_sessions);
     super::media::register_default_media_tools_with_outputs_dir(
         &mut r,
         deps.paths.media_outputs_dir.clone(),
     );
     if let Some(db) = &deps.memory {
-        super::cos_proxy::register_recall(&mut r, db.clone());
-        super::cos_proxy::register_app_memory(&mut r, db.clone());
+        super::yu_proxy::register_recall(&mut r, db.clone());
+        super::yu_proxy::register_app_memory(&mut r, db.clone());
     }
     if let (Some(store), Some(db)) = (&deps.semantic, &deps.memory) {
-        super::cos_proxy::register_recall_semantic(&mut r, Arc::clone(store), db.clone());
+        super::yu_proxy::register_recall_semantic(&mut r, Arc::clone(store), db.clone());
     } else if let Some(db) = deps.memory.as_ref().filter(|_|crate::workspaces::gateway::available()) {
-        r.register(Arc::new(super::cos_proxy::recall_semantic::CosRecallSemanticTool::brokered(db.clone())));
+        r.register(Arc::new(super::yu_proxy::recall_semantic::YuRecallSemanticTool::brokered(db.clone())));
     }
     if crate::workspaces::gateway::workspace_bound() {
         r.register(Arc::new(super::workspace::WorkspaceTool));

@@ -52,7 +52,7 @@ path, not a persistent inode; renames require updating the reference.
 ## Reference format
 
 The public SDK wire definition is
-[`object_ref.schema.json`](../claw-os-sdk/wire/v1/object_ref.schema.json).
+[`object_ref.schema.json`](../yuos-sdk/wire/v1/object_ref.schema.json).
 Rust, Python, Node, and Go helpers share the same canonical representation:
 
 ```json
@@ -90,7 +90,7 @@ UTF-8, and noncanonical spellings are rejected. Use the SDK helpers or
 
 ## Inspect and resolve
 
-These commands run inside Linux or WSL Claw OS:
+These commands run inside Linux or WSL Yu OS:
 
 ```bash
 yu object catalog

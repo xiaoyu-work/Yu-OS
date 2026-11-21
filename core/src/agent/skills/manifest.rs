@@ -12,8 +12,8 @@
 //! version: 0.1.0
 //! license: MIT
 //! allowed-tools:
-//!   - cos_fs
-//!   - cos_exec
+//!   - yu_fs
+//!   - yu_exec
 //! triggers: [pdf, "extract text"]
 //! ---
 //! # My Skill
@@ -58,7 +58,7 @@ pub struct SkillManifest {
     pub license: Option<String>,
     pub author: Option<String>,
     pub homepage: Option<String>,
-    /// Tool ids (e.g. `cos_fs`, `cos_exec`) the skill is permitted
+    /// Tool ids (e.g. `yu_fs`, `yu_exec`) the skill is permitted
     /// to invoke. Empty means *no restriction declared* — the
     /// runtime guardrails layer ([`crate::agent::tools::guardrails`])
     /// decides defaults.

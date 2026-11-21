@@ -59,7 +59,7 @@ fn media_list_outputs_limit_requires_int() {
 #[test]
 fn media_list_outputs_missing_dir_returns_empty() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-media-list-missing-{}",
+        "yuos-media-list-missing-{}",
         uuid::Uuid::new_v4().simple()
     ));
     let v = list_media_outputs(&dir, 10, None).expect("list ok");
@@ -74,7 +74,7 @@ fn media_list_outputs_missing_dir_returns_empty() {
 #[test]
 fn media_list_outputs_returns_files_newest_first_within_limit() {
     let dir =
-        std::env::temp_dir().join(format!("cos-media-list-{}", uuid::Uuid::new_v4().simple()));
+        std::env::temp_dir().join(format!("yuos-media-list-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&dir).expect("mkdir");
     // Write files with sleeps between writes so mtime ordering
     // is deterministic across Windows / Linux / macOS without
@@ -146,7 +146,7 @@ fn media_play_detect_only_returns_null_format_for_unknown_extension() {
 #[test]
 fn media_play_real_dispatch_missing_file_errs() {
     let p = format!(
-        "{}\\cos-media-play-test-missing-{}.wav",
+        "{}\\yuos-media-play-test-missing-{}.wav",
         std::env::temp_dir().display(),
         uuid::Uuid::new_v4().simple()
     );
@@ -187,7 +187,7 @@ fn media_playback_status_format_filter_returns_just_one_row() {
 
 #[test]
 fn run_media_play_routes_through_dispatcher() {
-    // Confirm the cos-agent dispatcher reaches media_play_cmd via `dev`.
+    // Confirm the yuos-agent dispatcher reaches media_play_cmd via `dev`.
     let err = run("dev", &["media".into(), "play".into()]).unwrap_err();
     assert!(err.contains("usage"), "got {err}");
 }

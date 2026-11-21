@@ -42,9 +42,9 @@ It is evidence and recovery state — never authority.
 ## Dependencies
 
 The journal consumes `crypto`, `storage`, `paths` and `audit_policy`.
-`clawd::journal` is the broker's integration layer; `clawd::server`
+`yuosd::journal` is the broker's integration layer; `yuosd::server`
 calls it around dispatch, `agentd::supervisor` forwards the worker's
-tool and turn lifecycle through it, and `clawd::authority::audit`
+tool and turn lifecycle through it, and `yuosd::authority::audit`
 mirrors capability facts into it. Nothing in the journal depends on a
 provider or a route handler.
 

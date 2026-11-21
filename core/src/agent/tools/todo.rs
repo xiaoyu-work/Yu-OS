@@ -1,4 +1,4 @@
-//! `cos_todo` — agent task list tool.
+//! `yu_todo` — agent task list tool.
 //!
 //! Mirrors the well-trodden Claude / Cursor TodoWrite pattern: the
 //! model maintains an explicit, structured list of subtasks for the
@@ -262,7 +262,7 @@ impl TodoStore {
     }
 }
 
-/// `cos_todo` tool exposed to the model.
+/// `yu_todo` tool exposed to the model.
 pub struct Todo {
     store: TodoStore,
 }
@@ -304,7 +304,7 @@ fn default_session() -> String {
 #[async_trait]
 impl Tool for Todo {
     fn name(&self) -> &str {
-        "cos_todo"
+        "yu_todo"
     }
 
     fn description(&self) -> &str {

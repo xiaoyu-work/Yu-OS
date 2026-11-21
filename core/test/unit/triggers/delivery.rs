@@ -555,9 +555,9 @@ fn publication_errors_hold_unknown_outcomes_and_recover_only_matching_visible_jo
         let rule = state.add("publish-error", Some(&activity.id));
         Store::open_default().unwrap();
         state.event();
-        std::env::set_var("COS_TEST_PERSISTENCE_FAILPOINT", failpoint);
+        std::env::set_var("YUOS_TEST_PERSISTENCE_FAILPOINT", failpoint);
         let result = state.command("tick", &[]);
-        std::env::remove_var("COS_TEST_PERSISTENCE_FAILPOINT");
+        std::env::remove_var("YUOS_TEST_PERSISTENCE_FAILPOINT");
         let tick = result.unwrap();
         if published {
             assert_eq!(tick["fired"][0]["recovered"], true);
@@ -720,9 +720,9 @@ fn cursor_initialization_requires_directory_sync_before_recording_the_marker() {
     let state = TestState::new();
     let activity = state.activity(true);
     let result = with_trigger_lock(|| {
-        std::env::set_var("COS_TEST_PERSISTENCE_FAILPOINT", "dir_fsync");
+        std::env::set_var("YUOS_TEST_PERSISTENCE_FAILPOINT", "dir_fsync");
         let result = initialize_activity_progress();
-        std::env::remove_var("COS_TEST_PERSISTENCE_FAILPOINT");
+        std::env::remove_var("YUOS_TEST_PERSISTENCE_FAILPOINT");
         result
     });
     assert!(result

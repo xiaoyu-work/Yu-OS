@@ -1,7 +1,7 @@
 //! Versioned HTTP and SSE presentation contract for the desktop Agent.
 //!
 //! This crate deliberately knows nothing about the UI, bridge implementation,
-//! or clawd/core models. The bridge translates those lower-level models into
+//! or yuosd/core models. The bridge translates those lower-level models into
 //! this contract before data crosses the loopback HTTP boundary.
 
 mod activities;
@@ -33,5 +33,5 @@ pub use presentation::*;
 pub use scheduling_priority::*;
 pub use stream::*;
 pub use version::*;
-pub use clawd_client::nearby;
-pub use clawd_client::workspaces;
+pub use yuosd_client::nearby;
+pub use yuosd_client::workspaces;

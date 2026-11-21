@@ -24,16 +24,16 @@ tui() {
 }
 
 installed() {
-    : "${COS_PACKAGE_VERSION:?COS_PACKAGE_VERSION is required}"
-    file_version="${COS_PACKAGE_VERSION//:/%3a}"
-    agent_deb="build/debs/claw-os-agent_${file_version}_${ARCH}.deb"
-    install_deb="$(mktemp /tmp/claw-os-agent.XXXXXX.deb)"
+    : "${YUOS_PACKAGE_VERSION:?YUOS_PACKAGE_VERSION is required}"
+    file_version="${YUOS_PACKAGE_VERSION//:/%3a}"
+    agent_deb="build/debs/yuos-agent_${file_version}_${ARCH}.deb"
+    install_deb="$(mktemp /tmp/yuos-agent.XXXXXX.deb)"
     install_debs=("$install_deb")
     trap 'rm -f -- "${install_debs[@]}"' EXIT
     install -m 0644 "$agent_deb" "$install_deb"
     if [ "${1:-}" = core ]; then
-        base_deb="build/debs/claw-os-base_${file_version}_all.deb"
-        base_install_deb="$(mktemp /tmp/claw-os-base.XXXXXX.deb)"
+        base_deb="build/debs/yuos-base_${file_version}_all.deb"
+        base_install_deb="$(mktemp /tmp/yuos-base.XXXXXX.deb)"
         install_debs+=("$base_install_deb")
         install -m 0644 "$base_deb" "$base_install_deb"
     fi
@@ -55,49 +55,49 @@ installed() {
         ' bash "$GITHUB_WORKSPACE" "$CARGO_HOME" \
         "${RUSTUP_HOME:-$HOME/.rustup}" "${install_debs[@]}"
     for attempt in {1..30}; do
-        if sudo systemctl is-active --quiet clawd.service \
-            && sudo test -S /run/cos/clawd.sock; then
+        if sudo systemctl is-active --quiet yuosd.service \
+            && sudo test -S /run/yuos/yuosd.sock; then
             break
         fi
         sleep 1
     done
-    if ! sudo systemctl is-enabled --quiet clawd.service \
-        || ! sudo systemctl is-active --quiet clawd.service \
-        || ! sudo test -S /run/cos/clawd.sock; then
-        sudo systemctl status clawd.service --no-pager || true
-        sudo journalctl -u clawd.service --no-pager -n 100 || true
+    if ! sudo systemctl is-enabled --quiet yuosd.service \
+        || ! sudo systemctl is-active --quiet yuosd.service \
+        || ! sudo test -S /run/yuos/yuosd.sock; then
+        sudo systemctl status yuosd.service --no-pager || true
+        sudo journalctl -u yuosd.service --no-pager -n 100 || true
         exit 1
     fi
     test -x /usr/bin/pkexec
     test -x /usr/bin/pkttyagent
-    test -x /usr/local/bin/claw-approval-helper
-    sudo /usr/lib/cos/bin/claw-security-floor verify-installed
+    test -x /usr/local/bin/yuos-approval-helper
+    sudo /usr/lib/yuos/bin/yuos-security-floor verify-installed
     original_mount="$(readlink /proc/self/ns/mnt)"
     original_pid="$(readlink /proc/self/ns/pid)"
     original_network="$(readlink /proc/self/ns/net)"
     sudo unshare --mount --pid --fork --mount-proc --net \
         python3 -B core/tests/approval_polkit_process.py \
         --yu /usr/local/bin/yu \
-        --clawd /usr/local/bin/clawd \
-        --helper /usr/local/bin/claw-approval-helper \
+        --yuosd /usr/local/bin/yuosd \
+        --helper /usr/local/bin/yuos-approval-helper \
         --policy /usr/share/polkit-1/actions/org.yuos.approval.policy \
         --original-mount-namespace "$original_mount" \
         --original-pid-namespace "$original_pid" \
         --original-network-namespace "$original_network"
-    test ! -e /usr/local/bin/cos-browser
-    COS_USER_DATA_DIR="$RUNNER_TEMP/cos-user-data" \
+    test ! -e /usr/local/bin/yuos-browser
+    YUOS_USER_DATA_DIR="$RUNNER_TEMP/yuos-user-data" \
         /usr/local/bin/yu agent skills list \
-        | python3 -c 'import json,sys; data=json.load(sys.stdin); assert "claw-os" in data["names"]'
-    COS_USER_DATA_DIR="$RUNNER_TEMP/cos-user-data" \
-        /usr/local/bin/yu agent skills info claw-os \
+        | python3 -c 'import json,sys; data=json.load(sys.stdin); assert "yuos" in data["names"]'
+    YUOS_USER_DATA_DIR="$RUNNER_TEMP/yuos-user-data" \
+        /usr/local/bin/yu agent skills info yuos \
         | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data["source"] == "builtin"'
     timeout 15s sudo /usr/local/bin/yu agent service status \
-        | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data["status"] == "running", data; assert data["daemon"] == "clawd", data'
-    service_cgroup=/sys/fs/cgroup/system.slice/clawd.service
-    main_pid="$(systemctl show clawd.service --property MainPID --value)"
+        | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data["status"] == "running", data; assert data["daemon"] == "yuosd", data'
+    service_cgroup=/sys/fs/cgroup/system.slice/yuosd.service
+    main_pid="$(systemctl show yuosd.service --property MainPID --value)"
     test -n "$main_pid"
     test -z "$(sudo cat "$service_cgroup/cgroup.procs")"
-    sudo grep -qx "$main_pid" "$service_cgroup/cos-broker/cgroup.procs"
+    sudo grep -qx "$main_pid" "$service_cgroup/yuos-broker/cgroup.procs"
     for controller in cpu memory pids; do
         sudo grep -qw "$controller" "$service_cgroup/cgroup.subtree_control"
     done

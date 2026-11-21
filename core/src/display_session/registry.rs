@@ -7,13 +7,13 @@ use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use claw_display_control::identity::pidfd_exited;
-use claw_display_control::wire::{
+use yuos_display_control::identity::pidfd_exited;
+use yuos_display_control::wire::{
     monotonic_ms, AuthorityCommand, AuthorityReply, CompositorCommand, CompositorReply, LoginReply,
     LaunchTarget, LoginRequest, BROKER_RETIRE_TIMEOUT, LOGIN_SOCKET,
 };
-use claw_display_control::workload::{SessionGroup, Workload};
-use claw_display_control::{
+use yuos_display_control::workload::{SessionGroup, Workload};
+use yuos_display_control::{
     Connection, Epoch, Error, InstanceId, KernelLogin, Listener, ProcessIdentity, Received,
 };
 
@@ -82,7 +82,7 @@ pub(crate) struct GuiControl {
 impl GuiControl {
     pub fn desktop(
         &self,
-        command: claw_display_control::desktop::Command,
+        command: yuos_display_control::desktop::Command,
         deadline: Instant,
     ) -> Result<serde_json::Value, Error> {
         command.validate()?;
@@ -104,7 +104,7 @@ impl GuiControl {
             CompositorReply::DesktopResult { epoch, instance: received }
                 if epoch == self.epoch && received == instance =>
             {
-                claw_display_control::desktop::receive_response(
+                yuos_display_control::desktop::receive_response(
                     packet.descriptors.pop().ok_or(Error::Identity)?, self.owner_uid,
                 )
             }
@@ -116,7 +116,7 @@ impl GuiControl {
     }
 
     pub fn set_selection(
-        &self, payload: &claw_display_control::selection::Payload, deadline: Instant,
+        &self, payload: &yuos_display_control::selection::Payload, deadline: Instant,
     ) -> Result<bool, Error> {
         let descriptor = payload.sealed()?;
         let left = deadline.saturating_duration_since(Instant::now()).as_millis().min(2000) as u64;
@@ -670,7 +670,7 @@ fn monitor(
                         timed_out.remove(&instance);
                     }
                     if matches!(kind, 3 | 5) {
-                        crate::clawd::gui::compositor_retired(epoch, instance)
+                        crate::yuosd::gui::compositor_retired(epoch, instance)
                             .map_err(|_| Error::Protocol("GUI retirement notification failed"))?;
                     }
                     if kind == 5 {
@@ -776,7 +776,7 @@ fn retire_display(display: &Mutex<Display>, channel: &Connection) -> Result<(), 
         // PAM may remove this empty cgroup while GUI services finish retiring.
         verified_retired.store(true, Ordering::Release);
     }
-    crate::clawd::gui::retire_epoch(epoch, deadline)
+    crate::yuosd::gui::retire_epoch(epoch, deadline)
         .map_err(|error| Error::Io(std::io::Error::other(error)))?;
     if let Err(error) = send {
         tracing::debug!(%error, "display control already unavailable during retirement");
@@ -785,7 +785,7 @@ fn retire_display(display: &Mutex<Display>, channel: &Connection) -> Result<(), 
 }
 
 pub(super) fn parent_pid(process: &ProcessIdentity) -> Result<i32, Error> {
-    let stat = claw_display_control::identity::read_bounded(
+    let stat = yuos_display_control::identity::read_bounded(
         &format!("/proc/{}/stat", process.pid()),
         8192,
     )?;

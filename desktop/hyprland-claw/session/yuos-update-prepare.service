@@ -1,0 +1,8 @@
+[Unit]
+Description=Download checked Yu OS updates
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/yuos-updates prepare
+TimeoutStartSec=18min

@@ -1,0 +1,302 @@
+use super::*;
+use crate::agent::memory::semantic::SemanticStore;
+
+fn semantic_json(result: &ToolResult) -> Value {
+    let parsed = crate::agent::trust::envelope::parse(&result.content)
+        .expect("semantic recall output has typed provenance");
+    assert_eq!(parsed.source.kind(), SourceKind::RecalledMemory);
+    assert!(!parsed.truncated, "a bounded semantic result must remain valid JSON");
+    serde_json::from_str(&parsed.payload).unwrap()
+}
+
+#[tokio::test]
+async fn semantic_search_exposes_bounded_versioned_reads_and_original_sources() {
+    let store =
+        Arc::new(SemanticStore::open_in_memory(Some(Arc::new(yuos_embed::StubEmbedder))).unwrap());
+    let text = format!("{}TAIL_SENTINEL", "semantic source ".repeat(100));
+    let memory = MemoryDb::open_in_memory().unwrap();
+    let message_id = memory.record_message("one", "user", &text).unwrap();
+    let key = format!("user-{message_id}");
+    store.index("session/one", &key, &text).await.unwrap();
+    let tool = YuRecallSemanticTool::new(store.clone(), memory);
+    let searched = exec(&tool, json!({
+            "command": "search", "query": text, "namespace": "session/one", "limit": 1,
+        }))
+        .await;
+    assert!(!searched.is_error, "{}", searched.content);
+    let value = semantic_json(&searched);
+    let hit = &value["hits"][0];
+    assert!(!hit["text"].as_str().unwrap().contains("TAIL_SENTINEL"));
+    assert_eq!(hit["next_offset"], 512);
+    assert_eq!(hit["source_complete"], false);
+    assert!(hit.get("indexed_at_ms").is_some());
+    assert_eq!(hit["original_source"]["message_id"], message_id);
+    assert_eq!(value["score_kind"], "cosine_similarity_not_confidence");
+    assert_eq!(hit["provenance"]["class"], "legacy-unknown");
+    assert_eq!(
+        crate::agent::trust::envelope::parse(&searched.content).unwrap().class,
+        TrustClass::LegacyUnknown,
+    );
+    let mut read = hit["read"].clone();
+    read.as_object_mut().unwrap().remove("tool");
+    let read_result = exec(&tool, read.clone()).await;
+    assert!(!read_result.is_error, "{}", read_result.content);
+    assert!(read_result.content.contains("TAIL_SENTINEL"));
+    store
+        .index("session/one", &key, "changed source")
+        .await
+        .unwrap();
+    let stale = exec(&tool, read).await;
+    assert!(stale.is_error);
+    assert!(stale.content.contains("source changed"));
+}
+
+#[tokio::test]
+async fn namespace_filters_and_missing_sources_are_explicit() {
+    let store =
+        Arc::new(SemanticStore::open_in_memory(Some(Arc::new(yuos_embed::StubEmbedder))).unwrap());
+    store
+        .index("app/calendar", "12", "calendar event")
+        .await
+        .unwrap();
+    store
+        .index("session/one", "user-7", "conversation event")
+        .await
+        .unwrap();
+    let tool = YuRecallSemanticTool::new(store, MemoryDb::open_in_memory().unwrap());
+    let result = exec(&tool, json!({
+            "command": "search", "query": "event", "namespace": "app/calendar",
+        }))
+        .await;
+    let value = semantic_json(&result);
+    assert_eq!(value["hits"].as_array().unwrap().len(), 1);
+    assert_eq!(value["hits"][0]["original_source"]["source"], "calendar");
+    assert!(
+        exec(&tool, json!({"command":"count", "namespace":"x", "session_id":"y"}))
+            .await
+            .is_error
+    );
+    assert!(
+        exec(&tool, json!({"command":"count", "session_id":null}))
+            .await
+            .is_error
+    );
+    assert!(
+        exec(&tool, json!({"command":"read", "namespace":"app/calendar", "key":"missing"}))
+            .await
+            .is_error
+    );
+}
+
+fn tool_no_embedder() -> YuRecallSemanticTool {
+    // Store without an embedder — search will return SemanticError::Disabled.
+    let store = SemanticStore::open_in_memory(None).unwrap();
+    YuRecallSemanticTool::new(Arc::new(store), MemoryDb::open_in_memory().unwrap())
+}
+
+#[tokio::test]
+async fn reverted_session_rows_are_hidden_from_semantic_search_and_read() {
+    let store =
+        Arc::new(SemanticStore::open_in_memory(Some(Arc::new(yuos_embed::StubEmbedder))).unwrap());
+    let memory = MemoryDb::open_in_memory().unwrap();
+    let message_id = memory
+        .record_message("one", "user", "REVERTED_SEMANTIC_SENTINEL")
+        .unwrap();
+    let key = format!("user-{message_id}");
+    store
+        .index("session/one", &key, "REVERTED_SEMANTIC_SENTINEL")
+        .await
+        .unwrap();
+    memory
+        .lock_conn()
+        .unwrap()
+        .execute(
+            "INSERT INTO conversation_replay_exclusions(
+                 message_id, session_id, reverted_at_ms
+             ) VALUES (?, 'one', 1)",
+            [message_id],
+        )
+        .unwrap();
+    let tool = YuRecallSemanticTool::new(store, memory);
+
+    let search = exec(
+        &tool,
+        json!({
+            "command": "search",
+            "query": "REVERTED_SEMANTIC_SENTINEL",
+            "namespace": "session/one",
+        }),
+    )
+    .await;
+    assert!(!search.is_error, "{}", search.content);
+    assert!(semantic_json(&search)["hits"].as_array().unwrap().is_empty());
+
+    let read = exec(
+        &tool,
+        json!({"command": "read", "namespace": "session/one", "key": key}),
+    )
+    .await;
+    assert!(read.is_error);
+    assert!(!read.content.contains("REVERTED_SEMANTIC_SENTINEL"));
+}
+
+fn memory_read_session(scope: crate::caps::Scope) -> crate::proc::SessionInfo {
+    crate::proc::SessionInfo {
+        session_id: "semantic-session".to_string(),
+        pid: std::process::id(),
+        command: vec!["test".to_string()],
+        started_at: chrono::Utc::now().to_rfc3339(),
+        stdout_path: String::new(),
+        stderr_path: String::new(),
+        group: None,
+        parent: None,
+        workdir: None,
+        exit_code: None,
+        ended_at: None,
+        tier: None,
+        scope: None,
+        priority: None,
+        caps: Some(crate::caps::CapSet::from_caps([crate::caps::Cap::new(
+            crate::caps::Verb::MEMORY_READ,
+            scope,
+        )])),
+        transient_caps: None,
+        role: None,
+        app_id: None,
+        pending_bind: false,
+        start_time_ticks: None,
+        client: crate::session::SessionClient::new(
+            crate::session::SessionSource::BrokerTask,
+            false,
+            true,
+        ),
+    }
+}
+
+async fn exec(tool: &YuRecallSemanticTool, input: Value) -> ToolResult {
+    crate::proc::with_trusted_session_override(
+        memory_read_session(crate::caps::Scope::Wild),
+        tool.exec(input),
+    )
+    .await
+}
+
+#[tokio::test]
+async fn missing_command_is_tool_error() {
+    let r = tool_no_embedder().exec(json!({})).await;
+    assert!(r.is_error);
+    assert!(r.content.contains("missing 'command'"));
+}
+
+#[tokio::test]
+async fn search_without_query_errors() {
+    let r = tool_no_embedder()
+        .exec(json!({ "command": "search" }))
+        .await;
+    assert!(r.is_error);
+    assert!(r.content.contains("non-empty 'query'"));
+}
+
+#[tokio::test]
+async fn search_with_no_embedder_returns_disabled_error() {
+    let tool = tool_no_embedder();
+    let r = exec(&tool, json!({ "command": "search", "query": "anything" })).await;
+    assert!(r.is_error);
+    assert!(r.content.contains("disabled"), "{}", r.content);
+}
+
+#[tokio::test]
+async fn count_on_empty_store_returns_zero() {
+    let tool = tool_no_embedder();
+    let r = exec(&tool, json!({ "command": "count" })).await;
+    assert!(!r.is_error, "{}", r.content);
+    assert!(r.content.contains("\"count\":0"));
+}
+
+#[test]
+fn normalise_namespace_prepends_when_missing() {
+    assert_eq!(normalise_namespace("abc-123"), "session/abc-123");
+    assert_eq!(normalise_namespace("session/abc-123"), "session/abc-123");
+}
+
+#[tokio::test]
+async fn unknown_command_is_tool_error() {
+    let r = tool_no_embedder().exec(json!({ "command": "nope" })).await;
+    assert!(r.is_error);
+    assert!(r.content.contains("unknown command"));
+}
+
+#[tokio::test]
+async fn session_scoped_grant_cannot_count_another_or_all_namespaces() {
+    let _lock = crate::test_env::lock_env();
+    let caps_dir = tempfile::tempdir().unwrap();
+    let _mode = crate::test_env::TestEnvVarGuard::set("YUOS_PERMS_MODE", "strict");
+    let _caps =
+        crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", caps_dir.path());
+    let mut registry = crate::agent::tools::registry::ToolRegistry::new();
+    registry.register(Arc::new(tool_no_embedder()));
+    let session = memory_read_session(crate::caps::Scope::self_ref("alpha"));
+    let context = crate::agent::tools::exposure::ToolExposureContext::from_trusted_session(
+        &session,
+        Some("alpha"),
+        None,
+        1000,
+        crate::agent::tools::exposure::ExecutionHost::AgentWorker,
+        crate::agent::tools::guardrails::Guardrails::permissive(),
+    );
+
+    assert!(registry
+        .get_for(&context, "yu_recall_semantic")
+        .is_some());
+    let (own, other, global, other_read, app_read) = crate::proc::with_trusted_session_override(session, async {
+        let own = registry
+            .execute(
+                &context,
+                "yu_recall_semantic",
+                json!({"command": "count", "session_id": "alpha"}),
+                "test",
+            )
+            .await;
+        let other = registry
+            .execute(
+                &context,
+                "yu_recall_semantic",
+                json!({"command": "count", "session_id": "bravo"}),
+                "test",
+            )
+            .await;
+        let global = registry
+            .execute(
+                &context,
+                "yu_recall_semantic",
+                json!({"command": "count"}),
+                "test",
+            )
+            .await;
+        let other_read = registry
+            .execute(
+                &context,
+                "yu_recall_semantic",
+                json!({"command":"read", "namespace":"session/bravo", "key":"user-1"}),
+                "test",
+            )
+            .await;
+        let app_read = registry
+            .execute(
+                &context,
+                "yu_recall_semantic",
+                json!({"command":"read", "namespace":"app/calendar", "key":"1"}),
+                "test",
+            )
+            .await;
+        (own, other, global, other_read, app_read)
+    })
+    .await;
+    assert!(!own.is_error, "{}", own.content);
+    assert!(other.is_error);
+    assert!(global.is_error);
+    assert!(other_read.is_error);
+    assert!(other_read.content.contains("memory.read"), "{}", other_read.content);
+    assert!(app_read.is_error);
+    assert!(app_read.content.contains("memory.read"), "{}", app_read.content);
+}

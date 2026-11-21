@@ -46,12 +46,12 @@ fn mcp_servers_without_probe_does_not_spawn_anything() {
 fn merge_mcp_overrides_preserves_base_and_denies_attended_tools() {
     let mut base = crate::config::AgentConfig::default();
     base.tool_allow = Some(vec!["echo".into()]);
-    base.tool_deny = vec!["cos_sandbox".into()];
+    base.tool_deny = vec!["yu_sandbox".into()];
     let merged = merge_mcp_overrides(&base, None, Vec::new());
     assert_eq!(merged.tool_allow, base.tool_allow);
     assert_eq!(
         merged.tool_deny,
-        vec!["cos_sandbox".to_string(), "cos_oauth_login".to_string()]
+        vec!["yu_sandbox".to_string(), "yu_oauth_login".to_string()]
     );
 }
 
@@ -66,14 +66,14 @@ fn merge_mcp_overrides_allow_replaces_base_allow() {
 #[test]
 fn merge_mcp_overrides_deny_appends_to_base() {
     let mut base = crate::config::AgentConfig::default();
-    base.tool_deny = vec!["cos_sandbox".into()];
-    let merged = merge_mcp_overrides(&base, None, vec!["cos_proc".into()]);
+    base.tool_deny = vec!["yu_sandbox".into()];
+    let merged = merge_mcp_overrides(&base, None, vec!["yu_proc".into()]);
     assert_eq!(
         merged.tool_deny,
         vec![
-            "cos_sandbox".to_string(),
-            "cos_proc".to_string(),
-            "cos_oauth_login".to_string()
+            "yu_sandbox".to_string(),
+            "yu_proc".to_string(),
+            "yu_oauth_login".to_string()
         ]
     );
 }
@@ -81,13 +81,13 @@ fn merge_mcp_overrides_deny_appends_to_base() {
 #[test]
 fn merge_mcp_overrides_cannot_allow_attended_oauth_tool() {
     let base = crate::config::AgentConfig::default();
-    let merged = merge_mcp_overrides(&base, Some(vec!["cos_oauth_login".into()]), Vec::new());
+    let merged = merge_mcp_overrides(&base, Some(vec!["yu_oauth_login".into()]), Vec::new());
 
-    assert_eq!(merged.tool_allow, Some(vec!["cos_oauth_login".to_string()]));
+    assert_eq!(merged.tool_allow, Some(vec!["yu_oauth_login".to_string()]));
     assert!(merged
         .tool_deny
         .iter()
-        .any(|name| name == "cos_oauth_login"));
+        .any(|name| name == "yu_oauth_login"));
 }
 
 #[test]

@@ -1,7 +1,7 @@
-# Writing Your First Claw OS App
+# Writing Your First Yu OS App
 
 End-to-end walkthrough for app authors: scaffold → run → install. The
-SDK is pre-installed on every Claw OS system, the `yu` CLI discovers
+SDK is pre-installed on every Yu OS system, the `yu` CLI discovers
 your code automatically, and every invocation re-reads your source from
 disk — so the dev loop is `$EDITOR` ➜ `yu app …` and nothing more.
 
@@ -23,7 +23,7 @@ services, and shared libraries. `mcp.access` accepts only `system_agent` and
 cannot access App services or mint system Agent tasks. The broker enforces
 this using authenticated process/session ancestry, not environment flags.
 
-`COS_DATA_DIR` names only the App's own data. Normal owner launches, service
+`YUOS_DATA_DIR` names only the App's own data. Normal owner launches, service
 Hosts and task-host ordinary operations use the same existing owner/App
 backing partition. Isolated Hosts see a private mapped path, so Apps must use
 the supplied data root rather than reconstruct another App's directory or
@@ -55,13 +55,13 @@ its App-owned tests are explicitly selected as `test_server.py`. See the
 [source composition contract](../packaging/README.md).
 AI Helpers owns the Summarize client, not the OS AI gate. It takes explicit
 text and calls SDK AI under `summarize` consent/budget, then requests bounded
-summary memory through the bundled `cos_runtime.memory.remember` export under
+summary memory through the bundled `yuos_runtime.memory.remember` export under
 `self:summarize`. Other products use SDK AI directly, not this App or its
 consent. All 75 original App sources and their common support are external.
 App `shared/python` owns `_shared`, `gateway._shared` and `canonical_argv`;
 `tests/shared` owns helper tests/vectors. There is no OS `apps/` source tree.
 The pinned common staging CLI installs these libraries in
-`/usr/lib/cos/python`, alongside separately owned OS SDK/runtime. Existing
+`/usr/lib/yuos/python`, alongside separately owned OS SDK/runtime. Existing
 Agent package assembly still delivers those files until a coordinated
 independent App-package ownership transition.
 Compatible App changes use versioned public SDK/MCP/wire or declared bundled
@@ -120,13 +120,13 @@ empty, non-object, unknown-field, and oversized input is rejected before a tool
 can run. Defaults, required fields and choices use the same manifest validation
 as argv. No caller/session/context authority comes from the object.
 Input is at most 1008 KiB of serialized JSON (including escapes and base64), or
-a lower `COS_APP_STDIN_MAX_BYTES`. This leaves 16 KiB for the unchanged 1 MiB
+a lower `YUOS_APP_STDIN_MAX_BYTES`. This leaves 16 KiB for the unchanged 1 MiB
 broker request envelope. Canonical arguments must also fit this budget.
 
 For Python, bind the manifest's tool names without duplicating their schemas:
 
 ```python
-from claw_os_sdk.mcp import App, current_context
+from yuos_sdk.mcp import App, current_context
 
 app = App.from_manifest()
 
@@ -138,15 +138,15 @@ def say(message: str) -> dict:
 app.serve()
 ```
 
-The App Host points `COS_APP_MANIFEST` at the verified package snapshot.
+The App Host points `YUOS_APP_MANIFEST` at the verified package snapshot.
 `current_context()` exposes Gateway-authenticated identity and call lineage;
 Apps must never accept caller identity through tool arguments. The runtime
 validates arguments and applies defaults from the manifest before invoking
 the handler.
 
-## 1. What is a Claw OS app?
+## 1. What is a Yu OS app?
 
-A Claw OS app is a directory whose minimum contents are a manifest and an
+A Yu OS app is a directory whose minimum contents are a manifest and an
 entry point. An Agent-callable App also includes an MCP service entry; a
 strictly human-only App may omit it. Apps may include a desktop surface,
 dependencies, tests, and arbitrary assets:
@@ -168,12 +168,12 @@ separate signed, out-of-process
 That ABI cannot mutate prompts or authorization and does not trust an
 installed directory without [package provenance](extension-provenance.md).
 
-The `yu` CLI recursively scans `$COS_APPS_DIR` (default
-`/usr/lib/cos/apps/`) for valid `app.json` files, then exposes each operation
+The `yu` CLI recursively scans `$YUOS_APPS_DIR` (default
+`/usr/lib/yuos/apps/`) for valid `app.json` files, then exposes each operation
 as `yu app <id> <op>` ([`core/src/apps.rs`](../core/src/apps.rs)).
 
 The manifest id must equal the app directory's **normalized path relative to
-`$COS_APPS_DIR`**, with path segments joined by `-`. For example,
+`$YUOS_APPS_DIR`**, with path segments joined by `-`. For example,
 `gateway/discord/app.json` declares `id: "gateway-discord"`. An app whose
 path and id disagree is skipped during discovery.
 
@@ -183,14 +183,14 @@ lowercase letter, then lowercase letters, digits, `_`, or `-`.
 
 ## 2. The SDK is already there
 
-On either a Debian/Ubuntu Agent install or a complete Claw OS target, the
-`claw-os-agent.deb` package puts both Python helper packages on the system at
-`/usr/lib/cos/python/`:
+On either a Debian/Ubuntu Agent install or a complete Yu OS target, the
+`yuos-agent.deb` package puts both Python helper packages on the system at
+`/usr/lib/yuos/python/`:
 
-* `claw_os_sdk` — public SDK for AI calls
-  ([`claw-os-sdk/python/src/claw_os_sdk/`](../claw-os-sdk/python/src/claw_os_sdk/))
-* `cos_runtime` — internal runtime, used by bundled apps for capability
-  gating ([`cos-runtime/python/src/cos_runtime/`](../cos-runtime/python/src/cos_runtime/))
+* `yuos_sdk` — public SDK for AI calls
+  ([`yuos-sdk/python/src/yuos_sdk/`](../yuos-sdk/python/src/yuos_sdk/))
+* `yuos_runtime` — internal runtime, used by bundled apps for capability
+  gating ([`yuos-runtime/python/src/yuos_runtime/`](../yuos-runtime/python/src/yuos_runtime/))
 
 The bridge prepends those directories to `sys.path` before exec'ing
 your `main.py`
@@ -199,11 +199,11 @@ your `main.py`
 
 Off-system (writing code on a non-Claw-OS machine) you can either:
 
-* set `COS_SDK_PYTHON_DIR=/path/to/dir` and arrange both
-  `claw_os_sdk/` and `cos_runtime/` as subdirectories of that
+* set `YUOS_SDK_PYTHON_DIR=/path/to/dir` and arrange both
+  `yuos_sdk/` and `yuos_runtime/` as subdirectories of that
   dir, or
-* `pip install -e claw-os-sdk/python/` (the public SDK does ship a
-  `pyproject.toml`). `cos_runtime` is internal and not pip-publishable;
+* `pip install -e yuos-sdk/python/` (the public SDK does ship a
+  `pyproject.toml`). `yuos_runtime` is internal and not pip-publishable;
   use the env var path for it.
 
 ## 3. The minimum viable app
@@ -273,7 +273,7 @@ The bridge calls `mod.run(command, args)` exactly once per invocation
   declared positional and `--flag` value, rejects undeclared flags, and then
   passes the effective argv (including manifest defaults) to the handler. Apps
   parse the already validated values with App-owned
-  [`canonical_argv`](https://github.com/xiaoyu-work/clawos-app/blob/main/shared/python/canonical_argv.py),
+  [`canonical_argv`](https://github.com/xiaoyu-work/yuos-app/blob/main/shared/python/canonical_argv.py),
   preserving inline flag values and the `--` delimiter.
 
 Each argument declares a value `kind`: `path`, `host`, `name`, `text`,
@@ -348,7 +348,7 @@ input. The top-level CLI opts in with `--stdin` only for operations declaring
 that support. This switch is
 recognized only in an App operation's pre-`--` option region, so command-owned
 `--stdin` flags elsewhere remain untouched. The CLI streams at most 16 MiB
-(configurable with `COS_APP_STDIN_MAX_BYTES`) and fails before launch on
+(configurable with `YUOS_APP_STDIN_MAX_BYTES`) and fails before launch on
 overflow. The bridge never inherits or probes process stdin. Agent, MCP
 service, and ordinary CLI calls therefore keep child stdin closed. Python list
 handlers use App-owned common support's `canonical_argv` module from that
@@ -377,7 +377,7 @@ Python filenames.
 ### Filesystem MCP contract
 
 The bundled `fs` App is MCP-only: all 14 commands are declared once under
-[`products/files/apps/fs/app.json`](https://github.com/xiaoyu-work/clawos-app/blob/main/products/files/apps/fs/app.json)'s `mcp.tools`, with direct SDK
+[`products/files/apps/fs/app.json`](https://github.com/xiaoyu-work/yuos-app/blob/main/products/files/apps/fs/app.json)'s `mcp.tools`, with direct SDK
 handlers in `server.py` and typed behavior in `main.py`. Human CLI calls use
 the same tools:
 
@@ -409,14 +409,14 @@ Binary and line caps are lower than the legacy operation limits so the
 duplicated MCP text/structured response fits the 16 MiB MCP frame and the
 text result fits the 8 MiB Host frame. Continue larger reads with byte offsets
 or narrower line ranges.
-The Rust `cos_runtime::fs::read_bytes` convenience wrapper rejects a truncated
+The Rust `yuos_runtime::fs::read_bytes` convenience wrapper rejects a truncated
 response rather than returning a prefix as a complete file. Text `read` retains
 its explicit `ReadResult.truncated` field.
 
 Paths are resolved before capability checks. Recursive copies reject
 symlinks and special files rather than materializing out-of-scope targets.
 Listings do not follow child symlinks when reporting directory status.
-Tags belong to regular files and merge into the sibling `.cos-meta.json`;
+Tags belong to regular files and merge into the sibling `.yuos-meta.json`;
 `stat` reads those tags. Because the scope vocabulary has no sibling transform,
 both declare read authority on the parent directory, while `tag` also declares
 parent write authority and file metadata authority. Missing sidecars mean no
@@ -435,16 +435,16 @@ Return `None` to print nothing.
 
 ### Agent-launched isolation
 
-An App invoked from a daemon-backed Agent task does not run in root `clawd` or
-inside the `claw-agentd` model/tool process. `clawd` starts a task
-`claw-extension-host` under an exclusively leased execution UID, distinct from
+An App invoked from a daemon-backed Agent task does not run in root `yuosd` or
+inside the `yuos-agentd` model/tool process. `yuosd` starts a task
+`yuos-extension-host` under an exclusively leased execution UID, distinct from
 the task owner. The worker uses its versioned, purpose-bound control socket;
 MCP App calls are relayed to the root-managed owner/App service Host.
 
 The host starts with no supplementary groups, `NoNewPrivs`, a `0077` umask,
 sanitized environment and descriptors, finite resource limits, mandatory
 cgroup containment and its own session/process group. App children receive a separate private broker proxy
-path, never `/run/cos/clawd.sock`. The proxy accepts only routes for the
+path, never `/run/yuos/yuosd.sock`. The proxy accepts only routes for the
 child's nearest registered App/MCP session, then re-enters the normal
 capability authority and final provider checks. Session registration,
 per-call transient scopes, approvals, and teardown therefore retain the same
@@ -485,7 +485,7 @@ through the runtime selected by its manifest. Python apps run in a fresh
 subprocess and are imported from disk for every call, so there is no module
 cache or daemon to restart. **Save the file, re-run the command, see the
 change.** This is true on-system too — edits under
-`/usr/lib/cos/apps/<id>/` are picked up immediately.
+`/usr/lib/yuos/apps/<id>/` are picked up immediately.
 
 The simplest workflow is to point the kernel at a directory you own:
 
@@ -494,7 +494,7 @@ mkdir -p ~/my-apps/hello
 $EDITOR ~/my-apps/hello/app.json    # paste the manifest from §3
 $EDITOR ~/my-apps/hello/main.py     # paste the run() from §3
 
-export COS_APPS_DIR=~/my-apps
+export YUOS_APPS_DIR=~/my-apps
 yu app                              # shows hello in the list
 yu app hello say --foo bar          # runs it
 $EDITOR ~/my-apps/hello/main.py      # change the return value
@@ -504,7 +504,7 @@ yu app hello say                    # new behaviour, no reinstall
 Or work from a copy of a bundled app as a starting point:
 
 ```sh
-cp -r /usr/lib/cos/apps/notify ~/my-apps/my-notify
+cp -r /usr/lib/yuos/apps/notify ~/my-apps/my-notify
 # rename the id in app.json AND rename the directory to match
 ```
 
@@ -589,7 +589,7 @@ inverse comparison when one mode must omit authority.
 Check it at runtime by importing the internal runtime:
 
 ```python
-from cos_runtime import policy
+from yuos_runtime import policy
 
 def run(command, args):
     try:
@@ -603,7 +603,7 @@ def run(command, args):
 
 `policy.require(verb, *, path=..., host=..., name=..., self_ref=..., wild=False)`
 uses the hidden kernel policy bridge and raises `PermissionDenied` on deny
-([`cos-runtime/python/src/cos_runtime/policy.py:79-106`](../cos-runtime/python/src/cos_runtime/policy.py)).
+([`yuos-runtime/python/src/yuos_runtime/policy.py:79-106`](../yuos-runtime/python/src/yuos_runtime/policy.py)).
 Pass exactly one scope keyword (or `wild=True` for unscoped verbs).
 
 Use `policy.check(...)` (same signature, returns the raw decision
@@ -622,7 +622,7 @@ an `auth_required` error with a constrained Agent action:
     "setup": {
         "interactive_oauth_available": True,
         "agent_action": {
-            "tool": "cos_oauth_login",
+            "tool": "yu_oauth_login",
             "input": {"provider": "google"},
         },
         "login_command": "yu credential oauth-login google",
@@ -674,10 +674,10 @@ rejected because capability matching does not expand them.
 
 Any AI call must route through the kernel's AI gate — the linter
 (§8) will refuse an app that imports `openai`, `anthropic`, or
-`google.generativeai` directly. Use `claw_os_sdk.ai` instead:
+`google.generativeai` directly. Use `yuos_sdk.ai` instead:
 
 ```python
-from claw_os_sdk import ai
+from yuos_sdk import ai
 
 def run(command, args):
     body = open(args[0]).read()
@@ -713,7 +713,7 @@ and ship an app
 
 | Command | Effect |
 |---|---|
-| `yu app` | List every discovered app under `$COS_APPS_DIR`. |
+| `yu app` | List every discovered app under `$YUOS_APPS_DIR`. |
 | `yu app <id>` | Show ops + version for one app. |
 | `yu app <id> <op> [args…]` | Run an op. |
 | `yu app <id> --schema` | Full manifest-derived schema for the app. |
@@ -721,7 +721,7 @@ and ship an app
 | `yu app lint [<id>]` | Refuse apps that import provider SDKs directly. Run on every app if no id given. |
 | `yu app tool list [<id>]` | Show the manifest-declared MCP tools this App exposes through the private Gateway. |
 | `yu app install <dir> --review` | Verify the package and return its requested permissions, scopes, conditions, AI policy and execution surfaces as JSON, without installing or granting anything. |
-| `yu app install <dir> [--force] [--no-consent] [--yes] [--dev-trust]` | Authenticate and disclose the App's permission requests before publishing into `$COS_APPS_DIR/<id>/`. Ordinary installs require an OS review decision; `--yes` can use existing OS confirmation but cannot replace first review or grant capabilities/AI consent. `--no-consent` only defers AI consent. Copying is skipped only when source and destination are the same directory. `--dev-trust` retains its separate interactive, digest-bound development-trust workflow. |
+| `yu app install <dir> [--force] [--no-consent] [--yes] [--dev-trust]` | Authenticate and disclose the App's permission requests before publishing into `$YUOS_APPS_DIR/<id>/`. Ordinary installs require an OS review decision; `--yes` can use existing OS confirmation but cannot replace first review or grant capabilities/AI consent. `--no-consent` only defers AI consent. Copying is skipped only when source and destination are the same directory. `--dev-trust` retains its separate interactive, digest-bound development-trust workflow. |
 | `yu review pending` | List and present the current user's App reviews and existing capability requests using the shared OS review contract. |
 | `yu review show <id>` | Display one owner-scoped review and its authenticated permission disclosure. |
 | `yu review approve <id>` | Confirm an App package and choose any newly requested, supported GUI permissions, or decide a separate capability request through the interactive OS helper. |
@@ -766,7 +766,7 @@ Root-owner OS request before publishing, including `--force`, `--yes`,
 `--no-consent` and in-place installs. `--review` remains nonmutating and does
 not require installation authority.
 A terminal or native desktop presenter sends the displayed decision through
-`claw-approval-helper --system-review-json`, authenticated by polkit. Without an
+`yuos-approval-helper --system-review-json`, authenticated by polkit. Without an
 interactive terminal or a previous matching OS decision, installation returns
 an explicit pending-review error and does not replace the existing App.
 `--yes` never substitutes for first review. Automation may reuse a previously
@@ -789,7 +789,7 @@ package before replacing the old installation. Cancelling review leaves the
 previous version untouched. Manifest disclosure is defined in
 [`apps/permission_review.rs`](../core/src/apps/permission_review.rs);
 the terminal and desktop share the typed
-[`SystemReview` contract](../crates/clawd-client/MODULE.md).
+[`SystemReview` contract](../crates/yuosd-client/MODULE.md).
 
 The reusable [directory-install backend](../core/src/apps/installation.rs)
 owns source validation, private staging, in-place revalidation and filesystem
@@ -799,7 +799,7 @@ entrypoints. CLI flags, OS review presentation and AI consent remain in the
 router; actual signed publication uses the closed Root-only
 `app.directory_install` route. Root selects its configured App root and verified
 App ID, retaining existing normalized nested layouts. A different CLI-local
-`COS_APPS_DIR`, an unavailable daemon or unconfirmed cleanup is an explicit
+`YUOS_APPS_DIR`, an unavailable daemon or unconfirmed cleanup is an explicit
 error, never permission to write directly. The controller outlives client
 disconnection and durably blocks App admission after an uncertain result.
 Agent-only installations need no preinstalled App package: Root may initialize
@@ -866,26 +866,26 @@ interactive Wayland or complete installed-system acceptance.
 Set explicitly only when overriding defaults
 ([`bridge.rs:28-53`](../core/src/bridge.rs),
 [`router.rs:25`](../core/src/router.rs),
-[`claw_os_sdk/ai.py:525`](../claw-os-sdk/python/src/claw_os_sdk/ai.py)).
+[`yuos_sdk/ai.py:525`](../yuos-sdk/python/src/yuos_sdk/ai.py)).
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `COS_APPS_DIR` | Apps root the kernel scans. | `/usr/lib/cos/apps` |
-| `COS_DATA_DIR` | Where the current process persists Claw OS data. Inside a sandboxed operation this is the app's own partition, `<data-root>/apps/<app-id>` — never the owner's data root. | `$XDG_DATA_HOME/cos`, normally `~/.local/share/cos`; clawd overrides this to `/var/lib/cos` |
-| `COS_OWNER_HOME` | Verified home path of the user the App service represents. Use it only to resolve a manifest-approved `~/...` resource; the path grants no access by itself, and `$HOME` remains private App state. | (auto) |
-| `COS_APPLICATIONS_DIR` | Where `yu app install` writes generated desktop launchers. | `/usr/share/applications` |
-| `COS_SDK_PYTHON_DIR` | Force the SDK lookup to a specific dir. Must contain both `claw_os_sdk/` and `cos_runtime/` as subdirs. | unset → kernel probes `/usr/lib/cos/python` + sibling dev paths |
-| `COS_APP_ID` | The id of the calling app. **Auto-set by the bridge** from `app.json`; do not override. | (auto) |
-| `COS_BIN` | Path to the `yu` binary the SDK shells back to. | `cos` (from `$PATH`) |
-| `COS_SESSION` | Session id for grouped multi-call audit. | unset |
-| `COS_WORKER_SANDBOX` | Set to `1` inside every sandboxed operation. Read it to detect the sandbox; do not rely on it for security. | (auto) |
-| `COS_EGRESS_SOCKET` | HTTP `CONNECT` proxy socket, present only when the operation was granted exact `net.dial` hosts. | unset |
-| `COS_EGRESS_ENDPOINTS` | Comma-separated `host:port` list the egress broker admits. | unset |
+| `YUOS_APPS_DIR` | Apps root the kernel scans. | `/usr/lib/yuos/apps` |
+| `YUOS_DATA_DIR` | Where the current process persists Yu OS data. Inside a sandboxed operation this is the app's own partition, `<data-root>/apps/<app-id>` — never the owner's data root. | `$XDG_DATA_HOME/cos`, normally `~/.local/share/yuos`; yuosd overrides this to `/var/lib/yuos` |
+| `YUOS_OWNER_HOME` | Verified home path of the user the App service represents. Use it only to resolve a manifest-approved `~/...` resource; the path grants no access by itself, and `$HOME` remains private App state. | (auto) |
+| `YUOS_APPLICATIONS_DIR` | Where `yu app install` writes generated desktop launchers. | `/usr/share/applications` |
+| `YUOS_SDK_PYTHON_DIR` | Force the SDK lookup to a specific dir. Must contain both `yuos_sdk/` and `yuos_runtime/` as subdirs. | unset → kernel probes `/usr/lib/yuos/python` + sibling dev paths |
+| `YUOS_APP_ID` | The id of the calling app. **Auto-set by the bridge** from `app.json`; do not override. | (auto) |
+| `YUOS_BIN` | Path to the `yu` binary the SDK shells back to. | `yu` (from `$PATH`) |
+| `YUOS_SESSION` | Session id for grouped multi-call audit. | unset |
+| `YUOS_WORKER_SANDBOX` | Set to `1` inside every sandboxed operation. Read it to detect the sandbox; do not rely on it for security. | (auto) |
+| `YUOS_EGRESS_SOCKET` | HTTP `CONNECT` proxy socket, present only when the operation was granted exact `net.dial` hosts. | unset |
+| `YUOS_EGRESS_ENDPOINTS` | Comma-separated `host:port` list the egress broker admits. | unset |
 
 Everything else is cleared. An operation starts from an empty
 environment and receives only the variables above plus a fixed `PATH`,
 `HOME`, `TMPDIR` and locale — never the launcher's environment, never a
-provider key, never `COS_PROC_DATA_DIR`, `COS_CAPS_DATA_DIR`,
+provider key, never `YUOS_PROC_DATA_DIR`, `YUOS_CAPS_DATA_DIR`,
 `SSH_AUTH_SOCK`, `DISPLAY`, `WAYLAND_DISPLAY` or a session bus address.
 
 ## 10. What an operation can reach
@@ -903,14 +903,14 @@ this while writing the manifest:
   capability check passes and the path is still not there. Never assume
   `$HOME` is the user's home — inside the sandbox it is the app's own
   data directory.
-* **App data.** `COS_DATA_DIR` is the app's own partition of the owner's
+* **App data.** `YUOS_DATA_DIR` is the app's own partition of the owner's
   data root, `<data-root>/apps/<app-id>`. Neither the root nor another
   app's partition is mounted, so two apps cannot read each other's
   files even though they run as the same user. State a bundled app
   wrote to the data root before isolation is moved into that partition
   once, automatically, before its first sandboxed run
   ([`docs/updating.md`](updating.md) covers the cases that stop and ask).
-* **Agent memory.** `cos_runtime.memory` still writes into the owner's
+* **Agent memory.** `yuos_runtime.memory` still writes into the owner's
   cross-app agent memory; the database is not mounted, and the call is
   carried out by the launcher after checking `memory.write` scoped
   `self:<your-app-id>`. Writing to another app's source is refused, and
@@ -922,7 +922,7 @@ this while writing the manifest:
   `AF_INET` socket cannot even be created, so there is no direct dial
   to fall back to. An operation that declares `net.dial` with an exact
   `host[:port]` scope receives a Unix-domain egress socket at
-  `COS_EGRESS_SOCKET`; `cos_runtime.egress.create_connection()` opens a
+  `YUOS_EGRESS_SOCKET`; `yuos_runtime.egress.create_connection()` opens a
   tunnel through it, and the broker admits only those endpoints, pins
   the address it resolved itself, and refuses loopback, link-local,
   cloud-metadata, private and CGNAT addresses. TLS is established by the
@@ -941,9 +941,9 @@ this while writing the manifest:
   CPU, wall clock and captured output. A worker cannot daemonize: the
   whole process group and cgroup are killed when the operation ends, is
   cancelled or times out.
-* **Authority.** `cos_runtime.policy` and every `cos` call the app makes
+* **Authority.** `yuos_runtime.policy` and every `yu` call the app makes
   go through a private broker endpoint bound to that one launch, which
-  relays them to `clawd` under a launcher-held grant. `clawd` still
+  relays them to `yuosd` under a launcher-held grant. `yuosd` still
   decodes, authorizes and spends the exact capability against the live
   App workload grant, so the endpoint can only narrow what the app may do. An
   app cannot register an identity, widen its own capabilities, answer
@@ -986,7 +986,7 @@ named GUI, passing its declared `exec` as **one literal argument**, followed by
 unchanged user arguments. `exec` is not a shell command, command line or
 executable. No caller-supplied path can select a GUI. Unknown or invalid names
 are refused before execution.
-Non-interactive named launchers without `COS_SESSION` use authenticated Root
+Non-interactive named launchers without `YUOS_SESSION` use authenticated Root
 registration without creating an Admin/bootstrap session. Root derives the
 actual parent or bounded unregistered-launcher policy, not caller environment.
 
@@ -1051,7 +1051,7 @@ require a valid AI policy, and paid-model consent/budgets remain separate.
 The authenticated review lists required and optional purposes separately and
 includes optional declarations in the permission-contract digest and deny
 inventory. Root registration reports `optional_needs_ungranted` indexes, also
-projected as `COS_APP_OPTIONAL_NEEDS_UNGRANTED_JSON` for the selected GUI.
+projected as `YUOS_APP_OPTIONAL_NEEDS_UNGRANTED_JSON` for the selected GUI.
 This is an initial presentation snapshot, not permission authority or a promise
 that a provider is ready. Apps must retain normal live policy/provider checks
 and handle existing denial errors. No later approval silently widens the
@@ -1071,7 +1071,7 @@ the common Need binding:
 
 Root resolves this only against authenticated `PathContext.home`, for example
 `path:/home/alice/Documents/**`; neither manifest/request owner fields, `HOME`,
-`COS_OWNER_HOME`, cwd nor SDK output select the authority. The same binding
+`YUOS_OWNER_HOME`, cwd nor SDK output select the authority. The same binding
 works for operation and MCP needs through their Root-derived contexts.
 Only Path-kind verbs accept it. Paths must be normalized relative paths:
 no absolute, backslash, empty/dot/dotdot segment, colon, `$`, NUL/control or
@@ -1162,7 +1162,7 @@ yu app install ~/my-apps/hello --review  # inspect verified requests without ins
 yu app install ~/my-apps/hello      # review permissions, confirm, then publish
 # Installation does not grant capabilities. AI consent is a separate prompt.
 # --no-consent defers that AI prompt; --yes never grants AI consent.
-yu app hello say                    # now lives under /usr/lib/cos/apps/hello/
+yu app hello say                    # now lives under /usr/lib/yuos/apps/hello/
 ```
 
 An App is authenticated before its manifest can influence capability grants or
@@ -1196,7 +1196,7 @@ format, trust roots, revocation and rollback.
 * [`browser-attached-design.md`](browser-attached-design.md) —
   worked example of a non-trivial app with a Chromium extension and a
   native-messaging bridge.
-* [`clawos-app/products/notifications/apps/notify/`](https://github.com/xiaoyu-work/clawos-app/tree/main/products/notifications/apps/notify),
-  [`clawos-app/capabilities/storage-sdk/apps/kv/`](https://github.com/xiaoyu-work/clawos-app/tree/main/capabilities/storage-sdk/apps/kv),
-  [`clawos-app/products/files/apps/fs/`](https://github.com/xiaoyu-work/clawos-app/tree/main/products/files/apps/fs) — small bundled apps that double as
+* [`yuos-app/products/notifications/apps/notify/`](https://github.com/xiaoyu-work/yuos-app/tree/main/products/notifications/apps/notify),
+  [`yuos-app/capabilities/storage-sdk/apps/kv/`](https://github.com/xiaoyu-work/yuos-app/tree/main/capabilities/storage-sdk/apps/kv),
+  [`yuos-app/products/files/apps/fs/`](https://github.com/xiaoyu-work/yuos-app/tree/main/products/files/apps/fs) — small bundled apps that double as
   reference templates.

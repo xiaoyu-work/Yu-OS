@@ -3,16 +3,16 @@
 //! Tools are how the agent acts on the system. Phase 1 ships only safe,
 //! side-effect-free built-in tools (`echo`, `now`) so the runtime can be
 //! exercised without committing to a sandbox/credential integration. Phase 2
-//! adds the cos-primitive proxies (fs/exec/proc/net/web/etc.).
+//! adds the yuos-primitive proxies (fs/exec/proc/net/web/etc.).
 
 pub mod app_gateway;
 pub(crate) mod activity_work;
 pub(crate) mod background;
 pub mod builtin;
 pub mod clarify;
-pub mod cos_apps_session;
-pub mod cos_help;
-pub mod cos_proxy;
+pub mod yu_apps_session;
+pub mod yu_help;
+pub mod yu_proxy;
 pub mod delegate;
 pub(crate) mod desktop_vision;
 pub mod exposure;
@@ -170,7 +170,7 @@ pub trait Tool: Send + Sync {
     /// in declaration order.
     ///
     /// Read-only tools that only inspect process / filesystem / system
-    /// state (e.g. `cos_sysinfo`, `cos_app_web`, `cos_app_data` reads)
+    /// state (e.g. `yu_sysinfo`, `yu_app_web`, `yu_app_data` reads)
     /// should override this to `true` so multi-tool turns return in
     /// `max(durations)` rather than `sum(durations)`. The agent
     /// frequently fires 4–6 inspection calls in parallel — running

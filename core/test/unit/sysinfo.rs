@@ -16,34 +16,34 @@ fn info_distinguishes_ubuntu_host_from_claw_agent() {
     assert_eq!(info["name"], "ubuntu");
     assert_eq!(info["version"], "26.04");
     assert_eq!(info["distribution"]["pretty_name"], "Ubuntu 26.04 LTS");
-    assert_eq!(info["agent"]["name"], "claw-os-agent");
-    assert_eq!(info["cos_version"], "1:0.2.0+git123.g0123456789ab");
-    assert_eq!(info["agent"]["version"], info["cos_version"]);
-    assert_eq!(info["claw_os"], false);
-    assert_eq!(info["environment"], "claw-agent-on-host");
+    assert_eq!(info["agent"]["name"], "yuos-agent");
+    assert_eq!(info["yuos_version"], "1:0.2.0+git123.g0123456789ab");
+    assert_eq!(info["agent"]["version"], info["yuos_version"]);
+    assert_eq!(info["yuos"], false);
+    assert_eq!(info["environment"], "yu-agent-on-host");
 
     let running = cmd_info().unwrap();
-    let expected = option_env!("COS_PACKAGE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
-    assert_eq!(running["cos_version"], expected);
+    let expected = option_env!("YUOS_PACKAGE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
+    assert_eq!(running["yuos_version"], expected);
     assert_eq!(running["agent"]["version"], expected);
 }
 
 #[test]
-fn info_recognizes_full_claw_os_from_os_release() {
+fn info_recognizes_full_yuos_from_os_release() {
     let info = info_from_os_release(
         Some(
-            "NAME=\"ClawOS\"\n\
-             PRETTY_NAME=\"ClawOS 0.1.0\"\n\
-             ID=clawos\n\
+            "NAME=\"Yu OS\"\n\
+             PRETTY_NAME=\"Yu OS 0.1.0\"\n\
+             ID=yuos\n\
              ID_LIKE=debian\n\
              VERSION_ID=\"0.1.0\"\n",
         ),
         "0.1.0",
     );
 
-    assert_eq!(info["name"], "clawos");
-    assert_eq!(info["claw_os"], true);
-    assert_eq!(info["environment"], "claw-os");
+    assert_eq!(info["name"], "yuos");
+    assert_eq!(info["yuos"], true);
+    assert_eq!(info["environment"], "yuos");
 }
 
 #[cfg(target_os = "linux")]
@@ -82,13 +82,13 @@ fn low_risk_sysinfo_approval_cannot_expose_secret_environment_values() {
         r#"{"sessions":[{"session_id":"sysinfo-consent","pid":0,"caps":[]}]}"#,
     )
     .unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", temp.path());
-    let _log = crate::test_env::TestEnvVarGuard::set("COS_LOG_DIR", temp.path());
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", temp.path());
+    let _log = crate::test_env::TestEnvVarGuard::set("YUOS_LOG_DIR", temp.path());
     let _session =
-        crate::test_env::TestEnvVarGuard::set("COS_SESSION", "sysinfo-consent");
-    let _mode = crate::test_env::TestEnvVarGuard::set("COS_PERMS_MODE", "strict");
+        crate::test_env::TestEnvVarGuard::set("YUOS_SESSION", "sysinfo-consent");
+    let _mode = crate::test_env::TestEnvVarGuard::set("YUOS_PERMS_MODE", "strict");
     let _secret =
-        crate::test_env::TestEnvVarGuard::set("COS_TEST_SECRET_TOKEN", "never-return-this");
+        crate::test_env::TestEnvVarGuard::set("YUOS_TEST_SECRET_TOKEN", "never-return-this");
 
     crate::approvals::LocalApprovalInvocation::new("test:sysinfo-secret:turn:1")
         .unwrap()
@@ -275,7 +275,7 @@ fn num_cores_is_at_least_one() {
 // Capability gate
 // -----------------------------------------------------------------
 
-/// Regression: use the exact capability set `clawd` gives a system-Agent
+/// Regression: use the exact capability set `yuosd` gives a system-Agent
 /// task. A fixture with `Scope::Wild` previously hid the production mismatch
 /// between the narrow named domains and `sysinfo::run`.
 #[test]
@@ -285,22 +285,22 @@ fn run_clears_gate_with_sys_observe_only() {
 
     let _lock = crate::caps::test_env_lock::env_lock();
 
-    // Redirect COS_DATA_DIR so the registry write lands in a
+    // Redirect YUOS_DATA_DIR so the registry write lands in a
     // tempdir, isolated from any concurrent test and from the
     // real per-user proc/registry.json.
     let tmp = tempfile::tempdir().expect("tempdir");
-    let prev_data = env::var_os("COS_DATA_DIR");
-    env::set_var("COS_DATA_DIR", tmp.path());
+    let prev_data = env::var_os("YUOS_DATA_DIR");
+    env::set_var("YUOS_DATA_DIR", tmp.path());
 
-    let prev_sess = env::var_os("COS_SESSION");
-    let prev_perms = env::var_os("COS_PERMS_MODE");
-    env::remove_var("COS_PERMS_MODE");
+    let prev_sess = env::var_os("YUOS_SESSION");
+    let prev_perms = env::var_os("YUOS_PERMS_MODE");
+    env::remove_var("YUOS_PERMS_MODE");
 
     // Build the real system-Agent baseline. PID is our own so the ancestry
     // check in caps::enforcement passes without a real fork.
     let session_id = format!("sysinfo-cap-test-{}", std::process::id());
     let owner_uid = observation_owner_uid();
-    let caps = crate::clawd::system_caps::system_agent_caps(owner_uid, tmp.path());
+    let caps = crate::yuosd::system_caps::system_agent_caps(owner_uid, tmp.path());
     let info = SessionInfo {
         session_id: session_id.clone(),
         pid: std::process::id(),
@@ -325,7 +325,7 @@ fn run_clears_gate_with_sys_observe_only() {
         client: crate::session::SessionClient::default(),
     };
     register_session(info).expect("register session");
-    env::set_var("COS_SESSION", &session_id);
+    env::set_var("YUOS_SESSION", &session_id);
 
     let result = run("info", &[]);
 
@@ -333,16 +333,16 @@ fn run_clears_gate_with_sys_observe_only() {
     // into other tests that share the lock.
     deregister_session(&session_id);
     match prev_sess {
-        Some(v) => env::set_var("COS_SESSION", v),
-        None => env::remove_var("COS_SESSION"),
+        Some(v) => env::set_var("YUOS_SESSION", v),
+        None => env::remove_var("YUOS_SESSION"),
     }
     match prev_perms {
-        Some(v) => env::set_var("COS_PERMS_MODE", v),
-        None => env::remove_var("COS_PERMS_MODE"),
+        Some(v) => env::set_var("YUOS_PERMS_MODE", v),
+        None => env::remove_var("YUOS_PERMS_MODE"),
     }
     match prev_data {
-        Some(v) => env::set_var("COS_DATA_DIR", v),
-        None => env::remove_var("COS_DATA_DIR"),
+        Some(v) => env::set_var("YUOS_DATA_DIR", v),
+        None => env::remove_var("YUOS_DATA_DIR"),
     }
 
     let value = result.expect("the real system-Agent baseline should inspect host identity");
@@ -391,7 +391,7 @@ fn largest_files_plan_is_bound_to_the_canonical_metadata_subtree() {
 #[test]
 fn system_agent_baseline_does_not_cover_sensitive_sysinfo_plans() {
     let root = tempfile::tempdir().expect("tempdir");
-    let caps = crate::clawd::system_caps::system_agent_caps(observation_owner_uid(), root.path());
+    let caps = crate::yuosd::system_caps::system_agent_caps(observation_owner_uid(), root.path());
     for command in [
         "env",
         "who",

@@ -27,8 +27,8 @@ fn skills_info_unknown_id_errors() {
 
 #[test]
 fn parse_owner_repo_accepts_valid_form() {
-    let (o, r) = parse_owner_repo("clawos/skills-hub").unwrap();
-    assert_eq!(o, "clawos");
+    let (o, r) = parse_owner_repo("yuos/skills-hub").unwrap();
+    assert_eq!(o, "yuos");
     assert_eq!(r, "skills-hub");
 }
 
@@ -223,7 +223,7 @@ fn skills_usage_record_unknown_flag_errors() {
 
 fn skills_guard_test_dir(label: &str) -> std::path::PathBuf {
     let p = std::env::temp_dir().join(format!(
-        "cos-agent-skills-guard-{label}-{}",
+        "yuos-agent-skills-guard-{label}-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&p).unwrap();

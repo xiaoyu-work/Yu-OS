@@ -2,9 +2,9 @@
 ///
 /// Traces are trees: trace → spans → operations. Every `yu` command
 /// automatically records its trace/span context from environment
-/// variables COS_TRACE_ID and COS_SPAN_ID.
+/// variables YUOS_TRACE_ID and YUOS_SPAN_ID.
 ///
-/// Storage: `$COS_DATA_DIR/traces/<trace-id>.json`
+/// Storage: `$YUOS_DATA_DIR/traces/<trace-id>.json`
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::fs;
@@ -99,9 +99,9 @@ fn cmd_start(args: &[String]) -> Result<Value, String> {
         "started_at": now,
         "status": "active",
         "env": {
-            "COS_TRACE_ID": trace_id,
+            "YUOS_TRACE_ID": trace_id,
         },
-        "hint": format!("Set COS_TRACE_ID={trace_id} in your environment to auto-attach operations"),
+        "hint": format!("Set YUOS_TRACE_ID={trace_id} in your environment to auto-attach operations"),
     }))
 }
 
@@ -179,14 +179,14 @@ fn cmd_span(args: &[String]) -> Result<Value, String> {
     }
     let span_name = &args[0];
 
-    let trace_id = std::env::var("COS_TRACE_ID")
-        .map_err(|_| "COS_TRACE_ID not set — start a trace first".to_string())?;
+    let trace_id = std::env::var("YUOS_TRACE_ID")
+        .map_err(|_| "YUOS_TRACE_ID not set — start a trace first".to_string())?;
     if trace_id.is_empty() {
-        return Err("COS_TRACE_ID is empty — start a trace first".into());
+        return Err("YUOS_TRACE_ID is empty — start a trace first".into());
     }
 
-    // Build span path: if COS_SPAN_ID is set, nest under it
-    let parent_span = std::env::var("COS_SPAN_ID").unwrap_or_default();
+    // Build span path: if YUOS_SPAN_ID is set, nest under it
+    let parent_span = std::env::var("YUOS_SPAN_ID").unwrap_or_default();
     let span_path = if parent_span.is_empty() {
         span_name.clone()
     } else {
@@ -221,7 +221,7 @@ fn cmd_span(args: &[String]) -> Result<Value, String> {
         "span_path": span_path,
         "started_at": now,
         "env": {
-            "COS_SPAN_ID": span_path,
+            "YUOS_SPAN_ID": span_path,
         },
     }))
 }
@@ -233,12 +233,12 @@ fn cmd_span(args: &[String]) -> Result<Value, String> {
 fn cmd_span_end(args: &[String]) -> Result<Value, String> {
     require_or_json(Verb::DATA_LOG_WRITE, Scope::wild()).map_err(|v| v.to_string())?;
 
-    let trace_id = std::env::var("COS_TRACE_ID").map_err(|_| "COS_TRACE_ID not set".to_string())?;
+    let trace_id = std::env::var("YUOS_TRACE_ID").map_err(|_| "YUOS_TRACE_ID not set".to_string())?;
     if trace_id.is_empty() {
-        return Err("COS_TRACE_ID is empty".into());
+        return Err("YUOS_TRACE_ID is empty".into());
     }
 
-    // Determine which span to end: --name flag or COS_SPAN_ID
+    // Determine which span to end: --name flag or YUOS_SPAN_ID
     let mut explicit_name: Option<String> = None;
     let mut i = 0;
     while i < args.len() {
@@ -256,9 +256,9 @@ fn cmd_span_end(args: &[String]) -> Result<Value, String> {
     let span_path = if let Some(name) = explicit_name {
         name
     } else {
-        let span_id = std::env::var("COS_SPAN_ID").unwrap_or_default();
+        let span_id = std::env::var("YUOS_SPAN_ID").unwrap_or_default();
         if span_id.is_empty() {
-            return Err("no active span — set COS_SPAN_ID or use --name".into());
+            return Err("no active span — set YUOS_SPAN_ID or use --name".into());
         }
         span_id
     };
@@ -308,7 +308,7 @@ fn cmd_span_end(args: &[String]) -> Result<Value, String> {
         "span": span_name,
         "ended_at": now,
         "env": {
-            "COS_SPAN_ID": parent_span,
+            "YUOS_SPAN_ID": parent_span,
         },
     }))
 }

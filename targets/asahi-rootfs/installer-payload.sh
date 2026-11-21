@@ -9,10 +9,10 @@ directory=$(realpath -e -- "$(dirname -- "$output")")
 output="$directory/$(basename -- "$output")"
 [[ $release =~ ^[[:alnum:].+-]+$ ]]
 for artifact in "boot/vmlinuz-$release" "boot/initrd.img-$release" \
-    usr/lib/cos/asahi/{boot,boot-j700,stage1-j700}.bin; do
+    usr/lib/yuos/asahi/{boot,boot-j700,stage1-j700}.bin; do
     test -s "$rootfs/$artifact"
 done
-test -f "$rootfs/etc/cos/local-desktop-setup"
+test -f "$rootfs/etc/yuos/local-desktop-setup"
 
 work=$(mktemp -d "$directory/.claw-asahi-payload.XXXXXX")
 trap 'rm -rf -- "$work"' EXIT
@@ -28,7 +28,7 @@ install -d "$root/boot/grub/arm64-efi"
 cp -a "$root/usr/lib/grub/arm64-efi/." "$root/boot/grub/arm64-efi/"
 cat > "$root/boot/grub/grub.cfg" <<EOF
 set timeout=2
-menuentry 'Claw OS' {
+menuentry 'Yu OS' {
     linux /boot/vmlinuz-$release root=UUID=$uuid ro quiet splash
     initrd /boot/initrd.img-$release
 }
@@ -49,8 +49,8 @@ chroot "$root" /usr/bin/grub-mkstandalone --format=arm64-efi --locales='' --font
     --modules='part_gpt ext2 fat normal configfile linux search search_fs_uuid' \
     --output="$inside/BOOTAA64.EFI" "boot/grub/grub.cfg=$inside/config"
 install -m0644 "$grub_work/BOOTAA64.EFI" "$esp/EFI/BOOT/"
-cp "$root/usr/lib/cos/asahi"/boot{,-j700}.bin "$esp/m1n1/"
-mv -- "$root/usr/lib/cos/asahi/stage1-j700.bin" "$work/stage1-j700.bin"
+cp "$root/usr/lib/yuos/asahi"/boot{,-j700}.bin "$esp/m1n1/"
+mv -- "$root/usr/lib/yuos/asahi/stage1-j700.bin" "$work/stage1-j700.bin"
 rm -f -- "$grub_work/config" "$grub_work/BOOTAA64.EFI"
 rmdir -- "$grub_work"
 

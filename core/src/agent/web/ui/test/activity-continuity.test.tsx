@@ -25,7 +25,7 @@ async function sha256(value: string) {
 }
 
 async function fixture(title = '<img src="https://continuity.invalid/x" onerror="window.continuityExecuted=true">') {
-  const material = `{"kind":"claw_os.activity_continuity","schema_version":1,`
+  const material = `{"kind":"yuos.activity_continuity","schema_version":1,`
     + `"lineage":{"id":"00000000-0000-4000-8000-000000000123","revision":9007199254740993},`
     + `"intent":{"title":${JSON.stringify(title)},"goal":"Publish the release",`
     + `"completion_criteria":"Reviewed and available","boundaries":"Ask before publishing"},`
@@ -42,7 +42,7 @@ test("continuity parser preserves large lineage revisions and emits deterministi
   const document = await parseContinuityFile(await fixture("Release"));
   expect(document.lineage.revision).toBe("9007199254740993");
   expect(continuityFilename(document)).toBe(
-    "claw-os-activity-00000000-0000-4000-8000-000000000123.json",
+    "yuos-activity-00000000-0000-4000-8000-000000000123.json",
   );
   expect(continuityJson(document)).toBe(await fixture("Release"));
   expect(continuityJson(document)).not.toContain('"revision":"9007199254740993"');
@@ -53,11 +53,11 @@ test("continuity parser rejects duplicate, version, authority, identity and enve
   const valid = await fixture("Release");
   const cases: Array<[string, string]> = [
     ["Duplicate", valid.replace(
-      '"kind":"claw_os.activity_continuity"',
-      '"kind":"claw_os.activity_continuity","kind":"claw_os.activity_continuity"',
+      '"kind":"yuos.activity_continuity"',
+      '"kind":"yuos.activity_continuity","kind":"yuos.activity_continuity"',
     )],
     ["schema version", valid.replace('"schema_version":1', '"schema_version":2')],
-    ["kind", valid.replace("claw_os.activity_continuity", "other")],
+    ["kind", valid.replace("yuos.activity_continuity", "other")],
     ["unknown fields", valid.replace(/}$/, ',"owner_uid":1000}')],
     ["unknown fields", valid.replace(
       '"title":"Release"',

@@ -254,7 +254,7 @@ fn set_private_dir_mode(path: &Path) -> io::Result<()> {
 
 pub(crate) fn persistence_barrier(point: &str) -> io::Result<()> {
     #[cfg(debug_assertions)]
-    if std::env::var("COS_TEST_PERSISTENCE_FAILPOINT").as_deref() == Ok(point) {
+    if std::env::var("YUOS_TEST_PERSISTENCE_FAILPOINT").as_deref() == Ok(point) {
         return Err(io::Error::other(format!("persistence failpoint: {point}")));
     }
 

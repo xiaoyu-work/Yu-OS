@@ -26,7 +26,7 @@ const SHA256 = /^[a-f0-9]{64}$/;
 function webProduct(appId: string, kind: unknown, source: unknown): boolean {
   return (kind === "product" || kind === "capability" || kind === undefined) &&
     source !== "store" && source !== "launcher" &&
-    !["pkg", "cosmic-store", "launcher", "cosmic-launcher", "claw-launcher"].includes(appId);
+    !["pkg", "cosmic-store", "launcher", "cosmic-launcher", "yuos-launcher"].includes(appId);
 }
 
 function tools(value: unknown): AppTool[] {
@@ -59,7 +59,7 @@ export function readInstalled(value: unknown): InstalledApp[] {
 
 export function readStore(value: unknown): StoreView {
   if (!record(value) || !record(value.catalog) || value.catalog.schema !== "claw.app-store/v2" ||
-      value.catalog.repository !== "xiaoyu-work/clawos-app" || value.catalog.runtime_abi !== 1 ||
+      value.catalog.repository !== "xiaoyu-work/yuos-app" || value.catalog.runtime_abi !== 1 ||
       typeof value.catalog.generation !== "string" || !/^[1-9][0-9]{0,19}$/.test(value.catalog.generation) ||
       typeof value.catalog.expires_at !== "string" ||
       !Number.isFinite(Date.parse(value.catalog.expires_at)) ||
@@ -95,7 +95,7 @@ export function readStore(value: unknown): StoreView {
         typeof app.app_version !== "string" || typeof app.release_version !== "string" ||
         !record(app.artifact) || typeof app.artifact.sha256 !== "string" ||
         !SHA256.test(app.artifact.sha256) ||
-        app.artifact.file !== `claw-app-snapshot-${app.artifact.sha256}.tar.gz` ||
+        app.artifact.file !== `yuos-app-snapshot-${app.artifact.sha256}.tar.gz` ||
         typeof app.artifact.size !== "number" || !Number.isSafeInteger(app.artifact.size) ||
         app.artifact.size <= 0 || app.artifact.media_type !== "application/gzip" ||
         !record(app.provenance) || typeof app.provenance.content_digest !== "string" ||

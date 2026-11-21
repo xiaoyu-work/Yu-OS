@@ -425,7 +425,7 @@ pub struct LaunchPolicy {
     pub seccomp: SeccompProfile,
     pub stdio: StdioPlan,
     /// Bind the per-launch broker endpoint at the standard broker
-    /// socket path inside the sandbox. The real `clawd` socket is
+    /// socket path inside the sandbox. The real `yuosd` socket is
     /// never visible.
     pub broker: bool,
     /// `umask` applied immediately before `exec`.

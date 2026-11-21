@@ -605,7 +605,7 @@ fn stream_projection_keeps_private_payloads_out_of_the_transcript() {
             "event": {
                 "kind": "tool_use",
                 "id": "tool-1",
-                "name": "cos_fs",
+                "name": "yu_fs",
                 "input": {"secret": "must-not-render"}
             }
         }),
@@ -629,7 +629,7 @@ fn stream_projection_keeps_private_payloads_out_of_the_transcript() {
             "progress": {
                 "kind": "tool_result",
                 "id": "tool-1",
-                "name": "cos_fs",
+                "name": "yu_fs",
                 "ok": true,
                 "latency_ms": 42,
                 "body": "private result body"
@@ -687,7 +687,7 @@ fn provider_tool_announcement_waits_for_authoritative_runtime_start() {
             "event": {
                 "kind": "tool_use",
                 "id": "tool-1",
-                "name": "cos_sysinfo",
+                "name": "yu_sysinfo",
                 "input": {"path": "/private"}
             }
         }),
@@ -712,7 +712,7 @@ fn provider_tool_announcement_waits_for_authoritative_runtime_start() {
             "progress": {
                 "kind": "tool_start",
                 "id": "tool-1",
-                "name": "cos_sysinfo"
+                "name": "yu_sysinfo"
             }
         }),
     )
@@ -730,7 +730,7 @@ fn provider_tool_announcement_waits_for_authoritative_runtime_start() {
 fn detached_tool_is_unconfirmed_instead_of_still_running() {
     let mut app = app();
     app.begin_task(&job("running"));
-    app.tool_started("tool-1", "cos_sysinfo");
+    app.tool_started("tool-1", "yu_sysinfo");
 
     app.detach_task();
 
@@ -758,7 +758,7 @@ fn detached_tool_is_unconfirmed_instead_of_still_running() {
 fn reconnecting_tool_is_rendered_as_unconfirmed() {
     let mut app = app();
     app.begin_task(&job("running"));
-    app.tool_started("tool-1", "cos_sysinfo");
+    app.tool_started("tool-1", "yu_sysinfo");
     app.status = RunStatus::Reconnecting;
 
     let mut terminal = ratatui::Terminal::new(TestBackend::new(100, 28)).unwrap();
@@ -771,19 +771,19 @@ fn reconnecting_tool_is_rendered_as_unconfirmed() {
         .map(|cell| cell.symbol())
         .collect::<String>();
     assert!(output.contains("execution status unconfirmed"));
-    assert!(!output.contains("Running cos_sysinfo"));
+    assert!(!output.contains("Running yu_sysinfo"));
 }
 
 #[test]
 fn clearing_active_transcript_keeps_live_tool_identity() {
     let mut app = app();
     app.begin_task(&job("running"));
-    app.tool_started("tool-1", "cos_sysinfo");
+    app.tool_started("tool-1", "yu_sysinfo");
 
     app.clear_transcript();
 
     assert!(app.entries.iter().any(|entry| {
-        entry.text == "cos_sysinfo"
+        entry.text == "yu_sysinfo"
             && matches!(
                 entry.kind,
                 EntryKind::Tool {
@@ -1015,13 +1015,13 @@ fn vim_keymap_edits_idle_composer_but_never_steals_task_cancel() {
 #[test]
 fn agents_view_reports_only_real_delegate_tool_calls() {
     let mut app = app();
-    app.tool_started("delegate-1", "cos_delegate");
-    app.tool_started("tool-1", "cos_sysinfo");
+    app.tool_started("delegate-1", "yu_delegate");
+    app.tool_started("tool-1", "yu_sysinfo");
     assert_eq!(
         app.delegate_summaries(),
         vec![("delegate-1".into(), "running")]
     );
-    app.tool_finished("delegate-1", "cos_delegate", true, Some(12));
+    app.tool_finished("delegate-1", "yu_delegate", true, Some(12));
     assert_eq!(
         app.delegate_summaries(),
         vec![("delegate-1".into(), "completed")]
@@ -1044,7 +1044,7 @@ fn platform_overview_is_bounded_read_only_presentation() {
     app.open_platform_overview(PlatformOverview {
         presentation: json!({
             "authority": "Read-only verified inventory.",
-            "skills": ["claw-os"],
+            "skills": ["yuos"],
             "mcp": {"configured_enabled": ["fixture"]},
         })
         .to_string(),
@@ -1060,7 +1060,7 @@ fn platform_overview_is_bounded_read_only_presentation() {
         .map(|cell| cell.symbol())
         .collect::<String>();
     assert!(output.contains("Verified read-only inventory"));
-    assert!(output.contains("claw-os"));
+    assert!(output.contains("yuos"));
 }
 
 #[test]
@@ -1472,7 +1472,7 @@ fn platform_debug_center_omits_secret_bearing_configuration() {
         InputAction::OpenDebugOverview
     );
     app.open_debug_overview(DebugOverview {
-        daemon: "clawd".into(),
+        daemon: "yuosd".into(),
         daemon_status: "ok".into(),
         started_at: "2026-01-01T00:00:00Z".into(),
         uptime_ms: 1000,
@@ -1504,7 +1504,7 @@ fn platform_debug_center_omits_secret_bearing_configuration() {
         .map(|cell| cell.symbol())
         .collect::<String>();
     assert!(output.contains("Debug Center"));
-    assert!(output.contains("clawd"));
+    assert!(output.contains("yuosd"));
     assert!(output.contains("gpt-test"));
     assert!(output.contains("Credentials, headers, URLs"));
     assert!(!output.contains("api_key"));
@@ -1794,7 +1794,7 @@ fn ratatui_frame_is_claw_owned_and_contains_core_state() {
     let mut app = app();
     app.begin_task(&job("running"));
     app.push_assistant_delta("## Result\n\nClaw completed the work.");
-    app.tool_started("tool-1", "cos_sysinfo");
+    app.tool_started("tool-1", "yu_sysinfo");
     let backend = TestBackend::new(100, 28);
     let mut terminal = ratatui::Terminal::new(backend).unwrap();
     terminal.draw(|frame| ui::render(frame, &app)).unwrap();
@@ -1807,8 +1807,8 @@ fn ratatui_frame_is_claw_owned_and_contains_core_state() {
     assert!(output.contains("CLAW AGENT"));
     assert!(output.contains("Claw terminal test"));
     assert!(output.contains("Claw completed the work."));
-    assert!(output.contains("cos_sysinfo"));
-    assert!(output.contains("Running cos_sysinfo"));
+    assert!(output.contains("yu_sysinfo"));
+    assert!(output.contains("Running yu_sysinfo"));
     assert!(output.contains("waiting for result"));
     assert!(!output.contains("Codex"));
 }
@@ -2084,7 +2084,7 @@ fn notification_inbox_uses_durable_mutations_and_preferences() {
         job_id: None,
         actions: vec![NotificationAction {
             label: "Open task".into(),
-            uri: "clawos://task/task-1".into(),
+            uri: "yuos://task/task-1".into(),
         }],
         deliveries: vec![NotificationDelivery {
             channel: "web".into(),

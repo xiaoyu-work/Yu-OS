@@ -9,16 +9,16 @@
 //!   2. Manifest policy — the app's manifest must declare an `ai`
 //!      block; the prompt's declared `origin` must be in its origin
 //!      list. The kernel-owned model is then layered on top.
-//!   3. User override — a per-app file under `$HOME/.config/cos/apps/`
+//!   3. User override — a per-app file under `$HOME/.config/yuos/apps/`
 //!      may **tighten** (never loosen) the manifest's budget, safety,
 //!      or origin list, or kill-switch the app entirely.
 //!   4. Consent — the user must have approved a snapshot of the
-//!      manifest's AI block (`$HOME/.config/cos/consents/<id>.json`).
+//!      manifest's AI block (`$HOME/.config/yuos/consents/<id>.json`).
 //!      Missing or drifted snapshots deny with `consent_required` /
 //!      `consent_stale`.
 //!   5. Budget — two axes, both denominated in tokens:
 //!       * per-app cap from the manifest (`AiBudget::monthly_units`)
-//!       * per-user aggregate cap at `$HOME/.config/cos/ai/budget.json`
+//!       * per-user aggregate cap at `$HOME/.config/yuos/ai/budget.json`
 //!         (opt-in: missing file or `monthly_units == 0` ⇒ no cap)
 //!      A conservative input+maximum-output bound is reserved pre-call;
 //!      settlement atomically releases that reservation and records actual

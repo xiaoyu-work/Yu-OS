@@ -154,7 +154,7 @@ fn usage_help() -> Value {
             "yu agent usage provider anthropic",
             "yu agent usage session <session-id>",
         ],
-        "model_tool": "cos_usage",
+        "model_tool": "yu_usage",
     })
 }
 
@@ -185,7 +185,7 @@ pub(crate) fn usage_for_current_context(args: &[String]) -> Result<Value, String
         if crate::paths::current_owner_uid_override().is_some() {
             usage_cmd(args)
         } else {
-            crate::clawd::agent_client::usage(args)
+            crate::yuosd::agent_client::usage(args)
         }
     }
 }

@@ -182,7 +182,7 @@ fn publish_is_atomic_and_retains_a_verifiable_artifact() {
     let root = tmpdir("publish");
     let data = root.join("data");
     let _guard = crate::test_env::lock_env();
-    let _env = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", &data);
+    let _env = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", &data);
 
     let (source, key) = signed_source(&root, "notes", "print('v1')\n");
     let trust = trust_for(&key, &root.join("trust"));
@@ -243,7 +243,7 @@ fn app_rollback_resolves_read_only_and_refuses_local_publication() {
     let root = tmpdir("rollback");
     let data = root.join("data");
     let _guard = crate::test_env::lock_env();
-    let _env = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", &data);
+    let _env = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", &data);
 
     let (source_v1, key) = signed_source(&root, "notes", "print('v1')\n");
     let trust = trust_for(&key, &root.join("trust"));
@@ -347,7 +347,7 @@ fn unsigned_source_never_reaches_the_live_directory() {
     let root = tmpdir("unsigned");
     let data = root.join("data");
     let _guard = crate::test_env::lock_env();
-    let _env = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", &data);
+    let _env = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", &data);
 
     let source = root.join("src");
     fs::create_dir_all(&source).unwrap();

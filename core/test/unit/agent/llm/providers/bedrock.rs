@@ -84,35 +84,35 @@ fn endpoint_base_strips_trailing_slash() {
 #[test]
 fn model_path_encodes_colon() {
     let mut c = cfg();
-    c.aws_access_key_env = Some("COS_BR_AK_TEST_X".into());
-    c.aws_secret_key_env = Some("COS_BR_SK_TEST_X".into());
-    std::env::set_var("COS_BR_AK_TEST_X", "AKID");
-    std::env::set_var("COS_BR_SK_TEST_X", "secret");
+    c.aws_access_key_env = Some("YUOS_BR_AK_TEST_X".into());
+    c.aws_secret_key_env = Some("YUOS_BR_SK_TEST_X".into());
+    std::env::set_var("YUOS_BR_AK_TEST_X", "AKID");
+    std::env::set_var("YUOS_BR_SK_TEST_X", "secret");
     let p = BedrockProvider::from_agent_config("anthropic.claude-3-5-sonnet-20241022-v2:0", &c);
     // : → %3A, dot stays, dash stays.
     assert_eq!(
         p.model_path(),
         "/model/anthropic.claude-3-5-sonnet-20241022-v2%3A0/invoke"
     );
-    std::env::remove_var("COS_BR_AK_TEST_X");
-    std::env::remove_var("COS_BR_SK_TEST_X");
+    std::env::remove_var("YUOS_BR_AK_TEST_X");
+    std::env::remove_var("YUOS_BR_SK_TEST_X");
 }
 
 #[test]
 fn full_url_combines_base_and_model_path() {
     let mut c = cfg();
     c.aws_region = Some("us-west-2".into());
-    c.aws_access_key_env = Some("COS_BR_AK_TEST_Y".into());
-    c.aws_secret_key_env = Some("COS_BR_SK_TEST_Y".into());
-    std::env::set_var("COS_BR_AK_TEST_Y", "AKID");
-    std::env::set_var("COS_BR_SK_TEST_Y", "secret");
+    c.aws_access_key_env = Some("YUOS_BR_AK_TEST_Y".into());
+    c.aws_secret_key_env = Some("YUOS_BR_SK_TEST_Y".into());
+    std::env::set_var("YUOS_BR_AK_TEST_Y", "AKID");
+    std::env::set_var("YUOS_BR_SK_TEST_Y", "secret");
     let p = BedrockProvider::from_agent_config("anthropic.claude-foo", &c);
     assert_eq!(
         p.full_url(),
         "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-foo/invoke"
     );
-    std::env::remove_var("COS_BR_AK_TEST_Y");
-    std::env::remove_var("COS_BR_SK_TEST_Y");
+    std::env::remove_var("YUOS_BR_AK_TEST_Y");
+    std::env::remove_var("YUOS_BR_SK_TEST_Y");
 }
 
 // ---- Credential resolution -------------------------------------------
@@ -122,8 +122,8 @@ fn is_configured_false_without_credentials() {
     // Default env doesn't have AWS_ACCESS_KEY_ID / SECRET set
     // (or even if it did, the test isolates with custom names).
     let mut c = cfg();
-    c.aws_access_key_env = Some("COS_BR_NOSUCH_AK".into());
-    c.aws_secret_key_env = Some("COS_BR_NOSUCH_SK".into());
+    c.aws_access_key_env = Some("YUOS_BR_NOSUCH_AK".into());
+    c.aws_secret_key_env = Some("YUOS_BR_NOSUCH_SK".into());
     let p = BedrockProvider::from_agent_config("foo", &c);
     assert!(!p.is_configured());
 }
@@ -131,55 +131,55 @@ fn is_configured_false_without_credentials() {
 #[test]
 fn is_configured_true_with_env_credentials() {
     let mut c = cfg();
-    c.aws_access_key_env = Some("COS_BR_AK_TEST_Z".into());
-    c.aws_secret_key_env = Some("COS_BR_SK_TEST_Z".into());
-    std::env::set_var("COS_BR_AK_TEST_Z", "AKIDFAKE");
-    std::env::set_var("COS_BR_SK_TEST_Z", "secret");
+    c.aws_access_key_env = Some("YUOS_BR_AK_TEST_Z".into());
+    c.aws_secret_key_env = Some("YUOS_BR_SK_TEST_Z".into());
+    std::env::set_var("YUOS_BR_AK_TEST_Z", "AKIDFAKE");
+    std::env::set_var("YUOS_BR_SK_TEST_Z", "secret");
     let p = BedrockProvider::from_agent_config("foo", &c);
     assert!(p.is_configured());
-    std::env::remove_var("COS_BR_AK_TEST_Z");
-    std::env::remove_var("COS_BR_SK_TEST_Z");
+    std::env::remove_var("YUOS_BR_AK_TEST_Z");
+    std::env::remove_var("YUOS_BR_SK_TEST_Z");
 }
 
 #[test]
 fn missing_secret_disables_provider() {
     let mut c = cfg();
-    c.aws_access_key_env = Some("COS_BR_AK_TEST_W".into());
-    c.aws_secret_key_env = Some("COS_BR_NOSUCH_SK_W".into());
-    std::env::set_var("COS_BR_AK_TEST_W", "AKIDFAKE");
+    c.aws_access_key_env = Some("YUOS_BR_AK_TEST_W".into());
+    c.aws_secret_key_env = Some("YUOS_BR_NOSUCH_SK_W".into());
+    std::env::set_var("YUOS_BR_AK_TEST_W", "AKIDFAKE");
     let p = BedrockProvider::from_agent_config("foo", &c);
     assert!(!p.is_configured(), "access-key only must NOT be configured");
-    std::env::remove_var("COS_BR_AK_TEST_W");
+    std::env::remove_var("YUOS_BR_AK_TEST_W");
 }
 
 #[test]
 fn empty_credential_value_is_ignored() {
     let mut c = cfg();
-    c.aws_access_key_env = Some("COS_BR_AK_TEST_EMPTY".into());
-    c.aws_secret_key_env = Some("COS_BR_SK_TEST_EMPTY".into());
-    std::env::set_var("COS_BR_AK_TEST_EMPTY", "");
-    std::env::set_var("COS_BR_SK_TEST_EMPTY", "");
+    c.aws_access_key_env = Some("YUOS_BR_AK_TEST_EMPTY".into());
+    c.aws_secret_key_env = Some("YUOS_BR_SK_TEST_EMPTY".into());
+    std::env::set_var("YUOS_BR_AK_TEST_EMPTY", "");
+    std::env::set_var("YUOS_BR_SK_TEST_EMPTY", "");
     let p = BedrockProvider::from_agent_config("foo", &c);
     assert!(!p.is_configured());
-    std::env::remove_var("COS_BR_AK_TEST_EMPTY");
-    std::env::remove_var("COS_BR_SK_TEST_EMPTY");
+    std::env::remove_var("YUOS_BR_AK_TEST_EMPTY");
+    std::env::remove_var("YUOS_BR_SK_TEST_EMPTY");
 }
 
 #[test]
 fn session_token_is_optional_and_picked_up_when_present() {
     let mut c = cfg();
-    c.aws_access_key_env = Some("COS_BR_AK_TEST_S".into());
-    c.aws_secret_key_env = Some("COS_BR_SK_TEST_S".into());
-    c.aws_session_token_env = Some("COS_BR_ST_TEST_S".into());
-    std::env::set_var("COS_BR_AK_TEST_S", "AKID");
-    std::env::set_var("COS_BR_SK_TEST_S", "secret");
-    std::env::set_var("COS_BR_ST_TEST_S", "FwoG-fake-token");
+    c.aws_access_key_env = Some("YUOS_BR_AK_TEST_S".into());
+    c.aws_secret_key_env = Some("YUOS_BR_SK_TEST_S".into());
+    c.aws_session_token_env = Some("YUOS_BR_ST_TEST_S".into());
+    std::env::set_var("YUOS_BR_AK_TEST_S", "AKID");
+    std::env::set_var("YUOS_BR_SK_TEST_S", "secret");
+    std::env::set_var("YUOS_BR_ST_TEST_S", "FwoG-fake-token");
     let bc = BedrockConfig::from_agent_config("foo", &c);
     let creds = bc.credentials.expect("creds resolved");
     assert_eq!(creds.session_token.as_deref(), Some("FwoG-fake-token"));
-    std::env::remove_var("COS_BR_AK_TEST_S");
-    std::env::remove_var("COS_BR_SK_TEST_S");
-    std::env::remove_var("COS_BR_ST_TEST_S");
+    std::env::remove_var("YUOS_BR_AK_TEST_S");
+    std::env::remove_var("YUOS_BR_SK_TEST_S");
+    std::env::remove_var("YUOS_BR_ST_TEST_S");
 }
 
 // ---- Body building ----------------------------------------------------
@@ -413,8 +413,8 @@ fn supported_models_echoes_configured_model() {
 #[tokio::test]
 async fn chat_without_credentials_returns_not_configured() {
     let mut c = cfg();
-    c.aws_access_key_env = Some("COS_BR_NOSUCH_AK_X1".into());
-    c.aws_secret_key_env = Some("COS_BR_NOSUCH_SK_X1".into());
+    c.aws_access_key_env = Some("YUOS_BR_NOSUCH_AK_X1".into());
+    c.aws_secret_key_env = Some("YUOS_BR_NOSUCH_SK_X1".into());
     let p = BedrockProvider::from_agent_config("foo", &c);
     let err = p.chat(req_text("hi")).await.unwrap_err();
     match err {
@@ -430,17 +430,17 @@ async fn chat_without_credentials_returns_not_configured() {
 #[test]
 fn debug_does_not_leak_secret_key() {
     let mut c = cfg();
-    c.aws_access_key_env = Some("COS_BR_DBG_AK".into());
-    c.aws_secret_key_env = Some("COS_BR_DBG_SK".into());
-    std::env::set_var("COS_BR_DBG_AK", "AKID-REAL");
-    std::env::set_var("COS_BR_DBG_SK", "SUPER-SECRET-DO-NOT-LEAK");
+    c.aws_access_key_env = Some("YUOS_BR_DBG_AK".into());
+    c.aws_secret_key_env = Some("YUOS_BR_DBG_SK".into());
+    std::env::set_var("YUOS_BR_DBG_AK", "AKID-REAL");
+    std::env::set_var("YUOS_BR_DBG_SK", "SUPER-SECRET-DO-NOT-LEAK");
     let bc = BedrockConfig::from_agent_config("foo", &c);
     let s = format!("{:?}", bc);
     assert!(!s.contains("SUPER-SECRET"), "secret leaked in Debug: {s}");
     assert!(!s.contains("AKID-REAL"), "access key leaked in Debug: {s}");
     assert!(s.contains("credentials_present: true"));
-    std::env::remove_var("COS_BR_DBG_AK");
-    std::env::remove_var("COS_BR_DBG_SK");
+    std::env::remove_var("YUOS_BR_DBG_AK");
+    std::env::remove_var("YUOS_BR_DBG_SK");
 }
 
 // ---- Streaming URL & headers ----------------------------------------
@@ -448,17 +448,17 @@ fn debug_does_not_leak_secret_key() {
 #[test]
 fn stream_model_path_uses_invoke_with_response_stream_suffix() {
     let mut c = cfg();
-    c.aws_access_key_env = Some("COS_BR_STR_AK1".into());
-    c.aws_secret_key_env = Some("COS_BR_STR_SK1".into());
-    std::env::set_var("COS_BR_STR_AK1", "AKID");
-    std::env::set_var("COS_BR_STR_SK1", "secret");
+    c.aws_access_key_env = Some("YUOS_BR_STR_AK1".into());
+    c.aws_secret_key_env = Some("YUOS_BR_STR_SK1".into());
+    std::env::set_var("YUOS_BR_STR_AK1", "AKID");
+    std::env::set_var("YUOS_BR_STR_SK1", "secret");
     let p = BedrockProvider::from_agent_config("anthropic.claude-3-5-sonnet-20241022-v2:0", &c);
     assert_eq!(
         p.stream_model_path(),
         "/model/anthropic.claude-3-5-sonnet-20241022-v2%3A0/invoke-with-response-stream"
     );
-    std::env::remove_var("COS_BR_STR_AK1");
-    std::env::remove_var("COS_BR_STR_SK1");
+    std::env::remove_var("YUOS_BR_STR_AK1");
+    std::env::remove_var("YUOS_BR_STR_SK1");
 }
 
 #[test]
@@ -466,10 +466,10 @@ fn stream_model_path_encodes_arn_with_slashes_and_colons() {
     // Bedrock accepts full provisioned-model ARNs as model IDs.
     // Path-segment encoding must escape both `/` and `:`.
     let mut c = cfg();
-    c.aws_access_key_env = Some("COS_BR_STR_AK2".into());
-    c.aws_secret_key_env = Some("COS_BR_STR_SK2".into());
-    std::env::set_var("COS_BR_STR_AK2", "AKID");
-    std::env::set_var("COS_BR_STR_SK2", "secret");
+    c.aws_access_key_env = Some("YUOS_BR_STR_AK2".into());
+    c.aws_secret_key_env = Some("YUOS_BR_STR_SK2".into());
+    std::env::set_var("YUOS_BR_STR_AK2", "AKID");
+    std::env::set_var("YUOS_BR_STR_SK2", "secret");
     let arn = "arn:aws:bedrock:us-east-1:123:provisioned-model/abc";
     let p = BedrockProvider::from_agent_config(arn, &c);
     let path = p.stream_model_path();
@@ -478,25 +478,25 @@ fn stream_model_path_encodes_arn_with_slashes_and_colons() {
         "ARN must be fully path-segment-encoded; got {path}"
     );
     assert!(path.ends_with("/invoke-with-response-stream"));
-    std::env::remove_var("COS_BR_STR_AK2");
-    std::env::remove_var("COS_BR_STR_SK2");
+    std::env::remove_var("YUOS_BR_STR_AK2");
+    std::env::remove_var("YUOS_BR_STR_SK2");
 }
 
 #[test]
 fn stream_full_url_combines_base_and_stream_path() {
     let mut c = cfg();
     c.aws_region = Some("eu-west-1".into());
-    c.aws_access_key_env = Some("COS_BR_STR_AK3".into());
-    c.aws_secret_key_env = Some("COS_BR_STR_SK3".into());
-    std::env::set_var("COS_BR_STR_AK3", "AKID");
-    std::env::set_var("COS_BR_STR_SK3", "secret");
+    c.aws_access_key_env = Some("YUOS_BR_STR_AK3".into());
+    c.aws_secret_key_env = Some("YUOS_BR_STR_SK3".into());
+    std::env::set_var("YUOS_BR_STR_AK3", "AKID");
+    std::env::set_var("YUOS_BR_STR_SK3", "secret");
     let p = BedrockProvider::from_agent_config("anthropic.claude-foo", &c);
     assert_eq!(
         p.stream_full_url(),
         "https://bedrock-runtime.eu-west-1.amazonaws.com/model/anthropic.claude-foo/invoke-with-response-stream"
     );
-    std::env::remove_var("COS_BR_STR_AK3");
-    std::env::remove_var("COS_BR_STR_SK3");
+    std::env::remove_var("YUOS_BR_STR_AK3");
+    std::env::remove_var("YUOS_BR_STR_SK3");
 }
 
 // ---- Streamed exception classifier ----------------------------------

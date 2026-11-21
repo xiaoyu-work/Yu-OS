@@ -199,9 +199,9 @@ impl CredentialStore for FileCredentialStore {
 // Path helpers
 // ===========================================================================
 
-/// Root credentials directory: `~/.local/share/cos/credentials`
-/// (overridable via `COS_CREDENTIALS_DIR`). Per-user so non-root
-/// callers can store API keys without touching `/var/lib/cos`.
+/// Root credentials directory: `~/.local/share/yuos/credentials`
+/// (overridable via `YUOS_CREDENTIALS_DIR`). Per-user so non-root
+/// callers can store API keys without touching `/var/lib/yuos`.
 pub(super) fn credentials_dir() -> PathBuf {
     crate::paths::user_credentials_dir()
 }
@@ -907,7 +907,7 @@ pub fn load_for_scheduler_typed(
     let path = home
         .join(".local")
         .join("share")
-        .join("cos")
+        .join("yuos")
         .join("credentials")
         .join(namespace)
         .join(format!("{name}.json"));
@@ -972,7 +972,7 @@ pub fn load_optional_for_scheduler_typed(
     let path = home
         .join(".local")
         .join("share")
-        .join("cos")
+        .join("yuos")
         .join("credentials")
         .join(namespace)
         .join(format!("{name}.json"));

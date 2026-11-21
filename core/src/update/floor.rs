@@ -3,14 +3,14 @@
 //! # Shape
 //!
 //! ```text
-//! /var/lib/cos/security/            0700 root:root  authoritative, private
+//! /var/lib/yuos/security/            0700 root:root  authoritative, private
 //! ├── floor.json                    0600 root:root  current generation
 //! ├── history.jsonl                 0600 root:root  hash-chained generations
 //! └── recovery/                     0700 root:root  one-use authorizations
 //! ```
 //!
 //! The whole tree is private because it holds the recovery
-//! authorizations and the generation history. Unprivileged Claw OS
+//! authorizations and the generation history. Unprivileged Yu OS
 //! processes never read it: the commit publishes a minimal read-only
 //! view through [`super::projection`] instead.
 //!

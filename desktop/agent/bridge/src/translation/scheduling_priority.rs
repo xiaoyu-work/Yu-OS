@@ -1,6 +1,6 @@
 //! Closed scheduling-priority translation with authenticated owner checks.
 
-use cos_agent_protocol::{ActivitySchedulingPolicy, ActivitySchedulingPriorityResponse};
+use yuos_agent_protocol::{ActivitySchedulingPolicy, ActivitySchedulingPriorityResponse};
 use serde_json::Value;
 
 pub fn get(

@@ -91,7 +91,7 @@ pub(super) fn prompt_cmd(args: &[String]) -> Result<Value, String> {
             ))
             .map_err(|error| error.to_string())?;
     }
-    if crate::agent::runtime::loop_::guardrails_from_cfg(&config.agent).permits("cos_memory") {
+    if crate::agent::runtime::loop_::guardrails_from_cfg(&config.agent).permits("yu_memory") {
         let redactor = config
             .agent
             .redact_memory_enabled

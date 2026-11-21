@@ -4,8 +4,8 @@ use axum::{
     Json,
     extract::{Path, Query, State, rejection::JsonRejection, rejection::QueryRejection},
 };
-use clawd_client::Command;
-use cos_agent_protocol::{
+use yuosd_client::Command;
+use yuos_agent_protocol::{
     ActivityContinuityDocument, ActivityContinuityExportQuery,
     ActivityContinuityImportAcknowledgement, ActivityContinuityImportRequest,
 };
@@ -36,7 +36,7 @@ pub async fn export(
     })?;
     let _authenticated_owner = owner_uid()?;
     let value = state
-        .clawd
+        .yuosd
         .call(Command::ActivityContinuityExport, with_id(&id, json!({}))?)
         .await
         .map_err(upstream_error)?;
@@ -53,20 +53,20 @@ pub async fn import(
     let document = request.validated_document().map_err(|error| {
         ApiError::new(
             axum::http::StatusCode::BAD_REQUEST,
-            cos_agent_protocol::ErrorCode::InvalidRequest,
+            yuos_agent_protocol::ErrorCode::InvalidRequest,
             error,
         )
     })?;
     let canonical = document.to_json().map_err(|error| {
         ApiError::new(
             axum::http::StatusCode::BAD_REQUEST,
-            cos_agent_protocol::ErrorCode::InvalidRequest,
+            yuos_agent_protocol::ErrorCode::InvalidRequest,
             error,
         )
     })?;
     let owner = owner_uid()?;
     let value = state
-        .clawd
+        .yuosd
         .call(
             Command::ActivityContinuityImport,
             import_params(request.placement, canonical),
@@ -79,7 +79,7 @@ pub async fn import(
 }
 
 fn import_params(
-    placement: cos_agent_protocol::ActivityExecutionPlacement,
+    placement: yuos_agent_protocol::ActivityExecutionPlacement,
     document: String,
 ) -> serde_json::Value {
     json!({

@@ -20,29 +20,29 @@ fn options_require_a_value_for_every_flag() {
 fn installed_versions_can_be_supplied_explicitly() {
     let options = parse_options(&args(&[
         "--installed",
-        "claw-os-base=0.2.0",
+        "yuos-base=0.2.0",
         "--installed",
-        "claw-os-desktop=",
+        "yuos-desktop=",
     ]))
     .unwrap();
     assert!(options.installed_given);
-    assert_eq!(options.installed["claw-os-base"], "0.2.0");
-    assert!(!options.installed.contains_key("claw-os-desktop"));
+    assert_eq!(options.installed["yuos-base"], "0.2.0");
+    assert!(!options.installed.contains_key("yuos-desktop"));
 }
 
 #[test]
 fn an_apt_v2_plan_names_the_archives_of_gated_packages() {
     let input = "VERSION 2\nAPT::Architecture=amd64\n\n\
-                 claw-os-agent 0.2.0 < 0.1.0 /var/cache/apt/archives/claw-os-agent_0.1.0_amd64.deb\n\
+                 yuos-agent 0.2.0 < 0.1.0 /var/cache/apt/archives/yuos-agent_0.1.0_amd64.deb\n\
                  vim - < 9.0 /var/cache/apt/archives/vim.deb\n";
     let plan = parse_apt_plan(input).unwrap();
     assert_eq!(plan.len(), 1);
-    assert_eq!(plan[0].package, "claw-os-agent");
+    assert_eq!(plan[0].package, "yuos-agent");
     assert_eq!(plan[0].version, "0.1.0");
     assert_eq!(
         plan[0].archive.as_deref(),
         Some(std::path::Path::new(
-            "/var/cache/apt/archives/claw-os-agent_0.1.0_amd64.deb"
+            "/var/cache/apt/archives/yuos-agent_0.1.0_amd64.deb"
         ))
     );
 }
@@ -50,19 +50,19 @@ fn an_apt_v2_plan_names_the_archives_of_gated_packages() {
 #[test]
 fn an_apt_v3_plan_is_parsed_with_its_wider_fields() {
     let input = "VERSION 3\nAPT::Architecture=amd64\n\n\
-                 claw-os-agent:amd64 0.2.0 amd64 same < 0.1.0 amd64 same \
-                 /var/cache/apt/archives/claw-os-agent_0.1.0_amd64.deb\n";
+                 yuos-agent:amd64 0.2.0 amd64 same < 0.1.0 amd64 same \
+                 /var/cache/apt/archives/yuos-agent_0.1.0_amd64.deb\n";
     let plan = parse_apt_plan(input).unwrap();
     assert_eq!(plan.len(), 1);
-    assert_eq!(plan[0].package, "claw-os-agent");
+    assert_eq!(plan[0].package, "yuos-agent");
     assert_eq!(plan[0].version, "0.1.0");
 }
 
 #[test]
 fn removals_and_configures_carry_no_archive_to_inspect() {
     let input = "VERSION 2\n\n\
-                 claw-os-agent 0.2.0 > - **REMOVE**\n\
-                 claw-os-base 0.2.0 = 0.2.0 **CONFIGURE**\n";
+                 yuos-agent 0.2.0 > - **REMOVE**\n\
+                 yuos-base 0.2.0 = 0.2.0 **CONFIGURE**\n";
     assert!(parse_apt_plan(input).unwrap().is_empty());
 }
 
@@ -71,7 +71,7 @@ fn the_version_1_protocol_is_reported_as_unsupported_not_parsed() {
     // Version 1 is a bare list of filenames: no versions at all, so it
     // cannot answer the question this hook asks.
     let error =
-        parse_apt_plan("/var/cache/apt/archives/claw-os-agent_0.1.0_amd64.deb\n").unwrap_err();
+        parse_apt_plan("/var/cache/apt/archives/yuos-agent_0.1.0_amd64.deb\n").unwrap_err();
     assert!(
         matches!(&error, PlanError::Unsupported(reason) if reason.contains("version 1")),
         "{error:?}"
@@ -80,7 +80,7 @@ fn the_version_1_protocol_is_reported_as_unsupported_not_parsed() {
 
 #[test]
 fn an_unknown_apt_protocol_is_unsupported() {
-    let error = parse_apt_plan("VERSION 9\n\nclaw-os-agent 1 < 2 /x.deb\n").unwrap_err();
+    let error = parse_apt_plan("VERSION 9\n\nyuos-agent 1 < 2 /x.deb\n").unwrap_err();
     assert!(matches!(error, PlanError::Unsupported(_)), "{error:?}");
     let error = parse_apt_plan("VERSION x\n\n").unwrap_err();
     assert!(matches!(error, PlanError::Unsupported(_)), "{error:?}");
@@ -88,7 +88,7 @@ fn an_unknown_apt_protocol_is_unsupported() {
 
 #[test]
 fn a_malformed_apt_record_is_reported_separately_from_the_protocol() {
-    let error = parse_apt_plan("VERSION 2\n\nclaw-os-agent 0.2.0 <\n").unwrap_err();
+    let error = parse_apt_plan("VERSION 2\n\nyuos-agent 0.2.0 <\n").unwrap_err();
     assert!(matches!(error, PlanError::Malformed(_)), "{error:?}");
     // No blank line at all: the configuration block never ended.
     let error = parse_apt_plan("VERSION 2\nAPT::Architecture=amd64\n").unwrap_err();
@@ -98,16 +98,16 @@ fn a_malformed_apt_record_is_reported_separately_from_the_protocol() {
 #[test]
 fn a_relative_archive_path_is_refused() {
     let error =
-        parse_apt_plan("VERSION 2\n\nclaw-os-agent 0.2.0 < 0.1.0 ../../evil.deb\n").unwrap_err();
+        parse_apt_plan("VERSION 2\n\nyuos-agent 0.2.0 < 0.1.0 ../../evil.deb\n").unwrap_err();
     assert!(matches!(error, PlanError::Malformed(_)), "{error:?}");
 }
 
 #[test]
 fn the_apt_plan_parser_is_bounded() {
     let mut input = String::from("VERSION 2\n\n");
-    input.push_str("claw-os-agent 0.2.0 < 0.1.0 /a.deb\n");
+    input.push_str("yuos-agent 0.2.0 < 0.1.0 /a.deb\n");
     input.push_str(&format!(
-        "claw-os-agent 0.2.0 < 0.1.0 /{}\n",
+        "yuos-agent 0.2.0 < 0.1.0 /{}\n",
         "a".repeat(MAX_HOOK_LINE_BYTES)
     ));
     let error = parse_apt_plan(&input).unwrap_err();
@@ -126,18 +126,18 @@ fn the_apt_plan_parser_is_bounded() {
 #[test]
 fn measuring_declared_components_refuses_a_mismatched_install() {
     let root = scratch_root("cli-measure");
-    let installed = root.join("usr/local/bin/clawd");
+    let installed = root.join("usr/local/bin/yuosd");
     std::fs::create_dir_all(installed.parent().unwrap()).unwrap();
-    std::fs::write(&installed, b"the real clawd").unwrap();
+    std::fs::write(&installed, b"the real yuosd").unwrap();
 
     let good = manifest_bytes(&ManifestSpec {
-        component_digest: crate::crypto::sha256_hex(b"the real clawd"),
+        component_digest: crate::crypto::sha256_hex(b"the real yuosd"),
         ..ManifestSpec::default()
     });
     let manifest = Manifest::parse(&good).unwrap();
     assert!(measure_declared_components(&root, &manifest).is_ok());
 
-    std::fs::write(&installed, b"a different clawd").unwrap();
+    std::fs::write(&installed, b"a different yuosd").unwrap();
     let error = measure_declared_components(&root, &manifest).unwrap_err();
     assert!(error.contains("does not match"), "{error}");
 }
@@ -200,13 +200,13 @@ fn check_candidate_refuses_an_older_release_against_a_seeded_floor() {
         "--root",
         root.to_str().unwrap(),
         "--package",
-        "claw-os-agent",
+        "yuos-agent",
         "--version",
         "1:0.2.0+git100.gaaaaaaaaaaaa",
         "--manifest",
         manifest_path.to_str().unwrap(),
         "--installed",
-        "claw-os-agent=1:0.2.0+git200.gbbbbbbbbbbbb",
+        "yuos-agent=1:0.2.0+git200.gbbbbbbbbbbbb",
     ]))
     .unwrap();
     assert_eq!(code, EXIT_REFUSED);
@@ -240,7 +240,7 @@ fn check_incoming_refuses_an_older_version_before_unpack() {
             "--root",
             root.to_str().unwrap(),
             "--package",
-            "claw-os-agent",
+            "yuos-agent",
             "--version",
             "1:0.2.0+git100.gaaaaaaaaaaaa",
         ]))
@@ -253,7 +253,7 @@ fn check_incoming_refuses_an_older_version_before_unpack() {
             "--root",
             root.to_str().unwrap(),
             "--package",
-            "claw-os-agent",
+            "yuos-agent",
             "--version",
             "1:0.2.0+git900.gzzzzzzzzzzzz",
         ]))
@@ -265,12 +265,12 @@ fn check_incoming_refuses_an_older_version_before_unpack() {
 #[test]
 fn commit_seeds_the_floor_and_then_refuses_to_walk_it_back() {
     let root = scratch_root("cli-commit");
-    let binary = root.join("usr/local/bin/clawd");
+    let binary = root.join("usr/local/bin/yuosd");
     std::fs::create_dir_all(binary.parent().unwrap()).unwrap();
-    std::fs::write(&binary, b"clawd bytes").unwrap();
+    std::fs::write(&binary, b"yuosd bytes").unwrap();
 
     let spec = ManifestSpec {
-        component_digest: crate::crypto::sha256_hex(b"clawd bytes"),
+        component_digest: crate::crypto::sha256_hex(b"yuosd bytes"),
         ..ManifestSpec::default()
     };
     let manifest_path = root.join("manifest.json");
@@ -282,13 +282,13 @@ fn commit_seeds_the_floor_and_then_refuses_to_walk_it_back() {
             "--root",
             root.to_str().unwrap(),
             "--package",
-            "claw-os-agent",
+            "yuos-agent",
             "--version",
             spec.version,
             "--manifest",
             manifest_path.to_str().unwrap(),
             "--installed",
-            "claw-os-agent=1:0.2.0+git100.gaaaaaaaaaaaa",
+            "yuos-agent=1:0.2.0+git100.gaaaaaaaaaaaa",
         ]))
         .unwrap(),
         EXIT_ALLOWED
@@ -296,7 +296,7 @@ fn commit_seeds_the_floor_and_then_refuses_to_walk_it_back() {
 
     let older = ManifestSpec {
         version: "1:0.2.0+git50.gddddddddddd0",
-        component_digest: crate::crypto::sha256_hex(b"clawd bytes"),
+        component_digest: crate::crypto::sha256_hex(b"yuosd bytes"),
         ..ManifestSpec::default()
     };
     let older_path = root.join("older.json");
@@ -307,13 +307,13 @@ fn commit_seeds_the_floor_and_then_refuses_to_walk_it_back() {
             "--root",
             root.to_str().unwrap(),
             "--package",
-            "claw-os-agent",
+            "yuos-agent",
             "--version",
             older.version,
             "--manifest",
             older_path.to_str().unwrap(),
             "--installed",
-            "claw-os-agent=1:0.2.0+git100.gaaaaaaaaaaaa",
+            "yuos-agent=1:0.2.0+git100.gaaaaaaaaaaaa",
         ]))
         .unwrap(),
         EXIT_REFUSED
@@ -323,12 +323,12 @@ fn commit_seeds_the_floor_and_then_refuses_to_walk_it_back() {
 #[test]
 fn commit_refuses_when_the_unpacked_files_do_not_match_the_manifest() {
     let root = scratch_root("cli-commit-mismatch");
-    let binary = root.join("usr/local/bin/clawd");
+    let binary = root.join("usr/local/bin/yuosd");
     std::fs::create_dir_all(binary.parent().unwrap()).unwrap();
     std::fs::write(&binary, b"something else").unwrap();
 
     let spec = ManifestSpec {
-        component_digest: crate::crypto::sha256_hex(b"clawd bytes"),
+        component_digest: crate::crypto::sha256_hex(b"yuosd bytes"),
         ..ManifestSpec::default()
     };
     let manifest_path = root.join("manifest.json");
@@ -339,13 +339,13 @@ fn commit_refuses_when_the_unpacked_files_do_not_match_the_manifest() {
         "--root",
         root.to_str().unwrap(),
         "--package",
-        "claw-os-agent",
+        "yuos-agent",
         "--version",
         spec.version,
         "--manifest",
         manifest_path.to_str().unwrap(),
         "--installed",
-        "claw-os-agent=1:0.2.0+git100.gaaaaaaaaaaaa",
+        "yuos-agent=1:0.2.0+git100.gaaaaaaaaaaaa",
     ]));
     assert!(
         code.is_err(),
@@ -375,11 +375,11 @@ fn service_gate_refuses_an_incompatible_installed_set() {
             "--root",
             root.to_str().unwrap(),
             "--package",
-            "claw-os-agent",
+            "yuos-agent",
             "--manifest",
             manifest_path.to_str().unwrap(),
             "--installed",
-            "claw-os-base=0.1.0",
+            "yuos-base=0.1.0",
         ]))
         .unwrap(),
         EXIT_REFUSED
@@ -390,11 +390,11 @@ fn service_gate_refuses_an_incompatible_installed_set() {
             "--root",
             root.to_str().unwrap(),
             "--package",
-            "claw-os-agent",
+            "yuos-agent",
             "--manifest",
             manifest_path.to_str().unwrap(),
             "--installed",
-            "claw-os-base=1:0.2.0",
+            "yuos-base=1:0.2.0",
         ]))
         .unwrap(),
         EXIT_ALLOWED

@@ -15,9 +15,9 @@ from zoneinfo import available_timezones
 
 
 SHELL = "/usr/bin/quickshell"
-CONFIG = "/usr/share/claw-os/oobe/shell.qml"
+CONFIG = "/usr/share/yuos/oobe/shell.qml"
 COS = "/usr/local/bin/yu"
-DRIVERS = Path("/var/lib/cos/driver-setup/status.json")
+DRIVERS = Path("/var/lib/yuos/driver-setup/status.json")
 
 
 def backend(completed, staging=None):
@@ -133,7 +133,7 @@ def backend(completed, staging=None):
                 else:
                     send(finishError=response.get("error", "setupFailed"))
 
-            self.child.communicate_utf8_async(json.dumps(message), None, self.cos_result, finish_result)
+            self.child.communicate_utf8_async(json.dumps(message), None, self.yu_result, finish_result)
 
         def watch_drivers(self):
             self.driver_monitor = None
@@ -301,15 +301,15 @@ def backend(completed, staging=None):
                     flags.STDIN_PIPE | flags.STDOUT_PIPE | flags.STDERR_SILENCE
                 )
                 if staging is not None:
-                    launcher.setenv("COS_USER_CONFIG_DIR", str(staging / "config"), True)
-                    launcher.setenv("COS_USER_DATA_DIR", str(staging / "data"), True)
+                    launcher.setenv("YUOS_USER_CONFIG_DIR", str(staging / "config"), True)
+                    launcher.setenv("YUOS_USER_DATA_DIR", str(staging / "data"), True)
                 self.child = launcher.spawnv([COS, "agent", "setup", "text", *args])
             except GLib.Error:
                 callback({})
                 return
-            self.child.communicate_utf8_async(stdin, None, self.cos_result, callback)
+            self.child.communicate_utf8_async(stdin, None, self.yu_result, callback)
 
-        def cos_result(self, child, result, callback):
+        def yu_result(self, child, result, callback):
             self.child = None
             try:
                 _, stdout, _ = child.communicate_utf8_finish(result)
@@ -453,7 +453,7 @@ def sign_in_accounts():
                     GLib.Variant("(ss)", ("org.freedesktop.Accounts.User", "IconFile")),
                     GLib.VariantType.new("(v)"), Gio.DBusCallFlags.NONE, remaining, None,
                 )
-                match = re.fullmatch(r"/usr/share/claw-os/avatars/([a-z]{1,24})\.png", reply.unpack()[0])
+                match = re.fullmatch(r"/usr/share/yuos/avatars/([a-z]{1,24})\.png", reply.unpack()[0])
                 if match:
                     avatar = match[1]
             except GLib.Error:

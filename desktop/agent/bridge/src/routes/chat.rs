@@ -1,6 +1,6 @@
 //! `POST /api/chat` — Server-Sent Events stream of one chat turn.
 //!
-//! Submits the prompt to `clawd` and re-frames the daemon response as SSE:
+//! Submits the prompt to `yuosd` and re-frames the daemon response as SSE:
 //!
 //! * submitted task/session identity → `task`
 //! * incremental answer text / reasoning summaries → `delta` / `reasoning`
@@ -17,7 +17,7 @@ use axum::{
     extract::{Path, State, rejection::JsonRejection},
     response::sse::{Event, KeepAlive, Sse},
 };
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     CancelResponse, ChatRequest, DeltaPayload, ErrorCode, StreamError, StreamEvent,
     validate_chat_attachments,
 };
@@ -25,12 +25,12 @@ use futures::stream::Stream;
 use serde_json::{Value, json};
 
 use crate::{api_error::ApiError, state::AppState, translation};
-use clawd_client::Command;
+use yuosd_client::Command;
 
 /// Hard ceiling on a single chat turn. `task.stream` blocks ~1s per poll, so
 /// without this a task that never reports `terminal` (stuck agent, or a frame
 /// that never advances the cursor) would keep the SSE connection open and
-/// re-poll clawd once a second indefinitely while the client stays connected.
+/// re-poll yuosd once a second indefinitely while the client stays connected.
 const MAX_STREAM_DURATION: Duration = Duration::from_secs(30 * 60);
 
 fn delta_event(text: &str) -> Event {
@@ -62,7 +62,7 @@ fn task_submit_params(
 ) -> Result<Value, String> {
     let mut params = json!({ "prompt": prompt });
     if let Some(id)=request.workspace_id.as_deref(){
-        cos_agent_protocol::workspaces::validate_id(id)?;
+        yuos_agent_protocol::workspaces::validate_id(id)?;
         params["workspace_id"]=json!(id);
     }
     if !request.attachments.is_empty() {
@@ -127,7 +127,7 @@ pub async fn stream_chat(
             error,
         )
     })?;
-    let clawd = state.clawd.clone();
+    let yuosd = state.yuosd.clone();
 
     let stream = async_stream::stream! {
         if prompt.trim().is_empty() {
@@ -135,7 +135,7 @@ pub async fn stream_chat(
             return;
         }
 
-        let submitted = match clawd.call(Command::TaskSubmit, params).await {
+        let submitted = match yuosd.call(Command::TaskSubmit, params).await {
             Ok(value) => value,
             Err(err) => {
                 yield Ok(error_event(&err.to_string()));
@@ -163,7 +163,7 @@ pub async fn stream_chat(
                 yield Ok(error_event("agent task exceeded the maximum stream duration"));
                 return;
             }
-            let frame = match clawd.call(Command::TaskStream, json!({
+            let frame = match yuosd.call(Command::TaskStream, json!({
                 "id": task_id,
                 "cursor": cursor,
                 "timeout_ms": 1000u64
@@ -226,9 +226,9 @@ pub async fn stream_task(
     State(state): State<AppState>,
     Path(task_id): Path<String>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, ApiError> {
-    let clawd = state.clawd.clone();
+    let yuosd = state.yuosd.clone();
     let stream = async_stream::stream! {
-        let job = match clawd.call(Command::TaskGet, json!({ "id": task_id })).await {
+        let job = match yuosd.call(Command::TaskGet, json!({ "id": task_id })).await {
             Ok(value) => value,
             Err(error) => {
                 yield Ok::<_, Infallible>(error_event(&error.to_string()));
@@ -255,7 +255,7 @@ pub async fn stream_task(
                 yield Ok(error_event("agent task exceeded the maximum stream duration"));
                 return;
             }
-            let frame = match clawd.call(Command::TaskStream, json!({
+            let frame = match yuosd.call(Command::TaskStream, json!({
                 "id": task_id,
                 "cursor": cursor,
                 "timeout_ms": 1000u64
@@ -315,7 +315,7 @@ pub async fn follow_up(
     State(state): State<AppState>,
     Path(predecessor_id): Path<String>,
     request: Result<Json<ChatRequest>, JsonRejection>,
-) -> Result<Json<cos_agent_protocol::TaskStarted>, ApiError> {
+) -> Result<Json<yuos_agent_protocol::TaskStarted>, ApiError> {
     let Json(request) = request.map_err(|_| {
         ApiError::new(
             axum::http::StatusCode::BAD_REQUEST,
@@ -339,7 +339,7 @@ pub async fn follow_up(
         ));
     }
     let predecessor = state
-        .clawd
+        .yuosd
         .call(Command::TaskGet, json!({ "id": predecessor_id }))
         .await
         .map_err(|error| ApiError::bad_gateway(error.to_string()))?;
@@ -358,7 +358,7 @@ pub async fn follow_up(
         },
     )?;
     let submitted = state
-        .clawd
+        .yuosd
         .call(Command::TaskSubmit, params)
         .await
         .map_err(|error| ApiError::bad_gateway(error.to_string()))?;
@@ -379,7 +379,7 @@ pub async fn cancel_chat(
         ));
     }
     let value = state
-        .clawd
+        .yuosd
         .call(Command::TaskCancel, json!({ "id": task_id }))
         .await
         .map_err(|error| ApiError::bad_gateway(error.to_string()))?;
@@ -391,9 +391,9 @@ pub async fn cancel_chat(
 pub async fn queue(
     State(state): State<AppState>,
     Path(id): Path<String>,
-) -> Result<Json<cos_agent_protocol::FollowUpQueue>, ApiError> {
+) -> Result<Json<yuos_agent_protocol::FollowUpQueue>, ApiError> {
     let current = state
-        .clawd
+        .yuosd
         .call(Command::TaskGet, json!({"id":id}))
         .await
         .map_err(|error| ApiError::bad_gateway(error.to_string()))?;
@@ -405,7 +405,7 @@ pub async fn queue(
         .and_then(Value::as_str)
         .ok_or_else(|| ApiError::bad_gateway("Task has no conversation"))?;
     let value = state
-        .clawd
+        .yuosd
         .call(
             Command::AgentConversationGet,
             json!({"id":session,"limit":1}),
@@ -432,9 +432,9 @@ pub async fn queue(
         })
         .cloned()
         .map(serde_json::from_value)
-        .collect::<Result<Vec<cos_agent_protocol::FollowUp>, _>>()
+        .collect::<Result<Vec<yuos_agent_protocol::FollowUp>, _>>()
         .map_err(|error| ApiError::bad_gateway(error.to_string()))?;
-    Ok(Json(cos_agent_protocol::FollowUpQueue {
+    Ok(Json(yuos_agent_protocol::FollowUpQueue {
         task_id: id,
         session_id: session.into(),
         tasks,

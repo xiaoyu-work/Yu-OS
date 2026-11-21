@@ -1,5 +1,5 @@
-//! `cos-agent-bridge` — local HTTP+SSE daemon connecting the ClawOS
-//! Agent UI (the desktop App at `com.yuos.Agent`) to `clawd`.
+//! `yuos-agent-bridge` — local HTTP+SSE daemon connecting the YuOS
+//! Agent UI (the desktop App at `com.yuos.Agent`) to `yuosd`.
 //!
 //! The bridge is intentionally thin: it owns no LLM state, holds no
 //! credentials, and persists nothing of its own. Chat turns are submitted to
@@ -23,7 +23,7 @@ use axum::{
     middleware::{self, Next},
     response::{IntoResponse, Response},
 };
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     ErrorCode, ErrorEnvelope, PROTOCOL_MIN_VERSION_HEADER, PROTOCOL_VERSION_HEADER,
     ProtocolMetadata, ProtocolVersion,
 };
@@ -40,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("cos_agent_bridge=info")),
+                .unwrap_or_else(|_| EnvFilter::new("yuos_agent_bridge=info")),
         )
         .init();
 
@@ -57,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .with_context(|| format!("binding {addr}"))?;
     let bound = listener.local_addr()?;
-    info!(%bound, "cos-agent-bridge listening");
+    info!(%bound, "yuos-agent-bridge listening");
 
     state::publish_endpoint(bound.port(), &state.auth_token)?;
 

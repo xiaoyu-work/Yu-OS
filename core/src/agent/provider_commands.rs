@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 pub(super) fn status_cmd() -> Result<Value, String> {
     let config = crate::config::current_snapshot();
     let cfg = &config.agent;
-    let daemon = crate::clawd::agent_client::daemon_status()?;
+    let daemon = crate::yuosd::agent_client::daemon_status()?;
     let ready = setup::is_ready(cfg);
     let key_source = match setup::resolved_key_source(cfg) {
         Ok(Some(source)) => source.to_json(),
@@ -407,7 +407,7 @@ pub(super) fn run_active_provider_probe(
     // not consume the system-agent budget bucket and it must not be
     // gated by the caps system (`yu agent setup` is typically run
     // from a user TTY with no upstream session, so requiring
-    // `COS_SESSION` here would make the post-setup probe always fail
+    // `YUOS_SESSION` here would make the post-setup probe always fail
     // with "Permission denied (no active session)").
 
     let configured = provider.is_configured();

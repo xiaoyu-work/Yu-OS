@@ -259,26 +259,26 @@ fn resolve_api_key_returns_none_when_neither_source_set() {
 
 #[test]
 fn resolve_api_key_uses_env_when_credential_missing() {
-    std::env::set_var("COS_TEST_KEY_VAR_8742", "sk-from-env");
-    let v = resolve_api_key(None, Some("COS_TEST_KEY_VAR_8742")).unwrap();
+    std::env::set_var("YUOS_TEST_KEY_VAR_8742", "sk-from-env");
+    let v = resolve_api_key(None, Some("YUOS_TEST_KEY_VAR_8742")).unwrap();
     assert_eq!(v.as_deref(), Some("sk-from-env"));
-    std::env::remove_var("COS_TEST_KEY_VAR_8742");
+    std::env::remove_var("YUOS_TEST_KEY_VAR_8742");
 }
 
 #[test]
 fn resolve_api_key_ignores_empty_env() {
-    std::env::set_var("COS_TEST_KEY_VAR_8743", " \t\r\n ");
-    let v = resolve_api_key(None, Some("COS_TEST_KEY_VAR_8743")).unwrap();
+    std::env::set_var("YUOS_TEST_KEY_VAR_8743", " \t\r\n ");
+    let v = resolve_api_key(None, Some("YUOS_TEST_KEY_VAR_8743")).unwrap();
     assert_eq!(v, None);
-    std::env::remove_var("COS_TEST_KEY_VAR_8743");
+    std::env::remove_var("YUOS_TEST_KEY_VAR_8743");
 }
 
 #[test]
 fn resolve_api_key_trims_env_value() {
-    std::env::set_var("COS_TEST_KEY_VAR_8744", "  sk-from-env  \n");
-    let v = resolve_api_key(None, Some("COS_TEST_KEY_VAR_8744")).unwrap();
+    std::env::set_var("YUOS_TEST_KEY_VAR_8744", "  sk-from-env  \n");
+    let v = resolve_api_key(None, Some("YUOS_TEST_KEY_VAR_8744")).unwrap();
     assert_eq!(v.as_deref(), Some("sk-from-env"));
-    std::env::remove_var("COS_TEST_KEY_VAR_8744");
+    std::env::remove_var("YUOS_TEST_KEY_VAR_8744");
 }
 
 // ---- is_configured ---------------------------------------------------
@@ -286,11 +286,11 @@ fn resolve_api_key_trims_env_value() {
 #[test]
 fn is_configured_true_when_api_key_present() {
     let mut c = cfg();
-    c.api_key_env = Some("COS_TEST_KEY_PRESENT_X".into());
-    std::env::set_var("COS_TEST_KEY_PRESENT_X", "sk-x");
+    c.api_key_env = Some("YUOS_TEST_KEY_PRESENT_X".into());
+    std::env::set_var("YUOS_TEST_KEY_PRESENT_X", "sk-x");
     let p = OpenAICompatProvider::from_agent_config("openai", "gpt-4o-mini", &c);
     assert!(p.is_configured());
-    std::env::remove_var("COS_TEST_KEY_PRESENT_X");
+    std::env::remove_var("YUOS_TEST_KEY_PRESENT_X");
 }
 
 #[test]
@@ -1706,9 +1706,9 @@ async fn end_to_end_chat_round_trip_via_inline_mock() {
 
     let mut c = AgentConfig::default();
     c.base_url = Some(base_url.clone());
-    c.api_key_env = Some("COS_TEST_E2E_KEY".into());
+    c.api_key_env = Some("YUOS_TEST_E2E_KEY".into());
     c.request_timeout = 5;
-    std::env::set_var("COS_TEST_E2E_KEY", "sk-test");
+    std::env::set_var("YUOS_TEST_E2E_KEY", "sk-test");
 
     let provider = OpenAICompatProvider::from_agent_config("openai", "gpt-4o-mini", &c);
     let req = req_text("hello");
@@ -1728,7 +1728,7 @@ async fn end_to_end_chat_round_trip_via_inline_mock() {
     assert!(request.contains("\"model\":\"gpt-4o-mini\""));
     assert!(request.contains("\"hello\""));
 
-    std::env::remove_var("COS_TEST_E2E_KEY");
+    std::env::remove_var("YUOS_TEST_E2E_KEY");
 }
 
 #[tokio::test]
@@ -1738,16 +1738,16 @@ async fn end_to_end_401_maps_to_auth_error() {
 
     let mut c = AgentConfig::default();
     c.base_url = Some(base_url);
-    c.api_key_env = Some("COS_TEST_BAD_KEY".into());
+    c.api_key_env = Some("YUOS_TEST_BAD_KEY".into());
     c.request_timeout = 5;
-    std::env::set_var("COS_TEST_BAD_KEY", "sk-bad");
+    std::env::set_var("YUOS_TEST_BAD_KEY", "sk-bad");
 
     let provider = OpenAICompatProvider::from_agent_config("openai", "gpt-4o-mini", &c);
     let err = provider.chat(req_text("hi")).await.unwrap_err();
     assert!(matches!(err, LlmError::Auth), "got {err:?}");
 
     let _ = handle.await;
-    std::env::remove_var("COS_TEST_BAD_KEY");
+    std::env::remove_var("YUOS_TEST_BAD_KEY");
 }
 
 #[tokio::test]
@@ -1766,9 +1766,9 @@ async fn azure_alias_sends_api_key_header_not_bearer() {
 
     let mut c = AgentConfig::default();
     c.base_url = Some(base_url);
-    c.api_key_env = Some("COS_TEST_AZURE_KEY".into());
+    c.api_key_env = Some("YUOS_TEST_AZURE_KEY".into());
     c.request_timeout = 5;
-    std::env::set_var("COS_TEST_AZURE_KEY", "az-secret-123");
+    std::env::set_var("YUOS_TEST_AZURE_KEY", "az-secret-123");
 
     let provider = OpenAICompatProvider::from_agent_config("azure", "my-deployment", &c);
     let _ = provider.chat(req_text("hi")).await;
@@ -1787,7 +1787,7 @@ async fn azure_alias_sends_api_key_header_not_bearer() {
         request
     );
 
-    std::env::remove_var("COS_TEST_AZURE_KEY");
+    std::env::remove_var("YUOS_TEST_AZURE_KEY");
 }
 
 #[tokio::test]
@@ -1802,9 +1802,9 @@ async fn openai_alias_still_sends_bearer_not_api_key() {
 
     let mut c = AgentConfig::default();
     c.base_url = Some(base_url);
-    c.api_key_env = Some("COS_TEST_OPENAI_BEARER_KEY".into());
+    c.api_key_env = Some("YUOS_TEST_OPENAI_BEARER_KEY".into());
     c.request_timeout = 5;
-    std::env::set_var("COS_TEST_OPENAI_BEARER_KEY", "sk-openai");
+    std::env::set_var("YUOS_TEST_OPENAI_BEARER_KEY", "sk-openai");
 
     let provider = OpenAICompatProvider::from_agent_config("openai", "gpt-4o-mini", &c);
     let _ = provider.chat(req_text("hi")).await;
@@ -1813,7 +1813,7 @@ async fn openai_alias_still_sends_bearer_not_api_key() {
     assert!(request.contains("authorization: bearer sk-openai"));
     assert!(!request.contains("api-key: "));
 
-    std::env::remove_var("COS_TEST_OPENAI_BEARER_KEY");
+    std::env::remove_var("YUOS_TEST_OPENAI_BEARER_KEY");
 }
 
 #[tokio::test]
@@ -1840,7 +1840,7 @@ async fn end_to_end_includes_extra_headers() {
 
 #[test]
 fn no_pool_when_neither_plural_field_set() {
-    const LEGACY: &str = "COS_TEST_OPENAI_LEGACY_ONLY";
+    const LEGACY: &str = "YUOS_TEST_OPENAI_LEGACY_ONLY";
     std::env::set_var(LEGACY, "legacy-key");
     let mut c = AgentConfig::default();
     c.api_key_env = Some(LEGACY.into());
@@ -1852,14 +1852,14 @@ fn no_pool_when_neither_plural_field_set() {
 
 #[test]
 fn pool_built_from_envs() {
-    std::env::set_var("COS_TEST_POOL_KEY_A", "sk-aaa");
-    std::env::set_var("COS_TEST_POOL_KEY_B", "sk-bbb");
+    std::env::set_var("YUOS_TEST_POOL_KEY_A", "sk-aaa");
+    std::env::set_var("YUOS_TEST_POOL_KEY_B", "sk-bbb");
     let mut c = AgentConfig::default();
-    c.api_key_envs = vec!["COS_TEST_POOL_KEY_A".into(), "COS_TEST_POOL_KEY_B".into()];
+    c.api_key_envs = vec!["YUOS_TEST_POOL_KEY_A".into(), "YUOS_TEST_POOL_KEY_B".into()];
     c.api_key_credential = Some("../ignored-legacy-credential".into());
     let oc = OpenAICompatConfig::from_agent_config("openai", "gpt-4o-mini", &c);
-    std::env::remove_var("COS_TEST_POOL_KEY_A");
-    std::env::remove_var("COS_TEST_POOL_KEY_B");
+    std::env::remove_var("YUOS_TEST_POOL_KEY_A");
+    std::env::remove_var("YUOS_TEST_POOL_KEY_B");
     let pool = oc.pool.expect("pool should be built");
     assert_eq!(pool.len(), 2);
     assert!(oc.api_key.is_none());
@@ -1867,8 +1867,8 @@ fn pool_built_from_envs() {
 
 #[test]
 fn pool_unresolved_fails_closed_instead_of_using_single_key() {
-    const LEGACY: &str = "COS_TEST_OPENAI_LEGACY_MUST_NOT_BE_USED";
-    const MISSING: &str = "COS_TEST_DOES_NOT_EXIST_ENV_AAAA";
+    const LEGACY: &str = "YUOS_TEST_OPENAI_LEGACY_MUST_NOT_BE_USED";
+    const MISSING: &str = "YUOS_TEST_DOES_NOT_EXIST_ENV_AAAA";
     std::env::set_var(LEGACY, "legacy-secret-must-not-leak");
     std::env::remove_var(MISSING);
     let mut c = AgentConfig::default();
@@ -1888,8 +1888,8 @@ fn pool_unresolved_fails_closed_instead_of_using_single_key() {
 
 #[test]
 fn pool_partial_uses_resolved_entry_and_ignores_single_key() {
-    const PRESENT: &str = "COS_TEST_OPENAI_POOL_PARTIAL_PRESENT";
-    const MISSING: &str = "COS_TEST_OPENAI_POOL_PARTIAL_MISSING";
+    const PRESENT: &str = "YUOS_TEST_OPENAI_POOL_PARTIAL_PRESENT";
+    const MISSING: &str = "YUOS_TEST_OPENAI_POOL_PARTIAL_MISSING";
     std::env::set_var(PRESENT, "pool-key");
     std::env::remove_var(MISSING);
     let mut c = AgentConfig::default();
@@ -1905,25 +1905,25 @@ fn pool_partial_uses_resolved_entry_and_ignores_single_key() {
 
 #[test]
 fn is_configured_true_with_pool_only() {
-    std::env::set_var("COS_TEST_POOL_ICONFIG_X", "sk-x");
+    std::env::set_var("YUOS_TEST_POOL_ICONFIG_X", "sk-x");
     let mut c = AgentConfig::default();
-    c.api_key_envs = vec!["COS_TEST_POOL_ICONFIG_X".into()];
+    c.api_key_envs = vec!["YUOS_TEST_POOL_ICONFIG_X".into()];
     let oc = OpenAICompatConfig::from_agent_config("openai", "gpt-4o-mini", &c);
-    std::env::remove_var("COS_TEST_POOL_ICONFIG_X");
+    std::env::remove_var("YUOS_TEST_POOL_ICONFIG_X");
     let provider = OpenAICompatProvider::new_with_transport(oc, HttpTransport::new().unwrap());
     assert!(provider.is_configured());
 }
 
 #[test]
 fn pool_strategy_round_robin_parsed() {
-    std::env::set_var("COS_TEST_POOL_RR_X", "k1");
-    std::env::set_var("COS_TEST_POOL_RR_Y", "k2");
+    std::env::set_var("YUOS_TEST_POOL_RR_X", "k1");
+    std::env::set_var("YUOS_TEST_POOL_RR_Y", "k2");
     let mut c = AgentConfig::default();
-    c.api_key_envs = vec!["COS_TEST_POOL_RR_X".into(), "COS_TEST_POOL_RR_Y".into()];
+    c.api_key_envs = vec!["YUOS_TEST_POOL_RR_X".into(), "YUOS_TEST_POOL_RR_Y".into()];
     c.pool_strategy = "round-robin".into();
     let oc = OpenAICompatConfig::from_agent_config("openai", "gpt-4o-mini", &c);
-    std::env::remove_var("COS_TEST_POOL_RR_X");
-    std::env::remove_var("COS_TEST_POOL_RR_Y");
+    std::env::remove_var("YUOS_TEST_POOL_RR_X");
+    std::env::remove_var("YUOS_TEST_POOL_RR_Y");
     let pool = oc.pool.expect("pool should be built");
     assert_eq!(
         pool.strategy(),
@@ -1933,31 +1933,31 @@ fn pool_strategy_round_robin_parsed() {
 
 #[test]
 fn pool_cooldown_picked_up_from_config() {
-    std::env::set_var("COS_TEST_POOL_CD_X", "k1");
+    std::env::set_var("YUOS_TEST_POOL_CD_X", "k1");
     let mut c = AgentConfig::default();
-    c.api_key_envs = vec!["COS_TEST_POOL_CD_X".into()];
+    c.api_key_envs = vec!["YUOS_TEST_POOL_CD_X".into()];
     c.pool_cooldown_secs = 5;
     let oc = OpenAICompatConfig::from_agent_config("openai", "gpt-4o-mini", &c);
-    std::env::remove_var("COS_TEST_POOL_CD_X");
+    std::env::remove_var("YUOS_TEST_POOL_CD_X");
     let pool = oc.pool.expect("pool should be built");
     assert_eq!(pool.cooldown(), std::time::Duration::from_secs(5));
 }
 
 #[tokio::test]
 async fn end_to_end_uses_pool_lease_as_bearer_token() {
-    std::env::set_var("COS_TEST_POOL_LEASE_K", "sk-from-pool-aaa");
+    std::env::set_var("YUOS_TEST_POOL_LEASE_K", "sk-from-pool-aaa");
     let response_body = r#"{"choices":[{"finish_reason":"stop",
             "message":{"role":"assistant","content":"ok"}}]}"#;
     let (base_url, handle) = spawn_one_shot_mock("HTTP/1.1 200 OK", response_body).await;
 
     let mut c = AgentConfig::default();
     c.base_url = Some(base_url);
-    c.api_key_envs = vec!["COS_TEST_POOL_LEASE_K".into()];
+    c.api_key_envs = vec!["YUOS_TEST_POOL_LEASE_K".into()];
     c.request_timeout = 5;
 
     let provider = OpenAICompatProvider::from_agent_config("openai", "gpt-4o-mini", &c);
     let _ = provider.chat(req_text("hi")).await;
-    std::env::remove_var("COS_TEST_POOL_LEASE_K");
+    std::env::remove_var("YUOS_TEST_POOL_LEASE_K");
     let request = String::from_utf8_lossy(&handle.await.unwrap()).to_lowercase();
     assert!(
         request.contains("authorization: bearer sk-from-pool-aaa"),
@@ -1967,7 +1967,7 @@ async fn end_to_end_uses_pool_lease_as_bearer_token() {
 
 #[tokio::test]
 async fn end_to_end_pool_records_failure_on_401() {
-    std::env::set_var("COS_TEST_POOL_FAIL_K", "sk-bad");
+    std::env::set_var("YUOS_TEST_POOL_FAIL_K", "sk-bad");
     let (base_url, handle) = spawn_one_shot_mock(
         "HTTP/1.1 401 Unauthorized",
         r#"{"error":{"message":"invalid api key"}}"#,
@@ -1976,7 +1976,7 @@ async fn end_to_end_pool_records_failure_on_401() {
 
     let mut c = AgentConfig::default();
     c.base_url = Some(base_url);
-    c.api_key_envs = vec!["COS_TEST_POOL_FAIL_K".into()];
+    c.api_key_envs = vec!["YUOS_TEST_POOL_FAIL_K".into()];
     c.pool_cooldown_secs = 60;
     c.request_timeout = 5;
 
@@ -1985,7 +1985,7 @@ async fn end_to_end_pool_records_failure_on_401() {
     assert_eq!(pool_handle.len(), 1);
 
     let err = provider.chat(req_text("hi")).await.unwrap_err();
-    std::env::remove_var("COS_TEST_POOL_FAIL_K");
+    std::env::remove_var("YUOS_TEST_POOL_FAIL_K");
     let _ = handle.await;
     assert!(matches!(err, LlmError::Auth), "got {err:?}");
 

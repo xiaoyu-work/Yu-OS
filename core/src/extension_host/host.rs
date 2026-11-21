@@ -1,4 +1,4 @@
-//! `claw-extension-host` process implementation.
+//! `yuos-extension-host` process implementation.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::Read;
@@ -15,9 +15,9 @@ use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::{Notify, OwnedSemaphorePermit, Semaphore};
 
 use crate::agent::tools::mcp::integration::{McpServerHandle, McpServerSpec};
-use crate::clawd::transport::frame::{PeerStream, ReadOutcome};
-use crate::clawd::transport::peer;
-use crate::clawd::wire::RequestId;
+use crate::yuosd::transport::frame::{PeerStream, ReadOutcome};
+use crate::yuosd::transport::peer;
+use crate::yuosd::wire::RequestId;
 
 use super::protocol::{
     control_socket_for, ControlLane, ControlRequest, ControlResponse, ExtensionErrorCategory,
@@ -97,8 +97,8 @@ impl From<String> for HostDispatchError {
     }
 }
 
-impl From<crate::agent::tools::cos_apps_session::HostedAppError> for HostDispatchError {
-    fn from(error: crate::agent::tools::cos_apps_session::HostedAppError) -> Self {
+impl From<crate::agent::tools::yu_apps_session::HostedAppError> for HostDispatchError {
+    fn from(error: crate::agent::tools::yu_apps_session::HostedAppError) -> Self {
         Self::new(error.category(), error.to_string())
     }
 }
@@ -107,7 +107,7 @@ pub fn main() -> ! {
     match run() {
         Ok(()) => std::process::exit(0),
         Err(error) => {
-            eprintln!("claw-extension-host: {error}");
+            eprintln!("yuos-extension-host: {error}");
             std::process::exit(1);
         }
     }
@@ -130,7 +130,7 @@ fn run() -> Result<(), String> {
     let enforce_groups = bootstrap.enforce_groups;
     let binding = bootstrap.into_current_binding()?;
     require_hardened_identity(binding.extension_uid, binding.owner_gid, enforce_groups)?;
-    crate::agent::tools::cos_apps_session::bind_host_owner(binding.owner_uid)?;
+    crate::agent::tools::yu_apps_session::bind_host_owner(binding.owner_uid)?;
     let isolation = super::child_isolation::IsolationAuthority::from_binding(&binding)?;
     let control_socket = PathBuf::from(&binding.control_socket);
 
@@ -221,7 +221,7 @@ fn run() -> Result<(), String> {
         for handle in active {
             handle.abort();
         }
-        crate::agent::tools::cos_apps_session::host_close_all_sessions().await;
+        crate::agent::tools::yu_apps_session::host_close_all_sessions().await;
         state.mcp.lock().await.clear();
         let interrupted_extensions = state
             .active_agent_events
@@ -771,7 +771,7 @@ async fn dispatch(
             if !arguments.is_object() {
                 return Err("App tool arguments must be an object".to_string().into());
             }
-            let value = crate::agent::tools::cos_apps_session::host_call_session(
+            let value = crate::agent::tools::yu_apps_session::host_call_session(
                 &app_id,
                 &tool,
                 arguments,
@@ -806,7 +806,7 @@ async fn dispatch(
                     .to_string()
                     .into());
             }
-            crate::agent::tools::cos_apps_session::host_warm_session(&app_id).await?;
+            crate::agent::tools::yu_apps_session::host_warm_session(&app_id).await?;
             Ok(HostResult::AppWarmed)
         }
         HostAction::McpAttach { spec } => {
@@ -1142,8 +1142,8 @@ async fn relay_app_call(
     audit: super::protocol::AppInvocationAudit,
     timeout: Duration,
 ) -> Result<crate::agent::tools::mcp::protocol::CallToolResult, String> {
-    let request = crate::clawd::wire::Request::new(
-        crate::clawd::routes::Command::AppServiceCall,
+    let request = crate::yuosd::wire::Request::new(
+        crate::yuosd::routes::Command::AppServiceCall,
         serde_json::json!({
             "app_id": app_id,
             "tool": tool,
@@ -1153,7 +1153,7 @@ async fn relay_app_call(
     );
     let response = tokio::time::timeout(
         timeout,
-        crate::clawd::client::request(&binding.broker_socket, request),
+        crate::yuosd::client::request(&binding.broker_socket, request),
     )
     .await
     .map_err(|_| "App service relay timed out".to_string())??;
@@ -1172,7 +1172,7 @@ async fn relay_app_call(
 }
 
 fn apps_root() -> PathBuf {
-    PathBuf::from(std::env::var("COS_APPS_DIR").unwrap_or_else(|_| "/usr/lib/cos/apps".to_string()))
+    PathBuf::from(std::env::var("YUOS_APPS_DIR").unwrap_or_else(|_| "/usr/lib/yuos/apps".to_string()))
 }
 
 fn validate_name(value: &str, label: &str) -> Result<(), String> {

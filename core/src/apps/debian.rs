@@ -74,8 +74,8 @@ fn data_path_allowed(path: &Path, directory: bool) -> bool {
     }
     if !(text == "usr/bin"
         || text.starts_with("usr/bin/")
-        || text == "usr/lib/cos"
-        || text.starts_with("usr/lib/cos/")
+        || text == "usr/lib/yuos"
+        || text.starts_with("usr/lib/yuos/")
         || text == "usr/share"
         || [
             "applications",
@@ -112,15 +112,15 @@ fn data_path_allowed(path: &Path, directory: bool) -> bool {
         return false;
     }
     ![
-        "usr/lib/cos/bin",
-        "usr/lib/cos/trust",
-        "usr/lib/cos/preinstalled-apps",
-        "usr/lib/cos/apt",
-        "usr/lib/cos/python/claw_os_sdk",
-        "usr/lib/cos/python/cos_runtime",
-        "usr/lib/cos/browser-native-host.py",
-        "usr/lib/cos/app-apt-metadata.py",
-        "usr/lib/cos/claw-mail-ai-host",
+        "usr/lib/yuos/bin",
+        "usr/lib/yuos/trust",
+        "usr/lib/yuos/preinstalled-apps",
+        "usr/lib/yuos/apt",
+        "usr/lib/yuos/python/yuos_sdk",
+        "usr/lib/yuos/python/yuos_runtime",
+        "usr/lib/yuos/browser-native-host.py",
+        "usr/lib/yuos/app-apt-metadata.py",
+        "usr/lib/yuos/yuos-mail-ai-host",
     ]
     .iter()
     .any(|reserved| path == Path::new(reserved) || path.starts_with(reserved))
@@ -246,7 +246,7 @@ fn tar_entries(
                     return Err(format!("App Debian payload cannot own {}", path.display()));
                 }
                 if kind.is_symlink() || kind.is_hard_link() {
-                    if path.starts_with("usr/lib/cos/apps") {
+                    if path.starts_with("usr/lib/yuos/apps") {
                         return Err("Signed App trees cannot contain links".into());
                     }
                     let target = entry
@@ -328,7 +328,7 @@ pub(crate) fn inspect(
             value.split(',').any(|item| {
                 !matches!(
                     item.trim(),
-                    "claw-os-agent (<< 1:0.2.1)" | "claw-os-desktop (<< 1:0.2.1)"
+                    "yuos-agent (<< 1:0.2.1)" | "yuos-desktop (<< 1:0.2.1)"
                 )
             })
         }) {
@@ -341,9 +341,9 @@ pub(crate) fn inspect(
 }
 
 fn app_provide(value: &str) -> bool {
-    value == "claw-app-support-v1"
+    value == "yuos-app-support-v1"
         || value
-            .strip_prefix("claw-app-python-")
+            .strip_prefix("yuos-app-python-")
             .and_then(|value| value.strip_suffix("-v1"))
             .is_some_and(|library| {
                 !library.is_empty()

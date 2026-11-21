@@ -2,7 +2,7 @@
 //!
 //! Format: `ses_<13 hex chars of unix-millis>_<12 hex chars of random>`.
 //!
-//! The timestamp prefix makes `ls /var/lib/cos/sessions/` sort
+//! The timestamp prefix makes `ls /var/lib/yuos/sessions/` sort
 //! chronologically, which is what every CLI and GUI surface wants by
 //! default. The random suffix uses [`uuid::Uuid::new_v4`] truncated to
 //! 48 bits — enough to avoid collisions in any realistic per-machine

@@ -1,0 +1,169 @@
+# Broker Client and System Review Presentation
+
+`yuosd-client` is an unprivileged broker client. It owns bounded framing,
+correlation, deadlines and socket-peer checks, not authorization, capabilities,
+provider implementation, desktop state or a durable approval store.
+
+Its closed command inventory includes owner-scoped
+`agent.conversation.create/get/list/update/fork/revert`. Conversation UUIDs are
+presentation identifiers only; canonical session identity, verified replay
+boundaries and all ownership checks remain in `yuosd`.
+
+The inventory includes `memory.reset`, but the client supplies only transport.
+It also names `memory.inspect/read/update/forget` for the owner Memory center.
+These routes use the existing stores under owner filesystem identity and
+preserve immutable conversation evidence; model workers use guarded tools
+instead of the human mutation surface.
+The broker requires explicit confirmation, refuses active tasks and Root
+owners, performs mutation under the authenticated owner identity, and preserves
+conversation and execution evidence.
+
+The inventory also includes `agent.hooks.get/set` for closed built-in hook
+settings. Arbitrary commands, environment values and trust decisions are not
+part of this Claw route.
+
+`notification.view` reports an owner-scoped, bounded conversation-view hint.
+Its viewer/revision and optional session select only notification presentation;
+they never attest terminal presence, authorize work or decide an approval.
+
+`notification.read_all` is an empty, owner-derived request. It atomically reads
+all retained, unexpired unread notification records, not a caller-selected page
+or ID set; it never acknowledges approvals, completes tasks or dismisses
+notifications.
+
+`agent.account.get/logout` is fixed to the authenticated owner's Copilot
+credential. Logout requires confirmation, refuses active tasks and cannot name
+or read any other credential.
+
+The inventory also includes `activity.monetary_budget.get/set/enabled` and
+`activity.scheduling_policy.get/set` for the native Agent bridge. These names
+only expose existing broker services; the client owns neither Activity identity
+nor monetary/scheduling policy state.
+
+`activity.work.get/set/enabled` also names the shared automatic-work controls.
+The client creates no scheduler delegation, execution loop or progress store;
+Root settles enablement through the existing scheduler authority.
+
+It also includes `activity.continuity.export/import`. The command enum only
+names the broker routes; exact portable-document validation and native
+presentation live in `desktop/agent/protocol` and `desktop/agent/ui`. The
+client supplies no owner selector, placement default, filesystem access,
+authority restoration, persistence or live synchronization.
+
+The ordinary request ceiling remains 1 MiB. `task.submit` alone may use a
+32-MiB request for bounded inline original images. An explicit lower client
+configuration still wins, and the response ceiling is unchanged.
+
+## Workspace contract
+
+`src/workspaces.rs` defines bounded owner context domains, sourced shared notes,
+recursive read-only resource tags, exact metadata revisions and archive/delete
+state. `workspace.list/get/control` require a Root broker peer. The client
+contains no persistence, source reader or grant authority. Tags do not grant
+write, execution or external delivery. See [`../../docs/workspaces.md`](../../docs/workspaces.md).
+
+## Nearby sharing contract
+
+`src/nearby.rs` defines the closed schema-1 owner/window/offer/transfer and
+bounded upload DTOs shared by `nearby.status/control`, the four human
+presentations and the fixed private file-worker pipe. Owner, executable,
+interface and capabilities are never request selectors. It validates canonical
+IDs, timestamps, byte/count/serialized bounds and action-specific acknowledgements.
+These definitions grant nothing and contain no transport provider or local
+transfer loop. See [`../../docs/nearby-sharing.md`](../../docs/nearby-sharing.md).
+
+## System review contract
+
+[`src/system_review.rs`](src/system_review.rs) defines the closed version-1
+presentation DTO, action/choice labels and read-only terminal formatter.
+The OS projects authenticated subjects and catalog labels into this contract;
+App-supplied purposes and affected functions remain visibly separate.
+Installation, activation and update confirmations are not capability grants.
+The contract supports headless subjects without a desktop manifest.
+The native desktop window shows the action, its scope and the supported
+decisions for one request at a time. Full technical disclosure remains
+available from the terminal and under **Request details** on the desktop.
+`package_impact` uses the separate `confirm_global_app_stop` action with no
+App subject or permission selections. It confirms only the shown exact
+transaction's all-App stop; Critical package authority, App delivery consent
+and completed package effects remain separate.
+
+| Surface | Request | Response |
+| --- | --- | --- |
+| `system.review.pending` | `{limit}` | `PendingReviews { reviews }`, including existing capability requests |
+| `system.review.show` | `{id}` | `SystemReview` |
+| `system.review.cancel` | `{review: ReviewDecision}` with `action: cancel` and no choices | Latest `SystemReview`; owner-only and root-peer authenticated, no pkexec |
+| Privileged helper `--system-review-json` | `ReviewSubmission` JSON on stdin, at most `MAX_DECISION_BYTES` (64 KiB) | Latest `SystemReview`, or a nonzero failure |
+
+Only the trusted OS helper may submit `system.review.decide`; the normal
+frontend never calls that route directly or serializes capabilities.
+The helper remains `/usr/local/bin/yuos-approval-helper`, invoked through
+`/usr/bin/pkexec`. The broker must independently validate the authenticated
+owner, request id, displayed revision, allowed action and each permission
+selection against protected state.
+Cancellation uses the owner-only route above after the same displayed-revision
+and empty-selection validation. It never invokes the privileged helper or falls
+back to it on a transport error. Confirmation and apply actions still require
+the trusted helper, and every outcome is followed by a root-broker refresh.
+
+`ReviewDecision::decode` checks the 64 KiB byte limit before JSON parsing and
+rejects unknown fields, including forged authority in nested selections.
+It only decodes the wire shape: it performs no authorization, record lookup or
+latest-revision check. The helper and bounded broker wrapper share this decoder;
+the OS must still validate the decision against its current protected review.
+
+`revision` identifies the displayed snapshot and must change when its decision
+state, subject, permissions, supported choices or other review content changes.
+Frontends bind events to the revision actually displayed, not the newest
+revision fetched after a click. Competing or stale decisions must fail or return
+current handled state. A revision or `contract_digest` is comparison data,
+never proof of approval; installation still needs the OS's separate protected
+confirmation/consumption path.
+
+Draft choices start empty, not copied from current grants. Package confirmation
+and cancellation cannot contain choices. An `AppReviewDecision` carries an
+empty-choice package confirmation plus a separate set of explicit `deny` or
+`allow_always` App-policy decisions at the same displayed revision. Already
+saved choices are not part of a new install decision. Execution `apply_choices`
+continues to use bounded operation grants; it never creates lasting App policy.
+`restore` is labelled "Restore App policy": it applies the existing OS-managed
+non-execution App-policy restoration through the trusted helper, not a new
+restoration-request workflow or an Allow/Forever grant.
+The current fixed-brokered deny/restore
+controller should advertise only those choices it actually supports. Ask,
+filesystem/network switches and other lifetime choices must remain absent
+until their own controllers support them.
+No client infers permission support from risk or offers Forever implicitly.
+Unsupported choices require an explanation. Late-bound resources stay
+"Selected/confirmed when used", not wildcard authority.
+
+Map protected `approved` records to `confirmed` and `consumed` records to
+`consumed`, not installation success. The consumed label says that confirmation
+was used and the operation outcome is separate. Both states have no decision
+actions; any installation or activation result remains the owning operation's
+separate result.
+
+Terminal formatting is read-only and escapes control/bidi text. Native review
+presentation lives in
+[`yuos-applet-approval-gate`](../../desktop/applets/yuos-applet-approval-gate/src/lib.rs)
+and uses the same DTO and label keys, with matching English Fluent text.
+Its per-request busy/error/stale/completed state is ephemeral presentation only.
+Every decision outcome is followed by a root-authenticated `show`; failed,
+ambiguous or missing requests are not silently treated as successful decisions.
+No live daemon or user state is used by the synthetic presentation tests.
+
+## Validation
+
+From the OS repository root:
+
+```bash
+cargo test -p yuosd-client --lib --locked
+cargo clippy -p yuosd-client --all-targets --locked -- -D warnings
+cargo test --manifest-path desktop/applets/Cargo.toml \
+  -p yuos-applet-approval-gate --lib --locked
+```
+
+These checks cover DTO/label/model/transport and native widget construction,
+not interactive Wayland, accessibility-device or full installed-system
+acceptance. Backend route/helper/controller integration is separately owned;
+JSON fixtures do not prove that its authorization or persistence is correct.

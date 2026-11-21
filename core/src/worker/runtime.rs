@@ -6,7 +6,7 @@
 //! directory is created `0700` and owned by the account the worker
 //! runs as, then removed when the launch ends.
 //!
-//! It is deliberately *not* under `/run/cos`: that tree belongs to the
+//! It is deliberately *not* under `/run/yuos`: that tree belongs to the
 //! root broker, and a worker must never be able to enumerate it.
 
 use std::path::{Path, PathBuf};
@@ -20,7 +20,7 @@ pub fn root() -> PathBuf {
     if let Some(dir) = std::env::var_os("XDG_RUNTIME_DIR") {
         let path = PathBuf::from(dir);
         if path.is_dir() {
-            return path.join("cos-worker");
+            return path.join("yuos-worker");
         }
     }
     let data =

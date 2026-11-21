@@ -1,4 +1,4 @@
-//! Stateless adapters to the same owner-scoped Activity service used by `cos`.
+//! Stateless adapters to the same owner-scoped Activity service used by `yu`.
 //! Unlike chat SSE, a work submission has no cancel-on-disconnect guard.
 
 pub(super) mod capability_policy;
@@ -13,8 +13,8 @@ use axum::{
     extract::{Path, Query, State, rejection::JsonRejection, rejection::QueryRejection},
     http::StatusCode,
 };
-use clawd_client::{Command, Error as BrokerError, ErrorCode as BrokerErrorCode};
-use cos_agent_protocol::{
+use yuosd_client::{Command, Error as BrokerError, ErrorCode as BrokerErrorCode};
+use yuos_agent_protocol::{
     ActivityApprovalView, ActivityCreateRequest, ActivityDecisionStatus, ActivityDetailResponse,
     ActivityListQuery, ActivityListResponse, ActivityObjectAttachRequest, ActivityObjectStateQuery,
     ActivityObjectStateRecordRequest, ActivityObjectStateResponse, ActivityObjectsResponse,
@@ -36,7 +36,7 @@ pub async fn list(
         return Err(invalid("Activity limit must be between 1 and 100"));
     }
     let value = state
-        .clawd
+        .yuosd
         .call(Command::ActivityList, encode(query)?)
         .await
         .map_err(upstream_error)?;
@@ -50,7 +50,7 @@ pub async fn get(
     Path(id): Path<String>,
 ) -> Result<Json<ActivityDetailResponse>, ApiError> {
     let value = state
-        .clawd
+        .yuosd
         .call(Command::ActivityGet, with_id(&id, json!({"limit": 100}))?)
         .await
         .map_err(upstream_error)?;
@@ -61,7 +61,7 @@ pub async fn get(
         ));
     }
     let attention = match state
-        .clawd
+        .yuosd
         .call(
             Command::ActivityAttention,
             with_id(&id, json!({"limit": 100}))?,
@@ -107,7 +107,7 @@ pub async fn create(
 ) -> Result<Json<ActivityView>, ApiError> {
     let request = body(request)?;
     let value = state
-        .clawd
+        .yuosd
         .call(Command::ActivityCreate, encode(request)?)
         .await
         .map_err(upstream_error)?;
@@ -121,7 +121,7 @@ pub async fn objects(
     Path(id): Path<String>,
 ) -> Result<Json<ActivityObjectsResponse>, ApiError> {
     let value = state
-        .clawd
+        .yuosd
         .call(Command::ActivityObjects, with_id(&id, json!({}))?)
         .await
         .map_err(upstream_error)?;
@@ -149,7 +149,7 @@ pub async fn operation_preview(
 ) -> Result<Json<ActivityOperationPreview>, ApiError> {
     let request = body(request)?;
     let value = state
-        .clawd
+        .yuosd
         .call(Command::ActivityOperationPreview, with_id(&id, &request)?)
         .await
         .map_err(upstream_error)?;
@@ -172,7 +172,7 @@ pub async fn receipts(
         return Err(invalid("Receipt limit must be between 1 and 100"));
     }
     let value = state
-        .clawd
+        .yuosd
         .call(Command::ActivityReceipts, with_id(&id, query)?)
         .await
         .map_err(upstream_error)?;
@@ -193,7 +193,7 @@ pub async fn object_state_list(
     let Query(query) = query.map_err(|_| invalid("invalid Activity object state query"))?;
     query.validate_shape().map_err(invalid)?;
     let value = state
-        .clawd
+        .yuosd
         .call(Command::ActivityObjectStateList, with_id(&id, &query)?)
         .await
         .map_err(upstream_error)?;
@@ -214,7 +214,7 @@ pub async fn object_state_record(
     let request = body(request)?;
     request.entry.validate_shape().map_err(invalid)?;
     let value = state
-        .clawd
+        .yuosd
         .call(Command::ActivityObjectStateRecord, with_id(&id, &request)?)
         .await
         .map_err(upstream_error)?;
@@ -249,7 +249,7 @@ pub async fn run(
     request: Result<Json<ActivityRunRequest>, JsonRejection>,
 ) -> Result<Json<ActivityWorkResponse>, ApiError> {
     let value = state
-        .clawd
+        .yuosd
         .call(Command::ActivityRun, with_id(&id, body(request)?)?)
         .await
         .map_err(upstream_error)?;
@@ -271,7 +271,7 @@ pub async fn retry_job(
     Path(id): Path<String>,
 ) -> Result<Json<ActivityWorkResponse>, ApiError> {
     let value = state
-        .clawd
+        .yuosd
         .call(Command::TaskRetry, with_id(&id, json!({}))?)
         .await
         .map_err(upstream_error)?;
@@ -287,7 +287,7 @@ async fn mutate(
     request: impl Serialize,
 ) -> Result<Json<ActivityView>, ApiError> {
     let value = state
-        .clawd
+        .yuosd
         .call(command, with_id(id, request)?)
         .await
         .map_err(upstream_error)?;

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::agent::web::sse;
-use crate::clawd::routes::Command;
+use crate::yuosd::routes::Command;
 
 type ApiError = (StatusCode, Json<Value>);
 type SseFrame = Result<Bytes, Infallible>;
@@ -33,7 +33,7 @@ pub struct StreamBody {
 
 pub async fn view(
     body: Result<
-        Json<crate::clawd::wire::requests::NotificationView>,
+        Json<crate::yuosd::wire::requests::NotificationView>,
         axum::extract::rejection::JsonRejection,
     >,
 ) -> Result<Json<Value>, ApiError> {
@@ -152,7 +152,7 @@ pub async fn mark_read(Path(id): Path<String>) -> Result<Json<Value>, ApiError> 
 }
 
 pub async fn mark_all_read(
-    body: Result<Json<crate::clawd::wire::requests::NoBody>, axum::extract::rejection::JsonRejection>,
+    body: Result<Json<crate::yuosd::wire::requests::NoBody>, axum::extract::rejection::JsonRejection>,
 ) -> Result<Json<Value>, ApiError> {
     let Json(_) = body.map_err(|_| {
         (
@@ -222,9 +222,9 @@ pub async fn set_preferences(
 }
 
 async fn request(command: Command, params: Value) -> Result<Value, ApiError> {
-    super::clawd::request(command, params)
+    super::yuosd::request(command, params)
         .await
-        .map_err(super::clawd::RpcError::into_api_error)
+        .map_err(super::yuosd::RpcError::into_api_error)
 }
 
 fn bad_request(message: String) -> ApiError {

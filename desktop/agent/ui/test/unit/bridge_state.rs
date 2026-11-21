@@ -1,12 +1,12 @@
 use super::*;
-use cos_agent_protocol::ProtocolVersion;
+use yuos_agent_protocol::ProtocolVersion;
 
 fn endpoint() -> BridgeEndpoint {
     BridgeEndpoint {
         port: 43123,
         token: "0123456789abcdef0123456789abcdef".into(),
         protocol_version: ProtocolVersion::CURRENT,
-        min_protocol_version: ProtocolVersion(cos_agent_protocol::MIN_SUPPORTED_PROTOCOL_VERSION),
+        min_protocol_version: ProtocolVersion(yuos_agent_protocol::MIN_SUPPORTED_PROTOCOL_VERSION),
     }
 }
 

@@ -70,12 +70,12 @@ fn render_tool_call_and_result() {
         truncate_at: None,
         ..DisplayConfig::default()
     };
-    let c = render_tool_call("cos_fs", "{path: '/a'}", &cfg);
-    assert!(c.contains("call cos_fs"));
-    let r = render_tool_result("cos_fs", true, "wrote 12 bytes", &cfg);
+    let c = render_tool_call("yu_fs", "{path: '/a'}", &cfg);
+    assert!(c.contains("call yu_fs"));
+    let r = render_tool_result("yu_fs", true, "wrote 12 bytes", &cfg);
     assert!(r.contains("ok"));
     assert!(r.contains("wrote 12 bytes"));
-    let e = render_tool_result("cos_fs", false, "EACCES", &cfg);
+    let e = render_tool_result("yu_fs", false, "EACCES", &cfg);
     assert!(e.contains("err"));
 }
 

@@ -22,11 +22,11 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 @pytest.mark.parametrize("service", [
-    "claw-os-app-permissions-v1", "claw-os-capture-v1", "claw-os-media-player-v1", "claw-os-notifications-v1",
+    "yuos-app-permissions-v1", "yuos-capture-v1", "yuos-media-player-v1", "yuos-notifications-v1",
 ])
 def test_brokered_desktop_service_is_an_installed_dependency(service):
-    agent = (ROOT / "packaging/deb/claw-os-agent/control").read_text()
-    desktop = (ROOT / "packaging/deb/claw-os-desktop/control").read_text()
+    agent = (ROOT / "packaging/deb/yuos-agent/control").read_text()
+    desktop = (ROOT / "packaging/deb/yuos-desktop/control").read_text()
     assert service in next(line for line in agent.splitlines() if line.startswith("Provides:"))
     assert service in next(line for line in desktop.splitlines() if line.startswith("Depends:"))
 
@@ -56,7 +56,7 @@ def locked_source(tmp_path, monkeypatch):
     (upstream / "tools" / "stage.py").write_text(
         'import pathlib, sys\n'
         'root = pathlib.Path(sys.argv[sys.argv.index("--root") + 1])\n'
-        '(root / "usr/lib/cos/apps/mail-ai").mkdir(parents=True)\n'
+        '(root / "usr/lib/yuos/apps/mail-ai").mkdir(parents=True)\n'
         'print(\'["mail-ai"]\')\n'
     )
     app = upstream / "products/mail/apps/mail-ai"
@@ -173,7 +173,7 @@ def test_main_cli_records_one_snapshot_for_all_build_steps(main_source, tmp_path
     assert result.stdout.strip() == "1"
     resolved = json.loads(snapshot.read_text())
     assert resolved["version"] == 1 and resolved["branch"] == "main"
-    assert (stage / "usr/lib/cos/apps/mail-ai").is_dir()
+    assert (stage / "usr/lib/yuos/apps/mail-ai").is_dir()
     latest = advance_source(selection, "after-build-start")
     assert latest != resolved["revision"]
     reused = subprocess.run(
@@ -216,7 +216,7 @@ def test_staging_uses_exact_locked_source(locked_source, tmp_path):
     _, lock = locked_source
     target = tmp_path / "stage"
     assert sources.stage_products(target) == ["mail-ai"]
-    assert (target / "usr/lib/cos/apps/mail-ai").is_dir()
+    assert (target / "usr/lib/yuos/apps/mail-ai").is_dir()
     cached = sources.prepare_sources(lock)
     assert subprocess.check_output(
         ["git", "-C", str(cached), "rev-parse", "HEAD"], text=True
@@ -254,8 +254,8 @@ def test_shared_runtime_uses_pinned_public_stage_without_os_apps(shared_source, 
     root, lock = shared_source
     assert not (root / "apps").exists()
     target = tmp_path / "stage"
-    python = target / "usr/lib/cos/python"
-    sdk = python / "claw_os_sdk"
+    python = target / "usr/lib/yuos/python"
+    sdk = python / "yuos_sdk"
     sdk.mkdir(parents=True)
     (sdk / "owned.py").write_text("OS_SDK = True\n")
     original_sdk = _app_payload(sdk)
@@ -264,9 +264,9 @@ def test_shared_runtime_uses_pinned_public_stage_without_os_apps(shared_source, 
     for name in ("_shared", "gateway", "canonical_argv.py"):
         assert _app_payload(python / name) == _app_payload(common / name, source=True)
     assert {path.name for path in python.iterdir()} == {
-        "_shared", "gateway", "canonical_argv.py", "claw_os_sdk",
+        "_shared", "gateway", "canonical_argv.py", "yuos_sdk",
     }
-    assert not (target / "usr/lib/cos/apps").exists()
+    assert not (target / "usr/lib/yuos/apps").exists()
     assert _app_payload(sdk) == original_sdk
     before = {path: (path.stat().st_ino, path.stat().st_mtime_ns) for path in python.rglob("*")}
     assert sources.stage_shared(target) == python
@@ -294,7 +294,7 @@ def test_missing_pinned_common_library_refuses_before_staging(shared_source, tmp
 def test_common_library_conflicts_do_not_merge_or_partially_stage(shared_source, tmp_path, conflict):
     _, lock = shared_source
     target = tmp_path / "stage"
-    python = target / "usr/lib/cos/python"
+    python = target / "usr/lib/yuos/python"
     python.mkdir(parents=True)
     source = sources.prepare_sources(lock) / "shared/python"
     if conflict == "bytes":
@@ -357,7 +357,7 @@ def test_shared_stage_requires_the_returned_directory_to_exist(locked_source, tm
     (Path(lock["repository"]) / "tools/stage.py").write_text(
         'import json, pathlib, sys\n'
         'root = pathlib.Path(sys.argv[sys.argv.index("--root") + 1])\n'
-        'print(json.dumps(str(root / "usr/lib/cos/python")))\n'
+        'print(json.dumps(str(root / "usr/lib/yuos/python")))\n'
     )
     _pin_fixture(root, lock, "tools/stage.py")
     with pytest.raises(RuntimeError, match="declared Python root"):
@@ -434,7 +434,7 @@ def capability_source(locked_source, request):
         '    app = source / relative\n'
         '    identity = json.loads((app / "app.json").read_text())["id"]\n'
         '    if selected is None or identity in selected:\n'
-        '        shutil.copytree(app, root / "usr/lib/cos/apps" / app.name)\n'
+        '        shutil.copytree(app, root / "usr/lib/yuos/apps" / app.name)\n'
         '        installed.append(identity)\n'
         'print(json.dumps(installed))\n'
     )
@@ -445,7 +445,7 @@ def capability_source(locked_source, request):
     lock["capabilities"] = [group_name]
     lock["apps"].append(app_id)
     (root / "packaging/apps.lock.json").write_text(json.dumps(lock))
-    partition = root / "packaging/deb/claw-os-desktop/apps.list"
+    partition = root / "packaging/deb/yuos-desktop/apps.list"
     partition.parent.mkdir(parents=True)
     partition.write_text("desktop-fixture\n")
     return root, lock
@@ -461,7 +461,7 @@ def test_capability_uses_its_explicit_immutable_root_and_agent_partition(capabil
     assert sources.app_path(app_id) == (
         root / "build/app-sources" / lock["revision"] / "capabilities" / group / "apps" / app_id
     )
-    assert not (tmp_path / "desktop/usr/lib/cos/apps" / app_id).exists()
+    assert not (tmp_path / "desktop/usr/lib/yuos/apps" / app_id).exists()
 
 
 def test_missing_capability_never_uses_local_os_or_product_source(capability_source, monkeypatch):
@@ -526,10 +526,10 @@ def test_agent_package_keeps_native_authority_in_os():
     script = (ROOT / "packaging/deb/build-debs.sh").read_text()
     assert "scripts/app_sources.py" not in script
     assert '--variant agent --architecture "$DEB_ARCH" --stage "$AGENT_STAGE"' in script
-    assert '$AGENT_STAGE/usr/lib/cos/claw-mail-ai-host' in script
-    assert '$AGENT_STAGE/usr/lib/cos/bin/claw-app-apt-hook' in script
-    assert '$AGENT_STAGE/usr/lib/cos/app-apt-metadata.py' in script
-    assert '"$PROJECT_DIR/extensions/claw-mail-ai"' not in script
+    assert '$AGENT_STAGE/usr/lib/yuos/yuos-mail-ai-host' in script
+    assert '$AGENT_STAGE/usr/lib/yuos/bin/yuos-app-apt-hook' in script
+    assert '$AGENT_STAGE/usr/lib/yuos/app-apt-metadata.py' in script
+    assert '"$PROJECT_DIR/extensions/yuos-mail-ai"' not in script
 
 
 def _browser_asset_check(tmp_path, *, writable=False):
@@ -612,16 +612,16 @@ def test_os_installer_owns_shared_desktop_policy_without_app_sources():
 
 
 @pytest.mark.parametrize("relative", [
-    "usr/lib/cos/apps/alpha/app.json",
-    "usr/lib/cos/python/_shared/atomic.py",
-    "usr/lib/cos/python/canonical_argv.py",
-    "usr/lib/cos/python/claw_files/document.py",
+    "usr/lib/yuos/apps/alpha/app.json",
+    "usr/lib/yuos/python/_shared/atomic.py",
+    "usr/lib/yuos/python/canonical_argv.py",
+    "usr/lib/yuos/python/claw_files/document.py",
     "usr/share/applications/com.yuos.Files.desktop",
-    "usr/bin/claw-applet-calendar",
+    "usr/bin/yuos-applet-calendar",
 ])
 def test_os_package_refuses_app_support_library_and_native_resource_ownership(tmp_path, relative):
     stage = tmp_path / "stage"
-    sdk = stage / "usr/lib/cos/python/claw_os_sdk/__init__.py"
+    sdk = stage / "usr/lib/yuos/python/yuos_sdk/__init__.py"
     sdk.parent.mkdir(parents=True)
     sdk.write_text("OS-owned public SDK\n")
     packages.check_stage(stage, {})
@@ -629,35 +629,35 @@ def test_os_package_refuses_app_support_library_and_native_resource_ownership(tm
     payload.parent.mkdir(parents=True, exist_ok=True)
     payload.write_text("App-owned bytes\n")
     with pytest.raises(ValueError, match="still owns"):
-        packages.check_stage(stage, {relative: "claw-app-fixture"})
+        packages.check_stage(stage, {relative: "yuos-app-fixture"})
     assert payload.read_text() == "App-owned bytes\n"
 
 
 @pytest.fixture
 def apt_selection(tmp_path, monkeypatch):
     root = tmp_path / "os"
-    (root / "packaging/deb/claw-os-desktop").mkdir(parents=True)
+    (root / "packaging/deb/yuos-desktop").mkdir(parents=True)
     (root / "packaging/apps.lock.json").write_text(json.dumps({"apps": ["alpha", "beta", "native"]}))
-    (root / "packaging/deb/claw-os-desktop/apps.list").write_text("native\n")
+    (root / "packaging/deb/yuos-desktop/apps.list").write_text("native\n")
     (root / "packaging/app-platform.json").write_text(json.dumps({
-        "schema": "claw.app-platform/v1", "version": "0.2.1", "runtime_abi": 1,
+        "schema": "yuos.app-platform/v1", "version": "0.2.1", "runtime_abi": 1,
     }))
     monkeypatch.setattr(packages, "ROOT", root)
-    configuration = {"headless_set": "claw-apps-agent", "desktop_extras": ["claw-app-mail-desktop"]}
+    configuration = {"headless_set": "yuos-apps-agent", "desktop_extras": ["yuos-app-mail-desktop"]}
     runtime = "yuos-app-runtime-v1 (>= 0.2.1)"
     records = [
-        {"Package": "claw-apps-agent", "Version": "0.2.1", "Depends": "claw-app-alpha, claw-cap-beta"},
-        {"Package": "claw-apps-desktop", "Version": "0.2.1", "Depends": "claw-apps-agent, claw-app-native-desktop"},
-        {"Package": "claw-app-support", "Version": "0.2.1", "Depends": runtime, "Provides": "claw-app-support-v1"},
-        {"Package": "claw-app-alpha", "Version": "0.2.1", "X-Claw-App-Ids": "alpha",
-         "Depends": runtime + ", claw-app-support-v1, claw-app-python-beta-v1"},
-        {"Package": "claw-cap-beta", "Version": "0.2.1", "X-Claw-App-Ids": "beta",
-         "Depends": runtime + ", claw-app-support-v1", "Provides": "claw-app-python-beta-v1"},
-        {"Package": "claw-app-native-desktop", "Version": "0.2.1", "X-Claw-App-Ids": "native",
-         "Depends": runtime + ", claw-app-support-v1"},
-        {"Package": "claw-app-desktop-shell", "Version": "0.2.1", "X-Claw-App-Ids": "desktop-shell",
+        {"Package": "yuos-apps-agent", "Version": "0.2.1", "Depends": "yuos-app-alpha, yuos-cap-beta"},
+        {"Package": "yuos-apps-desktop", "Version": "0.2.1", "Depends": "yuos-apps-agent, yuos-app-native-desktop"},
+        {"Package": "yuos-app-support", "Version": "0.2.1", "Depends": runtime, "Provides": "yuos-app-support-v1"},
+        {"Package": "yuos-app-alpha", "Version": "0.2.1", "X-YuOS-App-Ids": "alpha",
+         "Depends": runtime + ", yuos-app-support-v1, yuos-app-python-beta-v1"},
+        {"Package": "yuos-cap-beta", "Version": "0.2.1", "X-YuOS-App-Ids": "beta",
+         "Depends": runtime + ", yuos-app-support-v1", "Provides": "yuos-app-python-beta-v1"},
+        {"Package": "yuos-app-native-desktop", "Version": "0.2.1", "X-YuOS-App-Ids": "native",
+         "Depends": runtime + ", yuos-app-support-v1"},
+        {"Package": "yuos-app-desktop-shell", "Version": "0.2.1", "X-YuOS-App-Ids": "desktop-shell",
          "Depends": runtime},
-        {"Package": "claw-app-mail-desktop", "Version": "0.2.1", "Depends": runtime},
+        {"Package": "yuos-app-mail-desktop", "Version": "0.2.1", "Depends": runtime},
     ]
     return records, configuration
 
@@ -666,26 +666,26 @@ def test_official_package_selection_resolves_one_library_owner_without_a_desktop
     records, configuration = apt_selection
     agent = packages.selection(records, "agent", configuration)
     assert {record["Package"] for record in agent} == {
-        "claw-apps-agent", "claw-app-alpha", "claw-cap-beta", "claw-app-support",
+        "yuos-apps-agent", "yuos-app-alpha", "yuos-cap-beta", "yuos-app-support",
     }
     desktop = packages.selection(records, "desktop", configuration)
     assert {record["Package"] for record in desktop} == {
-        *(record["Package"] for record in agent), "claw-app-native-desktop", "claw-app-mail-desktop",
+        *(record["Package"] for record in agent), "yuos-app-native-desktop", "yuos-app-mail-desktop",
     }
     with pytest.raises(ValueError, match="Missing"):
-        packages.selection([record for record in records if record["Package"] != "claw-cap-beta"],
+        packages.selection([record for record in records if record["Package"] != "yuos-cap-beta"],
                            "agent", configuration)
-    records[3]["Depends"] = "yuos-app-runtime-v1, claw-app-support-v1"
+    records[3]["Depends"] = "yuos-app-runtime-v1, yuos-app-support-v1"
     with pytest.raises(ValueError, match="runtime floor"):
         packages.selection(records, "agent", configuration)
 
 
 def test_official_package_selection_refuses_duplicate_or_incomplete_identity_owners(apt_selection):
     records, configuration = apt_selection
-    records[4]["X-Claw-App-Ids"] = "alpha"
+    records[4]["X-YuOS-App-Ids"] = "alpha"
     with pytest.raises(ValueError, match="Multiple App"):
         packages.selection(records, "agent", configuration)
-    records[4]["X-Claw-App-Ids"] = ""
+    records[4]["X-YuOS-App-Ids"] = ""
     with pytest.raises(ValueError, match="retained identity"):
         packages.selection(records, "agent", configuration)
 
@@ -693,11 +693,11 @@ def test_official_package_selection_refuses_duplicate_or_incomplete_identity_own
 def test_official_native_selection_uses_the_retained_matching_product_version(apt_selection):
     records, configuration = apt_selection
     records.append({**records[3], "Version": "0.2.2"})
-    records[5]["Depends"] += ", claw-app-alpha (= 0.2.1)"
+    records[5]["Depends"] += ", yuos-app-alpha (= 0.2.1)"
     assert next(record for record in packages.selection(records, "agent", configuration)
-                if record["Package"] == "claw-app-alpha")["Version"] == "0.2.2"
+                if record["Package"] == "yuos-app-alpha")["Version"] == "0.2.2"
     assert next(record for record in packages.selection(records, "desktop", configuration)
-                if record["Package"] == "claw-app-alpha")["Version"] == "0.2.1"
+                if record["Package"] == "yuos-app-alpha")["Version"] == "0.2.1"
 
 
 def test_os_build_refuses_missing_official_artifacts_without_fetching_source(tmp_path):
@@ -707,13 +707,13 @@ def test_os_build_refuses_missing_official_artifacts_without_fetching_source(tmp
     result = subprocess.run(
         ["bash", str(ROOT / "packaging/deb/build-debs.sh"), "agent"],
         capture_output=True, text=True, env={
-            **os.environ, "COS_PACKAGE_VERSION": "1:0.2.0", "ARCH": "amd64",
-            "COS_DEB_OUT_DIR": str(tmp_path / "debs"), "COS_DEB_STAGE_DIR": str(tmp_path / "staging"),
+            **os.environ, "YUOS_PACKAGE_VERSION": "1:0.0.9", "ARCH": "amd64",
+            "YUOS_DEB_OUT_DIR": str(tmp_path / "debs"), "YUOS_DEB_STAGE_DIR": str(tmp_path / "staging"),
             "CLAW_APP_SOURCE_LOCK": str(tmp_path / "must-not-resolve-source.json"),
         },
     )
     assert result.returncode != 0
-    assert "ownership cutover requires Agent/Desktop >= 1:0.2.1" in result.stderr
+    assert "requires Agent/Desktop >= 1:0.1.0" in result.stderr
     assert list(tmp_path.iterdir()) == []
 
 
@@ -738,7 +738,7 @@ def test_saved_app_apt_evidence_is_reauthenticated_and_fresh_before_use(tmp_path
         lists = directory / "state/lists"
         lists.mkdir(parents=True)
         index = lists / "fixture_binary-amd64_Packages"
-        data = b"Package: claw-app-fixture\nVersion: 0.2.1\nArchitecture: all\n\n"
+        data = b"Package: yuos-app-fixture\nVersion: 0.2.1\nArchitecture: all\n\n"
         index.write_bytes(data)
         source = directory / "Release"
         issued = datetime.now(timezone.utc).replace(microsecond=0)
@@ -754,7 +754,7 @@ def test_saved_app_apt_evidence_is_reauthenticated_and_fresh_before_use(tmp_path
 
         sign(issued, issued + timedelta(days=1))
         assert packages.authenticated_records(directory, "amd64", configuration) == [
-            {"Package": "claw-app-fixture", "Version": "0.2.1", "Architecture": "all"},
+            {"Package": "yuos-app-fixture", "Version": "0.2.1", "Architecture": "all"},
         ]
         index.write_bytes(data + b"changed index")
         with pytest.raises(ValueError, match="differs from its signed release"):
@@ -792,16 +792,16 @@ def test_official_package_bytes_have_one_dpkg_owner_and_never_own_the_os_sdk(tmp
             **({"Provides": provides} if provides else {}),
         }
 
-    common = "usr/lib/cos/python/_shared/atomic.py"
-    first = build("claw-app-support", common)
+    common = "usr/lib/yuos/python/_shared/atomic.py"
+    first = build("yuos-app-support", common)
     assert packages.verify_packages(tmp_path, [first]) == {common: first["Package"]}
-    duplicate = build("claw-app-duplicate", common)
+    duplicate = build("yuos-app-duplicate", common)
     with pytest.raises(ValueError, match="Multiple dpkg owners"):
         packages.verify_packages(tmp_path, [first, duplicate])
-    sdk = build("claw-app-bad-sdk", "usr/lib/cos/python/claw_os_sdk/__init__.py")
+    sdk = build("yuos-app-bad-sdk", "usr/lib/yuos/python/yuos_sdk/__init__.py")
     with pytest.raises(ValueError, match="OS-owned SDK"):
         packages.verify_packages(tmp_path, [sdk])
-    authority = build("claw-app-bad-abi", "usr/share/clawos-fixture/not-an-authority",
+    authority = build("yuos-app-bad-abi", "usr/share/yuos-fixture/not-an-authority",
                       "yuos-app-runtime-v1 (= 0.2.1)")
     with pytest.raises(ValueError, match="cannot provide"):
         packages.verify_packages(tmp_path, [authority])
@@ -817,22 +817,22 @@ def test_runtime_provides_uses_the_platform_implementation_version(tmp_path):
     )]
     rendered = tmp_path / "control"
     subprocess.run(["bash", "-euc", function + '\nrender_control "$CONTROL" "$OUTPUT"'], check=True, env={
-        **os.environ, "CONTROL": str(ROOT / "packaging/deb/claw-os-agent/control"),
-        "OUTPUT": str(rendered), "VERSION": "1:0.2.1", "DEB_ARCH": "amd64",
+        **os.environ, "CONTROL": str(ROOT / "packaging/deb/yuos-agent/control"),
+        "OUTPUT": str(rendered), "VERSION": "1:0.1.0", "DEB_ARCH": "amd64",
         "APP_RUNTIME_VERSION": packages.platform()["version"], "SECURITY_ABI": "1",
-        "SECURITY_EPOCH": "1", "MIN_AGENT_VERSION": "1:0.2.0",
-        "MIN_BASE_VERSION": "1:0.2.0", "MIN_DESKTOP_VERSION": "1:0.2.0",
+        "SECURITY_EPOCH": "1", "MIN_AGENT_VERSION": "1:0.1.0",
+        "MIN_BASE_VERSION": "1:0.1.0", "MIN_DESKTOP_VERSION": "1:0.1.0",
     })
     control = packages.fields(rendered.read_text())
-    assert "yuos-app-runtime-v1 (= 0.2.1)" in control["Provides"]
-    assert "claw-os-launcher-backend-v1 (= 1)" in control["Provides"]
-    assert "claw-apps-agent" in control["Recommends"]
-    assert "claw-app-support" not in control["Depends"]
-    assert "claw-apps-desktop" not in control["Depends"]
-    assert control["Replaces"] == "claw-os-desktop (<< 1:0.2.1)"
-    desktop = (ROOT / "packaging/deb/claw-os-desktop/control").read_text()
+    assert "yuos-app-runtime-v1 (= 0.1.0)" in control["Provides"]
+    assert "yuos-launcher-backend-v1 (= 1)" in control["Provides"]
+    assert "yuos-apps-agent" in control["Recommends"]
+    assert "yuos-app-support" not in control["Depends"]
+    assert "yuos-apps-desktop" not in control["Depends"]
+    assert "Replaces" not in control
+    desktop = (ROOT / "packaging/deb/yuos-desktop/control").read_text()
     desktop = desktop.replace("__APP_RUNTIME_VERSION__", packages.platform()["version"])
-    assert "yuos-app-runtime-v1 (>= 0.2.1)" in packages.fields(desktop)["Depends"]
+    assert "yuos-app-runtime-v1 (>= 0.1.0)" in packages.fields(desktop)["Depends"]
 
     spec = importlib.util.spec_from_file_location(
         "native_runtime_assets", ROOT / "packaging/deb/native_runtime_assets.py",
@@ -843,7 +843,7 @@ def test_runtime_provides_uses_the_platform_implementation_version(tmp_path):
     original = ROOT / "desktop/icons/freedesktop/scalable/actions/edit-paste-symbolic.svg"
     assert (theme / "scalable/actions/edit-paste-symbolic.svg").read_bytes() == original.read_bytes()
     assert (theme / "index.theme").read_bytes() == (ROOT / "desktop/icons/index.theme").read_bytes()
-    license_path = tmp_path / "agent-stage/usr/share/doc/claw-os-agent/cosmic-icons"
+    license_path = tmp_path / "agent-stage/usr/share/doc/yuos-agent/cosmic-icons"
     assert (license_path / "README.md").read_bytes() == (ROOT / "desktop/icons/README.md").read_bytes()
     assert (license_path / "LICENSE").read_bytes() == (ROOT / "desktop/icons/LICENSE").read_bytes()
     assert (theme.stat().st_mode & 0o777) == 0o755
@@ -872,7 +872,7 @@ def test_runtime_provides_uses_the_platform_implementation_version(tmp_path):
     assert (launcher_stage / "usr/lib/pop-launcher/plugins/desktop_entries/plugin.ron").read_bytes() == (
         ROOT / "desktop/launcher-backend" / manifest
     ).read_bytes()
-    assert (launcher_stage / "usr/share/doc/claw-os-agent/pop-launcher/LICENSE").read_bytes() == (
+    assert (launcher_stage / "usr/share/doc/yuos-agent/pop-launcher/LICENSE").read_bytes() == (
         ROOT / "desktop/launcher-backend/LICENSE"
     ).read_bytes()
     bad_program_parent = tmp_path / "aliased-program"
@@ -937,8 +937,8 @@ def _assert_summarize_public_wire(app, python, root):
         "import json, os, sys\n"
         "from pathlib import Path\n"
         "assert sys.argv[1] == '--wire=1'\n"
-        "assert os.environ['COS_APP_ID'] == 'summarize'\n"
-        "assert os.environ['COS_SESSION'] == 'summary-fixture'\n"
+        "assert os.environ['YUOS_APP_ID'] == 'summarize'\n"
+        "assert os.environ['YUOS_SESSION'] == 'summary-fixture'\n"
         "args = sys.argv[2:]\n"
         "mode = json.loads(Path(os.environ['TEST_SCENARIO']).read_text())\n"
         "record = {}\n"
@@ -978,8 +978,8 @@ def _assert_summarize_public_wire(app, python, root):
     )
     peer.chmod(0o755)
     with mcp_process(app, env={
-        "PATH": os.defpath, "PYTHONPATH": str(python), "CLAW_COS_BIN": str(peer),
-        "COS_DATA_DIR": str(data), "COS_SESSION": "summary-fixture", "TMPDIR": str(private),
+        "PATH": os.defpath, "PYTHONPATH": str(python), "YUOS_KERNEL_BIN": str(peer),
+        "YUOS_DATA_DIR": str(data), "YUOS_SESSION": "summary-fixture", "TMPDIR": str(private),
         "TEST_SCENARIO": str(scenario), "TEST_RESPONSE": str(response_file), "TEST_LOG": str(log),
     }) as rpc:
         def call(arguments):
@@ -1042,7 +1042,7 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
     assert set(sources.stage_products(tmp_path / "all", lock=lock)) == expected
     assert set(sources.stage_products(tmp_path / "agent", "agent", lock=lock)) == expected - desktop
     assert set(sources.stage_products(tmp_path / "desktop", "desktop", lock=lock)) == desktop
-    assert not (tmp_path / "desktop/usr/lib/cos/python/claw_files").exists()
+    assert not (tmp_path / "desktop/usr/lib/yuos/python/claw_files").exists()
     assert sources.app_path("doc", lock=lock) == source / "capabilities/document-engine/apps/doc"
     assert sources.app_path("db", lock=lock) == source / "capabilities/storage-sdk/apps/db"
     assert sources.app_path("kv", lock=lock) == source / "capabilities/storage-sdk/apps/kv"
@@ -1050,19 +1050,19 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
     assert sources.app_path("summarize", lock=lock) == source / "capabilities/ai-helpers/apps/summarize"
     assert not (ROOT / "apps").exists()
     for partition_name in ("all", "agent", "desktop"):
-        assert not (tmp_path / partition_name / "usr/lib/cos/apps/_shared").exists()
-        assert not (tmp_path / partition_name / "usr/lib/cos/apps/gateway/_shared").exists()
+        assert not (tmp_path / partition_name / "usr/lib/yuos/apps/_shared").exists()
+        assert not (tmp_path / partition_name / "usr/lib/yuos/apps/gateway/_shared").exists()
         for library in ("_shared", "gateway", "canonical_argv.py"):
-            assert not (tmp_path / partition_name / "usr/lib/cos/python" / library).exists()
+            assert not (tmp_path / partition_name / "usr/lib/yuos/python" / library).exists()
     for app_id in ("db", "kv", "net", "summarize"):
         assert app_id not in desktop
-        assert not (tmp_path / "desktop/usr/lib/cos/apps" / app_id).exists()
+        assert not (tmp_path / "desktop/usr/lib/yuos/apps" / app_id).exists()
 
     staged = tmp_path / "agent-package"
-    python = staged / "usr/lib/cos/python"
+    python = staged / "usr/lib/yuos/python"
     python.mkdir(parents=True)
-    (staged / "usr/lib/cos/apps").mkdir()
-    for library in ("claw-os-sdk/python/src/claw_os_sdk", "cos-runtime/python/src/cos_runtime"):
+    (staged / "usr/lib/yuos/apps").mkdir()
+    for library in ("yuos-sdk/python/src/yuos_sdk", "yuos-runtime/python/src/yuos_runtime"):
         shutil.copytree(ROOT / library, python / Path(library).name,
                         ignore=shutil.ignore_patterns("__pycache__", "test_*.py"))
     sources.stage_shared(staged, lock=lock)
@@ -1070,8 +1070,8 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
     assert json.loads(snapshot.read_text()) == lock
     for name in ("_shared", "gateway", "canonical_argv.py"):
         assert _app_payload(python / name) == _app_payload(source / "shared/python" / name, source=True)
-    assert not (staged / "usr/lib/cos/apps/_shared").exists()
-    assert not (staged / "usr/lib/cos/apps/gateway/_shared").exists()
+    assert not (staged / "usr/lib/yuos/apps/_shared").exists()
+    assert not (staged / "usr/lib/yuos/apps/gateway/_shared").exists()
     imports = subprocess.run(
         [sys.executable, "-I", "-B", "-c",
          "import importlib, json, pathlib, sys; sys.path.insert(0, sys.argv[1]); "
@@ -1094,7 +1094,7 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
             for path, entry in _app_payload(source / "shared/web").items()
         })
         for partition_name in ("all", "agent", "agent-package"):
-            installed = tmp_path / partition_name / "usr/lib/cos/apps" / app_id
+            installed = tmp_path / partition_name / "usr/lib/yuos/apps" / app_id
             code = {
                 path: entry for path, entry in _app_payload(installed).items()
                 if path != Path("web-ui.json") and path.parts[:1] != ("web",)
@@ -1109,13 +1109,13 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
             assert descriptor["entry"] == "web/index.html"
     parser = python / "claw_files/document.py"
     assert parser.read_bytes() == (source / "products/files/python/claw_files/document.py").read_bytes()
-    manifests = list((staged / "usr/lib/cos/apps").rglob("app.json"))
+    manifests = list((staged / "usr/lib/yuos/apps").rglob("app.json"))
     assert len(manifests) == len(expected - desktop)
     assert {json.loads(path.read_text())["id"] for path in manifests} == (
         expected - desktop
     )
     _assert_summarize_public_wire(
-        staged / "usr/lib/cos/apps/summarize", python, tmp_path / "summarize-runtime",
+        staged / "usr/lib/yuos/apps/summarize", python, tmp_path / "summarize-runtime",
     )
     document = tmp_path / "synthetic.txt"
     document.write_text("immutable capability in the real Agent composition")
@@ -1131,15 +1131,15 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
          "import json; import main; import claw_files.document as library; "
          "print(json.dumps({'library':library.__file__, 'result':main.run('read', "
          f"[{str(document)!r}])}}))"],
-        cwd=staged / "usr/lib/cos/apps/doc", capture_output=True, text=True, check=True, timeout=20,
+        cwd=staged / "usr/lib/yuos/apps/doc", capture_output=True, text=True, check=True, timeout=20,
         env={"PATH": os.defpath, "PYTHONPATH": str(python),
-             "PYTHONDONTWRITEBYTECODE": "1", "CLAW_COS_BIN": str(policy)},
+             "PYTHONDONTWRITEBYTECODE": "1", "YUOS_KERNEL_BIN": str(policy)},
     )
     payload = json.loads(result.stdout)
     assert payload["library"] == str(parser)
     assert payload["result"]["content"] == document.read_text()
 
-    net = staged / "usr/lib/cos/apps/net"
+    net = staged / "usr/lib/yuos/apps/net"
     net_manifest = json.loads((net / "app.json").read_text())
     (net / net_manifest["mcp"]["entry"]).rename(net / "http_mcp.py")
     net_manifest["mcp"]["entry"] = "http_mcp.py"
@@ -1155,7 +1155,7 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
     with mcp_process(net, env={
         "PATH": os.defpath,
         "PYTHONPATH": str(python),
-        "COS_DATA_DIR": str(tmp_path / "net-data"), "CLAW_COS_BIN": str(denied_policy),
+        "YUOS_DATA_DIR": str(tmp_path / "net-data"), "YUOS_KERNEL_BIN": str(denied_policy),
     }) as request:
         catalog = request("tools/list", {})
         assert {tool["name"] for tool in catalog["tools"]} == {"net.fetch", "net.download"}
@@ -1189,7 +1189,7 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
     db_policy.write_text(
         '#!/bin/sh\n'
         'test "$1:$2:$3" = "--wire=1:__policy:check" || exit 99\n'
-        'test "$COS_APP_ID:$COS_SESSION" = "db:db-fixture" || exit 98\n'
+        'test "$YUOS_APP_ID:$YUOS_SESSION" = "db:db-fixture" || exit 98\n'
         'case "$4:$5:$6" in\n'
         '  data.db.read:--name:inventory|data.db.write:--name:inventory) decision=allow;;\n'
         '  *) decision=deny;;\n'
@@ -1211,10 +1211,10 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
         ("databases", {}),
         ("query", {"database": "inventory", "sql": "DELETE FROM items"}),
     ]
-    db_app = staged / "usr/lib/cos/apps/db"
+    db_app = staged / "usr/lib/yuos/apps/db"
     with mcp_process(db_app, env={
-        "PATH": os.defpath, "PYTHONPATH": str(python), "COS_DATA_DIR": str(data),
-        "COS_SESSION": "db-fixture", "CLAW_COS_BIN": str(db_policy),
+        "PATH": os.defpath, "PYTHONPATH": str(python), "YUOS_DATA_DIR": str(data),
+        "YUOS_SESSION": "db-fixture", "YUOS_KERNEL_BIN": str(db_policy),
     }) as request:
         results = [
             request("tools/call", authenticated_mcp_params({
@@ -1261,10 +1261,10 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
     for neighbour in kv_neighbours:
         neighbour.parent.mkdir(parents=True, exist_ok=True)
         neighbour.write_bytes(b"unrelated private state")
-    kv_app = staged / "usr/lib/cos/apps/kv"
+    kv_app = staged / "usr/lib/yuos/apps/kv"
     environment = {
         "PATH": os.defpath, "PYTHONPATH": str(python),
-        "COS_DATA_DIR": str(kv_data), "COS_SESSION": "kv-fixture",
+        "YUOS_DATA_DIR": str(kv_data), "YUOS_SESSION": "kv-fixture",
     }
 
     def kv_call(request, command, arguments=None):
@@ -1334,8 +1334,8 @@ def test_native_inputs_follow_lock_updates_without_stale_files(locked_source):
         'import json, pathlib, shutil, sys\n'
         'root = pathlib.Path(sys.argv[sys.argv.index("--root") + 1])\n'
         'product = sys.argv[1]\n'
-        'shutil.copytree(pathlib.Path(__file__).parents[1] / "products" / product / "native", root / ("claw-applet-" + product))\n'
-        'print(json.dumps(["claw-applet-" + product]))\n'
+        'shutil.copytree(pathlib.Path(__file__).parents[1] / "products" / product / "native", root / ("yuos-applet-" + product))\n'
+        'print(json.dumps(["yuos-applet-" + product]))\n'
     )
     lock["products"] = ["calendar", "clipboard"]
     for product in lock["products"]:
@@ -1343,7 +1343,7 @@ def test_native_inputs_follow_lock_updates_without_stale_files(locked_source):
         (product_root / "native").mkdir(parents=True)
         (product_root / "native/Cargo.toml").write_text(product)
         (product_root / "package.json").write_text(json.dumps({
-            "native": {f"claw-applet-{product}": "native"},
+            "native": {f"yuos-applet-{product}": "native"},
         }))
     native = upstream / "products/calendar/native"
     (native / "Cargo.toml").write_text("first")
@@ -1358,16 +1358,16 @@ def test_native_inputs_follow_lock_updates_without_stale_files(locked_source):
 
     publish()
     destination = sources.prepare_native()
-    assert (destination / "claw-applet-clipboard/Cargo.toml").read_text() == "clipboard"
+    assert (destination / "yuos-applet-clipboard/Cargo.toml").read_text() == "clipboard"
     (destination / "unrelated").mkdir()
     (destination / "unrelated/keep").write_text("preserve")
-    assert (destination / "claw-applet-calendar/removed.rs").is_file()
+    assert (destination / "yuos-applet-calendar/removed.rs").is_file()
     (native / "removed.rs").unlink()
     (native / "Cargo.toml").write_text("second")
     publish()
     assert sources.prepare_native() == destination
-    assert (destination / "claw-applet-calendar/Cargo.toml").read_text() == "second"
-    assert not (destination / "claw-applet-calendar/removed.rs").exists()
+    assert (destination / "yuos-applet-calendar/Cargo.toml").read_text() == "second"
+    assert not (destination / "yuos-applet-calendar/removed.rs").exists()
     assert (destination / "unrelated/keep").read_text() == "preserve"
     assert (destination / "revision").read_text().strip() == lock["revision"]
     assert json.loads((destination / "source-lock.json").read_text()) == lock
@@ -1387,7 +1387,7 @@ def test_native_manual_image_and_asset_build_paths_agree():
 @pytest.mark.parametrize(("product", "app_id"), [
     ("calendar", "panel-calendar"), ("clipboard", "panel-clipboard"),
     ("desktop-widgets", "widget-rail"),
-    ("launcher", "claw-launcher"),
+    ("launcher", "yuos-launcher"),
     ("editor", "cosmic-edit"),
     ("files", "cosmic-files"),
     ("terminal", "cosmic-term"),
@@ -1411,7 +1411,7 @@ def test_external_desktop_app_stays_out_of_agent_package(locked_source, tmp_path
         'ids = sys.argv[sys.argv.index("--apps") + 1:]\n'
         f'if "{app_id}" in ids:\n'
         f'    source = pathlib.Path(__file__).parents[1] / "products/{product}/apps/{app_id}"\n'
-        f'    shutil.copytree(source, root / "usr/lib/cos/apps/{app_id}")\n'
+        f'    shutil.copytree(source, root / "usr/lib/yuos/apps/{app_id}")\n'
         'print(json.dumps(ids))\n'
     )
     git = ["git", "-C", str(upstream)]
@@ -1421,13 +1421,13 @@ def test_external_desktop_app_stays_out_of_agent_package(locked_source, tmp_path
     lock["products"] = [product]
     lock["apps"] = [app_id]
     (root / "packaging/apps.lock.json").write_text(json.dumps(lock))
-    partition = root / "packaging/deb/claw-os-desktop/apps.list"
+    partition = root / "packaging/deb/yuos-desktop/apps.list"
     partition.parent.mkdir(parents=True)
     partition.write_text(app_id + "\n")
     assert sources.stage_products(tmp_path / "agent", "agent") == []
-    assert not (tmp_path / "agent/usr/lib/cos/apps" / app_id).exists()
+    assert not (tmp_path / "agent/usr/lib/yuos/apps" / app_id).exists()
     assert sources.stage_products(tmp_path / "desktop", "desktop") == [app_id]
-    assert (tmp_path / "desktop/usr/lib/cos/apps" / app_id / "app.json").is_file()
+    assert (tmp_path / "desktop/usr/lib/yuos/apps" / app_id / "app.json").is_file()
     assert sources.app_path(app_id).name == app_id
     with pytest.raises(ValueError, match="not in the source lock"):
         sources.app_path("unknown")
@@ -1473,7 +1473,7 @@ def test_media_player_is_package_only_for_hot_swap(tmp_path):
         capture_output=True, text=True,
     )
     assert result.returncode != 0
-    assert "Media Player requires its signed manifest and claw-os-media-player-v1" in result.stderr
+    assert "Media Player requires its signed manifest and yuos-media-player-v1" in result.stderr
     assert "qcow2 missing" not in result.stderr
 
 
@@ -1484,7 +1484,7 @@ def test_notifications_is_package_only_for_hot_swap(tmp_path):
         capture_output=True, text=True,
     )
     assert result.returncode != 0
-    assert "Notifications requires its signed manifest and claw-os-notifications-v1" in result.stderr
+    assert "Notifications requires its signed manifest and yuos-notifications-v1" in result.stderr
     assert "qcow2 missing" not in result.stderr
 
 
@@ -1514,7 +1514,7 @@ def test_native_notifications_keep_private_inputs_and_legacy_state_separate(publ
     for library in ("cosmic-notifications-config", "cosmic-notifications-util"):
         assert _app_payload(staged / "cosmic-notifications" / library) == _app_payload(component / library)
     status = (ROOT / "docs/app-product-redesign.md").read_text()
-    assert "clawos-app/products/notifications" in status
+    assert "yuos-app/products/notifications" in status
     assert "Source migration covered all original 75 identities" in status
     assert "**24 business product groups**" in status
     assert "**4 shared-capability source groups**: 51 Agent-package identities and" in status
@@ -1589,6 +1589,6 @@ def test_native_player_source_status_and_package_identity_are_consistent():
     desktop = len(set(lock["apps"]) & set(sources.desktop_apps()))
     assert f"{len(lock['apps']) - desktop} Agent-package identities and {desktop} desktop identities" in " ".join(status.split())
     assert f"**{len(lock['products'])} business product groups**" in status
-    assert "clawos-app/products/media-player" in status
+    assert "yuos-app/products/media-player" in status
     assert "products/media-player" in (ROOT / "desktop/PROVENANCE.md").read_text()
     assert "just player-build" in (ROOT / "desktop/README.md").read_text()

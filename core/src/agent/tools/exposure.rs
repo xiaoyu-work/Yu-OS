@@ -138,7 +138,7 @@ impl ToolExposureContext {
     }
 
     /// Resolve and verify the current process's registered session before
-    /// constructing an exposure context. `COS_SESSION` can select a candidate
+    /// constructing an exposure context. `YUOS_SESSION` can select a candidate
     /// row, but the pid/start-time/ancestry check decides whether it is usable.
     /// A task-local trusted override was already checked against the signed
     /// `agentd` assignment and is consumed directly.

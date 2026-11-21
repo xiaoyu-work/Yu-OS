@@ -1,6 +1,6 @@
 //! Fixed capability-rule controls and revision-bound forms, never approval decisions.
 
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     CapabilityPolicyDraft, CapabilityPolicyMode, CapabilityPolicyRule, CapabilityPolicyScope,
     MAX_CAPABILITY_POLICY_RULES, MAX_CAPABILITY_POLICY_SCOPES,
 };

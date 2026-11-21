@@ -38,7 +38,7 @@ pub fn current_session_id() -> Option<String> {
         .ok()
         .or_else(|| SESSION_OVERRIDE.try_with(|value| value.clone()).ok())
         .or_else(|| {
-            std::env::var("COS_SESSION")
+            std::env::var("YUOS_SESSION")
                 .ok()
                 .filter(|value| !value.is_empty())
         })
@@ -115,7 +115,7 @@ struct Registry {
 }
 
 /// Resolve the `proc/` directory used for capability session state.
-/// `COS_PROC_DATA_DIR` can pin routed user jobs and their App/MCP
+/// `YUOS_PROC_DATA_DIR` can pin routed user jobs and their App/MCP
 /// children to the same registry even when their general data dirs
 /// differ.
 fn proc_dir() -> PathBuf {
@@ -129,8 +129,8 @@ fn registry_path() -> PathBuf {
         && crate::caps::enforcement::process_has_no_new_privs()
     {
         let uid = unsafe { libc::geteuid() as u32 };
-        let routed = PathBuf::from("/run/cos/caps").join(uid.to_string());
-        if std::env::var_os("COS_PROC_DATA_DIR")
+        let routed = PathBuf::from("/run/yuos/caps").join(uid.to_string());
+        if std::env::var_os("YUOS_PROC_DATA_DIR")
             .map(PathBuf::from)
             .as_deref()
             == Some(routed.as_path())
@@ -148,7 +148,7 @@ fn bound_app_registry_path() -> Option<PathBuf> {
     #[cfg(target_os = "linux")]
     {
         let uid = unsafe { libc::geteuid() as u32 };
-        let path = PathBuf::from("/run/cos/caps")
+        let path = PathBuf::from("/run/yuos/caps")
             .join(uid.to_string())
             .join("proc")
             .join("registry.json");
@@ -174,7 +174,7 @@ fn bound_app_session_id() -> Option<String> {
     #[cfg(target_os = "linux")]
     {
         let uid = unsafe { libc::geteuid() as u32 };
-        let path = PathBuf::from("/run/cos/caps")
+        let path = PathBuf::from("/run/yuos/caps")
             .join(uid.to_string())
             .join("proc")
             .join("registry.json");
@@ -226,7 +226,7 @@ pub(crate) fn process_descends_from(mut child: u32, ancestor: u32) -> bool {
 }
 
 /// Public alias used by [`crate::caps::enforcement`] to read the same
-/// registry path `cos` writes to. Lives here so the resolution logic
+/// registry path `yu` writes to. Lives here so the resolution logic
 /// in [`proc_dir`] has exactly one definition.
 pub(crate) fn registry_path_for_caps() -> PathBuf {
     registry_path()
@@ -280,7 +280,7 @@ pub(crate) fn session_row_for_launcher(session_id: &str) -> Option<SessionInfo> 
 /// Snapshot every row in the registry resolved for the currently
 /// active owner/home override.
 ///
-/// The trusted App-session authority in `clawd` uses this to locate a
+/// The trusted App-session authority in `yuosd` uses this to locate a
 /// connecting process's launcher context inside the root-owned routed
 /// registry, instead of believing a session the caller describes.
 pub(crate) fn registry_sessions() -> Vec<SessionInfo> {
@@ -392,7 +392,7 @@ where
 }
 
 fn owner_registry_path(uid: u32) -> PathBuf {
-    PathBuf::from("/run/cos/caps")
+    PathBuf::from("/run/yuos/caps")
         .join(uid.to_string())
         .join("proc")
         .join("registry.json")
@@ -1053,8 +1053,8 @@ pub fn run(command: &str, args: &[String]) -> Result<Value, String> {
 fn session_not_found(identifier: &str) -> String {
     if !identifier.is_empty() && identifier.bytes().all(|byte| byte.is_ascii_digit()) {
         return format!(
-            "session not found: {identifier}. `{identifier}` looks like an OS PID, but cos_proc \
-             commands operate on registered yu session ids. Inspect the PID with cos_sysinfo \
+            "session not found: {identifier}. `{identifier}` looks like an OS PID, but yu_proc \
+             commands operate on registered yu session ids. Inspect the PID with yu_sysinfo \
              command `process` and args [`{identifier}`]."
         );
     }
@@ -1395,12 +1395,12 @@ fn cmd_spawn(args: &[String]) -> Result<Value, String> {
     }
     #[cfg(unix)]
     if let Some((_, _, home)) = routed_identity.as_ref() {
-        cmd.env("HOME", home).env("COS_HOME", home);
+        cmd.env("HOME", home).env("YUOS_HOME", home);
     }
 
     // Inject session ID so child process can be identified by policy module
-    cmd.env("COS_SESSION", &sid)
-        .env("COS_PROC_DATA_DIR", crate::paths::proc_data_dir());
+    cmd.env("YUOS_SESSION", &sid)
+        .env("YUOS_PROC_DATA_DIR", crate::paths::proc_data_dir());
 
     #[cfg(unix)]
     unsafe {

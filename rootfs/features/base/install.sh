@@ -3,7 +3,7 @@
 # injection, runtime directories, and login-time profile sourcing.
 #
 # Invoked by rootfs/build.sh after the base packages.txt has been apt-installed.
-# Inherited from environment: ROOTFS, PROJECT_DIR, COS_VERSION.
+# Inherited from environment: ROOTFS, PROJECT_DIR, YUOS_VERSION.
 
 set -euo pipefail
 
@@ -39,20 +39,20 @@ chroot "$ROOTFS" pip3 install --break-system-packages --no-cache-dir \
 
 # Inject version from Cargo.toml into runtime files (overlay was already
 # applied by build.sh before features ran). The system overlay no longer
-# ships /etc/cos/config.json — agent config lives under
-# ~/.config/cos/config.json per user, defaults come from Rust.
-echo "  :: injecting version $COS_VERSION"
-sed -i "s/COS_VERSION=\".*\"/COS_VERSION=\"$COS_VERSION\"/" "$ROOTFS/etc/cos/profile.sh"
-sed -i "s/@COS_VERSION@/$COS_VERSION/g" \
+# ships /etc/yuos/config.json — agent config lives under
+# ~/.config/yuos/config.json per user, defaults come from Rust.
+echo "  :: injecting version $YUOS_VERSION"
+sed -i "s/YUOS_VERSION=\".*\"/YUOS_VERSION=\"$YUOS_VERSION\"/" "$ROOTFS/etc/yuos/profile.sh"
+sed -i "s/@YUOS_VERSION@/$YUOS_VERSION/g" \
     "$ROOTFS/etc/os-release" \
     "$ROOTFS/usr/lib/os-release" \
     "$ROOTFS/etc/issue" \
     "$ROOTFS/etc/issue.net"
 
 # Runtime directories.
-mkdir -p "$ROOTFS/var/lib/cos"
+mkdir -p "$ROOTFS/var/lib/yuos"
 
 # Source COS profile on every interactive login.
 if ! grep -q 'cos/profile.sh' "$ROOTFS/etc/bash.bashrc" 2>/dev/null; then
-    echo '[ -f /etc/cos/profile.sh ] && . /etc/cos/profile.sh' >> "$ROOTFS/etc/bash.bashrc"
+    echo '[ -f /etc/yuos/profile.sh ] && . /etc/yuos/profile.sh' >> "$ROOTFS/etc/bash.bashrc"
 fi

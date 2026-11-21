@@ -60,14 +60,14 @@ the connection lifetime; ordinary readers/writers are not serialized by the
 initialization lock. Read-only inspection never acquires or creates that lock.
 
 `USER.md` and `[always]` entries enter the bounded request profile, not the
-frozen system prompt. Other notes are read deliberately through `cos_memory`.
-`cos_memory search` performs the model's literal query across all notes or one
+frozen system prompt. Other notes are read deliberately through `yu_memory`.
+`yu_memory search` performs the model's literal query across all notes or one
 explicit name. Results disclose the requested/scanned names, bounded excerpts
 and whether more matches remain. Empty results do not establish that no related
 knowledge exists under another wording or source.
 
-`cos_memory read`, `cos_recall show`, `cos_app_memory show` and
-`cos_recall_semantic read` accept `offset`/`max_chars` (characters, default 4096,
+`yu_memory read`, `yu_recall show`, `yu_app_memory show` and
+`yu_recall_semantic read` accept `offset`/`max_chars` (characters, default 4096,
 maximum 16384). Nonzero offsets also require the returned `revision`; changed
 content rejects the read and requires a restart. `next_offset` continues the
 same source. `source_complete` is true only for a full first-page read, not a

@@ -20,7 +20,7 @@ use super::{
 };
 
 const ALLOWLIST_VERSION: u32 = 1;
-const ALLOWLIST_PATH: &str = "/etc/cos/proc-spawn-allowlist.json";
+const ALLOWLIST_PATH: &str = "/etc/yuos/proc-spawn-allowlist.json";
 const MAX_ALLOWLIST_BYTES: u64 = 128 * 1024;
 const MAX_COMMANDS: usize = 128;
 const MAX_ARGS: usize = 64;
@@ -548,12 +548,12 @@ fn is_sha256(value: &str) -> bool {
 }
 
 fn refusal(detail: &str) -> String {
-    format!("proc spawn refused by audited allowlist ({detail}); use cos_sandbox")
+    format!("proc spawn refused by audited allowlist ({detail}); use yu_sandbox")
 }
 
 fn allowlist_path() -> PathBuf {
     #[cfg(test)]
-    if let Some(path) = std::env::var_os("COS_PROC_SPAWN_ALLOWLIST_TEST_PATH") {
+    if let Some(path) = std::env::var_os("YUOS_PROC_SPAWN_ALLOWLIST_TEST_PATH") {
         return PathBuf::from(path);
     }
     PathBuf::from(ALLOWLIST_PATH)
@@ -561,7 +561,7 @@ fn allowlist_path() -> PathBuf {
 
 fn trusted_owner_uid() -> u32 {
     #[cfg(test)]
-    if std::env::var_os("COS_PROC_SPAWN_ALLOWLIST_TEST_TRUST_CURRENT").is_some() {
+    if std::env::var_os("YUOS_PROC_SPAWN_ALLOWLIST_TEST_TRUST_CURRENT").is_some() {
         return unsafe { libc::geteuid() as u32 };
     }
     0

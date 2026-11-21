@@ -183,7 +183,7 @@ pub(super) fn run_plain(options:ChatOptions)->Result<Value,String>{
 enum InputAction {
     None,
     Spaces(workspaces::Action),
-    Nearby(Option<clawd_client::nearby::NearbyAction>),
+    Nearby(Option<yuosd_client::nearby::NearbyAction>),
     Submit(String),
     Cancel,
     Review(ReviewDecision),

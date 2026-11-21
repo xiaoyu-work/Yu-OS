@@ -10,7 +10,7 @@ EXISTING_APT_REPO_URL="${EXISTING_APT_REPO_URL:?set EXISTING_APT_REPO_URL}"
 APT_PUBLIC_KEYRING="${APT_PUBLIC_KEYRING:?set APT_PUBLIC_KEYRING}"
 SUITE="${SUITE:-trixie}"
 DEBS_DIR="${DEBS_DIR:-build/debs}"
-PREVIOUS_RELEASE_SECURITY_DIR="${COS_PREVIOUS_RELEASE_SECURITY_DIR:-build/release-security-previous}"
+PREVIOUS_RELEASE_SECURITY_DIR="${YUOS_PREVIOUS_RELEASE_SECURITY_DIR:-build/release-security-previous}"
 
 if [ ! -s "$APT_PUBLIC_KEYRING" ]; then
     echo "error: existing-repository keyring is missing: $APT_PUBLIC_KEYRING" >&2
@@ -26,7 +26,7 @@ mkdir -p "$PREVIOUS_RELEASE_SECURITY_DIR"
 # release-security metadata.
 package_security_epoch() {
     local deb="$1" epoch
-    epoch="$(dpkg-deb --field "$deb" XB-Claw-Os-Security-Epoch 2>/dev/null || true)"
+    epoch="$(dpkg-deb --field "$deb" XB-YuOS-Security-Epoch 2>/dev/null || true)"
     case "$epoch" in
         ''|*[!0-9]*) printf '0\n' ;;
         *) printf '%s\n' "$epoch" ;;
@@ -35,11 +35,11 @@ package_security_epoch() {
 
 # package|file architecture|APT query architecture|APT package expression
 targets=(
-    "claw-os-agent|amd64|amd64|claw-os-agent:amd64"
-    "claw-os-agent|arm64|arm64|claw-os-agent:arm64"
-    "claw-os-base|all|amd64|claw-os-base"
-    "claw-os-desktop|amd64|amd64|claw-os-desktop:amd64"
-    "claw-os-desktop|arm64|arm64|claw-os-desktop:arm64"
+    "yuos-agent|amd64|amd64|yuos-agent:amd64"
+    "yuos-agent|arm64|arm64|yuos-agent:arm64"
+    "yuos-base|all|amd64|yuos-base"
+    "yuos-desktop|amd64|amd64|yuos-desktop:amd64"
+    "yuos-desktop|arm64|arm64|yuos-desktop:arm64"
 )
 
 inrelease_url="$EXISTING_APT_REPO_URL/dists/$SUITE/InRelease"
@@ -122,7 +122,7 @@ fi
 "$PROJECT_DIR/packaging/apt-repo/check-index-freshness.py" "$tmp/Release"
 
 baseline_field="$(awk -F': *' '
-    /^Claw-Os-Release-Security-Baseline:/ { print $2; exit }
+    /^YuOS-Release-Security-Baseline:/ { print $2; exit }
 ' "$tmp/Release" | tr -d '[:space:]')"
 if [ "$baseline_field" = "1" ]; then
     echo ":: the published repository advertises a release-security baseline"
@@ -217,7 +217,7 @@ fi
 # so the publication step can refuse a set that regresses it. Which of
 # these must exist is decided by the *signed* Packages indexes below,
 # not by whether a fetch happened to succeed.
-for package in claw-os-agent claw-os-base claw-os-desktop; do
+for package in yuos-agent yuos-base yuos-desktop; do
     for arch in amd64 arm64 all; do
         name="${package}_${arch}.json"
         if [ "$baseline_field" = "1" ]; then

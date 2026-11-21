@@ -109,14 +109,14 @@ fn extract_stdin_request(argv: Vec<String>, operation_accepts_stdin: bool) -> (V
 }
 
 fn app_stdin_max_bytes() -> Result<usize, String> {
-    match std::env::var("COS_APP_STDIN_MAX_BYTES") {
+    match std::env::var("YUOS_APP_STDIN_MAX_BYTES") {
         Ok(raw) => raw
             .parse::<usize>()
             .ok()
             .filter(|value| *value > 0)
-            .ok_or_else(|| "COS_APP_STDIN_MAX_BYTES must be a positive integer".to_string()),
+            .ok_or_else(|| "YUOS_APP_STDIN_MAX_BYTES must be a positive integer".to_string()),
         Err(std::env::VarError::NotPresent) => Ok(DEFAULT_APP_STDIN_MAX_BYTES),
-        Err(error) => Err(format!("read COS_APP_STDIN_MAX_BYTES: {error}")),
+        Err(error) => Err(format!("read YUOS_APP_STDIN_MAX_BYTES: {error}")),
     }
 }
 
@@ -322,7 +322,7 @@ fn main() {
     let result = if stdin_requested {
         match app_stdin_max_bytes().and_then(|limit| {
             let limit = if args.get(3..).is_some_and(|args| args == ["--args-stdin"]) {
-                limit.min(yu::clawd::wire::bounded::APP_ARGS_STDIN_MAX_BYTES)
+                limit.min(yu::yuosd::wire::bounded::APP_ARGS_STDIN_MAX_BYTES)
             } else {
                 limit
             };

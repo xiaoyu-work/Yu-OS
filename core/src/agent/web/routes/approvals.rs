@@ -1,6 +1,6 @@
 //! `GET /api/approvals/*` and `POST /api/approvals/:id/{approve,deny}`
 //! — surfaces the consent queue so the user can answer prompts that
-//! would otherwise block a clawd-routed agent job.
+//! would otherwise block a yuosd-routed agent job.
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::agent::web::state::AppState;
-use crate::clawd::routes::Command;
+use crate::yuosd::routes::Command;
 
 pub(super) mod authorization;
 mod presentation;
@@ -25,18 +25,18 @@ pub use presentation::{
 pub async fn pending(
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    super::clawd::request(Command::PermissionPending, json!({ "limit": 100 }))
+    super::yuosd::request(Command::PermissionPending, json!({ "limit": 100 }))
         .await
         .map(Json)
-        .map_err(super::clawd::RpcError::into_api_error)
+        .map_err(super::yuosd::RpcError::into_api_error)
 }
 
 pub async fn recent(
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let result = super::clawd::request(Command::PermissionRecent, json!({ "limit": 50 }))
+    let result = super::yuosd::request(Command::PermissionRecent, json!({ "limit": 50 }))
         .await
-        .map_err(super::clawd::RpcError::into_api_error)?;
+        .map_err(super::yuosd::RpcError::into_api_error)?;
     let entries = result
         .get("requests")
         .and_then(Value::as_array)
@@ -97,10 +97,10 @@ pub async fn deny(
     if let Some(note) = body.note.filter(|note| !note.trim().is_empty()) {
         params["note"] = json!(note);
     }
-    super::clawd::request(Command::PermissionDecide, params)
+    super::yuosd::request(Command::PermissionDecide, params)
         .await
         .map(Json)
-        .map_err(super::clawd::RpcError::into_api_error)
+        .map_err(super::yuosd::RpcError::into_api_error)
 }
 
 fn validate_decision_input(id: &str, note: Option<&str>) -> Result<(), (StatusCode, Json<Value>)> {

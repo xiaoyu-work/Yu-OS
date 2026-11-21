@@ -12,10 +12,10 @@ rustup toolchain install stable --profile minimal
 
 cargo +stable build --manifest-path "$project/Cargo.toml" --locked --release -p claw-compositor
 cargo +stable build --manifest-path "$project/desktop/agent/Cargo.toml" --locked --release --workspace
-cargo +stable build --manifest-path "$project/cos-runtime/rust/Cargo.toml" --locked --release \
-    --bin cos-ask-claw-launcher
-cargo +stable build --manifest-path "$project/desktop/services/claw-applet-services/Cargo.toml" \
-    --locked --release --features provider --bin claw-os-applet-provider
+cargo +stable build --manifest-path "$project/yuos-runtime/rust/Cargo.toml" --locked --release \
+    --bin yuos-ask-launcher
+cargo +stable build --manifest-path "$project/desktop/services/yuos-applet-services/Cargo.toml" \
+    --locked --release --features provider --bin yuos-applet-provider
 
 source_adapter="$project/desktop/hyprland-claw"
 bash "$source_adapter/build-locker.sh" "$stage" "$work"
@@ -60,9 +60,9 @@ fi
 share="$stage/usr/share/claw-hyprland"
 install -d "$share"
 cp -a "$prefix/share/libinput" "$share/libinput"
-hardware="$project/packaging/deb/claw-os-base/hardware"
-install -m0644 "$hardware/99-claw-os-hardware.quirks" "$share/libinput/"
-license="$stage/usr/share/doc/claw-os-desktop"
+hardware="$project/packaging/deb/yuos-base/hardware"
+install -m0644 "$hardware/99-yuos-hardware.quirks" "$share/libinput/"
+license="$stage/usr/share/doc/yuos-desktop"
 install -Dm0644 "$hardware/omarchy.LICENSE" "$license/omarchy-hardware.LICENSE"
 install -Dm0644 "$work/hyprland/LICENSE" "$license/hyprland/LICENSE"
 install -Dm0644 "$work/hyprland/subprojects/udis86/LICENSE" "$license/hyprland/LICENSE-udis86"
@@ -78,14 +78,14 @@ for source in "$dependencies"/sources/*; do
 done
 install -Dm0644 "$dependencies/sources/lua-5.5.1/doc/readme.html" "$license/hyprland/lua/LICENSE.html"
 
-for binary in cos-agent-ui cos-agent-bridge cos-ask-claw-launcher; do
+for binary in yuos-agent-ui yuos-agent-bridge yuos-ask-launcher; do
     install -Dm0755 "$CARGO_TARGET_DIR/release/$binary" "$stage/usr/local/bin/$binary"
 done
 install -Dm0755 "$project/tools/browser-chat-native-host" \
-    "$stage/usr/lib/cos/browser-chat-native-host"
-install -Dm0755 "$CARGO_TARGET_DIR/release/claw-os-applet-provider" \
-    "$stage/usr/libexec/claw-os-applet-provider"
-install -Dm0644 "$project/desktop/services/claw-applet-services/LICENSE" "$license/applet-services.LICENSE"
+    "$stage/usr/lib/yuos/browser-chat-native-host"
+install -Dm0755 "$CARGO_TARGET_DIR/release/yuos-applet-provider" \
+    "$stage/usr/libexec/yuos-applet-provider"
+install -Dm0644 "$project/desktop/services/yuos-applet-services/LICENSE" "$license/applet-services.LICENSE"
 
 session="$work/hyprland-claw/session"
 install -Dm0644 "$session/claw.desktop" "$stage/usr/share/wayland-sessions/claw.desktop"
@@ -93,40 +93,40 @@ install -Dm0644 "$session/hyprland.lua" "$stage/etc/xdg/hypr/hyprland.lua"
 install -Dm0644 "$session/claw-desktop-session.target" "$stage/usr/lib/systemd/user/claw-desktop-session.target"
 install -Dm0644 "$session/claw-screen-reader.service" "$stage/usr/lib/systemd/user/claw-screen-reader.service"
 install -Dm0644 "$session/claw-desktop.pam" "$stage/etc/pam.d/claw-desktop"
-install -Dm0644 "$session/desktop-session.env" "$stage/usr/share/claw-os/desktop-session.env"
+install -Dm0644 "$session/desktop-session.env" "$stage/usr/share/yuos/desktop-session.env"
 install -Dm0755 "$session/claw-greeter" "$stage/usr/libexec/claw-greeter"
 install -Dm0755 "$session/claw-desktop-login" "$stage/usr/libexec/claw-desktop-login"
-for name in claw-system-settings claw-os-updates; do
+for name in claw-system-settings yuos-updates; do
     install -Dm0755 "$session/$name" "$stage/usr/libexec/$name"
 done
 install -Dm0644 "$session/org.yuos.desktop.settings.policy" \
     "$stage/usr/share/polkit-1/actions/org.yuos.desktop.settings.policy"
 units="$stage/usr/lib/systemd/system"
-for file in "$session"/claw-os-update-*.service "$session"/claw-os-update-*.timer; do
+for file in "$session"/yuos-update-*.service "$session"/yuos-update-*.timer; do
     install -Dm0644 "$file" "$units/${file##*/}"
 done
 install -d "$units/system-update.target.wants" "$units/timers.target.wants"
-ln -s ../claw-os-update-offline.service "$units/system-update.target.wants/"
-ln -s ../claw-os-update-automatic.timer "$units/timers.target.wants/"
+ln -s ../yuos-update-offline.service "$units/system-update.target.wants/"
+ln -s ../yuos-update-automatic.timer "$units/timers.target.wants/"
 install -Dm0755 "$session/claw-create-local-owner" "$stage/usr/libexec/claw-create-local-owner"
 install -Dm0755 "$session/claw-desktop-locales" "$stage/usr/libexec/claw-desktop-locales"
 install -Dm0755 "$session/claw-desktop-reviews" "$stage/usr/libexec/claw-desktop-reviews"
 install -Dm0644 "$session/greetd.toml" "$stage/etc/greetd/claw-desktop.toml"
 install -Dm0644 "$session/greetd.conf" "$stage/usr/lib/systemd/system/greetd.service.d/claw-desktop.conf"
 install -Dm0644 "$session/claw-desktop-accounts.conf" \
-    "$units/clawd.service.d/claw-desktop-accounts.conf"
+    "$units/yuosd.service.d/claw-desktop-accounts.conf"
 install -Dm0644 "$session/claw-desktop-users.conf" "$stage/usr/lib/sysusers.d/claw-desktop-users.conf"
 install -Dm0644 "$session/hyprland-portals.conf" "$stage/usr/share/xdg-desktop-portal/hyprland-portals.conf"
 install -Dm0755 "$session/claw-oobe" "$stage/usr/libexec/claw-oobe"
 for file in "$session"/oobe/*; do
-    install -Dm0644 "$file" "$stage/usr/share/claw-os/oobe/${file##*/}"
+    install -Dm0644 "$file" "$stage/usr/share/yuos/oobe/${file##*/}"
 done
 for file in "$project"/assets/brand/avatars/*.png; do
-    install -Dm0644 "$file" "$stage/usr/share/claw-os/avatars/${file##*/}"
+    install -Dm0644 "$file" "$stage/usr/share/yuos/avatars/${file##*/}"
 done
-install -Dm0644 "$project/assets/brand/yuos-icon-192.png" "$stage/usr/share/claw-os/oobe/logo.png"
-install -Dm0644 "$project/assets/brand/wallpaper/yuos-default.jpg" "$stage/usr/share/backgrounds/claw-os/yuos-default.jpg"
-install -Dm0644 "$project/assets/brand/wallpaper/yuos-default-blurred.jpg" "$stage/usr/share/claw-os/oobe/wallpaper-blurred.jpg"
+install -Dm0644 "$project/assets/brand/yuos-icon-192.png" "$stage/usr/share/yuos/oobe/logo.png"
+install -Dm0644 "$project/assets/brand/wallpaper/yuos-default.jpg" "$stage/usr/share/backgrounds/yuos/yuos-default.jpg"
+install -Dm0644 "$project/assets/brand/wallpaper/yuos-default-blurred.jpg" "$stage/usr/share/yuos/oobe/wallpaper-blurred.jpg"
 install -Dm0644 "$project/assets/brand/wallpaper/NOTICE" "$license/wallpaper.NOTICE"
 install -Dm0644 "$project/assets/brand/wallpaper/LICENSE" "$license/wallpaper.LICENSE"
 install -Dm0644 "$session/claw-driver-online.service" "$stage/usr/lib/systemd/system/claw-driver-online.service"
@@ -135,14 +135,14 @@ install -Dm0755 "$session/70-claw-driver-setup" "$stage/usr/lib/NetworkManager/d
 # Query the target distro's shlibs database, not that of the image builder.
 cd "$work"
 mkdir -p debian
-printf 'Source: claw-os\n\nPackage: claw-os-desktop\nArchitecture: any\nDescription: Claw OS Desktop\n' >debian/control
+printf 'Source: yuos\n\nPackage: yuos-desktop\nArchitecture: any\nDescription: Yu OS Desktop\n' >debian/control
 mapfile -d '' libraries < <(find "$native/lib" -type f -name '*.so.*' -print0)
 for library in "${libraries[@]}"; do
-    objdump -p "$library" | sed -nE 's/^[[:space:]]+SONAME[[:space:]]+(.+)\.so\.(.+)$/\1 \2 claw-os-desktop/p'
+    objdump -p "$library" | sed -nE 's/^[[:space:]]+SONAME[[:space:]]+(.+)\.so\.(.+)$/\1 \2 yuos-desktop/p'
 done >debian/shlibs.local
-dpkg-shlibdeps -O -l"$native/lib" -xclaw-os-desktop "$native/Hyprland" "${libraries[@]}" \
+dpkg-shlibdeps -O -l"$native/lib" -xyuos-desktop "$native/Hyprland" "${libraries[@]}" \
     "$native/claw-lockscreen" \
-    "$stage/usr/local/bin/cos-agent-ui" "$stage/usr/local/bin/cos-agent-bridge" \
-    "$stage/usr/local/bin/cos-ask-claw-launcher" "$stage/usr/libexec/claw-os-applet-provider" \
+    "$stage/usr/local/bin/yuos-agent-ui" "$stage/usr/local/bin/yuos-agent-bridge" \
+    "$stage/usr/local/bin/yuos-ask-launcher" "$stage/usr/libexec/yuos-applet-provider" \
     | sed -n 's/^shlibs:Depends=//p' >"$work/runtime-depends"
 test -s "$work/runtime-depends"

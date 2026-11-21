@@ -8,9 +8,9 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::caps::{catalog, Scope, Verb};
-use crate::clawd::protocol::Request;
-use crate::clawd::routes::Command;
-use crate::config::CosConfig;
+use crate::yuosd::protocol::Request;
+use crate::yuosd::routes::Command;
+use crate::config::YuConfig;
 
 pub(super) use crate::agent::memory::maintenance::LearnedMemoryReset;
 
@@ -494,7 +494,7 @@ pub(super) trait Backend: Send + Sync {
         if workspace.is_some(){return Err("Workspace conversation creation is unavailable".into());}
         self.create_conversation().await
     }
-    async fn workspace_request(&self,_command:clawd_client::Command,_params:Value)->Result<Value,String>{
+    async fn workspace_request(&self,_command:yuosd_client::Command,_params:Value)->Result<Value,String>{
         Err("Workspaces are unavailable".into())
     }
     async fn get_conversation(&self, id: &str) -> Result<Conversation, String>;
@@ -559,7 +559,7 @@ pub(super) trait Backend: Send + Sync {
     ) -> Result<Job, String>;
     async fn activity_attention(&self, id: &str) -> Result<ActivityAttention, String>;
     async fn activity_controls(&self, id: &str) -> Result<ActivityControls, String>;
-    async fn nearby(&self,_action:Option<clawd_client::nearby::NearbyAction>)->Result<clawd_client::nearby::NearbyView,String> {
+    async fn nearby(&self,_action:Option<yuosd_client::nearby::NearbyAction>)->Result<yuosd_client::nearby::NearbyView,String> {
         Err("Nearby sharing is unavailable".into())
     }
     async fn set_activity_control(
@@ -618,12 +618,12 @@ pub(super) trait Backend: Send + Sync {
 pub(super) struct BrokerBackend {
     info: BackendInfo,
     socket: PathBuf,
-    config: Arc<CosConfig>,
+    config: Arc<YuConfig>,
     owner_uid: u32,
 }
 
 impl BrokerBackend {
-    pub async fn new(config: Arc<CosConfig>, uid: u32) -> Result<Self, String> {
+    pub async fn new(config: Arc<YuConfig>, uid: u32) -> Result<Self, String> {
         let readiness = config.clone();
         let (home, ready) = tokio::task::spawn_blocking(move || {
             let home = crate::paths::verified_home_for_uid(uid)?;
@@ -642,7 +642,7 @@ impl BrokerBackend {
                 provider_ready: ready,
                 model_catalog_warning: catalog.warning,
             },
-            socket: crate::clawd::config::socket_path(),
+            socket: crate::yuosd::config::socket_path(),
             config,
             owner_uid: uid,
         })
@@ -688,13 +688,13 @@ impl Backend for BrokerBackend {
         if conversation.workspace_id.as_deref()!=workspace{return Err("Workspace conversation acknowledgement mismatch".into());}
         Ok(conversation)
     }
-    async fn workspace_request(&self,command:clawd_client::Command,params:Value)->Result<Value,String>{
+    async fn workspace_request(&self,command:yuosd_client::Command,params:Value)->Result<Value,String>{
         let command=match command{
-            clawd_client::Command::WorkspaceList=>Command::WorkspaceList,
-            clawd_client::Command::WorkspaceGet=>Command::WorkspaceGet,
-            clawd_client::Command::WorkspaceControl=>Command::WorkspaceControl,
-            clawd_client::Command::WorkspaceRead=>Command::WorkspaceRead,
-            clawd_client::Command::WorkspaceIndexSource=>Command::WorkspaceIndexSource,
+            yuosd_client::Command::WorkspaceList=>Command::WorkspaceList,
+            yuosd_client::Command::WorkspaceGet=>Command::WorkspaceGet,
+            yuosd_client::Command::WorkspaceControl=>Command::WorkspaceControl,
+            yuosd_client::Command::WorkspaceRead=>Command::WorkspaceRead,
+            yuosd_client::Command::WorkspaceIndexSource=>Command::WorkspaceIndexSource,
             _=>return Err("not a human Workspace command".into()),
         };
         self.call(command,params).await
@@ -827,7 +827,7 @@ impl Backend for BrokerBackend {
         );
         let response = tokio::time::timeout(
             Duration::from_secs(35),
-            crate::clawd::client::request(&self.socket, request),
+            crate::yuosd::client::request(&self.socket, request),
         )
         .await
         .map_err(|_| {
@@ -1195,20 +1195,20 @@ impl Backend for BrokerBackend {
         })
     }
 
-    async fn nearby(&self,action:Option<clawd_client::nearby::NearbyAction>)->Result<clawd_client::nearby::NearbyView,String> {
+    async fn nearby(&self,action:Option<yuosd_client::nearby::NearbyAction>)->Result<yuosd_client::nearby::NearbyView,String> {
         let view=match action {
             None=>serde_json::from_value(self.call(Command::NearbyStatus,json!({})).await?)
                 .map_err(|error|format!("invalid nearby view: {error}"))?,
             Some(action)=>{
                 action.validate()?;
-                let response:clawd_client::nearby::NearbyResponse=serde_json::from_value(
+                let response:yuosd_client::nearby::NearbyResponse=serde_json::from_value(
                     self.call(Command::NearbyControl,json!({"request":action})).await?
                 ).map_err(|error|format!("invalid nearby acknowledgement: {error}"))?;
                 response.validate(self.owner_uid,&action)?;
                 response.view
             }
         };
-        clawd_client::nearby::NearbyView::validate(&view,self.owner_uid)?;
+        yuosd_client::nearby::NearbyView::validate(&view,self.owner_uid)?;
         Ok(view)
     }
 
@@ -1617,9 +1617,9 @@ impl Backend for BrokerBackend {
             } else {
                 Vec::new()
             };
-            let apps_dir = std::env::var_os("COS_APPS_DIR")
+            let apps_dir = std::env::var_os("YUOS_APPS_DIR")
                 .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from("/usr/lib/cos/apps"));
+                .unwrap_or_else(|| PathBuf::from("/usr/lib/yuos/apps"));
             let apps = crate::apps::discover_all(&apps_dir);
             let verified_apps = apps.verified.keys().cloned().collect::<Vec<_>>();
             let quarantined_apps = apps.quarantined.keys().cloned().collect::<Vec<_>>();
@@ -1742,7 +1742,7 @@ impl Backend for BrokerBackend {
             self.call(Command::DaemonHealth, json!({})).await?,
         )
         .map_err(|error| format!("invalid Claw daemon health response: {error}"))?;
-        if health.daemon != "clawd" || health.status != "ok" {
+        if health.daemon != "yuosd" || health.status != "ok" {
             return Err("invalid Claw daemon health response: daemon is not healthy".to_string());
         }
         Ok(DebugOverview {
@@ -1856,7 +1856,7 @@ struct RawDaemonHealth {
 
 const MAX_MCP_PRESENTATION_ENTRIES: usize = 256;
 
-fn build_mcp_overview(config: &CosConfig) -> McpOverview {
+fn build_mcp_overview(config: &YuConfig) -> McpOverview {
     let mut servers = config
         .agent
         .mcp_servers
@@ -1900,7 +1900,7 @@ fn build_mcp_overview(config: &CosConfig) -> McpOverview {
 
 const MAX_EXTENSION_PRESENTATION_ENTRIES: usize = 512;
 
-fn build_extensions_overview(config: &CosConfig, owner_uid: u32) -> ExtensionsOverview {
+fn build_extensions_overview(config: &YuConfig, owner_uid: u32) -> ExtensionsOverview {
     let mut entries = Vec::new();
     let mut truncated = false;
     let mut push = |entry: ExtensionSummary| {
@@ -1911,9 +1911,9 @@ fn build_extensions_overview(config: &CosConfig, owner_uid: u32) -> ExtensionsOv
         }
     };
 
-    let apps_dir = std::env::var_os("COS_APPS_DIR")
+    let apps_dir = std::env::var_os("YUOS_APPS_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/usr/lib/cos/apps"));
+        .unwrap_or_else(|| PathBuf::from("/usr/lib/yuos/apps"));
     let apps = crate::apps::discover_all(&apps_dir);
     for (id, app) in apps.verified {
         push(ExtensionSummary {
@@ -2125,7 +2125,7 @@ async fn request(
 ) -> Result<Value, String> {
     let response = tokio::time::timeout(
         Duration::from_secs(35),
-        crate::clawd::client::request(socket, Request::new(command, params)),
+        crate::yuosd::client::request(socket, Request::new(command, params)),
     )
     .await
     .map_err(|_| "Claw broker request timed out; its outcome is unknown".to_string())??;
@@ -2149,7 +2149,7 @@ async fn initial_request(
 ) -> Result<Value, InitialConnectionError> {
     let response = tokio::time::timeout(
         Duration::from_secs(35),
-        crate::clawd::client::request(socket, Request::new(command, params)),
+        crate::yuosd::client::request(socket, Request::new(command, params)),
     )
     .await
     .map_err(|_| {

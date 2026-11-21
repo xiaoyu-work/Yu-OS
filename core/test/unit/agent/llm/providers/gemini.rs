@@ -61,11 +61,11 @@ fn endpoint_strips_trailing_slash_in_base() {
 #[test]
 fn is_configured_true_when_api_key_present() {
     let mut c = cfg();
-    c.api_key_env = Some("COS_TEST_GEMINI_KEY_X".into());
-    std::env::set_var("COS_TEST_GEMINI_KEY_X", "AIza-x");
+    c.api_key_env = Some("YUOS_TEST_GEMINI_KEY_X".into());
+    std::env::set_var("YUOS_TEST_GEMINI_KEY_X", "AIza-x");
     let p = GeminiProvider::from_agent_config("gemini-2.0-flash", &c);
     assert!(p.is_configured());
-    std::env::remove_var("COS_TEST_GEMINI_KEY_X");
+    std::env::remove_var("YUOS_TEST_GEMINI_KEY_X");
 }
 
 #[test]
@@ -461,7 +461,7 @@ fn parses_and_preserves_upstream_function_call_id() {
                     {
                         "functionCall": {
                             "id": "upstream-call-123",
-                            "name": "cos_tool_call",
+                            "name": "yu_tool_call",
                             "args": {
                                 "name": "mcp_test_lookup",
                                 "arguments": {"query": "weather"}
@@ -475,7 +475,7 @@ fn parses_and_preserves_upstream_function_call_id() {
     });
     let response: wire::Response = serde_json::from_value(raw).unwrap();
     let chat = wire::response_to_chat(response, "fallback").unwrap();
-    assert_eq!(chat.tool_calls[0].id, "cos_tool_call::upstream-call-123");
+    assert_eq!(chat.tool_calls[0].id, "yu_tool_call::upstream-call-123");
 
     let mut request = req_text("ignored");
     request.messages.push(Message {
@@ -695,7 +695,7 @@ fn registry_alias_check() {
 
 #[test]
 fn gemini_no_pool_when_neither_plural_field_set() {
-    const LEGACY: &str = "COS_TEST_GEM_LEGACY_ONLY";
+    const LEGACY: &str = "YUOS_TEST_GEM_LEGACY_ONLY";
     std::env::set_var(LEGACY, "legacy-key");
     let mut c = AgentConfig::default();
     c.api_key_env = Some(LEGACY.into());
@@ -707,14 +707,14 @@ fn gemini_no_pool_when_neither_plural_field_set() {
 
 #[test]
 fn gemini_pool_built_from_envs() {
-    std::env::set_var("COS_TEST_GEM_POOL_A", "gem-aaa");
-    std::env::set_var("COS_TEST_GEM_POOL_B", "gem-bbb");
+    std::env::set_var("YUOS_TEST_GEM_POOL_A", "gem-aaa");
+    std::env::set_var("YUOS_TEST_GEM_POOL_B", "gem-bbb");
     let mut c = AgentConfig::default();
-    c.api_key_envs = vec!["COS_TEST_GEM_POOL_A".into(), "COS_TEST_GEM_POOL_B".into()];
+    c.api_key_envs = vec!["YUOS_TEST_GEM_POOL_A".into(), "YUOS_TEST_GEM_POOL_B".into()];
     c.api_key_credential = Some("../ignored-legacy-credential".into());
     let gc = GeminiConfig::from_agent_config("gemini-1.5-flash", &c);
-    std::env::remove_var("COS_TEST_GEM_POOL_A");
-    std::env::remove_var("COS_TEST_GEM_POOL_B");
+    std::env::remove_var("YUOS_TEST_GEM_POOL_A");
+    std::env::remove_var("YUOS_TEST_GEM_POOL_B");
     let pool = gc.pool.expect("pool should be built");
     assert_eq!(pool.len(), 2);
     assert!(gc.api_key.is_none());
@@ -722,8 +722,8 @@ fn gemini_pool_built_from_envs() {
 
 #[test]
 fn gemini_pool_unresolved_fails_closed_instead_of_using_single_key() {
-    const LEGACY: &str = "COS_TEST_GEM_LEGACY_MUST_NOT_BE_USED";
-    const MISSING: &str = "COS_TEST_GEM_POOL_MISSING";
+    const LEGACY: &str = "YUOS_TEST_GEM_LEGACY_MUST_NOT_BE_USED";
+    const MISSING: &str = "YUOS_TEST_GEM_POOL_MISSING";
     std::env::set_var(LEGACY, "legacy-secret-must-not-leak");
     std::env::remove_var(MISSING);
     let mut c = AgentConfig::default();
@@ -743,8 +743,8 @@ fn gemini_pool_unresolved_fails_closed_instead_of_using_single_key() {
 
 #[test]
 fn gemini_pool_partial_uses_resolved_entry_and_ignores_single_key() {
-    const PRESENT: &str = "COS_TEST_GEM_POOL_PARTIAL_PRESENT";
-    const MISSING: &str = "COS_TEST_GEM_POOL_PARTIAL_MISSING";
+    const PRESENT: &str = "YUOS_TEST_GEM_POOL_PARTIAL_PRESENT";
+    const MISSING: &str = "YUOS_TEST_GEM_POOL_PARTIAL_MISSING";
     std::env::set_var(PRESENT, "pool-key");
     std::env::remove_var(MISSING);
     let mut c = AgentConfig::default();
@@ -760,11 +760,11 @@ fn gemini_pool_partial_uses_resolved_entry_and_ignores_single_key() {
 
 #[test]
 fn gemini_is_configured_true_with_pool_only() {
-    std::env::set_var("COS_TEST_GEM_POOL_ICONFIG", "gem-x");
+    std::env::set_var("YUOS_TEST_GEM_POOL_ICONFIG", "gem-x");
     let mut c = AgentConfig::default();
-    c.api_key_envs = vec!["COS_TEST_GEM_POOL_ICONFIG".into()];
+    c.api_key_envs = vec!["YUOS_TEST_GEM_POOL_ICONFIG".into()];
     let gc = GeminiConfig::from_agent_config("gemini-1.5-flash", &c);
-    std::env::remove_var("COS_TEST_GEM_POOL_ICONFIG");
+    std::env::remove_var("YUOS_TEST_GEM_POOL_ICONFIG");
     let provider = GeminiProvider::new_with_transport(gc, HttpTransport::new().unwrap());
     assert!(provider.is_configured());
 }

@@ -50,10 +50,10 @@ const FORBIDDEN_ROOTS: &[&str] = &[
     "/sys",
     "/dev",
     "/boot",
-    "/run/cos",
+    "/run/yuos",
     "/run/systemd",
     "/run/user",
-    "/var/lib/cos",
+    "/var/lib/yuos",
     "/etc/shadow",
     "/etc/gshadow",
     "/etc/sudoers",
@@ -69,8 +69,8 @@ const FORBIDDEN_COMPONENTS: &[&str] = &[
     ".aws",
     ".docker",
     ".kube",
-    ".config/cos",
-    ".local/share/cos/credentials",
+    ".config/yuos",
+    ".local/share/yuos/credentials",
 ];
 
 /// Ceiling on how many mounts one launch may derive from its granted
@@ -95,12 +95,12 @@ pub struct AppOperationInput<'a> {
     /// Capabilities the authority granted this launch.
     pub caps: &'a CapSet,
     pub session_id: &'a str,
-    /// `COS_DATA_DIR` for this launch.
+    /// `YUOS_DATA_DIR` for this launch.
     pub data_dir: &'a str,
-    /// `COS_APPS_DIR` for this launch.
+    /// `YUOS_APPS_DIR` for this launch.
     pub apps_dir: &'a str,
-    /// Extra typed environment the runtime needs (`COS_COMMAND`,
-    /// `COS_ARGS_JSON`, …). Names are validated by the policy.
+    /// Extra typed environment the runtime needs (`YUOS_COMMAND`,
+    /// `YUOS_ARGS_JSON`, …). Names are validated by the policy.
     pub extra_env: BTreeMap<String, String>,
     pub stdio: StdioPlan,
     /// Ambient desktop requests are refused. Only `gui_operation` can
@@ -197,12 +197,12 @@ pub struct AppSessionInput<'a> {
     pub authorized_mounts: &'a [AuthorizedMount],
     pub lifetime: SessionLifetime,
     pub session_id: &'a str,
-    /// `COS_DATA_DIR` for this launch.
+    /// `YUOS_DATA_DIR` for this launch.
     pub data_dir: &'a str,
-    /// `COS_APPS_DIR` for this launch.
+    /// `YUOS_APPS_DIR` for this launch.
     pub apps_dir: &'a str,
     /// Extra typed environment the runtime needs (`PYTHONPATH`,
-    /// `COS_MCP_SERVER`, …). Names are validated by the policy.
+    /// `YUOS_MCP_SERVER`, …). Names are validated by the policy.
     pub extra_env: BTreeMap<String, String>,
     /// `(st_dev, st_ino)` of the verified package directory.
     pub package_identity: Option<(u64, u64)>,
@@ -233,7 +233,7 @@ pub fn app_operation(input: AppOperationInput<'_>) -> Result<LaunchPolicy, Strin
     // The launcher hands over the *owner's* data root, which holds the
     // credential store, the session registry and the journal. A worker
     // gets its own partition of it instead: one directory per App,
-    // created `0700`, and `COS_DATA_DIR` points there. Everything an
+    // created `0700`, and `YUOS_DATA_DIR` points there. Everything an
     // App writes — including the agent-memory rows the kernel already
     // scopes to `self:<app>` — lands inside its own partition, and no
     // other App's or owner's store is in the sandbox at all.
@@ -270,13 +270,13 @@ pub fn app_operation(input: AppOperationInput<'_>) -> Result<LaunchPolicy, Strin
 
     let network = egress_from_caps(input.caps);
     let seccomp = seccomp_for(&network);
-    env.insert("COS_APP_ID".to_string(), input.app_id.to_string());
-    env.insert("COS_SESSION".to_string(), input.session_id.to_string());
+    env.insert("YUOS_APP_ID".to_string(), input.app_id.to_string());
+    env.insert("YUOS_SESSION".to_string(), input.session_id.to_string());
     env.insert(
-        "COS_DATA_DIR".to_string(),
+        "YUOS_DATA_DIR".to_string(),
         data_dir.to_string_lossy().into_owned(),
     );
-    env.insert("COS_APPS_DIR".to_string(), input.apps_dir.to_string());
+    env.insert("YUOS_APPS_DIR".to_string(), input.apps_dir.to_string());
     for (name, value) in input.extra_env {
         env.insert(name, value);
     }
@@ -333,15 +333,15 @@ pub(crate) fn gui_operation(
         display.to_path_buf(), PathBuf::from(super::linux::GUI_WAYLAND_SOCKET), MountClass::Display,
     ));
     policy.env.insert("WAYLAND_DISPLAY".to_string(), super::linux::GUI_WAYLAND_SOCKET.to_string());
-    policy.env.insert("XDG_RUNTIME_DIR".to_string(), "/run/cos".to_string());
+    policy.env.insert("XDG_RUNTIME_DIR".to_string(), "/run/yuos".to_string());
     policy.env.insert("XDG_SESSION_TYPE".to_string(), "wayland".to_string());
     policy.env.insert("XDG_CURRENT_DESKTOP".to_string(), "COSMIC".to_string());
-    policy.env.remove("COS_APP_RESOURCE_DIR");
+    policy.env.remove("YUOS_APP_RESOURCE_DIR");
     policy.env.remove("XDG_DATA_DIRS");
     let resources = app_dir.join("resources");
     match std::fs::symlink_metadata(&resources) {
         Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
-            policy.env.insert("COS_APP_RESOURCE_DIR".to_string(),
+            policy.env.insert("YUOS_APP_RESOURCE_DIR".to_string(),
                 resources.to_str().ok_or("GUI resources are not UTF-8")?.to_string());
             let share = resources.join("usr/share");
             if share.is_dir() {
@@ -408,7 +408,7 @@ pub fn mcp_server(input: McpServerInput<'_>) -> Result<LaunchPolicy, String> {
 
     let mut env = base_env(Path::new(SANDBOX_TMP));
     if let Some(session) = &input.session_id {
-        env.insert("COS_SESSION".to_string(), session.clone());
+        env.insert("YUOS_SESSION".to_string(), session.clone());
     }
     for (name, value) in input.extra_env {
         env.insert(name, value);
@@ -523,13 +523,13 @@ pub fn app_session(input: AppSessionInput<'_>) -> Result<LaunchPolicy, String> {
     env.extend(transport_env);
     dedupe_mounts(&mut mounts);
 
-    env.insert("COS_APP_ID".to_string(), input.app_id.to_string());
-    env.insert("COS_SESSION".to_string(), input.session_id.to_string());
+    env.insert("YUOS_APP_ID".to_string(), input.app_id.to_string());
+    env.insert("YUOS_SESSION".to_string(), input.session_id.to_string());
     env.insert(
-        "COS_DATA_DIR".to_string(),
+        "YUOS_DATA_DIR".to_string(),
         data_dir.to_string_lossy().into_owned(),
     );
-    env.insert("COS_APPS_DIR".to_string(), input.apps_dir.to_string());
+    env.insert("YUOS_APPS_DIR".to_string(), input.apps_dir.to_string());
     for (name, value) in input.extra_env {
         env.insert(name, value);
     }
@@ -705,7 +705,7 @@ pub(crate) fn program_mount(program: &Path) -> Option<Mount> {
 /// shells out to and the SDK/runtime Python trees the wrapper imports.
 fn runtime_mounts() -> Vec<Mount> {
     let mut mounts = Vec::new();
-    if let Some(binary) = cos_binary() {
+    if let Some(binary) = yu_binary() {
         mounts.push(Mount::read_only(
             binary.clone(),
             binary,
@@ -722,8 +722,8 @@ fn runtime_mounts() -> Vec<Mount> {
     mounts
 }
 
-fn cos_binary() -> Option<PathBuf> {
-    if let Some(path) = std::env::var_os("COS_BIN") {
+fn yu_binary() -> Option<PathBuf> {
+    if let Some(path) = std::env::var_os("YUOS_BIN") {
         let path = PathBuf::from(path);
         if path.is_file() {
             return path.canonicalize().ok();
@@ -737,10 +737,10 @@ fn cos_binary() -> Option<PathBuf> {
 
 fn sdk_roots() -> Vec<PathBuf> {
     let mut roots = Vec::new();
-    if let Some(paths) = std::env::var_os("COS_SDK_PYTHON_DIR") {
+    if let Some(paths) = std::env::var_os("YUOS_SDK_PYTHON_DIR") {
         roots.extend(std::env::split_paths(&paths).filter(|path| !path.as_os_str().is_empty()));
     }
-    roots.push(PathBuf::from("/usr/lib/cos/python"));
+    roots.push(PathBuf::from("/usr/lib/yuos/python"));
     roots
         .into_iter()
         .filter_map(|path| path.canonicalize().ok())
@@ -770,22 +770,22 @@ fn base_env(home: &Path) -> BTreeMap<String, String> {
     env.insert("NPM_CONFIG_YES".to_string(), "true".to_string());
     // Enforcement inside the sandbox is advisory — the authority is the
     // broker — but it must still refuse by default.
-    env.insert("COS_PERMS_MODE".to_string(), "strict".to_string());
+    env.insert("YUOS_PERMS_MODE".to_string(), "strict".to_string());
     env.insert(super::SANDBOX_MARKER_ENV.to_string(), "1".to_string());
-    if let Some(binary) = cos_binary() {
+    if let Some(binary) = yu_binary() {
         env.insert(
-            "CLAW_COS_BIN".to_string(),
+            "YUOS_KERNEL_BIN".to_string(),
             binary.to_string_lossy().into_owned(),
         );
     }
-    if let Some(sdk) = std::env::var_os("COS_SDK_PYTHON_DIR") {
+    if let Some(sdk) = std::env::var_os("YUOS_SDK_PYTHON_DIR") {
         env.insert(
-            "COS_SDK_PYTHON_DIR".to_string(),
+            "YUOS_SDK_PYTHON_DIR".to_string(),
             sdk.to_string_lossy().into_owned(),
         );
     } else if let Some(sdk) = sdk_roots().into_iter().next() {
         env.insert(
-            "COS_SDK_PYTHON_DIR".to_string(),
+            "YUOS_SDK_PYTHON_DIR".to_string(),
             sdk.to_string_lossy().into_owned(),
         );
     }
@@ -802,11 +802,11 @@ fn apply_egress_env(env: &mut BTreeMap<String, String>, network: &NetworkPolicy)
         return;
     };
     env.insert(
-        "COS_EGRESS_SOCKET".to_string(),
+        "YUOS_EGRESS_SOCKET".to_string(),
         super::linux_egress_socket().to_string(),
     );
     env.insert(
-        "COS_EGRESS_ENDPOINTS".to_string(),
+        "YUOS_EGRESS_ENDPOINTS".to_string(),
         endpoints
             .iter()
             .map(Endpoint::authority)
@@ -1326,7 +1326,7 @@ pub(crate) fn app_partition(data_root: &Path, app_id: &str) -> Result<PathBuf, S
     let routed_owner = crate::paths::current_owner_uid_override()
         .filter(|_| unsafe { libc::geteuid() } == 0);
     #[cfg(target_os = "linux")]
-    let _owner_fs = routed_owner.map(crate::clawd::client_identity::FsIdentityGuard::enter)
+    let _owner_fs = routed_owner.map(crate::yuosd::client_identity::FsIdentityGuard::enter)
         .transpose()?;
     let partition = data_root.join("apps").join(app_id);
     let created = ensure_dir(&partition, "App data partition")?;

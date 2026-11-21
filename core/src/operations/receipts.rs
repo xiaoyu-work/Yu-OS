@@ -136,7 +136,7 @@ pub(crate) fn capture_session(
 }
 
 fn file_plan_preview(value: &serde_json::Value, app_id: &str) -> Result<(String, bool), String> {
-    claw_os_sdk::generated::validate_file_change_plan(value).map_err(|_| {
+    yuos_sdk::generated::validate_file_change_plan(value).map_err(|_| {
         "App returned an invalid file-change-plan report; no plan was trusted".to_string()
     })?;
     let text = |field: &str| {

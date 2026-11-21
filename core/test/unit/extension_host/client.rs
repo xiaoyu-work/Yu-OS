@@ -31,8 +31,8 @@ fn binding() -> ExtensionBinding {
         host_start_time_ticks: Some(42),
         lease_nonce: "0123456789abcdef0123456789abcdef".to_string(),
         expires_at_ms: crate::agentd::grant::now_ms() + 60_000,
-        control_socket: "/run/cos/test/control.sock".to_string(),
-        broker_socket: "/run/cos/test/broker.sock".to_string(),
+        control_socket: "/run/yuos/test/control.sock".to_string(),
+        broker_socket: "/run/yuos/test/broker.sock".to_string(),
     }
 }
 
@@ -332,7 +332,7 @@ fn trusted_client_fault_categories_map_to_exact_lifecycle_actions() {
 #[test]
 fn categorized_response_serialization_rejects_old_spoofing_semantics() {
     let response = ControlResponse::error(
-        crate::clawd::wire::RequestId::unknown(),
+        crate::yuosd::wire::RequestId::unknown(),
         ExtensionErrorCategory::RemoteCallFailure,
         "connect extension host timed out and closed",
     );
@@ -341,7 +341,7 @@ fn categorized_response_serialization_rejects_old_spoofing_semantics() {
 
     let legacy = serde_json::json!({
         "protocol": PROTOCOL_VERSION,
-        "id": crate::clawd::wire::RequestId::unknown(),
+        "id": crate::yuosd::wire::RequestId::unknown(),
         "ok": false,
         "error": "timed out"
     });
@@ -473,15 +473,15 @@ async fn transport_observers_assign_connect_and_frame_categories() {
         .unwrap_err();
     assert_eq!(connect.category, ExtensionErrorCategory::Connect);
     assert_eq!(
-        response_fault_category(crate::clawd::wire::Fault::ReadTimeout),
+        response_fault_category(crate::yuosd::wire::Fault::ReadTimeout),
         ExtensionErrorCategory::Timeout,
     );
     assert_eq!(
-        response_fault_category(crate::clawd::wire::Fault::TruncatedFrame),
+        response_fault_category(crate::yuosd::wire::Fault::TruncatedFrame),
         ExtensionErrorCategory::Crash,
     );
     assert_eq!(
-        response_fault_category(crate::clawd::wire::Fault::MalformedBody),
+        response_fault_category(crate::yuosd::wire::Fault::MalformedBody),
         ExtensionErrorCategory::Protocol,
     );
 }

@@ -74,7 +74,7 @@ fn derive_scope_uses_name_for_kv_tools() {
 #[test]
 fn fs_read_text_expands_tilde_before_io() {
     let _g = env_lock();
-    let dir = std::env::temp_dir().join(format!("cos-tools-home-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("yuos-tools-home-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("note.txt"), "hello").unwrap();
@@ -106,7 +106,7 @@ fn fs_read_text_expands_tilde_before_io() {
 
 #[test]
 fn fs_list_only_reports_size_for_files() {
-    let dir = std::env::temp_dir().join(format!("cos-tools-list-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("yuos-tools-list-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("nested")).unwrap();
     std::fs::write(dir.join("file.txt"), "hello").unwrap();
@@ -141,7 +141,7 @@ fn fs_list_only_reports_size_for_files() {
 fn fs_list_reports_symlink_without_following_target() {
     use std::os::unix::fs::symlink;
 
-    let dir = std::env::temp_dir().join(format!("cos-tools-symlink-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("yuos-tools-symlink-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("target.txt"), "hello").unwrap();
@@ -172,7 +172,7 @@ fn fs_list_reports_symlink_without_following_target() {
 fn fs_read_text_keeps_authorized_descriptor_after_symlink_swap() {
     use std::os::unix::fs::symlink;
 
-    let dir = std::env::temp_dir().join(format!("cos-tools-read-swap-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("yuos-tools-read-swap-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let requested = dir.join("note.txt");
@@ -214,7 +214,7 @@ fn fs_read_text_rejects_final_symlink_without_authorizing_it() {
     use std::cell::Cell;
     use std::os::unix::fs::symlink;
 
-    let dir = std::env::temp_dir().join(format!("cos-tools-read-nofollow-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("yuos-tools-read-nofollow-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let secret = dir.join("secret.txt");
@@ -246,7 +246,7 @@ fn fs_read_text_rejects_final_symlink_without_authorizing_it() {
 fn fs_list_keeps_authorized_directory_after_path_swap() {
     use std::os::unix::fs::symlink;
 
-    let dir = std::env::temp_dir().join(format!("cos-tools-list-swap-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("yuos-tools-list-swap-{}", std::process::id()));
     let requested = dir.join("requested");
     let moved = dir.join("opened");
     let secret = dir.join("secret");
@@ -289,7 +289,7 @@ fn fs_list_rejects_final_symlink_without_authorizing_it() {
     use std::cell::Cell;
     use std::os::unix::fs::symlink;
 
-    let dir = std::env::temp_dir().join(format!("cos-tools-list-nofollow-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("yuos-tools-list-nofollow-{}", std::process::id()));
     let target = dir.join("target");
     let link = dir.join("link");
     let _ = std::fs::remove_dir_all(&dir);
@@ -348,10 +348,10 @@ fn sanitize_key_replaces_special_chars() {
 
 // ---- ai.tools[] allowlist enforcement -----------------------------
 //
-// These tests mutate $COS_APPS_DIR which is process-global, so the
+// These tests mutate $YUOS_APPS_DIR which is process-global, so the
 // module shares one Mutex with itself (same pattern as
-// `agent::tools::cos_apps`). We never go through the real
-// `/usr/lib/cos/apps` filesystem.
+// `agent::tools::yu_apps`). We never go through the real
+// `/usr/lib/yuos/apps` filesystem.
 
 fn env_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -361,7 +361,7 @@ fn env_lock() -> std::sync::MutexGuard<'static, ()> {
 fn with_tmp_apps<F: FnOnce()>(label: &str, manifests: &[(&str, &str)], f: F) {
     let _g = env_lock();
     let dir =
-        std::env::temp_dir().join(format!("cos-tools-allow-{}-{}", label, std::process::id()));
+        std::env::temp_dir().join(format!("yuos-tools-allow-{}-{}", label, std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     for (id, body) in manifests {
         let app_dir = dir.join(id);
@@ -369,12 +369,12 @@ fn with_tmp_apps<F: FnOnce()>(label: &str, manifests: &[(&str, &str)], f: F) {
         std::fs::write(app_dir.join("app.json"), body).unwrap();
         crate::test_env::sign_test_package(&app_dir, crate::provenance::PackageKind::App, id);
     }
-    let prev = std::env::var("COS_APPS_DIR").ok();
-    std::env::set_var("COS_APPS_DIR", &dir);
+    let prev = std::env::var("YUOS_APPS_DIR").ok();
+    std::env::set_var("YUOS_APPS_DIR", &dir);
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
     match prev {
-        Some(v) => std::env::set_var("COS_APPS_DIR", v),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(v) => std::env::set_var("YUOS_APPS_DIR", v),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
     let _ = std::fs::remove_dir_all(&dir);
     if let Err(e) = result {

@@ -299,15 +299,15 @@ fn read_trust_file(path: &Path) -> Value {
 /// `geteuid`, the directory from that uid's verified passwd home, and
 /// `write_owner_file` refuses a path the caller does not own. There is
 /// no argument for "which owner", so one user cannot revoke — or
-/// restore — another user's trust. System-wide roots under `/etc/cos`
-/// and `/usr/lib/cos` are root-owned and are managed by the package
+/// restore — another user's trust. System-wide roots under `/etc/yuos`
+/// and `/usr/lib/yuos` are root-owned and are managed by the package
 /// manager, not by this command.
 fn record_owner_generation() -> Result<u64, String> {
     #[cfg(unix)]
     {
         let uid = crate::provenance::fsec::effective_uid();
         let home = crate::paths::verified_home_for_uid(uid)?;
-        let dir = home.join(".config/cos/trust");
+        let dir = home.join(".config/yuos/trust");
         let roots = vec![dir.join("publishers.d"), dir.join("developer.d")];
         let state = crate::provenance::state::bump(
             &dir,

@@ -2,7 +2,7 @@
 """Generate a signed `claw.release-security/v1` manifest for one package.
 
 The manifest is the artifact that lets an offline machine tell a *newer*
-Claw OS release from an *older* one that is just as validly signed. It
+Yu OS release from an *older* one that is just as validly signed. It
 binds, for exactly one package build:
 
 * the release-security epoch and ABI generation;
@@ -24,9 +24,9 @@ timestamps, so two builds of the same commit produce byte-identical
 manifests.
 
 Usage:
-  make-manifest.py --package claw-os-agent --version 0.2.0+git1.gabc \\
-      --arch amd64 --stage-dir build/deb-staging/claw-os-agent \\
-      --output build/deb-staging/claw-os-agent/usr/lib/cos/release-security/claw-os-agent/manifest.json
+  make-manifest.py --package yuos-agent --version 0.2.0+git1.gabc \\
+      --arch amd64 --stage-dir build/deb-staging/yuos-agent \\
+      --output build/deb-staging/yuos-agent/usr/lib/yuos/release-security/yuos-agent/manifest.json
 """
 
 from __future__ import annotations
@@ -197,7 +197,7 @@ def main() -> int:
     if policy.get("format") != "claw.release-security-policy/v1":
         raise SystemExit("error: unexpected release-security policy format")
     if args.package not in policy["packages"]:
-        raise SystemExit(f"error: {args.package} is not a gated Claw OS package")
+        raise SystemExit(f"error: {args.package} is not a gated Yu OS package")
 
     manifest = build_manifest(args, policy)
     require_security_epoch_in_version(args.version, int(policy["security_epoch"]))

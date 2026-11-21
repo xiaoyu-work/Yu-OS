@@ -2,7 +2,7 @@
 
 `yu agent serve --open` provides **App Store** and **Apps** navigation on the
 existing authenticated Agent Web UI. It does not use the static marketing
-desktop. Ordinary App controls use `clawd` App services without creating an
+desktop. Ordinary App controls use `yuosd` App services without creating an
 Agent task or contacting a model.
 Only released Claw Apps with authenticated Web interfaces are offered there.
 The Linux package browser and native application launcher belong to the
@@ -13,7 +13,7 @@ appear in both stores. Removing a listing neither uninstalls it nor revokes
 its existing Agent tools.
 
 The Store reads the separately signed, freshness-bounded
-`https://xiaoyu-work.github.io/clawos-app/store/index.json` catalog. Artifact
+`https://xiaoyu-work.github.io/yuos-app/store/index.json` catalog. Artifact
 names bind SHA256 and downloads stay on the declared official HTTPS release
 hosts. The compiled archive key authenticates catalog metadata; each extracted
 App also passes the ordinary Ed25519 provenance, complete-tree, lint and
@@ -40,8 +40,8 @@ revocation and audit. Updating a package invalidates the old view. App code
 cannot obtain the Agent Web token, submit a task, call another App or confirm
 its own permissions through the browser transport.
 
-Ubuntu and WSL2 users can use the same `claw-os-agent` runtime without
-`claw-os-base`, COSMIC or a full OS image. Required OS services, libraries,
+Ubuntu and WSL2 users can use the same `yuos-agent` runtime without
+`yuos-base`, COSMIC or a full OS image. Required OS services, libraries,
 hardware, account setup and exact permissions still apply.
 
 This source feature does not publish Apps, adopt a platform pin or clear the

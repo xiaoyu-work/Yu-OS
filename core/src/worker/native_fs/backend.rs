@@ -24,7 +24,7 @@ use super::Shared;
 use super::{BackingStage, SaveTarget};
 #[cfg(test)]
 use super::ChosenWrite;
-use crate::clawd::client_identity::FsIdentityGuard;
+use crate::yuosd::client_identity::FsIdentityGuard;
 
 const MAX_NODES: usize = 4096;
 const MAX_HANDLES: usize = 128;
@@ -210,7 +210,7 @@ fn walk(shared: &Shared, base: &File, path: &Path, readable: bool) -> Result<Fil
         } else {
             libc::O_PATH | libc::O_DIRECTORY
         };
-        file = crate::clawd::filesystem::open_at(&file, name, flags | libc::O_NOFOLLOW, 0)
+        file = crate::yuosd::filesystem::open_at(&file, name, flags | libc::O_NOFOLLOW, 0)
             .map_err(errno)?;
         checked_object(shared, &file)?;
     }
@@ -296,7 +296,7 @@ pub(super) fn reserve_save(shared: &Shared, target: &Path) -> Result<PathBuf, i3
     }
     {
         let _owner = FsIdentityGuard::enter(shared.owner).map_err(|_| libc::EACCES)?;
-        let proof = crate::clawd::filesystem::open_at(
+        let proof = crate::yuosd::filesystem::open_at(
             &selected.parent,
             OsStr::new("."),
             libc::O_RDWR | libc::O_TMPFILE,
@@ -311,7 +311,7 @@ pub(super) fn reserve_save(shared: &Shared, target: &Path) -> Result<PathBuf, i3
     if saves.len() >= MAX_SAVES {
         return Err(libc::ENOSPC);
     }
-    let relative = directory.join(format!(".cos-save-{}", uuid::Uuid::new_v4().simple()));
+    let relative = directory.join(format!(".yuos-save-{}", uuid::Uuid::new_v4().simple()));
     match open_relative(shared, &relative, false) {
         Err(libc::ENOENT) => {}
         Err(error) => return Err(error),
@@ -564,9 +564,9 @@ fn mutate_locked(
         return Err(libc::EINVAL);
     }
     let command = if replace {
-        crate::clawd::routes::Command::SystemFileReplace
+        crate::yuosd::routes::Command::SystemFileReplace
     } else {
-        crate::clawd::routes::Command::SystemFilesystemWrite
+        crate::yuosd::routes::Command::SystemFilesystemWrite
     };
     let bracket = shared
         .session_context(|| {
@@ -686,7 +686,7 @@ pub(super) fn cleanup_stages(shared: &Shared, deadline: Instant) -> Result<(), S
             stages.pop();
             continue;
         }
-        let current = crate::clawd::filesystem::open_at(
+        let current = crate::yuosd::filesystem::open_at(
             &stage.parent,
             &stage.name,
             libc::O_PATH | libc::O_NOFOLLOW,
@@ -728,12 +728,12 @@ fn materialize(
     bytes: &[u8],
 ) -> Result<File, i32> {
     let _owner = FsIdentityGuard::enter(shared.owner).map_err(|_| libc::EACCES)?;
-    let name = OsString::from(format!(".cos-native-{}", uuid::Uuid::new_v4().simple()));
+    let name = OsString::from(format!(".yuos-native-{}", uuid::Uuid::new_v4().simple()));
     let mut stages = shared.stages.lock().map_err(|_| libc::EIO)?;
     if stages.len() >= MAX_SAVES {
         return Err(libc::ENOSPC);
     }
-    let file = crate::clawd::filesystem::open_at(
+    let file = crate::yuosd::filesystem::open_at(
         &parent,
         &name,
         libc::O_RDWR | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW,
@@ -1138,7 +1138,7 @@ impl Filesystem {
         if private {
             attr.nlink = u32::from(!node.detached);
             attr.uid = self.shared.owner;
-            attr.gid = crate::clawd::client_identity::owner_groups(self.shared.owner)
+            attr.gid = crate::yuosd::client_identity::owner_groups(self.shared.owner)
                 .map_err(|_| libc::EACCES)?
                 .0;
         }

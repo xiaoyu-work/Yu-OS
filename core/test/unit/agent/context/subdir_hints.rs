@@ -4,7 +4,7 @@ use std::io::Write;
 
 fn tmp_dir(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
-        "cos-subdir-hints-{}-{}",
+        "yuos-subdir-hints-{}-{}",
         tag,
         uuid::Uuid::new_v4().simple()
     ));

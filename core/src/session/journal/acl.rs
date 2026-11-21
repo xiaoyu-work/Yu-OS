@@ -1,6 +1,6 @@
 //! Who may ask for which event kind.
 //!
-//! The journal has exactly one writer — root `clawd` — but not every
+//! The journal has exactly one writer — root `yuosd` — but not every
 //! caller inside that process speaks for the same authority. A frame
 //! that arrived on an `agentd` worker's private channel is a *request*
 //! to record a model or tool lifecycle fact; it must never be able to
@@ -19,9 +19,9 @@ use super::event::JournalEvent;
 #[serde(rename_all = "kebab-case")]
 pub enum EventSource {
     /// Broker, capability authority, approvals store and privileged
-    /// providers running inside root `clawd`. May record every kind.
+    /// providers running inside root `yuosd`. May record every kind.
     Kernel,
-    /// A `claw-agentd` worker's private channel. May record only model
+    /// A `yuos-agentd` worker's private channel. May record only model
     /// and tool lifecycle, and only for the session named on its
     /// verified grant — the writer derives task, session and owner from
     /// the lease, never from the frame.

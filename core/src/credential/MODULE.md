@@ -13,7 +13,7 @@ material internals.
 | --- | --- |
 | `domain.rs` | Validated namespace/credential identifiers, persistent record shapes, and the credential-store interface consumed by OAuth |
 | `crypto.rs` | Byte-compatible SHA-256 and AES-256-GCM primitives, strict base64, constant-time tag checks, and legacy XOR reads; no format or algorithm changes without vectors |
-| `master_key.rs`, `keyring.rs` | OS randomness and `credential-root.key`, plus an isolated Linux session-keyring cache; key source order and `cos-credential-key` label are compatibility contracts |
+| `master_key.rs`, `keyring.rs` | OS randomness and `credential-root.key`, plus an isolated Linux session-keyring cache; key source order and `yuos-credential-key` label are compatibility contracts |
 | `authorization.rs` | Secret capability scopes, tier ordering, metadata/path binding, expiry checks, and fail-closed session-tier resolution |
 | `store.rs` | Credential and bundle paths, encrypted record persistence, per-record locking, atomic replacement, scheduler owner/path checks, and public read compatibility |
 | `lifecycle.rs` | Refresh-command execution policy and TTL preservation |

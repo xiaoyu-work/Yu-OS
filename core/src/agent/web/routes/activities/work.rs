@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::activities::{ActivityWork, ActivityWorkDraft, ActivityWorkRecord};
-use crate::clawd::wire::requests::{ActivityWorkEnabled, ActivityWorkGet, ActivityWorkSet};
+use crate::yuosd::wire::requests::{ActivityWorkEnabled, ActivityWorkGet, ActivityWorkSet};
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]

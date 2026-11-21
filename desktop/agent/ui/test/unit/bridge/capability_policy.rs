@@ -1,5 +1,5 @@
 use super::*;
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     CapabilityPolicyDraft, CapabilityPolicyMode, CapabilityPolicyRule, CapabilityPolicyScope,
 };
 

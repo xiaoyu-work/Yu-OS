@@ -19,7 +19,7 @@ use axum::{
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
 };
-use cos_agent_protocol::{ErrorCode, ErrorEnvelope, VoiceResponse};
+use yuos_agent_protocol::{ErrorCode, ErrorEnvelope, VoiceResponse};
 use serde::Deserialize;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
@@ -29,7 +29,7 @@ use tokio::{
 
 use crate::state::AppState;
 
-const DEFAULT_COS_BIN: &str = "/usr/local/bin/yu";
+const DEFAULT_YUOS_BIN: &str = "/usr/local/bin/yu";
 const TRANSCRIPTION_TIMEOUT: Duration = Duration::from_secs(120);
 const STDOUT_LIMIT: usize = 1024 * 1024;
 const STDERR_LIMIT: usize = 64 * 1024;
@@ -80,7 +80,7 @@ impl IntoResponse for VoiceApiError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 ErrorCode::Internal,
                 "voice upload storage is unavailable",
-                Some("Restart cos-agent-bridge.service and try again."),
+                Some("Restart yuos-agent-bridge.service and try again."),
             ),
             Self::BackendUnavailable => (
                 StatusCode::SERVICE_UNAVAILABLE,
@@ -110,7 +110,7 @@ impl IntoResponse for VoiceApiError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 ErrorCode::Internal,
                 "failed to clean up voice upload",
-                Some("Restart cos-agent-bridge.service and try again."),
+                Some("Restart yuos-agent-bridge.service and try again."),
             ),
         };
         let mut envelope = ErrorEnvelope::new(code, error);
@@ -294,7 +294,7 @@ fn bridge_runtime_dir() -> io::Result<PathBuf> {
         ));
     }
 
-    let directory = runtime_root.join("cos-agent-bridge");
+    let directory = runtime_root.join("yuos-agent-bridge");
     validate_private_directory(&directory)?;
     Ok(directory)
 }
@@ -391,22 +391,22 @@ fn random_token() -> io::Result<String> {
 }
 
 fn configured_cos_bin() -> OsString {
-    env::var_os("COS_BIN")
+    env::var_os("YUOS_BIN")
         .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| OsString::from(DEFAULT_COS_BIN))
+        .unwrap_or_else(|| OsString::from(DEFAULT_YUOS_BIN))
 }
 
 async fn transcribe_audio(path: &Path) -> Result<String, TranscriptionError> {
-    let cos_bin = configured_cos_bin();
-    transcribe_audio_with_bin(path, &cos_bin, TRANSCRIPTION_TIMEOUT).await
+    let yu_bin = configured_cos_bin();
+    transcribe_audio_with_bin(path, &yu_bin, TRANSCRIPTION_TIMEOUT).await
 }
 
 async fn transcribe_audio_with_bin(
     path: &Path,
-    cos_bin: &OsStr,
+    yu_bin: &OsStr,
     max_duration: Duration,
 ) -> Result<String, TranscriptionError> {
-    let mut command = Command::new(cos_bin);
+    let mut command = Command::new(yu_bin);
     command
         .arg("model")
         .arg("transcribe")

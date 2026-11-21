@@ -1,8 +1,0 @@
-[Unit]
-Description=Download checked Yu OS updates
-After=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/libexec/claw-os-updates prepare
-TimeoutStartSec=18min

@@ -3,7 +3,7 @@
 ## Responsibility
 
 Provide the OS-private native compositor enforcement bridge for Hyprland.
-It consumes the existing [display control contract](../claw-display-control/MODULE.md);
+It consumes the existing [display control contract](../yuos-display-control/MODULE.md);
 it does not replace the Root broker or make App capability decisions.
 
 The lease/origin rules preserve Root-only creator descriptors, actual

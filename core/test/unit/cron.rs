@@ -3,7 +3,7 @@ use super::*;
 use std::sync::Once;
 static PERMS_INIT: Once = Once::new();
 fn perms_init() {
-    PERMS_INIT.call_once(|| std::env::set_var("COS_PERMS_MODE", "permissive"));
+    PERMS_INIT.call_once(|| std::env::set_var("YUOS_PERMS_MODE", "permissive"));
 }
 use chrono::TimeZone;
 
@@ -281,9 +281,9 @@ fn cron_setup() -> (
 ) {
     let guard = CRON_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     CRON_INIT.call_once(|| {
-        let dir = std::env::temp_dir().join(format!("cos-test-shared-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("yuos-test-shared-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
-        std::env::set_var("COS_DATA_DIR", &dir);
+        std::env::set_var("YUOS_DATA_DIR", &dir);
     });
     let session = crate::test_env::TestSessionGuard::admin(&crate::paths::data_dir());
     // Clean up jobs and logs between tests

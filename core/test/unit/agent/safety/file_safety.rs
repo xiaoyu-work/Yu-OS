@@ -157,7 +157,7 @@ fn etc_prefix_does_not_match_etcd_dir() {
 // does not recognise `C:` as a drive-letter prefix, so paths like
 // `C:/Windows/System32/...` parse as a single bare component on the
 // CI target (Debian) and never match `WINDOWS_SYSTEM_PREFIXES`. The
-// hardening still applies when claw-os runs on Windows-under-WSL
+// hardening still applies when yuos runs on Windows-under-WSL
 // paths via the dangerous-extension rule (`.exe`, `.dll`, …),
 // which has dedicated tests above.
 

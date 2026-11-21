@@ -4,7 +4,7 @@ use std::os::unix::net::UnixStream;
 use std::os::unix::process::CommandExt;
 use std::process::{Child, Command, Stdio};
 
-use claw_display_control::{Error, InstanceId, wire::monotonic_ms};
+use yuos_display_control::{Error, InstanceId, wire::monotonic_ms};
 
 use super::containment;
 

@@ -13,7 +13,7 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crate::bridge::{
     BridgeEndpoint, bridge_url, response_error, validate_response_protocol, versioned_request,
 };
-pub use cos_agent_protocol::VoiceResponse;
+pub use yuos_agent_protocol::VoiceResponse;
 
 pub const TARGET_RATE: u32 = 16_000;
 pub const MAX_RECORDING_SECS: u64 = 120;
@@ -66,7 +66,7 @@ impl Recorder {
         });
         let capture_metrics = Arc::clone(&metrics);
         let join = std::thread::Builder::new()
-            .name("cos-agent-ui:recorder".into())
+            .name("yuos-agent-ui:recorder".into())
             .spawn(move || {
                 let failure_tx = ready_tx.clone();
                 let result = run_capture(stop_rx, ready_tx, capture_metrics);

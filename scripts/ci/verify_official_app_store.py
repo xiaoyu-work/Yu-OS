@@ -61,7 +61,7 @@ def confirm(review, allowed_apps):
     # This disposable CI Root controller confirms only the new synthetic owner.
     # The installed helper still checks the exact displayed revision at Root.
     result = subprocess.run(
-        ["/usr/local/bin/claw-approval-helper", "--system-review-json"],
+        ["/usr/local/bin/yuos-approval-helper", "--system-review-json"],
         input=json.dumps(decision), text=True, capture_output=True, check=True,
         env={"PATH": "/usr/local/bin:/usr/bin:/bin", "PKEXEC_UID": str(UID)},
         timeout=30,
@@ -127,11 +127,11 @@ def main():
         )["access_token"]
         meta = request("/api/meta", token)
         assert meta["owner_uid"] == UID, meta
-        assert meta["version"] == os.environ["COS_PACKAGE_VERSION"], meta
+        assert meta["version"] == os.environ["YUOS_PACKAGE_VERSION"], meta
         assert not any(app["id"] == "kv" for app in request("/api/apps", token)["apps"])
         store = request("/api/app-store", token)
         catalog = store["catalog"]
-        assert catalog["repository"] == "xiaoyu-work/clawos-app", catalog["repository"]
+        assert catalog["repository"] == "xiaoyu-work/yuos-app", catalog["repository"]
         candidates = [
             entry for entry in catalog["apps"] if entry["app_id"] == "kv"
             and entry["architecture"] in ("all", store["architecture"])
@@ -196,7 +196,7 @@ def main():
                 [str(args.node), "--experimental-websocket", str(driver)],
                 cwd=home, check=True, timeout=120, **identity,
                 env={
-                    **owner_env, "COS_APP_APT_PROCESS": "1",
+                    **owner_env, "YUOS_APP_APT_PROCESS": "1",
                     "APP_STORE_INSTALLED_ORIGIN": ORIGIN,
                     "APP_STORE_INSTALLED_TOKEN_FILE": str(token_file),
                     "APP_STORE_INSTALLED_VALUE": value,

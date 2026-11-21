@@ -44,7 +44,7 @@ fn trust_roots_are_reported_as_compiled_in() {
 fn trust_add_refuses_private_key_material() {
     use std::io::Write;
     let dir = std::env::temp_dir().join(format!(
-        "cos-prov-cli-{}",
+        "yuos-prov-cli-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&dir).unwrap();
@@ -70,7 +70,7 @@ fn trust_add_refuses_private_key_material() {
 #[test]
 fn trust_add_requires_the_expected_schema() {
     let dir = std::env::temp_dir().join(format!(
-        "cos-prov-cli-schema-{}",
+        "yuos-prov-cli-schema-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&dir).unwrap();

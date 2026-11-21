@@ -18,7 +18,7 @@ def build(archive, provenance, work, output):
     tree = work / "radio-source"
     extract(archive, tree, prefixes=("LICENSE", recipes))
     stage = work / "radio"
-    name = "claw-os-qualcomm-radio"
+    name = "yuos-qualcomm-radio"
     tool = stage / "usr/sbin/ath12k-board-fallback"
     stage_file(tree / recipes / tool.name, tool, 0o755)
     replace(tool, "#!/usr/bin/env python3", "#!/usr/bin/python3")

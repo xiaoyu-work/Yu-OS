@@ -34,7 +34,7 @@ fn round_trip_with_tool_calls() {
         at: "2026-01-01T00:00:00Z".into(),
         role: TurnRole::Assistant,
         content: "let me check".into(),
-        runtime: Some("cos-agent".into()),
+        runtime: Some("yuos-agent".into()),
         tool_calls: vec![serde_json::json!({
             "id": "call_1",
             "name": "fs.read",

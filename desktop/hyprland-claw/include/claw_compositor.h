@@ -24,7 +24,7 @@ enum ClawRights {
     CLAW_SELECTION_WRITE = 2,
     CLAW_PANEL           = 4,
     CLAW_CONTEXT         = 8,
-    CLAW_OS_SESSION      = 16,
+    YUOS_DESKTOP_SESSION      = 16,
     CLAW_SESSION_LOCK    = 32,
 };
 

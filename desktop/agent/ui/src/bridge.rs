@@ -1,4 +1,4 @@
-//! Discovery and request shapes for `cos-agent-bridge`.
+//! Discovery and request shapes for `yuos-agent-bridge`.
 //!
 //! The bridge is a sibling process under `desktop/agent/bridge/`.
 //! It listens on `127.0.0.1:<port>` and writes the bound port plus a
@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow};
-pub use cos_agent_protocol::{
+pub use yuos_agent_protocol::{
     ActivityCapabilityPolicy, ActivityCapabilityPolicyEnabledRequest,
     ActivityCapabilityPolicyResponse, ActivityCapabilityPolicySetRequest,
     ActivityContinuityDocument, ActivityContinuityImportAcknowledgement,
@@ -29,8 +29,8 @@ pub use cos_agent_protocol::{
     ObjectStateEntry, SessionSummary, SessionUpdateRequest, StreamEvent, TaskStarted, ToolCallView,
     ToolPhase, ToolResultView, Usage, validate_chat_attachments,
 };
-use cos_agent_protocol::{PROTOCOL_VERSION_HEADER, ProtocolMetadata, ProtocolVersion};
-use cos_agent_protocol::{ActivityAutoWork,ActivityAutoWorkResponse,AutoWorkSetRequest,AutoWorkEnabledRequest};
+use yuos_agent_protocol::{PROTOCOL_VERSION_HEADER, ProtocolMetadata, ProtocolVersion};
+use yuos_agent_protocol::{ActivityAutoWork,ActivityAutoWorkResponse,AutoWorkSetRequest,AutoWorkEnabledRequest};
 use reqwest::header::HeaderMap;
 use serde::Deserialize;
 pub(crate) mod workspaces;
@@ -42,7 +42,7 @@ pub(crate) mod workspaces;
 pub const ENDPOINT_FILE_STALE_AFTER: Duration = Duration::from_secs(86_400);
 const SERVICE_CONTROL_TIMEOUT: Duration = Duration::from_secs(5);
 const BRIDGE_STARTUP_TIMEOUT: Duration = Duration::from_secs(5);
-const BRIDGE_SERVICE: &str = "cos-agent-bridge.service";
+const BRIDGE_SERVICE: &str = "yuos-agent-bridge.service";
 static UPGRADE_RESTART_ATTEMPTED: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug)]
@@ -74,7 +74,7 @@ fn read_bridge_discovery() -> Result<DiscoveryState> {
     let dir = std::env::var("XDG_RUNTIME_DIR")
         .ok()
         .map(PathBuf::from)
-        .map(|dir| dir.join("cos-agent-bridge"))
+        .map(|dir| dir.join("yuos-agent-bridge"))
         .context("XDG_RUNTIME_DIR is required for bridge discovery")?;
     if !dir.is_absolute() {
         anyhow::bail!("bridge runtime directory must be absolute");
@@ -184,7 +184,7 @@ pub async fn ensure_bridge_endpoint() -> Result<BridgeEndpoint> {
             return Ok(endpoint);
         }
         if tokio::time::Instant::now() >= deadline {
-            anyhow::bail!("cos-agent-bridge did not become ready");
+            anyhow::bail!("yuos-agent-bridge did not become ready");
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
@@ -352,7 +352,7 @@ pub async fn fork_session(endpoint: BridgeEndpoint, session_id: &str) -> Result<
 pub async fn fetch_history(
     endpoint: BridgeEndpoint,
     session_id: &str,
-) -> Result<cos_agent_protocol::HistoryResponse> {
+) -> Result<yuos_agent_protocol::HistoryResponse> {
     let path = format!("/api/sessions/{session_id}/history");
     let url = bridge_url(&endpoint, &path);
     let selected = selected_protocol_version(&endpoint)?;
@@ -371,7 +371,7 @@ pub async fn fetch_history(
         return Err(response_error(response, &url).await);
     }
     response
-        .json::<cos_agent_protocol::HistoryResponse>()
+        .json::<yuos_agent_protocol::HistoryResponse>()
         .await
         .context("decoding history envelope")
 }
@@ -453,7 +453,7 @@ pub async fn cancel_task(endpoint: BridgeEndpoint, task_id: &str) -> Result<()> 
 pub async fn fetch_followups(
     endpoint: BridgeEndpoint,
     task_id: &str,
-) -> Result<cos_agent_protocol::FollowUpQueue> {
+) -> Result<yuos_agent_protocol::FollowUpQueue> {
     let url = bridge_url(&endpoint, &format!("/api/chat/{task_id}/queue"));
     let selected = selected_protocol_version(&endpoint)?;
     let response = reqwest::Client::builder()
@@ -468,7 +468,7 @@ pub async fn fetch_followups(
     if !response.status().is_success() {
         return Err(response_error(response, &url).await);
     }
-    let queue: cos_agent_protocol::FollowUpQueue = response.json().await?;
+    let queue: yuos_agent_protocol::FollowUpQueue = response.json().await?;
     if queue.task_id != task_id || queue.tasks.iter().any(|task| task.id == task_id) {
         return Err(anyhow!("Follow-up queue identity mismatch"));
     }
@@ -565,9 +565,9 @@ pub async fn memory_request<T: serde::Serialize, R: serde::de::DeserializeOwned>
     response.json().await.context("decoding owner memory")
 }
 
-pub async fn nearby_request(endpoint:BridgeEndpoint,action:Option<cos_agent_protocol::nearby::NearbyAction>)
-    ->Result<cos_agent_protocol::nearby::NearbyView> {
-    use cos_agent_protocol::nearby::*;
+pub async fn nearby_request(endpoint:BridgeEndpoint,action:Option<yuos_agent_protocol::nearby::NearbyAction>)
+    ->Result<yuos_agent_protocol::nearby::NearbyView> {
+    use yuos_agent_protocol::nearby::*;
     let owner={
         use std::os::unix::fs::MetadataExt;
         std::fs::metadata("/proc/self").context("inspecting nearby sharing owner")?.uid()

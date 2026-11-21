@@ -30,11 +30,11 @@ fn invalid_page_windows_never_return_an_unbounded_or_misleading_source() {
 #[test]
 fn assistant_row_splits_text_and_tool_use() {
     let body =
-        "Let me check.\n[tool_use:cos_sysinfo] {\"command\":\"largest_files\",\"args\":[\"/\"]}";
+        "Let me check.\n[tool_use:yu_sysinfo] {\"command\":\"largest_files\",\"args\":[\"/\"]}";
     let p = parse_stored_content("assistant", body);
     assert_eq!(p.text, "Let me check.");
     assert_eq!(p.tool_calls.len(), 1);
-    assert_eq!(p.tool_calls[0]["name"], "cos_sysinfo");
+    assert_eq!(p.tool_calls[0]["name"], "yu_sysinfo");
     assert_eq!(p.tool_calls[0]["input"]["command"], "largest_files");
 }
 
@@ -47,7 +47,7 @@ fn assistant_history_hides_legacy_evidence_markers() {
 
 #[test]
 fn assistant_row_with_only_tool_use_has_empty_text() {
-    let body = "[tool_use:cos_sysinfo] {\"command\":\"info\"}";
+    let body = "[tool_use:yu_sysinfo] {\"command\":\"info\"}";
     let p = parse_stored_content("assistant", body);
     assert!(p.text.is_empty());
     assert_eq!(p.tool_calls.len(), 1);

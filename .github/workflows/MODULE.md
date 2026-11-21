@@ -102,7 +102,7 @@ build, then signed and deployed once. `images` builds signed Agent/Base inputs
 without publishing those packages to APT. `website` preserves the existing
 signed package pool. Non-expiring indexes need no scheduled refresh.
 
-SDK publication also builds tested portable `cos` signing executables for amd64
+SDK publication also builds tested portable `yu` signing executables for amd64
 and arm64 from that same commit, after its full Root validation succeeds.
 The SDK Release binds those bounded assets, dependency source pins and upstream
 notices to its checksums. This lets the first App channel authenticate snapshots

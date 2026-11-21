@@ -1,7 +1,7 @@
 //! Explicit projection of the shared Activity and task services. No local
 //! Activity state is inferred from job status or approval outcomes.
 
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     ActivityApprovalView, ActivityAttentionResponse, ActivityDetailResponse, ActivityJobView,
     ActivityListResponse, ActivityObjectResourceView, ActivityObjectStateResponse,
     ActivityObjectStatus, ActivityObjectsResponse, ActivityOperationPreview,
@@ -36,7 +36,7 @@ struct CoreActivity {
 impl CoreActivity {
     fn into_view(self) -> Result<ActivityView, String> {
         if self.id.trim().is_empty() {
-            return Err("clawd returned an empty Activity id".into());
+            return Err("yuosd returned an empty Activity id".into());
         }
         Ok(ActivityView {
             id: self.id,
@@ -102,7 +102,7 @@ pub fn objects(value: Value) -> Result<ActivityObjectsResponse, String> {
         .map_err(|error| format!("invalid activity.objects result: {error}"))?;
     check_schema(envelope.schema)?;
     if envelope.activity_id.trim().is_empty() {
-        return Err("clawd returned an empty Activity id for object descriptions".into());
+        return Err("yuosd returned an empty Activity id for object descriptions".into());
     }
     for object in &envelope.objects {
         // Resource text may be noncanonical. Only the broker interprets it
@@ -201,7 +201,7 @@ pub fn detail(value: Value) -> Result<ActivityDetailResponse, String> {
         .into_iter()
         .map(|job| {
             if job.id.trim().is_empty() || job.status.trim().is_empty() {
-                return Err("clawd returned an invalid Activity job".to_string());
+                return Err("yuosd returned an invalid Activity job".to_string());
             }
             Ok(ActivityJobView {
                 id: job.id,
@@ -240,7 +240,7 @@ pub fn work(value: Value) -> Result<ActivityWorkResponse, String> {
     let job: Submission = serde_json::from_value(value)
         .map_err(|error| format!("invalid Activity work result: {error}"))?;
     if job.id.trim().is_empty() || job.status.trim().is_empty() {
-        return Err("clawd returned an invalid Activity work acknowledgement".into());
+        return Err("yuosd returned an invalid Activity work acknowledgement".into());
     }
     Ok(ActivityWorkResponse {
         id: job.id,
@@ -302,7 +302,7 @@ fn check_schema(schema: u32) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!(
-            "unsupported clawd Activity schema {schema}; expected 1"
+            "unsupported yuosd Activity schema {schema}; expected 1"
         ))
     }
 }

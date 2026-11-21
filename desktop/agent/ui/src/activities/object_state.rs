@@ -1,6 +1,6 @@
 //! Object-state presentation and unsent drafts in the existing Activity reducer.
 
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     ObjectStateContent, ObjectStateDraft, ObjectStateRelation, ObjectStateSource,
     ObjectStateValidity,
 };

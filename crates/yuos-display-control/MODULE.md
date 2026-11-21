@@ -1,0 +1,67 @@
+# OS Display Control
+
+This unpublished internal crate defines the bounded, credential-authenticated
+descriptor protocol shared by the Root login/display supervisor, PAM hook,
+broker and compositor. It is not part of the public App SDK and makes no
+permission decisions.
+
+`identity.rs` reads kernel process/start-time and audit-login identities.
+`transport.rs` requires Unix `SOCK_SEQPACKET`, per-message kernel credentials,
+close-on-exec descriptor receipt, closed messages, deadlines and exact FD counts.
+`wire.rs` separates login activation, PAM lifetime and compositor commands.
+The broker-to-supervisor channel also carries the closed signed App launch
+target, an ordinary XDG desktop-entry ID, or the fixed request to show the
+Claw Agent UI, with a correlated submission acknowledgement. It carries no
+command line, executable path, or App permission decision.
+The same channel accepts an exact lock request and readiness reply. Only the
+supervisor-to-compositor channel may attach the actual locker descriptor; the
+broker-to-supervisor route cannot supply one.
+`install.rs` checks fixed executables and every ancestor. `locale.rs` admits
+only bounded PAM locale values, never loader variables or authority metadata.
+`session.rs` provides kernel-login subscriptions and canonical
+display/runtime/user-bus projection. Only the authenticated PAM session client
+can request the supervisor's one fixed system shell launch. The request names
+no App or executable.
+`workload.rs` pins `cgroup.events` with the protected cgroup directory.
+If logind removes the empty subtree first, kernel `ENODEV` on that original
+control descriptor proves removal; a missing path alone is not evidence.
+Owner, session and epoch fields in compositor messages are Root projections;
+no user registration message may supply them.
+`selection.rs` transports bounded standard MIME bytes in one Root-owned sealed
+descriptor. `SetSelection` is an OS service effect on a live owner/display
+epoch, not an App creator or a new installed identity. The compositor only
+acknowledges after installing its own selection source. This source belongs to
+the display, so completed clipboard writes do not depend on the caller's GUI
+or an AI task remaining alive. Existing independent read checks still guard
+offers and transfers. Root-origin effect correlation never retires an App
+instance on acknowledgement loss.
+`desktop.rs` defines closed window and workspace queries/effects for the same Root
+display channel. Response data uses a bounded sealed descriptor owned by the
+authenticated compositor account, not an oversized control frame or a raw
+App-accessible Hyprland socket. Receivers verify owner/seals and read by offset,
+so a sender cannot change the payload or its interpretation through a shared
+file position. The data descriptor supplies no window-control authority.
+`Observe` starts epoch-bound change signals on the existing channel. These
+signals carry no payload or descriptors; one-shot `List` does not enable them.
+The two visual commands carry a bounded native-pixel crop or one observation
+ID and pixel coordinate. The Root broker owns consent; the event-thread
+compositor checks image freshness and the actual input target before clicking.
+Both the PNG response and the click acknowledgement use the same sealed
+descriptor contract and expire independently of GUI-App leases.
+The broker only sends a first visual command to a compositor whose ordinary
+window state includes `visual-ready`; otherwise it leaves the existing
+display connection untouched.
+
+Production consumers must bind an expected process using their Root-owned
+child/parent or kernel peer, not a PID parsed from App JSON. Inherited socket
+peer credentials alone are insufficient after fork: every received packet
+checks its actual sender and current process identity.
+
+The transport does not enable GUI permissions by itself. Its production
+[Root activation](../../core/src/display_session/MODULE.md),
+[GUI Host](../../core/src/yuosd/gui/MODULE.md) and
+[compositor](../../desktop/comp/MODULE.md) consumers are separate responsibilities.
+No user socket, public SDK call or serialized owner claim creates a lease.
+
+Run `cargo test -p yuos-display-control -- --test-threads=1` from the repository
+root; descriptor-leak cases count process-wide descriptors.

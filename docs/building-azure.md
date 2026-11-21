@@ -1,14 +1,14 @@
 # Building an Azure Compute Gallery image
 
-The Azure target builds a generalized Debian 13-based Claw OS image. Azure
+The Azure target builds a generalized Debian 13-based Yu OS image. Azure
 creates the administrator, hostname, and SSH credentials when each VM starts.
-The image contains no reusable `cos` login account.
+The image contains no reusable `yu` login account.
 
 ## Output
 
 ```text
-build/claw-os-azure-amd64.vhd
-build/claw-os-azure-arm64.vhd
+build/yuos-azure-amd64.vhd
+build/yuos-azure-arm64.vhd
 ```
 
 The VHD is:
@@ -45,7 +45,7 @@ supported flavors:
 # Headless Azure image, 16 GiB virtual OS disk.
 sudo ./build.sh azure
 
-# Claw OS desktop Azure image, 50 GiB virtual OS disk.
+# Yu OS desktop Azure image, 50 GiB virtual OS disk.
 sudo IMAGE_FLAVOR=desktop ./build.sh azure
 
 # Optional virtual disk size override.
@@ -70,10 +70,10 @@ az account set --subscription "<subscription-id-or-name>"
 Set names for the source resources:
 
 ```bash
-RG=claw-os-images
+RG=yuos-images
 LOCATION=westus2
-VHD=build/claw-os-azure-amd64.vhd
-DISK=claw-os-azure-source-1-0-0
+VHD=build/yuos-azure-amd64.vhd
+DISK=yuos-azure-source-1-0-0
 
 az group create --name "$RG" --location "$LOCATION"
 
@@ -111,7 +111,7 @@ Create a gallery and a generalized Gen2 image definition:
 
 ```bash
 GALLERY=clawOsGallery
-DEFINITION=claw-os
+DEFINITION=yuos
 VERSION=1.0.0
 
 az sig create \
@@ -123,8 +123,8 @@ az sig image-definition create \
     --resource-group "$RG" \
     --gallery-name "$GALLERY" \
     --gallery-image-definition "$DEFINITION" \
-    --publisher ClawOS \
-    --offer ClawOS \
+    --publisher YuOS \
+    --offer YuOS \
     --sku trixie \
     --os-type Linux \
     --os-state Generalized \
@@ -179,7 +179,7 @@ IMAGE_ID=$(
 
 az vm create \
     --resource-group "$RG" \
-    --name claw-os-test \
+    --name yuos-test \
     --location "$LOCATION" \
     --image "$IMAGE_ID" \
     --security-type Standard \

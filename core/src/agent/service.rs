@@ -31,7 +31,7 @@
 //!
 //!   - `yu cron` can `yu agent service submit "summarise yesterday's
 //!     logs"` on a schedule.
-//!   - `yu service start cos-agent-worker` (where the service
+//!   - `yu service start yuos-agent-worker` (where the service
 //!     definition runs `yu agent service work`) gives you a managed,
 //!     restart-on-failure worker pool with health checks.
 //!   - Telegram/Discord adapters (Q1 plan) can drop jobs without
@@ -227,8 +227,8 @@ pub struct Job {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fallback: Option<crate::agent::llm::ProviderFallbackState>,
     /// uid of the user who submitted the task (via `SO_PEERCRED` on
-    /// the clawd unix socket). Used to load the requesting user's
-    /// `~/.config/cos/config.json` instead of clawd's root-owned one
+    /// the yuosd unix socket). Used to load the requesting user's
+    /// `~/.config/yuos/config.json` instead of yuosd's root-owned one
     /// when the worker executes the job — without this, every
     /// non-root submitter sees "no LLM provider configured".
     /// `None` for jobs submitted in-process or before this field
@@ -237,7 +237,7 @@ pub struct Job {
     pub owner_uid: Option<u32>,
     /// Absolute `$HOME` directory of the submitting user, resolved
     /// via `getpwuid_r` at submit time. The worker reads
-    /// `<owner_home>/.config/cos/config.json` to pick up the user's
+    /// `<owner_home>/.config/yuos/config.json` to pick up the user's
     /// provider/model/key setup. `None` falls back to the daemon's
     /// own (typically empty) config.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -710,7 +710,7 @@ impl Store {
     /// Persist a new pending job. Returns the job (with assigned id).
     /// `owner_uid`/`owner_home` carry the submitting peer's identity
     /// resolved via `SO_PEERCRED` + `getpwuid_r` so the worker can
-    /// load that user's `~/.config/cos/config.json` instead of the
+    /// load that user's `~/.config/yuos/config.json` instead of the
     /// daemon's. Both fields are optional and default to `None`
     /// (matches `yu agent service submit` from the same shell, where
     /// no peer lookup is needed).
@@ -913,7 +913,7 @@ impl Store {
         }
         let path = self.path_for(JobStatus::Pending, &job.id);
         write_json_atomic(&path, &job)?;
-        crate::clawd::audit::record_task_event("clawd.task.submitted", &job);
+        crate::yuosd::audit::record_task_event("yuosd.task.submitted", &job);
         self.notify(&job, "submitted");
         Ok(job)
     }
@@ -1152,7 +1152,7 @@ impl Store {
                         &id,
                         job,
                         error,
-                        "clawd.task.queue-dependency-failed",
+                        "yuosd.task.queue-dependency-failed",
                     )?;
                     continue;
                 }
@@ -1160,7 +1160,7 @@ impl Store {
                 dependencies::Dependency::Ready => {}
             }
             if let Err(error) = crate::workspaces::association::check_job(&job) {
-                self.fail_waiting_job(&src, &id, job, error, "clawd.task.workspace-blocked")?;
+                self.fail_waiting_job(&src, &id, job, error, "yuosd.task.workspace-blocked")?;
                 continue;
             }
             let activity = match job.activity_id.as_deref() {
@@ -1207,7 +1207,7 @@ impl Store {
             if job.activity_work_generation.is_some() {
                 if let Err(error) = crate::triggers::work::admit_job(&job) {
                     self.fail_waiting_job(
-                        &src, &id, job, error, "clawd.task.activity-work-blocked",
+                        &src, &id, job, error, "yuosd.task.activity-work-blocked",
                     )?;
                     continue;
                 }
@@ -1234,7 +1234,7 @@ impl Store {
                             &id,
                             job,
                             error.to_string(),
-                            "clawd.task.execution-blocked",
+                            "yuosd.task.execution-blocked",
                         )?;
                         continue;
                     }
@@ -1318,7 +1318,7 @@ impl Store {
                     job.execution_commit_nonce = None;
                     job.execution_generation = None;
                     write_json_atomic(&dst, &job)?;
-                    crate::clawd::audit::record_task_event("clawd.task.started", &job);
+                    crate::yuosd::audit::record_task_event("yuosd.task.started", &job);
                     self.notify(&job, "started");
                     // Only the execution copy carries current planning data.
                     // finish/recovery reload the original context from disk, so
@@ -1413,7 +1413,7 @@ impl Store {
                 let done = self.path_for(JobStatus::Ok, &id);
                 durable_rename(&path, &done)?;
                 let _ = finish_durable_session(&job);
-                crate::clawd::audit::record_task_event("clawd.task.cancelled", &job);
+                crate::yuosd::audit::record_task_event("yuosd.task.cancelled", &job);
                 self.notify(&job, "cancelled");
                 continue;
             }
@@ -1425,7 +1425,7 @@ impl Store {
                 job.worker_start_time_ticks = None;
                 write_json_atomic(&path, &job)?;
                 durable_rename(&path, &self.path_for(JobStatus::WaitingApproval, &id))?;
-                crate::clawd::audit::record_task_event("clawd.task.waiting-approval", &job);
+                crate::yuosd::audit::record_task_event("yuosd.task.waiting-approval", &job);
                 continue;
             }
 
@@ -1462,8 +1462,8 @@ impl Store {
                 let done = self.path_for(JobStatus::Ok, &id);
                 durable_rename(&path, &done)?;
                 let _ = finish_durable_session(&job);
-                crate::clawd::audit::record_task_event(
-                    "clawd.task.worker_identity_unverifiable",
+                crate::yuosd::audit::record_task_event(
+                    "yuosd.task.worker_identity_unverifiable",
                     &job,
                 );
                 failed += 1;
@@ -1499,7 +1499,7 @@ impl Store {
                 let done = self.path_for(JobStatus::Ok, &id);
                 durable_rename(&path, &done)?;
                 let _ = finish_durable_session(&job);
-                crate::clawd::audit::record_task_event("clawd.task.abandoned", &job);
+                crate::yuosd::audit::record_task_event("yuosd.task.abandoned", &job);
                 self.notify(&job, "failed");
                 failed += 1;
                 continue;
@@ -1520,7 +1520,7 @@ impl Store {
             write_json_atomic(&path, &job)?;
             let pending = self.path_for(JobStatus::Pending, &id);
             durable_rename(&path, &pending)?;
-            crate::clawd::audit::record_task_event("clawd.task.recovered", &audit_job);
+            crate::yuosd::audit::record_task_event("yuosd.task.recovered", &audit_job);
             self.notify(&audit_job, "recovered");
             requeued += 1;
         }
@@ -1617,8 +1617,8 @@ impl Store {
                         durable_remove(path)?;
                     }
                 }
-                crate::clawd::audit::record_task_event(
-                    "clawd.task.duplicate_indeterminate",
+                crate::yuosd::audit::record_task_event(
+                    "yuosd.task.duplicate_indeterminate",
                     &dominant,
                 );
             } else {
@@ -1637,8 +1637,8 @@ impl Store {
                         durable_remove(path)?;
                     }
                 }
-                crate::clawd::audit::record_task_event(
-                    "clawd.task.duplicate_precommit_reconciled",
+                crate::yuosd::audit::record_task_event(
+                    "yuosd.task.duplicate_precommit_reconciled",
                     keep_job,
                 );
             }
@@ -1649,7 +1649,7 @@ impl Store {
 
     /// Rebind a claimed job from the broker that claimed it to the
     /// worker process that actually executes it. Recovery and audit
-    /// then track the worker's kernel identity rather than `clawd`'s,
+    /// then track the worker's kernel identity rather than `yuosd`'s,
     /// which is what makes an abandoned lease detectable.
     pub fn bind_worker(
         &self,
@@ -1677,7 +1677,7 @@ impl Store {
         job.worker_pid = Some(worker_pid);
         job.worker_start_time_ticks = worker_start_time_ticks;
         write_json_atomic(&path, &job)?;
-        crate::clawd::audit::record_task_event("clawd.task.worker_bound", &job);
+        crate::yuosd::audit::record_task_event("yuosd.task.worker_bound", &job);
         Ok(job)
     }
 
@@ -1715,7 +1715,7 @@ impl Store {
         job.execution_commit_nonce = Some(commit_nonce.to_string());
         job.execution_generation = Some(generation.to_string());
         write_json_atomic(&path, &job)?;
-        crate::clawd::audit::record_task_event("clawd.task.execution_prepared", &job);
+        crate::yuosd::audit::record_task_event("yuosd.task.execution_prepared", &job);
         Ok(job)
     }
 
@@ -1752,7 +1752,7 @@ impl Store {
         }
         job.execution_phase = ExecutionPhase::Committed;
         write_json_atomic(&path, &job)?;
-        crate::clawd::audit::record_task_event("clawd.task.execution_committed", &job);
+        crate::yuosd::audit::record_task_event("yuosd.task.execution_committed", &job);
         Ok(job)
     }
 
@@ -1776,7 +1776,7 @@ impl Store {
         if !job.waiting_on.iter().any(|value| value == request_id) {
             job.waiting_on.push(request_id.to_string());
             write_json_atomic(&path, &job)?;
-            crate::clawd::audit::record_task_event("clawd.task.approval-requested", &job);
+            crate::yuosd::audit::record_task_event("yuosd.task.approval-requested", &job);
         }
         Ok(job)
     }
@@ -1795,7 +1795,7 @@ impl Store {
         write_json_atomic(path, &job)?;
         durable_rename(path, &self.path_for(JobStatus::Ok, id))?;
         finish_durable_session(&job)?;
-        crate::clawd::audit::record_task_event("clawd.task.execution_indeterminate", &job);
+        crate::yuosd::audit::record_task_event("yuosd.task.execution_indeterminate", &job);
         Ok(job)
     }
 
@@ -1829,7 +1829,7 @@ impl Store {
             write_json_atomic(&path, &job)?;
             durable_rename(&path, &self.path_for(JobStatus::Ok, id))?;
             let _ = finish_durable_session(&job);
-            crate::clawd::audit::record_task_event("clawd.task.cancelled", &job);
+            crate::yuosd::audit::record_task_event("yuosd.task.cancelled", &job);
             self.notify(&job, "cancelled");
             return Ok(Some(job));
         }
@@ -1841,7 +1841,7 @@ impl Store {
             job.worker_start_time_ticks = None;
             write_json_atomic(&path, &job)?;
             durable_rename(&path, &self.path_for(JobStatus::WaitingApproval, id))?;
-            crate::clawd::audit::record_task_event("clawd.task.waiting-approval", &job);
+            crate::yuosd::audit::record_task_event("yuosd.task.waiting-approval", &job);
             return Ok(Some(job));
         }
 
@@ -1868,7 +1868,7 @@ impl Store {
             write_json_atomic(&path, &job)?;
             durable_rename(&path, &self.path_for(JobStatus::Ok, id))?;
             let _ = finish_durable_session(&job);
-            crate::clawd::audit::record_task_event("clawd.task.abandoned", &job);
+            crate::yuosd::audit::record_task_event("yuosd.task.abandoned", &job);
             self.notify(&job, "failed");
             return Ok(Some(job));
         }
@@ -1885,7 +1885,7 @@ impl Store {
         job.execution_generation = None;
         write_json_atomic(&path, &job)?;
         durable_rename(&path, &self.path_for(JobStatus::Pending, id))?;
-        crate::clawd::audit::record_task_event("clawd.task.recovered", &job);
+        crate::yuosd::audit::record_task_event("yuosd.task.recovered", &job);
         self.notify(&job, "recovered");
         Ok(Some(job))
     }
@@ -1987,7 +1987,7 @@ impl Store {
                     "failed to append approval-wait progress"
                 );
             }
-            crate::clawd::audit::record_task_event("clawd.task.waiting-approval", &job);
+            crate::yuosd::audit::record_task_event("yuosd.task.waiting-approval", &job);
             if job.activity_id.is_some() {
                 self.notify(&job, "waiting");
             }
@@ -1996,11 +1996,11 @@ impl Store {
             if revoke_after_pending_cleanup {
                 revoke_job_session(&job);
             }
-            crate::clawd::audit::record_task_event(
+            crate::yuosd::audit::record_task_event(
                 if job.execution_phase == ExecutionPhase::Indeterminate {
-                    "clawd.task.execution_indeterminate"
+                    "yuosd.task.execution_indeterminate"
                 } else {
-                    "clawd.task.finished"
+                    "yuosd.task.finished"
                 },
                 &job,
             );
@@ -2062,7 +2062,7 @@ impl Store {
                     id,
                     job,
                     "task has invalid approval-wait state".to_string(),
-                    "clawd.task.approval-state-invalid",
+                    "yuosd.task.approval-state-invalid",
                 )?;
                 failed += 1;
                 continue;
@@ -2077,7 +2077,7 @@ impl Store {
                     id,
                     job,
                     "task has invalid approval-wait timestamp".to_string(),
-                    "clawd.task.approval-state-invalid",
+                    "yuosd.task.approval-state-invalid",
                 )?;
                 failed += 1;
                 continue;
@@ -2092,7 +2092,7 @@ impl Store {
                     id,
                     job,
                     "task approval wait expired after 8 hours".to_string(),
-                    "clawd.task.approval-timeout",
+                    "yuosd.task.approval-timeout",
                 )?;
                 failed += 1;
                 continue;
@@ -2121,7 +2121,7 @@ impl Store {
                         id,
                         job,
                         "waiting task has no durable session".to_string(),
-                        "clawd.task.approval-state-invalid",
+                        "yuosd.task.approval-state-invalid",
                     )?;
                     failed += 1;
                     continue;
@@ -2154,7 +2154,7 @@ impl Store {
                         "failed to append approval-resume progress"
                     );
                 }
-                crate::clawd::audit::record_task_event("clawd.task.approval-granted", &job);
+                crate::yuosd::audit::record_task_event("yuosd.task.approval-granted", &job);
                 self.notify(&job, "resumed");
                 resumed += 1;
                 continue;
@@ -2177,7 +2177,7 @@ impl Store {
                     "approval request {request_id} is {}; task will not resume",
                     status.as_str()
                 ),
-                "clawd.task.approval-refused",
+                "yuosd.task.approval-refused",
             )?;
             failed += 1;
         }
@@ -2201,7 +2201,7 @@ impl Store {
         durable_rename(path, &self.path_for(JobStatus::Ok, id))?;
         finish_durable_session(&job)?;
         revoke_job_session(&job);
-        crate::clawd::audit::record_task_event(event, &job);
+        crate::yuosd::audit::record_task_event(event, &job);
         self.notify(&job, "failed");
         Ok(job)
     }
@@ -2244,7 +2244,7 @@ impl Store {
                 write_json_atomic(&src, &job)?;
                 durable_rename(&src, &dst)?;
                 finish_durable_session(&job)?;
-                crate::clawd::audit::record_task_event("clawd.task.cancelled", &job);
+                crate::yuosd::audit::record_task_event("yuosd.task.cancelled", &job);
                 self.notify(&job, "cancelled");
                 Ok(Some(job))
             }
@@ -2274,7 +2274,7 @@ impl Store {
                 write_json_atomic(&pending, &job)?;
                 durable_rename(&pending, &done)?;
                 finish_durable_session(&job)?;
-                crate::clawd::audit::record_task_event("clawd.task.cancelled", &job);
+                crate::yuosd::audit::record_task_event("yuosd.task.cancelled", &job);
                 self.notify(&job, "cancelled");
                 return Ok(Some((job, true)));
             }
@@ -2292,7 +2292,7 @@ impl Store {
                 if job.cancel_requested_at.is_none() {
                     job.cancel_requested_at = Some(now_iso());
                     write_json_atomic(&running, &job)?;
-                    crate::clawd::audit::record_task_event("clawd.task.cancel-requested", &job);
+                    crate::yuosd::audit::record_task_event("yuosd.task.cancel-requested", &job);
                 }
                 return Ok(Some((job, false)));
             }
@@ -2316,7 +2316,7 @@ impl Store {
                 write_json_atomic(&waiting, &job)?;
                 durable_rename(&waiting, &done)?;
                 finish_durable_session(&job)?;
-                crate::clawd::audit::record_task_event("clawd.task.cancelled", &job);
+                crate::yuosd::audit::record_task_event("yuosd.task.cancelled", &job);
                 self.notify(&job, "cancelled");
                 Ok(Some((job, true)))
             }
@@ -3102,8 +3102,8 @@ fn revoke_job_session(job: &Job) {
         return;
     };
     match job.owner_uid {
-        Some(owner_uid) => crate::clawd::authority::revoke_session_for_owner(session_id, owner_uid),
-        None => crate::clawd::authority::revoke_session(session_id),
+        Some(owner_uid) => crate::yuosd::authority::revoke_session_for_owner(session_id, owner_uid),
+        None => crate::yuosd::authority::revoke_session(session_id),
     }
 }
 
@@ -3111,7 +3111,7 @@ fn publish_task_notification(job: &Job, phase: &str) {
     let Some((owner_uid, draft)) = task_notification_draft(job, phase) else {
         return;
     };
-    if let Err(error) = crate::clawd::notifications::publish_for_owner(owner_uid, draft) {
+    if let Err(error) = crate::yuosd::notifications::publish_for_owner(owner_uid, draft) {
         tracing::warn!(
             task = %job.id,
             owner_uid,
@@ -3197,7 +3197,7 @@ fn task_notification_draft(
             .push(crate::notifications::NotificationAction {
                 id: "open-agent".to_string(),
                 label: "Open Agent".to_string(),
-                uri: format!("clawos://agent/session/{session_id}"),
+                uri: format!("yuos://agent/session/{session_id}"),
             });
     }
     Some((owner_uid, draft))
@@ -3208,8 +3208,8 @@ fn now_iso() -> String {
 }
 
 /// Resolve the running process's uid + `$HOME` for stamping onto
-/// jobs submitted via `yu agent service submit`. clawd-routed
-/// submits go through `clawd::tasks::submit`, which uses the peer
+/// jobs submitted via `yu agent service submit`. yuosd-routed
+/// submits go through `yuosd::tasks::submit`, which uses the peer
 /// credentials of the unix socket instead.
 fn current_owner_identity() -> (Option<u32>, Option<String>) {
     #[cfg(unix)]
@@ -3252,7 +3252,7 @@ pub fn cmd(args: &[String]) -> Result<Value, String> {
     match sub {
         "" | "help" | "-h" | "--help" => Ok(help_value()),
         "submit" | "list" if rest.iter().any(|arg| arg == "--activity") => {
-            crate::clawd::agent_client::service_cmd(args)
+            crate::yuosd::agent_client::service_cmd(args)
         }
         "submit" => cmd_submit(rest),
         "list" => cmd_list(rest),
@@ -3597,11 +3597,11 @@ fn run_worker_loop_inner(
     install_signals: bool,
 ) -> Result<Value, String> {
     // The in-process loop is the model/tool runtime. It exists for
-    // stand-alone `yu agent service work` operators; inside `clawd`
-    // agent work is spawned into an unprivileged `claw-agentd` process
+    // stand-alone `yu agent service work` operators; inside `yuosd`
+    // agent work is spawned into an unprivileged `yuos-agentd` process
     // by `agentd::supervisor` instead.
     crate::agentd::guard::ensure_agent_runtime_allowed("in-process agent worker loop")?;
-    crate::clawd::audit::install_runtime_hook();
+    crate::yuosd::audit::install_runtime_hook();
     let store = Store::open_default().map_err(|e| e.to_string())?;
     // Reclaim jobs stranded in running/ by a previously-crashed worker
     // before we start claiming new ones. This is what makes a daemon
@@ -3795,7 +3795,7 @@ async fn wait_for_cancellation(job_id: &str) {
 }
 
 async fn run_one_routed_job(job: &Job) -> FinishOutcome {
-    // If the job carries an owner_home (clawd-routed jobs from a
+    // If the job carries an owner_home (yuosd-routed jobs from a
     // non-daemon user), load THAT user's config into a task-local
     // override AND redirect every per-user path resolver
     // (`paths::user_config_dir`, `paths::user_data_dir`, and
@@ -3811,10 +3811,10 @@ async fn run_one_routed_job(job: &Job) -> FinishOutcome {
     // Without this, `yu agent ask` from a non-root user fails either
     // "no LLM provider configured" (config not loaded) or, post
     // config-override fix, "GitHub Copilot is not signed in" because
-    // clawd (uid=0, HOME=/root) reads
-    // `/root/.local/share/cos/credentials/agent/copilot_github_token.json`
+    // yuosd (uid=0, HOME=/root) reads
+    // `/root/.local/share/yuos/credentials/agent/copilot_github_token.json`
     // which doesn't exist — the user wrote the credential under
-    // `/home/<user>/.local/share/cos/credentials/...`.
+    // `/home/<user>/.local/share/yuos/credentials/...`.
     if let Some(home) = job.owner_home.as_deref() {
         let home_path = std::path::PathBuf::from(home);
         let cfg = crate::config::load_for_home(&home_path);
@@ -4001,7 +4001,7 @@ fn job_config(
 
 fn standalone_runtime_hooks() -> crate::agent::runtime::hooks::HookRegistry {
     let hooks = crate::agent::runtime::hooks::HookRegistry::new();
-    hooks.register(crate::clawd::audit::runtime_hook());
+    hooks.register(crate::yuosd::audit::runtime_hook());
     hooks
 }
 
@@ -4362,7 +4362,7 @@ fn job_session_info(job: &Job) -> Result<Option<crate::proc::SessionInfo>, Strin
     if !crate::session::session_dir(&sid).exists() {
         return Ok(None);
     }
-    crate::clawd::session_scope::trusted_session_info(&sid, "clawd-agent-worker").map(Some)
+    crate::yuosd::session_scope::trusted_session_info(&sid, "yuosd-agent-worker").map(Some)
 }
 
 fn parse_status(s: &str) -> Result<JobStatus, String> {

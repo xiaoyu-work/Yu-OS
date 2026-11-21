@@ -85,7 +85,7 @@ pub struct DraftStore {
 }
 
 impl DraftStore {
-    /// Open or create the store at the cos-default location
+    /// Open or create the store at the yuos-default location
     /// (`data_dir/agent/curator-drafts.json`). A non-existent file
     /// produces an empty store; a malformed file errors.
     pub fn open_default() -> Result<Self, String> {

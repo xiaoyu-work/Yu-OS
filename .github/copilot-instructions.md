@@ -1,4 +1,4 @@
-# Claw OS Copilot Instructions
+# Yu OS Copilot Instructions
 
 The authoritative repository workflow is [`../AGENTS.md`](../AGENTS.md).
 Use its task-routing table before searching broadly.

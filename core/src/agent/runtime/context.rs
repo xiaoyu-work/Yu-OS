@@ -60,9 +60,9 @@ pub fn prepare(
                 "revision":workspace.revision,"background":workspace.background,
                 "resources":workspace.tags,"notes_total":workspace.notes_total,
                 "tags_total":workspace.tags_total,"temporary_reads":workspace.temporary_reads,
-                "coverage":"small request snapshot, not shared conversation history; use cos_workspace for additional reads"}).to_string());
+                "coverage":"small request snapshot, not shared conversation history; use yu_workspace for additional reads"}).to_string());
         section.revision = workspace.revision.to_string();
-        section.read_hint = "cos_workspace command=context".into();
+        section.read_hint = "yu_workspace command=context".into();
         builder.required(section)?;
         for note in &workspace.notes {
             let mut section = ContextSection::new(
@@ -71,7 +71,7 @@ pub fn prepare(
                     .map_err(|e|ContextError::Source {origin:"Workspace note".into(),detail:e.to_string()})?);
             section.revision = note.revision.to_string();
             section.truncated = true;
-            section.read_hint = format!("cos_workspace command=note note_id={}",note.id);
+            section.read_hint = format!("yu_workspace command=note note_id={}",note.id);
             builder.optional(section);
         }
     }
@@ -117,15 +117,15 @@ pub fn prepare(
     let fallback = ToolExposureContext::isolated(tools.guardrails().clone());
     let exposure = exposure.unwrap_or(&fallback);
     let memory_tools: Vec<_> = [
-        "cos_memory",
-        "cos_recall",
-        "cos_recall_semantic",
-        "cos_app_memory",
-        "cos_workspace",
+        "yu_memory",
+        "yu_recall",
+        "yu_recall_semantic",
+        "yu_app_memory",
+        "yu_workspace",
     ]
     .into_iter()
     .filter(|name| {
-        if deps.workspace().is_some() && matches!(*name,"cos_memory"|"cos_app_memory"){return false;}
+        if deps.workspace().is_some() && matches!(*name,"yu_memory"|"yu_app_memory"){return false;}
         tools.get_for(exposure, name).is_some() && llm_tools.iter().any(|tool| tool.name == *name)
     })
     .collect();
@@ -145,7 +145,7 @@ pub fn prepare(
         crate::caps::Verb::MEMORY_READ,
         crate::caps::Scope::self_ref(crate::agent::tools::SYSTEM_AGENT_MEMORY_SCOPE),
     );
-    if deps.workspace().is_none() && tools.get_for(exposure, "cos_memory").is_some()
+    if deps.workspace().is_none() && tools.get_for(exposure, "yu_memory").is_some()
         && exposure.capabilities().covers(&profile_read)
     {
         add_notes(&mut builder, deps.notes(), redactor)?;
@@ -179,7 +179,7 @@ pub fn add_notes(
             content,
         );
         section.revision = entry.revision;
-        section.read_hint = format!("cos_memory command=read name={}", entry.name);
+        section.read_hint = format!("yu_memory command=read name={}", entry.name);
         builder.optional(section);
     }
     Ok(())

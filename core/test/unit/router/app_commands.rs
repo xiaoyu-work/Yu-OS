@@ -53,7 +53,7 @@ fn install_scratch_entries(root: &Path, id: &str) -> Vec<String> {
 fn invalid_named_gui_selection_is_refused_before_any_app_execution() {
     let _lock = crate::test_env::lock_env();
     let root = tempfile::tempdir().unwrap();
-    let _apps = crate::test_env::TestEnvVarGuard::set("COS_APPS_DIR", root.path());
+    let _apps = crate::test_env::TestEnvVarGuard::set("YUOS_APPS_DIR", root.path());
     let source = root.path().join("independent-widget");
     write_min_app(&source, "independent-widget", r#"{
         "id":"independent-widget","version":"1","name":{"en":"Widget"},
@@ -90,7 +90,7 @@ fn lint_cli_projects_the_shared_violations_and_preserves_its_envelope() {
     let expected = json!({
         "results": [{"app":"linted","ok":false,"violations":violations}],
         "ok": false,
-        "hint": "Lint failed. Apps must (a) route AI calls through `claw_os_sdk.ai` (not direct provider SDKs) \
+        "hint": "Lint failed. Apps must (a) route AI calls through `yuos_sdk.ai` (not direct provider SDKs) \
                  and (b) ship every package-relative file referenced by their `mcp.entry` so the kernel agent can spawn \
                  the MCP server. Run `yu app tool list <app>` to inspect the declared tool surface.",
     });
@@ -102,7 +102,7 @@ fn lint_cli_projects_the_shared_violations_and_preserves_its_envelope() {
         "unknown app: absent. installed: [\"linted\"]"
     );
 
-    std::fs::write(directory.join("main.py"), "from claw_os_sdk import ai\n").unwrap();
+    std::fs::write(directory.join("main.py"), "from yuos_sdk import ai\n").unwrap();
     std::fs::write(directory.join("server.py"), "# static fixture\n").unwrap();
     reseal_app(&directory, "linted");
     let discovered = apps::discover(root.path());
@@ -119,9 +119,9 @@ fn lint_cli_projects_the_shared_violations_and_preserves_its_envelope() {
 #[test]
 fn install_generates_desktop_entry_for_gui_app() {
     let pid = std::process::id();
-    let src = std::env::temp_dir().join(format!("cos-install-gui-src-{pid}"));
-    let dst = std::env::temp_dir().join(format!("cos-install-gui-dst-{pid}"));
-    let apps_share = std::env::temp_dir().join(format!("cos-install-gui-apps-{pid}"));
+    let src = std::env::temp_dir().join(format!("yuos-install-gui-src-{pid}"));
+    let dst = std::env::temp_dir().join(format!("yuos-install-gui-dst-{pid}"));
+    let apps_share = std::env::temp_dir().join(format!("yuos-install-gui-apps-{pid}"));
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);
     let _ = std::fs::remove_dir_all(&apps_share);
@@ -140,18 +140,18 @@ fn install_generates_desktop_entry_for_gui_app() {
             }"#,
     );
 
-    let prev_apps = std::env::var_os("COS_APPS_DIR");
-    let prev_share = std::env::var_os("COS_APPLICATIONS_DIR");
-    std::env::set_var("COS_APPS_DIR", &dst);
-    std::env::set_var("COS_APPLICATIONS_DIR", &apps_share);
+    let prev_apps = std::env::var_os("YUOS_APPS_DIR");
+    let prev_share = std::env::var_os("YUOS_APPLICATIONS_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &dst);
+    std::env::set_var("YUOS_APPLICATIONS_DIR", &apps_share);
     let v = parse(install_cmd(&[src.display().to_string(), "--yes".into()]).unwrap());
     match prev_apps {
-        Some(x) => std::env::set_var("COS_APPS_DIR", x),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPS_DIR", x),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
     match prev_share {
-        Some(x) => std::env::set_var("COS_APPLICATIONS_DIR", x),
-        None => std::env::remove_var("COS_APPLICATIONS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPLICATIONS_DIR", x),
+        None => std::env::remove_var("YUOS_APPLICATIONS_DIR"),
     }
 
     assert_eq!(v["installed"], true);
@@ -175,9 +175,9 @@ fn install_generates_desktop_entry_for_gui_app() {
 #[test]
 fn install_skips_desktop_entry_for_headless_app() {
     let pid = std::process::id();
-    let src = std::env::temp_dir().join(format!("cos-install-headless-src-{pid}"));
-    let dst = std::env::temp_dir().join(format!("cos-install-headless-dst-{pid}"));
-    let apps_share = std::env::temp_dir().join(format!("cos-install-headless-apps-{pid}"));
+    let src = std::env::temp_dir().join(format!("yuos-install-headless-src-{pid}"));
+    let dst = std::env::temp_dir().join(format!("yuos-install-headless-dst-{pid}"));
+    let apps_share = std::env::temp_dir().join(format!("yuos-install-headless-apps-{pid}"));
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);
     let _ = std::fs::remove_dir_all(&apps_share);
@@ -187,18 +187,18 @@ fn install_skips_desktop_entry_for_headless_app() {
         r#"{"id":"calc","version":"0.0.1","name": {"en": "Calc"}}"#,
     );
 
-    let prev_apps = std::env::var_os("COS_APPS_DIR");
-    let prev_share = std::env::var_os("COS_APPLICATIONS_DIR");
-    std::env::set_var("COS_APPS_DIR", &dst);
-    std::env::set_var("COS_APPLICATIONS_DIR", &apps_share);
+    let prev_apps = std::env::var_os("YUOS_APPS_DIR");
+    let prev_share = std::env::var_os("YUOS_APPLICATIONS_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &dst);
+    std::env::set_var("YUOS_APPLICATIONS_DIR", &apps_share);
     let v = parse(install_cmd(&[src.display().to_string(), "--yes".into()]).unwrap());
     match prev_apps {
-        Some(x) => std::env::set_var("COS_APPS_DIR", x),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPS_DIR", x),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
     match prev_share {
-        Some(x) => std::env::set_var("COS_APPLICATIONS_DIR", x),
-        None => std::env::remove_var("COS_APPLICATIONS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPLICATIONS_DIR", x),
+        None => std::env::remove_var("YUOS_APPLICATIONS_DIR"),
     }
 
     assert_eq!(v["installed"], true);
@@ -230,9 +230,9 @@ fn install_yes_cannot_replace_os_confirmation_when_the_broker_is_unavailable() {
         "needs-os-review",
         r#"{"id":"needs-os-review","version":"1.0.0","name":{"en":"Requires OS review"}}"#,
     );
-    let _apps = crate::test_env::TestEnvVarGuard::set("COS_APPS_DIR", &destination);
+    let _apps = crate::test_env::TestEnvVarGuard::set("YUOS_APPS_DIR", &destination);
     let _socket =
-        crate::test_env::TestEnvVarGuard::set("CLAWD_SOCKET", root.path().join("missing.sock"));
+        crate::test_env::TestEnvVarGuard::set("YUOSD_SOCKET", root.path().join("missing.sock"));
     for flags in [
         vec![source.display().to_string(), "--yes".to_string()],
         vec![
@@ -263,9 +263,9 @@ fn public_app_rollback_requires_root_review_without_local_replacement() {
     let source = root.path().join("source");
     let installed = root.path().join("apps");
     let destination = installed.join("rollback-managed");
-    let _apps = crate::test_env::TestEnvVarGuard::set("COS_APPS_DIR", &installed);
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", root.path().join("data"));
-    let _socket = crate::test_env::TestEnvVarGuard::set("CLAWD_SOCKET", root.path().join("missing.sock"));
+    let _apps = crate::test_env::TestEnvVarGuard::set("YUOS_APPS_DIR", &installed);
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().join("data"));
+    let _socket = crate::test_env::TestEnvVarGuard::set("YUOSD_SOCKET", root.path().join("missing.sock"));
     write_min_app(&source, "rollback-managed",
         r#"{"id":"rollback-managed","version":"1.0.0","name":{"en":"Rollback"}}"#);
     let limits = crate::provenance::install::Limits::default();
@@ -325,16 +325,16 @@ fn install_review_only_reports_permissions_without_publishing() {
             }
         }"#,
     );
-    let previous = std::env::var_os("COS_APPS_DIR");
-    std::env::set_var("COS_APPS_DIR", &destination);
+    let previous = std::env::var_os("YUOS_APPS_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &destination);
     let result = install_cmd(&[
         source.display().to_string(),
         "--review".into(),
         "--yes".into(),
     ]);
     match previous {
-        Some(value) => std::env::set_var("COS_APPS_DIR", value),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(value) => std::env::set_var("YUOS_APPS_DIR", value),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
     let result = parse(result.unwrap());
     assert_eq!(result["installed"], false);
@@ -362,16 +362,16 @@ fn install_review_cannot_trust_unsigned_metadata_via_dev_flag() {
         "unsigned-review",
         r#"{"id":"unsigned-review","version":"1.0.0","name":{"en":"Unverified"}}"#,
     );
-    let previous = std::env::var_os("COS_APPS_DIR");
-    std::env::set_var("COS_APPS_DIR", &destination);
+    let previous = std::env::var_os("YUOS_APPS_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &destination);
     let result = install_cmd(&[
         source.display().to_string(),
         "--review".into(),
         "--dev-trust".into(),
     ]);
     match previous {
-        Some(value) => std::env::set_var("COS_APPS_DIR", value),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(value) => std::env::set_var("YUOS_APPS_DIR", value),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
     assert!(result.is_err());
     assert!(!destination.exists());
@@ -390,7 +390,7 @@ fn install_rejects_non_directory_source() {
 
 #[test]
 fn install_rejects_missing_manifest() {
-    let tmp = std::env::temp_dir().join(format!("cos-install-no-manifest-{}", std::process::id()));
+    let tmp = std::env::temp_dir().join(format!("yuos-install-no-manifest-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
     std::fs::create_dir_all(&tmp).unwrap();
     let err = install_cmd(&[tmp.display().to_string()]).unwrap_err();
@@ -401,8 +401,8 @@ fn install_rejects_missing_manifest() {
 #[test]
 fn install_rejects_unknown_tool_in_manifest() {
     let pid = std::process::id();
-    let src = std::env::temp_dir().join(format!("cos-install-bad-tool-src-{pid}"));
-    let dst = std::env::temp_dir().join(format!("cos-install-bad-tool-dst-{pid}"));
+    let src = std::env::temp_dir().join(format!("yuos-install-bad-tool-src-{pid}"));
+    let dst = std::env::temp_dir().join(format!("yuos-install-bad-tool-dst-{pid}"));
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);
     write_min_app(
@@ -421,12 +421,12 @@ fn install_rejects_unknown_tool_in_manifest() {
             }"#,
     );
 
-    let prev_apps = std::env::var_os("COS_APPS_DIR");
-    std::env::set_var("COS_APPS_DIR", &dst);
+    let prev_apps = std::env::var_os("YUOS_APPS_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &dst);
     let err = install_cmd(&[src.display().to_string()]).unwrap_err();
     match prev_apps {
-        Some(x) => std::env::set_var("COS_APPS_DIR", x),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPS_DIR", x),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);
@@ -438,8 +438,8 @@ fn install_rejects_unknown_tool_in_manifest() {
 #[test]
 fn install_copies_non_ai_app_with_permission_disclosure() {
     let pid = std::process::id();
-    let src = std::env::temp_dir().join(format!("cos-install-noai-src-{pid}"));
-    let dst = std::env::temp_dir().join(format!("cos-install-noai-dst-{pid}"));
+    let src = std::env::temp_dir().join(format!("yuos-install-noai-src-{pid}"));
+    let dst = std::env::temp_dir().join(format!("yuos-install-noai-dst-{pid}"));
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);
     write_min_app(
@@ -452,12 +452,12 @@ fn install_copies_non_ai_app_with_permission_disclosure() {
             }"#,
     );
 
-    let prev_apps = std::env::var_os("COS_APPS_DIR");
-    std::env::set_var("COS_APPS_DIR", &dst);
+    let prev_apps = std::env::var_os("YUOS_APPS_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &dst);
     let v = parse(install_cmd(&[src.display().to_string(), "--yes".into()]).unwrap());
     match prev_apps {
-        Some(x) => std::env::set_var("COS_APPS_DIR", x),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPS_DIR", x),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
 
     assert_eq!(v["installed"], true);
@@ -476,9 +476,9 @@ fn install_copies_non_ai_app_with_permission_disclosure() {
 #[test]
 fn install_no_consent_defers_consent_for_ai_app() {
     let pid = std::process::id();
-    let src = std::env::temp_dir().join(format!("cos-install-defer-src-{pid}"));
-    let dst = std::env::temp_dir().join(format!("cos-install-defer-dst-{pid}"));
-    let cfg = std::env::temp_dir().join(format!("cos-install-defer-cfg-{pid}"));
+    let src = std::env::temp_dir().join(format!("yuos-install-defer-src-{pid}"));
+    let dst = std::env::temp_dir().join(format!("yuos-install-defer-dst-{pid}"));
+    let cfg = std::env::temp_dir().join(format!("yuos-install-defer-cfg-{pid}"));
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);
     let _ = std::fs::remove_dir_all(&cfg);
@@ -498,10 +498,10 @@ fn install_no_consent_defers_consent_for_ai_app() {
             }"#,
     );
 
-    let prev_apps = std::env::var_os("COS_APPS_DIR");
-    let prev_cfg = std::env::var_os("COS_USER_CONFIG_DIR");
-    std::env::set_var("COS_APPS_DIR", &dst);
-    std::env::set_var("COS_USER_CONFIG_DIR", &cfg);
+    let prev_apps = std::env::var_os("YUOS_APPS_DIR");
+    let prev_cfg = std::env::var_os("YUOS_USER_CONFIG_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &dst);
+    std::env::set_var("YUOS_USER_CONFIG_DIR", &cfg);
     let v = parse(
         install_cmd(&[
             src.display().to_string(),
@@ -511,12 +511,12 @@ fn install_no_consent_defers_consent_for_ai_app() {
         .unwrap(),
     );
     match prev_apps {
-        Some(x) => std::env::set_var("COS_APPS_DIR", x),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPS_DIR", x),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
     match prev_cfg {
-        Some(x) => std::env::set_var("COS_USER_CONFIG_DIR", x),
-        None => std::env::remove_var("COS_USER_CONFIG_DIR"),
+        Some(x) => std::env::set_var("YUOS_USER_CONFIG_DIR", x),
+        None => std::env::remove_var("YUOS_USER_CONFIG_DIR"),
     }
 
     assert_eq!(v["installed"], true);
@@ -538,9 +538,9 @@ fn install_no_consent_defers_consent_for_ai_app() {
 #[test]
 fn install_yes_does_not_grant_ai_consent() {
     let pid = std::process::id();
-    let src = std::env::temp_dir().join(format!("cos-install-yes-src-{pid}"));
-    let dst = std::env::temp_dir().join(format!("cos-install-yes-dst-{pid}"));
-    let cfg = std::env::temp_dir().join(format!("cos-install-yes-cfg-{pid}"));
+    let src = std::env::temp_dir().join(format!("yuos-install-yes-src-{pid}"));
+    let dst = std::env::temp_dir().join(format!("yuos-install-yes-dst-{pid}"));
+    let cfg = std::env::temp_dir().join(format!("yuos-install-yes-cfg-{pid}"));
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);
     let _ = std::fs::remove_dir_all(&cfg);
@@ -559,18 +559,18 @@ fn install_yes_does_not_grant_ai_consent() {
             }"#,
     );
 
-    let prev_apps = std::env::var_os("COS_APPS_DIR");
-    let prev_cfg = std::env::var_os("COS_USER_CONFIG_DIR");
-    std::env::set_var("COS_APPS_DIR", &dst);
-    std::env::set_var("COS_USER_CONFIG_DIR", &cfg);
+    let prev_apps = std::env::var_os("YUOS_APPS_DIR");
+    let prev_cfg = std::env::var_os("YUOS_USER_CONFIG_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &dst);
+    std::env::set_var("YUOS_USER_CONFIG_DIR", &cfg);
     let v = parse(install_cmd(&[src.display().to_string(), "--yes".into()]).unwrap());
     match prev_apps {
-        Some(x) => std::env::set_var("COS_APPS_DIR", x),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPS_DIR", x),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
     match prev_cfg {
-        Some(x) => std::env::set_var("COS_USER_CONFIG_DIR", x),
-        None => std::env::remove_var("COS_USER_CONFIG_DIR"),
+        Some(x) => std::env::set_var("YUOS_USER_CONFIG_DIR", x),
+        None => std::env::remove_var("YUOS_USER_CONFIG_DIR"),
     }
 
     assert_eq!(v["installed"], true);
@@ -588,8 +588,8 @@ fn install_yes_does_not_grant_ai_consent() {
 #[test]
 fn install_refuses_to_overwrite_without_force() {
     let pid = std::process::id();
-    let src = std::env::temp_dir().join(format!("cos-install-overw-src-{pid}"));
-    let dst = std::env::temp_dir().join(format!("cos-install-overw-dst-{pid}"));
+    let src = std::env::temp_dir().join(format!("yuos-install-overw-src-{pid}"));
+    let dst = std::env::temp_dir().join(format!("yuos-install-overw-dst-{pid}"));
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);
     write_min_app(
@@ -604,12 +604,12 @@ fn install_refuses_to_overwrite_without_force() {
     std::fs::create_dir_all(dst.join("twice")).unwrap();
     std::fs::write(dst.join("twice").join("placeholder"), b"existing").unwrap();
 
-    let prev_apps = std::env::var_os("COS_APPS_DIR");
-    std::env::set_var("COS_APPS_DIR", &dst);
+    let prev_apps = std::env::var_os("YUOS_APPS_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &dst);
     let err = install_cmd(&[src.display().to_string()]).unwrap_err();
     match prev_apps {
-        Some(x) => std::env::set_var("COS_APPS_DIR", x),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPS_DIR", x),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);
@@ -621,8 +621,8 @@ fn install_refuses_to_overwrite_without_force() {
 #[test]
 fn install_force_replaces_existing_install() {
     let pid = std::process::id();
-    let src = std::env::temp_dir().join(format!("cos-install-force-src-{pid}"));
-    let dst = std::env::temp_dir().join(format!("cos-install-force-dst-{pid}"));
+    let src = std::env::temp_dir().join(format!("yuos-install-force-src-{pid}"));
+    let dst = std::env::temp_dir().join(format!("yuos-install-force-dst-{pid}"));
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);
     write_min_app(
@@ -637,13 +637,13 @@ fn install_force_replaces_existing_install() {
     std::fs::create_dir_all(dst.join("force")).unwrap();
     std::fs::write(dst.join("force").join("stale"), b"junk").unwrap();
 
-    let prev_apps = std::env::var_os("COS_APPS_DIR");
-    std::env::set_var("COS_APPS_DIR", &dst);
+    let prev_apps = std::env::var_os("YUOS_APPS_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &dst);
     let v =
         parse(install_cmd(&[src.display().to_string(), "--force".into(), "--yes".into()]).unwrap());
     match prev_apps {
-        Some(x) => std::env::set_var("COS_APPS_DIR", x),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPS_DIR", x),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
 
     assert_eq!(v["installed"], true);
@@ -661,8 +661,8 @@ fn install_force_replaces_existing_install() {
 #[test]
 fn install_force_lint_failure_preserves_existing_install() {
     let pid = std::process::id();
-    let src = std::env::temp_dir().join(format!("cos-install-atomic-lint-src-{pid}"));
-    let dst = std::env::temp_dir().join(format!("cos-install-atomic-lint-dst-{pid}"));
+    let src = std::env::temp_dir().join(format!("yuos-install-atomic-lint-src-{pid}"));
+    let dst = std::env::temp_dir().join(format!("yuos-install-atomic-lint-dst-{pid}"));
     let installed = dst.join("atomic");
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);
@@ -682,12 +682,12 @@ fn install_force_lint_failure_preserves_existing_install() {
     std::fs::write(src.join("main.py"), b"import openai\n").unwrap();
     reseal_app(&src, "atomic");
 
-    let prev_apps = std::env::var_os("COS_APPS_DIR");
-    std::env::set_var("COS_APPS_DIR", &dst);
+    let prev_apps = std::env::var_os("YUOS_APPS_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &dst);
     let err = install_cmd(&[src.display().to_string(), "--force".into()]).unwrap_err();
     match prev_apps {
-        Some(x) => std::env::set_var("COS_APPS_DIR", x),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPS_DIR", x),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
 
     assert!(err.contains("staged app lint failed"), "got: {err}");
@@ -710,8 +710,8 @@ fn install_force_lint_failure_preserves_existing_install() {
 #[test]
 fn install_recovers_backup_left_by_interrupted_forced_install() {
     let pid = std::process::id();
-    let src = std::env::temp_dir().join(format!("cos-install-recovery-src-{pid}"));
-    let dst = std::env::temp_dir().join(format!("cos-install-recovery-dst-{pid}"));
+    let src = std::env::temp_dir().join(format!("yuos-install-recovery-src-{pid}"));
+    let dst = std::env::temp_dir().join(format!("yuos-install-recovery-dst-{pid}"));
     let installed = dst.join("recover");
     let backup = dst.join(".recover.install-backup-interrupted");
     let staging = dst.join(".recover.install-staging-interrupted");
@@ -738,12 +738,12 @@ fn install_recovers_backup_left_by_interrupted_forced_install() {
     std::fs::write(src.join("main.py"), b"import openai\n").unwrap();
     reseal_app(&src, "recover");
 
-    let prev_apps = std::env::var_os("COS_APPS_DIR");
-    std::env::set_var("COS_APPS_DIR", &dst);
+    let prev_apps = std::env::var_os("YUOS_APPS_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &dst);
     let err = install_cmd(&[src.display().to_string(), "--force".into()]).unwrap_err();
     match prev_apps {
-        Some(x) => std::env::set_var("COS_APPS_DIR", x),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPS_DIR", x),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
 
     assert!(err.contains("staged app lint failed"), "got: {err}");
@@ -766,7 +766,7 @@ fn install_recovers_backup_left_by_interrupted_forced_install() {
 #[test]
 fn install_same_path_keeps_development_tree_in_place() {
     let pid = std::process::id();
-    let root = std::env::temp_dir().join(format!("cos-install-in-place-{pid}"));
+    let root = std::env::temp_dir().join(format!("yuos-install-in-place-{pid}"));
     let source = root.join("devapp");
     let _ = std::fs::remove_dir_all(&root);
     write_min_app(
@@ -777,8 +777,8 @@ fn install_same_path_keeps_development_tree_in_place() {
     std::fs::write(source.join("working-copy"), b"preserve me").unwrap();
     reseal_app(&source, "devapp");
 
-    let prev_apps = std::env::var_os("COS_APPS_DIR");
-    std::env::set_var("COS_APPS_DIR", &root);
+    let prev_apps = std::env::var_os("YUOS_APPS_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &root);
     let value = parse(
         install_cmd(&[
             source.display().to_string(),
@@ -788,8 +788,8 @@ fn install_same_path_keeps_development_tree_in_place() {
         .unwrap(),
     );
     match prev_apps {
-        Some(x) => std::env::set_var("COS_APPS_DIR", x),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPS_DIR", x),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
 
     assert_eq!(value["in_place"], true);
@@ -812,9 +812,9 @@ fn install_same_path_keeps_development_tree_in_place() {
 #[test]
 fn install_rejects_symlink_in_source_tree() {
     let pid = std::process::id();
-    let src = std::env::temp_dir().join(format!("cos-install-symlink-src-{pid}"));
-    let dst = std::env::temp_dir().join(format!("cos-install-symlink-dst-{pid}"));
-    let outside = std::env::temp_dir().join(format!("cos-install-symlink-outside-{pid}"));
+    let src = std::env::temp_dir().join(format!("yuos-install-symlink-src-{pid}"));
+    let dst = std::env::temp_dir().join(format!("yuos-install-symlink-dst-{pid}"));
+    let outside = std::env::temp_dir().join(format!("yuos-install-symlink-outside-{pid}"));
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);
     let _ = std::fs::remove_file(&outside);
@@ -837,12 +837,12 @@ fn install_rejects_symlink_in_source_tree() {
     // copied verbatim under `dst/linky/secret`.
     std::os::unix::fs::symlink(&outside, src.join("secret")).unwrap();
 
-    let prev_apps = std::env::var_os("COS_APPS_DIR");
-    std::env::set_var("COS_APPS_DIR", &dst);
+    let prev_apps = std::env::var_os("YUOS_APPS_DIR");
+    std::env::set_var("YUOS_APPS_DIR", &dst);
     let err = install_cmd(&[src.display().to_string()]).unwrap_err();
     match prev_apps {
-        Some(x) => std::env::set_var("COS_APPS_DIR", x),
-        None => std::env::remove_var("COS_APPS_DIR"),
+        Some(x) => std::env::set_var("YUOS_APPS_DIR", x),
+        None => std::env::remove_var("YUOS_APPS_DIR"),
     }
 
     assert!(

@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use axum::{Json, extract::State};
-use cos_agent_protocol::{ModelSummary, ModelsResponse};
+use yuos_agent_protocol::{ModelSummary, ModelsResponse};
 use serde::{Deserialize, de::DeserializeOwned};
 use tokio::{
     io::{AsyncRead, AsyncReadExt},
@@ -57,7 +57,7 @@ pub async fn list(State(_state): State<AppState>) -> Result<Json<ModelsResponse>
 }
 
 async fn run_json<T: DeserializeOwned>(args: &[&str]) -> Result<T, ApiError> {
-    let binary = std::env::var("COS_BIN").unwrap_or_else(|_| "yu".to_string());
+    let binary = std::env::var("YUOS_BIN").unwrap_or_else(|_| "yu".to_string());
     let mut command = Command::new(binary);
     command
         .args(args)
@@ -71,14 +71,14 @@ async fn run_json<T: DeserializeOwned>(args: &[&str]) -> Result<T, ApiError> {
     let stdout = child.stdout.take().ok_or_else(|| {
         ApiError::new(
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            cos_agent_protocol::ErrorCode::Internal,
+            yuos_agent_protocol::ErrorCode::Internal,
             "model status stdout pipe is unavailable",
         )
     })?;
     let stderr = child.stderr.take().ok_or_else(|| {
         ApiError::new(
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            cos_agent_protocol::ErrorCode::Internal,
+            yuos_agent_protocol::ErrorCode::Internal,
             "model status stderr pipe is unavailable",
         )
     })?;
@@ -101,7 +101,7 @@ async fn run_json<T: DeserializeOwned>(args: &[&str]) -> Result<T, ApiError> {
             let _ = child.wait().await;
             return Err(ApiError::new(
                 axum::http::StatusCode::GATEWAY_TIMEOUT,
-                cos_agent_protocol::ErrorCode::Timeout,
+                yuos_agent_protocol::ErrorCode::Timeout,
                 "model status command timed out",
             ));
         }

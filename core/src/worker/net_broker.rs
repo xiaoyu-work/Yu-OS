@@ -69,7 +69,7 @@ pub struct EgressEndpoint {
 enum Peer {
     Owner(u32),
     #[cfg(target_os = "linux")]
-    RootRelay(claw_display_control::ProcessIdentity),
+    RootRelay(yuos_display_control::ProcessIdentity),
 }
 
 impl Peer {
@@ -80,7 +80,7 @@ impl Peer {
             #[cfg(target_os = "linux")]
             Self::RootRelay(expected) => {
                 use std::os::fd::AsFd;
-                claw_display_control::ProcessIdentity::unix_peer(stream.as_fd())
+                yuos_display_control::ProcessIdentity::unix_peer(stream.as_fd())
                     .is_ok_and(|actual| actual == *expected)
             }
         }
@@ -105,7 +105,7 @@ impl EgressEndpoint {
 
     #[cfg(target_os = "linux")]
     pub(crate) fn start_gui(socket: PathBuf, endpoints: Vec<Endpoint>) -> Result<Self, String> {
-        let relay = claw_display_control::ProcessIdentity::current().map_err(|error| error.to_string())?;
+        let relay = yuos_display_control::ProcessIdentity::current().map_err(|error| error.to_string())?;
         if relay.uid() != 0 {
             return Err("GUI egress requires its Root transport relay".to_string());
         }
@@ -136,7 +136,7 @@ impl EgressEndpoint {
                 let stats = Arc::clone(&stats);
                 let lifetime = Arc::clone(&lifetime);
                 std::thread::Builder::new()
-                    .name("cos-worker-egress".to_string())
+                    .name("yuos-worker-egress".to_string())
                     .spawn(move || {
                         loop {
                             if stop.load(Ordering::Relaxed) {
@@ -171,7 +171,7 @@ impl EgressEndpoint {
                                 }
                             };
                             let spawned = std::thread::Builder::new()
-                                .name("cos-worker-egress-conn".to_string())
+                                .name("yuos-worker-egress-conn".to_string())
                                 .spawn(move || {
                                     match serve(stream, &allowed, &peer, &tunnel) {
                                         true => stats_for_thread

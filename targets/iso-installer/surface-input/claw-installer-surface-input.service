@@ -10,5 +10,5 @@ ConditionFirmware=|device-tree-compatible(microsoft,romulus15)
 
 [Service]
 Type=oneshot
-ExecStart=/usr/lib/cos/init/claw-installer-surface-input
+ExecStart=/usr/lib/yuos/init/claw-installer-surface-input
 TimeoutStartSec=50

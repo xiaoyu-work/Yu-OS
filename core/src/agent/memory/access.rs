@@ -14,7 +14,7 @@ pub struct MemoryAccess {
 pub fn references(tool: &str, result: &str) -> Vec<MemoryAccess> {
     if !matches!(
         tool,
-        "cos_memory" | "cos_recall" | "cos_app_memory" | "cos_recall_semantic"
+        "yu_memory" | "yu_recall" | "yu_app_memory" | "yu_recall_semantic"
     ) {
         return Vec::new();
     }
@@ -48,13 +48,13 @@ pub fn references(tool: &str, result: &str) -> Vec<MemoryAccess> {
             continue;
         };
         let reference = match tool {
-            "cos_memory" => value.get("name").and_then(Value::as_str).map(|name| {
+            "yu_memory" => value.get("name").and_then(Value::as_str).map(|name| {
                 (
                     format!("notes/{name}"),
                     MemoryReference::Note { name: name.into() },
                 )
             }),
-            "cos_recall" => value
+            "yu_recall" => value
                 .get("id")
                 .and_then(Value::as_i64)
                 .filter(|id| *id > 0)
@@ -64,7 +64,7 @@ pub fn references(tool: &str, result: &str) -> Vec<MemoryAccess> {
                         MemoryReference::Message { id: id.to_string() },
                     )
                 }),
-            "cos_app_memory" => value
+            "yu_app_memory" => value
                 .get("id")
                 .and_then(Value::as_i64)
                 .filter(|id| *id > 0)

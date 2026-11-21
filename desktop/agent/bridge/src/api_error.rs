@@ -3,7 +3,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use cos_agent_protocol::{ErrorCode, ErrorEnvelope};
+use yuos_agent_protocol::{ErrorCode, ErrorEnvelope};
 
 pub struct ApiError {
     status: StatusCode,

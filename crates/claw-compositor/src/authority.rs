@@ -4,12 +4,12 @@ use std::collections::{HashMap, HashSet};
 use std::os::fd::{AsFd, BorrowedFd, IntoRawFd, OwnedFd};
 use std::sync::Arc;
 
-use claw_display_control::compositor::{CompositorLink, DisplayBinding};
-use claw_display_control::desktop::{self, Command as DesktopCommand};
-use claw_display_control::selection::Payload;
-use claw_display_control::wire::{monotonic_ms, GuiRefusal};
-use claw_display_control::workload::InstanceProcess;
-use claw_display_control::{
+use yuos_display_control::compositor::{CompositorLink, DisplayBinding};
+use yuos_display_control::desktop::{self, Command as DesktopCommand};
+use yuos_display_control::selection::Payload;
+use yuos_display_control::wire::{monotonic_ms, GuiRefusal};
+use yuos_display_control::workload::InstanceProcess;
+use yuos_display_control::{
     CompositorCommand, CompositorReply, Epoch, Error, InstanceId, ProcessIdentity, Received,
 };
 
@@ -443,7 +443,7 @@ impl Authority {
                 }
                 let process = InstanceProcess::receive(pidfd, group)?;
                 let descriptor = packet.descriptors.pop().ok_or(Error::Identity)?;
-                let stream = claw_display_control::identity::unix_stream(descriptor)?;
+                let stream = yuos_display_control::identity::unix_stream(descriptor)?;
                 let relay = ProcessIdentity::unix_peer(stream.as_fd())?;
                 if relay.uid() != 0 {
                     return Err(Error::Protocol("GUI creator stream was not made by Root"));
@@ -580,7 +580,7 @@ impl Authority {
                     return Err(Error::Identity);
                 }
                 validate_expiry(expires_monotonic_ms, monotonic_ms()?, 8000)?;
-                let stream = claw_display_control::identity::unix_stream(
+                let stream = yuos_display_control::identity::unix_stream(
                     packet.descriptors.pop().ok_or(Error::Identity)?,
                 )?;
                 if ProcessIdentity::unix_peer(stream.as_fd())?.uid() != 0 {

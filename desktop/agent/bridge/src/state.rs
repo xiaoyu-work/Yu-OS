@@ -2,20 +2,20 @@
 //!
 //! The bridge holds three things:
 //! - the configured HTTP port (env override or random)
-//! - the `clawd` Unix socket path used for chat turns
+//! - the `yuosd` Unix socket path used for chat turns
 //! - a per-process bearer token required by every HTTP route
 //!
-//! Everything else (sessions, models, credentials) is owned by `clawd`. The
+//! Everything else (sessions, models, credentials) is owned by `yuosd`. The
 //! bridge no longer serves a static SPA — the React frontend was
-//! retired in favour of the native libcosmic UI (`cos-agent-ui`),
+//! retired in favour of the native libcosmic UI (`yuos-agent-ui`),
 //! which calls only the `/api/*` JSON+SSE endpoints.
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use clawd_client::Client;
-use cos_agent_protocol::{BridgeEndpoint, MIN_SUPPORTED_PROTOCOL_VERSION, ProtocolVersion};
+use yuosd_client::Client;
+use yuos_agent_protocol::{BridgeEndpoint, MIN_SUPPORTED_PROTOCOL_VERSION, ProtocolVersion};
 
 const DISCOVERY_FILE: &str = "endpoint.json";
 
@@ -31,21 +31,21 @@ pub(crate) fn current_uid() -> anyhow::Result<u32> {
 #[derive(Clone)]
 pub struct AppState {
     pub port: u16,
-    pub clawd: Client,
+    pub yuosd: Client,
     pub auth_token: String,
 }
 
 impl AppState {
     pub fn from_env() -> anyhow::Result<Self> {
-        let port = std::env::var("COS_AGENT_BRIDGE_PORT")
+        let port = std::env::var("YUOS_AGENT_BRIDGE_PORT")
             .ok()
             .and_then(|s| s.parse::<u16>().ok())
             .unwrap_or(0);
-        let clawd = Client::from_env().context("discovering clawd socket")?;
+        let yuosd = Client::from_env().context("discovering yuosd socket")?;
         let auth_token = generate_auth_token()?;
         Ok(Self {
             port,
-            clawd,
+            yuosd,
             auth_token,
         })
     }
@@ -63,7 +63,7 @@ fn runtime_dir() -> anyhow::Result<PathBuf> {
     let dir = std::env::var("XDG_RUNTIME_DIR")
         .ok()
         .map(PathBuf::from)
-        .map(|dir| dir.join("cos-agent-bridge"))
+        .map(|dir| dir.join("yuos-agent-bridge"))
         .context("XDG_RUNTIME_DIR is required for bridge discovery")?;
     if !dir.is_absolute() {
         anyhow::bail!("bridge runtime directory must be absolute");
@@ -170,7 +170,7 @@ pub fn publish_endpoint(port: u16, token: &str) -> anyhow::Result<()> {
     }
 
     if let Some(parent) = dir.parent() {
-        let legacy = parent.join("cos-agent-bridge.port");
+        let legacy = parent.join("yuos-agent-bridge.port");
         if let Err(error) = std::fs::remove_file(&legacy)
             && error.kind() != std::io::ErrorKind::NotFound
         {

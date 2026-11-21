@@ -4,7 +4,7 @@
 //! Capability scopes for an App operation are *derived* from the values
 //! the App will actually receive, so the derivation must happen exactly
 //! once and identically everywhere. The unprivileged launcher uses it
-//! to describe an invocation; `clawd` uses it to decide which caps the
+//! to describe an invocation; `yuosd` uses it to decide which caps the
 //! App session is issued. If the two disagreed, the authority would
 //! grant a scope the App never asked for — or the App would run with a
 //! scope nobody authorised.

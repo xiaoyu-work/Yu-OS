@@ -25,7 +25,7 @@ fn trajectory(id: &str, name: &str, result: &str, is_error: bool) -> Vec<Message
 
 #[test]
 fn valid_citation_binds_result_hash() {
-    let messages = trajectory("call_1", "cos_sysinfo", "{\"load\":2}", false);
+    let messages = trajectory("call_1", "yu_sysinfo", "{\"load\":2}", false);
     let report = verify_answer(
         "why is my computer slow?",
         "Load is elevated. [evidence:call_1 confidence=0.92]",
@@ -40,7 +40,7 @@ fn valid_citation_binds_result_hash() {
 
 #[test]
 fn unknown_call_id_is_invalid() {
-    let messages = trajectory("call_1", "cos_sysinfo", "{}", false);
+    let messages = trajectory("call_1", "yu_sysinfo", "{}", false);
     let report = verify_answer(
         "why is my computer slow?",
         "Load is elevated. [evidence:invented confidence=0.9]",
@@ -67,7 +67,7 @@ fn ordinary_answer_without_tools_needs_no_evidence() {
 
 #[test]
 fn error_result_caps_confidence() {
-    let messages = trajectory("call_1", "cos_sysinfo", "permission denied", true);
+    let messages = trajectory("call_1", "yu_sysinfo", "permission denied", true);
     let report = verify_answer(
         "why is my computer slow?",
         "The probe failed. [evidence:call_1 confidence=0.95]",
@@ -109,7 +109,7 @@ fn bridged_tool_preserves_underlying_evidence_identity() {
     let mut messages = messages;
     if let ContentBlock::ToolUse { input, .. } = &mut messages[0].content[0] {
         *input = json!({
-            "name": "cos_sysinfo",
+            "name": "yu_sysinfo",
             "arguments": {"command": "loadavg", "args": []},
         });
     }
@@ -120,7 +120,7 @@ fn bridged_tool_preserves_underlying_evidence_identity() {
         &messages,
     );
     assert_eq!(report.status, EvidenceStatus::Verified);
-    assert_eq!(report.sources[0].tool_name, "cos_sysinfo");
+    assert_eq!(report.sources[0].tool_name, "yu_sysinfo");
     assert!(report.sources[0].binding_relevant);
 }
 
@@ -144,14 +144,14 @@ fn typed_mcp_app_results_require_evidence_binding() {
 #[test]
 fn gemini_wire_id_suffix_verifies_against_internal_tool_id() {
     let mut messages = trajectory(
-        "cos_tool_call::upstream-call-123",
+        "yu_tool_call::upstream-call-123",
         crate::agent::tools::progressive::TOOL_CALL,
         "{\"load\":2}",
         false,
     );
     if let ContentBlock::ToolUse { input, .. } = &mut messages[0].content[0] {
         *input = json!({
-            "name": "cos_sysinfo",
+            "name": "yu_sysinfo",
             "arguments": {"command": "loadavg", "args": []},
         });
     }

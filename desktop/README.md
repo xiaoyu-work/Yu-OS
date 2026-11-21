@@ -1,7 +1,7 @@
-# Claw OS desktop
+# Yu OS desktop
 
-Claw OS uses [Hyprland](hyprland-claw/MODULE.md) with the signed
-[Desktop Shell App](https://github.com/xiaoyu-work/clawos-app/tree/main/products/desktop-shell),
+Yu OS uses [Hyprland](hyprland-claw/MODULE.md) with the signed
+[Desktop Shell App](https://github.com/xiaoyu-work/yuos-app/tree/main/products/desktop-shell),
 which owns Quickshell, Caelestia, and their private runtime. Desktop builds
 require that App from the authenticated package channel. They do not build or
 install another desktop if it is unavailable.

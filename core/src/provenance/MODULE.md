@@ -39,7 +39,7 @@ schemas or model-visible metadata are trusted.
 
 Depends on `crypto` (canonical/envelope SHA-256), the already-declared `sha2`
 backend (file-body SHA-256), `ed25519-dalek`, `paths` and
-`audit`. It must not depend on `apps`, `agent` or `clawd`: those are
+`audit`. It must not depend on `apps`, `agent` or `yuosd`: those are
 consumers. Trust roots are compiled-in absolute paths plus the passwd
 home of the effective uid — never environment-derived, so no caller can
 widen trust by setting a variable.
@@ -72,7 +72,7 @@ Owner-policy readers bound file bytes and directory entries and use pinned,
 no-follow, nonblocking descriptors so a replaced FIFO cannot stall Root.
 
 The packaged vendor and local operator publisher roots share one system
-generation at `/etc/cos/trust/state.json`. Agent package configuration records
+generation at `/etc/yuos/trust/state.json`. Agent package configuration records
 it with the root-only `yu provenance trust record-system` command. It
 activates no App permissions; verification still checks each trusted key
 and signed payload.

@@ -1,4 +1,4 @@
-//! `cos_clarify` — agent clarification request tool.
+//! `yu_clarify` — agent clarification request tool.
 //!
 //! The model invokes this when it doesn't have enough information to
 //! proceed safely or correctly: ambiguous user intent, missing
@@ -89,7 +89,7 @@ pub trait ClarifyResponder: Send + Sync {
     async fn ask(&self, request: &ClarifyRequest) -> ClarifyOutcome;
 }
 
-/// `cos_clarify` LLM tool.
+/// `yu_clarify` LLM tool.
 pub struct Clarify {
     responder: Option<Arc<dyn ClarifyResponder>>,
 }
@@ -131,7 +131,7 @@ impl Clarify {
 #[async_trait]
 impl Tool for Clarify {
     fn name(&self) -> &str {
-        "cos_clarify"
+        "yu_clarify"
     }
 
     fn description(&self) -> &str {

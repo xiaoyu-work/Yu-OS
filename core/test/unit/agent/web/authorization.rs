@@ -1,5 +1,5 @@
 use super::*;
-use clawd_client::system_review::PermissionChoice;
+use yuosd_client::system_review::PermissionChoice;
 
 fn caller(token: &str) -> AuthenticatedToken {
     AuthenticatedToken {

@@ -184,8 +184,8 @@ fn install_rejects_package_substitution_during_permission_review() {
 #[test]
 fn install_force_publish_failure_restores_existing_install() {
     let pid = std::process::id();
-    let src = std::env::temp_dir().join(format!("cos-install-atomic-rename-src-{pid}"));
-    let dst = std::env::temp_dir().join(format!("cos-install-atomic-rename-dst-{pid}"));
+    let src = std::env::temp_dir().join(format!("yuos-install-atomic-rename-src-{pid}"));
+    let dst = std::env::temp_dir().join(format!("yuos-install-atomic-rename-dst-{pid}"));
     let installed = dst.join("rollback");
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);

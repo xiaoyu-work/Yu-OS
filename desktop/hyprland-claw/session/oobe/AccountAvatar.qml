@@ -13,7 +13,7 @@ Rectangle {
     Image {
         id: portrait
         anchors.fill: parent
-        source: badge.avatarId ? "file:///usr/share/claw-os/avatars/" + badge.avatarId + ".png" : ""
+        source: badge.avatarId ? "file:///usr/share/yuos/avatars/" + badge.avatarId + ".png" : ""
         fillMode: Image.PreserveAspectFit
     }
 

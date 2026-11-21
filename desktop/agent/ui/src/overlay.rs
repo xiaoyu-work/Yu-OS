@@ -9,7 +9,7 @@ use cosmic::iced::platform_specific::shell::commands::layer_surface::{
 use cosmic::iced::window::Id as SurfaceId;
 
 use crate::Message;
-pub(crate) use cos_runtime::ask_claw::Activation as OverlayActivation;
+pub(crate) use yuos_runtime::ask_claw::Activation as OverlayActivation;
 
 #[derive(Debug, Clone)]
 pub(crate) struct DeferredSubmit {

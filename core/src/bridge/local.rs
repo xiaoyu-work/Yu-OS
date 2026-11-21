@@ -1,6 +1,6 @@
 //! In-process Root registration uses the existing owner review and deny gates.
 
-use super::{AppLaunch, CapSet, ClawdCallError, SessionInfo};
+use super::{AppLaunch, CapSet, YuosdCallError, SessionInfo};
 
 pub(super) fn root_custody_response(
     result: &serde_json::Value,
@@ -16,9 +16,9 @@ pub(super) fn root_custody_response(
     }
 }
 
-pub(super) fn use_clawd_backend() -> Result<bool, String> {
+pub(super) fn use_yuosd_backend() -> Result<bool, String> {
     #[cfg(test)]
-    if std::env::var_os("COS_TEST_LOCAL_APP_SESSIONS").is_some() {
+    if std::env::var_os("YUOS_TEST_LOCAL_APP_SESSIONS").is_some() {
         return Ok(false);
     }
     #[cfg(unix)]
@@ -45,7 +45,7 @@ pub(super) fn authorize(
     local_caps: impl FnOnce(&CapSet) -> Result<CapSet, String>,
 ) -> Result<CapSet, String> {
     #[cfg(test)]
-    if std::env::var_os("COS_TEST_LOCAL_APP_SESSIONS").is_some() {
+    if std::env::var_os("YUOS_TEST_LOCAL_APP_SESSIONS").is_some() {
         return local_caps(parent_caps);
     }
     #[cfg(unix)]
@@ -53,7 +53,7 @@ pub(super) fn authorize(
         if unsafe { libc::geteuid() } != 0 {
             return Err("local App registration requires the Root authority".to_string());
         }
-        crate::clawd::app_sessions::require_non_app_session_ancestry(
+        crate::yuosd::app_sessions::require_non_app_session_ancestry(
             &crate::proc::registry_sessions(),
             parent,
         )?;
@@ -69,8 +69,8 @@ pub(super) fn authorize(
             parent.session_id
         );
         // Never call the daemon's public socket from its own execution scope.
-        crate::clawd::system_review::require_app_review(owner, &app, &requester)
-            .map_err(ClawdCallError::from)
+        crate::yuosd::system_review::require_app_review(owner, &app, &requester)
+            .map_err(YuosdCallError::from)
             .map_err(String::from)?;
         let caps = local_caps(parent_caps)?;
         crate::approvals::app_policy::require(owner, launch.app_id(), &caps)?;

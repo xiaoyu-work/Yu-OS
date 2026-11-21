@@ -46,8 +46,8 @@ use test_profile::{Span, Step};
 /// checkout reached through an environment override — must present a
 /// signature or a developer grant.
 pub const VENDOR_PACKAGE_ROOTS: &[&str] = &[
-    "/usr/lib/cos",
-    "/usr/share/cos",
+    "/usr/lib/yuos",
+    "/usr/share/yuos",
     "/usr/lib/claw",
     "/usr/share/claw",
 ];

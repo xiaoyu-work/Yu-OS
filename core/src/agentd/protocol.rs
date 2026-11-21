@@ -1,4 +1,4 @@
-//! Frames exchanged between `clawd` and one `claw-agentd` worker.
+//! Frames exchanged between `yuosd` and one `yuos-agentd` worker.
 //!
 //! The channel is a private `socketpair(2)` handed to the child as fd
 //! 3 and carries newline-delimited JSON. It exposes nothing but the
@@ -26,7 +26,7 @@ use crate::proc::SessionInfo;
 
 use super::grant::SignedGrant;
 
-/// Bumped whenever a frame changes shape. `clawd` refuses a worker that
+/// Bumped whenever a frame changes shape. `yuosd` refuses a worker that
 /// reports a different version, and the worker refuses an assignment
 /// that carries one.
 pub const PROTOCOL_VERSION: u32 = 22;
@@ -36,7 +36,7 @@ pub const CHANNEL_FD: i32 = 3;
 
 /// Set in the worker environment so the child can assert it received a
 /// channel rather than guessing at fd 3.
-pub const CHANNEL_FD_ENV: &str = "COS_AGENTD_CHANNEL_FD";
+pub const CHANNEL_FD_ENV: &str = "YUOS_AGENTD_CHANNEL_FD";
 
 /// Hard cap on a single frame. Streaming deltas and final answers are
 /// far below this; anything larger is treated as a protocol fault and
@@ -361,7 +361,7 @@ pub struct Assignment {
     #[serde(default = "unattended_consent")]
     pub consent_context: ConsentContext,
     /// Session scope the *broker* derived. Capabilities are never taken
-    /// from the worker; they are re-derived by `clawd` from root-owned
+    /// from the worker; they are re-derived by `yuosd` from root-owned
     /// session metadata and installed in the worker as a task-local.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session: Option<SessionInfo>,
@@ -657,7 +657,7 @@ fn clamp(value: &str) -> String {
 }
 
 /// Runtime audit the worker forwards so the model-visible tool and turn
-/// trail stays reconstructable from the root-owned `clawd` audit log.
+/// trail stays reconstructable from the root-owned `yuosd` audit log.
 /// Every field is a value `audit_policy` already projected, and the
 /// broker re-projects tool facts on receipt, so nothing model-authored
 /// reaches the log through this route.

@@ -14,7 +14,7 @@ fn open_in_memory_is_clean() {
 #[test]
 fn tool_invocations_are_separate_from_messages_and_clear_with_session() {
     let db = db();
-    db.record_tool_start("s", "call-1", "cos_sysinfo", r#"{"command":"info"}"#)
+    db.record_tool_start("s", "call-1", "yu_sysinfo", r#"{"command":"info"}"#)
         .unwrap();
     assert_eq!(db.count_total().unwrap(), 0);
     assert_eq!(db.recent_tool_invocations("s", 10).unwrap().len(), 1);
@@ -68,15 +68,15 @@ fn render_message_content_uses_underlying_bridged_tool_identity() {
             id: "call-1".into(),
             name: crate::agent::tools::progressive::TOOL_CALL.into(),
             input: serde_json::json!({
-                "name": "cos_app_mail",
+                "name": "yu_app_mail",
                 "arguments": {"command": "list"},
             }),
         }],
     };
     let rendered = render_message_content(&message);
-    assert!(rendered.contains("[tool_use:cos_app_mail]"));
+    assert!(rendered.contains("[tool_use:yu_app_mail]"));
     assert!(rendered.contains("\"command\":\"list\""));
-    assert!(!rendered.contains("cos_tool_call"));
+    assert!(!rendered.contains("yu_tool_call"));
 }
 
 #[test]
@@ -305,10 +305,10 @@ fn search_returns_empty_for_no_match() {
 #[test]
 fn search_handles_punctuation_safely() {
     let db = db();
-    db.record_message("s", "user", "use cos_sysinfo to inspect things")
+    db.record_message("s", "user", "use yu_sysinfo to inspect things")
         .unwrap();
     // Inputs like `(foo)` or `bar*` previously broke FTS5 — must be sanitised.
-    let hits = db.search("cos_sysinfo (inspect)", 10).unwrap();
+    let hits = db.search("yu_sysinfo (inspect)", 10).unwrap();
     assert_eq!(hits.len(), 1);
 }
 
@@ -775,7 +775,7 @@ fn title_for_unknown_session_is_none() {
 
 #[test]
 fn open_persists_and_reopens_cleanly() {
-    let dir = std::env::temp_dir().join(format!("cos-mem-persist-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("yuos-mem-persist-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     let path = dir.join("memory.db");
 
@@ -815,13 +815,13 @@ fn render_message_content_extracts_text_and_tool_blocks() {
             },
             ContentBlock::ToolUse {
                 id: "abc".into(),
-                name: "cos_sysinfo".into(),
+                name: "yu_sysinfo".into(),
                 input: serde_json::json!({"command":"info"}),
             },
         ],
     };
     let s = render_message_content(&msg);
     assert!(s.contains("let me look"));
-    assert!(s.contains("[tool_use:cos_sysinfo]"));
+    assert!(s.contains("[tool_use:yu_sysinfo]"));
     assert!(s.contains("\"command\""));
 }

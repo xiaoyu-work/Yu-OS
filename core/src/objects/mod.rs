@@ -9,8 +9,8 @@ use serde_json::Value;
 use crate::apps::{self, App};
 use crate::caps::manifest::{ArgBinding, ArgKind, ObjectType};
 
-pub use claw_os_sdk::generated::ObjectRef;
-pub use claw_os_sdk::objects::{format_reference, parse_reference, validate, ObjectRefError};
+pub use yuos_sdk::generated::ObjectRef;
+pub use yuos_sdk::objects::{format_reference, parse_reference, validate, ObjectRefError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ObjectError {
@@ -134,9 +134,9 @@ impl ObjectCatalog for InstalledObjectCatalog {
 
 pub fn default_catalog() -> InstalledObjectCatalog {
     InstalledObjectCatalog::new(
-        std::env::var_os("COS_APPS_DIR")
+        std::env::var_os("YUOS_APPS_DIR")
             .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("/usr/lib/cos/apps")),
+            .unwrap_or_else(|| PathBuf::from("/usr/lib/yuos/apps")),
     )
 }
 

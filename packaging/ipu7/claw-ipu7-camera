@@ -35,7 +35,7 @@ case "$1" in
         if ! compgen -G '/sys/bus/acpi/devices/INTC10DE:*' >/dev/null; then
             source+=" ! videoflip method=rotate-180"
         fi
-        exec /usr/lib/cos/ipu7/v4l2-relayd -i "$source" \
+        exec /usr/lib/yuos/ipu7/v4l2-relayd -i "$source" \
             -o "appsrc name=appsrc caps=video/x-raw,format=NV12,width=1920,height=1080,framerate=30/1 ! videoconvert ! v4l2sink name=v4l2sink sync=false device=$output"
         ;;
     *) exit 2 ;;

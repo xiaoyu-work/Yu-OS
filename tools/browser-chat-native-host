@@ -54,7 +54,7 @@ def read_endpoint() -> tuple[int, str]:
     runtime = Path(os.environ.get("XDG_RUNTIME_DIR", ""))
     if uid == 0 or runtime.resolve() != Path(f"/run/user/{uid}"):
         raise ValueError("Browser chat requires the current desktop user's runtime directory.")
-    directory = runtime.resolve() / "cos-agent-bridge"
+    directory = runtime.resolve() / "yuos-agent-bridge"
     for path in (directory.parent, directory):
         info = path.lstat()
         if not stat.S_ISDIR(info.st_mode) or info.st_uid != uid or info.st_mode & 0o077:

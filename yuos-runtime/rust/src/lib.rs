@@ -1,0 +1,50 @@
+//! # yuos-runtime
+//!
+//! **Internal** runtime for the yuos bundled apps and desktop GUI
+//! binaries. Not a developer SDK — third-party Linux apps written for
+//! yuos should not pull this crate in. Use
+//! [`yuos-sdk`](https://docs.rs/yuos-sdk) for AI / tool / agent
+//! integration.
+//!
+//! ## What's in here
+//!
+//! Every gated `yu app <id> <verb>` call from the apps in `apps/*`
+//! and the cosmic-desktop binaries under `desktop/*` is routed through
+//! one of these modules:
+//!
+//! | Module        | Wire family | Equivalent route           |
+//! |---------------|-------------|----------------------------|
+//! | [`ask_claw`]  | desktop     | supervised Agent overlay   |
+//! | [`policy`]    | `policy`    | hidden policy bridge       |
+//! | [`fs`]        | `app`       | `yu app fs ...`           |
+//! | [`filesystem`] | system    | controlled text-file provider |
+//! | [`desktop`]   | system     | controlled native editor launch |
+//! | [`capture`]   | system     | owner-scoped screenshot provider |
+//! | [`exec`]      | `app`       | `yu app exec ...`         |
+//! | [`pkg`]       | `app`       | `yu app pkg ...`          |
+//! | [`notify`]    | `app`       | `yu app notify ...`       |
+//! | [`net`]       | `app`       | `yu app net ...`          |
+//!
+//! App handlers use controlled providers (`filesystem`, `desktop`) and SDK AI.
+//! The `fs`, `exec`, `pkg`, `notify` and `net` modules are trusted-human
+//! CLI/desktop bridges, not App-to-App interfaces.
+//!
+//! ## Wire layer
+//!
+//! Transport (`call`, `call_typed`, `yu_call_json`) lives in
+//! `yuos-sdk` and is re-exported here so the modules' internal
+//! `super::*` continues to resolve. yuos-runtime adds no new transport
+//! semantics on top of the public SDK.
+
+pub use yuos_sdk::{call, call_typed, yu_call_json, BridgeError, Error};
+
+pub mod ask_claw;
+pub mod capture;
+pub mod exec;
+pub mod desktop;
+pub mod filesystem;
+pub mod fs;
+pub mod net;
+pub mod notify;
+pub mod pkg;
+pub mod policy;

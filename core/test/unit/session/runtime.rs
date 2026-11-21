@@ -11,8 +11,8 @@ use super::*;
 fn resume_from_crashed_state() {
     let _lock = crate::test_env::lock_env();
     let dir = tempfile::tempdir().expect("tempdir");
-    let prev_data = std::env::var_os("COS_DATA_DIR");
-    std::env::set_var("COS_DATA_DIR", dir.path());
+    let prev_data = std::env::var_os("YUOS_DATA_DIR");
+    std::env::set_var("YUOS_DATA_DIR", dir.path());
 
     // Create a session and flip it to Running directly — we do
     // NOT acquire a lease, mimicking a process that died after
@@ -55,8 +55,8 @@ fn resume_from_crashed_state() {
     drop(handle);
 
     match prev_data {
-        Some(v) => std::env::set_var("COS_DATA_DIR", v),
-        None => std::env::remove_var("COS_DATA_DIR"),
+        Some(v) => std::env::set_var("YUOS_DATA_DIR", v),
+        None => std::env::remove_var("YUOS_DATA_DIR"),
     }
 }
 
@@ -67,8 +67,8 @@ fn resume_from_crashed_state() {
 fn resume_from_paused_state() {
     let _lock = crate::test_env::lock_env();
     let dir = tempfile::tempdir().expect("tempdir");
-    let prev_data = std::env::var_os("COS_DATA_DIR");
-    std::env::set_var("COS_DATA_DIR", dir.path());
+    let prev_data = std::env::var_os("YUOS_DATA_DIR");
+    std::env::set_var("YUOS_DATA_DIR", dir.path());
 
     let sid = store::create("test").expect("create session");
     store::update_meta(&sid, |m| {
@@ -81,7 +81,7 @@ fn resume_from_paused_state() {
     drop(handle);
 
     match prev_data {
-        Some(v) => std::env::set_var("COS_DATA_DIR", v),
-        None => std::env::remove_var("COS_DATA_DIR"),
+        Some(v) => std::env::set_var("YUOS_DATA_DIR", v),
+        None => std::env::remove_var("YUOS_DATA_DIR"),
     }
 }

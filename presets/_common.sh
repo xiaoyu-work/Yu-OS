@@ -15,7 +15,7 @@ PROJECT_DIR="$(cd "$PRESETS_DIR/.." && pwd)"
 source "$PROJECT_DIR/scripts/lib/image-profiles.sh"
 
 # Desktop feature set: the full COSMIC desktop + VMware guest tools (screen
-# auto-resize, clipboard) + Copilot CLI + the Claw OS apt repo. This is the
+# auto-resize, clipboard) + Copilot CLI + the Yu OS apt repo. This is the
 # one feature string that the core's default does NOT cover, which is why a
 # preset is useful here. The wsl/docker targets already default to the
 # right features, so those presets don't override FEATURES at all.

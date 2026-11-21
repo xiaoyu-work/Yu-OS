@@ -214,20 +214,20 @@ fn extension_proposals_default_deny_higher_order_credentials_and_legacy_tools() 
     let context = ToolExposureContext::isolated(Guardrails::permissive());
     for (tool, input) in [
         (
-            "cos_delegate",
+            "yu_delegate",
             serde_json::json!({
                 "task": "steal secrets",
                 "provider": "openai",
                 "model": "attacker",
-                "allowed_tools": ["cos_credential"]
+                "allowed_tools": ["yu_credential"]
             }),
         ),
         (
-            "cos_credential",
+            "yu_credential",
             serde_json::json!({"command": "load", "name": "API_KEY"}),
         ),
-        ("cos_sysinfo", serde_json::json!({"command": "summary"})),
-        ("cos_proc", serde_json::json!({"command": "wait", "pid": 1})),
+        ("yu_sysinfo", serde_json::json!({"command": "summary"})),
+        ("yu_proc", serde_json::json!({"command": "wait", "pid": 1})),
     ] {
         let error = prepare_proposal(
             &registry,
@@ -336,9 +336,9 @@ async fn safe_extension_proposal_reenters_exact_capability_and_approval_enforcem
         r#"{"sessions":[{"session_id":"proposal-session","pid":0,"caps":[]}]}"#,
     )
     .unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", data.path().as_os_str());
-    let _session = crate::test_env::TestEnvVarGuard::set("COS_SESSION", "proposal-session");
-    let _mode = crate::test_env::TestEnvVarGuard::set("COS_PERMS_MODE", "strict");
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", data.path().as_os_str());
+    let _session = crate::test_env::TestEnvVarGuard::set("YUOS_SESSION", "proposal-session");
+    let _mode = crate::test_env::TestEnvVarGuard::set("YUOS_PERMS_MODE", "strict");
 
     let registry = builtin_only_registry();
     let capability = crate::caps::Cap::new(
@@ -409,25 +409,25 @@ fn default_registry_has_builtins_and_cos_proxy() {
     let r = default_registry();
     assert!(r.get("echo").is_some());
     assert!(r.get("now").is_some());
-    assert!(r.get("cos_delegate").is_some());
-    assert!(r.get("cos_todo").is_some());
-    assert!(r.get("cos_clarify").is_some());
-    assert!(r.get("cos_skill").is_some());
-    assert!(r.get("cos_sandbox").is_some());
-    assert!(r.get("cos_sysinfo").is_some());
-    assert!(r.get("cos_memory").is_some());
-    assert!(r.get("cos_tts").is_some());
-    assert!(r.get("cos_stt").is_some());
-    assert!(r.get("cos_imagegen").is_some());
-    assert!(r.get("cos_doctor").is_some());
-    assert!(r.get("cos_app_catalog").is_none());
-    assert!(r.get("cos_app_run").is_none());
+    assert!(r.get("yu_delegate").is_some());
+    assert!(r.get("yu_todo").is_some());
+    assert!(r.get("yu_clarify").is_some());
+    assert!(r.get("yu_skill").is_some());
+    assert!(r.get("yu_sandbox").is_some());
+    assert!(r.get("yu_sysinfo").is_some());
+    assert!(r.get("yu_memory").is_some());
+    assert!(r.get("yu_tts").is_some());
+    assert!(r.get("yu_stt").is_some());
+    assert!(r.get("yu_imagegen").is_some());
+    assert!(r.get("yu_doctor").is_some());
+    assert!(r.get("yu_app_catalog").is_none());
+    assert!(r.get("yu_app_run").is_none());
 
-    // Lower bound: 2 builtins + cos_delegate + cos_todo + cos_clarify
-    // + cos_skill
-    // + every cos_proxy tool (primitives + cos_memory) + 3 media tools,
-    // plus optionally cos_recall and authenticated MCP App tools.
-    let expected_min = 6 + super::super::cos_proxy::total_count() + 3;
+    // Lower bound: 2 builtins + yu_delegate + yu_todo + yu_clarify
+    // + yu_skill
+    // + every yu_proxy tool (primitives + yu_memory) + 3 media tools,
+    // plus optionally yu_recall and authenticated MCP App tools.
+    let expected_min = 6 + super::super::yu_proxy::total_count() + 3;
     assert!(
         r.len() >= expected_min,
         "expected at least {} tools, got {}",
@@ -440,7 +440,7 @@ fn default_registry_has_builtins_and_cos_proxy() {
 fn builtin_only_registry_has_just_builtins() {
     let r = builtin_only_registry();
     assert_eq!(r.len(), 2);
-    assert!(r.get("cos_sandbox").is_none());
+    assert!(r.get("yu_sandbox").is_none());
 }
 
 #[tokio::test]
@@ -448,7 +448,7 @@ async fn injected_notes_root_is_shared_by_memory_profile_and_curator() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path();
     let deps = RegistryDeps::without_optional_resources(
-        Arc::new(crate::config::CosConfig::default()),
+        Arc::new(crate::config::YuConfig::default()),
         RegistryPaths {
             apps_dir: root.join("apps"),
             todos_dir: root.join("todos"),
@@ -510,12 +510,12 @@ async fn injected_notes_root_is_shared_by_memory_profile_and_curator() {
         crate::agent::tools::exposure::ExecutionHost::Direct,
         Guardrails::permissive(),
     );
-    assert!(registry.get_for(&exposure, "cos_memory").is_some());
+    assert!(registry.get_for(&exposure, "yu_memory").is_some());
     let result = crate::proc::with_trusted_session_override(
         session,
         registry.execute(
             &exposure,
-            "cos_memory",
+            "yu_memory",
             serde_json::json!({
                 "command": "write",
                 "name": "USER.md",
@@ -799,9 +799,9 @@ async fn concurrent_sessions_cannot_leak_owner_source_grant_or_transport_schemas
                     "alice_path",
                     "app_transport",
                     "attended_cli",
-                    "cos_tool_call",
-                    "cos_tool_describe",
-                    "cos_tool_search",
+                    "yu_tool_call",
+                    "yu_tool_describe",
+                    "yu_tool_search",
                 ]
             );
         }
@@ -818,9 +818,9 @@ async fn concurrent_sessions_cannot_leak_owner_source_grant_or_transport_schemas
                 names,
                 vec![
                     "bob_path",
-                    "cos_tool_call",
-                    "cos_tool_describe",
-                    "cos_tool_search",
+                    "yu_tool_call",
+                    "yu_tool_describe",
+                    "yu_tool_search",
                 ]
             );
         }
@@ -882,8 +882,8 @@ fn oauth_schema_requires_trusted_attended_source_not_just_local_presence() {
         .with_identity("mcp", 1000, crate::session::SessionSource::ExternalMcp)
         .with_presence(true, true);
 
-    assert!(registry.get_for(&cli, "cos_oauth_login").is_some());
-    assert!(registry.get_for(&external, "cos_oauth_login").is_none());
+    assert!(registry.get_for(&cli, "yu_oauth_login").is_some());
+    assert!(registry.get_for(&external, "yu_oauth_login").is_none());
 }
 
 #[test]

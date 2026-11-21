@@ -6,8 +6,8 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
-use clawd_client::Command;
-use cos_agent_protocol::{ErrorCode, workspaces::*};
+use yuosd_client::Command;
+use yuos_agent_protocol::{ErrorCode, workspaces::*};
 use serde_json::{Value, json};
 
 fn invalid(error: impl std::fmt::Display) -> ApiError {
@@ -23,7 +23,7 @@ fn bad_request(error: impl std::fmt::Display) -> ApiError {
 
 pub async fn list(State(state): State<AppState>) -> Result<Json<WorkspaceList>, ApiError> {
     let value = state
-        .clawd
+        .yuosd
         .call(Command::WorkspaceList, json!({}))
         .await
         .map_err(invalid)?;
@@ -37,7 +37,7 @@ pub async fn get(
 ) -> Result<Json<WorkspaceView>, ApiError> {
     validate_id(&id).map_err(bad_request)?;
     let value = state
-        .clawd
+        .yuosd
         .call(Command::WorkspaceGet, json!({"id":id}))
         .await
         .map_err(invalid)?;
@@ -56,7 +56,7 @@ pub async fn control(
     let id = request.request.id().map(str::to_string);
     let revision = request.request.expected_revision();
     let value = state
-        .clawd
+        .yuosd
         .call(
             Command::WorkspaceControl,
             serde_json::to_value(request).map_err(invalid)?,
@@ -80,7 +80,7 @@ pub async fn read(
     let request = body.into_request(id).map_err(bad_request)?;
     let operation = request.request.clone();
     let value = state
-        .clawd
+        .yuosd
         .call(
             Command::WorkspaceRead,
             serde_json::to_value(request).map_err(invalid)?,
@@ -122,7 +122,7 @@ pub async fn index_source(
         return Err(bad_request("displayed Workspace revision is required"));
     }
     let value = state
-        .clawd
+        .yuosd
         .call(
             Command::WorkspaceIndexSource,
             serde_json::to_value(request).map_err(invalid)?,

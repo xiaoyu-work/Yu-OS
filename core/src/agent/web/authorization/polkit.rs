@@ -4,7 +4,7 @@ use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
 
-use clawd_client::system_review::{ReviewStatus, ReviewSubmission, SystemReview};
+use yuosd_client::system_review::{ReviewStatus, ReviewSubmission, SystemReview};
 use tokio::io::{
     AsyncBufRead, AsyncBufReadExt, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader,
 };
@@ -216,7 +216,7 @@ async fn run_helper(
         .map_err(|_| Failure::Unavailable("The displayed OS review is no longer valid."))?;
     let mut child = tokio::process::Command::new("/usr/bin/pkexec")
         .arg("--disable-internal-agent")
-        .arg("/usr/local/bin/claw-approval-helper")
+        .arg("/usr/local/bin/yuos-approval-helper")
         .arg("--system-review-json")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

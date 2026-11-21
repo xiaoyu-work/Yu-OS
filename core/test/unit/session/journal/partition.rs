@@ -26,7 +26,7 @@ fn a_key_that_was_not_derived_here_does_not_parse() {
 
 #[test]
 fn paths_stay_under_the_journal_root() {
-    let root = std::path::Path::new("/var/lib/cos/journal");
+    let root = std::path::Path::new("/var/lib/yuos/journal");
     let partition = Partition::Owner(1000);
     for path in [
         partition.segment_path(root, 0),

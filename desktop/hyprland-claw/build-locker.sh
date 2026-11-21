@@ -30,4 +30,4 @@ meson compile -C "$build" -j "$jobs" swaylock
 
 install -Dm0755 "$build/swaylock" "$stage/usr/libexec/claw-hyprland/claw-lockscreen"
 install -Dm0644 "$here/session/claw-desktop-lock.pam" "$stage/etc/pam.d/claw-desktop-lock"
-install -Dm0644 "$source/LICENSE" "$stage/usr/share/doc/claw-os-desktop/swaylock.LICENSE"
+install -Dm0644 "$source/LICENSE" "$stage/usr/share/doc/yuos-desktop/swaylock.LICENSE"

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// claw-os: Recoll-backed document full-text search plugin.
+// yuos: Recoll-backed document full-text search plugin.
 //
 // Shells out to `yu app docs search --query <q> --max-results 10`
 // — the same backend that powers the AI Assist drawer in the Files
@@ -217,7 +217,7 @@ impl SearchContext {
 }
 
 async fn run_query(query: &str) -> Result<SearchEnvelope, String> {
-    let bin = std::env::var("CLAW_COS_BIN").unwrap_or_else(|_| "yu".into());
+    let bin = std::env::var("YUOS_KERNEL_BIN").unwrap_or_else(|_| "yu".into());
     let mut cmd = Command::new(&bin);
     cmd.args([
         "app",

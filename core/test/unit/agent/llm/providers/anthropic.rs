@@ -64,11 +64,11 @@ fn endpoint_appends_messages_path() {
 #[test]
 fn is_configured_true_when_api_key_present() {
     let mut c = cfg();
-    c.api_key_env = Some("COS_TEST_ANTHROPIC_KEY_X".into());
-    std::env::set_var("COS_TEST_ANTHROPIC_KEY_X", "sk-ant-x");
+    c.api_key_env = Some("YUOS_TEST_ANTHROPIC_KEY_X".into());
+    std::env::set_var("YUOS_TEST_ANTHROPIC_KEY_X", "sk-ant-x");
     let p = AnthropicProvider::from_agent_config("claude-3-5-haiku-20241022", &c);
     assert!(p.is_configured());
-    std::env::remove_var("COS_TEST_ANTHROPIC_KEY_X");
+    std::env::remove_var("YUOS_TEST_ANTHROPIC_KEY_X");
 }
 
 #[test]
@@ -640,7 +640,7 @@ fn body_cache_system_with_empty_system_no_op() {
 
 #[test]
 fn anthropic_no_pool_when_neither_plural_field_set() {
-    const LEGACY: &str = "COS_TEST_ANTH_LEGACY_ONLY";
+    const LEGACY: &str = "YUOS_TEST_ANTH_LEGACY_ONLY";
     std::env::set_var(LEGACY, "legacy-key");
     let mut c = AgentConfig::default();
     c.api_key_env = Some(LEGACY.into());
@@ -652,14 +652,14 @@ fn anthropic_no_pool_when_neither_plural_field_set() {
 
 #[test]
 fn anthropic_pool_built_from_envs() {
-    std::env::set_var("COS_TEST_ANTH_POOL_A", "sk-ant-aaa");
-    std::env::set_var("COS_TEST_ANTH_POOL_B", "sk-ant-bbb");
+    std::env::set_var("YUOS_TEST_ANTH_POOL_A", "sk-ant-aaa");
+    std::env::set_var("YUOS_TEST_ANTH_POOL_B", "sk-ant-bbb");
     let mut c = AgentConfig::default();
-    c.api_key_envs = vec!["COS_TEST_ANTH_POOL_A".into(), "COS_TEST_ANTH_POOL_B".into()];
+    c.api_key_envs = vec!["YUOS_TEST_ANTH_POOL_A".into(), "YUOS_TEST_ANTH_POOL_B".into()];
     c.api_key_credential = Some("../ignored-legacy-credential".into());
     let ac = AnthropicConfig::from_agent_config("claude-3-5-haiku-20241022", &c);
-    std::env::remove_var("COS_TEST_ANTH_POOL_A");
-    std::env::remove_var("COS_TEST_ANTH_POOL_B");
+    std::env::remove_var("YUOS_TEST_ANTH_POOL_A");
+    std::env::remove_var("YUOS_TEST_ANTH_POOL_B");
     let pool = ac.pool.expect("pool should be built");
     assert_eq!(pool.len(), 2);
     assert!(ac.api_key.is_none());
@@ -667,8 +667,8 @@ fn anthropic_pool_built_from_envs() {
 
 #[test]
 fn anthropic_pool_unresolved_fails_closed_instead_of_using_single_key() {
-    const LEGACY: &str = "COS_TEST_ANTH_LEGACY_MUST_NOT_BE_USED";
-    const MISSING: &str = "COS_TEST_ANTH_POOL_MISSING";
+    const LEGACY: &str = "YUOS_TEST_ANTH_LEGACY_MUST_NOT_BE_USED";
+    const MISSING: &str = "YUOS_TEST_ANTH_POOL_MISSING";
     std::env::set_var(LEGACY, "legacy-secret-must-not-leak");
     std::env::remove_var(MISSING);
     let mut c = AgentConfig::default();
@@ -689,8 +689,8 @@ fn anthropic_pool_unresolved_fails_closed_instead_of_using_single_key() {
 
 #[test]
 fn anthropic_pool_partial_uses_resolved_entry_and_ignores_single_key() {
-    const PRESENT: &str = "COS_TEST_ANTH_POOL_PARTIAL_PRESENT";
-    const MISSING: &str = "COS_TEST_ANTH_POOL_PARTIAL_MISSING";
+    const PRESENT: &str = "YUOS_TEST_ANTH_POOL_PARTIAL_PRESENT";
+    const MISSING: &str = "YUOS_TEST_ANTH_POOL_PARTIAL_MISSING";
     std::env::set_var(PRESENT, "pool-key");
     std::env::remove_var(MISSING);
     let mut c = AgentConfig::default();
@@ -706,11 +706,11 @@ fn anthropic_pool_partial_uses_resolved_entry_and_ignores_single_key() {
 
 #[test]
 fn anthropic_is_configured_true_with_pool_only() {
-    std::env::set_var("COS_TEST_ANTH_POOL_ICONFIG", "sk-ant-x");
+    std::env::set_var("YUOS_TEST_ANTH_POOL_ICONFIG", "sk-ant-x");
     let mut c = AgentConfig::default();
-    c.api_key_envs = vec!["COS_TEST_ANTH_POOL_ICONFIG".into()];
+    c.api_key_envs = vec!["YUOS_TEST_ANTH_POOL_ICONFIG".into()];
     let ac = AnthropicConfig::from_agent_config("claude-3-5-haiku-20241022", &c);
-    std::env::remove_var("COS_TEST_ANTH_POOL_ICONFIG");
+    std::env::remove_var("YUOS_TEST_ANTH_POOL_ICONFIG");
     let provider = AnthropicProvider::new_with_transport(ac, HttpTransport::new().unwrap());
     assert!(provider.is_configured());
 }

@@ -196,7 +196,7 @@ fn run_log_and_insights_derive_from_the_owner_scoped_usage_snapshot() {
         "status": "ok",
         "scope": "overall",
         "since": "2026-08-20T00:00:00Z",
-        "log": "/var/lib/cos/users/1000/logs/ai.jsonl",
+        "log": "/var/lib/yuos/users/1000/logs/ai.jsonl",
         "total": {
             "calls": 3,
             "input_tokens": 120,

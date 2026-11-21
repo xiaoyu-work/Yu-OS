@@ -1,5 +1,5 @@
 [Unit]
-Description=ClawOS: Recoll real-time document indexing (inotify)
+Description=YuOS: Recoll real-time document indexing (inotify)
 Documentation=man:recollindex(1) man:recoll.conf(5)
 ConditionPathIsExecutable=/usr/bin/recollindex
 StartLimitIntervalSec=300

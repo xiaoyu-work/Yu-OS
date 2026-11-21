@@ -62,7 +62,7 @@ fn is_configured_requires_installed_engine() {
     crate::engine_pkg::paths::set_engines_dir_override(Some(tmp_engines.path().to_path_buf()));
 
     let tmp_gguf = std::env::temp_dir().join(format!(
-        "cos-llama-prov-{}-{}.gguf",
+        "yuos-llama-prov-{}-{}.gguf",
         std::process::id(),
         uuid::Uuid::new_v4()
     ));
@@ -120,7 +120,7 @@ fn is_configured_true_when_engine_and_model_present() {
 
     // And a fake GGUF.
     let gguf = std::env::temp_dir().join(format!(
-        "cos-llama-prov-happy-{}-{}.gguf",
+        "yuos-llama-prov-happy-{}-{}.gguf",
         std::process::id(),
         uuid::Uuid::new_v4()
     ));

@@ -76,7 +76,7 @@ pub(super) struct TestState {
 impl TestState {
     pub(super) fn new() -> Self {
         let lock = crate::caps::test_env_lock::env_lock();
-        let base = std::env::var_os("COS_DATA_DIR")
+        let base = std::env::var_os("YUOS_DATA_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|| {
                 std::env::current_dir()
@@ -87,29 +87,29 @@ impl TestState {
         let root = base.join(format!("trigger-fixture-{}", uuid::Uuid::new_v4()));
         crate::storage::ensure_private_dir(&root).unwrap();
         let overrides = [
-            ("COS_DATA_DIR", root.join("data")),
-            ("COS_USER_DATA_DIR", root.join("user-data")),
-            ("COS_USER_CONFIG_DIR", root.join("user-config")),
-            ("COS_CONFIG_DIR", root.join("config")),
-            ("COS_CAPS_DATA_DIR", root.join("caps")),
-            ("COS_PROC_DATA_DIR", root.join("proc")),
-            ("COS_LOG_DIR", root.join("logs")),
-            ("COS_RUNTIME_DIR", root.join("runtime")),
+            ("YUOS_DATA_DIR", root.join("data")),
+            ("YUOS_USER_DATA_DIR", root.join("user-data")),
+            ("YUOS_USER_CONFIG_DIR", root.join("user-config")),
+            ("YUOS_CONFIG_DIR", root.join("config")),
+            ("YUOS_CAPS_DATA_DIR", root.join("caps")),
+            ("YUOS_PROC_DATA_DIR", root.join("proc")),
+            ("YUOS_LOG_DIR", root.join("logs")),
+            ("YUOS_RUNTIME_DIR", root.join("runtime")),
         ];
         let mut saved = Vec::new();
         for (name, value) in overrides {
             saved.push((name, std::env::var_os(name)));
             std::env::set_var(name, value);
         }
-        saved.push(("COS_PERMS_MODE", std::env::var_os("COS_PERMS_MODE")));
-        std::env::set_var("COS_PERMS_MODE", "strict");
-        saved.push(("COS_SESSION", std::env::var_os("COS_SESSION")));
-        std::env::remove_var("COS_SESSION");
+        saved.push(("YUOS_PERMS_MODE", std::env::var_os("YUOS_PERMS_MODE")));
+        std::env::set_var("YUOS_PERMS_MODE", "strict");
+        saved.push(("YUOS_SESSION", std::env::var_os("YUOS_SESSION")));
+        std::env::remove_var("YUOS_SESSION");
         saved.push((
-            "COS_TEST_PERSISTENCE_FAILPOINT",
-            std::env::var_os("COS_TEST_PERSISTENCE_FAILPOINT"),
+            "YUOS_TEST_PERSISTENCE_FAILPOINT",
+            std::env::var_os("YUOS_TEST_PERSISTENCE_FAILPOINT"),
         ));
-        std::env::remove_var("COS_TEST_PERSISTENCE_FAILPOINT");
+        std::env::remove_var("YUOS_TEST_PERSISTENCE_FAILPOINT");
         #[cfg(unix)]
         let uid = unsafe { libc::geteuid() };
         #[cfg(not(unix))]

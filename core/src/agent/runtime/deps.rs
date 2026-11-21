@@ -41,7 +41,7 @@ impl RuntimePaths {
             nudges_path: crate::paths::agent_nudges_path(),
             system_skills_dir: crate::paths::system_skills_dir(),
             user_skills_dir: crate::paths::agent_skills_dir(),
-            system_skills_origin: if std::env::var_os("COS_SYSTEM_SKILLS_DIR").is_some() {
+            system_skills_origin: if std::env::var_os("YUOS_SYSTEM_SKILLS_DIR").is_some() {
                 crate::agent::skills::loader::SkillOrigin::Local
             } else {
                 crate::agent::skills::loader::SkillOrigin::BuiltIn
@@ -58,7 +58,7 @@ pub struct RuntimeDeps {
     semantic_indexer: Option<Arc<SemanticIndexer>>,
     paths: Option<RuntimePaths>,
     notes: crate::agent::memory::notes::NotesStore,
-    config: Option<Arc<crate::config::CosConfig>>,
+    config: Option<Arc<crate::config::YuConfig>>,
     routed_paths: crate::paths::RoutedPathContext,
     curation_log: PathBuf,
     monetary_budget: Option<Arc<dyn super::monetary_budget::MonetaryBudgetController>>,
@@ -165,12 +165,12 @@ impl RuntimeDeps {
         &self.notes
     }
 
-    pub fn with_config_snapshot(mut self, config: Arc<crate::config::CosConfig>) -> Self {
+    pub fn with_config_snapshot(mut self, config: Arc<crate::config::YuConfig>) -> Self {
         self.config = Some(config);
         self
     }
 
-    pub fn config_snapshot(&self) -> Option<Arc<crate::config::CosConfig>> {
+    pub fn config_snapshot(&self) -> Option<Arc<crate::config::YuConfig>> {
         self.config.clone()
     }
 

@@ -7,13 +7,13 @@ fn catalog_value() -> Value {
         "generation": "1", "issued_at": Utc::now() - chrono::Duration::minutes(1),
         "expires_at": Utc::now() + chrono::Duration::days(1),
         "packages": [{
-            "package": "claw-app-fixture", "version": "1.0.0", "architecture": "all",
+            "package": "yuos-app-fixture", "version": "1.0.0", "architecture": "all",
             "size": 20, "sha256": "1".repeat(64), "apps": ["fixture"],
         }],
         "apps": [{
             "app_id": "fixture", "app_version": "1.0.0", "architecture": "all",
-            "release_version": "1.0.0", "release_tag": "app-fixture-v1.0.0",
-            "artifact": {"file": format!("claw-app-snapshot-{}.tar.gz", "a".repeat(64)),
+            "release_version": "1.0.0", "release_tag": "yuos-app-fixture-v1.0.0",
+            "artifact": {"file": format!("yuos-app-snapshot-{}.tar.gz", "a".repeat(64)),
                 "size": 10, "sha256": "a".repeat(64), "media_type": "application/gzip"},
             "manifest": {"path": "app.json", "size": 1, "sha256": "b".repeat(64)},
             "provenance": {"path": ".provenance.json", "sha256": "c".repeat(64),
@@ -47,7 +47,7 @@ fn catalog_refuses_stale_or_substituted_release_metadata() {
         },
         {
             let mut v = value.clone();
-            v["apps"][0]["release_tag"] = json!("app-other-v1.0.0");
+            v["apps"][0]["release_tag"] = json!("yuos-app-other-v1.0.0");
             v
         },
         {

@@ -30,9 +30,9 @@ import xml.etree.ElementTree as ET
 
 
 PASSWORD = "Claw-fixture-only-42"
-HELPER = Path("/usr/local/bin/claw-approval-helper")
+HELPER = Path("/usr/local/bin/yuos-approval-helper")
 ACTION = "org.yuos.approval.decide"
-SOCKET = Path("/run/cos/clawd.sock")
+SOCKET = Path("/run/yuos/yuosd.sock")
 
 
 def command(*args, **kwargs):
@@ -107,8 +107,8 @@ class Terminal:
                 "LANG": "C.UTF-8",
                 "LC_ALL": "C.UTF-8",
                 "TERM": "xterm-256color",
-                "COS_CONFIG_DIR": str(home.parent / "empty-config"),
-                "COS_USER_CONFIG_DIR": str(home / "config"),
+                "YUOS_CONFIG_DIR": str(home.parent / "empty-config"),
+                "YUOS_USER_CONFIG_DIR": str(home / "config"),
             },
             preexec_fn=lambda: child_identity(uid, gid),
         )
@@ -217,10 +217,10 @@ class WebClient:
             preexec_fn=lambda: web_identity(uid),
             env={
                 "HOME": str(home), "PATH": "/usr/local/bin:/usr/bin:/bin",
-                "LANG": "C.UTF-8", "COS_DATA_DIR": str(home / "web-data"),
-                "COS_CAPS_DATA_DIR": str(home / "web-caps"),
-                "COS_CONFIG_DIR": str(root / "empty-config"),
-                "COS_USER_CONFIG_DIR": str(home / "config"),
+                "LANG": "C.UTF-8", "YUOS_DATA_DIR": str(home / "web-data"),
+                "YUOS_CAPS_DATA_DIR": str(home / "web-caps"),
+                "YUOS_CONFIG_DIR": str(root / "empty-config"),
+                "YUOS_USER_CONFIG_DIR": str(home / "config"),
             },
         )
         try:
@@ -492,7 +492,7 @@ def run(args):
         driver.write_bytes(Path(__file__).read_bytes())
         driver.chmod(0o644)
         with contextlib.ExitStack() as cleanup:
-            for name in ("cos", "clawd", "helper", "policy"):
+            for name in ("yu", "yuosd", "helper", "policy"):
                 staged = root / name
                 shutil.copyfile(getattr(args, name), staged)
                 staged.chmod(0o644 if name == "policy" else 0o755)
@@ -502,7 +502,7 @@ def run(args):
                 "/usr/share/polkit-1", "/usr/local/bin",
             ):
                 mount_private(target)
-            for path in ("/run/dbus", "/run/cos", "/run/polkit", "/etc/polkit-1/rules.d",
+            for path in ("/run/dbus", "/run/yuos", "/run/polkit", "/etc/polkit-1/rules.d",
                          "/usr/share/polkit-1/actions", "/usr/share/polkit-1/rules.d"):
                 Path(path).mkdir(parents=True, exist_ok=True)
             command("mount", "--bind", "/sys/fs/cgroup", "/sys/fs/cgroup")
@@ -566,15 +566,15 @@ def run(args):
             for name, argv in (
                 ("dbus", ["dbus-daemon", "--nofork", "--config-file", str(bus_config)]),
                 ("polkit", [args.polkitd, "--no-debug"]),
-                ("clawd", [str(args.clawd), "--socket", str(SOCKET), "--socket-mode", "666"]),
+                ("yuosd", [str(args.yuosd), "--socket", str(SOCKET), "--socket-mode", "666"]),
             ):
                 log = cleanup.enter_context((root / f"{name}.log").open("w+"))
                 process = subprocess.Popen(
                     argv, stdout=log, stderr=log,
                     env={"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": "/root",
-                         "LANG": "C.UTF-8", "COS_DATA_DIR": "/var/lib/cos",
-                         "COS_CONFIG_DIR": str(root / "empty-config"),
-                         "COS_USER_CONFIG_DIR": str(root / "empty-root-config")},
+                         "LANG": "C.UTF-8", "YUOS_DATA_DIR": "/var/lib/yuos",
+                         "YUOS_CONFIG_DIR": str(root / "empty-config"),
+                         "YUOS_USER_CONFIG_DIR": str(root / "empty-root-config")},
                 )
                 cleanup.callback(stop, process)
                 logs[name] = (log, process)
@@ -608,7 +608,7 @@ def run(args):
                 )) as terminal:
                     terminal.require_exit(127)
                     assert b"Password:" not in terminal.output
-                    assert b"usage: claw-approval-helper" not in terminal.stdout
+                    assert b"usage: yuos-approval-helper" not in terminal.stdout
                 print(json.dumps({"case": "legacy-sessionless-policy-refused", "completed": True}), flush=True)
                 policy.write_bytes(candidate_policy)
                 for _ in range(100):
@@ -627,7 +627,7 @@ def run(args):
                     terminal.expect_password()
                     terminal.send(PASSWORD.encode() + b"\n")
                     terminal.require_exit(0)
-                    assert b"usage: claw-approval-helper" in terminal.stdout
+                    assert b"usage: yuos-approval-helper" in terminal.stdout
                     assert PASSWORD.encode() not in terminal.output
                 print(json.dumps({"case": "sessionless-real-pam", "completed": True}), flush=True)
                 for _ in range(200):
@@ -637,7 +637,7 @@ def run(args):
                             break
                     time.sleep(0.05)
                 else:
-                    raise AssertionError("private clawd did not become ready")
+                    raise AssertionError("private yuosd did not become ready")
                 request = rpc("permission.request", {
                     "verb": "fs.meta", "scope": {"kind": "path", "value": "/**"},
                     "session": "approval-fixture", "reason": "Fixture metadata approval",
@@ -756,7 +756,7 @@ def run(args):
                         )["result"]["statuses"][0]["status"] == "approved"
                     )
                     terminal.pump(lambda: b"APPROVED" in terminal.output[offset:])
-                    assert b"Claw OS authorization" not in terminal.output[offset:]
+                    assert b"Yu OS authorization" not in terminal.output[offset:]
                     assert b"Password:" not in terminal.output[offset:]
                     assert not termios.tcgetattr(terminal.master)[3] & (
                         termios.ICANON | termios.ECHO
@@ -785,13 +785,13 @@ if __name__ == "__main__":
             _, status = os.waitpid(pid, 0)
             sys.exit(os.waitstatus_to_exitcode(status))
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("yu", "clawd", "helper", "policy"):
+    for name in ("yu", "yuosd", "helper", "policy"):
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--polkitd", default="/usr/lib/polkit-1/polkitd")
     parser.add_argument("--original-mount-namespace", required=True)
     parser.add_argument("--original-pid-namespace", required=True)
     parser.add_argument("--original-network-namespace", required=True)
     arguments = parser.parse_args()
-    for name in ("yu", "clawd", "helper", "policy"):
+    for name in ("yu", "yuosd", "helper", "policy"):
         setattr(arguments, name, getattr(arguments, name).resolve(strict=True))
     run(arguments)

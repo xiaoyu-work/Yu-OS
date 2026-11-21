@@ -7,7 +7,7 @@
 
 use super::{CredentialError, CredentialResult};
 
-pub(super) const MASTER_KEY_LABEL: &[u8] = b"cos-credential-key";
+pub(super) const MASTER_KEY_LABEL: &[u8] = b"yuos-credential-key";
 
 #[cfg(target_os = "linux")]
 pub(super) fn read_master_key() -> CredentialResult<Option<[u8; 32]>> {

@@ -6,7 +6,7 @@
 # APT's own signature says the publisher produced the artifacts. This
 # says the artifacts are a *coherent, non-regressing* release:
 #
-#   * every Claw OS package in the pool carries a canonical release
+#   * every Yu OS package in the pool carries a canonical release
 #     manifest that describes exactly that package, version and
 #     architecture;
 #   * every manifest is signed by the publishing key and verifies with
@@ -70,7 +70,7 @@ if [ -n "$PREVIOUS_DIR" ]; then
     { [ -e "$PREVIOUS_DIR/.pre-protection-repository" ] \
         || [ -e "$PREVIOUS_DIR/.no-existing-repository" ]; } && pre_protection=1
 fi
-bootstrap="${COS_RELEASE_SECURITY_BOOTSTRAP:-0}"
+bootstrap="${YUOS_RELEASE_SECURITY_BOOTSTRAP:-0}"
 
 if [ "$baseline_established" != "1" ] && [ "$pre_protection" != "1" ]; then
     echo "error: the published repository state was never established." >&2
@@ -121,9 +121,9 @@ write_status() {
 }
 
 shopt -s nullglob
-debs=("$REPO_DIR/pool/$COMPONENT"/*/claw-os-*/*.deb)
+debs=("$REPO_DIR/pool/$COMPONENT"/*/yuos-*/*.deb)
 if [ "${#debs[@]}" -eq 0 ]; then
-    echo "error: no Claw OS packages found in $REPO_DIR/pool/$COMPONENT" >&2
+    echo "error: no Yu OS packages found in $REPO_DIR/pool/$COMPONENT" >&2
     exit 1
 fi
 
@@ -133,15 +133,15 @@ for deb in "${debs[@]}"; do
     version="$(dpkg-deb --field "$deb" Version)"
     arch="$(dpkg-deb --field "$deb" Architecture)"
     case "$package" in
-        claw-os-agent|claw-os-base|claw-os-desktop) ;;
+        yuos-agent|yuos-base|yuos-desktop) ;;
         *) continue ;;
     esac
 
     stage="$WORK_DIR/$package-$arch"
     mkdir -p "$stage"
     dpkg-deb --fsys-tarfile "$deb" \
-        | tar -x -C "$stage" "./usr/lib/cos/release-security/$package" 2>/dev/null || true
-    manifest="$stage/usr/lib/cos/release-security/$package/manifest.json"
+        | tar -x -C "$stage" "./usr/lib/yuos/release-security/$package" 2>/dev/null || true
+    manifest="$stage/usr/lib/yuos/release-security/$package/manifest.json"
     signature="$manifest.asc"
     if [ ! -s "$manifest" ]; then
         # Migration ratchet: an artifact published before downgrade
@@ -221,7 +221,7 @@ if [ "$extracted" -eq 0 ]; then
     fi
     # Nothing to anchor a baseline to. Publish honestly *without* the
     # marker rather than advertising protection that does not exist.
-    echo "warning: no Claw OS release-security metadata was published;" >&2
+    echo "warning: no Yu OS release-security metadata was published;" >&2
     echo "         every package in this pool predates downgrade protection" >&2
     rmdir "$OUT_DIR" 2>/dev/null || true
     write_status 0 "pool carries no release-security metadata"

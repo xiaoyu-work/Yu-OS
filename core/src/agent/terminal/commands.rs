@@ -327,7 +327,7 @@ pub(super) fn parse(value: &str) -> Option<Command> {
                     request["next_task"] = json!(options.next_task);
                     request["review_note"] = json!(options.review_note);
                 }
-                serde_json::from_value::<crate::clawd::wire::requests::ActivityWorkEnabled>(
+                serde_json::from_value::<crate::yuosd::wire::requests::ActivityWorkEnabled>(
                     request.clone(),
                 )
                 .ok()?;
@@ -1419,7 +1419,7 @@ pub(super) fn confirm(
     match action {
         ConfirmationAction::WorkspaceDelete {id,revision} => {
             Request::new("Deleting Workspace",async move {
-                let value=backend.workspace_request(clawd_client::Command::WorkspaceControl,serde_json::json!({
+                let value=backend.workspace_request(yuosd_client::Command::WorkspaceControl,serde_json::json!({
                     "request":{"action":"delete","id":id,"expected_revision":revision,"confirm":true},
                 })).await?;
                 let view:crate::workspaces::WorkspaceView=serde_json::from_value(value).map_err(|e|e.to_string())?;

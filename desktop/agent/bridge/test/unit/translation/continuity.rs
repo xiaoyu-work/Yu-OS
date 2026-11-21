@@ -1,5 +1,5 @@
 use super::*;
-use cos_agent_protocol::{ActivitySchedulingPriority, PortableActivityRules};
+use yuos_agent_protocol::{ActivitySchedulingPriority, PortableActivityRules};
 use serde_json::json;
 
 const LINEAGE: &str = "00000000-0000-4000-8000-000000000123";
@@ -8,7 +8,7 @@ const SNAPSHOT: &str = "sha256:6d8c822b0519a02e7ab1ebeab48392cb83756fa9cc8b6d39e
 
 fn document_value() -> Value {
     json!({
-        "kind": "claw_os.activity_continuity",
+        "kind": "yuos.activity_continuity",
         "schema_version": 1,
         "lineage": {"id": LINEAGE, "revision": 7},
         "snapshot": SNAPSHOT,

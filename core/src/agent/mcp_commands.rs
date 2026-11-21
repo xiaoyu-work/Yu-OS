@@ -16,8 +16,8 @@ fn merge_mcp_overrides(
         out.tool_allow = Some(a);
     }
     out.tool_deny.extend(deny);
-    if !out.tool_deny.iter().any(|name| name == "cos_oauth_login") {
-        out.tool_deny.push("cos_oauth_login".to_string());
+    if !out.tool_deny.iter().any(|name| name == "yu_oauth_login") {
+        out.tool_deny.push("yu_oauth_login".to_string());
     }
     out
 }
@@ -57,7 +57,7 @@ pub(super) fn mcp_cmd(args: &[String]) -> Result<Value, String> {
             Ok(json!({
                 "status": "ready",
                 "transport": "stdio",
-                "server_name": format!("cos-agent/{}", env!("CARGO_PKG_VERSION")),
+                "server_name": format!("yuos-agent/{}", env!("CARGO_PKG_VERSION")),
                 "tools_registered": tools.names_unfiltered().len(),
                 "tools_permitted": tools.names().len(),
                 "tools": tools.names(),
@@ -228,7 +228,7 @@ pub(super) fn mcp_cmd(args: &[String]) -> Result<Value, String> {
                 )?
                 .for_external_mcp();
             let server = McpServer::new_with_context(
-                "cos-agent",
+                "yuos-agent",
                 env!("CARGO_PKG_VERSION"),
                 registry,
                 exposure,
@@ -353,7 +353,7 @@ fn mcp_probe(args: &[String]) -> Result<Value, String> {
         client.start().await;
         let init_fut = client.initialize(
             crate::agent::tools::mcp::protocol::Implementation {
-                name: "cos-agent".to_string(),
+                name: "yuos-agent".to_string(),
                 version: env!("CARGO_PKG_VERSION").to_string(),
             },
             crate::agent::tools::mcp::protocol::ClientCapabilities::default(),
@@ -455,7 +455,7 @@ fn mcp_call(args: &[String]) -> Result<Value, String> {
         client.start().await;
         let init_fut = client.initialize(
             crate::agent::tools::mcp::protocol::Implementation {
-                name: "cos-agent".to_string(),
+                name: "yuos-agent".to_string(),
                 version: env!("CARGO_PKG_VERSION").to_string(),
             },
             crate::agent::tools::mcp::protocol::ClientCapabilities::default(),

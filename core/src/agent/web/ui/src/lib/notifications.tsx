@@ -57,8 +57,8 @@ export type NotificationPreferences = {
 };
 
 export function notificationActionRoute(uri: string, taskId?: string) {
-  if (uri === "clawos://agent/approvals") return "/approvals";
-  const sessionPrefix = "clawos://agent/session/";
+  if (uri === "yuos://agent/approvals") return "/approvals";
+  const sessionPrefix = "yuos://agent/session/";
   if (uri.startsWith(sessionPrefix)) {
     const sessionId = uri.slice(sessionPrefix.length);
     if (/^[A-Za-z0-9_-]+$/.test(sessionId)) return `/chat/${sessionId}`;

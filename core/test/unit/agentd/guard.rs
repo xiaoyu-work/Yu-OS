@@ -83,7 +83,7 @@ fn the_model_and_tool_runtime_is_refused_inside_the_broker() {
     );
     let message = app.unwrap_err();
     assert!(
-        message.contains("claw-agentd"),
+        message.contains("yuos-agentd"),
         "the refusal should name the worker: {message}"
     );
     let _ = std::fs::remove_dir_all(&dir);
@@ -118,7 +118,7 @@ fn every_manifest_selected_app_runtime_is_refused_inside_the_broker() {
             "/nonexistent-apps",
         )
         .unwrap_err();
-        assert!(error.contains("clawd broker"), "{runtime}: {error}");
-        assert!(error.contains("claw-agentd"), "{runtime}: {error}");
+        assert!(error.contains("yuosd broker"), "{runtime}: {error}");
+        assert!(error.contains("yuos-agentd"), "{runtime}: {error}");
     }
 }

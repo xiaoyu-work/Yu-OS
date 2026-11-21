@@ -430,7 +430,7 @@ fn switching_to_chat_preserves_unsent_forms_but_does_not_replay_pending_saves() 
 }
 
 fn object_response(id: &str) -> ActivityObjectsResponse {
-    use cos_agent_protocol::{ActivityObjectResourceView, AppObjectInvocation, AppObjectReference};
+    use yuos_agent_protocol::{ActivityObjectResourceView, AppObjectInvocation, AppObjectReference};
     ActivityObjectsResponse {
         activity_id: id.into(),
         objects: vec![ActivityObjectResourceView {
@@ -1178,7 +1178,7 @@ fn operation_preview_draft_changes_invalidate_pending_and_displayed_results() {
 }
 
 fn receipt_response(id: &str, outcome: ActivityReceiptOutcome) -> ActivityReceiptsResponse {
-    use cos_agent_protocol::{ActivityReceiptReport, ReceiptResultSummary};
+    use yuos_agent_protocol::{ActivityReceiptReport, ReceiptResultSummary};
     ActivityReceiptsResponse {
         schema: 1,
         activity_id: id.into(),
@@ -1365,7 +1365,7 @@ fn receipt_reads_preserve_drafts_and_existing_object_previews() {
 
 #[test]
 fn receipt_reports_and_declarations_render_as_inert_separate_data() {
-    use cos_agent_protocol::ActivityReceiptDeclaration;
+    use yuos_agent_protocol::ActivityReceiptDeclaration;
     crate::localize::localize();
     let mut response = receipt_response("activity-1", ActivityReceiptOutcome::Returned);
     let receipt = &mut response.receipts[0];
@@ -1439,7 +1439,7 @@ fn leaving_the_activity_discards_receipt_responses_without_authoring_anything() 
 
 #[test]
 fn receipt_snapshot_stays_historical_and_caller_reported_when_app_metadata_changes() {
-    use cos_agent_protocol::ActivityReceiptDeclaration;
+    use yuos_agent_protocol::ActivityReceiptDeclaration;
     let mut state = ready_preview(ActivityState::Active);
     state.objects.as_mut().unwrap().objects[0]
         .description

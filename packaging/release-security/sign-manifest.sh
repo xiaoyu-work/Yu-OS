@@ -26,7 +26,7 @@
 # usable, echoes nothing when none was requested, and returns non-zero
 # when one was requested but cannot be used.
 claw_resolve_signing_key() {
-    local key_id="${CLAW_OS_RELEASE_SECURITY_KEY_ID:-${GPG_KEY_ID:-}}"
+    local key_id="${YUOS_RELEASE_SECURITY_KEY_ID:-${GPG_KEY_ID:-}}"
     if [ -z "$key_id" ]; then
         echo "  :: no release-security signing key requested;" >&2
         echo "     THIS IS AN UNSIGNED LOCAL BUILD and cannot be published" >&2
@@ -37,7 +37,7 @@ claw_resolve_signing_key() {
         echo "error: release-security signing key $key_id was requested but its" >&2
         echo "       secret key is unavailable. Refusing to emit an unsigned" >&2
         echo "       package under a signed build. Unset" >&2
-        echo "       CLAW_OS_RELEASE_SECURITY_KEY_ID/GPG_KEY_ID for an" >&2
+        echo "       YUOS_RELEASE_SECURITY_KEY_ID/GPG_KEY_ID for an" >&2
         echo "       explicitly unsigned local build." >&2
         return 1
     fi

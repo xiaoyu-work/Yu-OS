@@ -1,5 +1,5 @@
 [package]
-name = "cos-agent-bridge"
+name = "yuos-agent-bridge"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ repository.workspace = true
 description = "Local HTTP+SSE bridge between the Yu OS Agent UI and the system Agent."
 
 [[bin]]
-name = "cos-agent-bridge"
+name = "yuos-agent-bridge"
 path = "src/main.rs"
 
 [dependencies]
@@ -23,8 +23,8 @@ async-stream = "0.3"
 bytes = "1"
 regex = "1"
 chrono = { workspace = true }
-clawd-client = { path = "../../../crates/clawd-client" }
-cos-agent-protocol = { workspace = true }
+yuosd-client = { path = "../../../crates/yuosd-client" }
+yuos-agent-protocol = { workspace = true }
 zbus = { version = "5.14.0", features = ["tokio", "p2p"] }
 
 [dev-dependencies]

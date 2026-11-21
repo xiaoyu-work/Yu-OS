@@ -1,7 +1,7 @@
 //! Built-in tools: side-effect-free utilities included with every agent.
 //!
 //! Phase 1 keeps this list minimal — these tools exist mostly so the runtime
-//! can be exercised end-to-end without exposing the system. Real cos-primitive
+//! can be exercised end-to-end without exposing the system. Real yuos-primitive
 //! proxies (fs/exec/proc/net/web/sandbox/checkpoint/...) land in Phase 2.
 
 use async_trait::async_trait;

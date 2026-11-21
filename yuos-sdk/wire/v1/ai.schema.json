@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yuos.dev/wire/v1/ai.schema.json",
+  "title": "AI request / reply",
+  "description": "Stable text-chat reply returned by `yu ai chat`.",
+  "type": "object",
+  "required": ["text", "model", "provider", "verb", "usage", "budget", "review"],
+  "additionalProperties": true,
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "Assistant text returned by the configured provider."
+    },
+    "model": {
+      "type": "string",
+      "description": "Provider model id actually used."
+    },
+    "provider": {
+      "type": "string",
+      "description": "Provider name actually used."
+    },
+    "verb": {
+      "type": "string",
+      "enum": [
+        "ai.chat",
+        "ai.chat.untrusted"
+      ],
+      "description": "Capability verb derived by the kernel for this call."
+    },
+    "usage": {
+      "type": "object",
+      "required": ["input_tokens", "output_tokens", "units"],
+      "additionalProperties": false,
+      "description": "Token and unit accounting for this call.",
+      "properties": {
+        "input_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295,
+          "x-rust-type": "u32",
+          "x-go-type": "uint32"
+        },
+        "output_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295,
+          "x-rust-type": "u32",
+          "x-go-type": "uint32"
+        },
+        "units": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615,
+          "x-rust-type": "u64",
+          "x-go-type": "uint64",
+          "x-ts-type": "number | bigint"
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "required": ["period", "units_used", "units_cap"],
+      "additionalProperties": false,
+      "description": "App budget snapshot after the call.",
+      "properties": {
+        "period": { "type": "string" },
+        "units_used": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615,
+          "x-rust-type": "u64",
+          "x-go-type": "uint64",
+          "x-ts-type": "number | bigint"
+        },
+        "units_cap": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615,
+          "x-rust-type": "u64",
+          "x-go-type": "uint64",
+          "x-ts-type": "number | bigint"
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "required": ["safety", "prompt_redacted"],
+      "additionalProperties": false,
+      "description": "Safety policy actually applied by the kernel.",
+      "properties": {
+        "safety": {
+          "type": "string",
+          "enum": ["strict", "standard", "minimal"]
+        },
+        "prompt_redacted": { "type": "boolean" }
+      }
+    },
+    "tool_calls": {
+      "type": "array",
+      "description": "Tool calls proposed by the model. The kernel does not execute them inline.",
+      "items": { "$ref": "#/$defs/AiToolCall" }
+    }
+  },
+  "$defs": {
+    "AiToolCall": {
+      "type": "object",
+      "required": ["id", "name", "input"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "input": {}
+      }
+    }
+  }
+}

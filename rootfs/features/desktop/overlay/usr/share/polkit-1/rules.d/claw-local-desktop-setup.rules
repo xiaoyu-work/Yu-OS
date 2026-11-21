@@ -4,7 +4,7 @@ polkit.addRule(function(action, subject) {
         action.id !== "org.freedesktop.NetworkManager.network-control" &&
         action.id !== "org.freedesktop.NetworkManager.settings.modify.system") return;
     try {
-        polkit.spawn(["/usr/bin/test", "-f", "/etc/cos/local-desktop-setup"]);
+        polkit.spawn(["/usr/bin/test", "-f", "/etc/yuos/local-desktop-setup"]);
         return polkit.Result.YES;
     } catch (error) {
         return polkit.Result.NO;

@@ -18,7 +18,7 @@ from gi.repository import Gdk, Gtk, Pango
 
 
 COS = "/usr/local/bin/yu"
-APPROVAL_HELPER = "/usr/local/bin/claw-approval-helper"
+APPROVAL_HELPER = "/usr/local/bin/yuos-approval-helper"
 REVIEW_ID = re.compile(r"(?:rv-[a-f0-9]{32}|ap-[a-f0-9]{12}|pg-[a-f0-9]{32})")
 CONFIRMATIONS = {
     "confirm_activation": (

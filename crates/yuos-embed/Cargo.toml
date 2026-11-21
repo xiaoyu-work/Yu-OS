@@ -1,0 +1,28 @@
+[package]
+name = "yuos-embed"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Reusable embedding, extraction, chunking, walking, and semantic storage primitives for yuos."
+repository = "https://github.com/xiaoyu-work/Yu-OS"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = "0.1"
+rusqlite = { version = "0.39.0", features = ["bundled"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = "1"
+tracing = { workspace = true }
+notify = "6"
+sha2 = "0.10"
+dirs = "5"
+tokio = { workspace = true }
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3.27"
+tokio = { workspace = true }

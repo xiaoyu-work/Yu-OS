@@ -86,7 +86,7 @@ fn permission_denied(action: &str, denial: Value) -> String {
 /// `search` | `forget`); the rest are subcommand-specific.
 ///
 /// Inside a worker sandbox the owner's memory database is not mounted —
-/// `COS_DATA_DIR` is the App's own partition — so the call is forwarded
+/// `YUOS_DATA_DIR` is the App's own partition — so the call is forwarded
 /// to the launch's broker endpoint, which re-parses it here and answers
 /// from the launch's live authority. Apps keep writing to the same
 /// cross-App agent memory they always have, and hostile code still

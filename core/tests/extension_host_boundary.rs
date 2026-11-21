@@ -12,9 +12,9 @@ use std::time::Duration;
 use yu::caps::{Cap, CapSet, Scope, Verb};
 use yu::extension_host::{broker, client, spawn};
 
-const HOST_BIN: &str = env!("CARGO_BIN_EXE_claw-extension-host");
-const APP_RUNNER_BIN: &str = env!("CARGO_BIN_EXE_claw-app-runner");
-const LEAK_MARKER: &str = "COS_EXTENSION_TEST_BROKER_SECRET";
+const HOST_BIN: &str = env!("CARGO_BIN_EXE_yuos-extension-host");
+const APP_RUNNER_BIN: &str = env!("CARGO_BIN_EXE_yuos-app-runner");
+const LEAK_MARKER: &str = "YUOS_EXTENSION_TEST_BROKER_SECRET";
 const TEST_MCP_SERVER: &str = r#"import json
 import sys
 
@@ -139,9 +139,9 @@ while True:
             }]
         output = json.dumps({
             "mode": MODE,
-            "broker_env": os.environ.get("COS_EXTENSION_BROKER_SOCKET"),
-            "registry_env": os.environ.get("COS_PROC_DATA_DIR"),
-            "secret_env": os.environ.get("COS_EXTENSION_TEST_BROKER_SECRET"),
+            "broker_env": os.environ.get("YUOS_EXTENSION_BROKER_SOCKET"),
+            "registry_env": os.environ.get("YUOS_PROC_DATA_DIR"),
+            "secret_env": os.environ.get("YUOS_EXTENSION_TEST_BROKER_SECRET"),
             "network_blocked": network_blocked,
             "host_root_absent": not os.path.exists("/root/.ssh"),
         }, separators=(",", ":"))
@@ -257,7 +257,7 @@ fn install_agent_extension(
 }
 
 fn installed_registration(id: &str) -> yu::extension_host::protocol::AgentExtensionRegistration {
-    let path = std::env::var("COS_EXTENSION_BOUNDARY_REGISTRATIONS").unwrap();
+    let path = std::env::var("YUOS_EXTENSION_BOUNDARY_REGISTRATIONS").unwrap();
     let registrations: HashMap<String, yu::extension_host::protocol::AgentExtensionRegistration> =
         serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
     registrations.get(id).cloned().unwrap()
@@ -286,7 +286,7 @@ struct CgroupRootGuard(PathBuf);
 impl CgroupRootGuard {
     fn create() -> Self {
         let path = PathBuf::from(format!(
-            "/sys/fs/cgroup/cos-extension-boundary-{}",
+            "/sys/fs/cgroup/yuos-extension-boundary-{}",
             uuid::Uuid::new_v4().simple()
         ));
         std::fs::create_dir(&path).expect("create delegated cgroup root");
@@ -321,17 +321,17 @@ impl TestEnvironment {
         let owner = yu::agentd::spawn::resolve_identity(owner_uid).ok()?;
         make_owner_writable(owner_data.path(), owner_uid, owner.gid).ok()?;
         std::fs::set_permissions(owner_data.path(), std::fs::Permissions::from_mode(0o700)).ok()?;
-        std::fs::create_dir_all("/usr/lib/cos").ok()?;
+        std::fs::create_dir_all("/usr/lib/yuos").ok()?;
         let apps = tempfile::Builder::new()
             .prefix("ca-")
-            .tempdir_in("/usr/lib/cos")
+            .tempdir_in("/usr/lib/yuos")
             .ok()?;
-        let host_source = std::env::var_os("COS_PRIVILEGED_EXTENSION_HOST_BIN")
+        let host_source = std::env::var_os("YUOS_PRIVILEGED_EXTENSION_HOST_BIN")
             .unwrap_or_else(|| HOST_BIN.into());
-        let host_bin = runtime.path().join("claw-extension-host");
+        let host_bin = runtime.path().join("yuos-extension-host");
         std::fs::copy(host_source, &host_bin).ok()?;
         std::fs::set_permissions(&host_bin, std::fs::Permissions::from_mode(0o755)).ok()?;
-        let app_runner = runtime.path().join("claw-app-runner");
+        let app_runner = runtime.path().join("yuos-app-runner");
         std::fs::copy(APP_RUNNER_BIN, &app_runner).ok()?;
         if !std::process::Command::new("strip")
             .arg(&app_runner)
@@ -342,19 +342,19 @@ impl TestEnvironment {
             return None;
         }
         std::fs::set_permissions(&app_runner, std::fs::Permissions::from_mode(0o755)).ok()?;
-        std::env::set_var("COS_EXTENSION_HOST_BIN", &host_bin);
-        std::env::set_var("COS_RUNTIME_DIR", runtime.path());
-        std::env::set_var("COS_DATA_DIR", data.path());
-        std::env::set_var("COS_USER_DATA_DIR", owner_data.path());
-        std::env::set_var("COS_APPS_DIR", apps.path());
+        std::env::set_var("YUOS_EXTENSION_HOST_BIN", &host_bin);
+        std::env::set_var("YUOS_RUNTIME_DIR", runtime.path());
+        std::env::set_var("YUOS_DATA_DIR", data.path());
+        std::env::set_var("YUOS_USER_DATA_DIR", owner_data.path());
+        std::env::set_var("YUOS_APPS_DIR", apps.path());
         std::env::set_var(LEAK_MARKER, "broker-only-value");
         let extensions = PathBuf::from(format!(
-            "/usr/lib/cos/test-extensions-{}",
+            "/usr/lib/yuos/test-extensions-{}",
             uuid::Uuid::new_v4().simple()
         ));
         std::fs::create_dir_all(&extensions).ok()?;
         std::fs::set_permissions(&extensions, std::fs::Permissions::from_mode(0o755)).ok()?;
-        std::env::set_var("COS_AGENT_EXTENSIONS_DIR", &extensions);
+        std::env::set_var("YUOS_AGENT_EXTENSIONS_DIR", &extensions);
 
         let leaked_path = runtime.path().join("broker-held.bin");
         let mut file = std::fs::File::create(&leaked_path).ok()?;
@@ -393,7 +393,7 @@ impl TestEnvironment {
         .ok()?;
         std::fs::set_permissions(&registrations_path, std::fs::Permissions::from_mode(0o444))
             .ok()?;
-        std::env::set_var("COS_EXTENSION_BOUNDARY_REGISTRATIONS", &registrations_path);
+        std::env::set_var("YUOS_EXTENSION_BOUNDARY_REGISTRATIONS", &registrations_path);
         make_owner_writable(sync.path(), owner_uid, execution_gid).ok()?;
         make_root_readable(apps.path()).ok()?;
         Some(Self {
@@ -452,14 +452,14 @@ impl Drop for TestEnvironment {
             libc::close(self.leaked_fd);
         }
         for key in [
-            "COS_EXTENSION_HOST_BIN",
-            "COS_RUNTIME_DIR",
-            "COS_PROC_DATA_DIR",
-            "COS_DATA_DIR",
-            "COS_USER_DATA_DIR",
-            "COS_APPS_DIR",
-            "COS_AGENT_EXTENSIONS_DIR",
-            "COS_EXTENSION_BOUNDARY_REGISTRATIONS",
+            "YUOS_EXTENSION_HOST_BIN",
+            "YUOS_RUNTIME_DIR",
+            "YUOS_PROC_DATA_DIR",
+            "YUOS_DATA_DIR",
+            "YUOS_USER_DATA_DIR",
+            "YUOS_APPS_DIR",
+            "YUOS_AGENT_EXTENSIONS_DIR",
+            "YUOS_EXTENSION_BOUNDARY_REGISTRATIONS",
             yu::agentd::spawn::ISOLATED_GROUP_ENV,
             LEAK_MARKER,
         ] {
@@ -516,7 +516,7 @@ def run(command, args):
         'ok': True,
         'command': command,
         'args': args,
-        'env_leak': os.environ.get('COS_EXTENSION_TEST_BROKER_SECRET'),
+        'env_leak': os.environ.get('YUOS_EXTENSION_TEST_BROKER_SECRET'),
         'fds': fds,
     }
 "#,
@@ -578,8 +578,8 @@ async fn send_agent_extension_probe(
 }
 
 async fn worker_child() {
-    let binding_path = PathBuf::from(std::env::var("COS_EXTENSION_BOUNDARY_BINDING").unwrap());
-    let replay = std::env::var("COS_EXTENSION_BOUNDARY_MODE").as_deref() == Ok("replay");
+    let binding_path = PathBuf::from(std::env::var("YUOS_EXTENSION_BOUNDARY_BINDING").unwrap());
+    let replay = std::env::var("YUOS_EXTENSION_BOUNDARY_MODE").as_deref() == Ok("replay");
     let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
     let binding = loop {
         if let Ok(raw) = std::fs::read(&binding_path) {
@@ -642,10 +642,10 @@ async fn worker_child() {
         .await
         .expect_err("a task Host must not execute an App call locally");
     assert!(error.contains("manager is unavailable"), "{error}");
-    let spoof = yu::clawd::client::request(
+    let spoof = yu::yuosd::client::request(
         &binding.broker_socket,
-        yu::clawd::wire::Request::build(
-            yu::clawd::routes::Command::TaskCancel,
+        yu::yuosd::wire::Request::build(
+            yu::yuosd::routes::Command::TaskCancel,
             serde_json::json!({"id":"other-task"}),
         ),
     )
@@ -659,7 +659,7 @@ async fn worker_child() {
     }
 
     let mcp_name = "hosted-echo";
-    let mcp_server = std::env::var("COS_EXTENSION_BOUNDARY_MCP").unwrap();
+    let mcp_server = std::env::var("YUOS_EXTENSION_BOUNDARY_MCP").unwrap();
     let tools = client
         .attach_mcp(yu::agent::tools::mcp::integration::McpServerSpec {
             name: mcp_name.to_string(),
@@ -924,10 +924,10 @@ fn worker_command(
             "hosted_app_and_mcp_lifecycle_is_isolated_and_fail_closed",
             "--nocapture",
         ])
-        .env("COS_EXTENSION_BOUNDARY_CHILD", "1")
-        .env("COS_EXTENSION_BOUNDARY_MODE", mode)
-        .env("COS_EXTENSION_BOUNDARY_BINDING", binding_path)
-        .env("COS_EXTENSION_BOUNDARY_MCP", &env.mcp_server)
+        .env("YUOS_EXTENSION_BOUNDARY_CHILD", "1")
+        .env("YUOS_EXTENSION_BOUNDARY_MODE", mode)
+        .env("YUOS_EXTENSION_BOUNDARY_BINDING", binding_path)
+        .env("YUOS_EXTENSION_BOUNDARY_MCP", &env.mcp_server)
         .env("HOME", &identity.home)
         .env_remove(LEAK_MARKER)
         .stdout(std::process::Stdio::piped())
@@ -949,7 +949,7 @@ fn worker_command(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn hosted_app_and_mcp_lifecycle_is_isolated_and_fail_closed() {
-    if std::env::var("COS_EXTENSION_BOUNDARY_CHILD").as_deref() == Ok("1") {
+    if std::env::var("YUOS_EXTENSION_BOUNDARY_CHILD").as_deref() == Ok("1") {
         worker_child().await;
         return;
     }
@@ -988,7 +988,7 @@ async fn hosted_app_and_mcp_lifecycle_is_isolated_and_fail_closed() {
         .expect("fixture owner decision");
     yu::approvals::system_review::consume(uid, &review.id, package)
         .expect("fixture activation confirmation");
-    let registration_path = std::env::var("COS_EXTENSION_BOUNDARY_REGISTRATIONS").unwrap();
+    let registration_path = std::env::var("YUOS_EXTENSION_BOUNDARY_REGISTRATIONS").unwrap();
     let registrations: HashMap<String, yu::extension_host::protocol::AgentExtensionRegistration> =
         serde_json::from_slice(&std::fs::read(registration_path).unwrap()).unwrap();
     let selected = registrations.keys().cloned().collect::<Vec<_>>();
@@ -1016,9 +1016,9 @@ async fn hosted_app_and_mcp_lifecycle_is_isolated_and_fail_closed() {
     let extension_identity = yu::extension_host::identity::ExtensionIdentity {
         uid: yu::extension_host::identity::FIRST_UID,
         gid: execution_gid,
-        username: "cos-ext-00".to_string(),
+        username: "yuos-ext-00".to_string(),
     };
-    let primary_path = env._runtime.path().join("clawd.sock");
+    let primary_path = env._runtime.path().join("yuosd.sock");
     let _primary_listener =
         std::os::unix::net::UnixListener::bind(&primary_path).expect("primary broker fixture");
     std::fs::set_permissions(&primary_path, std::fs::Permissions::from_mode(0o660))
@@ -1035,9 +1035,9 @@ async fn hosted_app_and_mcp_lifecycle_is_isolated_and_fail_closed() {
     let listener =
         broker::bind_listener(&paths, extension_identity.uid, execution_gid).expect("listener");
     let cgroup_root = CgroupRootGuard::create();
-    let state = yu::clawd::state::DaemonState::try_new().expect("daemon state");
-    let admission = yu::clawd::transport::limits::Admission::new(
-        yu::clawd::transport::limits::Limits::default(),
+    let state = yu::yuosd::state::DaemonState::try_new().expect("daemon state");
+    let admission = yu::yuosd::transport::limits::Admission::new(
+        yu::yuosd::transport::limits::Limits::default(),
     );
     let context = yu::agentd::supervisor::BrokerContext::new(
         state.clone(),
@@ -1063,7 +1063,7 @@ async fn hosted_app_and_mcp_lifecycle_is_isolated_and_fail_closed() {
         spawn::approve_runtime_path(env._runtime.path(), identity.uid)
             .expect("approve test runtime"),
     ];
-    if let Some(paths) = std::env::var_os("COS_SDK_PYTHON_DIR") {
+    if let Some(paths) = std::env::var_os("YUOS_SDK_PYTHON_DIR") {
         for sdk_dir in std::env::split_paths(&paths).filter(|path| !path.as_os_str().is_empty()) {
             approved_paths.push(
                 spawn::approve_runtime_path(&sdk_dir, identity.uid).expect("approve Python SDK"),
@@ -1104,7 +1104,7 @@ async fn hosted_app_and_mcp_lifecycle_is_isolated_and_fail_closed() {
     let task_session_info = yu::proc::SessionInfo {
         session_id: task_session.to_string(),
         pid: worker_pid,
-        command: vec!["claw-agentd-worker".to_string()],
+        command: vec!["yuos-agentd-worker".to_string()],
         started_at: chrono::Utc::now().to_rfc3339(),
         stdout_path: String::new(),
         stderr_path: String::new(),
@@ -1134,7 +1134,7 @@ async fn hosted_app_and_mcp_lifecycle_is_isolated_and_fail_closed() {
         yu::proc::SessionInfo {
             session_id: host_session.to_string(),
             pid: host.pid,
-            command: vec!["claw-extension-host".to_string(), task_id.to_string()],
+            command: vec!["yuos-extension-host".to_string(), task_id.to_string()],
             started_at: chrono::Utc::now().to_rfc3339(),
             stdout_path: String::new(),
             stderr_path: String::new(),
@@ -1191,7 +1191,7 @@ async fn hosted_app_and_mcp_lifecycle_is_isolated_and_fail_closed() {
             .into_owned();
     assert!(
         host_environment.contains(env._apps.path().to_string_lossy().as_ref()),
-        "host environment omitted COS_APPS_DIR: {host_environment:?}"
+        "host environment omitted YUOS_APPS_DIR: {host_environment:?}"
     );
     std::fs::write(&binding_path, serde_json::to_vec(&host.binding).unwrap()).unwrap();
     make_owner_writable(&binding_path, uid, execution_gid).expect("publish worker binding");
@@ -1201,7 +1201,7 @@ async fn hosted_app_and_mcp_lifecycle_is_isolated_and_fail_closed() {
         .expect("worker boundary timed out")
         .expect("wait worker boundary");
     let audit =
-        std::fs::read_to_string(env._data.path().join("clawd/audit.jsonl")).unwrap_or_default();
+        std::fs::read_to_string(env._data.path().join("yuosd/audit.jsonl")).unwrap_or_default();
     assert!(
         output.status.success(),
         "worker stdout:\n{}\nworker stderr:\n{}\naudit:\n{}",

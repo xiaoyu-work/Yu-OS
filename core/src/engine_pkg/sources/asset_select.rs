@@ -29,7 +29,7 @@ pub struct SelectionContext {
 impl SelectionContext {
     /// Build the selection context for the current process.
     ///
-    /// Honors `COS_ENGINE_ACCELERATOR` to override the accelerator
+    /// Honors `YUOS_ENGINE_ACCELERATOR` to override the accelerator
     /// preference (defaults to "cpu"). Useful for users with CUDA who
     /// want to install the GPU build.
     pub fn current() -> Self {
@@ -39,7 +39,7 @@ impl SelectionContext {
         }
         .to_string();
         let arch = std::env::consts::ARCH.to_string();
-        let accelerator = std::env::var("COS_ENGINE_ACCELERATOR")
+        let accelerator = std::env::var("YUOS_ENGINE_ACCELERATOR")
             .unwrap_or_else(|_| "cpu".to_string())
             .to_lowercase();
         Self {

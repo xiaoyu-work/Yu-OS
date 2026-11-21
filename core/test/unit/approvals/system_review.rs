@@ -11,8 +11,8 @@ impl Environment {
         static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
         let guard = LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let directory = tempfile::tempdir().unwrap();
-        let previous = std::env::var_os("COS_DATA_DIR");
-        std::env::set_var("COS_DATA_DIR", directory.path().join("state"));
+        let previous = std::env::var_os("YUOS_DATA_DIR");
+        std::env::set_var("YUOS_DATA_DIR", directory.path().join("state"));
         Self {
             directory,
             previous,
@@ -62,8 +62,8 @@ impl Environment {
 impl Drop for Environment {
     fn drop(&mut self) {
         match self.previous.take() {
-            Some(value) => std::env::set_var("COS_DATA_DIR", value),
-            None => std::env::remove_var("COS_DATA_DIR"),
+            Some(value) => std::env::set_var("YUOS_DATA_DIR", value),
+            None => std::env::remove_var("YUOS_DATA_DIR"),
         }
     }
 }
@@ -139,7 +139,7 @@ fn delivery_confirmation_is_plan_bound_and_cannot_inherit_app_permission_accepta
     let plan = DeliveryReview {
         digest: "a".repeat(64),
         packages: vec![DeliveryPackage {
-            package: "claw-app-review".into(),
+            package: "yuos-app-review".into(),
             version: "1.0.0".into(),
             architecture: "all".into(),
         }],

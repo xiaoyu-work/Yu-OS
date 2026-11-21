@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# presets/docker.sh — Claw OS as a Docker image.
+# presets/docker.sh — Yu OS as a Docker image.
 #
-# Builds the headless Claw OS Docker image: the full non-desktop OS
-# runtime (cos / clawd / browser stack) packaged as a container. No
+# Builds the headless Yu OS Docker image: the full non-desktop OS
+# runtime (cos / yuosd / browser stack) packaged as a container. No
 # desktop UI, no boot/VM-only features — containers share the host kernel.
 #
-# Uses the docker target's own default feature set (base, cos-core,
+# Uses the docker target's own default feature set (base, yuos-core,
 # browser, systemd, apt-source, qwen3-embedding), so no FEATURES override
 # is needed.
 #

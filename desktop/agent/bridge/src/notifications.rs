@@ -5,7 +5,7 @@ use std::fs::Metadata;
 use std::os::unix::fs::MetadataExt;
 use std::time::Duration;
 
-use clawd_client::{Client, Command};
+use yuosd_client::{Client, Command};
 use futures::StreamExt;
 use serde::Deserialize;
 use serde_json::json;

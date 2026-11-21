@@ -1,5 +1,5 @@
 use crate::{Message as AppMessage, bridge, fl};
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     BridgeEndpoint, MemoryEntry, MemoryForgetRequest, MemoryInspectRequest, MemoryInventory,
     MemoryKind, MemoryReadRequest, MemoryReference, MemoryUpdateRequest,
 };

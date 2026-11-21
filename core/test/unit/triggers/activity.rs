@@ -311,8 +311,8 @@ fn manual_refusal_records_diagnostic_before_spending_capability_authorization() 
         TriggerDeliveryStatus::Blocked
     );
     let recorded =
-        fs::read_to_string(crate::paths::data_dir().join("clawd").join("audit.jsonl")).unwrap();
-    assert!(recorded.contains("clawd.trigger.delivery"));
+        fs::read_to_string(crate::paths::data_dir().join("yuosd").join("audit.jsonl")).unwrap();
+    assert!(recorded.contains("yuosd.trigger.delivery"));
     assert!(!recorded.contains("Inspect the reported change."));
     if state.uid != 0 {
         use crate::notifications::NotificationService;

@@ -31,7 +31,7 @@ fn capability_policy_translation_preserves_null_disabled_and_typed_constraints()
     assert!(!policy.enabled);
     assert_eq!(
         policy.rules[0].mode,
-        cos_agent_protocol::CapabilityPolicyMode::RequireApproval
+        yuos_agent_protocol::CapabilityPolicyMode::RequireApproval
     );
     assert_eq!(policy.rules[0].scopes[0].value(), Some("/workspace/**"));
 }

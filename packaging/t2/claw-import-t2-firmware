@@ -13,7 +13,7 @@ import tempfile
 
 SYSFS = Path("/sys/bus/pci/devices")
 FIRMWARE = Path("/usr/lib/firmware")
-CONVERTER = "/usr/lib/cos/hw/t2-firmware-convert.py"
+CONVERTER = "/usr/lib/yuos/hw/t2-firmware-convert.py"
 
 
 def is_t2():

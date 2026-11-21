@@ -1,6 +1,6 @@
 # Claw Glass — Desktop Design System
 
-The single source of truth for the Claw OS desktop visual language. Every
+The single source of truth for the Yu OS desktop visual language. Every
 system app and applet must conform to this. It is implemented at the toolkit
 and theme layer so most of it is inherited automatically; app authors mainly
 apply structure, spacing, and the documented component treatments.

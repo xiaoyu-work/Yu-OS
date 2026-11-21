@@ -63,7 +63,7 @@ impl State {
 #[cfg(target_os = "linux")]
 mod linux {
     use base64::{engine::general_purpose::STANDARD, Engine};
-    use claw_display_control::desktop::{
+    use yuos_display_control::desktop::{
         valid_observation, Command, PixelRegion, MAX_RESPONSE_BYTES, MAX_VISUAL_EDGE,
         MAX_WINDOW_EDGE, VISUAL_FRAME_TTL_MS,
     };
@@ -75,7 +75,7 @@ mod linux {
     use crate::agent::tools::desktop_vision::{Image, REQUEST_LIMIT};
     use crate::approvals::{self, RequestStatus};
     use crate::caps::{Cap, Scope, Verb};
-    use crate::clawd::desktop::{parse_window_identifier, window_snapshot};
+    use crate::yuosd::desktop::{parse_window_identifier, window_snapshot};
     use crate::display_session::registry::GuiControl;
 
     const NATIVE_TIMEOUT: Duration = Duration::from_secs(2);

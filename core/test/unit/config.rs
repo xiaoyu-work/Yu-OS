@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-fn current_override() -> Option<Arc<CosConfig>> {
+fn current_override() -> Option<Arc<YuConfig>> {
     CONFIG_SNAPSHOT_OVERRIDE.try_with(Arc::clone).ok()
 }
 
 #[test]
 fn default_config_has_sensible_values() {
-    let cfg = CosConfig::default();
+    let cfg = YuConfig::default();
     assert_eq!(cfg.version, env!("CARGO_PKG_VERSION"));
     // home defaults to $HOME at runtime, falling back to /root when unset.
     let expected_home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
@@ -27,7 +27,7 @@ fn default_config_has_sensible_values() {
 #[test]
 fn parse_partial_config() {
     let json = r#"{"version": "1.0.0", "home": "/custom"}"#;
-    let cfg: CosConfig = serde_json::from_str(json).unwrap();
+    let cfg: YuConfig = serde_json::from_str(json).unwrap();
     assert_eq!(cfg.version, "1.0.0");
     assert_eq!(cfg.home, "/custom");
     // Defaults for missing sections
@@ -74,9 +74,9 @@ fn parse_full_config() {
         "home": "/home/cos",
         "exec": {"timeout": 600, "shell": "/bin/zsh"},
         "net": {"timeout": 10, "allow_outbound": false},
-        "web": {"engine": "cos-browser", "cdp_port": 9333, "timeout": 60, "max_content_length": 100000}
+        "web": {"engine": "yuos-browser", "cdp_port": 9333, "timeout": 60, "max_content_length": 100000}
     }"#;
-    let cfg: CosConfig = serde_json::from_str(json).unwrap();
+    let cfg: YuConfig = serde_json::from_str(json).unwrap();
     assert_eq!(cfg.exec.timeout, 600);
     assert_eq!(cfg.exec.shell, "/bin/zsh");
     assert_eq!(cfg.net.timeout, 10);
@@ -89,16 +89,16 @@ fn parse_full_config() {
 fn as_env_vars_returns_all_keys() {
     let vars = as_env_vars();
     let keys: Vec<&str> = vars.iter().map(|(k, _)| k.as_str()).collect();
-    assert!(keys.contains(&"COS_EXEC_TIMEOUT"));
-    assert!(keys.contains(&"COS_NET_TIMEOUT"));
-    assert!(keys.contains(&"COS_WEB_TIMEOUT"));
-    assert!(keys.contains(&"COS_HOME"));
+    assert!(keys.contains(&"YUOS_EXEC_TIMEOUT"));
+    assert!(keys.contains(&"YUOS_NET_TIMEOUT"));
+    assert!(keys.contains(&"YUOS_WEB_TIMEOUT"));
+    assert!(keys.contains(&"YUOS_HOME"));
 }
 
 #[test]
 fn malformed_json_returns_defaults() {
     let json = "not valid json {{{";
-    let cfg: CosConfig = serde_json::from_str(json).unwrap_or_default();
+    let cfg: YuConfig = serde_json::from_str(json).unwrap_or_default();
     assert_eq!(cfg.version, env!("CARGO_PKG_VERSION"));
     assert_eq!(cfg.exec.timeout, 300);
 }
@@ -120,7 +120,7 @@ fn malformed_json_returns_defaults() {
 fn load_from_disk_returns_defaults_on_malformed_file_without_panic() {
     use std::io::Write;
     let pid = std::process::id();
-    let dir = std::env::temp_dir().join(format!("cos-config-malformed-{pid}"));
+    let dir = std::env::temp_dir().join(format!("yuos-config-malformed-{pid}"));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
     let path = dir.join("config.json");
@@ -129,12 +129,12 @@ fn load_from_disk_returns_defaults_on_malformed_file_without_panic() {
     write!(f, "{{ this is definitely not json").unwrap();
     drop(f);
 
-    let prev = std::env::var_os("COS_CONFIG_PATH");
-    std::env::set_var("COS_CONFIG_PATH", &path);
+    let prev = std::env::var_os("YUOS_CONFIG_PATH");
+    std::env::set_var("YUOS_CONFIG_PATH", &path);
     let cfg = load_from_disk();
     match prev {
-        Some(x) => std::env::set_var("COS_CONFIG_PATH", x),
-        None => std::env::remove_var("COS_CONFIG_PATH"),
+        Some(x) => std::env::set_var("YUOS_CONFIG_PATH", x),
+        None => std::env::remove_var("YUOS_CONFIG_PATH"),
     }
     let _ = fs::remove_dir_all(&dir);
 
@@ -151,17 +151,17 @@ fn load_from_disk_returns_defaults_on_malformed_file_without_panic() {
 #[test]
 fn load_from_disk_returns_defaults_when_file_missing() {
     let pid = std::process::id();
-    let dir = std::env::temp_dir().join(format!("cos-config-missing-{pid}"));
+    let dir = std::env::temp_dir().join(format!("yuos-config-missing-{pid}"));
     let _ = fs::remove_dir_all(&dir);
     // Intentionally do NOT create the file.
     let path = dir.join("config.json");
 
-    let prev = std::env::var_os("COS_CONFIG_PATH");
-    std::env::set_var("COS_CONFIG_PATH", &path);
+    let prev = std::env::var_os("YUOS_CONFIG_PATH");
+    std::env::set_var("YUOS_CONFIG_PATH", &path);
     let cfg = load_from_disk();
     match prev {
-        Some(x) => std::env::set_var("COS_CONFIG_PATH", x),
-        None => std::env::remove_var("COS_CONFIG_PATH"),
+        Some(x) => std::env::set_var("YUOS_CONFIG_PATH", x),
+        None => std::env::remove_var("YUOS_CONFIG_PATH"),
     }
 
     assert_eq!(cfg.version, env!("CARGO_PKG_VERSION"));
@@ -171,7 +171,7 @@ fn load_from_disk_returns_defaults_when_file_missing() {
 #[test]
 fn load_from_path_round_trip() {
     let pid = std::process::id();
-    let dir = std::env::temp_dir().join(format!("cos-config-roundtrip-{pid}"));
+    let dir = std::env::temp_dir().join(format!("yuos-config-roundtrip-{pid}"));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
     let path = dir.join("config.json");
@@ -190,7 +190,7 @@ fn load_from_path_round_trip() {
 
 #[test]
 fn load_from_path_missing_file_returns_defaults() {
-    let cfg = load_from_path(Path::new("/nonexistent/cos-config-xyzzy.json"));
+    let cfg = load_from_path(Path::new("/nonexistent/yuos-config-xyzzy.json"));
     // No panic, no error — just defaults.
     assert_eq!(cfg.agent.provider, "");
 }
@@ -200,7 +200,7 @@ async fn with_snapshot_swaps_current_snapshot_inside_scope_only() {
     // Establish a baseline: outside any scope, no override.
     assert!(current_override().is_none());
 
-    let mut cfg = CosConfig::default();
+    let mut cfg = YuConfig::default();
     cfg.agent.provider = "copilot".into();
     cfg.agent.model = "claude-opus-4.7".into();
     let scoped = Arc::new(cfg);
@@ -228,7 +228,7 @@ async fn override_propagates_through_awaited_futures() {
     // futures with `join_all`, so the user's config is visible
     // inside every tool's `exec` regardless of how many run in
     // parallel.
-    let mut cfg = CosConfig::default();
+    let mut cfg = YuConfig::default();
     cfg.agent.provider = "openai".into();
     let scoped = Arc::new(cfg);
 
@@ -256,9 +256,9 @@ async fn override_does_not_leak_across_spawn() {
     // parent task_local values. This is the documented tokio
     // contract; we keep it explicit because any future code that
     // spawns background work and reads `config::get()` must
-    // re-scope the override itself (or capture an `&CosConfig`
+    // re-scope the override itself (or capture an `&YuConfig`
     // and pass it through).
-    let mut cfg = CosConfig::default();
+    let mut cfg = YuConfig::default();
     cfg.agent.provider = "openai".into();
     let scoped = Arc::new(cfg);
 
@@ -280,12 +280,12 @@ async fn override_does_not_leak_across_spawn() {
 
 #[tokio::test]
 async fn parallel_override_scopes_are_isolated_and_reclaimed() {
-    let mut left = CosConfig::default();
+    let mut left = YuConfig::default();
     left.agent.provider = "left".into();
     let left = Arc::new(left);
     let left_weak = Arc::downgrade(&left);
 
-    let mut right = CosConfig::default();
+    let mut right = YuConfig::default();
     right.agent.provider = "right".into();
     let right = Arc::new(right);
     let right_weak = Arc::downgrade(&right);
@@ -310,7 +310,7 @@ async fn parallel_override_scopes_are_isolated_and_reclaimed() {
 
 #[test]
 fn scoped_config_is_reclaimed_after_scope() {
-    let scoped = Arc::new(CosConfig::default());
+    let scoped = Arc::new(YuConfig::default());
     let weak = Arc::downgrade(&scoped);
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -323,14 +323,14 @@ fn scoped_config_is_reclaimed_after_scope() {
 #[test]
 #[allow(deprecated)]
 fn legacy_static_config_api_remains_source_compatible() {
-    fn accepts_config(_: &CosConfig) {}
+    fn accepts_config(_: &YuConfig) {}
 
     accepts_config(get());
-    let _: CosConfig = get().clone();
+    let _: YuConfig = get().clone();
 
-    static LEGACY: OnceLock<CosConfig> = OnceLock::new();
+    static LEGACY: OnceLock<YuConfig> = OnceLock::new();
     let legacy = LEGACY.get_or_init(|| {
-        let mut config = CosConfig::default();
+        let mut config = YuConfig::default();
         config.agent.provider = "legacy".into();
         config
     });
@@ -376,7 +376,7 @@ fn production_code_uses_owned_config_snapshots_not_legacy_get() {
 #[test]
 fn load_for_home_reads_users_config_json() {
     let pid = std::process::id();
-    let home = std::env::temp_dir().join(format!("cos-config-home-{pid}"));
+    let home = std::env::temp_dir().join(format!("yuos-config-home-{pid}"));
     let _ = fs::remove_dir_all(&home);
     let cfg_path = crate::paths::user_config_path_for(&home);
     fs::create_dir_all(cfg_path.parent().unwrap()).unwrap();

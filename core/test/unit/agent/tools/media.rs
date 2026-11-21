@@ -149,7 +149,7 @@ async fn tts_tool_unknown_provider_errors() {
 #[tokio::test]
 async fn stt_tool_reads_file_and_transcribes() {
     let _perms = crate::test_env::PermissiveModeGuard::new();
-    let dir = std::env::temp_dir().join(format!("cos-stt-test-{}", Uuid::new_v4().simple()));
+    let dir = std::env::temp_dir().join(format!("yuos-stt-test-{}", Uuid::new_v4().simple()));
     std::fs::create_dir_all(&dir).unwrap();
     let audio = dir.join("clip.wav");
     std::fs::write(&audio, b"fake wav bytes").unwrap();
@@ -182,7 +182,7 @@ async fn stt_tool_missing_file_errors() {
     // Use a path inside the user's home so the classifier doesn't
     // deny on its own; we want the test to exercise the
     // "file doesn't exist" branch.
-    let dir = std::env::temp_dir().join(format!("cos-stt-missing-{}", Uuid::new_v4().simple()));
+    let dir = std::env::temp_dir().join(format!("yuos-stt-missing-{}", Uuid::new_v4().simple()));
     std::fs::create_dir_all(&dir).unwrap();
     let missing = dir.join("nope.wav");
     let r = tool
@@ -193,7 +193,7 @@ async fn stt_tool_missing_file_errors() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
-/// Path-safety regression: `cos_stt` must refuse paths the
+/// Path-safety regression: `yu_stt` must refuse paths the
 /// file-safety classifier flags as Deny/Caution. Without the
 /// `classify` pre-flight added in this commit the tool would
 /// happily slurp `/etc/passwd` and hand the bytes off to whatever
@@ -253,11 +253,11 @@ fn register_default_adds_three_tools() {
     let mut r = super::super::registry::ToolRegistry::new();
     register_default_media_tools_with_outputs_dir(
         &mut r,
-        std::env::temp_dir().join("cos-media-registry-test"),
+        std::env::temp_dir().join("yuos-media-registry-test"),
     );
-    assert!(r.get("cos_tts").is_some());
-    assert!(r.get("cos_stt").is_some());
-    assert!(r.get("cos_imagegen").is_some());
+    assert!(r.get("yu_tts").is_some());
+    assert!(r.get("yu_stt").is_some());
+    assert!(r.get("yu_imagegen").is_some());
 }
 
 #[test]
@@ -279,14 +279,14 @@ fn parse_audio_format_aliases() {
 #[tokio::test]
 async fn media_tools_project_and_enforce_exact_provider_scopes() {
     let _lock = crate::test_env::lock_env();
-    let _mode = crate::test_env::TestEnvVarGuard::set("COS_PERMS_MODE", "permissive");
+    let _mode = crate::test_env::TestEnvVarGuard::set("YUOS_PERMS_MODE", "permissive");
     let dir = std::env::current_dir()
         .unwrap()
         .join("target")
-        .join(format!("cos-media-scope-{}", Uuid::new_v4().simple()));
+        .join(format!("yuos-media-scope-{}", Uuid::new_v4().simple()));
     std::fs::create_dir_all(&dir).unwrap();
-    let _caps_dir = crate::test_env::TestEnvVarGuard::set("COS_CAPS_DATA_DIR", &dir);
-    let _log_dir = crate::test_env::TestEnvVarGuard::set("COS_LOG_DIR", &dir);
+    let _caps_dir = crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", &dir);
+    let _log_dir = crate::test_env::TestEnvVarGuard::set("YUOS_LOG_DIR", &dir);
     let audio = dir.join("clip.wav");
     std::fs::write(&audio, b"fake wav bytes").unwrap();
     let audio_path = audio.to_string_lossy().into_owned();
@@ -363,7 +363,7 @@ async fn media_tools_project_and_enforce_exact_provider_scopes() {
     );
     assert_eq!(
         registry.names_for(&context),
-        vec!["cos_imagegen", "cos_stt", "cos_tts"]
+        vec!["yu_imagegen", "yu_stt", "yu_tts"]
     );
 
     let unavailable_session = media_session(scoped_media_caps("provider-c", &audio_path));
@@ -383,19 +383,19 @@ async fn media_tools_project_and_enforce_exact_provider_scopes() {
             tokio::join!(
                 registry.execute(
                     &context,
-                    "cos_tts",
+                    "yu_tts",
                     json!({"text": "hello", "provider": "provider-b"}),
                     "",
                 ),
                 registry.execute(
                     &context,
-                    "cos_stt",
+                    "yu_stt",
                     json!({"path": audio_path, "provider": "provider-b"}),
                     "",
                 ),
                 registry.execute(
                     &context,
-                    "cos_imagegen",
+                    "yu_imagegen",
                     json!({"prompt": "a cat", "provider": "provider-b"}),
                     "",
                 ),

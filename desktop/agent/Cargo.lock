@@ -857,8 +857,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "claw-os-sdk"
-version = "0.2.1"
+name = "yuos-sdk"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64",
@@ -873,7 +873,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "clawd-client"
+name = "yuosd-client"
 version = "0.1.0"
 dependencies = [
  "chrono",
@@ -1085,7 +1085,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cos-agent-bridge"
+name = "yuos-agent-bridge"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1093,8 +1093,8 @@ dependencies = [
  "axum",
  "bytes",
  "chrono",
- "clawd-client",
- "cos-agent-protocol",
+ "yuosd-client",
+ "yuos-agent-protocol",
  "futures",
  "regex",
  "serde",
@@ -1107,12 +1107,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "cos-agent-protocol"
+name = "yuos-agent-protocol"
 version = "0.1.0"
 dependencies = [
  "base64",
  "chrono",
- "clawd-client",
+ "yuosd-client",
  "serde",
  "serde_json",
  "sha2",
@@ -1120,15 +1120,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "cos-agent-ui"
+name = "yuos-agent-ui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-stream",
  "base64",
  "bytes",
- "cos-agent-protocol",
- "cos-runtime",
+ "yuos-agent-protocol",
+ "yuos-runtime",
  "cpal",
  "futures",
  "futures-util",
@@ -1148,11 +1148,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "cos-runtime"
+name = "yuos-runtime"
 version = "0.1.0"
 dependencies = [
  "base64",
- "claw-os-sdk",
+ "yuos-sdk",
  "libc",
  "serde",
  "serde_json",

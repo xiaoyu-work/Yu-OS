@@ -12,7 +12,7 @@ if [[ -f "$ROOTFS/etc/greetd/claw-desktop.toml" ]]; then
         echo "error: fresh local desktop setup requires an image without a human account" >&2
         exit 1
     fi
-    install -Dm0644 /dev/null "$ROOTFS/etc/cos/local-desktop-setup"
+    install -Dm0644 /dev/null "$ROOTFS/etc/yuos/local-desktop-setup"
     echo "  :: graphical first run will create the local owner"
 else
     if [[ ! -L "$ROOTFS/etc/systemd/system/getty.target.wants/serial-getty@ttyS0.service" ]]; then
@@ -23,6 +23,6 @@ else
     add_cos_user "$ROOTFS"
     test "$(LC_ALL=C chroot "$ROOTFS" passwd --status cos | awk '{print $2}')" = L
     (umask 022; cp -a --no-preserve=mode,ownership "$SCRIPT_DIR/features/local-user/overlay/." "$ROOTFS/")
-    chmod 0755 "$ROOTFS/usr/lib/cos/init/local-first-login"
+    chmod 0755 "$ROOTFS/usr/lib/yuos/init/local-first-login"
     echo "  :: configured one-time password setup for the locked local cos account"
 fi

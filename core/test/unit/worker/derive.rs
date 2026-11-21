@@ -95,13 +95,13 @@ fn gui_policy_projects_only_its_explicit_instance_transport() {
     let resources = root.path().join("resources");
     std::fs::create_dir_all(resources.join("usr/share/cosmic")).unwrap();
     let mut input = app_input(root.path(), data.to_str().unwrap(), &granted);
-    input.extra_env.insert("COS_APP_RESOURCE_DIR".into(), "/not-the-package".into());
+    input.extra_env.insert("YUOS_APP_RESOURCE_DIR".into(), "/not-the-package".into());
     input.extra_env.insert("XDG_DATA_DIRS".into(), "/not-the-package".into());
     let policy = gui_operation(input, &socket, Path::new("/usr/bin/true")).unwrap();
     assert_eq!(policy.tier, TrustTier::DesktopSurface);
     assert_eq!(policy.env["WAYLAND_DISPLAY"], super::super::linux::GUI_WAYLAND_SOCKET);
-    assert_eq!(policy.env["XDG_RUNTIME_DIR"], "/run/cos");
-    assert_eq!(Path::new(&policy.env["COS_APP_RESOURCE_DIR"]), resources);
+    assert_eq!(policy.env["XDG_RUNTIME_DIR"], "/run/yuos");
+    assert_eq!(Path::new(&policy.env["YUOS_APP_RESOURCE_DIR"]), resources);
     assert_eq!(policy.env["XDG_DATA_DIRS"],
         format!("{}:/usr/local/share:/usr/share", resources.join("usr/share").display()));
     assert!(policy.mounts.iter().filter(|mount| resources.starts_with(&mount.target))
@@ -385,7 +385,7 @@ fn wildcard_and_root_grants_mount_nothing() {
 
 #[test]
 fn a_grant_reaching_a_kernel_owned_root_fails_the_launch() {
-    for path in ["/proc", "/proc/self", "/sys/kernel", "/run/cos", "/root"] {
+    for path in ["/proc", "/proc/self", "/sys/kernel", "/run/yuos", "/root"] {
         let error = granted_path_mounts(&caps(vec![Cap::new(Verb::FS_READ, Scope::path(path))]))
             .unwrap_err();
         assert!(error.contains("kernel-owned"), "{path} produced `{error}`");
@@ -393,7 +393,7 @@ fn a_grant_reaching_a_kernel_owned_root_fails_the_launch() {
     for verb in [Verb::FS_READ, Verb::FS_WRITE] {
         let error = granted_path_mounts(&caps(vec![Cap::new(
             verb,
-            Scope::path("/run/cos/absent-resource-fixture/**"),
+            Scope::path("/run/yuos/absent-resource-fixture/**"),
         )]))
         .unwrap_err();
         assert!(error.contains("kernel-owned"), "{error}");
@@ -505,8 +505,8 @@ fn mcp_servers_get_no_egress_and_no_app_data() {
 fn the_worker_environment_is_a_closed_allowlist() {
     let env = base_env(std::path::Path::new("/var/data/app"));
     for leaked in [
-        "COS_PROC_DATA_DIR",
-        "COS_CAPS_DATA_DIR",
+        "YUOS_PROC_DATA_DIR",
+        "YUOS_CAPS_DATA_DIR",
         "DISPLAY",
         "WAYLAND_DISPLAY",
         "DBUS_SESSION_BUS_ADDRESS",
@@ -524,7 +524,7 @@ fn the_worker_environment_is_a_closed_allowlist() {
     }
     assert_eq!(env["PATH"], SANDBOX_PATH);
     assert_eq!(env["HOME"], "/var/data/app");
-    assert_eq!(env["COS_PERMS_MODE"], "strict");
+    assert_eq!(env["YUOS_PERMS_MODE"], "strict");
     assert_eq!(env[crate::worker::SANDBOX_MARKER_ENV], "1");
 }
 
@@ -541,17 +541,17 @@ fn brokered_egress_advertises_the_endpoint_to_the_worker() {
         },
     );
     assert_eq!(
-        env["COS_EGRESS_ENDPOINTS"],
+        env["YUOS_EGRESS_ENDPOINTS"],
         "a.example.com:443,b.example.com:8443"
     );
     assert_eq!(
-        env["COS_EGRESS_SOCKET"],
+        env["YUOS_EGRESS_SOCKET"],
         crate::worker::linux_egress_socket()
     );
 
     let mut denied = base_env(std::path::Path::new("/tmp"));
     apply_egress_env(&mut denied, &NetworkPolicy::Denied);
-    assert!(!denied.contains_key("COS_EGRESS_SOCKET"));
+    assert!(!denied.contains_key("YUOS_EGRESS_SOCKET"));
 }
 
 // ---------------------------------------------------------------------------

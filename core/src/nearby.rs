@@ -1,7 +1,7 @@
 //! Human terminal adapter to the same nearby sharing service as every UI.
 
-use crate::clawd::routes::Command;
-use clawd_client::nearby::*;
+use crate::yuosd::routes::Command;
+use yuosd_client::nearby::*;
 use serde_json::{json, Value};
 
 pub fn run(command: &str, args: &[String]) -> Result<Value, String> {

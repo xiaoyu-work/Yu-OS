@@ -3,7 +3,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use clawd_client::system_review::{
+use yuosd_client::system_review::{
     PermissionChoice, ReviewAction, ReviewStatus, ReviewSubmission, SystemReview,
 };
 use serde::Serialize;
@@ -12,8 +12,8 @@ use tokio::sync::{oneshot, watch};
 use zeroize::Zeroizing;
 
 use super::auth::AuthenticatedToken;
-use super::routes::clawd;
-use crate::clawd::routes::Command;
+use super::routes::yuosd;
+use crate::yuosd::routes::Command;
 
 #[cfg(target_os = "linux")]
 mod polkit;
@@ -289,7 +289,7 @@ impl Controller {
         }
         tokio::spawn(async move {
             let result = polkit::authorize(session.clone(), &review, &submission).await;
-            let refreshed = clawd::request(Command::SystemReviewShow, json!({"id": review.id}))
+            let refreshed = yuosd::request(Command::SystemReviewShow, json!({"id": review.id}))
                 .await
                 .map_err(|_| "The authorization outcome could not be confirmed. Refresh the request before trying again.".to_string())
                 .and_then(|value| serde_json::from_value::<SystemReview>(value)
@@ -297,7 +297,7 @@ impl Controller {
                 .and_then(|current| {
                     current.validate().map_err(|_| "The OS returned an invalid review.".to_string())?;
                     if current.id != review.id || current.kind != review.kind
-                        || review.kind == clawd_client::system_review::ReviewKind::PackageImpact
+                        || review.kind == yuosd_client::system_review::ReviewKind::PackageImpact
                             && current.contract_digest != review.contract_digest
                     {
                         return Err("The OS returned a different authorization request.".into());

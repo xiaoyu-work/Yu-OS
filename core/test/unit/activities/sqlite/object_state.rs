@@ -1749,7 +1749,7 @@ fn corrupt_sequence_or_oversize_history_is_not_silently_capped_or_pruned() {
 
 #[test]
 fn object_state_migration_crash_worker() {
-    let Some(path) = std::env::var_os("COS_TEST_OBJECT_STATE_MIGRATION_DB") else {
+    let Some(path) = std::env::var_os("YUOS_TEST_OBJECT_STATE_MIGRATION_DB") else {
         return;
     };
     let mut conn = Connection::open(path).unwrap();
@@ -1776,7 +1776,7 @@ fn interrupted_schema_three_migration_recovers_without_losing_legacy_receipts() 
             "activities::sqlite::object_state::tests::object_state_migration_crash_worker",
             "--test-threads=1",
         ])
-        .env("COS_TEST_OBJECT_STATE_MIGRATION_DB", &path)
+        .env("YUOS_TEST_OBJECT_STATE_MIGRATION_DB", &path)
         .output()
         .unwrap();
     assert_eq!(

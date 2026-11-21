@@ -65,7 +65,7 @@ impl Scope {
             .duplicate()
     }
 
-    pub(crate) fn checked_workload(&self) -> Result<&claw_display_control::workload::Workload, String> {
+    pub(crate) fn checked_workload(&self) -> Result<&yuos_display_control::workload::Workload, String> {
         self.checked
             .as_ref()
             .map(checked::CheckedScope::workload)
@@ -165,8 +165,8 @@ pub fn create(name: &str, limits: &Limits) -> Result<Scope, String> {
 }
 
 pub(crate) fn create_gui(
-    parent: &claw_display_control::workload::Workload,
-    instance: claw_display_control::InstanceId,
+    parent: &yuos_display_control::workload::Workload,
+    instance: yuos_display_control::InstanceId,
     limits: &Limits,
 ) -> Result<Scope, String> {
     let checked = checked::CheckedScope::create(parent, instance, limits)?;
@@ -180,16 +180,16 @@ pub(crate) fn create_app(
     parent: &crate::extension_host::spawn::ContainmentRoot,
     session: &str,
     limits: &Limits,
-    task_parent: Option<&claw_display_control::ProcessIdentity>,
+    task_parent: Option<&yuos_display_control::ProcessIdentity>,
 ) -> Result<Scope, String> {
     let (directory, limits) = match task_parent {
         None => (
-            claw_display_control::workload::open_directory(parent.path())
+            yuos_display_control::workload::open_directory(parent.path())
                 .map_err(|error| error.to_string())?,
             Some(limits),
         ),
         Some(host) => {
-            let group = claw_display_control::workload::SessionGroup::of(host)
+            let group = yuos_display_control::workload::SessionGroup::of(host)
                 .map_err(|error| error.to_string())?;
             if !group.path().starts_with(parent.path()) || group.path() == parent.path() {
                 return Err("Task App custody is outside its authenticated Host containment".into());

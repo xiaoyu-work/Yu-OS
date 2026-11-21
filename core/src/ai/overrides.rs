@@ -1,6 +1,6 @@
 //! Per-user overrides for an installed App's AI policy.
 //!
-//! Lives at `$HOME/.config/cos/apps/<app_id>.json`. The Cosmic
+//! Lives at `$HOME/.config/yuos/apps/<app_id>.json`. The Cosmic
 //! Settings UI (Settings → AI → App permissions) writes this file
 //! when the user adjusts the budget, safety, or origin allowlist for
 //! an installed App. The kernel reads it on every AI call and uses

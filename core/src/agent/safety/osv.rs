@@ -189,7 +189,7 @@ pub async fn query_with_url(
     });
     let client = reqwest::Client::builder()
         .timeout(timeout)
-        .user_agent(format!("cos-agent/{}", env!("CARGO_PKG_VERSION")))
+        .user_agent(format!("yuos-agent/{}", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| format!("osv: build client: {e}"))?;
     let resp = client

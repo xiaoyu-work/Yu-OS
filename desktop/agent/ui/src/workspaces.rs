@@ -1,7 +1,7 @@
 //! Human Workspace reducer and Fluent widgets over one canonical service.
 
 use crate::{Message as AppMessage, fl};
-use cos_agent_protocol::workspaces::*;
+use yuos_agent_protocol::workspaces::*;
 use cosmic::{
     Element,
     widget::{self, Column, Row, button, scrollable, text},

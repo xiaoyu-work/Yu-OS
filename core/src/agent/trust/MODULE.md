@@ -119,7 +119,7 @@ gains nothing by doing so.
 
 Depends on `crate::audit_policy` for bounded, secret-safe locators,
 `crate::crypto` for content digests, and `crate::session::journal` types for the
-downward projections in `mod.rs`. Nothing in `caps`, `policy`, `clawd`,
+downward projections in `mod.rs`. Nothing in `caps`, `policy`, `yuosd`,
 `approvals` or `tools::guardrails` depends on this module — that absence is
 enforced by `authority_modules_do_not_read_trust_labels`.
 

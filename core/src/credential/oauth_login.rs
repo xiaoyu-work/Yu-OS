@@ -455,21 +455,21 @@ pub(super) fn google_client_config(
 ) -> Result<(String, String), String> {
     let client_id = client_setting(
         store,
-        "COS_GOOGLE_OAUTH_CLIENT_ID",
+        "YUOS_GOOGLE_OAUTH_CLIENT_ID",
         "GOOGLE_CLIENT_ID",
         namespace,
     )?
     .ok_or_else(|| {
         format!(
             "Google OAuth client is not configured. Store GOOGLE_CLIENT_ID in \
-             credential namespace `{namespace}` or set COS_GOOGLE_OAUTH_CLIENT_ID, \
+             credential namespace `{namespace}` or set YUOS_GOOGLE_OAUTH_CLIENT_ID, \
              then retry Google authorization. Configure OAuth client values through \
              trusted system settings, not model chat."
         )
     })?;
     let client_secret = client_setting(
         store,
-        "COS_GOOGLE_OAUTH_CLIENT_SECRET",
+        "YUOS_GOOGLE_OAUTH_CLIENT_SECRET",
         "GOOGLE_CLIENT_SECRET",
         namespace,
     )?
@@ -477,7 +477,7 @@ pub(super) fn google_client_config(
         format!(
             "Google OAuth client secret is not configured. Store \
              GOOGLE_CLIENT_SECRET in credential namespace `{namespace}` or set \
-             COS_GOOGLE_OAUTH_CLIENT_SECRET, then retry Google authorization. \
+             YUOS_GOOGLE_OAUTH_CLIENT_SECRET, then retry Google authorization. \
              Configure OAuth client values through trusted system settings, not \
              model chat."
         )
@@ -491,14 +491,14 @@ pub(super) fn google_client_config_for_daemon(
 ) -> Result<(String, String), String> {
     let client_id = daemon_client_setting(
         store,
-        "COS_GOOGLE_OAUTH_CLIENT_ID",
+        "YUOS_GOOGLE_OAUTH_CLIENT_ID",
         "GOOGLE_CLIENT_ID",
         namespace,
     )?
     .ok_or_else(|| "Google OAuth client id is not configured".to_string())?;
     let client_secret = daemon_client_setting(
         store,
-        "COS_GOOGLE_OAUTH_CLIENT_SECRET",
+        "YUOS_GOOGLE_OAUTH_CLIENT_SECRET",
         "GOOGLE_CLIENT_SECRET",
         namespace,
     )?
@@ -512,7 +512,7 @@ pub(super) fn microsoft_client_config(
 ) -> Result<(String, String), String> {
     let client_id = client_setting(
         store,
-        "COS_MICROSOFT_OAUTH_CLIENT_ID",
+        "YUOS_MICROSOFT_OAUTH_CLIENT_ID",
         "MICROSOFT_CLIENT_ID",
         namespace,
     )?
@@ -520,14 +520,14 @@ pub(super) fn microsoft_client_config(
         format!(
             "Microsoft OAuth client is not configured. Store MICROSOFT_CLIENT_ID \
              in credential namespace `{namespace}` or set \
-             COS_MICROSOFT_OAUTH_CLIENT_ID, then retry Microsoft authorization. \
+             YUOS_MICROSOFT_OAUTH_CLIENT_ID, then retry Microsoft authorization. \
              Configure OAuth client values through trusted system settings, not \
              model chat."
         )
     })?;
     let tenant_id = client_setting(
         store,
-        "COS_MICROSOFT_OAUTH_TENANT_ID",
+        "YUOS_MICROSOFT_OAUTH_TENANT_ID",
         "MICROSOFT_TENANT_ID",
         namespace,
     )?
@@ -541,14 +541,14 @@ pub(super) fn microsoft_client_config_for_daemon(
 ) -> Result<(String, String), String> {
     let client_id = daemon_client_setting(
         store,
-        "COS_MICROSOFT_OAUTH_CLIENT_ID",
+        "YUOS_MICROSOFT_OAUTH_CLIENT_ID",
         "MICROSOFT_CLIENT_ID",
         namespace,
     )?
     .ok_or_else(|| "Microsoft OAuth client id is not configured".to_string())?;
     let tenant_id = daemon_client_setting(
         store,
-        "COS_MICROSOFT_OAUTH_TENANT_ID",
+        "YUOS_MICROSOFT_OAUTH_TENANT_ID",
         "MICROSOFT_TENANT_ID",
         namespace,
     )?
@@ -587,7 +587,7 @@ fn client_setting(
 /// Read OAuth client configuration inside the credential refresh broker.
 ///
 /// The public/direct OAuth path uses [`client_setting`] and performs an exact
-/// `secret.read` check. This separate bypass is only used after clawd has
+/// `secret.read` check. This separate bypass is only used after yuosd has
 /// authorized the broker route and switched to the requesting user's
 /// filesystem identity; it must not be used by CLI or provider code.
 fn daemon_client_setting(
@@ -787,7 +787,7 @@ fn write_callback_response(stream: &mut TcpStream, success: bool) -> std::io::Re
         "Google authorization failed. Return to the terminal for details."
     };
     let body =
-        format!("<!doctype html><meta charset=\"utf-8\"><title>Claw OS</title><p>{message}</p>");
+        format!("<!doctype html><meta charset=\"utf-8\"><title>Yu OS</title><p>{message}</p>");
     write!(
         stream,
         "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",

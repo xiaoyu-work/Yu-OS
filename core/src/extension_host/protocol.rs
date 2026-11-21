@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use crate::agent::tools::mcp::integration::McpServerSpec;
 use crate::agent::tools::mcp::protocol::{CallToolResult, ToolDescriptor};
-use crate::clawd::wire::RequestId;
+use crate::yuosd::wire::RequestId;
 use crate::provenance::runtime::PackageRef;
 
 pub const PROTOCOL_VERSION: u32 = 9;
@@ -29,7 +29,7 @@ pub const READY_TIMEOUT_MS: u64 = 15_000;
 pub const MAX_TASK_LEASE_DURATION_MS: u64 = 86_400_000;
 pub const EXTENSION_HOST_GROUP: &str = "extension-host";
 pub const APP_SERVICE_HOST_GROUP: &str = "app-service-host";
-pub const BROKER_SOCKET_ENV: &str = "COS_EXTENSION_BROKER_SOCKET";
+pub const BROKER_SOCKET_ENV: &str = "YUOS_EXTENSION_BROKER_SOCKET";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]

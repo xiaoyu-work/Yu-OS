@@ -7,9 +7,9 @@ use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-pub const GROUP_NAME: &str = "cos-extension";
+pub const GROUP_NAME: &str = "yuos-extension";
 pub const GROUP_GID: u32 = 60_999;
-pub const IDENTITY_PREFIX: &str = "cos-ext-";
+pub const IDENTITY_PREFIX: &str = "yuos-ext-";
 pub const FIRST_UID: u32 = 61_000;
 pub const IDENTITY_COUNT: u32 = 64;
 pub const TASK_IDENTITY_COUNT: u32 = 56;
@@ -18,8 +18,8 @@ pub const IDENTITY_HOME: &str = "/nonexistent";
 pub const IDENTITY_SHELL: &str = "/usr/sbin/nologin";
 pub const SYSTEMD_DYNAMIC_UID_MIN: u32 = 61_184;
 pub const SYSTEMD_DYNAMIC_UID_MAX: u32 = 65_519;
-pub const RESERVATION_MANIFEST: &str = "/var/lib/cos/extension-identities.reserved";
-const QUARANTINE_DIR: &str = "/var/lib/cos/extension-quarantine";
+pub const RESERVATION_MANIFEST: &str = "/var/lib/yuos/extension-identities.reserved";
+const QUARANTINE_DIR: &str = "/var/lib/yuos/extension-quarantine";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtensionIdentity {
@@ -740,7 +740,7 @@ fn validate_account(expected: &ExtensionIdentity) -> Result<(), String> {
         || account.password != "x"
         || account.uid != expected.uid
         || account.gid != expected.gid
-        || account.gecos != format!("Claw OS extension slot {index}")
+        || account.gecos != format!("Yu OS extension slot {index}")
         || account.home != IDENTITY_HOME
         || account.shell != IDENTITY_SHELL
     {
@@ -1038,7 +1038,7 @@ fn uid_runtime_exists(uid: u32) -> bool {
 fn try_uid_lock(uid: u32) -> Result<Option<std::fs::File>, String> {
     use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt};
 
-    let root = Path::new("/run/cos/extension-uids");
+    let root = Path::new("/run/yuos/extension-uids");
     std::fs::create_dir_all(root)
         .map_err(|error| format!("create extension uid lock directory: {error}"))?;
     let metadata = std::fs::symlink_metadata(root)

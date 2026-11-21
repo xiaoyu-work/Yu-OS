@@ -223,7 +223,7 @@ fn lifecycle_entry(record: &super::record::JournalRecord) -> Option<LifecycleEnt
 
 /// The projection as the system-operations surface presents it.
 ///
-/// `clawd`'s operations journal keeps its own append-only file for
+/// `yuosd`'s operations journal keeps its own append-only file for
 /// non-journal sources, but for durable mutations it carries only a
 /// reference to the chain — so this is the rebuildable answer to "what
 /// happened", and the operations file is an index into it rather than a

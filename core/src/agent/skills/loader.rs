@@ -217,7 +217,7 @@ pub fn load_default() -> LoadResult {
     load_default_with_options(&LoadOptions::default())
 }
 
-/// Metadata-only variant used by prompt assembly and `cos_skill list`.
+/// Metadata-only variant used by prompt assembly and `yu_skill list`.
 pub fn load_catalog_default() -> LoadResult {
     load_default_with_options(&LoadOptions {
         include_body: false,
@@ -226,11 +226,11 @@ pub fn load_catalog_default() -> LoadResult {
 }
 
 fn load_default_with_options(opts: &LoadOptions) -> LoadResult {
-    let system_origin = if std::env::var_os("COS_SYSTEM_SKILLS_DIR").is_some() {
+    let system_origin = if std::env::var_os("YUOS_SYSTEM_SKILLS_DIR").is_some() {
         static WARNED: OnceLock<()> = OnceLock::new();
         if WARNED.set(()).is_ok() {
             tracing::warn!(
-                "COS_SYSTEM_SKILLS_DIR overrides the package-owned Skill root; treating it as local content"
+                "YUOS_SYSTEM_SKILLS_DIR overrides the package-owned Skill root; treating it as local content"
             );
         }
         SkillOrigin::Local

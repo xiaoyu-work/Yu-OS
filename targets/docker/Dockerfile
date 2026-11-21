@@ -1,6 +1,6 @@
 FROM scratch
 
-ARG ROOTFS_DIR=build/claw-os-rootfs
+ARG ROOTFS_DIR=build/yuos-rootfs
 COPY ${ROOTFS_DIR}/ /
 COPY --chmod=0755 targets/docker/container-entrypoint.sh /usr/local/sbin/claw-container-entrypoint
 

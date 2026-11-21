@@ -202,7 +202,7 @@ pub(super) struct App {
     pub activity_detail: Option<ActivityDetail>,
     pub activity_detail_scroll: u16,
     pub activity_attention: Option<ActivityAttention>,
-    pub nearby_view: Option<clawd_client::nearby::NearbyView>,
+    pub nearby_view: Option<yuosd_client::nearby::NearbyView>,
     pub nearby_open: bool,
     pub nearby_scroll: u16,
     pub nearby_generation: u64,
@@ -1105,7 +1105,7 @@ impl App {
         self.entries
             .iter()
             .filter_map(|entry| match &entry.kind {
-                EntryKind::Tool { id, status } if entry.text == "cos_delegate" => Some((
+                EntryKind::Tool { id, status } if entry.text == "yu_delegate" => Some((
                     id.clone(),
                     match status {
                         ToolStatus::Preparing => "preparing",

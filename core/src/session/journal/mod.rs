@@ -4,7 +4,7 @@
 //!
 //! One ordered, signed, append-only chain per session (and one per
 //! owner for privileged work that has no session), owned by root
-//! `clawd`. It answers two questions nothing else in the system can
+//! `yuosd`. It answers two questions nothing else in the system can
 //! answer on its own:
 //!
 //! 1. **What happened, in what order?** Conversation bodies, the memory
@@ -35,7 +35,7 @@
 //! ## Layout
 //!
 //! ```text
-//! $COS_DATA_DIR/journal/
+//! $YUOS_DATA_DIR/journal/
 //!   keys/<key-id>.key      root-only MAC keys, 0600, create_new
 //!   keys/active.json       which key signs new records
 //!   writer.lock            flock: one writer per machine

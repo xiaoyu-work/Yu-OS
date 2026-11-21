@@ -38,14 +38,14 @@ use std::path::PathBuf;
 use async_trait::async_trait;
 use tokio::sync::Mutex;
 
-// Trait + types come from the workspace-internal `claw-embed` crate.
+// Trait + types come from the workspace-internal `yuos-embed` crate.
 // We can still `impl Embedder for Qwen3GenaiEmbedder` because the
 // type is local to this crate (orphan rule).
 use crate::model::engines::ort_genai::runtime::OrtGenaiRuntime;
 use crate::model::engines::ort_genai::safe::{
     OgaGenerator, OgaGeneratorParams, OgaModel, OgaTokenizer, OrtGenaiError,
 };
-use claw_embed::{EmbedError, EmbedRequest, EmbedResponse, EmbedUsage, Embedder};
+use yuos_embed::{EmbedError, EmbedRequest, EmbedResponse, EmbedUsage, Embedder};
 
 /// Canonical model name reported in [`EmbedResponse::model`]. The
 /// SemanticStore stickiness guard pins a corpus to whatever value it

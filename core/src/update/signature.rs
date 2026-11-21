@@ -2,9 +2,9 @@
 //!
 //! # Which key
 //!
-//! Claw OS already distributes exactly one publisher identity to every
+//! Yu OS already distributes exactly one publisher identity to every
 //! installed system: the OpenPGP key APT pins with
-//! `signed-by=/usr/share/keyrings/claw-os-archive-keyring.gpg`. The
+//! `signed-by=/usr/share/keyrings/yuos-archive-keyring.gpg`. The
 //! release-security manifest is signed by that same identity, so a
 //! machine that can authenticate its package index can authenticate
 //! its release manifest with no second trust root to ship, rotate or
@@ -120,7 +120,7 @@ pub fn verify_detached(
     }
     if keyrings.is_empty() {
         return Signature::Unverifiable {
-            reason: "no Claw OS release keyring is installed".to_string(),
+            reason: "no Yu OS release keyring is installed".to_string(),
         };
     }
     let Ok(gpgv) = which("gpgv") else {

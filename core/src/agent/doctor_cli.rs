@@ -369,7 +369,7 @@ fn check_memory() -> Value {
             "status": "warn",
             "configured": false,
             "reason": "no embedder configured",
-            "fix": "set `agent.semantic_embedder` in ~/.config/cos/config.json (or COS_CONFIG_PATH) — semantic memory is opt-in",
+            "fix": "set `agent.semantic_embedder` in ~/.config/yuos/config.json (or YUOS_CONFIG_PATH) — semantic memory is opt-in",
         }),
         Err(e) => json!({
             "status": "fail",
@@ -705,8 +705,8 @@ fn _force_tools_use() {
     let _ = tools::registry::default_registry_with_deps(&deps);
 }
 
-/// Shim matching the [`crate::agent::tools::cos_proxy::PrimitiveFn`]
-/// signature so the LLM can call `cos_doctor` directly. The
+/// Shim matching the [`crate::agent::tools::yu_proxy::PrimitiveFn`]
+/// signature so the LLM can call `yu_doctor` directly. The
 /// `command` argument is ignored — `doctor_cmd` is single-shot
 /// and consumes only flags (`--quick`, `--probe-network`,
 /// `--probe-timeout <secs>`).

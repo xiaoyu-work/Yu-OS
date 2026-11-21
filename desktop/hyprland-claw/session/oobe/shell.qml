@@ -137,7 +137,7 @@ ShellRoot {
         function onReadyToLaunch() {
             setup.newPassword = "";
             Greetd.launch(["/usr/bin/systemd-cat", "--identifier=claw-desktop",
-                           "/usr/local/bin/claw-display-session", "--desktop"], ["XDG_SESSION_TYPE=wayland"]);
+                           "/usr/local/bin/yuos-display-session", "--desktop"], ["XDG_SESSION_TYPE=wayland"]);
         }
     }
 

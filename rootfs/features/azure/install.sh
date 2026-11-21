@@ -69,7 +69,7 @@ chroot "$ROOTFS" update-initramfs -u -k all
 
 # Override the local-VM presentation flags with Azure support diagnostics.
 mkdir -p "$ROOTFS/etc/default/grub.d"
-cat > "$ROOTFS/etc/default/grub.d/70-claw-os-azure.cfg" <<'EOF'
+cat > "$ROOTFS/etc/default/grub.d/70-yuos-azure.cfg" <<'EOF'
 # Azure serial console and slow-storage tolerance.
 GRUB_CMDLINE_LINUX_DEFAULT="rootdelay=300 console=tty0 console=ttyS0,115200n8 earlyprintk=ttyS0 net.ifnames=0"
 EOF

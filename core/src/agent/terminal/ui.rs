@@ -804,7 +804,7 @@ fn render_agents(frame: &mut Frame<'_>, screen: Rect, app: &App) {
     ];
     if summaries.is_empty() {
         lines.push(Line::styled(
-            "No cos_delegate calls are present in this transcript.",
+            "No yu_delegate calls are present in this transcript.",
             Style::default().fg(Color::DarkGray),
         ));
     } else {

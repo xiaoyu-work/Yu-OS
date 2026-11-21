@@ -1,4 +1,4 @@
-//! The set of locales Claw OS can render strings in, plus the global
+//! The set of locales Yu OS can render strings in, plus the global
 //! current-locale cell.
 //!
 //! The enum is intentionally **closed** (no string variants): adding a
@@ -12,7 +12,7 @@
 use std::sync::OnceLock;
 use std::sync::RwLock;
 
-/// Languages Claw OS knows how to render UI strings in.
+/// Languages Yu OS knows how to render UI strings in.
 ///
 /// To add a new locale:
 ///   1. Add a variant here.
@@ -31,7 +31,7 @@ pub enum Locale {
 }
 
 impl Locale {
-    /// The compile-time default. Used when no `COS_LOCALE` is set and
+    /// The compile-time default. Used when no `YUOS_LOCALE` is set and
     /// when a [`LocalizedStr`](super::string::LocalizedStr) does not
     /// have a translation for the active locale.
     pub const DEFAULT: Locale = Locale::En;
@@ -97,14 +97,14 @@ pub fn set_locale(loc: Locale) {
 /// Initialize the global locale from the environment.
 ///
 /// Resolution order:
-///   1. `COS_LOCALE` env var.
+///   1. `YUOS_LOCALE` env var.
 ///   2. `LC_ALL` / `LANG` env vars (POSIX convention).
 ///   3. [`Locale::DEFAULT`].
 ///
 /// Unknown tags are ignored (fall through to the next source). Returns
 /// the locale that was selected.
 pub fn init_locale_from_env() -> Locale {
-    let sources = ["COS_LOCALE", "LC_ALL", "LANG"];
+    let sources = ["YUOS_LOCALE", "LC_ALL", "LANG"];
     for key in sources {
         if let Ok(val) = std::env::var(key) {
             // POSIX LANG often looks like "en_US.UTF-8" — strip the codeset.

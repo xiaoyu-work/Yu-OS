@@ -64,8 +64,8 @@ pub(crate) fn resolve(
                     return Err("a conversation with retained Jobs cannot move into a Workspace; create another conversation".into());
                 }
             }
-            let has_history = crate::clawd::memory::run_as_owner(owner, move |path| {
-                crate::clawd::memory::open_owner_db(&path, owner)?
+            let has_history = crate::yuosd::memory::run_as_owner(owner, move |path| {
+                crate::yuosd::memory::open_owner_db(&path, owner)?
                     .map(|db| db.has_session(&sid).map_err(|e| e.to_string()))
                     .transpose()
                     .map(|present| present.unwrap_or(false))

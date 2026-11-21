@@ -9,7 +9,7 @@ fn tmp_path(ext: &str) -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.subsec_nanos())
         .unwrap_or(0);
-    p.push(format!("cos-system-playback-{pid}-{nanos}.{ext}"));
+    p.push(format!("yuos-system-playback-{pid}-{nanos}.{ext}"));
     p
 }
 
@@ -117,7 +117,7 @@ fn play_unsupported_extension_rejects_before_dispatch() {
 fn play_no_extension_rejects_before_dispatch() {
     let mut p = std::env::temp_dir();
     let pid = std::process::id();
-    p.push(format!("cos-no-ext-{pid}"));
+    p.push(format!("yuos-no-ext-{pid}"));
     touch(&p);
     let err = play_file_blocking(&p).unwrap_err();
     let _ = fs::remove_file(&p);
@@ -201,10 +201,10 @@ fn play_truncated_wav_on_windows_returns_winmm_play_failed() {
 fn linux_explicit_override_path_is_honoured_over_auto_detect() {
     // We don't actually spawn the player — just confirm the
     // override path makes it into the diagnostic.
-    std::env::set_var("COS_AUDIO_PLAYER", "/nonexistent/cos-fake-player");
+    std::env::set_var("YUOS_AUDIO_PLAYER", "/nonexistent/yuos-fake-player");
     let s = detect_player(PlaybackFormat::Wav).expect("override returns Some");
-    assert!(s.contains("cos-fake-player"), "got {s}");
-    std::env::remove_var("COS_AUDIO_PLAYER");
+    assert!(s.contains("yuos-fake-player"), "got {s}");
+    std::env::remove_var("YUOS_AUDIO_PLAYER");
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
@@ -212,13 +212,13 @@ fn linux_explicit_override_path_is_honoured_over_auto_detect() {
 fn linux_play_with_unspawnable_override_returns_configured_player_unavailable() {
     let p = tmp_path("wav");
     touch(&p);
-    std::env::set_var("COS_AUDIO_PLAYER", "/nonexistent/cos-fake-player");
+    std::env::set_var("YUOS_AUDIO_PLAYER", "/nonexistent/yuos-fake-player");
     let err = play_file_blocking(&p).unwrap_err();
-    std::env::remove_var("COS_AUDIO_PLAYER");
+    std::env::remove_var("YUOS_AUDIO_PLAYER");
     let _ = fs::remove_file(&p);
     match err {
         SystemPlaybackError::ConfiguredPlayerUnavailable { player, .. } => {
-            assert!(player.to_string_lossy().contains("cos-fake-player"));
+            assert!(player.to_string_lossy().contains("yuos-fake-player"));
         }
         other => panic!("unexpected: {other:?}"),
     }

@@ -7,7 +7,7 @@ fn typed_protocol_event_builds_an_sse_frame() {
 
 #[test]
 fn image_attachments_are_forwarded_without_desktop_authority_fields() {
-    let attachment = cos_agent_protocol::ChatAttachment::from_bytes(
+    let attachment = yuos_agent_protocol::ChatAttachment::from_bytes(
         "screen.png".to_string(),
         b"\x89PNG\r\n\x1a\nfixture",
     )

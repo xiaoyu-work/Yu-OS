@@ -18,20 +18,20 @@ struct Fixture {
     projection: ProjectionStore,
 }
 
-/// Install a fake `clawd` under `root`, record it in a fresh floor, and
+/// Install a fake `yuosd` under `root`, record it in a fresh floor, and
 /// publish the matching runtime projection — the state a configured
 /// package leaves behind.
 fn seeded(label: &str, epoch: u64, contents: &[u8]) -> Fixture {
     let root = scratch_root(label);
-    let binary = root.join("usr/local/bin/clawd");
+    let binary = root.join("usr/local/bin/yuosd");
     std::fs::create_dir_all(binary.parent().unwrap()).unwrap();
     std::fs::write(&binary, contents).unwrap();
 
     let mut components = BTreeMap::new();
     components.insert(
-        "clawd".to_string(),
+        "yuosd".to_string(),
         ComponentFloor {
-            path: "/usr/local/bin/clawd".to_string(),
+            path: "/usr/local/bin/yuosd".to_string(),
             sha256: crate::crypto::sha256_hex(contents),
             size: contents.len() as u64,
             dev: 0,
@@ -71,7 +71,7 @@ fn a_system_with_no_floor_does_not_block_startup() {
 
 #[test]
 fn a_build_below_the_recorded_epoch_refuses_to_run() {
-    let fixture = seeded("runtime-epoch", crate::update::SECURITY_EPOCH + 1, b"clawd");
+    let fixture = seeded("runtime-epoch", crate::update::SECURITY_EPOCH + 1, b"yuosd");
     let refusal =
         enforce_startup_in(&fixture.projection, &fixture.root, Scope::CompiledEpoch).unwrap_err();
     assert_eq!(
@@ -87,7 +87,7 @@ fn a_build_below_the_recorded_epoch_refuses_to_run() {
 
 #[test]
 fn a_build_at_the_recorded_epoch_starts() {
-    let fixture = seeded("runtime-current", crate::update::SECURITY_EPOCH, b"clawd");
+    let fixture = seeded("runtime-current", crate::update::SECURITY_EPOCH, b"yuosd");
     assert!(enforce_startup_in(
         &fixture.projection,
         &fixture.root,
@@ -99,8 +99,8 @@ fn a_build_at_the_recorded_epoch_starts() {
 
 #[test]
 fn a_replaced_critical_component_refuses_to_run() {
-    let fixture = seeded("runtime-replaced", crate::update::SECURITY_EPOCH, b"clawd");
-    std::fs::write(fixture.root.join("usr/local/bin/clawd"), b"older clawd").unwrap();
+    let fixture = seeded("runtime-replaced", crate::update::SECURITY_EPOCH, b"yuosd");
+    std::fs::write(fixture.root.join("usr/local/bin/yuosd"), b"older yuosd").unwrap();
 
     let refusal = enforce_startup_in(
         &fixture.projection,
@@ -126,15 +126,15 @@ fn a_replaced_component_is_ignored_when_only_the_epoch_is_checked() {
     let fixture = seeded(
         "runtime-epoch-only",
         crate::update::SECURITY_EPOCH,
-        b"clawd",
+        b"yuosd",
     );
-    std::fs::write(fixture.root.join("usr/local/bin/clawd"), b"older clawd").unwrap();
+    std::fs::write(fixture.root.join("usr/local/bin/yuosd"), b"older yuosd").unwrap();
     assert!(enforce_startup_in(&fixture.projection, &fixture.root, Scope::CompiledEpoch).is_ok());
 }
 
 #[test]
 fn an_unreadable_authority_fails_the_broker_closed() {
-    let fixture = seeded("runtime-corrupt", crate::update::SECURITY_EPOCH, b"clawd");
+    let fixture = seeded("runtime-corrupt", crate::update::SECURITY_EPOCH, b"yuosd");
     std::fs::write(
         fixture.store.dir().join("floor.json"),
         b"{\"format\":\"nope\"}\n",
@@ -153,7 +153,7 @@ fn an_unreadable_projection_fails_unprivileged_callers_closed() {
     let fixture = seeded(
         "runtime-projection-corrupt",
         crate::update::SECURITY_EPOCH,
-        b"clawd",
+        b"yuosd",
     );
     std::fs::write(fixture.projection.path(), b"{\"format\":\"nope\"}\n").unwrap();
     let refusal =
@@ -169,7 +169,7 @@ fn a_deleted_projection_fails_unprivileged_callers_closed() {
     let fixture = seeded(
         "runtime-projection-missing",
         crate::update::SECURITY_EPOCH,
-        b"clawd",
+        b"yuosd",
     );
     std::fs::remove_file(fixture.projection.path()).unwrap();
     assert!(enforce_startup_in(&fixture.projection, &fixture.root, Scope::CompiledEpoch).is_err());
@@ -177,7 +177,7 @@ fn a_deleted_projection_fails_unprivileged_callers_closed() {
 
 #[test]
 fn the_broker_repairs_a_stale_projection() {
-    let fixture = seeded("runtime-stale", crate::update::SECURITY_EPOCH, b"clawd");
+    let fixture = seeded("runtime-stale", crate::update::SECURITY_EPOCH, b"yuosd");
     let stale = std::fs::read(fixture.projection.path()).unwrap();
 
     // Advance the authority without republishing: exactly what an
@@ -216,7 +216,7 @@ fn the_broker_repairs_a_stale_projection() {
 
 #[test]
 fn a_projection_without_an_authority_fails_the_broker_closed() {
-    let fixture = seeded("runtime-orphan", crate::update::SECURITY_EPOCH, b"clawd");
+    let fixture = seeded("runtime-orphan", crate::update::SECURITY_EPOCH, b"yuosd");
     std::fs::remove_file(fixture.store.dir().join("floor.json")).unwrap();
     std::fs::remove_file(fixture.store.dir().join("history.jsonl")).unwrap();
     let refusal =
@@ -232,9 +232,9 @@ fn a_component_the_floor_does_not_record_is_not_treated_as_a_downgrade() {
     let fixture = seeded(
         "runtime-unrecorded",
         crate::update::SECURITY_EPOCH,
-        b"clawd",
+        b"yuosd",
     );
-    // `cos` is a critical component but was never measured here.
+    // `yu` is a critical component but was never measured here.
     assert!(enforce_startup_in(
         &fixture.projection,
         &fixture.root,
@@ -246,15 +246,15 @@ fn a_component_the_floor_does_not_record_is_not_treated_as_a_downgrade() {
 #[test]
 fn a_worker_binary_that_does_not_match_the_floor_is_refused() {
     let root = scratch_root("runtime-worker");
-    let worker = root.join("usr/local/bin/claw-agentd");
+    let worker = root.join("usr/local/bin/yuos-agentd");
     std::fs::create_dir_all(worker.parent().unwrap()).unwrap();
     std::fs::write(&worker, b"worker").unwrap();
 
     let mut components = BTreeMap::new();
     components.insert(
-        "claw-agentd".to_string(),
+        "yuos-agentd".to_string(),
         ComponentFloor {
-            path: "/usr/local/bin/claw-agentd".to_string(),
+            path: "/usr/local/bin/yuos-agentd".to_string(),
             sha256: crate::crypto::sha256_hex(b"worker"),
             size: 6,
             dev: 0,
@@ -277,14 +277,14 @@ fn a_worker_binary_that_does_not_match_the_floor_is_refused() {
 
 #[test]
 fn a_peer_reporting_another_epoch_is_refused() {
-    assert!(check_peer_epoch("claw-agentd", crate::update::SECURITY_EPOCH).is_ok());
-    let refusal = check_peer_epoch("claw-agentd", crate::update::SECURITY_EPOCH + 1).unwrap_err();
+    assert!(check_peer_epoch("yuos-agentd", crate::update::SECURITY_EPOCH).is_ok());
+    let refusal = check_peer_epoch("yuos-agentd", crate::update::SECURITY_EPOCH + 1).unwrap_err();
     assert_eq!(
         refusal.class,
         crate::update::decide::class::EPOCH_REGRESSION
     );
     assert!(
-        refusal.message.contains("reinstall claw-os-agent"),
+        refusal.message.contains("reinstall yuos-agent"),
         "{refusal}"
     );
 }

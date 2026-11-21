@@ -2,8 +2,8 @@
 
 The Agent extension ABI is an observation and proposal boundary, not an
 in-process plugin API and not an authorization-policy interface. Extension code
-runs as a child of the existing per-task `claw-extension-host` isolation
-domain. It never loads into `clawd` or `claw-agentd`.
+runs as a child of the existing per-task `yuos-extension-host` isolation
+domain. It never loads into `yuosd` or `yuos-agentd`.
 
 ## Activation
 
@@ -15,7 +15,7 @@ An extension activates only when all of the following are true:
 3. `extension.json` matches the signed package identity, version, content
    digest, and executable entry.
 4. Its protocol/features, subscriptions, capabilities, and limits validate.
-5. The real task-owned `claw-extension-host` completes `initialize -> ready`.
+5. The real task-owned `yuos-extension-host` completes `initialize -> ready`.
 
 Selection is explicit in the ordinary per-user config:
 
@@ -88,13 +88,13 @@ in-flight event per extension.
 ## Process and authority boundary
 
 The host reuses the complete
-[`claw-extension-host` isolation design](extension-host-isolation.md):
+[`yuos-extension-host` isolation design](extension-host-isolation.md):
 exclusive package-created uid, non-broker gid, `NoNewPrivs`, non-dumpability,
 seccomp, finite rlimits, mandatory cgroup-v2 CPU/memory/PID bounds, private
 mount/PID/network namespaces, empty root, private writable state, and verified
 tree cleanup.
 
-Before the host drops to its dedicated uid, `clawd` verifies configured
+Before the host drops to its dedicated uid, `yuosd` verifies configured
 packages with the task owner's trust roots and binds exact package receipts
 into the private host bootstrap. The host cannot read the owner's mode-0600
 trust files; it uses that broker-authenticated receipt to independently
@@ -187,7 +187,7 @@ has exited. The host returns `detached: true` only after the captured root
 PID/start-time is successfully waited and proven gone, all known descendants
 are gone, and materialized package storage is removed. Any signal, wait, reap,
 survivor, or storage uncertainty remains unacknowledged and is retried before
-the worker requests host shutdown so `clawd` performs the mandatory cgroup
+the worker requests host shutdown so `yuosd` performs the mandatory cgroup
 kill/empty/quarantine cleanup. A later exact acknowledgement or accepted
 containment escalation clears that extension's transient detach error, never
 another extension's state or an independent runtime/protocol failure. A crash,
@@ -261,7 +261,7 @@ For an accepted proposal, the worker:
    result to the extension or inject it into the model trajectory.
 
 Proposal support is default-deny and independent of ordinary tool exposure.
-`cos_delegate`, provider/model selectors, credential tools, shell/process
+`yu_delegate`, provider/model selectors, credential tools, shell/process
 primitives, MCP gateways, legacy proxies, and every blocking/non-cooperative
 tool are categorically non-proposable. ABI v2 initially enables only the
 side-effect-free `now` tool under `builtin.now/v1`, deriving exactly

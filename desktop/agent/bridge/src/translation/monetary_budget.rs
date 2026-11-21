@@ -1,6 +1,6 @@
 //! Closed monetary-accounting DTO translation with authenticated owner checks.
 
-use cos_agent_protocol::{ActivityMonetaryBudget, ActivityMonetaryBudgetResponse};
+use yuos_agent_protocol::{ActivityMonetaryBudget, ActivityMonetaryBudgetResponse};
 use serde_json::Value;
 
 pub fn get(

@@ -7,9 +7,9 @@ fn ordinary_app_cli_preflight_keeps_reference_narrowing_without_local_consent_sp
     use crate::test_env::TestEnvVarGuard;
     let _lock = crate::test_env::lock_env();
     let root = tempfile::tempdir().unwrap();
-    let _data = TestEnvVarGuard::set("COS_DATA_DIR", root.path());
-    let _caps = TestEnvVarGuard::set("COS_CAPS_DATA_DIR", root.path());
-    let _session = TestEnvVarGuard::remove("COS_SESSION");
+    let _data = TestEnvVarGuard::set("YUOS_DATA_DIR", root.path());
+    let _caps = TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", root.path());
+    let _session = TestEnvVarGuard::remove("YUOS_SESSION");
     let app = apps::App {
         manifest: caps::Manifest::from_json(r#"{
             "id":"ordinary-reference-test","version":"1.0.0","name":{"en":"Reference fixture"},
@@ -57,7 +57,7 @@ fn app_permissions_bridge_validates_json_after_its_command_name() {
 #[cfg(unix)]
 #[test]
 fn app_permissions_bridge_forwards_the_exact_request_and_session() {
-    use crate::clawd::{
+    use crate::yuosd::{
         protocol::{Request, Response},
         routes::Command,
         transport::frame,
@@ -70,14 +70,14 @@ fn app_permissions_bridge_forwards_the_exact_request_and_session() {
 
     let _lock = crate::test_env::lock_env();
     let root = tempfile::tempdir().unwrap();
-    let _runtime = TestEnvVarGuard::set("COS_RUNTIME_DIR", root.path());
+    let _runtime = TestEnvVarGuard::set("YUOS_RUNTIME_DIR", root.path());
     let _private = TestEnvVarGuard::remove(crate::extension_host::protocol::BROKER_SOCKET_ENV);
-    let listener = UnixListener::bind(crate::paths::clawd_socket_path()).unwrap();
+    let listener = UnixListener::bind(crate::paths::yuosd_socket_path()).unwrap();
     listener.set_nonblocking(true).unwrap();
     for session in [None, Some("app-permission-fixture")] {
         let _session = match session {
-            Some(session) => TestEnvVarGuard::set("COS_SESSION", session),
-            None => TestEnvVarGuard::remove("COS_SESSION"),
+            Some(session) => TestEnvVarGuard::set("YUOS_SESSION", session),
+            None => TestEnvVarGuard::remove("YUOS_SESSION"),
         };
         let server = listener.try_clone().unwrap();
         let receiver = std::thread::spawn(move || {
@@ -231,7 +231,7 @@ fn netdiag_bridge_request_is_bounded_and_cannot_assert_a_session() {
 
 #[test]
 fn file_replace_bridge_preserves_codes_but_does_not_infer_safety_from_relay_errors() {
-    use crate::clawd::protocol::{RequestId, Response};
+    use crate::yuosd::protocol::{RequestId, Response};
     for code in ["indeterminate", "not_authorized", "execution_failed"] {
         let error = file_replace_response(Response::error(
             RequestId::generate(),
@@ -503,10 +503,10 @@ fn perms_namespace_is_not_user_facing() {
 #[test]
 fn hidden_policy_bridge_remains_available_to_runtimes() {
     let _lock = crate::test_env::lock_env();
-    let prev_sess = std::env::var_os("COS_SESSION");
-    let prev_mode = std::env::var_os("COS_PERMS_MODE");
-    std::env::remove_var("COS_SESSION");
-    std::env::set_var("COS_PERMS_MODE", "permissive");
+    let prev_sess = std::env::var_os("YUOS_SESSION");
+    let prev_mode = std::env::var_os("YUOS_PERMS_MODE");
+    std::env::remove_var("YUOS_SESSION");
+    std::env::set_var("YUOS_PERMS_MODE", "permissive");
 
     let output = dispatch(&["__policy".into(), "check".into(), "ui.notify".into()])
         .expect("hidden policy bridge should dispatch")
@@ -515,12 +515,12 @@ fn hidden_policy_bridge_remains_available_to_runtimes() {
     assert_eq!(v["decision"], "allow");
 
     match prev_sess {
-        Some(value) => std::env::set_var("COS_SESSION", value),
-        None => std::env::remove_var("COS_SESSION"),
+        Some(value) => std::env::set_var("YUOS_SESSION", value),
+        None => std::env::remove_var("YUOS_SESSION"),
     }
     match prev_mode {
-        Some(value) => std::env::set_var("COS_PERMS_MODE", value),
-        None => std::env::remove_var("COS_PERMS_MODE"),
+        Some(value) => std::env::set_var("YUOS_PERMS_MODE", value),
+        None => std::env::remove_var("YUOS_PERMS_MODE"),
     }
 }
 
@@ -675,7 +675,7 @@ fn every_public_router_namespace_has_machine_readable_help() {
 fn agent_usage_is_publicly_discoverable() {
     let help = parse(dispatch(&["agent".into(), "--help".into()]).unwrap());
     assert!(help["commands"].get("usage").is_some());
-    assert_eq!(help["model_tools"]["usage"], "cos_usage");
+    assert_eq!(help["model_tools"]["usage"], "yu_usage");
 
     let leaf = parse(dispatch(&["agent".into(), "usage".into(), "--schema".into()]).unwrap());
     assert_eq!(leaf["command"], "yu agent usage");
@@ -687,7 +687,7 @@ fn agent_usage_is_publicly_discoverable() {
 fn bare_agent_usage_returns_progressive_help() {
     let help = parse(dispatch(&["agent".into(), "usage".into()]).unwrap());
     assert_eq!(help["command"], "yu agent usage");
-    assert_eq!(help["model_tool"], "cos_usage");
+    assert_eq!(help["model_tool"], "yu_usage");
     assert!(help["scopes"].get("provider <name>").is_some());
 }
 
@@ -859,14 +859,14 @@ fn consent_path_returns_user_config_path() {
 
 #[test]
 fn consent_show_missing_file_reports_absent() {
-    let tmp = std::env::temp_dir().join(format!("cos-consent-router-show-{}", std::process::id()));
+    let tmp = std::env::temp_dir().join(format!("yuos-consent-router-show-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
-    let prev = std::env::var_os("COS_USER_CONFIG_DIR");
-    std::env::set_var("COS_USER_CONFIG_DIR", &tmp);
+    let prev = std::env::var_os("YUOS_USER_CONFIG_DIR");
+    std::env::set_var("YUOS_USER_CONFIG_DIR", &tmp);
     let v = parse(consent_cmd(&["show".into(), "never-granted".into()], &empty_apps()).unwrap());
     match prev {
-        Some(x) => std::env::set_var("COS_USER_CONFIG_DIR", x),
-        None => std::env::remove_var("COS_USER_CONFIG_DIR"),
+        Some(x) => std::env::set_var("YUOS_USER_CONFIG_DIR", x),
+        None => std::env::remove_var("YUOS_USER_CONFIG_DIR"),
     }
     let _ = std::fs::remove_dir_all(&tmp);
     assert_eq!(v["present"], false);
@@ -887,14 +887,14 @@ fn consent_grant_unknown_app_errors() {
 #[test]
 fn consent_revoke_missing_file_is_noop() {
     let tmp =
-        std::env::temp_dir().join(format!("cos-consent-router-revoke-{}", std::process::id()));
+        std::env::temp_dir().join(format!("yuos-consent-router-revoke-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
-    let prev = std::env::var_os("COS_USER_CONFIG_DIR");
-    std::env::set_var("COS_USER_CONFIG_DIR", &tmp);
+    let prev = std::env::var_os("YUOS_USER_CONFIG_DIR");
+    std::env::set_var("YUOS_USER_CONFIG_DIR", &tmp);
     let v = parse(consent_cmd(&["revoke".into(), "never-granted".into()], &empty_apps()).unwrap());
     match prev {
-        Some(x) => std::env::set_var("COS_USER_CONFIG_DIR", x),
-        None => std::env::remove_var("COS_USER_CONFIG_DIR"),
+        Some(x) => std::env::set_var("YUOS_USER_CONFIG_DIR", x),
+        None => std::env::remove_var("YUOS_USER_CONFIG_DIR"),
     }
     let _ = std::fs::remove_dir_all(&tmp);
     assert_eq!(v["revoked"], false);
@@ -906,10 +906,10 @@ fn consent_grant_yes_writes_record_and_show_reads_it_back() {
     use crate::i18n::LocalizedText;
     use std::collections::BTreeMap;
 
-    let tmp = std::env::temp_dir().join(format!("cos-consent-router-grant-{}", std::process::id()));
+    let tmp = std::env::temp_dir().join(format!("yuos-consent-router-grant-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
-    let prev = std::env::var_os("COS_USER_CONFIG_DIR");
-    std::env::set_var("COS_USER_CONFIG_DIR", &tmp);
+    let prev = std::env::var_os("YUOS_USER_CONFIG_DIR");
+    std::env::set_var("YUOS_USER_CONFIG_DIR", &tmp);
 
     let manifest = Manifest {
         id: "demo".into(),
@@ -968,8 +968,8 @@ fn consent_grant_yes_writes_record_and_show_reads_it_back() {
     assert_eq!(revoked["revoked"], true);
 
     match prev {
-        Some(x) => std::env::set_var("COS_USER_CONFIG_DIR", x),
-        None => std::env::remove_var("COS_USER_CONFIG_DIR"),
+        Some(x) => std::env::set_var("YUOS_USER_CONFIG_DIR", x),
+        None => std::env::remove_var("YUOS_USER_CONFIG_DIR"),
     }
     let _ = std::fs::remove_dir_all(&tmp);
 }
@@ -985,7 +985,7 @@ fn reseal_app(dir: &std::path::Path, id: &str) {
 #[test]
 fn create_scaffolds_cli_app_without_desktop() {
     let pid = std::process::id();
-    let parent = std::env::temp_dir().join(format!("cos-create-cli-{pid}"));
+    let parent = std::env::temp_dir().join(format!("yuos-create-cli-{pid}"));
     let _ = std::fs::remove_dir_all(&parent);
     std::fs::create_dir_all(&parent).unwrap();
 
@@ -1016,7 +1016,7 @@ fn create_scaffolds_cli_app_without_desktop() {
 #[test]
 fn create_scaffolds_both_surfaces() {
     let pid = std::process::id();
-    let parent = std::env::temp_dir().join(format!("cos-create-both-{pid}"));
+    let parent = std::env::temp_dir().join(format!("yuos-create-both-{pid}"));
     let _ = std::fs::remove_dir_all(&parent);
     std::fs::create_dir_all(&parent).unwrap();
 
@@ -1042,7 +1042,7 @@ fn create_scaffolds_both_surfaces() {
 
     let entry = std::fs::read_to_string(app_dir.join("main.py")).unwrap();
     assert!(entry.contains("gui.is_gui_launch()"));
-    assert!(entry.contains("from claw_os_sdk import gui"));
+    assert!(entry.contains("from yuos_sdk import gui"));
 
     let _ = std::fs::remove_dir_all(&parent);
 }
@@ -1050,7 +1050,7 @@ fn create_scaffolds_both_surfaces() {
 #[test]
 fn create_desktop_kind_is_gui_only() {
     let pid = std::process::id();
-    let parent = std::env::temp_dir().join(format!("cos-create-desktop-{pid}"));
+    let parent = std::env::temp_dir().join(format!("yuos-create-desktop-{pid}"));
     let _ = std::fs::remove_dir_all(&parent);
     std::fs::create_dir_all(&parent).unwrap();
 
@@ -1098,7 +1098,7 @@ fn create_requires_id() {
 #[test]
 fn create_refuses_existing_dir_without_force() {
     let pid = std::process::id();
-    let parent = std::env::temp_dir().join(format!("cos-create-exists-{pid}"));
+    let parent = std::env::temp_dir().join(format!("yuos-create-exists-{pid}"));
     let _ = std::fs::remove_dir_all(&parent);
     std::fs::create_dir_all(parent.join("dup")).unwrap();
     let err =
@@ -1138,7 +1138,7 @@ fn with_runtime_app_test_env(
     std::fs::create_dir_all(&proc_data).unwrap();
     std::fs::create_dir_all(&bin).unwrap();
 
-    let runner = root.path().join("claw-app-runner");
+    let runner = root.path().join("yuos-app-runner");
     write_runtime_test_executable(
         &runner,
         "#!/bin/sh\nif [ \"$1\" = \"--launch-gate\" ]; then\n  token=\"$2\"\n  [ \"$3\" = \"--\" ] || exit 1\n  received=\"$(dd bs=1 count=32 2>/dev/null)\"\n  [ \"$received\" = \"$token\" ] || exit 1\n  shift 3\nelif [ \"$1\" = \"--\" ]; then\n  shift\nelse\n  exit 1\nfi\nexport TEST_LAUNCH_PROGRAM=\"$1\"\nexec \"$@\"\n",
@@ -1151,10 +1151,10 @@ fn with_runtime_app_test_env(
     }
     let path = std::env::join_paths(paths).unwrap();
 
-    let _apps = crate::test_env::TestEnvVarGuard::set("COS_APPS_DIR", &apps);
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", &data);
+    let _apps = crate::test_env::TestEnvVarGuard::set("YUOS_APPS_DIR", &apps);
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", &data);
     let _runner = crate::test_env::TestEnvVarGuard::set("CLAW_APP_RUNNER_BIN", &runner);
-    let _local_sessions = crate::test_env::TestEnvVarGuard::set("COS_TEST_LOCAL_APP_SESSIONS", "1");
+    let _local_sessions = crate::test_env::TestEnvVarGuard::set("YUOS_TEST_LOCAL_APP_SESSIONS", "1");
     let _path = crate::test_env::TestEnvVarGuard::set("PATH", path);
     let _wayland = crate::test_env::TestEnvVarGuard::remove("WAYLAND_DISPLAY");
     let _display = crate::test_env::TestEnvVarGuard::remove("DISPLAY");
@@ -1217,7 +1217,7 @@ fn runtime_test_entry_source(runtime: &str) -> String {
 import os
 from pathlib import Path
 
-Path(os.environ["COS_DATA_DIR"], f"{os.environ['COS_APP_ID']}.ran").touch()
+Path(os.environ["YUOS_DATA_DIR"], f"{os.environ['YUOS_APP_ID']}.ran").touch()
 
 def run(command, args):
     if command == "fail":
@@ -1226,10 +1226,10 @@ def run(command, args):
         "runtime": "python",
         "command": command,
         "args": args,
-        "app_id": os.environ["COS_APP_ID"],
-        "session": os.environ["COS_SESSION"],
-        "sandbox": os.environ.get("COS_WORKER_SANDBOX", ""),
-        "proc_data_dir_present": "COS_PROC_DATA_DIR" in os.environ,
+        "app_id": os.environ["YUOS_APP_ID"],
+        "session": os.environ["YUOS_SESSION"],
+        "sandbox": os.environ.get("YUOS_WORKER_SANDBOX", ""),
+        "proc_data_dir_present": "YUOS_PROC_DATA_DIR" in os.environ,
         "launch_program": os.path.realpath("/proc/self/exe"),
         "uid": os.geteuid(),
     }
@@ -1238,20 +1238,20 @@ def run(command, args):
     }
 
     r#"#!/bin/sh
-touch "$COS_DATA_DIR/$COS_APP_ID.ran"
-if [ "${COS_APP_GUI:-}" = "1" ]; then
+touch "$YUOS_DATA_DIR/$YUOS_APP_ID.ran"
+if [ "${YUOS_APP_GUI:-}" = "1" ]; then
   printf '{"runtime":"__RUNTIME__","command":"%s","args":%s,"app_id":"%s","session":"%s","gui":"%s"}\n' \
-    "$COS_COMMAND" "$COS_ARGS_JSON" "$COS_APP_ID" "$COS_SESSION" "$COS_APP_GUI" \
-    > "$COS_DATA_DIR/gui.json"
+    "$YUOS_COMMAND" "$YUOS_ARGS_JSON" "$YUOS_APP_ID" "$YUOS_SESSION" "$YUOS_APP_GUI" \
+    > "$YUOS_DATA_DIR/gui.json"
   exit 0
 fi
-if [ "$COS_COMMAND" = "fail" ]; then
+if [ "$YUOS_COMMAND" = "fail" ]; then
   printf '{"error":"__RUNTIME__ failed"}\n'
   exit 9
 fi
-if [ -n "${COS_PROC_DATA_DIR:-}" ]; then proc_present=true; else proc_present=false; fi
+if [ -n "${YUOS_PROC_DATA_DIR:-}" ]; then proc_present=true; else proc_present=false; fi
 printf '{"runtime":"__RUNTIME__","command":"%s","args":%s,"app_id":"%s","session":"%s","sandbox":"%s","proc_data_dir_present":%s,"launch_program":"%s","uid":%s}\n' \
-  "$COS_COMMAND" "$COS_ARGS_JSON" "$COS_APP_ID" "$COS_SESSION" "${COS_WORKER_SANDBOX:-}" \
+  "$YUOS_COMMAND" "$YUOS_ARGS_JSON" "$YUOS_APP_ID" "$YUOS_SESSION" "${YUOS_WORKER_SANDBOX:-}" \
   "$proc_present" "$0" "$(id -u)"
 "#
     .replace("__RUNTIME__", runtime)
@@ -1338,7 +1338,7 @@ fn polyglot_app_operations_dispatch_through_declared_runtime() {
                 value["uid"].as_u64(),
                 Some(unsafe { libc::geteuid() } as u64)
             );
-            // `COS_DATA_DIR` is the App's own partition of the owner's
+            // `YUOS_DATA_DIR` is the App's own partition of the owner's
             // data root, never the root itself.
             assert!(ran_marker.is_file());
             assert!(
@@ -1488,7 +1488,7 @@ fn mcp_json_arguments_use_canonical_validation_and_roundtrip_large_content() {
     assert_eq!(parsed["content"], content);
     assert_eq!(parsed["path"], "file");
     assert!(
-        serde_json::from_value::<crate::clawd::wire::requests::AppServiceCliCall>(
+        serde_json::from_value::<crate::yuosd::wire::requests::AppServiceCliCall>(
             json!({"app_id":"fs","tool":"fs.write","arguments":parsed})
         )
         .is_ok()
@@ -1535,7 +1535,7 @@ fn mcp_json_arguments_use_canonical_validation_and_roundtrip_large_content() {
     ] {
         assert!(bind_mcp_command_arguments(&manifest, "write", &args, Some(&body)).is_err());
     }
-    let cap = crate::clawd::wire::bounded::APP_ARGS_STDIN_MAX_BYTES;
+    let cap = crate::yuosd::wire::bounded::APP_ARGS_STDIN_MAX_BYTES;
     let overhead = serde_json::to_vec(&json!({"path":"file","content":""}))
         .unwrap()
         .len();
@@ -1545,9 +1545,9 @@ fn mcp_json_arguments_use_canonical_validation_and_roundtrip_large_content() {
     let parsed = bind_mcp_command_arguments(&manifest, "write", &marker, Some(&body)).unwrap();
     // Exercise the actual broker request decoder, not just a CLI-only parser.
     let request = json!({"app_id":"fs","tool":"fs.write","arguments":parsed});
-    assert!(serde_json::to_vec(&request).unwrap().len() < crate::clawd::wire::MAX_REQUEST_BYTES);
+    assert!(serde_json::to_vec(&request).unwrap().len() < crate::yuosd::wire::MAX_REQUEST_BYTES);
     assert!(
-        serde_json::from_value::<crate::clawd::wire::requests::AppServiceCliCall>(request).is_ok()
+        serde_json::from_value::<crate::yuosd::wire::requests::AppServiceCliCall>(request).is_ok()
     );
     let mut oversized = body;
     oversized.push(b' ');
@@ -1649,7 +1649,7 @@ fn write_mcp_only_app(apps: &std::path::Path, id: &str) -> std::path::PathBuf {
     write_runtime_test_executable(
         &app_dir.join("main.py"),
         "import os\nfrom pathlib import Path\n\
-         Path(os.environ['COS_DATA_DIR'], f\"{os.environ['COS_APP_ID']}.ran\").touch()\n\
+         Path(os.environ['YUOS_DATA_DIR'], f\"{os.environ['YUOS_APP_ID']}.ran\").touch()\n\
          def run(command, args):\n    return {}\n",
     );
     write_runtime_test_executable(

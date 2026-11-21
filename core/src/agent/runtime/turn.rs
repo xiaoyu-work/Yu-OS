@@ -922,7 +922,7 @@ fn extract_text(response: &ChatResponse) -> String {
 }
 
 /// Inject the runtime's real `session_id` into session-scoped tools so
-/// the model can't write to the wrong session file. `cos_todo` persists
+/// the model can't write to the wrong session file. `yu_todo` persists
 /// per-session under `<data>/agent/todos/<session_id>.json`; when the
 /// model omits the id the tool defaults to `"default"` and silently
 /// writes to the wrong list (see `tools::todo`). When the runtime knows
@@ -932,7 +932,7 @@ pub(crate) fn effective_tool_input(
     session_id: Option<&str>,
     exposure: &ToolExposureContext,
 ) -> serde_json::Value {
-    const SESSION_SCOPED_TOOLS: &[&str] = &["cos_todo"];
+    const SESSION_SCOPED_TOOLS: &[&str] = &["yu_todo"];
     let session_id = session_id
         .filter(|value| !value.is_empty())
         .or_else(|| exposure.conversation_session_id())

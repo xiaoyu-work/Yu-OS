@@ -2,7 +2,7 @@
 
 `yu agent chat` provides a Claw-owned full-screen terminal UI. Its renderer,
 state machine, key handling, broker client and stream projection live under
-`core/src/agent/terminal/` and compile into `cos`. There is no downloaded or
+`core/src/agent/terminal/` and compile into `yu`. There is no downloaded or
 separately packaged TUI executable, compatibility app server, or second Agent
 backend.
 
@@ -110,7 +110,7 @@ Controls:
 - Appearance key `k` switches the composer between default bindings and
   bounded Vim NORMAL/INSERT modes. `/vim` is a direct compatible toggle;
   active-task `Esc` always cancels rather than being captured by Vim.
-- `/agents` shows actual `cos_delegate` calls and their visible status from
+- `/agents` shows actual `yu_delegate` calls and their visible status from
   the parent transcript. Delegate children are currently ephemeral and cannot
   be switched as if they were durable sessions.
 - `/side` creates a checked durable fork while idle; `/side return` archives
@@ -157,7 +157,7 @@ Controls:
   highlighted action; `a` / `d` remain direct shortcuts. `Esc` or `Ctrl-C`
   stops the task without deciding. Decision keys act only on key press, never
   auto-repeat. Both choices remain inside the full-screen TUI: no `pkexec`,
-  polkit or OS password prompt is opened. `clawd` derives the owner and local
+  polkit or OS password prompt is opened. `yuosd` derives the owner and local
   terminal presence from the kernel peer; **Authorize once** is restricted to
   that exact request and cannot become a session or reusable grant. **Deny**
   grants nothing.
@@ -209,11 +209,11 @@ to the shared worker capacity, and shows up in `/tasks`; its completion
 notification links the originating conversation and the Job. Normal follow-up
 messages still queue in order and do not enter a turn already in progress.
 
-A transient `clawd` disconnect keeps the exact active task and stream cursor.
+A transient `yuosd` disconnect keeps the exact active task and stream cursor.
 The header shows `RECONNECTING`; recovery resumes the same durable stream
 without resubmitting the prompt or inventing task failure.
 
-If `clawd` is still starting, terminal launch retries for up to 60 seconds.
+If `yuosd` is still starting, terminal launch retries for up to 60 seconds.
 Conversation reads are replay-safe; creation is retried only when the client
 proves the request was never dispatched. An ambiguous creation fails explicitly
 instead of creating duplicate conversations.
@@ -388,12 +388,12 @@ Claw ratatui renderer
   -> shared Activity lifecycle, execution and attention routes
   -> revision-bound Activity control routes
   -> read-only Activity object, preview, receipt and object-state evidence
-  -> claw-agentd and the shared guarded Agent runtime
+  -> yuos-agentd and the shared guarded Agent runtime
 ```
 
 The renderer owns only transient display state, the current composer, local
-prompt history and bounded stream handles for queued Jobs. `clawd` owns conversation identity, queue order and
-mutation; `claw-agentd` owns model/tool execution; the existing capability,
+prompt history and bounded stream handles for queued Jobs. `yuosd` owns conversation identity, queue order and
+mutation; `yuos-agentd` owns model/tool execution; the existing capability,
 approval, audit and Activity boundaries remain authoritative.
 
 Conversation creation and resume use canonical `ses_*` IDs directly. History
@@ -427,14 +427,14 @@ The real authorization fixture needs `pkexec`, `polkitd`, D-Bus, OpenSSL and
 PAM. From the repository root, after building the binaries:
 
 ```bash
-cargo build -p yu --bin yu --bin clawd --bin claw-approval-helper
+cargo build -p yu --bin yu --bin yuosd --bin yuos-approval-helper
 original_mount="$(readlink /proc/self/ns/mnt)"
 original_pid="$(readlink /proc/self/ns/pid)"
 sudo unshare --mount --pid --fork --mount-proc --net \
   python3 -B core/tests/approval_polkit_process.py \
   --yu target/debug/yu \
-  --clawd target/debug/clawd \
-  --helper target/debug/claw-approval-helper \
+  --yuosd target/debug/yuosd \
+  --helper target/debug/yuos-approval-helper \
   --policy rootfs/overlay/usr/share/polkit-1/actions/org.yuos.approval.policy \
   --original-mount-namespace "$original_mount" \
   --original-pid-namespace "$original_pid"

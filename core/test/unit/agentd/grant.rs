@@ -100,8 +100,8 @@ fn extension(
         host_start_time_ticks: Some(123),
         lease_nonce: "0123456789abcdef0123456789abcdef".to_string(),
         expires_at_ms: 61_000,
-        control_socket: "/run/cos/extensions/control.sock".to_string(),
-        broker_socket: "/run/cos/extensions/broker.sock".to_string(),
+        control_socket: "/run/yuos/extensions/control.sock".to_string(),
+        broker_socket: "/run/yuos/extensions/broker.sock".to_string(),
     }
 }
 
@@ -335,7 +335,7 @@ fn a_worker_refuses_a_grant_minted_for_another_process() {
 fn a_grant_for_a_different_audience_is_not_accepted_here() {
     let signer = GrantSigner::from_secret([7u8; 32]);
     let mut other = claims(77);
-    other.audience = "cos.clawd.broker.v1".to_string();
+    other.audience = "cos.yuosd.broker.v1".to_string();
     let grant = signer.issue(other);
     assert!(matches!(
         signer.verify(&grant, &expectation("hello"), 2_000),

@@ -22,7 +22,7 @@ impl RequestMetadata {
     /// Capture process request metadata at an explicit composition boundary.
     pub fn from_process() -> Self {
         Self {
-            session_id: std::env::var("COS_SESSION")
+            session_id: std::env::var("YUOS_SESSION")
                 .ok()
                 .filter(|session_id| !session_id.is_empty()),
         }

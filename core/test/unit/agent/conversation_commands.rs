@@ -24,14 +24,14 @@ fn terminal_tool_line_has_no_surrounding_blank_lines() {
     let mut state = TerminalOutputState::default();
     let mut out = Vec::new();
 
-    state.write_line(&mut out, "[tool: cos_sysinfo]");
+    state.write_line(&mut out, "[tool: yu_sysinfo]");
     state.finish_line(&mut out);
     state.write_text(&mut out, "Ubuntu 26.04");
     state.finish_line(&mut out);
 
     assert_eq!(
         String::from_utf8(out).unwrap(),
-        "[tool: cos_sysinfo]\nUbuntu 26.04\n"
+        "[tool: yu_sysinfo]\nUbuntu 26.04\n"
     );
 }
 
@@ -41,11 +41,11 @@ fn terminal_tool_line_separates_unfinished_text_once() {
     let mut out = Vec::new();
 
     state.write_text(&mut out, "Let me check");
-    state.write_line(&mut out, "[tool: cos_sysinfo]");
+    state.write_line(&mut out, "[tool: yu_sysinfo]");
 
     assert_eq!(
         String::from_utf8(out).unwrap(),
-        "Let me check\n[tool: cos_sysinfo]\n"
+        "Let me check\n[tool: yu_sysinfo]\n"
     );
 }
 
@@ -54,22 +54,22 @@ fn terminal_heartbeat_line_finishes_before_tool_failure() {
     let mut state = TerminalOutputState::default();
     let mut out = Vec::new();
 
-    state.write_line(&mut out, "[tool: cos_sysinfo]");
+    state.write_line(&mut out, "[tool: yu_sysinfo]");
     state.write_text(&mut out, "...");
     state.finish_line(&mut out);
-    state.write_line(&mut out, "[tool failed: cos_sysinfo]");
+    state.write_line(&mut out, "[tool failed: yu_sysinfo]");
 
     assert_eq!(
         String::from_utf8(out).unwrap(),
-        "[tool: cos_sysinfo]\n...\n[tool failed: cos_sysinfo]\n"
+        "[tool: yu_sysinfo]\n...\n[tool failed: yu_sysinfo]\n"
     );
 }
 
 #[test]
 fn tool_failure_includes_elapsed_time_and_reason() {
     assert_eq!(
-        format_tool_failure("cos_proc", 1_250, "session not found: status"),
-        "[tool failed: cos_proc after 1.2s]\nsession not found: status"
+        format_tool_failure("yu_proc", 1_250, "session not found: status"),
+        "[tool failed: yu_proc after 1.2s]\nsession not found: status"
     );
 }
 
@@ -78,14 +78,14 @@ fn terminal_heartbeat_line_finishes_before_next_prompt() {
     let mut state = TerminalOutputState::default();
     let mut out = Vec::new();
 
-    state.write_line(&mut out, "[tool: cos_sysinfo]");
+    state.write_line(&mut out, "[tool: yu_sysinfo]");
     state.write_text(&mut out, "..");
     state.finish_line(&mut out);
     out.extend_from_slice(b"you> ");
 
     assert_eq!(
         String::from_utf8(out).unwrap(),
-        "[tool: cos_sysinfo]\n..\nyou> "
+        "[tool: yu_sysinfo]\n..\nyou> "
     );
 }
 
@@ -131,7 +131,7 @@ fn ask_rejects_empty_prompt() {
 fn ask_flag_alone_is_not_treated_as_prompt() {
     // Regression: feeding only flags must surface the usage hint
     // rather than silently using a flag string ("--full") as the
-    // prompt — which would route to clawd and either error
+    // prompt — which would route to yuosd and either error
     // opaquely or actually consume LLM tokens.
     let err = run("ask", &["--full".into()]).unwrap_err();
     assert!(err.contains("usage:"), "got {err}");
@@ -425,7 +425,7 @@ fn run_live_async(
     use crate::agent::llm::providers::mock::{MockProvider, MockResponse};
     let _lock = crate::test_env::lock_env();
     let data = tempfile::tempdir().unwrap();
-    let _data = crate::test_env::TestEnvVarGuard::set("COS_DATA_DIR", data.path().as_os_str());
+    let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", data.path().as_os_str());
     let mock = MockProvider::new(&cfg.model, cfg);
     for (text, tool_calls) in responses {
         match tool_calls {

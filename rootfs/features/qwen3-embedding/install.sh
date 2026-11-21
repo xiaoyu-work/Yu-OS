@@ -31,15 +31,15 @@ if [ -z "$ORT_VERSION" ]; then
 fi
 ORT_TAG="v${ORT_VERSION}"
 
-if ! qwen3_ort_genai_supported && [ "${COS_QWEN3_SKIP_ORT_GENAI:-0}" != "1" ]; then
+if ! qwen3_ort_genai_supported && [ "${YUOS_QWEN3_SKIP_ORT_GENAI:-0}" != "1" ]; then
     echo "  :: skipping qwen3-embedding on $DEB_ARCH: $ORT_GENAI_TAG has no Linux $DEB_ARCH CPU release asset"
-    echo "     set COS_QWEN3_SKIP_ORT_GENAI=1 to install the model files without an engine runtime"
+    echo "     set YUOS_QWEN3_SKIP_ORT_GENAI=1 to install the model files without an engine runtime"
     exit 0
 fi
 
 "$PROJECT_DIR/scripts/download-qwen3-embedding-model.sh" --rootfs "$ROOTFS"
 
-if [ "${COS_QWEN3_SKIP_ORT_GENAI:-0}" != "1" ]; then
+if [ "${YUOS_QWEN3_SKIP_ORT_GENAI:-0}" != "1" ]; then
     MOUNTED_BY_US=()
     cleanup_mounts() {
         local mp
@@ -80,20 +80,20 @@ if [ "${COS_QWEN3_SKIP_ORT_GENAI:-0}" != "1" ]; then
         cp -L /etc/resolv.conf "$ROOTFS/etc/resolv.conf"
     fi
 
-    if chroot "$ROOTFS" /usr/bin/env COS_DATA_DIR=/var/lib/cos /usr/local/bin/yu engine list ort \
+    if chroot "$ROOTFS" /usr/bin/env YUOS_DATA_DIR=/var/lib/yuos /usr/local/bin/yu engine list ort \
         | grep -q "\"active\":\"$ORT_TAG\""; then
         echo "  :: ort $ORT_TAG already active"
     else
         echo "  :: installing ort $ORT_TAG"
-        chroot "$ROOTFS" /usr/bin/env COS_DATA_DIR=/var/lib/cos /usr/local/bin/yu engine update ort --to "$ORT_TAG"
+        chroot "$ROOTFS" /usr/bin/env YUOS_DATA_DIR=/var/lib/yuos /usr/local/bin/yu engine update ort --to "$ORT_TAG"
     fi
 
-    if chroot "$ROOTFS" /usr/bin/env COS_DATA_DIR=/var/lib/cos /usr/local/bin/yu engine list ort-genai \
+    if chroot "$ROOTFS" /usr/bin/env YUOS_DATA_DIR=/var/lib/yuos /usr/local/bin/yu engine list ort-genai \
         | grep -q "\"active\":\"$ORT_GENAI_TAG\""; then
         echo "  :: ort-genai $ORT_GENAI_TAG already active"
     else
         echo "  :: installing ort-genai $ORT_GENAI_TAG"
-        chroot "$ROOTFS" /usr/bin/env COS_DATA_DIR=/var/lib/cos /usr/local/bin/yu engine update ort-genai --to "$ORT_GENAI_TAG"
+        chroot "$ROOTFS" /usr/bin/env YUOS_DATA_DIR=/var/lib/yuos /usr/local/bin/yu engine update ort-genai --to "$ORT_GENAI_TAG"
     fi
 
     cleanup_mounts

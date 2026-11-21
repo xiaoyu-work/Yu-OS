@@ -2,7 +2,7 @@ use axum::extract::rejection::JsonRejection;
 use axum::extract::{Path, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::{Extension, Json};
-use clawd_client::system_review::{PermissionChoice, ReviewStatus};
+use yuosd_client::system_review::{PermissionChoice, ReviewStatus};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use zeroize::Zeroizing;

@@ -1,7 +1,7 @@
 //! Process-level tests for update downgrade protection.
 //!
 //! The unit tests decide policy against constructed state. These drive
-//! the real thing: the compiled `claw-security-floor` binary, a real
+//! the real thing: the compiled `yuos-security-floor` binary, a real
 //! filesystem, real `dpkg` version ordering, and real file modes.
 //!
 //! Three properties are only observable here:
@@ -21,13 +21,13 @@ use std::process::Command;
 
 use yu::update::debver;
 
-const HELPER: &str = env!("CARGO_BIN_EXE_claw-security-floor");
+const HELPER: &str = env!("CARGO_BIN_EXE_yuos-security-floor");
 
 fn scratch(label: &str) -> PathBuf {
     let home = std::env::var_os("HOME")
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir);
-    let dir = home.join(".cache").join("cos-test-scratch").join(format!(
+    let dir = home.join(".cache").join("yuos-test-scratch").join(format!(
         "security-floor-process-{label}-{}",
         std::process::id()
     ));
@@ -150,12 +150,12 @@ fn version_validation_is_never_looser_than_dpkg() {
 fn write_manifest(dir: &Path, version: &str, component_digest: &str) -> PathBuf {
     let document = format!(
         concat!(
-            r#"{{"abi":1,"components":[{{"name":"clawd","path":"/usr/local/bin/clawd","#,
+            r#"{{"abi":1,"components":[{{"name":"yuosd","path":"/usr/local/bin/yuosd","#,
             r#""sha256":"{digest}"}}],"format":"claw.release-security/v1","#,
             r#""issued_at":"2026-01-01T00:00:00Z","minimum_compatible":{{"#,
-            r#""claw-os-agent":"0.2.0"}},"protocols":{{"agentd_worker":5,"#,
+            r#""yuos-agent":"0.2.0"}},"protocols":{{"agentd_worker":5,"#,
             r#""broker_envelope":2}},"release":{{"architecture":"amd64","#,
-            r#""component":"main","package":"claw-os-agent","suite":"trixie","#,
+            r#""component":"main","package":"yuos-agent","suite":"trixie","#,
             r#""version":"{version}"}},"revoked_digests":[],"revoked_keys":[],"#,
             r#""security_epoch":1,"valid_until":"2099-01-01T00:00:00Z"}}"#,
             "\n"
@@ -169,7 +169,7 @@ fn write_manifest(dir: &Path, version: &str, component_digest: &str) -> PathBuf 
 }
 
 fn install_component(root: &Path, bytes: &[u8]) -> String {
-    let path = root.join("usr/local/bin/clawd");
+    let path = root.join("usr/local/bin/yuosd");
     std::fs::create_dir_all(path.parent().expect("parent")).expect("create bin dir");
     std::fs::write(&path, bytes).expect("write component");
     yu::crypto::sha256_hex(bytes)
@@ -182,13 +182,13 @@ fn helper(root: &Path, args: &[&str]) -> std::process::Output {
         command.arg("--root").arg(root);
         command.args(rest);
     }
-    command.output().expect("run claw-security-floor")
+    command.output().expect("run yuos-security-floor")
 }
 
 #[test]
 fn the_helper_seeds_a_floor_and_then_refuses_to_walk_it_back() {
     let root = scratch("helper-lifecycle");
-    let digest = install_component(&root, b"clawd v2");
+    let digest = install_component(&root, b"yuosd v2");
     let newer = write_manifest(&root, "1:0.2.0+git200.gbbbbbbbbbbbb", &digest);
 
     let committed = helper(
@@ -196,13 +196,13 @@ fn the_helper_seeds_a_floor_and_then_refuses_to_walk_it_back() {
         &[
             "commit",
             "--package",
-            "claw-os-agent",
+            "yuos-agent",
             "--version",
             "1:0.2.0+git200.gbbbbbbbbbbbb",
             "--manifest",
             newer.to_str().expect("path"),
             "--installed",
-            "claw-os-agent=1:0.2.0+git200.gbbbbbbbbbbbb",
+            "yuos-agent=1:0.2.0+git200.gbbbbbbbbbbbb",
         ],
     );
     assert!(
@@ -217,13 +217,13 @@ fn the_helper_seeds_a_floor_and_then_refuses_to_walk_it_back() {
         &[
             "check-candidate",
             "--package",
-            "claw-os-agent",
+            "yuos-agent",
             "--version",
             "1:0.2.0+git100.gaaaaaaaaaaaa",
             "--manifest",
             older.to_str().expect("path"),
             "--installed",
-            "claw-os-agent=1:0.2.0+git200.gbbbbbbbbbbbb",
+            "yuos-agent=1:0.2.0+git200.gbbbbbbbbbbbb",
         ],
     );
     assert_eq!(
@@ -240,7 +240,7 @@ fn the_helper_seeds_a_floor_and_then_refuses_to_walk_it_back() {
         &[
             "check-incoming",
             "--package",
-            "claw-os-agent",
+            "yuos-agent",
             "--version",
             "1:0.2.0+git100.gaaaaaaaaaaaa",
         ],
@@ -251,7 +251,7 @@ fn the_helper_seeds_a_floor_and_then_refuses_to_walk_it_back() {
 #[test]
 fn a_commit_refuses_when_the_installed_files_do_not_match_the_manifest() {
     let root = scratch("helper-mismatch");
-    let digest = install_component(&root, b"clawd v2");
+    let digest = install_component(&root, b"yuosd v2");
     let manifest = write_manifest(&root, "1:0.2.0+git200.gbbbbbbbbbbbb", &digest);
     // Replace the component after the manifest was written: exactly the
     // shape of a partially completed or tampered unpack.
@@ -262,13 +262,13 @@ fn a_commit_refuses_when_the_installed_files_do_not_match_the_manifest() {
         &[
             "commit",
             "--package",
-            "claw-os-agent",
+            "yuos-agent",
             "--version",
             "1:0.2.0+git200.gbbbbbbbbbbbb",
             "--manifest",
             manifest.to_str().expect("path"),
             "--installed",
-            "claw-os-agent=1:0.2.0+git200.gbbbbbbbbbbbb",
+            "yuos-agent=1:0.2.0+git200.gbbbbbbbbbbbb",
         ],
     );
     assert!(!output.status.success());
@@ -278,7 +278,7 @@ fn a_commit_refuses_when_the_installed_files_do_not_match_the_manifest() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(
-        !root.join("var/lib/cos/security/floor.json").exists(),
+        !root.join("var/lib/yuos/security/floor.json").exists(),
         "a failed configure must not record a floor"
     );
 }
@@ -289,25 +289,25 @@ fn committed_state_is_root_readable_and_never_group_writable() {
     use std::os::unix::fs::PermissionsExt;
 
     let root = scratch("helper-modes");
-    let digest = install_component(&root, b"clawd v2");
+    let digest = install_component(&root, b"yuosd v2");
     let manifest = write_manifest(&root, "1:0.2.0+git200.gbbbbbbbbbbbb", &digest);
     let output = helper(
         &root,
         &[
             "commit",
             "--package",
-            "claw-os-agent",
+            "yuos-agent",
             "--version",
             "1:0.2.0+git200.gbbbbbbbbbbbb",
             "--manifest",
             manifest.to_str().expect("path"),
             "--installed",
-            "claw-os-agent=1:0.2.0+git200.gbbbbbbbbbbbb",
+            "yuos-agent=1:0.2.0+git200.gbbbbbbbbbbbb",
         ],
     );
     assert!(output.status.success());
 
-    let security_dir = root.join("var/lib/cos/security");
+    let security_dir = root.join("var/lib/yuos/security");
     let dir_mode = std::fs::metadata(&security_dir)
         .expect("stat state dir")
         .permissions()
@@ -342,23 +342,23 @@ fn committed_state_is_root_readable_and_never_group_writable() {
 #[test]
 fn a_second_commit_of_the_same_release_is_idempotent_and_chains() {
     let root = scratch("helper-idempotent");
-    let digest = install_component(&root, b"clawd v2");
+    let digest = install_component(&root, b"yuosd v2");
     let manifest = write_manifest(&root, "1:0.2.0+git200.gbbbbbbbbbbbb", &digest);
     let args = [
         "commit",
         "--package",
-        "claw-os-agent",
+        "yuos-agent",
         "--version",
         "1:0.2.0+git200.gbbbbbbbbbbbb",
         "--manifest",
         manifest.to_str().expect("path"),
         "--installed",
-        "claw-os-agent=1:0.2.0+git200.gbbbbbbbbbbbb",
+        "yuos-agent=1:0.2.0+git200.gbbbbbbbbbbbb",
     ];
     assert!(helper(&root, &args).status.success());
     assert!(helper(&root, &args).status.success());
 
-    let history = std::fs::read_to_string(root.join("var/lib/cos/security/history.jsonl"))
+    let history = std::fs::read_to_string(root.join("var/lib/yuos/security/history.jsonl"))
         .expect("read history");
     assert_eq!(
         history.lines().count(),
@@ -366,7 +366,7 @@ fn a_second_commit_of_the_same_release_is_idempotent_and_chains() {
         "each commit records one generation"
     );
     let floor =
-        std::fs::read_to_string(root.join("var/lib/cos/security/floor.json")).expect("read floor");
+        std::fs::read_to_string(root.join("var/lib/yuos/security/floor.json")).expect("read floor");
     assert!(floor.contains("\"generation\":2"));
     assert!(
         floor.contains("\"previous_sha256\""),
@@ -379,7 +379,7 @@ fn the_policy_command_reports_the_compiled_epoch_and_protocols() {
     let output = Command::new(HELPER)
         .arg("policy")
         .output()
-        .expect("run claw-security-floor policy");
+        .expect("run yuos-security-floor policy");
     assert!(output.status.success());
     let document: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("policy is JSON");
@@ -394,7 +394,7 @@ fn the_policy_command_reports_the_compiled_epoch_and_protocols() {
     );
     assert_eq!(
         document["protocols"]["broker_envelope"].as_u64(),
-        Some(u64::from(yu::clawd::wire::PROTOCOL_VERSION))
+        Some(u64::from(yu::yuosd::wire::PROTOCOL_VERSION))
     );
 }
 
@@ -403,6 +403,6 @@ fn an_unknown_argument_is_a_usage_error_not_a_silent_pass() {
     let output = Command::new(HELPER)
         .args(["check-candidate", "--nonsense", "x"])
         .output()
-        .expect("run claw-security-floor");
+        .expect("run yuos-security-floor");
     assert_ne!(output.status.code(), Some(0));
 }

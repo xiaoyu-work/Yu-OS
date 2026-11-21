@@ -2,7 +2,7 @@
 //!
 //! Every message recorded into [`crate::agent::memory::sqlite_fts::MemoryDb`]
 //! is also mirrored into [`crate::agent::memory::semantic::SemanticStore`]
-//! so the LLM can do similarity search via the `cos_recall_semantic`
+//! so the LLM can do similarity search via the `yu_recall_semantic`
 //! tool. Indexing is fire-and-forget — failures are logged at `warn!`
 //! and never propagate to the turn loop.
 //!

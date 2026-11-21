@@ -17,7 +17,7 @@ pub use object_state::Message as ObjectStateMessage;
 pub use scheduling_priority::Message as SchedulingPriorityMessage;
 pub use automatic_work::Message as AutomaticWorkMessage;
 
-use cos_agent_protocol::{
+use yuos_agent_protocol::{
     ActivityAttentionDecision, ActivityAttentionIssue, ActivityAttentionNotification,
     ActivityDecisionStatus, ActivityJobView, ActivityObjectStatus, ActivityReceiptOutcome,
     ActivityReceiptReport, ActivityReceiptSource, ActivityReceiptView, ActivityResource,
@@ -112,8 +112,8 @@ pub(crate) enum Action {
     Receipts(String),
     ExportContinuity(String),
     ImportContinuity {
-        request: cos_agent_protocol::ActivityContinuityImportRequest,
-        document: Box<cos_agent_protocol::ActivityContinuityDocument>,
+        request: yuos_agent_protocol::ActivityContinuityImportRequest,
+        document: Box<yuos_agent_protocol::ActivityContinuityDocument>,
     },
     GetCapabilityPolicy(String),
     SetCapabilityPolicy {
@@ -152,11 +152,11 @@ pub(crate) enum Action {
     GetAutomaticWork(String),
     SetAutomaticWork {
         activity_id: String,
-        request: cos_agent_protocol::AutoWorkSetRequest,
+        request: yuos_agent_protocol::AutoWorkSetRequest,
     },
     EnableAutomaticWork {
         activity_id: String,
-        request: cos_agent_protocol::AutoWorkEnabledRequest,
+        request: yuos_agent_protocol::AutoWorkEnabledRequest,
     },
     SetSchedulingPriority {
         activity_id: String,
@@ -197,8 +197,8 @@ pub enum Response {
     List(ActivityListResponse),
     Detail(Box<ActivityDetailResponse>),
     Receipts(ActivityReceiptsResponse),
-    ContinuityDocument(Box<cos_agent_protocol::ActivityContinuityDocument>),
-    ContinuityImported(Box<cos_agent_protocol::ActivityContinuityImportAcknowledgement>),
+    ContinuityDocument(Box<yuos_agent_protocol::ActivityContinuityDocument>),
+    ContinuityImported(Box<yuos_agent_protocol::ActivityContinuityImportAcknowledgement>),
     CapabilityPolicy(ActivityCapabilityPolicyResponse),
     CapabilityPolicySaved(Box<ActivityCapabilityPolicy>),
     ExecutionLimits(ActivityExecutionLimitsResponse),
@@ -207,8 +207,8 @@ pub enum Response {
     MonetaryBudgetSaved(Box<ActivityMonetaryBudget>),
     SchedulingPriority(ActivitySchedulingPriorityResponse),
     SchedulingPrioritySaved(Box<ActivitySchedulingPolicy>),
-    AutomaticWork(Box<cos_agent_protocol::ActivityAutoWorkResponse>),
-    AutomaticWorkSaved(Box<cos_agent_protocol::ActivityAutoWork>),
+    AutomaticWork(Box<yuos_agent_protocol::ActivityAutoWorkResponse>),
+    AutomaticWorkSaved(Box<yuos_agent_protocol::ActivityAutoWork>),
     ObjectState(ActivityObjectStateResponse),
     ObjectStateRecorded(Box<ObjectStateEntry>),
     Objects(ActivityObjectsResponse),

@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::caps::manifest::{ArgKind, Manifest, Need, Operation, Runtime, ScopeBinding};
 use crate::caps::{Cap, CapSet, Scope, Verb};
-use crate::clawd::routes::Command as ClawdCommand;
+use crate::yuosd::routes::Command as YuosdCommand;
 use crate::proc::{deregister_session, register_session, SessionInfo};
 
 mod captured;
@@ -35,7 +35,7 @@ pub fn run_app_stdio(
     Err("App stdio hosting requires Unix worker isolation".to_string())
 }
 
-use local::use_clawd_backend as use_clawd_app_session_backend;
+use local::use_yuosd_backend as use_yuosd_app_session_backend;
 
 pub(crate) fn app_runner_path() -> std::path::PathBuf {
     if let Some(path) = std::env::var_os("CLAW_APP_RUNNER_BIN") {
@@ -43,13 +43,13 @@ pub(crate) fn app_runner_path() -> std::path::PathBuf {
     }
     if let Ok(current) = std::env::current_exe() {
         if let Some(parent) = current.parent() {
-            let sibling = parent.join("claw-app-runner");
+            let sibling = parent.join("yuos-app-runner");
             if sibling.is_file() {
                 return sibling;
             }
             if parent.file_name() == Some(std::ffi::OsStr::new("deps")) {
                 if let Some(profile_dir) = parent.parent() {
-                    let profile_runner = profile_dir.join("claw-app-runner");
+                    let profile_runner = profile_dir.join("yuos-app-runner");
                     if profile_runner.is_file() {
                         return profile_runner;
                     }
@@ -57,7 +57,7 @@ pub(crate) fn app_runner_path() -> std::path::PathBuf {
             }
         }
     }
-    "/usr/local/bin/claw-app-runner".into()
+    "/usr/local/bin/yuos-app-runner".into()
 }
 
 /// One App launch bound to one verified package snapshot.
@@ -284,7 +284,7 @@ pub(crate) struct AppIdentitySession {
     parent_caps: Option<CapSet>,
     package: crate::provenance::runtime::PackageRef,
     /// The launcher's right to relay one App-session system-service
-    /// call for this worker. Issued by `clawd` at bind time, bound to
+    /// call for this worker. Issued by `yuosd` at bind time, bound to
     /// this launcher process, and deliberately never exported into the
     /// sandbox.
     relay: crate::worker::RelayHandle,
@@ -309,10 +309,10 @@ enum AppSessionBackend {
         proc_data_dir: std::path::PathBuf,
     },
     /// Session minted by the daemon. `handle` is the opaque, launcher-
-    /// bound grant clawd issued at registration; it authorises the pid
+    /// bound grant yuosd issued at registration; it authorises the pid
     /// bind, transient-cap updates and teardown for this session only,
     /// and is deliberately never exported into the App's environment.
-    Clawd {
+    Yuosd {
         proc_data_dir: std::path::PathBuf,
         handle: String,
     },
@@ -406,8 +406,8 @@ impl McpProcSession {
             if parent.caps.is_none() {
                 return Err("MCP parent session has no capabilities".to_string());
             }
-            let result = clawd_request(
-                ClawdCommand::McpSessionRegister,
+            let result = yuosd_request(
+                YuosdCommand::McpSessionRegister,
                 serde_json::json!({
                     "command": command,
                     "parent_caps": parent.caps,
@@ -417,17 +417,17 @@ impl McpProcSession {
                 .get("session_id")
                 .and_then(serde_json::Value::as_str)
                 .map(ToOwned::to_owned)
-                .ok_or_else(|| "clawd MCP session response omitted session_id".to_string())?;
+                .ok_or_else(|| "yuosd MCP session response omitted session_id".to_string())?;
             let proc_data_dir = result
                 .get("proc_data_dir")
                 .and_then(serde_json::Value::as_str)
                 .map(std::path::PathBuf::from)
-                .ok_or_else(|| "clawd MCP session response omitted proc_data_dir".to_string())?;
+                .ok_or_else(|| "yuosd MCP session response omitted proc_data_dir".to_string())?;
             let handle = result
                 .get("handle")
                 .and_then(serde_json::Value::as_str)
                 .map(ToOwned::to_owned)
-                .ok_or_else(|| "clawd MCP session response omitted handle".to_string())?;
+                .ok_or_else(|| "yuosd MCP session response omitted handle".to_string())?;
             return Ok(Some(Self {
                 session_id,
                 proc_data_dir,
@@ -447,8 +447,8 @@ impl McpProcSession {
     }
 
     pub fn bind_process(&self, pid: u32) -> Result<(), String> {
-        clawd_request(
-            ClawdCommand::AppSessionBind,
+        yuosd_request(
+            YuosdCommand::AppSessionBind,
             serde_json::json!({
                 "session_id": self.session_id,
                 "handle": self.handle,
@@ -484,8 +484,8 @@ impl McpProcSession {
 
 impl Drop for McpProcSession {
     fn drop(&mut self) {
-        if let Err(error) = clawd_request(
-            ClawdCommand::AppSessionDeregister,
+        if let Err(error) = yuosd_request(
+            YuosdCommand::AppSessionDeregister,
             serde_json::json!({
                 "session_id": self.session_id,
                 "handle": self.handle,
@@ -494,7 +494,7 @@ impl Drop for McpProcSession {
             tracing::warn!(
                 session_id = %self.session_id,
                 error = %error,
-                "failed to deregister MCP child session through clawd"
+                "failed to deregister MCP child session through yuosd"
             );
         }
     }
@@ -512,36 +512,36 @@ impl AppSessionControl {
 
 impl AppIdentitySession {
     pub fn for_native_host(app_id: &str) -> Result<Self, String> {
-        let result = clawd_request(
-            ClawdCommand::AppSessionRegisterNative,
+        let result = yuosd_request(
+            YuosdCommand::AppSessionRegisterNative,
             serde_json::json!({"app_id": app_id}),
         )?;
         let session_id = result
             .get("session_id")
             .and_then(serde_json::Value::as_str)
             .map(ToOwned::to_owned)
-            .ok_or_else(|| "clawd native App session response omitted session_id".to_string())?;
+            .ok_or_else(|| "yuosd native App session response omitted session_id".to_string())?;
         let proc_data_dir = result
             .get("proc_data_dir")
             .and_then(serde_json::Value::as_str)
             .map(std::path::PathBuf::from)
-            .ok_or_else(|| "clawd native App session response omitted proc_data_dir".to_string())?;
+            .ok_or_else(|| "yuosd native App session response omitted proc_data_dir".to_string())?;
         let handle = result
             .get("handle")
             .and_then(serde_json::Value::as_str)
             .map(ToOwned::to_owned)
-            .ok_or_else(|| "clawd native App session response omitted handle".to_string())?;
+            .ok_or_else(|| "yuosd native App session response omitted handle".to_string())?;
         let package = result
             .get("package")
             .cloned()
-            .ok_or_else(|| "clawd native App session response omitted package identity".to_string())
+            .ok_or_else(|| "yuosd native App session response omitted package identity".to_string())
             .and_then(|value| {
                 serde_json::from_value(value)
                     .map_err(|error| format!("invalid native App package identity: {error}"))
             })?;
         Ok(Self {
             session_id,
-            backend: AppSessionBackend::Clawd {
+            backend: AppSessionBackend::Yuosd {
                 proc_data_dir,
                 handle,
             },
@@ -598,7 +598,7 @@ impl AppIdentitySession {
             .as_ref()
             .map(|manifest| {
                 if declared.is_some_and(|operation| operation.needs.iter().any(|need| matches!(need.scope, ScopeBinding::OwnerPath { .. }))) {
-                    if !use_clawd_app_session_backend()? {
+                    if !use_yuosd_app_session_backend()? {
                         return Err("owner-path App needs require authenticated Root registration".to_string());
                     }
                     // Root rederives the actual owner; local preview is not authority.
@@ -704,14 +704,14 @@ impl AppIdentitySession {
                 launch.app_id()
             ));
         }
-        let clawd_backend = use_clawd_app_session_backend()?;
+        let yuosd_backend = use_yuosd_app_session_backend()?;
         // A desktop launcher need not manufacture a local parent row.
         // Root still derives its real ancestry/delegation from the kernel peer.
-        if clawd_backend
+        if yuosd_backend
             && matches!(&request, LaunchRequest::Gui { .. })
-            && std::env::var_os("COS_SESSION").is_none_or(|value| value.is_empty())
+            && std::env::var_os("YUOS_SESSION").is_none_or(|value| value.is_empty())
         {
-            return Self::register_with_clawd(
+            return Self::register_with_yuosd(
                 app_id,
                 &request,
                 None,
@@ -732,10 +732,10 @@ impl AppIdentitySession {
             return Err(format!("parent session cannot invoke `{}`", invoke.scope));
         }
 
-        if clawd_backend {
+        if yuosd_backend {
             // Root settles the complete plan; local derivation must not spend
             // one-time consent before the broker can consume it.
-            return Self::register_with_clawd(
+            return Self::register_with_yuosd(
                 app_id,
                 &request,
                 Some(parent_caps),
@@ -746,7 +746,7 @@ impl AppIdentitySession {
         Self::register_local(&parent, launch, &request, parent_caps, local_caps)
     }
 
-    fn register_with_clawd(
+    fn register_with_yuosd(
         app_id: &str,
         request: &LaunchRequest<'_>,
         parent_caps: Option<CapSet>,
@@ -756,13 +756,13 @@ impl AppIdentitySession {
         // Only `parent_caps` crosses the wire, and only ever to narrow
         // what the daemon already resolved. The launcher's identity —
         // including the session an approval grant binds to — is derived
-        // by `clawd` from this connection, never reported here.
+        // by `yuosd` from this connection, never reported here.
         let params = app_registration_params(app_id, request, parent_caps.as_ref(), package)?;
 
         let result = if matches!(request, LaunchRequest::Gui { .. }) {
             consent::register_with_wait(app_id, params).map_err(String::from)?
         } else {
-            match clawd_request(ClawdCommand::AppSessionRegister, params.clone()) {
+            match yuosd_request(YuosdCommand::AppSessionRegister, params.clone()) {
                 Ok(result) => result,
                 Err(error) => {
                     let ids = approval_requests(&error);
@@ -770,17 +770,17 @@ impl AppIdentitySession {
                         return Err(error.into());
                     }
                     wait_for_approvals(&ids)?;
-                    clawd_request(ClawdCommand::AppSessionRegister, params).map_err(String::from)?
+                    yuosd_request(YuosdCommand::AppSessionRegister, params).map_err(String::from)?
                 }
             }
         };
-        Self::from_clawd_registration(
+        Self::from_yuosd_registration(
             app_id, result, parent_caps, ceiling, package,
             matches!(request, LaunchRequest::Operation { .. }),
         )
     }
 
-    fn from_clawd_registration(
+    fn from_yuosd_registration(
         app_id: &str,
         result: serde_json::Value,
         parent_caps: Option<CapSet>,
@@ -793,32 +793,32 @@ impl AppIdentitySession {
             .get("session_id")
             .and_then(serde_json::Value::as_str)
             .map(ToOwned::to_owned)
-            .ok_or_else(|| "clawd App session response omitted session_id".to_string())?;
+            .ok_or_else(|| "yuosd App session response omitted session_id".to_string())?;
         let proc_data_dir = result
             .get("proc_data_dir")
             .and_then(serde_json::Value::as_str)
             .map(std::path::PathBuf::from)
-            .ok_or_else(|| "clawd App session response omitted proc_data_dir".to_string())?;
+            .ok_or_else(|| "yuosd App session response omitted proc_data_dir".to_string())?;
         let handle = result
             .get("handle")
             .and_then(serde_json::Value::as_str)
             .map(ToOwned::to_owned)
-            .ok_or_else(|| "clawd App session response omitted handle".to_string())?;
+            .ok_or_else(|| "yuosd App session response omitted handle".to_string())?;
         // The sandbox is built from what the daemon *granted*, not from
         // what this process resolved. Both are derived from the same
         // signed manifest and should agree, but only one of them is
-        // authority: clawd re-derives the launcher's identity, settles
+        // authority: yuosd re-derives the launcher's identity, settles
         // the approvals and applies the provenance ceiling itself.
         // Adopting its answer is what keeps the isolation shape and the
         // live grant describing the same world.
         let granted_caps = result
             .get("caps")
             .ok_or_else(|| {
-                "clawd App session response omitted the granted capability set".to_string()
+                "yuosd App session response omitted the granted capability set".to_string()
             })
             .and_then(|value| {
                 serde_json::from_value::<CapSet>(value.clone())
-                    .map_err(|error| format!("clawd granted an unreadable capability set: {error}"))
+                    .map_err(|error| format!("yuosd granted an unreadable capability set: {error}"))
             })?;
         // Defence in depth, not the enforcement point. A difference
         // here means the two sides disagree about the package's trust
@@ -827,7 +827,7 @@ impl AppIdentitySession {
             let (_, above) = ceiling.clamp(&granted_caps);
             if !above.is_empty() {
                 return Err(format!(
-                    "clawd granted App `{app_id}` {} capabilities above its {} provenance ceiling",
+                    "yuosd granted App `{app_id}` {} capabilities above its {} provenance ceiling",
                     above.len(),
                     ceiling.label()
                 ));
@@ -841,7 +841,7 @@ impl AppIdentitySession {
         let task_app_data_dir = decode_task_app_data_dir(result.get("task_app_data_dir"))?;
         Ok(Self {
             session_id,
-            backend: AppSessionBackend::Clawd {
+            backend: AppSessionBackend::Yuosd {
                 proc_data_dir,
                 handle,
             },
@@ -965,8 +965,8 @@ impl AppIdentitySession {
             AppSessionBackend::Local { .. } => {
                 crate::proc::bind_session_process(&self.session_id, pid)
             }
-            AppSessionBackend::Clawd { handle, .. } => clawd_request(
-                ClawdCommand::AppSessionBind,
+            AppSessionBackend::Yuosd { handle, .. } => yuosd_request(
+                YuosdCommand::AppSessionBind,
                 serde_json::json!({
                     "session_id": self.session_id,
                     "handle": handle,
@@ -998,7 +998,7 @@ impl AppIdentitySession {
     pub fn proc_data_dir(&self) -> &Path {
         match &self.backend {
             AppSessionBackend::Local { proc_data_dir }
-            | AppSessionBackend::Clawd { proc_data_dir, .. } => proc_data_dir,
+            | AppSessionBackend::Yuosd { proc_data_dir, .. } => proc_data_dir,
         }
     }
 
@@ -1271,9 +1271,9 @@ fn run_native_app_host_inner(
     let app_dir = app_dir
         .canonicalize()
         .map_err(|error| format!("canonicalize native App directory: {error}"))?;
-    if app_dir != Path::new("/usr/lib/cos/apps/mail-ai") {
+    if app_dir != Path::new("/usr/lib/yuos/apps/mail-ai") {
         return Err(format!(
-            "native mail-ai host must run from /usr/lib/cos/apps/mail-ai, got {}",
+            "native mail-ai host must run from /usr/lib/yuos/apps/mail-ai, got {}",
             app_dir.display()
         ));
     }
@@ -1294,7 +1294,7 @@ fn run_native_app_host_inner(
             "native mail-ai host command does not match the installed launcher".to_string(),
         );
     }
-    let runner = Path::new("/usr/local/bin/claw-app-runner")
+    let runner = Path::new("/usr/local/bin/yuos-app-runner")
         .canonicalize()
         .map_err(|error| format!("canonicalize native App runner: {error}"))?;
     validate_root_owned_executable(&runner)?;
@@ -1306,7 +1306,7 @@ fn run_native_app_host_inner(
             "native host App id `{app_id}` does not match manifest `{manifest_id}`"
         ));
     }
-    crate::clawd::app_sessions::validate_native_mail_launcher(std::process::id())?;
+    crate::yuosd::app_sessions::validate_native_mail_launcher(std::process::id())?;
     let package = crate::provenance::verify::verify_package(
         &app_dir,
         &crate::provenance::VerifyOptions::new(crate::provenance::PackageKind::App)
@@ -1324,10 +1324,10 @@ fn run_native_app_host_inner(
     let data = data.to_str().ok_or("App data path is not UTF-8")?;
     if let Some(proxy) = proxy {
         stdio::run_app_stdio_with_proxy(
-            &launch, "native-host", &[], data, "/usr/lib/cos/apps", proxy,
+            &launch, "native-host", &[], data, "/usr/lib/yuos/apps", proxy,
         )
     } else {
-        run_app_stdio(&launch, "native-host", &[], data, "/usr/lib/cos/apps")
+        run_app_stdio(&launch, "native-host", &[], data, "/usr/lib/yuos/apps")
     }
 }
 
@@ -1359,7 +1359,7 @@ fn set_app_session_transient_call(
         AppSessionBackend::Local { .. } => {
             crate::proc::set_app_session_transient_caps(session_id, call.map(|call| call.caps))
         }
-        AppSessionBackend::Clawd { handle, .. } => {
+        AppSessionBackend::Yuosd { handle, .. } => {
             let (authorization, action_digest) = call
                 .map(|call| (Some(call.authorization), Some(call.action_digest)))
                 .unwrap_or((None, None));
@@ -1369,7 +1369,7 @@ fn set_app_session_transient_call(
                 "authorization": authorization,
                 "action_digest": action_digest,
             });
-            clawd_request(ClawdCommand::AppSessionSetTransient, params)
+            yuosd_request(YuosdCommand::AppSessionSetTransient, params)
                 .map(|_| ())
                 .map_err(String::from)
         }
@@ -1378,13 +1378,13 @@ fn set_app_session_transient_call(
 
 /// A failed broker call plus whatever structured payload the daemon
 /// attached for this caller only.
-struct ClawdCallError {
+struct YuosdCallError {
     code: Option<String>,
     message: String,
     data: Option<serde_json::Value>,
 }
 
-impl ClawdCallError {
+impl YuosdCallError {
     fn with_context(&self, context: &str) -> Self {
         Self {
             code: self.code.clone(),
@@ -1394,8 +1394,8 @@ impl ClawdCallError {
     }
 }
 
-impl From<crate::clawd::protocol::BrokerError> for ClawdCallError {
-    fn from(error: crate::clawd::protocol::BrokerError) -> Self {
+impl From<crate::yuosd::protocol::BrokerError> for YuosdCallError {
+    fn from(error: crate::yuosd::protocol::BrokerError) -> Self {
         Self {
             code: Some(error.kind.code().to_string()),
             message: error.message,
@@ -1404,13 +1404,13 @@ impl From<crate::clawd::protocol::BrokerError> for ClawdCallError {
     }
 }
 
-impl From<ClawdCallError> for String {
-    fn from(error: ClawdCallError) -> String {
+impl From<YuosdCallError> for String {
+    fn from(error: YuosdCallError) -> String {
         error.to_string()
     }
 }
 
-impl std::fmt::Display for ClawdCallError {
+impl std::fmt::Display for YuosdCallError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let (Some(code), Some(data)) = (&self.code, &self.data) {
             return write!(
@@ -1423,15 +1423,15 @@ impl std::fmt::Display for ClawdCallError {
     }
 }
 
-fn clawd_request(
-    command: ClawdCommand,
+fn yuosd_request(
+    command: YuosdCommand,
     params: serde_json::Value,
-) -> Result<serde_json::Value, ClawdCallError> {
-    let response = crate::clawd::client::request_blocking(
-        crate::clawd::config::socket_path(),
-        crate::clawd::protocol::Request::build(command, params),
+) -> Result<serde_json::Value, YuosdCallError> {
+    let response = crate::yuosd::client::request_blocking(
+        crate::yuosd::config::socket_path(),
+        crate::yuosd::protocol::Request::build(command, params),
     )
-    .map_err(|error| ClawdCallError {
+    .map_err(|error| YuosdCallError {
         code: None,
         message: error.to_string(),
         data: None,
@@ -1441,9 +1441,9 @@ fn clawd_request(
     } else {
         let (code, message, data) = match response.error {
             Some(error) => (Some(error.code), error.message, error.data),
-            None => (None, format!("clawd {command} failed"), None),
+            None => (None, format!("yuosd {command} failed"), None),
         };
-        Err(ClawdCallError {
+        Err(YuosdCallError {
             code,
             message,
             data,
@@ -1513,7 +1513,7 @@ pub(crate) fn cancel_pending_approval_wait() {
 /// Approval request ids a denied launch is waiting on, if the daemon
 /// reported any. Ids are not authority — they only say which decisions
 /// this launcher needs.
-fn approval_requests(error: &ClawdCallError) -> Vec<String> {
+fn approval_requests(error: &YuosdCallError) -> Vec<String> {
     if error.code.as_deref() != Some("not_authorized") {
         return Vec::new();
     }
@@ -1539,7 +1539,7 @@ fn approval_requests(error: &ClawdCallError) -> Vec<String> {
 
 /// Block this process until every listed request is decided.
 ///
-/// Waiting in the launcher is what keeps the retry authentic: `clawd`
+/// Waiting in the launcher is what keeps the retry authentic: `yuosd`
 /// re-derives the same uid/pid/start identity on the follow-up call, so
 /// no token, environment variable or session string has to travel. The
 /// wait is bounded, ends immediately on a rejection, and reports a
@@ -1551,8 +1551,8 @@ fn wait_for_approvals(ids: &[String]) -> Result<(), String> {
 fn wait_for_approvals_until(ids: &[String], deadline: Instant) -> Result<(), String> {
     loop {
         check_approval_wait(deadline)?;
-        let result = clawd_request(
-            ClawdCommand::PermissionStatus,
+        let result = yuosd_request(
+            YuosdCommand::PermissionStatus,
             serde_json::json!({"ids": ids}),
         )
         .map_err(String::from)?;
@@ -1637,7 +1637,7 @@ fn load_manifest(app_dir: &Path) -> Result<Option<Manifest>, String> {
 /// Deliberately silent. The launcher is unprivileged and its clamp is
 /// only a sanity gate on the set it proposes; the enforcement point and
 /// the `provenance.ceiling_applied` audit record both live in
-/// `clawd::app_sessions`, so the log describes authority that was
+/// `yuosd::app_sessions`, so the log describes authority that was
 /// actually withheld rather than a request that was never made.
 fn apply_provenance_ceiling(ceiling: &crate::provenance::Ceiling, caps: CapSet) -> CapSet {
     ceiling.clamp(&caps).0
@@ -1924,8 +1924,8 @@ impl Drop for AppIdentitySession {
     fn drop(&mut self) {
         if self.gui_data_dir.is_some() {
             if !self.gui_retired {
-                if let Err(error) = clawd_request(
-                    ClawdCommand::AppGuiStop,
+                if let Err(error) = yuosd_request(
+                    YuosdCommand::AppGuiStop,
                     serde_json::json!({ "session_id": self.session_id }),
                 ) {
                     tracing::warn!(%error, "GUI retirement was not confirmed");
@@ -1946,9 +1946,9 @@ impl Drop for AppIdentitySession {
         }
         match &self.backend {
             AppSessionBackend::Local { .. } => deregister_session(&self.session_id),
-            AppSessionBackend::Clawd { handle, .. } => {
-                if let Err(error) = clawd_request(
-                    ClawdCommand::AppSessionDeregister,
+            AppSessionBackend::Yuosd { handle, .. } => {
+                if let Err(error) = yuosd_request(
+                    YuosdCommand::AppSessionDeregister,
                     serde_json::json!({
                         "session_id": self.session_id,
                         "handle": handle,
@@ -1957,7 +1957,7 @@ impl Drop for AppIdentitySession {
                     tracing::warn!(
                         session_id = %self.session_id,
                         error = %error,
-                        "failed to deregister App session through clawd"
+                        "failed to deregister App session through yuosd"
                     );
                 }
             }
@@ -1990,14 +1990,14 @@ const SAFE_APP_ENV_KEYS: &[&str] = &[
     "DBUS_SESSION_BUS_ADDRESS",
     "XAUTHORITY",
     "PULSE_SERVER",
-    "COS_SESSION",
-    "COS_TRACE_ID",
-    "COS_SPAN_ID",
-    "COS_BIN",
-    "COS_VERSION",
-    "COS_SDK_PYTHON_DIR",
-    "COS_SNAPSHOT",
-    "COS_PERMS_MODE",
+    "YUOS_SESSION",
+    "YUOS_TRACE_ID",
+    "YUOS_SPAN_ID",
+    "YUOS_BIN",
+    "YUOS_VERSION",
+    "YUOS_SDK_PYTHON_DIR",
+    "YUOS_SNAPSHOT",
+    "YUOS_PERMS_MODE",
 ];
 
 const PANEL_APPLET_ENV_KEYS: &[&str] = &[
@@ -2147,7 +2147,7 @@ pub(crate) fn apply_routed_identity(_command: &mut Command) -> Result<(), String
 /// Build the Python launcher script shared by [`run_python_app`] (one-
 /// shot operations) and [`launch_gui`] (long-lived desktop surface).
 ///
-/// The script makes the `claw_os_sdk` + `cos_runtime` packages
+/// The script makes the `yuos_sdk` + `yuos_runtime` packages
 /// importable, loads the app's `main.py`, and calls `run(command,
 /// args)`. The GUI path passes the manifest's `desktop.exec` value as
 /// `command`; an op invocation passes the operation name.
@@ -2161,32 +2161,32 @@ fn python_wrapper(
     Ok(format!(
         r#"
 import importlib.util, json, sys, os
-os.environ.setdefault("COS_DATA_DIR", {data_dir})
-os.environ.setdefault("COS_APPS_DIR", {apps_dir})
-# Make the claw_os_sdk + cos_runtime packages importable from every
-# app, so Python apps can `from cos_runtime import policy` (capability
-# checks) and `from claw_os_sdk import ai` (AI features) without
+os.environ.setdefault("YUOS_DATA_DIR", {data_dir})
+os.environ.setdefault("YUOS_APPS_DIR", {apps_dir})
+# Make the yuos_sdk + yuos_runtime packages importable from every
+# app, so Python apps can `from yuos_runtime import policy` (capability
+# checks) and `from yuos_sdk import ai` (AI features) without
 # bundling either tree into each app. Honour an explicit override;
 # otherwise fall back to the common production install path and the
 # in-repo dev-checkout paths.
-_sdk_override = os.environ.get("COS_SDK_PYTHON_DIR")
+_sdk_override = os.environ.get("YUOS_SDK_PYTHON_DIR")
 _sdk_candidates = []
 if _sdk_override:
     _sdk_candidates.extend(_sdk_override.split(os.pathsep))
-_sdk_candidates.append("/usr/lib/cos/python")
-_apps_root = os.environ.get("COS_APPS_DIR") or ""
+_sdk_candidates.append("/usr/lib/yuos/python")
+_apps_root = os.environ.get("YUOS_APPS_DIR") or ""
 if _apps_root:
     _sdk_candidates.append(
         os.path.normpath(
-            os.path.join(_apps_root, os.pardir, "claw-os-sdk", "python", "src")
+            os.path.join(_apps_root, os.pardir, "yuos-sdk", "python", "src")
         )
     )
     _sdk_candidates.append(
         os.path.normpath(
-            os.path.join(_apps_root, os.pardir, "cos-runtime", "python", "src")
+            os.path.join(_apps_root, os.pardir, "yuos-runtime", "python", "src")
         )
     )
-_wanted = ("claw_os_sdk", "cos_runtime")
+_wanted = ("yuos_sdk", "yuos_runtime")
 for _cand in _sdk_candidates:
     if not _cand or not os.path.isdir(_cand):
         continue
@@ -2392,10 +2392,10 @@ fn validated_operation_stdin(
 /// Non-Python runtimes get the command + args via env vars instead of
 /// the Python wrapper:
 ///
-/// * `COS_COMMAND`     — string (e.g. "ls")
-/// * `COS_ARGS_JSON`   — JSON-encoded array of strings
-/// * `COS_DATA_DIR`    — same as the python wrapper
-/// * `COS_APPS_DIR`    — same
+/// * `YUOS_COMMAND`     — string (e.g. "ls")
+/// * `YUOS_ARGS_JSON`   — JSON-encoded array of strings
+/// * `YUOS_DATA_DIR`    — same as the python wrapper
+/// * `YUOS_APPS_DIR`    — same
 ///
 /// The app writes one JSON document to stdout. Empty stdout is
 /// allowed and reported as `Ok(None)`. On non-zero exit, the
@@ -2507,8 +2507,8 @@ fn run_operation(
     let stdin_data = validated_operation_stdin(launch, command, stdin_data)?;
 
     let extra_env = BTreeMap::from([
-        ("COS_COMMAND".to_string(), command.to_string()),
-        ("COS_ARGS_JSON".to_string(), args_json),
+        ("YUOS_COMMAND".to_string(), command.to_string()),
+        ("YUOS_ARGS_JSON".to_string(), args_json),
     ]);
     let gated = captured::GatedCommand::new(program, launch_argv)?;
     let prepared = prepare_app_worker(
@@ -2595,8 +2595,8 @@ fn run_operation(
 ///
 /// Unlike [`run_app`] (one-shot, stdout captured as a JSON envelope),
 /// this waits for the Root-owned GUI instance and its checked retirement.
-/// The entry receives `COS_APP_GUI=1` and the verified `desktop.exec` as
-/// `COS_COMMAND`; non-Python runtimes also receive that literal selector
+/// The entry receives `YUOS_APP_GUI=1` and the verified `desktop.exec` as
+/// `YUOS_COMMAND`; non-Python runtimes also receive that literal selector
 /// followed by the unchanged user arguments. The App runs its own event
 /// loop; bounded stdout and stderr diagnostics are returned on completion.
 ///

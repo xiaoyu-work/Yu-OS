@@ -41,7 +41,7 @@ fn prompt_catalog_contains_metadata_but_not_skill_body() {
     let user = tempdir().unwrap();
     write_skill(
         system.path(),
-        "claw-os",
+        "yuos",
         "Operate the Claw system layer",
         "SECRET_INSTRUCTION_BODY",
     );
@@ -49,7 +49,7 @@ fn prompt_catalog_contains_metadata_but_not_skill_body() {
 
     let catalog = render_prompt_catalog(&load).expect("catalog");
 
-    assert!(catalog.contains("\"id\": \"claw-os\""));
+    assert!(catalog.contains("\"id\": \"yuos\""));
     assert!(catalog.contains("Operate the Claw system layer"));
     assert!(catalog.contains("\"source\": \"builtin\""));
     assert!(catalog.contains("command=read"));
@@ -63,14 +63,14 @@ fn instruction_disclosure_returns_body_and_resource_names_only() {
     let user = tempdir().unwrap();
     write_skill(
         system.path(),
-        "claw-os",
+        "yuos",
         "Operate the Claw system layer",
         "Use the matching playbook.",
     );
-    add_resource(system.path(), "claw-os", "diagnostics.md", "PRIVATE_RESOURCE_CONTENT");
+    add_resource(system.path(), "yuos", "diagnostics.md", "PRIVATE_RESOURCE_CONTENT");
     let load = layered(system.path(), user.path());
 
-    let value = disclose_instructions(&load.skills["claw-os"]).expect("instructions");
+    let value = disclose_instructions(&load.skills["yuos"]).expect("instructions");
 
     assert_eq!(value["disclosure_level"], "instructions");
     assert!(value["instructions"]
@@ -84,17 +84,17 @@ fn instruction_disclosure_returns_body_and_resource_names_only() {
 fn resource_disclosure_reads_one_requested_file() {
     let system = tempdir().unwrap();
     let user = tempdir().unwrap();
-    write_skill(system.path(), "claw-os", "Claw", "Read details as needed.");
+    write_skill(system.path(), "yuos", "Claw", "Read details as needed.");
     add_resource(
         system.path(),
-        "claw-os",
+        "yuos",
         "playbooks/network.md",
         "NETWORK_PLAYBOOK",
     );
     let load = layered(system.path(), user.path());
 
     let value =
-        disclose_resource(&load.skills["claw-os"], "playbooks/network.md").expect("resource");
+        disclose_resource(&load.skills["yuos"], "playbooks/network.md").expect("resource");
 
     assert_eq!(value["disclosure_level"], "resource");
     assert_eq!(value["path"], "playbooks/network.md");
@@ -105,8 +105,8 @@ fn resource_disclosure_reads_one_requested_file() {
 fn resource_disclosure_rejects_escape_and_absolute_paths() {
     let system = tempdir().unwrap();
     let user = tempdir().unwrap();
-    write_skill(system.path(), "claw-os", "Claw", "Body");
-    let skill = &layered(system.path(), user.path()).skills["claw-os"];
+    write_skill(system.path(), "yuos", "Claw", "Body");
+    let skill = &layered(system.path(), user.path()).skills["yuos"];
 
     assert!(disclose_resource(skill, "../secret").is_err());
     assert!(disclose_resource(skill, "/etc/passwd").is_err());
@@ -123,11 +123,11 @@ fn resource_disclosure_rejects_symlinks() {
     let system = tempdir().unwrap();
     let user = tempdir().unwrap();
     let outside = tempdir().unwrap();
-    write_skill(system.path(), "claw-os", "Claw", "Body");
+    write_skill(system.path(), "yuos", "Claw", "Body");
     fs::write(outside.path().join("secret.md"), "SECRET").unwrap();
     symlink(
         outside.path().join("secret.md"),
-        system.path().join("claw-os").join("linked.md"),
+        system.path().join("yuos").join("linked.md"),
     )
     .unwrap();
     let load = layered(system.path(), user.path());
@@ -136,23 +136,23 @@ fn resource_disclosure_rejects_symlinks() {
     // disclosure layer has to reason about: the package no longer
     // verifies at all, so the skill is quarantined before any resource
     // can be requested.
-    assert!(!load.skills.contains_key("claw-os"));
-    assert!(load.errors["claw-os"].contains("symlink"));
+    assert!(!load.skills.contains_key("yuos"));
+    assert!(load.errors["yuos"].contains("symlink"));
 }
 
 #[test]
 fn builtin_skill_skips_third_party_guard() {
     let system = tempdir().unwrap();
     let user = tempdir().unwrap();
-    write_skill(system.path(), "claw-os", "Claw", "Body");
-    fs::File::create(system.path().join("claw-os").join("large.bin"))
+    write_skill(system.path(), "yuos", "Claw", "Body");
+    fs::File::create(system.path().join("yuos").join("large.bin"))
         .unwrap()
         .set_len(6 * 1024 * 1024)
         .unwrap();
-    reseal(system.path(), "claw-os");
+    reseal(system.path(), "yuos");
     let load = layered(system.path(), user.path());
 
-    assert!(disclose_instructions(&load.skills["claw-os"]).is_ok());
+    assert!(disclose_instructions(&load.skills["yuos"]).is_ok());
 }
 
 #[test]

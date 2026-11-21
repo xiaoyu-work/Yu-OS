@@ -1,6 +1,6 @@
 //! Durable, per-domain trust generation state.
 //!
-//! A long-lived daemon (`clawd`, `claw-agentd`) loads the trust store
+//! A long-lived daemon (`yuosd`, `yuos-agentd`) loads the trust store
 //! once and would otherwise keep revoked keys and stale verification
 //! caches for its entire lifetime. Re-reading and re-hashing every
 //! trust file before every launch, disclosure and attach would be
@@ -86,7 +86,7 @@ use super::fsec;
 pub const TRUST_STATE_SCHEMA_V1: &str = "claw.trust-state/v1";
 
 /// File name of the per-domain state file, stored next to the domain's
-/// roots (`/etc/cos/trust/state.json`, `~/.config/cos/trust/state.json`).
+/// roots (`/etc/yuos/trust/state.json`, `~/.config/yuos/trust/state.json`).
 pub const TRUST_STATE_FILE: &str = "state.json";
 
 /// Which trust domain a root belongs to. Domains version independently
@@ -94,7 +94,7 @@ pub const TRUST_STATE_FILE: &str = "state.json";
 /// system domain and vice versa.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TrustDomain {
-    /// Root-owned vendor + operator roots under `/usr/lib/cos` and `/etc/cos`.
+    /// Root-owned vendor + operator roots under `/usr/lib/yuos` and `/etc/yuos`.
     System,
     /// One owner's publisher + developer roots, keyed by uid.
     Owner(u32),

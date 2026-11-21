@@ -4,7 +4,7 @@
 //! `voice/playback.rs`. The eventual canonical playback surface will
 //! be a cpal-backed pipeline that supports streaming, stop/pause
 //! handles, and raw-PCM ingestion. This module ships the narrowest
-//! possible thing that lets `cos` *play a file from disk and block
+//! possible thing that lets `yu` *play a file from disk and block
 //! until done*, using whatever audio facility the host OS exposes
 //! natively.
 //!
@@ -14,7 +14,7 @@
 //!     by the OS loader, ships with every Windows install). WAV only.
 //!   * **macOS**   — `afplay` (built into every macOS since 10.5).
 //!     Handles WAV / MP3 / AIFF / M4A / CAF natively.
-//!   * **Linux**   — explicit `COS_AUDIO_PLAYER` env-var override
+//!   * **Linux**   — explicit `YUOS_AUDIO_PLAYER` env-var override
 //!     (one binary path) takes precedence; otherwise format-aware
 //!     fallback through a small list of standard CLI players.
 //!     `aplay` is intentionally never picked for non-WAV.
@@ -44,7 +44,7 @@
 //! ## Subprocess timeouts and cancellation
 //!
 //! All CLI-backed playback paths (afplay / paplay / ffplay / mpg123 /
-//! aplay / `COS_AUDIO_PLAYER`) hand the file to a child process via
+//! aplay / `YUOS_AUDIO_PLAYER`) hand the file to a child process via
 //! `Command::spawn`, then poll with a timeout. If the timeout fires
 //! the child is killed and `PlayerTimedOut` is returned; if the
 //! caller drops the future / panics during a blocking wait, a
@@ -197,7 +197,7 @@ pub enum SystemPlaybackError {
         attempted: Vec<&'static str>,
     },
 
-    /// The configured `COS_AUDIO_PLAYER` binary couldn't be spawned
+    /// The configured `YUOS_AUDIO_PLAYER` binary couldn't be spawned
     /// (missing executable / permission denied / etc).
     ConfiguredPlayerUnavailable { player: PathBuf, source: io::Error },
 
@@ -240,7 +240,7 @@ impl fmt::Display for SystemPlaybackError {
             ),
             Self::ConfiguredPlayerUnavailable { player, source } => write!(
                 f,
-                "COS_AUDIO_PLAYER '{}' could not be spawned: {source}",
+                "YUOS_AUDIO_PLAYER '{}' could not be spawned: {source}",
                 player.display()
             ),
             Self::PlayerFailed {
@@ -487,7 +487,7 @@ mod backend {
         // 1. Honour an explicit override first. We don't try to
         //    second-guess what the user configured — if it fails to
         //    spawn, we surface that directly.
-        if let Some(player) = std::env::var_os("COS_AUDIO_PLAYER") {
+        if let Some(player) = std::env::var_os("YUOS_AUDIO_PLAYER") {
             let player_path = PathBuf::from(&player);
             return run(player_path, path);
         }
@@ -507,8 +507,8 @@ mod backend {
     }
 
     pub fn detect(format: PlaybackFormat) -> Option<String> {
-        if let Some(p) = std::env::var_os("COS_AUDIO_PLAYER") {
-            return Some(format!("COS_AUDIO_PLAYER={}", PathBuf::from(p).display()));
+        if let Some(p) = std::env::var_os("YUOS_AUDIO_PLAYER") {
+            return Some(format!("YUOS_AUDIO_PLAYER={}", PathBuf::from(p).display()));
         }
         for (bin, supports) in CHAIN {
             if supports(format) && which(bin) {

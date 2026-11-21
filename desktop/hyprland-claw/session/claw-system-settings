@@ -14,7 +14,7 @@ from gi.repository import Gio, GLib
 
 
 LOGIN = "/usr/libexec/claw-desktop-login"
-UPDATES = "/usr/libexec/claw-os-updates"
+UPDATES = "/usr/libexec/yuos-updates"
 SERVICE = "org.freedesktop.login1"
 ACCOUNT_ACTIONS = {"create-user", "set-user-password"}
 
@@ -51,7 +51,7 @@ def authorize(uid, session, action):
     # The sandbox lives outside the logind scope. Authenticate against the
     # installed session subscriber, never an App-supplied PID or a root leader.
     scope = Path(f"/sys/fs/cgroup/user.slice/user-{uid}.slice/session-{session}.scope")
-    subscriber = Path("/usr/local/bin/claw-display-session")
+    subscriber = Path("/usr/local/bin/yuos-display-session")
     for pid in (pid for leaf in scope.glob("claw-login-*/cgroup.procs")
                 for pid in leaf.read_text().split()):
         process = Path("/proc") / pid
@@ -181,7 +181,7 @@ def main(action, uid):
         return
     elif action in jobs:
         run("/usr/bin/systemctl", "start", "--no-block",
-            f"claw-os-update-{jobs[action]}.service")
+            f"yuos-update-{jobs[action]}.service")
     elif action in update_actions:
         run(UPDATES, update_actions[action])
     elif action == "restart-for-updates":

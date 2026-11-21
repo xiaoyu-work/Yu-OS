@@ -98,7 +98,7 @@ ShellRoot {
             root.submitted = "";
             root.notice = qsTr("Opening your desktop…");
             Greetd.launch(["/usr/bin/systemd-cat", "--identifier=claw-desktop",
-                           "/usr/local/bin/claw-display-session", "--desktop"], ["XDG_SESSION_TYPE=wayland"]);
+                           "/usr/local/bin/yuos-display-session", "--desktop"], ["XDG_SESSION_TYPE=wayland"]);
         }
     }
 
@@ -112,7 +112,7 @@ ShellRoot {
 
         Image {
             anchors.fill: parent
-            source: "file:///usr/share/backgrounds/claw-os/yuos-default.jpg"
+            source: "file:///usr/share/backgrounds/yuos/yuos-default.jpg"
             fillMode: Image.PreserveAspectCrop
             sourceSize.width: Math.min(3200, Math.max(1280, Math.ceil(width * Screen.devicePixelRatio)))
             asynchronous: true

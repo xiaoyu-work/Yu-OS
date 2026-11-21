@@ -11,11 +11,11 @@ use serde_json::{json, Value};
 use super::{Tool, ToolResult};
 use crate::activities::ActivityWorkCheckpoint;
 
-pub(crate) const CHECKPOINT_TOOL: &str = "cos_activity_checkpoint";
+pub(crate) const CHECKPOINT_TOOL: &str = "yu_activity_checkpoint";
 pub(crate) const WORK_INSTRUCTIONS: &str = "\
 This task is one bounded segment of an explicitly enabled Activity. Work on the \
 current next task, using ordinary authorized tools. Before ending, call \
-cos_activity_checkpoint as the only tool call in its response. Report completed \
+yu_activity_checkpoint as the only tool call in its response. Report completed \
 steps and canonical App object artifact references accurately. Root validates \
 and attaches newly reported declarations without reading the objects. A handoff is a \
 caller report, not verified effects, permission or goal completion. Use continue \
@@ -25,7 +25,7 @@ verification. Use blocked when human input is needed. Do not repeat uncertain \
 side effects. The handoff ends this segment; no further tools may run.";
 pub(crate) const WORK_FINALIZATION: &str = "\
 This is the last allowed turn of this Activity work segment. Do not perform \
-further operational tools. Call cos_activity_checkpoint alone to hand off the \
+further operational tools. Call yu_activity_checkpoint alone to hand off the \
 results already collected and a concrete next task, wait, or review decision. \
 Do not claim goal completion. If safe continuation is unclear, request review.";
 

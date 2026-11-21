@@ -10,7 +10,7 @@
 //! if a lease were somehow re-created, records from the older lifetime
 //! are recognisable and an older epoch can no longer commit.
 //!
-//! Nothing outside root `clawd` holds a descriptor on these files.
+//! Nothing outside root `yuosd` holds a descriptor on these files.
 //! Workers, Apps and MCP servers reach the journal only by asking the
 //! broker, which derives task, session and owner from the grant it
 //! verified and passes [`EventSource::Worker`] so the ACL applies.
@@ -578,7 +578,7 @@ static LEASES: Mutex<Option<LeaseRegistry>> = Mutex::new(None);
 
 /// The writer lease for `root`, acquiring it on first use.
 ///
-/// Keyed by journal root so a test that rebinds `COS_DATA_DIR` gets its
+/// Keyed by journal root so a test that rebinds `YUOS_DATA_DIR` gets its
 /// own lease and epoch instead of inheriting another directory's.
 pub fn lease_for(root: &Path) -> Result<Arc<WriterLease>, JournalError> {
     let mut guard = LEASES

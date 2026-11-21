@@ -14,9 +14,9 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use claw_display_control::{workload, ProcessIdentity};
+use yuos_display_control::{workload, ProcessIdentity};
 
-use crate::clawd::client_identity::FsIdentityGuard;
+use crate::yuosd::client_identity::FsIdentityGuard;
 
 mod backend;
 mod metadata_scope;
@@ -474,7 +474,7 @@ impl NativeFsView {
             .custom_flags(libc::O_CLOEXEC | libc::O_NOFOLLOW)
             .open("/dev/fuse")
             .map_err(|error| format!("required /dev/fuse: {error}"))?;
-        let (gid, _) = crate::clawd::client_identity::owner_groups(owner)?;
+        let (gid, _) = crate::yuosd::client_identity::owner_groups(owner)?;
         let target =
             CString::new(mountpoint.as_os_str().as_bytes()).map_err(|error| error.to_string())?;
         let source =

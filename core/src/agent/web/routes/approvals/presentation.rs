@@ -5,7 +5,7 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json,
 };
-use clawd_client::system_review::{
+use yuosd_client::system_review::{
     PendingReviews, PermissionChoice, PermissionSelection, ReviewAction, ReviewDecision,
     ReviewKind, ReviewStatus, SystemReview,
 };
@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use super::{bad_request, internal, validate_decision_input};
-use crate::agent::web::routes::clawd;
-use crate::clawd::routes::Command;
+use crate::agent::web::routes::yuosd;
+use crate::yuosd::routes::Command;
 
 type Failure = (StatusCode, Json<Value>);
 
@@ -27,10 +27,10 @@ struct ApprovalView {
     description: String,
     target: String,
     reason: String,
-    risk: clawd_client::system_review::ReviewRisk,
+    risk: yuosd_client::system_review::ReviewRisk,
     choices: Vec<PermissionChoice>,
     verb: String,
-    details: Vec<clawd_client::system_review::ReviewDetail>,
+    details: Vec<yuosd_client::system_review::ReviewDetail>,
     diagnostic: Option<String>,
 }
 
@@ -41,10 +41,10 @@ struct SystemApprovalView {
     kind: ReviewKind,
     status: ReviewStatus,
     status_message: Option<String>,
-    subject: clawd_client::system_review::ReviewSubject,
+    subject: yuosd_client::system_review::ReviewSubject,
     initiator: String,
-    context: Vec<clawd_client::system_review::ReviewDetail>,
-    disclosures: Vec<clawd_client::system_review::ReviewDetail>,
+    context: Vec<yuosd_client::system_review::ReviewDetail>,
+    disclosures: Vec<yuosd_client::system_review::ReviewDetail>,
     contract_digest: Option<String>,
     actions: Vec<ReviewAction>,
 }
@@ -118,9 +118,9 @@ fn project(review: SystemReview) -> Result<ApprovalView, Failure> {
 
 pub(super) async fn show(id: &str) -> Result<SystemReview, Failure> {
     validate_decision_input(id, None)?;
-    let value = clawd::request(Command::SystemReviewShow, json!({"id":id}))
+    let value = yuosd::request(Command::SystemReviewShow, json!({"id":id}))
         .await
-        .map_err(clawd::RpcError::into_api_error)?;
+        .map_err(yuosd::RpcError::into_api_error)?;
     let review: SystemReview = serde_json::from_value(value)
         .map_err(|error| internal(format!("Invalid OS review: {error}")))?;
     if review.id != id {
@@ -133,9 +133,9 @@ pub(super) async fn show(id: &str) -> Result<SystemReview, Failure> {
 }
 
 pub async fn pending_reviews() -> Result<Json<Value>, Failure> {
-    let value = clawd::request(Command::SystemReviewPending, json!({"limit":100}))
+    let value = yuosd::request(Command::SystemReviewPending, json!({"limit":100}))
         .await
-        .map_err(clawd::RpcError::into_api_error)?;
+        .map_err(yuosd::RpcError::into_api_error)?;
     let pending: PendingReviews = serde_json::from_value(value)
         .map_err(|error| internal(format!("Invalid OS review inventory: {error}")))?;
     let mut reviews = Vec::new();
@@ -159,9 +159,9 @@ pub async fn pending_reviews() -> Result<Json<Value>, Failure> {
 }
 
 pub async fn task_reviews(Path(id): Path<String>) -> Result<Json<Value>, Failure> {
-    let task = clawd::request(Command::TaskGet, json!({"id":id}))
+    let task = yuosd::request(Command::TaskGet, json!({"id":id}))
         .await
-        .map_err(clawd::RpcError::into_api_error)?;
+        .map_err(yuosd::RpcError::into_api_error)?;
     if task.get("id").and_then(Value::as_str) != Some(id.as_str()) {
         return Err(internal(
             "Task approval response has a different task identity.".into(),
@@ -197,9 +197,9 @@ pub async fn task_reviews(Path(id): Path<String>) -> Result<Json<Value>, Failure
 }
 
 pub async fn recent_reviews() -> Result<Json<Value>, Failure> {
-    let value = clawd::request(Command::PermissionRecent, json!({"limit":50}))
+    let value = yuosd::request(Command::PermissionRecent, json!({"limit":50}))
         .await
-        .map_err(clawd::RpcError::into_api_error)?;
+        .map_err(yuosd::RpcError::into_api_error)?;
     let requests = value
         .get("requests")
         .and_then(Value::as_array)
@@ -267,9 +267,9 @@ pub async fn cancel_system_review(
     super::authorization::origin(&headers, &state)?;
     let review = show(&id).await?;
     let decision = system_decision_for(&review, body, true)?;
-    clawd::request(Command::SystemReviewCancel, json!({"review":decision}))
+    yuosd::request(Command::SystemReviewCancel, json!({"review":decision}))
         .await
-        .map_err(clawd::RpcError::into_api_error)?;
+        .map_err(yuosd::RpcError::into_api_error)?;
     let refreshed = show(&id).await?;
     if refreshed.status == ReviewStatus::Pending {
         return Err(internal(
@@ -345,9 +345,9 @@ pub async fn decide_review(
     let review = show(&id).await?;
     let decision = decision_for(&review, body)?;
     if decision.action == ReviewAction::Cancel {
-        clawd::request(Command::SystemReviewCancel, json!({"review":decision}))
+        yuosd::request(Command::SystemReviewCancel, json!({"review":decision}))
             .await
-            .map_err(clawd::RpcError::into_api_error)?;
+            .map_err(yuosd::RpcError::into_api_error)?;
     } else {
         return Err((
             StatusCode::CONFLICT,
