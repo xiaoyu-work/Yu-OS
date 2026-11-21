@@ -89,6 +89,10 @@ def backend(completed, staging=None):
                 self.end_sign_in()
             elif action == "saveModel":
                 self.save_model(message)
+            elif action == "decisionStatus":
+                self.decision_status()
+            elif action == "saveDecision":
+                self.save_decision(message.get("model"))
             elif action == "finish":
                 self.finish(message)
 
@@ -294,7 +298,7 @@ def backend(completed, staging=None):
                     failed_profile.delete_async(None, None)
             send(wifiState="idle" if state == NM.ActiveConnectionState.ACTIVATED else "failed")
 
-        def cos(self, args, callback, stdin=""):
+        def cos(self, args, callback, stdin="", *, modality="text"):
             flags = Gio.SubprocessFlags
             try:
                 launcher = Gio.SubprocessLauncher.new(
@@ -303,7 +307,7 @@ def backend(completed, staging=None):
                 if staging is not None:
                     launcher.setenv("COS_USER_CONFIG_DIR", str(staging / "config"), True)
                     launcher.setenv("COS_USER_DATA_DIR", str(staging / "data"), True)
-                self.child = launcher.spawnv([COS, "agent", "setup", "text", *args])
+                self.child = launcher.spawnv([COS, "agent", "setup", modality, *args])
             except GLib.Error:
                 callback({})
                 return
@@ -424,6 +428,35 @@ def backend(completed, staging=None):
                     send(agentState="saveFailed")
 
             self.cos(args, saved, secret)
+
+        def decision_status(self):
+            if self.child is not None:
+                send(decisionState="unavailable")
+                return
+            send(decisionState="loading")
+
+            def loaded(response):
+                if response.get("modality") == "decision":
+                    send(savedDecision=response["model"], decisionState="idle")
+                else:
+                    send(decisionState="unavailable")
+
+            self.cos(["--status"], loaded, modality="decision")
+
+        def save_decision(self, alias):
+            if self.child is not None or not isinstance(alias, str) or not 0 < len(alias) <= 128:
+                send(decisionState="saveFailed")
+                return
+            send(decisionState="saving")
+
+            def saved(response):
+                if response.get("ok") and response.get("modality") == "decision":
+                    send(savedDecision=response["model"], decisionState="saved")
+                else:
+                    send(decisionState="saveFailed")
+
+            self.cos(["apply", "--provider", "system-one-local", "--model", alias],
+                     saved, modality="decision")
 
     Setup().run()
 

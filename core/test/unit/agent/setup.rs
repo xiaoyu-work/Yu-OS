@@ -182,6 +182,52 @@ fn text_status_distinguishes_configured_from_ready() {
 }
 
 #[test]
+fn decision_setup_writes_and_clears_only_its_own_model() {
+    let _lock = env_lock();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("config.json");
+    let _config = EnvVarGuard::set("COS_CONFIG_PATH", &path);
+    let original = json!({
+        "agent": {"provider": "copilot", "model": "conversation-model"},
+        "stt": {"provider": "openai", "model": "speech-model"},
+        "decision": {"timeout_ms": 7000}
+    });
+    std::fs::write(&path, original.to_string()).unwrap();
+
+    let saved = run(&[
+        "decision".into(),
+        "apply".into(),
+        "--provider".into(),
+        "system-one-local".into(),
+        "--model".into(),
+        "test/decider".into(),
+    ])
+    .unwrap();
+    assert_eq!(saved["modality"], "decision");
+    let configured = read_config_or_empty(&path).unwrap();
+    assert_eq!(configured["decision"], json!({"model":"test/decider","timeout_ms":7000}));
+    assert_eq!(configured["agent"], original["agent"]);
+    assert_eq!(configured["stt"], original["stt"]);
+
+    let denied = run(&[
+        "decision".into(),
+        "apply".into(),
+        "--provider".into(),
+        "system-one-local".into(),
+        "--model".into(),
+        "test/decider".into(),
+        "--base-url".into(),
+        "https://example.invalid".into(),
+    ]);
+    assert!(denied.unwrap_err().contains("no credentials or network endpoint"));
+    assert_eq!(read_config_or_empty(&path).unwrap(), configured);
+
+    assert_eq!(run(&["decision".into(), "--reset".into()]).unwrap()["ok"], true);
+    let reset = read_config_or_empty(&path).unwrap();
+    assert_eq!(reset, json!({"agent": original["agent"], "stt": original["stt"]}));
+}
+
+#[test]
 fn text_status_treats_mock_as_unconfigured() {
     let status = status_llm_for(&mock_cfg());
 

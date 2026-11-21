@@ -303,12 +303,7 @@ fn check_media_modalities() -> Value {
     use crate::agent::setup::Modality;
     let mut entries = serde_json::Map::new();
     let mut warn = false;
-    for m in [
-        Modality::Tts,
-        Modality::Stt,
-        Modality::ImageGen,
-        Modality::Embed,
-    ] {
+    for m in Modality::OPTIONAL {
         let snap = crate::agent::setup::status_for(m);
         let provider = snap
             .get("provider")
@@ -348,7 +343,7 @@ fn check_media_modalities() -> Value {
     let status = if warn { "warn" } else { "ok" };
     json!({
         "status": status,
-        "hint": "configure with `yu agent setup [tts|stt|imagegen|embed]` or `yu agent setup all`",
+        "hint": "configure with `yu agent setup [tts|stt|imagegen|embed|decision]` or `yu agent setup all`",
         "modalities": entries,
     })
 }

@@ -4,10 +4,14 @@ Decision is a separate model task, not a text-provider fallback. It answers
 `choice`, `noul` (yes/no probability), and `score` questions over a shared
 state in one request. It never creates tool calls or grants authority.
 
-Run a compatible System One server as the signed-in owner, on the private
-Unix socket `/run/user/<uid>/yu-decision.sock`. Set its exact model alias under
-`decision.model` in the owner's `~/.config/cos/config.json`. Empty or missing
-configuration leaves the previous Agent behavior unchanged. For example, an
+Configure **Decision model** independently of the conversation, speech, image,
+and embedding models in **Settings → Agent**, in desktop first-run setup, or
+with `yu agent setup decision`. First-run setup can save the selection before
+the first owner signs in. It is optional and does not start a model as the
+greeter. The OS installer does not download a decision model.
+
+Run a compatible System One server as the signed-in owner on the private
+Unix socket `/run/user/<uid>/yu-decision.sock`. For example, an
 operator who has installed [compatible llama-server and H2O weights](https://huggingface.co/h2oai/h2o-lightning-4b-gguf)
 can serve the text model with:
 
@@ -16,9 +20,18 @@ llama-server --host "$XDG_RUNTIME_DIR/yu-decision.sock" \
   --model h2o-lightning-4b-Q8_0.gguf --alias h2oai/h2o-lightning-4b -np 1
 ```
 
-```json
-{"decision": {"model": "h2oai/h2o-lightning-4b"}}
+```bash
+yu agent setup decision apply --provider system-one-local --model h2oai/h2o-lightning-4b
+yu agent setup decision --status
+yu agent setup decision test
 ```
+
+**Test connection** in Settings and `yu agent setup decision test` send one
+synthetic question over the local socket. Reset in Settings, or
+`yu agent setup decision --reset`, clears only `decision`; the other models
+are unaffected. The configuration still lives in `decision.model` in the
+owner's `~/.config/cos/config.json`. Empty or missing configuration leaves
+the previous Agent behavior unchanged.
 
 Yu OS doesn't install, launch, or download that server or its weights. The
 client only uses the private socket and has no HTTP-network fallback. It

@@ -1,10 +1,10 @@
 //! `yu agent setup` — per-modality config wizard.
 //!
 //! Replaces the previous `yu agent onboarding` family. Pick a
-//! modality (text / tts / stt / imagegen / embed / all), then walk
+//! modality (text / tts / stt / imagegen / embed / decision / all), then walk
 //! through provider → model → API key → persist → optional probe.
 //! Each modality writes to its own `~/.config/cos/config.json` block
-//! (`[agent]`, `[tts]`, `[stt]`, `[imagegen]`, `[embed]`) and stores
+//! (`[agent]`, `[tts]`, `[stt]`, `[imagegen]`, `[embed]`, `[decision]`) and stores
 //! credentials in the `agent` namespace of the per-user credential
 //! store (`~/.local/share/cos/credentials/agent/`).
 //!
@@ -32,12 +32,13 @@ use std::path::{Path, PathBuf};
 use crate::agent::llm;
 
 mod copilot;
+mod decision;
 mod media;
 
 pub fn run(args: &[String]) -> Result<Value, String> {
     // Parse: optional --no-verify / --verify-only / --status / --reset /
     // --providers / --help, plus a required leading positional modality:
-    //   text | tts | stt | imagegen | embed | all
+    //   text | tts | stt | imagegen | embed | decision | all
     //
     // Extra non-interactive subcommands take per-modality flags:
     //   apply       --provider X --model Y [--api-key K | --api-key-stdin | --api-key-env E]
@@ -145,7 +146,7 @@ pub fn run(args: &[String]) -> Result<Value, String> {
                     ));
                 } else if sub.is_none() {
                     return Err(format!(
-                        "unknown setup modality/subcommand: {other}. try: text | tts | stt | imagegen | embed | all | apply | test | oauth-start | oauth-poll | models | --status | --reset | --providers | --verify-only"
+                        "unknown setup modality/subcommand: {other}. try: text | tts | stt | imagegen | embed | decision | all | apply | test | oauth-start | oauth-poll | models | --status | --reset | --providers | --verify-only"
                     ));
                 }
             }
@@ -164,6 +165,9 @@ pub fn run(args: &[String]) -> Result<Value, String> {
         sub,
         Some("oauth-start") | Some("oauth-poll") | Some("models")
     );
+    if modality == Some(Modality::Decision) && oauth_subcommand {
+        return Err("the local decision model does not use provider accounts".into());
+    }
     if apply_flags_set && sub != Some("apply") && !oauth_subcommand {
         return Err(
             "--provider / --model / --api-key{,-stdin,-env} / --base-url / --api-version are only valid with the `apply` / `oauth-*` subcommands"
@@ -202,7 +206,7 @@ pub fn run(args: &[String]) -> Result<Value, String> {
             Some("reset") => reset_cmd(Modality::All),
             Some("providers") => providers_cmd(Modality::All),
             Some("apply") => Err(
-                "`apply` requires a modality: yu agent setup <text|tts|stt|imagegen|embed> apply ..."
+                "`apply` requires a modality: yu agent setup <text|tts|stt|imagegen|embed|decision> apply ..."
                     .into(),
             ),
             Some("test") => verify_cmd(Modality::All),
@@ -221,7 +225,7 @@ pub fn run(args: &[String]) -> Result<Value, String> {
                 } else {
                     Err(json!({
                         "error": "yu agent setup requires a modality",
-                        "hint": "pick one of: text | tts | stt | imagegen | embed | all",
+                        "hint": "pick one of: text | tts | stt | imagegen | embed | decision | all",
                         "examples": [
                             "yu agent setup text",
                             "yu agent setup tts",
@@ -269,6 +273,7 @@ fn dispatch_wizard(modality: Modality, verify_after: bool) -> Result<Value, Stri
         Modality::Stt => media::wizard_media(media::stt_spec(), verify_after),
         Modality::ImageGen => media::wizard_media(media::imagegen_spec(), verify_after),
         Modality::Embed => media::wizard_media(media::embed_spec(), verify_after),
+        Modality::Decision => decision::wizard(verify_after),
         Modality::All => wizard_all(verify_after),
     }
 }
@@ -292,6 +297,7 @@ fn pick_modality_interactively() -> Result<Modality, String> {
             "embed",
             "Text embeddings (semantic memory)",
         ),
+        (Modality::Decision, "decision", "Local decision model (System One)"),
         (
             Modality::All,
             "all",
@@ -328,11 +334,21 @@ pub enum Modality {
     ImageGen,
     /// Text-embedding (semantic memory) under `[embed]`.
     Embed,
+    /// Local structured decisions under `[decision]`, independent of chat.
+    Decision,
     /// Run every modality wizard in sequence, asking before each.
     All,
 }
 
 impl Modality {
+    pub(crate) const OPTIONAL: [Self; 5] = [
+        Self::Tts,
+        Self::Stt,
+        Self::ImageGen,
+        Self::Embed,
+        Self::Decision,
+    ];
+
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "text" | "agent" => Some(Self::Llm),
@@ -340,6 +356,7 @@ impl Modality {
             "stt" | "transcribe" | "asr" => Some(Self::Stt),
             "imagegen" | "image" | "image-gen" => Some(Self::ImageGen),
             "embed" | "embedding" | "embeddings" => Some(Self::Embed),
+            "decision" => Some(Self::Decision),
             "all" => Some(Self::All),
             _ => None,
         }
@@ -351,6 +368,7 @@ impl Modality {
             Self::Stt => "stt",
             Self::ImageGen => "imagegen",
             Self::Embed => "embed",
+            Self::Decision => "decision",
             Self::All => "all",
         }
     }
@@ -366,6 +384,7 @@ pub(crate) fn help_doc() -> Value {
             "stt":       "Speech-to-text (under [stt]). Used by voice input / `yu model transcribe`.",
             "imagegen":  "Image generation (under [imagegen]). Used by `yu agent image`.",
             "embed":     "Text embeddings (under [embed]). Used by semantic memory / `yu agent recall`.",
+            "decision":  "Local decision model (under [decision]). Uses the owner's private System One socket.",
             "all":       "Walk every modality in order, prompting before each.",
         },
         "subcommands": {
@@ -403,6 +422,7 @@ pub(crate) fn help_doc() -> Value {
             "    --api-version 2024-12-01-preview --api-key-stdin                # Azure OpenAI",
             "yu agent setup tts apply --provider edge --model en-US-AriaNeural   # no key needed",
             "yu agent setup imagegen test                                        # probe configured imagegen provider",
+            "yu agent setup decision apply --provider system-one-local --model h2oai/h2o-lightning-4b",
             "yu agent setup text oauth-start --provider copilot                  # GitHub Copilot device-flow start",
             "yu agent setup text oauth-poll  --provider copilot --device-code D  # poll until status=ok",
             "yu agent setup text apply       --provider copilot --model gpt-4o   # reuse stored token (no --api-key)",
@@ -421,19 +441,18 @@ pub(crate) fn help_doc() -> Value {
 fn verify_cmd(modality: Modality) -> Result<Value, String> {
     match modality {
         Modality::Llm => verify_llm(),
+        Modality::Decision => Ok(decision::verify()),
         Modality::All => {
             let mut report = serde_json::Map::new();
             report.insert(
                 "text".into(),
                 verify_llm().unwrap_or_else(|e| json!({"error": e})),
             );
-            for m in [
-                Modality::Tts,
-                Modality::Stt,
-                Modality::ImageGen,
-                Modality::Embed,
-            ] {
-                report.insert(m.name().into(), media::verify_media(m));
+            for m in Modality::OPTIONAL {
+                report.insert(
+                    m.name().into(),
+                    verify_cmd(m).unwrap_or_else(|error| json!({"error": error})),
+                );
             }
             Ok(json!({"verified": report}))
         }
@@ -681,27 +700,11 @@ impl KeySource {
 // ---------------------------------------------------------------------------
 
 fn status_cmd(modality: Modality) -> Result<Value, String> {
-    match modality {
-        Modality::Llm => Ok(status_llm()),
-        Modality::All => {
-            let mut map = serde_json::Map::new();
-            map.insert("text".into(), status_llm());
-            for m in [
-                Modality::Tts,
-                Modality::Stt,
-                Modality::ImageGen,
-                Modality::Embed,
-            ] {
-                map.insert(m.name().into(), media::status_media(m));
-            }
-            map.insert(
-                "config_path".into(),
-                json!(config_path().display().to_string()),
-            );
-            Ok(json!({"modalities": map}))
-        }
-        other => Ok(media::status_media(other)),
+    let mut status = status_for(modality);
+    if modality == Modality::All {
+        status["modalities"]["config_path"] = json!(config_path().display().to_string());
     }
+    Ok(status)
 }
 
 fn status_llm() -> Value {
@@ -808,15 +811,15 @@ fn split_base_url_and_api_version(base_url: Option<&str>) -> (Option<String>, Op
 fn reset_cmd(modality: Modality) -> Result<Value, String> {
     match modality {
         Modality::Llm => reset_llm(),
+        Modality::Decision => decision::reset(),
         Modality::All => {
             reset_llm()?;
-            for m in [
-                Modality::Tts,
-                Modality::Stt,
-                Modality::ImageGen,
-                Modality::Embed,
-            ] {
-                let _ = media::reset_media(m);
+            for m in Modality::OPTIONAL {
+                if m == Modality::Decision {
+                    decision::reset()?;
+                } else {
+                    let _ = media::reset_media(m);
+                }
             }
             Ok(json!({
                 "ok": true,
@@ -1264,18 +1267,13 @@ fn wizard_all(verify_after: bool) -> Result<Value, String> {
         ("stt", "Speech-to-text"),
         ("imagegen", "Image generation"),
         ("embed", "Text embeddings (semantic memory)"),
+        ("decision", "Local decision model (System One)"),
     ];
 
     let mut results = serde_json::Map::new();
     for (name, label) in modalities {
         let modality = Modality::parse(name).expect("static modality name");
-        let current = match modality {
-            Modality::Llm => status_llm(),
-            Modality::Tts | Modality::Stt | Modality::ImageGen | Modality::Embed => {
-                media::status_media(modality)
-            }
-            _ => continue,
-        };
+        let current = status_for(modality);
         let provider = current
             .get("provider")
             .and_then(|s| s.as_str())
@@ -1306,14 +1304,7 @@ fn wizard_all(verify_after: bool) -> Result<Value, String> {
         let _ = e.flush();
         let yn = read_line()?.trim().to_ascii_lowercase();
         if matches!(yn.as_str(), "y" | "yes") {
-            let res = match modality {
-                Modality::Llm => wizard_llm(verify_after),
-                Modality::Tts => media::wizard_media(media::tts_spec(), verify_after),
-                Modality::Stt => media::wizard_media(media::stt_spec(), verify_after),
-                Modality::ImageGen => media::wizard_media(media::imagegen_spec(), verify_after),
-                Modality::Embed => media::wizard_media(media::embed_spec(), verify_after),
-                _ => unreachable!(),
-            };
+            let res = dispatch_wizard(modality, verify_after);
             results.insert(name.into(), res.unwrap_or_else(|err| json!({"error": err})));
         } else {
             let _ = writeln!(e, "  → skipped");
@@ -1335,16 +1326,12 @@ fn wizard_all(verify_after: bool) -> Result<Value, String> {
 pub fn status_for(modality: Modality) -> Value {
     match modality {
         Modality::Llm => status_llm(),
+        Modality::Decision => decision::status(),
         Modality::All => {
             let mut map = serde_json::Map::new();
             map.insert("text".into(), status_llm());
-            for m in [
-                Modality::Tts,
-                Modality::Stt,
-                Modality::ImageGen,
-                Modality::Embed,
-            ] {
-                map.insert(m.name().into(), media::status_media(m));
+            for m in Modality::OPTIONAL {
+                map.insert(m.name().into(), status_for(m));
             }
             json!({"modalities": map})
         }
@@ -1405,16 +1392,12 @@ struct ApplyArgs {
 fn providers_cmd(modality: Modality) -> Result<Value, String> {
     match modality {
         Modality::Llm => Ok(providers_llm()),
+        Modality::Decision => Ok(decision::providers()),
         Modality::All => {
             let mut m = serde_json::Map::new();
             m.insert("text".into(), providers_llm());
-            for md in [
-                Modality::Tts,
-                Modality::Stt,
-                Modality::ImageGen,
-                Modality::Embed,
-            ] {
-                m.insert(md.name().into(), providers_media(md));
+            for modality in Modality::OPTIONAL {
+                m.insert(modality.name().into(), providers_cmd(modality)?);
             }
             Ok(json!({"modalities": m}))
         }
@@ -1569,13 +1552,14 @@ fn apply_cmd(modality: Modality, args: ApplyArgs) -> Result<Value, String> {
     match modality {
         Modality::Llm => apply_llm(args),
         Modality::All => Err(
-            "`apply` requires a single modality (one of: text | tts | stt | imagegen | embed)"
+            "`apply` requires a single modality (one of: text | tts | stt | imagegen | embed | decision)"
                 .into(),
         ),
         Modality::Tts => apply_media(media::tts_spec(), args),
         Modality::Stt => apply_media(media::stt_spec(), args),
         Modality::ImageGen => apply_media(media::imagegen_spec(), args),
         Modality::Embed => apply_media(media::embed_spec(), args),
+        Modality::Decision => decision::apply(args),
     }
 }
 

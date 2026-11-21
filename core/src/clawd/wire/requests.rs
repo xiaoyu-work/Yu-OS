@@ -86,6 +86,10 @@ pub enum SystemSettingsAction {
     RestartForUpdates,
     CreateUser,
     SetUserPassword,
+    DecisionStatus,
+    DecisionApply,
+    DecisionTest,
+    DecisionReset,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,6 +99,8 @@ pub struct SystemSettings {
     pub action: SystemSettingsAction,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<SystemSettingsAccount>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decision_model: Option<Text<128>>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

@@ -12,6 +12,7 @@ use crate::config::DecisionConfig;
 
 pub const MAX_REQUEST_BYTES: usize = 16 * 1024;
 pub const MAX_OPTIONS: usize = 24;
+pub(crate) const LOCAL_PROVIDER: &str = "system-one-local";
 const MAX_QUESTIONS: usize = 8;
 const DEFAULT_TIMEOUT_MS: u64 = 5000;
 
@@ -139,13 +140,7 @@ impl DecisionModel {
     }
 
     fn new(model: &str, socket: PathBuf, owner: u32, timeout: Duration) -> Result<Self, String> {
-        if model.len() > 128
-            || !model
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || b"._:/-".contains(&byte))
-        {
-            return Err("invalid decision model alias".into());
-        }
+        validate_model_alias(model)?;
         let client = reqwest::Client::builder()
             .unix_socket(socket.clone())
             .no_proxy()
@@ -205,6 +200,18 @@ impl DecisionModel {
         }
         Ok(result)
     }
+}
+
+pub(crate) fn validate_model_alias(model: &str) -> Result<(), String> {
+    if model.is_empty()
+        || model.len() > 128
+        || !model
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"._:/-".contains(&byte))
+    {
+        return Err("invalid decision model alias".into());
+    }
+    Ok(())
 }
 
 impl DecisionRequest {
@@ -323,7 +330,7 @@ pub fn status(config: &DecisionConfig) -> Value {
         .flatten()
         .is_some_and(|model| check_socket(&model.socket, model.owner).is_ok());
     json!({
-        "provider": "system-one-local",
+        "provider": LOCAL_PROVIDER,
         "model": config.model,
         "configured": !config.model.is_empty(),
         "socket_present": socket_present,

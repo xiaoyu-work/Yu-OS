@@ -97,6 +97,9 @@ The wizard skips network setup when already connected and leaves display
 mode, scaling and taskbar layout to the defaults. The first owner chooses an
 installed language and a real time zone; the setup helper validates and saves
 both. `claw-desktop-locales` generates the Debian locales used by the picker.
+The wizard offers conversation and [local Decision](../../docs/decision-model.md)
+configuration as separate optional steps. Before owner creation it stages
+the selection; it does not download or run a model as the greeter.
 
 The subscriber's `--desktop` mode attaches to the Root login binding. It runs
 post-login configuration only on installed profiles that request it, starts

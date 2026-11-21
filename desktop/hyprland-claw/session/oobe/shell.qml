@@ -31,6 +31,7 @@ ShellRoot {
         networkState: "checking", wifiState: "idle", wifiName: "", hasWifi: false, networks: [],
         driverState: "checking", packages: [], agentState: "idle", providers: [],
         savedModel: "", userCode: "", signedIn: false, copilotModels: [], finished: false,
+        decisionState: "idle", savedDecision: "",
         languages: [], zones: [], finishError: ""
     })
     readonly property var pages: ({
@@ -38,7 +39,8 @@ ShellRoot {
             : qsTr("Plug in an Ethernet cable or continue offline."), networkPage],
         language: [qsTr("Select a language"), qsTr("Choose the language your system will use."), languagePage],
         keyboard: [qsTr("Select keyboard layout"), qsTr("This layout takes effect in your desktop session. Setup and sign-in use the current system keyboard."), keyboardPage],
-        agent: [qsTr("Configure your Agent"), qsTr("Connect a model provider now, or set it up later."), modelPage],
+        agent: [qsTr("Configure a conversation model"), qsTr("Connect a model provider now, or set it up later."), modelPage],
+        decision: [qsTr("Configure a Decision model"), qsTr("Optional local model for choosing, classifying, and scoring. It is separate from the conversation model."), decisionPage],
         account: [qsTr("Create your account"), qsTr("You'll use this account and password to sign in to Yu OS."), accountPage],
         location: [qsTr("Select a time zone"), qsTr("Choose the time zone where you use this computer."), locationPage],
         appearance: [qsTr("Personalize appearance"), qsTr("Preview a light or dark look and set the preference for your apps."), appearancePage],
@@ -47,8 +49,8 @@ ShellRoot {
     })
     readonly property var steps: {
         const order = local
-            ? ["language", "keyboard", "agent", "account", "location", "appearance"]
-            : ["agent"];
+            ? ["language", "keyboard", "agent", "decision", "account", "location", "appearance"]
+            : ["agent", "decision"];
         if (!skipNetwork)
             order.unshift("network");
         if (state.packages.length > 0)
@@ -70,6 +72,8 @@ ShellRoot {
             send("scan");
         if (current === "agent")
             send("models");
+        if (current === "decision")
+            send("decisionStatus");
     }
 
     function receive(message: var): void {
@@ -92,6 +96,8 @@ ShellRoot {
             if (current === "network")
                 go(0);
         } else if (current === "agent" && message.agentState === "saved") {
+            go(step + 1);
+        } else if (current === "decision" && message.decisionState === "saved") {
             go(step + 1);
         }
     }
@@ -272,7 +278,7 @@ ShellRoot {
                     ActionButton {
                         text: qsTr("Back")
                         visible: setup.step > 0
-                        enabled: !setup.finishing && setup.state.agentState !== "saving"
+                        enabled: !setup.finishing && setup.state.agentState !== "saving" && setup.state.decisionState !== "saving"
                         onClicked: {
                             if (setup.current === "agent")
                                 setup.send("cancelSignIn");
@@ -281,8 +287,8 @@ ShellRoot {
                     }
                     Item { Layout.fillWidth: true }
                     ActionButton {
-                        visible: setup.current === "network" || setup.current === "agent"
-                        enabled: setup.state.agentState !== "saving"
+                        visible: setup.current === "network" || setup.current === "agent" || setup.current === "decision"
+                        enabled: setup.state.agentState !== "saving" && setup.state.decisionState !== "saving"
                         text: setup.current === "network" ? qsTr("Continue offline") : qsTr("Set up later")
                         onClicked: {
                             if (setup.current === "agent")
@@ -297,15 +303,16 @@ ShellRoot {
                             && (setup.current !== "language" || setup.language !== "")
                             && (setup.current !== "account" || setup.validAccount)
                             && (setup.current !== "location" || setup.zone !== "")
-                            && (setup.current !== "agent" || !!page.item?.canContinue))
+                            && (!["agent", "decision"].includes(setup.current) || !!page.item?.canContinue))
                         text: setup.signInFailed ? qsTr("Go to sign-in")
                             : setup.state.finished && setup.local ? qsTr("Signing in…")
                             : setup.current === "finish" ? (setup.finishing ? qsTr("Saving…") : qsTr("Finish"))
-                            : setup.current === "agent" && !setup.state.savedModel ? qsTr("Save and continue") : qsTr("Next")
+                            : setup.current === "decision" || (setup.current === "agent" && !setup.state.savedModel)
+                                ? qsTr("Save and continue") : qsTr("Next")
                         onClicked: {
                             if (setup.signInFailed)
                                 Qt.quit();
-                            else if (setup.current === "agent")
+                            else if (setup.current === "agent" || setup.current === "decision")
                                 page.item.advance();
                             else if (setup.current === "finish")
                                 setup.finish();
@@ -822,6 +829,53 @@ ShellRoot {
     }
 
     Component {
+        id: decisionPage
+        ColumnLayout {
+            id: decision
+            spacing: 10
+            readonly property bool canContinue: /^[a-zA-Z0-9._:/-]{1,128}$/.test(decisionName.text.trim())
+                && !["loading", "saving", "unavailable"].includes(setup.state.decisionState)
+
+            function advance(): void {
+                const model = decisionName.text.trim();
+                if (model === setup.state.savedDecision)
+                    setup.go(setup.step + 1);
+                else
+                    setup.send("saveDecision", {model: model});
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Enter the alias of a local System One model. This saves the selection only; it does not download a model or start its service.")
+                wrapMode: Text.WordWrap
+                color: theme.muted
+            }
+            Field {
+                id: decisionName
+                Layout.fillWidth: true
+                text: setup.state.savedDecision
+                maximumLength: 128
+                enabled: !["loading", "saving", "unavailable"].includes(setup.state.decisionState)
+                placeholderText: qsTr("Local model alias")
+            }
+            Status {
+                Layout.fillWidth: true
+                visible: text !== ""
+                tint: ["unavailable", "saveFailed"].includes(setup.state.decisionState) ? theme.error : theme.muted
+                text: {
+                    const messages = {
+                        loading: qsTr("Loading Decision configuration…"),
+                        saving: qsTr("Saving Decision configuration…"),
+                        unavailable: qsTr("Couldn't load Decision setup. You can set it up later in Settings."),
+                        saveFailed: qsTr("Couldn't save the Decision model. Check the alias and try again.")
+                    };
+                    return messages[setup.state.decisionState] ?? "";
+                }
+            }
+        }
+    }
+
+    Component {
         id: finishPage
         ColumnLayout {
             Status {
@@ -842,6 +896,13 @@ ShellRoot {
                     return setup.state.savedModel ? qsTr("Your Agent model is set to %1.").arg(setup.state.savedModel)
                         : qsTr("You can still configure your Agent from Settings.");
                 }
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: setup.state.savedDecision !== ""
+                text: qsTr("Decision model selection: %1").arg(setup.state.savedDecision)
+                wrapMode: Text.WordWrap
+                color: theme.muted
             }
         }
     }

@@ -243,7 +243,7 @@ pub fn builtin_namespaces() -> Vec<NamespaceEntry> {
             "agent",
             "OS-native agent runtime, memory, Skills, providers, usage, and tasks",
             vec![
-                ("setup", "Configure text, speech, image, and embedding providers"),
+                ("setup", "Configure text, speech, image, embedding, and decision models"),
                 ("ask", "Run one prompt through the full tool and memory loop"),
                 ("chat", "Open the Agent TUI (--plain for the line interface)"),
                 ("serve", "Run the authenticated local Agent web UI"),
