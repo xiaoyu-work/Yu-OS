@@ -48,7 +48,7 @@ pub(super) async fn owner_settings(
                     Some(false)
                 } else {
                     decisions.get(&id).copied()
-                        .or_else(|| (preinstalled && super::preinstalled::allows(&cap, &home)).then_some(true))
+                        .or_else(|| (preinstalled && super::preinstalled::allows(&cap, home)).then_some(true))
                 };
                 Ok::<_, String>(json!({
                     "permission_id":id, "label":permission.label, "description":permission.description,
