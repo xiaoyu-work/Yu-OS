@@ -417,7 +417,7 @@ original_namespace="$(readlink /proc/self/ns/mnt)"
 for scenario in complete slow-progress slow-submit slow-review slow-panel cancel commands confirmations durable-queue task-center task-controls approval-center approval-choice approval-external approval-resumed approval-failure approval-narrow attachments appearance agents side platform memory-center hooks-center mcp-center extensions-center usage-center debug-center account-center voice-settings file-mentions copy-export raw-scrollback vim backtrack notification-inbox activity-lifecycle activity-controls activity-evidence activity-review workspace multiline multiline-key reconnect startup-reconnect resume resume-running plain; do
   unshare --user --map-current-user --keep-caps --mount --net \
     python3 -B core/tests/agent_tui_pty.py \
-    --cos target/debug/yu \
+    --yu target/debug/yu \
     --case "$scenario" \
     --original-mount-namespace "$original_namespace"
 done
@@ -432,7 +432,7 @@ original_mount="$(readlink /proc/self/ns/mnt)"
 original_pid="$(readlink /proc/self/ns/pid)"
 sudo unshare --mount --pid --fork --mount-proc --net \
   python3 -B core/tests/approval_polkit_process.py \
-  --cos target/debug/yu \
+  --yu target/debug/yu \
   --clawd target/debug/clawd \
   --helper target/debug/claw-approval-helper \
   --policy rootfs/overlay/usr/share/polkit-1/actions/org.yuos.approval.policy \

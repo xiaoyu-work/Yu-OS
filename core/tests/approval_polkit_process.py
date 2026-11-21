@@ -538,7 +538,7 @@ def run(args):
                 "auth required pam_unix.so\naccount required pam_unix.so\nsession required pam_permit.so\n"
             )
             for source, destination in (
-                (args.helper, HELPER), (args.cos, Path("/usr/local/bin/yu")),
+                (args.helper, HELPER), (args.yu, Path("/usr/local/bin/yu")),
             ):
                 shutil.copyfile(source, destination)
                 destination.chmod(0o755)
@@ -768,7 +768,7 @@ def run(args):
                 print(json.dumps({
                     "case": "real-tui-inline-broker-approval", "completed": True,
                 }), flush=True)
-                exercise_web_authorization(args.cos, uid, other_uid, home, root)
+                exercise_web_authorization(args.yu, uid, other_uid, home, root)
             except BaseException:
                 for name, (log, process) in logs.items():
                     log.seek(0)
@@ -785,13 +785,13 @@ if __name__ == "__main__":
             _, status = os.waitpid(pid, 0)
             sys.exit(os.waitstatus_to_exitcode(status))
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("cos", "clawd", "helper", "policy"):
+    for name in ("yu", "clawd", "helper", "policy"):
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--polkitd", default="/usr/lib/polkit-1/polkitd")
     parser.add_argument("--original-mount-namespace", required=True)
     parser.add_argument("--original-pid-namespace", required=True)
     parser.add_argument("--original-network-namespace", required=True)
     arguments = parser.parse_args()
-    for name in ("cos", "clawd", "helper", "policy"):
+    for name in ("yu", "clawd", "helper", "policy"):
         setattr(arguments, name, getattr(arguments, name).resolve(strict=True))
     run(arguments)

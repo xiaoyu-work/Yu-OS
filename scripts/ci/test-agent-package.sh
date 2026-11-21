@@ -9,14 +9,14 @@ tui() {
     if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
         sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
     fi
-    cos_fixture="$(mktemp /tmp/claw-agent-tui-cos.XXXXXX)"
-    trap 'rm -f "$cos_fixture"' EXIT
-    install -m 0755 "target/$RUST_TARGET/release/yu" "$cos_fixture"
+    yu_fixture="$(mktemp /tmp/yuos-agent-tui.XXXXXX)"
+    trap 'rm -f "$yu_fixture"' EXIT
+    install -m 0755 "target/$RUST_TARGET/release/yu" "$yu_fixture"
     original_namespace="$(readlink /proc/self/ns/mnt)"
     for scenario in complete slow-progress cancel commands confirmations durable-queue task-center task-controls approval-center approval-choice attachments appearance agents side platform memory-center hooks-center mcp-center extensions-center usage-center debug-center account-center voice-settings file-mentions copy-export raw-scrollback vim backtrack notification-inbox activity-lifecycle activity-controls activity-evidence activity-review workspace multiline multiline-key reconnect startup-reconnect resume resume-running plain; do
         unshare --user --map-current-user --keep-caps --mount --net \
             python3 -B core/tests/agent_tui_pty.py \
-            --cos "$cos_fixture" \
+            --yu "$yu_fixture" \
             --case "$scenario" \
             --original-mount-namespace "$original_namespace" \
             --transcript "/tmp/claw-tui-$scenario.log"
@@ -77,7 +77,7 @@ installed() {
     original_network="$(readlink /proc/self/ns/net)"
     sudo unshare --mount --pid --fork --mount-proc --net \
         python3 -B core/tests/approval_polkit_process.py \
-        --cos /usr/local/bin/yu \
+        --yu /usr/local/bin/yu \
         --clawd /usr/local/bin/clawd \
         --helper /usr/local/bin/claw-approval-helper \
         --policy /usr/share/polkit-1/actions/org.yuos.approval.policy \

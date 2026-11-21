@@ -91,7 +91,7 @@ jobs:
       # target-conditional code in the crate is the `RlimitResource` type
       # alias in `clawd/crash.rs`, and the image workflows still compile the
       # real musl release binary, so a musl-only break is still caught.
-      - name: Clippy lint (cos)
+      - name: Clippy lint (yu)
         run: cd core && cargo clippy -- -D warnings
 
       - name: Download prepared release inputs
@@ -115,7 +115,7 @@ jobs:
         run: bash scripts/ci/test-boundaries.sh extensions
 
       - name: Run Yu OS core tests
-        # `--test-threads=1` because many tests in `cos` mutate process-wide
+        # `--test-threads=1` because many tests in `yu` mutate process-wide
         # env vars (`COS_DATA_DIR`, `COS_SESSION`, `COS_PERMS_MODE`, …).
         # Each module guards its own state with a per-module `Mutex<()>`,
         # but the env vars themselves are shared, so two modules racing on

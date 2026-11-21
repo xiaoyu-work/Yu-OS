@@ -19,6 +19,7 @@ fn display_fixture(
         workload,
         control,
         launch,
+        desktop_changes: tokio::sync::watch::channel(()).0,
         verified_retired: Arc::new(AtomicBool::new(false)),
     }))
 }

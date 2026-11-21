@@ -2736,7 +2736,7 @@ def run(cos, case, transcript, original_namespace, trace):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--cos", type=Path, required=True)
+    parser.add_argument("--yu", type=Path, required=True)
     parser.add_argument(
         "--case",
         choices=(
@@ -2796,7 +2796,7 @@ if __name__ == "__main__":
     parser.add_argument("--trace", type=Path)
     arguments = parser.parse_args()
     run(
-        arguments.cos.resolve(strict=True),
+        arguments.yu.resolve(strict=True),
         arguments.case,
         arguments.transcript,
         arguments.original_mount_namespace,
