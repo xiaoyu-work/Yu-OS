@@ -7,7 +7,7 @@ These are the same first-party icons shipped by the native Yu OS desktop:
 | `agent.svg` | `rootfs/features/desktop/overlay/usr/share/icons/hicolor/scalable/apps/yuos-agent.svg` |
 | `files.svg` | `desktop/files/res/icons/hicolor/scalable/apps/com.yuos.Files.svg` |
 | `edit.svg` | [Editor product native resource](https://github.com/xiaoyu-work/yuos-app/blob/main/products/editor/native/cosmic-edit/res/icons/hicolor/scalable/apps/com.yuos.Edit.svg), pinned by `packaging/apps.lock.json` |
-| `store.svg` | `yuos-app/products/store/native/cosmic-store/res/icons/hicolor/scalable/apps/com.yuos.Store.svg` (external source pinned by `packaging/apps.lock.json`) |
+| `store.svg` | `yuos-app/products/store/native/yuos-store/res/icons/hicolor/scalable/apps/com.yuos.Store.svg` (external source pinned by `packaging/apps.lock.json`) |
 | `settings.svg` | [Settings product icon](https://github.com/xiaoyu-work/yuos-app/blob/main/products/settings/native/cosmic-settings/resources/icons/scalable/apps/com.yuos.Settings.svg) |
 | `player.svg` | `desktop/player/res/icons/hicolor/scalable/apps/com.yuos.Player.svg` |
 | `screenshot.svg` | [Capture product icon](https://github.com/xiaoyu-work/yuos-app/blob/main/products/capture/native/cosmic-screenshot/resources/icons/hicolor/scalable/apps/com.yuos.Screenshot.svg), pinned by `packaging/apps.lock.json` |

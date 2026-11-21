@@ -10,7 +10,7 @@ Existing CLI/MCP wire schemas are unchanged.
 ## Transport and ownership
 
 The Host supplies a private connection to its selected presenter. The existing
-`PANEL_NOTIFICATIONS_FD`, `DAEMON_NOTIFICATIONS_FD` and `COSMIC_NOTIFICATIONS`
+`PANEL_NOTIFICATIONS_FD`, `DAEMON_NOTIFICATIONS_FD` and `YUOS_NOTIFICATIONS`
 descriptor names retain their values for compatibility. The panel's existing
 `com.yuos.NotificationsSocket.GetFd` handoff is unchanged. The new interface
 on each private applet connection is `com.yuos.NotificationPresentation1`,

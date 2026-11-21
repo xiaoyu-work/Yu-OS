@@ -1388,14 +1388,14 @@ def test_native_manual_image_and_asset_build_paths_agree():
     ("calendar", "panel-calendar"), ("clipboard", "panel-clipboard"),
     ("desktop-widgets", "widget-rail"),
     ("launcher", "yuos-launcher"),
-    ("editor", "cosmic-edit"),
-    ("files", "cosmic-files"),
-    ("terminal", "cosmic-term"),
-    ("store", "cosmic-store"),
-    ("settings", "cosmic-settings"),
-    ("capture", "cosmic-screenshot"),
-    ("media-player", "cosmic-player"),
-    ("notifications", "cosmic-notifications"),
+    ("editor", "yuos-edit"),
+    ("files", "yuos-files"),
+    ("terminal", "yuos-term"),
+    ("store", "yuos-store"),
+    ("settings", "yuos-settings"),
+    ("capture", "yuos-screenshot"),
+    ("media-player", "yuos-player"),
+    ("notifications", "yuos-notifications"),
 ])
 def test_external_desktop_app_stays_out_of_agent_package(locked_source, tmp_path, product, app_id):
     root, lock = locked_source
@@ -1468,7 +1468,7 @@ def test_duplicate_native_exports_are_rejected(tmp_path, monkeypatch):
 
 def test_media_player_is_package_only_for_hot_swap(tmp_path):
     result = subprocess.run(
-        ["bash", str(ROOT / "scripts/hot-swap-to-vmware.sh"), "--no-build", "cosmic-player"],
+        ["bash", str(ROOT / "scripts/hot-swap-to-vmware.sh"), "--no-build", "yuos-player"],
         env={**os.environ, "QCOW": str(tmp_path / "must-not-be-opened.qcow2")},
         capture_output=True, text=True,
     )
@@ -1479,7 +1479,7 @@ def test_media_player_is_package_only_for_hot_swap(tmp_path):
 
 def test_notifications_is_package_only_for_hot_swap(tmp_path):
     result = subprocess.run(
-        ["bash", str(ROOT / "scripts/hot-swap-to-vmware.sh"), "--no-build", "cosmic-notifications"],
+        ["bash", str(ROOT / "scripts/hot-swap-to-vmware.sh"), "--no-build", "yuos-notifications"],
         env={**os.environ, "QCOW": str(tmp_path / "must-not-be-opened.qcow2")},
         capture_output=True, text=True,
     )
@@ -1490,14 +1490,14 @@ def test_notifications_is_package_only_for_hot_swap(tmp_path):
 
 def test_native_notifications_keep_private_inputs_and_legacy_state_separate(published_source, tmp_path):
     lock = sources.read_lock()
-    assert lock["apps"].count("cosmic-notifications") == 1
+    assert lock["apps"].count("yuos-notifications") == 1
     assert "notifications" in lock["products"]
     assert not (ROOT / "desktop/notifications").exists()
-    assert not (ROOT / "apps/cosmic-notifications").exists()
+    assert not (ROOT / "apps/yuos-notifications").exists()
     assert not (ROOT / "apps/notify").exists()
     assert lock["apps"].count("notify") == 1
     for library in ("cosmic-notifications-config", "cosmic-notifications-util"):
-        assert f'cosmic-notifications/{library}/Cargo.toml' not in (
+        assert f'yuos-notifications/{library}/Cargo.toml' not in (
             ROOT / "rootfs/features/desktop/install.sh"
         ).read_text()
     product = published_source / "products/notifications"
@@ -1509,10 +1509,10 @@ def test_native_notifications_keep_private_inputs_and_legacy_state_separate(publ
          "notifications", "--root", str(staged)],
         text=True, cwd=published_source,
     )
-    assert json.loads(output) == ["cosmic-notifications"]
-    component = product / package["native"]["cosmic-notifications"]
+    assert json.loads(output) == ["yuos-notifications"]
+    component = product / package["native"]["yuos-notifications"]
     for library in ("cosmic-notifications-config", "cosmic-notifications-util"):
-        assert _app_payload(staged / "cosmic-notifications" / library) == _app_payload(component / library)
+        assert _app_payload(staged / "yuos-notifications" / library) == _app_payload(component / library)
     status = (ROOT / "docs/app-product-redesign.md").read_text()
     assert "yuos-app/products/notifications" in status
     assert "Source migration covered all original 75 identities" in status
@@ -1530,7 +1530,7 @@ def test_notify_is_agent_owned_and_preserves_history_without_an_installer_transi
     assert len(set(lock["apps"]) - desktop) == 51
     assert "gateway-email" not in lock["apps"]
     assert "notify" not in desktop
-    assert "cosmic-notifications" in desktop
+    assert "yuos-notifications" in desktop
     assert not (ROOT / "apps/notify").exists()
     migration = (ROOT / "core/src/worker/migrate.rs").read_text()
     assert '("notify", &[Legacy::File("notifications.json")])' not in migration
@@ -1580,10 +1580,10 @@ def test_native_library_paths_and_cargo_identity_are_bound_to_the_product(tmp_pa
 def test_native_player_source_status_and_package_identity_are_consistent():
     lock = sources.read_lock()
     assert "media-player" in lock["products"]
-    assert lock["apps"].count("cosmic-player") == 1
-    assert "cosmic-player" in sources.desktop_apps()
+    assert lock["apps"].count("yuos-player") == 1
+    assert "yuos-player" in sources.desktop_apps()
     assert not (ROOT / "desktop/player").exists()
-    assert not (ROOT / "apps/cosmic-player").exists()
+    assert not (ROOT / "apps/yuos-player").exists()
     status = (ROOT / "docs/app-product-redesign.md").read_text()
     assert f"retains **{len(lock['apps'])} identities**" in status
     desktop = len(set(lock["apps"]) & set(sources.desktop_apps()))

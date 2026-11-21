@@ -337,7 +337,7 @@ No current native App row receives a session bus, Wayland socket, X authority
 or GPU node. The fixed vendor table permits only each App's installed
 executable; MCP enters before desktop initialization.
 
-`cosmic-notifications` uses `system.notification.control` under its existing
+`yuos-notifications` uses `system.notification.control` under its existing
 `ui.notify` grant. The broker derives owner/App/source and persists through the
 Notification Service before enabled delivery. It admits neither owner-wide
 notification administration nor arbitrary icon paths. Durable string IDs
@@ -347,15 +347,15 @@ and distinguishes genuine user acknowledgement from delivery and retirement.
 Product code owns the complete frontend/config/util sources, not core state
 or authority. Legacy `notify` JSON state remains a separate transition.
 
-`cosmic-player` retains its fixed vendor-verified native executable row but
+`yuos-player` retains its fixed vendor-verified native executable row but
 no desktop transport. Its seven tools use `system.media-player.control` with
-separate exact `desktop.media.observe:cosmic-player` and
-`desktop.media.control:cosmic-player` grants. The OS verifies the owner,
+separate exact `desktop.media.observe:yuos-player` and
+`desktop.media.control:yuos-player` grants. The OS verifies the owner,
 installed executable/PID and unique MPRIS connection before a fresh dispatch
 gate. UI and MCP share live native state; missing, ambiguous or spoofed
 instances fail rather than selecting another player.
 
-`cosmic-screenshot` retains its fixed, vendor-verified native executable row
+`yuos-screenshot` retains its fixed, vendor-verified native executable row
 but no desktop transport. Its immutable Capture product uses the typed
 `system.screenshot.capture` service with independent `desktop.capture:screen`
 and exact-directory `fs.write` grants. The OS alone starts the bounded
@@ -414,7 +414,7 @@ hold:
    byte-for-byte the absolute path the table names.
 
 A manifest field, a developer grant, a publisher-signed package that
-calls itself `cosmic-player`, a bind alias onto an approved root, and
+calls itself `yuos-player`, a bind alias onto an approved root, and
 the App id on its own are each insufficient. Anything that fails leaves
 an absolute out-of-package entry unlaunchable rather than silently granting
 reach. Current successful classifications also return no transport. Revocation

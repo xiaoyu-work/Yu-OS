@@ -339,7 +339,7 @@ pub fn user_config_dir() -> PathBuf {
 /// `$HOME/.config/yuos/config.json`. This is where `yu agent setup`
 /// writes the `[agent]`/`[tts]`/`[stt]`/`[imagegen]`/`[embed]` blocks
 /// when the user picks providers, models, and keys from the wizard
-/// or the cosmic-settings agent page. System-wide defaults live in
+/// or the yuos-settings agent page. System-wide defaults live in
 /// `YuConfig::default()`; there is no read-only `/etc/yuos/config.json`
 /// overlay any more.
 ///

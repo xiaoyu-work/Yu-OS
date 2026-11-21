@@ -72,7 +72,7 @@ fn invalid_fields_owners_commands_paths_or_keys_fail_during_deserialization() {
         for (key, value) in [
             ("owner_uid", json!(0)),
             ("uid", json!(1000)),
-            ("app_id", json!("cosmic-settings")),
+            ("app_id", json!("yuos-settings")),
             ("path", json!("/etc/locale.conf")),
             ("command", json!("/bin/sh")),
             ("bus", json!("unix:path=/untrusted")),

@@ -180,7 +180,7 @@ pub(super) async fn run(
     use std::io::Write;
 
     let window = yuos_display_control::Epoch(retained.instance.0).label();
-    let state = Path::new("/run/display-home/.local/share/yuos/apps/cosmic-term");
+    let state = Path::new("/run/display-home/.local/share/yuos/apps/yuos-term");
     let root = std::path::PathBuf::from(format!("/proc/{}/root", process.identity.pid()));
     let environment = std::fs::read(format!("/proc/{}/environ", process.identity.pid())).unwrap();
     let value = |key: &str| {

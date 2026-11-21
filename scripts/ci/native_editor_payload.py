@@ -22,18 +22,18 @@ app_sources = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(app_sources)
 
 PRODUCTS = {
-    "editor": ("cosmic-edit", "com.yuos.Edit", ()),
-    "files": ("cosmic-files", "com.yuos.Files", ("bin/cosmic-files-applet",)),
-    "terminal": ("cosmic-term", "com.yuos.Term", ()),
+    "editor": ("yuos-edit", "com.yuos.Edit", ()),
+    "files": ("yuos-files", "com.yuos.Files", ("bin/yuos-files-applet",)),
+    "terminal": ("yuos-term", "com.yuos.Term", ()),
     "calendar": ("panel-calendar", "com.yuos.PanelCalendarButton", ()),
-    "store": ("cosmic-store", "com.yuos.Store", ()),
+    "store": ("yuos-store", "com.yuos.Store", ()),
     "desktop-widgets": ("widget-rail", "com.yuos.AppletWidgetRail", ()),
     "clipboard": ("panel-clipboard", "com.yuos.AppletClipboard", ()),
     "launcher": ("yuos-launcher", "com.yuos.Launcher", ()),
-    "settings": ("cosmic-settings", "com.yuos.Settings", ()),
-    "capture": ("cosmic-screenshot", "com.yuos.Screenshot", ()),
-    "notifications": ("cosmic-notifications", "com.yuos.Notifications", ()),
-    "media-player": ("cosmic-player", "com.yuos.Player", ()),
+    "settings": ("yuos-settings", "com.yuos.Settings", ()),
+    "capture": ("yuos-screenshot", "com.yuos.Screenshot", ()),
+    "notifications": ("yuos-notifications", "com.yuos.Notifications", ()),
+    "media-player": ("yuos-player", "com.yuos.Player", ()),
 }
 
 
@@ -226,8 +226,9 @@ def prepare(output, target, product="editor"):
     lock = app_sources.resolved_lock(selected, source)
     app_sources.locked_app_paths(lock, source)
     app_sources.write_lock(output / "app-sources.json", lock)
-    platform_bytes = (source / "platform.lock.json").read_bytes()
     platform, platform_arguments = development_platform()
+    platform_lock = source / "platform.lock.json"
+    platform_bytes = platform_lock.read_bytes() if platform is None else None
     app, _, _ = product_layout(product)
     scratch = source / "build/acceptance" if platform is not None else source / "build"
     staged = scratch / f"native-{product}-acceptance-{os.getpid()}" / app
@@ -240,7 +241,7 @@ def prepare(output, target, product="editor"):
     )
     # Reuse the resolved lock: do not resolve a newer main after the build.
     if app_sources.prepare_sources(lock) != source or (
-        (source / "platform.lock.json").read_bytes() != platform_bytes
+        platform_bytes is not None and platform_lock.read_bytes() != platform_bytes
     ):
         raise ValueError("Native source/platform inputs changed during preparation")
     if platform is not None and development_platform()[0] != platform:

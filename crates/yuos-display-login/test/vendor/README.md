@@ -35,7 +35,7 @@ The local production patch changes only these upstream files:
 Both defaults return `true`, preserving other Smithay consumers. The dependency
 hooks do not grant authority or enforce an OS policy by themselves. This
 repository's [compositor](../MODULE.md) now overrides both from authenticated
-Root instance leases; the [Host](../../../core/src/clawd/gui/MODULE.md) owns
+Root instance leases; the [Host](../../../../core/src/yuosd/gui/MODULE.md) owns
 capability projection and checked process retirement. Engine/App/instance
 strings and Panel labels do not authorize selection access. Read and write
 remain independent, and DnD is unchanged.
@@ -81,7 +81,7 @@ From the OS repository root on Linux/WSL:
 
 ```bash
 CARGO_TARGET_DIR="$PWD/build/smithay-read-hook-target" \
-  cargo test --manifest-path crates/claw-display-login/test/selection-read/Cargo.toml --locked
+  cargo test --manifest-path crates/yuos-display-login/test/selection-read/Cargo.toml --locked
 CARGO_TARGET_DIR="$PWD/build/smithay-compositor-target" \
   cargo build --manifest-path desktop/comp/Cargo.toml --locked
 ```

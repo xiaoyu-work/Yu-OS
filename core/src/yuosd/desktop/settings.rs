@@ -3,7 +3,7 @@
 //! independent desktop process can ask polkit for a genuine human decision.
 use super::*;
 
-pub(super) const PROGRAM: &str = "/usr/bin/cosmic-settings";
+pub(super) const PROGRAM: &str = "/usr/bin/yuos-settings";
 
 pub(super) async fn launch(
     args: Vec<String>,

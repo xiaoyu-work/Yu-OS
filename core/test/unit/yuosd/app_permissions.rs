@@ -114,7 +114,7 @@ async fn any_explicitly_authorized_app_can_use_the_owner_permission_service() {
     std::fs::create_dir(&home).unwrap();
     assert!(!crate::yuosd::system_caps::system_agent_caps(owner.uid.unwrap(), &home).covers(&manage_cap()));
     assert!(!crate::yuosd::system_caps::local_launcher_ceiling(&home).covers(&manage_cap()));
-    for app in ["cosmic-settings", "independent-permission-manager"] {
+    for app in ["yuos-settings", "independent-permission-manager"] {
         let decision = manager_decision(app, vec![manage_cap()], Uses::Budget(1), Duration::from_secs(60));
         for invalid in [
             json!({"action":"approve"}),
@@ -141,7 +141,7 @@ async fn app_permission_management_requires_live_exact_owner_authority() {
     let _apps = TestEnvVarGuard::set("YUOS_APPS_DIR", &apps);
     let uid = unsafe { libc::geteuid() };
     let owner = client(uid);
-    for app in ["cosmic-settings", "independent-permission-manager"] {
+    for app in ["yuos-settings", "independent-permission-manager"] {
         for caps in [
             vec![],
             vec![Cap::new(Verb::SYS_PERMISSIONS, Scope::name("another-scope"))],

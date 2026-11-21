@@ -241,7 +241,7 @@ impl Fixture {
             .await;
         assert_eq!(unmuted["preferences"]["muted"], false);
         let private_mute =
-            Path::new("/run/display-home/.local/share/yuos/apps/cosmic-notifications")
+            Path::new("/run/display-home/.local/share/yuos/apps/yuos-notifications")
                 .join(".config/cosmic/com.yuos.Notifications/v1/do_not_disturb");
         assert!(
             private_mute.is_file(),

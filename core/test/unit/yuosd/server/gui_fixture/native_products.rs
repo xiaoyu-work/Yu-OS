@@ -69,10 +69,10 @@ pub(super) struct Product {
 
 pub(super) const EDITOR: Product = Product {
     name: "editor",
-    app: "cosmic-edit",
+    app: "yuos-edit",
     case: 25,
     desktop_id: "com.yuos.Edit",
-    entries: &["bin/cosmic-edit"],
+    entries: &["bin/yuos-edit"],
     ungranted: &[0, 1, 2],
     home_metadata: true,
     selector: "--gui",
@@ -81,23 +81,23 @@ pub(super) const EDITOR: Product = Product {
     observation: None,
 };
 pub(super) const NOTIFICATIONS: Product = Product {
-    name: "notifications", app: "cosmic-notifications", case: 42,
-    desktop_id: "com.yuos.Notifications", entries: &["bin/cosmic-notifications"],
+    name: "notifications", app: "yuos-notifications", case: 42,
+    desktop_id: "com.yuos.Notifications", entries: &["bin/yuos-notifications"],
     ungranted: &[], home_metadata: false, selector: "--gui", panel: true,
     interactive_panel: false, observation: None,
 };
 pub(super) const MEDIA: Product = Product {
-    name: "media-player", app: "cosmic-player", case: 40,
-    desktop_id: "com.yuos.Player", entries: &["bin/cosmic-player"],
+    name: "media-player", app: "yuos-player", case: 40,
+    desktop_id: "com.yuos.Player", entries: &["bin/yuos-player"],
     ungranted: &[0, 1], home_metadata: true, selector: "--gui", panel: false,
     interactive_panel: false, observation: None,
 };
 pub(super) const FILES: Product = Product {
     name: "files",
-    app: "cosmic-files",
+    app: "yuos-files",
     case: 26,
     desktop_id: "com.yuos.Files",
-    entries: &["bin/cosmic-files", "bin/cosmic-files-applet"],
+    entries: &["bin/yuos-files", "bin/yuos-files-applet"],
     ungranted: &[0, 1, 2, 3],
     home_metadata: true,
     selector: "--gui",
@@ -107,10 +107,10 @@ pub(super) const FILES: Product = Product {
 };
 pub(super) const TERMINAL: Product = Product {
     name: "terminal",
-    app: "cosmic-term",
+    app: "yuos-term",
     case: 27,
     desktop_id: "com.yuos.Term",
-    entries: &["bin/cosmic-term"],
+    entries: &["bin/yuos-term"],
     ungranted: &[],
     home_metadata: false,
     selector: "--gui",
@@ -133,10 +133,10 @@ pub(super) const CALENDAR: Product = Product {
 };
 pub(super) const STORE: Product = Product {
     name: "store",
-    app: "cosmic-store",
+    app: "yuos-store",
     case: 29,
     desktop_id: "com.yuos.Store",
-    entries: &["bin/cosmic-store"],
+    entries: &["bin/yuos-store"],
     ungranted: &[0],
     home_metadata: false,
     selector: "--gui",
@@ -185,10 +185,10 @@ pub(super) const LAUNCHER: Product = Product {
 };
 pub(super) const SETTINGS: Product = Product {
     name: "settings",
-    app: "cosmic-settings",
+    app: "yuos-settings",
     case: 33,
     desktop_id: "com.yuos.Settings",
-    entries: &["bin/cosmic-settings"],
+    entries: &["bin/yuos-settings"],
     ungranted: &[],
     home_metadata: false,
     selector: "--gui",
@@ -198,10 +198,10 @@ pub(super) const SETTINGS: Product = Product {
 };
 pub(super) const CAPTURE: Product = Product {
     name: "capture",
-    app: "cosmic-screenshot",
+    app: "yuos-screenshot",
     case: 34,
     desktop_id: "com.yuos.Screenshot",
-    entries: &["bin/cosmic-screenshot"],
+    entries: &["bin/yuos-screenshot"],
     ungranted: &[0],
     home_metadata: true,
     selector: "--gui",
@@ -1837,7 +1837,7 @@ fn native_terminal_session_selection_refuses_unbound_foreign_and_mcp_rows() {
     let row: crate::proc::SessionInfo = serde_json::from_value(serde_json::json!({
         "session_id": "root-registered-session", "pid": 42, "command": [],
         "started_at": "", "stdout_path": "", "stderr_path": "",
-        "group": "app", "parent": "parent", "app_id": "cosmic-term",
+        "group": "app", "parent": "parent", "app_id": "yuos-term",
         "pending_bind": false, "start_time_ticks": 1,
     }))
     .unwrap();
@@ -1845,7 +1845,7 @@ fn native_terminal_session_selection_refuses_unbound_foreign_and_mcp_rows() {
     let mut foreign = row.clone();
     foreign.parent = Some("foreign".into());
     let mut other_app = row.clone();
-    other_app.app_id = Some("cosmic-files".into());
+    other_app.app_id = Some("yuos-files".into());
     let mut mcp = row.clone();
     mcp.group = Some("app-mcp".into());
     let mut pending = row.clone();
@@ -1871,7 +1871,7 @@ fn native_terminal_session_selection_refuses_ambiguous_root_rows() {
     let row: crate::proc::SessionInfo = serde_json::from_value(serde_json::json!({
         "session_id": "root-registered-session", "pid": 42, "command": [],
         "started_at": "", "stdout_path": "", "stderr_path": "",
-        "group": "app", "parent": "parent", "app_id": "cosmic-term",
+        "group": "app", "parent": "parent", "app_id": "yuos-term",
         "pending_bind": false, "start_time_ticks": 1,
     }))
     .unwrap();

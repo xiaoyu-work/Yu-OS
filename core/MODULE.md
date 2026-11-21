@@ -136,7 +136,7 @@ remain unchanged until their paired App/package cutover is consumable.
 desktop transport. It authenticates every method sender with the bus daemon's
 kernel UID, bounds literal URL arguments and pending launches, and runs only
 `/usr/local/bin/yu app <configured-id> --gui [URIs...]`. The default
-`cosmic-files` is a routing preference, not an App entitlement. No App receives
+`yuos-files` is a routing preference, not an App entitlement. No App receives
 the user bus or an invocation bridge. Root still authenticates package,
 ancestry/delegation, owner, PAM/kernel login, review, capabilities, sandbox and
 GUI lifetime. See [desktop activation and intent semantics](../packaging/README.md#file-manager-desktop-intents).

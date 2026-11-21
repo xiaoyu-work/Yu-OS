@@ -114,7 +114,7 @@ fn display_binding_is_generic_but_requires_this_surface_panel_and_exact_topic_de
             && declares_resource(&selected, Verb::IPC_SUBSCRIBE)
     };
     assert!(eligible(value.clone()));
-    for id in ["cosmic-notifications", "notify", "another-signed-renderer"] {
+    for id in ["yuos-notifications", "notify", "another-signed-renderer"] {
         value["id"] = json!(id);
         assert!(
             eligible(value.clone()),

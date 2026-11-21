@@ -761,7 +761,7 @@ fn status_returns_provider_and_ready_flag() {
 fn config_path_defaults_to_user_config_dir() {
     // Regression: agent config used to default to /etc/yuos/config.json,
     // which non-root users couldn't write to — saving Azure in
-    // cosmic-settings then silently failed. With per-user paths,
+    // yuos-settings then silently failed. With per-user paths,
     // config_path() must land under YUOS_USER_CONFIG_DIR.
     let _g = env_lock();
     let tmp =
@@ -971,7 +971,7 @@ fn providers_cmd_llm_includes_azure_with_extra_fields() {
 
 #[test]
 fn providers_cmd_llm_hides_mock_and_llama_local() {
-    // The GUI catalogue consumed by cosmic-settings and
+    // The GUI catalogue consumed by yuos-settings and
     // cosmic-initial-setup must not expose `mock` (test-only) or
     // `llama_local` (managed via `yu model load`). Both remain
     // buildable through the registry for power users / tests.
@@ -1248,7 +1248,7 @@ fn status_media_reports_base_url_and_api_version_split() {
 fn status_media_reason_is_envelope_shape_when_not_ready() {
     // Regression: status_media used to emit `reason` as a plain
     // string (e.g. `"`tts` not configured (provider=none)"`). The
-    // cosmic-settings UI deserialises `reason` into `ErrorEnvelope
+    // yuos-settings UI deserialises `reason` into `ErrorEnvelope
     // { error, details, fix }`, so a bare string made every media
     // settings page fail with "invalid status JSON: invalid type:
     // string, expected struct ErrorEnvelope". Now mirror the

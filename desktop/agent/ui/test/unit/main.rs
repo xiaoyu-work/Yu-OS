@@ -13,7 +13,7 @@ fn overlay_flags_publish_the_activation_payload() {
 #[test]
 fn socket_context_becomes_private_transient_activation() {
     let expected = OverlayActivation {
-        context: Some(r#"{"app":"cosmic-files"}"#.into()),
+        context: Some(r#"{"app":"yuos-files"}"#.into()),
         ..OverlayActivation::default()
     };
     let input = serde_json::to_vec(&expected).unwrap();
@@ -37,7 +37,7 @@ fn socket_context_becomes_private_transient_activation() {
 
     assert_eq!(
         flags.action().and_then(|value| value.context.as_deref()),
-        Some(r#"{"app":"cosmic-files"}"#)
+        Some(r#"{"app":"yuos-files"}"#)
     );
     assert_eq!(launch_mode, UiLaunchMode::PrivateOverlay);
     assert!(launch_mode.exits_on_close());

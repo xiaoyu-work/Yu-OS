@@ -123,7 +123,7 @@ fn authority_requires_authenticated_owner_session_and_exact_live_cap_not_an_app_
     ] {
         let request = request(body);
         let cap = request.required_cap();
-        for app in ["cosmic-settings", "independently-authorized-app"] {
+        for app in ["yuos-settings", "independently-authorized-app"] {
             let grant = decision(&request, vec![cap.clone()], app, Uses::Unbounded);
             assert!(preflight(&request, &client(), &grant).is_ok());
             assert!(preflight(&request, &ClientIdentity::unknown(), &grant).is_err());
@@ -137,14 +137,14 @@ fn authority_requires_authenticated_owner_session_and_exact_live_cap_not_an_app_
             vec![Cap::new(Verb::SYS_CONFIG, Scope::name("locale"))],
             vec![Cap::new(Verb::SYS_IDENTITY, Scope::name("manage"))],
         ] {
-            let grant = decision(&request, denied, "cosmic-settings", Uses::Unbounded);
+            let grant = decision(&request, denied, "yuos-settings", Uses::Unbounded);
             assert!(preflight(&request, &client(), &grant).is_err());
         }
         let other = request::Request::decode(json!({
             "session":"another-session","action":"static_hostname","hostname":"fixture-host"
         }))
         .unwrap();
-        let grant = decision(&request, vec![cap], "cosmic-settings", Uses::Unbounded);
+        let grant = decision(&request, vec![cap], "yuos-settings", Uses::Unbounded);
         assert!(preflight(&other, &client(), &grant).is_err());
     }
 }

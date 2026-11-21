@@ -39,7 +39,7 @@ fn roundtrips_presentation_without_a_renderer_or_product_crate() {
 fn rejects_authority_and_product_configuration_fields() {
     for (key, value) in [
         ("owner", json!(1000)),
-        ("app_id", json!("cosmic-notifications")),
+        ("app_id", json!("yuos-notifications")),
         ("trusted", json!(true)),
         ("capabilities", json!(["ui.notify"])),
         ("contract_digest", json!("printed-contract-is-not-proof")),

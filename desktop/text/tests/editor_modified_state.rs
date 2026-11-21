@@ -8,7 +8,7 @@ static SYNTAX_SYSTEM: OnceLock<SyntaxSystem> = OnceLock::new();
 
 // New editor for tests
 fn editor() -> ViEditor<'static, 'static> {
-    // More or less copied from cosmic-edit
+    // More or less copied from yuos-edit
     let font_size: f32 = 14.0;
     let line_height = (font_size * 1.4).ceil();
 

@@ -45,7 +45,7 @@ fn ai_cli_worker_probe() {
     let result = crate::ai::chat::chat_cmd(
         &[
             "--app",
-            "cosmic-edit",
+            "yuos-edit",
             "--origin",
             "external-content",
             "--prompt",
@@ -85,10 +85,10 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
         r#"{"agent":{"provider":"mock","model":"test-model"}}"#,
     )
     .unwrap();
-    let dir = root.join("apps").join("cosmic-edit");
+    let dir = root.join("apps").join("yuos-edit");
     std::fs::create_dir_all(&dir).unwrap();
     let manifest = json!({
-        "schema_version":2, "id":"cosmic-edit", "name":{"en":"Test Editor"}, "version":"1.0.0",
+        "schema_version":2, "id":"yuos-edit", "name":{"en":"Test Editor"}, "version":"1.0.0",
         "operations": {"run":{"label":{"en":"test"}, "args":[], "needs":[{
             "verb":"ai.chat.untrusted", "scope":{"kind":"fixed", "scope":{"kind":"name","value":"test-model"}},
             "why":{"en":"test"}
@@ -102,21 +102,21 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
         "raise RuntimeError('must never execute')",
     )
     .unwrap();
-    crate::test_env::sign_test_package(&dir, crate::provenance::PackageKind::App, "cosmic-edit");
+    crate::test_env::sign_test_package(&dir, crate::provenance::PackageKind::App, "yuos-edit");
     let app = crate::apps::discover_verified(&root.join("apps"))
-        .remove("cosmic-edit")
+        .remove("yuos-edit")
         .unwrap();
     crate::ai::consent::save(
-        "cosmic-edit",
+        "yuos-edit",
         &crate::ai::consent::Consent::approve(app.manifest.ai.clone().unwrap()),
     )
     .unwrap();
     let uid = unsafe { libc::geteuid() };
     let sid = format!("ai-{}", uuid::Uuid::new_v4().simple());
     let session: crate::proc::SessionInfo = serde_json::from_value(json!({
-        "session_id":sid, "pid":std::process::id(), "command":["cosmic-edit"],
+        "session_id":sid, "pid":std::process::id(), "command":["yuos-edit"],
         "started_at":"2026-01-01T00:00:00Z", "stdout_path":"", "stderr_path":"",
-        "app_id":"cosmic-edit", "pending_bind":false,
+        "app_id":"yuos-edit", "pending_bind":false,
         "start_time_ticks":crate::proc::read_start_time_ticks_pub(std::process::id()),
     }))
     .unwrap();
@@ -127,7 +127,7 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
             issuer: Issuer::AppSessionAuthority,
             principal: Principal::of_process(uid, std::process::id()).unwrap(),
             binding: Binding::ProcessTree,
-            subject: Subject::session(&sid).with_app(Some("cosmic-edit".into())),
+            subject: Subject::session(&sid).with_app(Some("yuos-edit".into())),
             audience: AudienceSet::one(Audience::SystemService),
             caps: CapSet::from_caps(vec![Cap::new(
                 Verb::AI_CHAT_UNTRUSTED,
@@ -142,7 +142,7 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
     let path = root.join("ai.sock");
     let _socket = TestEnvVarGuard::set(crate::extension_host::protocol::BROKER_SOCKET_ENV, &path);
     let _session = TestEnvVarGuard::set("YUOS_SESSION", &sid);
-    let _app_env = TestEnvVarGuard::set("YUOS_APP_ID", "cosmic-edit");
+    let _app_env = TestEnvVarGuard::set("YUOS_APP_ID", "yuos-edit");
     let listener = tokio::net::UnixListener::bind(&path).unwrap();
     peer::enable_credential_passing(listener.as_raw_fd()).unwrap();
     let state = crate::yuosd::state::DaemonState::new().unwrap();
@@ -202,7 +202,7 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
     .unwrap();
     let saved: String = db
         .query_row(
-            "SELECT request FROM ai_inputs WHERE app='cosmic-edit' AND session=?1",
+            "SELECT request FROM ai_inputs WHERE app='yuos-edit' AND session=?1",
             [&sid],
             |row| row.get(0),
         )
@@ -239,7 +239,7 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
             issuer: Issuer::AppSessionAuthority,
             principal: Principal::of_process(uid, std::process::id()).unwrap(),
             binding: Binding::Process,
-            subject: Subject::session(&sid).with_app(Some("cosmic-edit".into())),
+            subject: Subject::session(&sid).with_app(Some("yuos-edit".into())),
             audience: AudienceSet::one(Audience::AppRelay),
             caps: CapSet::from_caps(vec![]),
             lifetime: std::time::Duration::from_secs(60),
@@ -292,7 +292,7 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
         denied.error.unwrap().data.unwrap()["ai_error"]["code"],
         "BUDGET_EXCEEDED"
     );
-    crate::ai::consent::delete("cosmic-edit").unwrap();
+    crate::ai::consent::delete("yuos-edit").unwrap();
     let denied = dispatch(params.clone(), &identity, &state, &admission).await;
     let error = denied.error.unwrap().data.unwrap()["ai_error"].clone();
     assert_eq!(error["code"], "PERMISSION_DENIED");

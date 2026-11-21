@@ -9,8 +9,8 @@ use crate::notifications::{
 };
 use std::time::Duration;
 
-const APP: &str = "cosmic-notifications";
-const SOURCE: &str = "app:cosmic-notifications";
+const APP: &str = "yuos-notifications";
+const SOURCE: &str = "app:yuos-notifications";
 const NOTIFY_APP: &str = "notify";
 const NOTIFY_SOURCE: &str = "app:notify";
 

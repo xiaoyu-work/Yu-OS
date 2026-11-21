@@ -626,7 +626,7 @@ async fn media_player_actual_native_mcp_crosses_worker_relay() {
     ]);
     let slot = crate::worker::relay_slot();
     let mut policy = derive::app_session(derive::AppSessionInput {
-        app_id: "cosmic-player",
+        app_id: "yuos-player",
         app_dir: &app,
         program: native,
         argv: vec![],
@@ -669,7 +669,7 @@ async fn media_player_actual_native_mcp_crosses_worker_relay() {
     assert_eq!(policy.seccomp.as_str(), "strict");
     let launch = WorkerLaunch::new(policy).with_authority(BrokerAuthority::new(
         &session,
-        Some("cosmic-player".into()),
+        Some("yuos-player".into()),
         caps.clone(),
         slot.clone(),
     ));
@@ -689,7 +689,7 @@ async fn media_player_actual_native_mcp_crosses_worker_relay() {
             issuer: Issuer::AppSessionAuthority,
             principal: Principal::of_process(uid, child.id().unwrap()).unwrap(),
             binding: Binding::ProcessTree,
-            subject: Subject::session(&session).with_app(Some("cosmic-player".into())),
+            subject: Subject::session(&session).with_app(Some("yuos-player".into())),
             audience: AudienceSet::one(Audience::SystemService),
             caps,
             lifetime: Duration::from_secs(60),
@@ -702,7 +702,7 @@ async fn media_player_actual_native_mcp_crosses_worker_relay() {
             issuer: Issuer::AppSessionAuthority,
             principal: Principal::of_process(uid, std::process::id()).unwrap(),
             binding: Binding::Process,
-            subject: Subject::session(&session).with_app(Some("cosmic-player".into())),
+            subject: Subject::session(&session).with_app(Some("yuos-player".into())),
             audience: AudienceSet::one(Audience::AppRelay),
             caps: CapSet::new(),
             lifetime: Duration::from_secs(60),
@@ -861,8 +861,8 @@ async fn media_player_actual_native_mcp_crosses_worker_relay() {
     );
     crate::approvals::app_policy::revoke(
         uid,
-        "cosmic-player",
-        crate::caps::Cap::new(Verb::DESKTOP_MEDIA_CONTROL, Scope::name("cosmic-player")),
+        "yuos-player",
+        crate::caps::Cap::new(Verb::DESKTOP_MEDIA_CONTROL, Scope::name("yuos-player")),
     )
     .unwrap();
     id += 1;

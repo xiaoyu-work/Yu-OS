@@ -31,7 +31,7 @@
 //! 2. the package verified through **vendor** provenance —
 //!    package-manager trust under an approved system root — so a
 //!    publisher signature over a package that merely calls itself
-//!    `cosmic-player` is refused;
+//!    `yuos-player` is refused;
 //! 3. the package directory sits under an approved vendor root *and*
 //!    every component of it is root-owned, non-symlink and not
 //!    group/world-writable;
@@ -83,28 +83,28 @@ const NO_TRANSPORT: &[Transport] = &[];
 
 const ALLOWLIST: &[Row] = &[
     Row {
-        app_id: "cosmic-files",
-        system_program: "/usr/bin/cosmic-files",
+        app_id: "yuos-files",
+        system_program: "/usr/bin/yuos-files",
         transports: NO_TRANSPORT,
     },
     Row {
-        app_id: "cosmic-edit",
-        system_program: "/usr/bin/cosmic-edit",
+        app_id: "yuos-edit",
+        system_program: "/usr/bin/yuos-edit",
         transports: NO_TRANSPORT,
     },
     Row {
-        app_id: "cosmic-store",
-        system_program: "/usr/bin/cosmic-store",
+        app_id: "yuos-store",
+        system_program: "/usr/bin/yuos-store",
         transports: NO_TRANSPORT,
     },
     Row {
-        app_id: "cosmic-settings",
-        system_program: "/usr/bin/cosmic-settings",
+        app_id: "yuos-settings",
+        system_program: "/usr/bin/yuos-settings",
         transports: NO_TRANSPORT,
     },
     Row {
-        app_id: "cosmic-term",
-        system_program: "/usr/bin/cosmic-term",
+        app_id: "yuos-term",
+        system_program: "/usr/bin/yuos-term",
         transports: NO_TRANSPORT,
     },
     Row {
@@ -113,18 +113,18 @@ const ALLOWLIST: &[Row] = &[
         transports: NO_TRANSPORT,
     },
     Row {
-        app_id: "cosmic-player",
-        system_program: "/usr/bin/cosmic-player",
+        app_id: "yuos-player",
+        system_program: "/usr/bin/yuos-player",
         transports: NO_TRANSPORT,
     },
     Row {
-        app_id: "cosmic-screenshot",
-        system_program: "/usr/bin/cosmic-screenshot",
+        app_id: "yuos-screenshot",
+        system_program: "/usr/bin/yuos-screenshot",
         transports: NO_TRANSPORT,
     },
     Row {
-        app_id: "cosmic-notifications",
-        system_program: "/usr/bin/cosmic-notifications",
+        app_id: "yuos-notifications",
+        system_program: "/usr/bin/yuos-notifications",
         transports: NO_TRANSPORT,
     },
 ];
@@ -171,7 +171,7 @@ pub fn classify(
 ) -> Option<DesktopGrant> {
     let row = ALLOWLIST.iter().find(|row| row.app_id == app_id)?;
     // Vendor provenance, not a signature. A publisher-signed package
-    // that calls itself `cosmic-player` never reaches the transport.
+    // that calls itself `yuos-player` never reaches the transport.
     if !matches!(package.source(), crate::provenance::TrustSource::Vendor) {
         return None;
     }

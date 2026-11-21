@@ -73,10 +73,10 @@ async fn revoked_capture_cannot_start_the_native_process() {
     let _lock = crate::test_env::lock_env();
     let dir = fixture();
     let caps = requested_caps(dir.path());
-    let allowed = decision("cosmic-screenshot", caps.clone());
+    let allowed = decision("yuos-screenshot", caps.clone());
     crate::approvals::app_policy::revoke(
         unsafe { libc::geteuid() },
-        "cosmic-screenshot",
+        "yuos-screenshot",
         caps[0].clone(),
     )
     .unwrap();
@@ -97,15 +97,15 @@ async fn capture_requires_screen_and_exact_output_before_execution() {
     let marker = dir.path().join("ran");
     let valid = requested_caps(dir.path());
     for denied in [
-        decision("cosmic-screenshot", vec![]),
-        decision("cosmic-screenshot", vec![valid[0].clone()]),
-        decision("cosmic-screenshot", vec![valid[1].clone()]),
+        decision("yuos-screenshot", vec![]),
+        decision("yuos-screenshot", vec![valid[0].clone()]),
+        decision("yuos-screenshot", vec![valid[1].clone()]),
         decision(
-            "cosmic-screenshot",
+            "yuos-screenshot",
             requested_caps(&dir.path().join("other")),
         ),
         decision(
-            "cosmic-screenshot",
+            "yuos-screenshot",
             vec![
                 Cap::new(Verb::DESKTOP_CAPTURE, Scope::name("clipboard")),
                 valid[1].clone(),
@@ -169,7 +169,7 @@ async fn capture_persists_private_png_and_never_clobbers_existing_output() {
 async fn cancelled_failed_invalid_and_timed_out_captures_leave_no_output() {
     let _lock = crate::test_env::lock_env();
     let dir = fixture();
-    let allowed = decision("cosmic-screenshot", requested_caps(dir.path()));
+    let allowed = decision("yuos-screenshot", requested_caps(dir.path()));
     assert_eq!(
         capture_to(
             dir.path(),
@@ -215,7 +215,7 @@ async fn capture_refuses_directory_replacement_while_portal_runs() {
     let dir = root.path().join("shots");
     let moved = root.path().join("moved");
     fs::create_dir(&dir).unwrap();
-    let allowed = decision("cosmic-screenshot", requested_caps(&dir));
+    let allowed = decision("yuos-screenshot", requested_caps(&dir));
     let mut fake = command(&format!("mv \"$DIR\" \"$MOVED\"; mkdir \"$DIR\"; {PNG}"));
     fake.env("DIR", &dir).env("MOVED", &moved);
     let error = capture_to(&dir, &allowed, fake, Duration::from_secs(1))
@@ -235,7 +235,7 @@ fn capture_wire_and_paths_reject_interactive_or_forged_authority() {
     for (field, value) in [
         ("interactive", json!(true)),
         ("owner_uid", json!(0)),
-        ("app_id", json!("cosmic-player")),
+        ("app_id", json!("yuos-player")),
         ("program", json!("/bin/sh")),
         ("source", json!("/work/private")),
         ("modal", json!("true")),

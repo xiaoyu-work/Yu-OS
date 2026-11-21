@@ -25,7 +25,7 @@ fn required_cap(action: MediaPlayerAction) -> Cap {
         } else {
             Verb::DESKTOP_MEDIA_CONTROL
         },
-        Scope::name("cosmic-player"),
+        Scope::name("yuos-player"),
     )
 }
 
@@ -65,7 +65,7 @@ pub async fn control(
     if unsafe { libc::geteuid() } != 0 || uid == 0 {
         return Err("Media Player requires root yuosd and a non-root owner session".into());
     }
-    let window = super::gui::Manager::get()?.media_window(uid, "cosmic-player")?;
+    let window = super::gui::Manager::get()?.media_window(uid, "yuos-player")?;
     window
         .execute(request.action, timeout, || {
             authorize(authority, request.action, uid).map(|_| ())

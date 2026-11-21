@@ -18,7 +18,7 @@ pub(super) async fn owner_settings(
     validate_app_id(&app_id)?;
     crate::paths::with_user_override(uid, home.to_path_buf(), async move {
         let show = action == "show_choices";
-        if !show && matches!(app_id.as_str(), "cosmic-settings" | "desktop-shell") {
+        if !show && matches!(app_id.as_str(), "yuos-settings" | "desktop-shell") {
             return Err("The system Settings window and desktop do not take App permission choices.".into());
         }
         let fence = if show { None } else {
@@ -40,7 +40,7 @@ pub(super) async fn owner_settings(
         if show {
             let permissions = review.permissions.into_iter().filter(|permission| {
                 binding.publisher_key_id.is_some() && permission.persistent_cap(&ceiling).is_some()
-                    && !matches!(app_id.as_str(), "cosmic-settings" | "desktop-shell")
+                    && !matches!(app_id.as_str(), "yuos-settings" | "desktop-shell")
             }).map(|permission| {
                 let id = permission.decision_id()?;
                 let cap = permission.persistent_cap(&ceiling).ok_or("permission changed")?;

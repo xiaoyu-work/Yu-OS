@@ -2,7 +2,7 @@
 #
 # Per XDG MIME-Apps spec, the [Default Applications] group binds a MIME
 # type (or x-scheme-handler/<scheme>) to a .desktop AppID. Entries here
-# are the **vendor defaults**; user choices in cosmic-settings →
+# are the **vendor defaults**; user choices in yuos-settings →
 # Default Applications override these by writing to
 # $XDG_CONFIG_HOME/mimeapps.list, which takes priority.
 #
@@ -25,7 +25,7 @@ application/xhtml+xml=helium.desktop
 # --- Mail (Thunderbird) ---
 x-scheme-handler/mailto=thunderbird.desktop
 
-# --- Text (cosmic-edit) ---
+# --- Text (yuos-edit) ---
 text/plain=com.yuos.Edit.desktop
 text/markdown=com.yuos.Edit.desktop
 text/x-markdown=com.yuos.Edit.desktop
@@ -131,7 +131,7 @@ application/vnd.android.package-archive=org.gnome.FileRoller.desktop
 application/x-rpm=org.gnome.FileRoller.desktop
 application/java-archive=org.gnome.FileRoller.desktop
 
-# --- App packages / appstream (cosmic-store) ---
+# --- App packages / appstream (yuos-store) ---
 application/vnd.debian.binary-package=com.yuos.Store.desktop
 application/x-debian-package=com.yuos.Store.desktop
 application/x-deb=com.yuos.Store.desktop
@@ -140,7 +140,7 @@ application/vnd.flatpak.repo=com.yuos.Store.desktop
 x-scheme-handler/appstream=com.yuos.Store.desktop
 x-scheme-handler/mime=com.yuos.Store.desktop
 
-# --- Audio / video (cosmic-player) ---
+# --- Audio / video (yuos-player) ---
 audio/mpeg=com.yuos.Player.desktop
 audio/mp4=com.yuos.Player.desktop
 audio/x-m4a=com.yuos.Player.desktop
@@ -169,5 +169,5 @@ video/x-flv=com.yuos.Player.desktop
 video/3gpp=com.yuos.Player.desktop
 video/ogg=com.yuos.Player.desktop
 
-# --- Folders (cosmic-files) ---
+# --- Folders (yuos-files) ---
 inode/directory=com.yuos.Files.desktop

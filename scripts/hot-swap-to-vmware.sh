@@ -10,11 +10,11 @@
 #   yu                    — workspace root,        target/release/yu
 #   yuos-agent-ui           — desktop/agent,         target/release/yuos-agent-ui
 #   yuos-agent-bridge       — desktop/agent,         target/release/yuos-agent-bridge
-#   cosmic-files           — build/native-apps/cosmic-files, target/release/cosmic-files
-#   cosmic-edit            — build/native-apps/cosmic-edit, target/release/cosmic-edit
-#   cosmic-term            — build/native-apps/cosmic-term, target/release/cosmic-term
-#   cosmic-player          — refused: update its paired signed Agent/Desktop packages
-#   cosmic-notifications   — refused: update its paired signed Agent/Desktop packages
+#   yuos-files           — build/native-apps/yuos-files, target/release/yuos-files
+#   yuos-edit            — build/native-apps/yuos-edit, target/release/yuos-edit
+#   yuos-term            — build/native-apps/yuos-term, target/release/yuos-term
+#   yuos-player          — refused: update its paired signed Agent/Desktop packages
+#   yuos-notifications   — refused: update its paired signed Agent/Desktop packages
 #
 # Options:
 #   --no-build      Skip cargo build; use whatever is already in target/release
@@ -67,20 +67,20 @@ done
 # target → "<cargo_dir>|<binary>|<install_path>"
 target_spec() {
   case "$1" in
-    cosmic-notifications)
+    yuos-notifications)
       echo "Notifications requires its signed manifest and yuos-notifications-v1; update paired Agent/Desktop packages and restart the desktop, not only the binary." >&2
       return 1
       ;;
-    cosmic-player)
+    yuos-player)
       echo "Media Player requires its signed manifest and yuos-media-player-v1; update paired Agent/Desktop packages, not only the binary." >&2
       return 1
       ;;
     yu)                    echo ".|yu|/usr/bin/yu" ;;
     yuos-agent-ui)          echo "desktop/agent|yuos-agent-ui|/usr/bin/yuos-agent-ui" ;;
     yuos-agent-bridge)      echo "desktop/agent|yuos-agent-bridge|/usr/bin/yuos-agent-bridge" ;;
-    cosmic-files)          echo "build/native-apps/cosmic-files|cosmic-files|/usr/bin/cosmic-files" ;;
-    cosmic-edit)           echo "build/native-apps/cosmic-edit|cosmic-edit|/usr/bin/cosmic-edit" ;;
-    cosmic-term)           echo "build/native-apps/cosmic-term|cosmic-term|/usr/bin/cosmic-term" ;;
+    yuos-files)          echo "build/native-apps/yuos-files|yuos-files|/usr/bin/yuos-files" ;;
+    yuos-edit)           echo "build/native-apps/yuos-edit|yuos-edit|/usr/bin/yuos-edit" ;;
+    yuos-term)           echo "build/native-apps/yuos-term|yuos-term|/usr/bin/yuos-term" ;;
     *) echo "" ;;
   esac
 }
@@ -118,7 +118,7 @@ if [ "$DO_BUILD" = 1 ]; then
   native_prepared=0
   for t in "${TARGETS[@]}"; do
     IFS='|' read -r cargo_dir bin _ <<<"$(target_spec "$t")"
-    if [ "$t" = cosmic-edit ] || [ "$t" = cosmic-files ]; then
+    if [ "$t" = yuos-edit ] || [ "$t" = yuos-files ]; then
       if [ "$native_prepared" = 0 ]; then
         build_script+="python3 scripts/app_sources.py --native; "
         native_prepared=1

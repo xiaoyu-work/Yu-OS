@@ -398,9 +398,9 @@ acknowledgement and dismissal. It shares the native fixture's broker and
 delivery consumer rather than implementing another notification provider.
 
 `system.media-player.control` accepts independently authorized sessions, not
-only the `cosmic-player` App. Status spends
-`desktop.media.observe:cosmic-player`; the six playback actions spend only
-`desktop.media.control:cosmic-player`. The scope names the fixed playback
+only the `yuos-player` App. Status spends
+`desktop.media.observe:yuos-player`; the six playback actions spend only
+`desktop.media.control:yuos-player`. The scope names the fixed playback
 target, not the caller. Neither is in the default System Agent authority.
 The existing Medium-risk local-launch ceiling and authenticated manifest/grant
 derivation are unchanged. Each App keeps its own identity, session and

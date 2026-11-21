@@ -241,7 +241,7 @@ fn assert_error(result: zbus::Result<zbus::Message>, expected: &str) {
 
 #[test]
 fn configured_target_is_only_a_canonical_routing_preference() {
-    assert_eq!(configured_app(std::iter::empty()).unwrap(), "cosmic-files");
+    assert_eq!(configured_app(std::iter::empty()).unwrap(), "yuos-files");
     assert_eq!(
         configured_app(["--app", "another_gui-2"].map(OsString::from).into_iter()).unwrap(),
         "another_gui-2"

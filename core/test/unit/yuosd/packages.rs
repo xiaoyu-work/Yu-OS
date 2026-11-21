@@ -157,7 +157,7 @@ fn package_queries_require_live_read_scopes_not_a_product_name_or_package_mutati
     let directory = tempfile::tempdir().unwrap();
     let _data = TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", directory.path());
     let owner = unsafe { libc::geteuid() };
-    for app in [Some("cosmic-store"), Some("independent-package-client"), None] {
+    for app in [Some("yuos-store"), Some("independent-package-client"), None] {
         for (body, scope) in [
             (json!({"session": "fixture", "action": "installed"}), "packages"),
             (json!({"session": "fixture", "action": "updates"}), "packages"),
@@ -278,7 +278,7 @@ fn independently_authorized_package_clients_keep_their_own_identity() {
     let uid = unsafe { libc::geteuid() };
     for app in [
         Some("pkg"),
-        Some("cosmic-store"),
+        Some("yuos-store"),
         Some("independent-package-client"),
         None,
     ] {
@@ -318,7 +318,7 @@ fn package_clients_require_exact_live_authority_and_do_not_gain_defaults() {
     assert!(!crate::yuosd::system_caps::system_agent_caps(uid, &home).covers(&cap));
     assert!(!crate::yuosd::system_caps::local_launcher_ceiling(&home).covers(&cap));
 
-    for app in ["pkg", "cosmic-store", "independent-package-client"] {
+    for app in ["pkg", "yuos-store", "independent-package-client"] {
         for caps in [
             vec![],
             vec![Cap::new(Verb::SYS_PACKAGE, Scope::name("other-package"))],

@@ -4,8 +4,8 @@ Installs the [GitHub Copilot CLI](https://github.com/github/copilot-cli)
 (`@github/copilot`) globally into the rootfs so the `copilot` binary is on
 every user's `$PATH`.
 
-Used by **cosmic-term**'s `@`-trigger AI integration: when the user types `@`
-at the start of a shell prompt, cosmic-term captures the typed query, drops it
+Used by **yuos-term**'s `@`-trigger AI integration: when the user types `@`
+at the start of a shell prompt, yuos-term captures the typed query, drops it
 into `$YUOS_AI_TMP/aq-<id>.txt`, then injects a call to a shell function
 `__yuos_ai <id>` which `exec`s:
 
