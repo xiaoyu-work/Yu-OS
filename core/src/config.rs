@@ -32,6 +32,8 @@ pub struct CosConfig {
     #[serde(default)]
     pub embed: EmbedConfig,
     #[serde(default)]
+    pub decision: DecisionConfig,
+    #[serde(default)]
     pub imagegen: ImageGenConfig,
     #[serde(default)]
     pub stt: SttConfig,
@@ -601,6 +603,17 @@ pub struct EmbedConfig {
     pub model_dir: Option<String>,
 }
 
+/// Independent, owner-local System One model configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DecisionConfig {
+    /// The exact model alias served on the owner's `yu-decision.sock`.
+    /// An empty name disables the decision task.
+    #[serde(default)]
+    pub model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout_ms: Option<u64>,
+}
+
 /// Image generation configuration. Reads from `[imagegen]` block.
 /// `provider="none"` (the default) means image-gen is disabled.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -850,6 +863,7 @@ impl Default for CosConfig {
             web: WebConfig::default(),
             agent: AgentConfig::default(),
             embed: EmbedConfig::default(),
+            decision: DecisionConfig::default(),
             imagegen: ImageGenConfig::default(),
             stt: SttConfig::default(),
             tts: TtsConfig::default(),

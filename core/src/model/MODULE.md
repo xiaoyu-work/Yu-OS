@@ -22,6 +22,7 @@ implementations outside the conversational provider layer.
 | `import.rs` | Model import lifecycle |
 | `mod.rs` | CLI/task dispatch and exports |
 | `local_embedding.rs` | Versioned fixed-Qwen3 CPU pipe for installed file indexers and Root-produced non-root owner helpers |
+| `tasks/decision.rs` | Bounded decision inference over the owner's private System One socket |
 
 ## Dependencies
 
@@ -34,6 +35,10 @@ engines, independent of conversational/cloud embed configuration. It carries
 no file path, capability, provider credential or executable selector. Root
 parentage permits only fixed non-root CPU inference; Workspace file authority
 remains at the caller's broker boundary.
+
+The [decision task](../../../docs/decision-model.md) is separately configured
+and never sends state to a remote provider. Callers own any effects selected
+from its answers and must reauthorize them through their existing tools.
 
 ORT GenAI preloads and retains the registered ONNX Runtime dependency before
 loading its native initializer. Both packages are required; installing GenAI

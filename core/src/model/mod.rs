@@ -33,6 +33,7 @@ pub mod tasks;
 
 use serde_json::{json, Value};
 
+use tasks::decision::{self, DecisionRequest};
 use tasks::embed::{self, EmbedRequest};
 use tasks::imagegen::{self, ImageData, ImageGenRequest};
 use tasks::stt::{self, SttMode, SttRequest};
@@ -52,6 +53,7 @@ pub fn run(command: &str, args: &[String]) -> Result<Value, String> {
         }
         "rm" => run_rm(args),
         "embed" => run_embed(args),
+        "decide" => run_decide(args),
         "image" | "imagegen" => run_imagegen(args),
         "transcribe" | "stt" => run_transcribe(args, SttMode::Transcribe),
         "translate" => run_transcribe(args, SttMode::Translate),
@@ -65,12 +67,13 @@ pub fn run(command: &str, args: &[String]) -> Result<Value, String> {
             "engines_linked": engines::engines_linked(),
             "models_loaded": 0,
             "embed": embed_status_json(),
+            "decision": decision::status(&crate::config::current_snapshot().decision),
             "imagegen": imagegen_status_json(),
             "stt": stt_status_json(),
             "tts": tts_status_json(),
         })),
         other => Err(format!(
-            "unknown command: {other}. try: list | import | load | unload | infer | embed | image | transcribe | translate | speak | status | bench | rm"
+            "unknown command: {other}. try: list | import | load | unload | infer | embed | decide | image | transcribe | translate | speak | status | bench | rm"
         )),
     }
 }
@@ -129,7 +132,7 @@ fn run_import(args: &[String]) -> Result<Value, String> {
     if args.is_empty() {
         return Err(
             "usage: yu model import <path> --as <name> [--version <v>] \
-             [--task llm|stt|tts|embed|vision|imagegen] [--engine ort|llama] \
+             [--task llm|stt|tts|embed|decision|vision|imagegen] [--engine ort|llama] \
              [--format onnx|gguf] [--move] [--force] [--device <name>]"
                 .into(),
         );
@@ -259,10 +262,11 @@ fn parse_task(v: &str) -> Result<registry::Task, String> {
         "stt" => Ok(Task::Stt),
         "tts" => Ok(Task::Tts),
         "embed" => Ok(Task::Embed),
+        "decision" => Ok(Task::Decision),
         "vision" => Ok(Task::Vision),
         "imagegen" => Ok(Task::Imagegen),
         other => Err(format!(
-            "unknown task: {other} (try llm|stt|tts|embed|vision|imagegen)"
+            "unknown task: {other} (try llm|stt|tts|embed|decision|vision|imagegen)"
         )),
     }
 }
@@ -301,6 +305,37 @@ fn embed_status_json() -> Value {
         "model": cfg.model,
         "configured": configured,
     })
+}
+
+fn run_decide(args: &[String]) -> Result<Value, String> {
+    use std::io::Read;
+
+    if !args.is_empty() {
+        return Err("usage: yu model decide < request.json".into());
+    }
+    if crate::proc::current_session_info_for_caps().is_some_and(|session| session.app_id.is_some()) {
+        return Err("the local decision task is not an App capability".into());
+    }
+    let cfg = crate::config::current_snapshot();
+    let model = decision::DecisionModel::from_config(&cfg.decision)?
+        .ok_or("configure decision.model before using the decision task")?;
+    let mut bytes = Vec::new();
+    std::io::stdin()
+        .lock()
+        .take((decision::MAX_REQUEST_BYTES + 1) as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|error| error.to_string())?;
+    if bytes.len() > decision::MAX_REQUEST_BYTES {
+        return Err("decision request is too large".into());
+    }
+    let request: DecisionRequest =
+        serde_json::from_slice(&bytes).map_err(|_| "stdin must be a decision request")?;
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|error| error.to_string())?;
+    let result = runtime.block_on(model.decide(&request))?;
+    serde_json::to_value(result).map_err(|error| error.to_string())
 }
 
 fn imagegen_status_json() -> Value {

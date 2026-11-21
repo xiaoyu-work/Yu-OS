@@ -111,6 +111,7 @@ than as a retryable outage.
 | `tabs.list` | `browser.tabs.read` | connector | wild |
 | `tabs.activate` | `browser.tabs.read` | connector | wild |
 | `nav.go` | `browser.nav` + `memory.write` | connector | URL host + App self-ref |
+| `nav.follow` | `browser.nav` | connector | declared page host |
 | `dom.query` | `browser.dom.read` | connector | declared page host |
 | `page.snapshot` | `browser.dom.read` | connector | declared page host |
 | `page.screenshot` | `browser.dom.read` + `fs.write` | connector | declared page host + path |
@@ -137,6 +138,13 @@ contenteditable controls. Queries and accessibility snapshots expose labels,
 opaque per-document refs, sensitivity classification, and a
 `value_present` boolean. Text snapshots replace populated editable regions
 with a redaction marker.
+
+An optional `links` snapshot returns only labels and short-lived references
+for visible same-origin links in the active tab. `nav.follow` consumes such a
+reference once, checks the current label, destination and document, and reports
+whether the target URL was observed after loading. The system Agent may use
+these operations with its [local decision task](decision-model.md); the
+browser has no model or inference credentials.
 
 `content.js` classifies password and hidden inputs, password/OTP/payment
 autocomplete tokens, explicit private-data attributes, and credential-like

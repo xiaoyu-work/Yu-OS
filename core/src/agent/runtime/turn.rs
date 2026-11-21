@@ -985,6 +985,7 @@ struct DispatchOutcome {
     effective_call: ToolCall,
     result: ToolResult,
     latency_ms: u64,
+    nested_stop: Option<String>,
 }
 
 /// Resolve pre-hook for `call`. Returns the effective call (with
@@ -1055,17 +1056,20 @@ async fn dispatch_one(
     check_interrupted(interrupt)?;
 
     let started = Instant::now();
-    let result = if let Some(reason) = decision_error {
-        ToolResult::err(reason)
+    let (result, nested_stop) = if let Some(reason) = decision_error {
+        (ToolResult::err(reason), None)
     } else {
         await_interruptible(
             interrupt,
-            dispatch_tool(
-                tools,
-                exposure,
-                &invocation.kind,
-                &effective_call,
-                session_id,
+            hooks::with_nested_tool_hooks(
+                hook_ctx,
+                dispatch_tool(
+                    tools,
+                    exposure,
+                    &invocation.kind,
+                    &effective_call,
+                    session_id,
+                ),
             ),
         )
         .await?
@@ -1094,6 +1098,7 @@ async fn dispatch_one(
         effective_call,
         result,
         latency_ms,
+        nested_stop,
     })
 }
 
@@ -1219,10 +1224,11 @@ async fn dispatch_calls(
                 },
             };
             if pending_stop.is_none() {
+                pending_stop = outcome.nested_stop;
                 if let hooks::HookOutcome::Stop(reason) = hooks::current_registry()
                     .dispatch_post_tool(ctx, &outcome.effective_call, &summary)
                 {
-                    pending_stop = Some(reason);
+                    pending_stop.get_or_insert(reason);
                 }
             }
         }

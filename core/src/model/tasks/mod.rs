@@ -3,6 +3,7 @@
 //! Each task module presents a stable Rust API and routes internally to the
 //! correct engine (`engines::ort` or `engines::llama`).
 
+pub mod decision;
 pub mod embed;
 pub mod imagegen;
 pub mod llm;

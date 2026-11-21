@@ -119,6 +119,22 @@ fn prepare_action(request: &BrowserControl) -> Result<PreparedAction, String> {
                 args: json!({"id": tab_id, "url": url}),
             })
         }
+        "nav.follow" => {
+            validate_fields(
+                request,
+                &["tab_id", "page_url", "reference"],
+                &["tab_id", "page_url", "reference"],
+            )?;
+            host_bound(
+                request,
+                Verb::BROWSER_NAV,
+                "nav.follow",
+                json!({
+                    "id": validated_tab_id(request.tab_id)?,
+                    "ref": required_nonempty(request.reference.as_ref(), "reference")?,
+                }),
+            )
+        }
         "dom.query" => {
             validate_fields(
                 request,
@@ -193,8 +209,8 @@ fn prepare_action(request: &BrowserControl) -> Result<PreparedAction, String> {
                 &["tab_id", "page_url", "kind"],
             )?;
             let kind = request.kind.as_ref().map_or("ax", |value| value.as_str());
-            if !matches!(kind, "ax" | "text") {
-                return Err("browser snapshot kind must be `ax` or `text`".to_string());
+            if !matches!(kind, "ax" | "text" | "links") {
+                return Err("browser snapshot kind must be `ax`, `text`, or `links`".to_string());
             }
             host_bound(
                 request,

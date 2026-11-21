@@ -65,6 +65,7 @@ route.
 | Agent terminal frontend | Claw-owned ratatui presentation that consumes canonical conversation, task, model, tool and approval services directly; no external TUI process or compatibility protocol | `core/src/agent/terminal/`, `core/src/clawd/conversations.rs` |
 | Model-input trust | Closed trust lattice, model-input source registry, labelled segments, and the bounded data fence for non-policy content | `core/src/agent/trust/` |
 | LLM abstraction | Provider registry, wire adapters, streaming accumulation, fallback chain, credentials, and usage | `core/src/agent/llm/` |
+| Local decision task | Bounded System One judgments via an owner-only socket; independent of chat and action authority | `core/src/model/tasks/decision.rs`, [Decision models](docs/decision-model.md) |
 | Tool/capability layer | Model-visible tool registry, guardrails, MCP attachment, scope checks, and approval boundaries | `core/src/agent/tools/`, `core/src/caps/` |
 | Credential service | Validated credential identities, cryptography and master-key ownership, encrypted atomic persistence, authorization, refresh lifecycle, OAuth flows, and stable CLI facade | `core/src/credential/` |
 | Memory and sessions | SQLite/FTS memory, semantic recall, session/message persistence, curation, checkpoints, and owner-scoped learned-memory reset that preserves execution evidence | `core/src/agent/memory/`, `core/src/session/`, `core/src/checkpoint.rs` |

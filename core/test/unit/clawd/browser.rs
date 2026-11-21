@@ -43,6 +43,34 @@ fn page_actions_bind_authority_to_the_declared_origin() {
 }
 
 #[test]
+fn compact_link_snapshot_and_follow_have_separate_authority() {
+    let snapshot = prepare_action(&request(json!({
+        "session": "app-browser",
+        "action": "page.snapshot",
+        "tab_id": 11,
+        "page_url": "https://example.com/",
+        "kind": "links"
+    })))
+    .unwrap();
+    assert_eq!(snapshot.capability, Cap::new(Verb::BROWSER_DOM_READ, Scope::host("example.com:443")));
+    assert_eq!(snapshot.args["kind"], "links");
+
+    let mut follow = json!({
+        "session": "app-browser",
+        "action": "nav.follow",
+        "tab_id": 11,
+        "page_url": "https://example.com/",
+        "reference": "doc#fixture:link#1"
+    });
+    let prepared = prepare_action(&request(follow.clone())).unwrap();
+    assert_eq!(prepared.capability, Cap::new(Verb::BROWSER_NAV, Scope::host("example.com:443")));
+    assert_eq!(prepared.args["expected_origin"], "https://example.com:443");
+    assert_eq!(prepared.args["ref"], "doc#fixture:link#1");
+    follow["url"] = json!("https://example.net/");
+    assert!(prepare_action(&request(follow)).is_err());
+}
+
+#[test]
 fn page_origin_keeps_the_scheme_separate_from_the_host_capability() {
     let http = prepare_action(&request(json!({
         "session": "app-browser",

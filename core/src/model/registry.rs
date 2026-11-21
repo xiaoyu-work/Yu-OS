@@ -15,6 +15,7 @@ pub enum Task {
     Stt,
     Tts,
     Embed,
+    Decision,
     Vision,
     Imagegen,
 }

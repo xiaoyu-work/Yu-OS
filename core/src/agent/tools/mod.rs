@@ -8,11 +8,13 @@
 pub mod app_gateway;
 pub(crate) mod activity_work;
 pub(crate) mod background;
+mod browser_decision;
 pub mod builtin;
 pub mod clarify;
 pub mod cos_apps_session;
 pub mod cos_help;
 pub mod cos_proxy;
+mod decision;
 pub mod delegate;
 pub(crate) mod desktop_vision;
 pub mod exposure;

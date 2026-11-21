@@ -53,12 +53,62 @@
 //! [`HookRegistry::dispatch_pre_turn`] etc. at the right places;
 //! everything else is a hook implementer's call.
 
+use std::cell::RefCell;
 use std::sync::{Arc, OnceLock, RwLock};
 
 use crate::agent::llm::types::ToolCall;
 
 tokio::task_local! {
     static SCOPED_REGISTRY: HookRegistry;
+    static NESTED_TOOL_HOOKS: NestedToolHooks;
+}
+
+struct NestedToolHooks {
+    context: HookContext,
+    stop: RefCell<Option<String>>,
+}
+
+pub(crate) async fn with_nested_tool_hooks<F: std::future::Future>(
+    context: Option<&HookContext>,
+    future: F,
+) -> (F::Output, Option<String>) {
+    let Some(context) = context else {
+        return (future.await, None);
+    };
+    NESTED_TOOL_HOOKS
+        .scope(
+            NestedToolHooks {
+                context: context.clone(),
+                stop: RefCell::new(None),
+            },
+            async {
+                let output = future.await;
+                let stop = NESTED_TOOL_HOOKS.with(|hooks| hooks.stop.take());
+                (output, stop)
+            },
+        )
+        .await
+}
+
+pub(crate) fn dispatch_nested_pre_tool(call: &ToolCall) -> ToolDecision {
+    NESTED_TOOL_HOOKS
+        .try_with(|hooks| current_registry().dispatch_pre_tool(&hooks.context, call))
+        .unwrap_or(ToolDecision::Allow)
+}
+
+pub(crate) fn dispatch_nested_post_tool(call: &ToolCall, summary: &ToolResultSummary) -> bool {
+    NESTED_TOOL_HOOKS
+        .try_with(|hooks| {
+            if let HookOutcome::Stop(reason) =
+                current_registry().dispatch_post_tool(&hooks.context, call, summary)
+            {
+                hooks.stop.borrow_mut().get_or_insert(reason);
+                true
+            } else {
+                false
+            }
+        })
+        .unwrap_or(false)
 }
 
 // =====================================================================

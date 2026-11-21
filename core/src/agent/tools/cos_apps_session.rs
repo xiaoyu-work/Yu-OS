@@ -1901,6 +1901,22 @@ impl AppSessionTool {
             timeout: DEFAULT_TIMEOUT,
         })
     }
+
+    pub(super) fn find_verified(
+        apps: &[RegisteredAppSession],
+        apps_root: &Path,
+        app_id: &str,
+        tool_name: &str,
+    ) -> Option<Arc<Self>> {
+        let app = apps.iter().find(|app| app.manifest.id == app_id)?;
+        let idx = app.manifest.mcp.as_ref()?.tools.iter().position(|tool| tool.name == tool_name)?;
+        Self::from_manifest_tool(
+            Arc::clone(&app.manifest),
+            app.app_dir.clone(),
+            apps_root.to_path_buf(),
+            idx,
+        ).ok().map(Arc::new)
+    }
 }
 
 fn registry_name_for(app_id: &str, tool_name: &str) -> String {
@@ -2243,6 +2259,25 @@ impl Tool for AppSessionTool {
     }
 
     async fn exec(&self, input: Value) -> ToolResult {
+        match self.invoke(input).await {
+            Ok(result) => {
+                let (content, is_error) = render_call_result(result);
+                if is_error {
+                    ToolResult::err(content)
+                } else {
+                    ToolResult::ok(content)
+                }
+            }
+            Err(error) => ToolResult::err(error),
+        }
+    }
+}
+
+impl AppSessionTool {
+    pub(super) async fn invoke(
+        &self,
+        input: Value,
+    ) -> Result<crate::agent::tools::mcp::protocol::CallToolResult, String> {
         let started = Instant::now();
         let resolved = json_to_arg_map(&input).and_then(|supplied_args| {
             let paths = crate::bridge::launcher_path_context()
@@ -2264,7 +2299,7 @@ impl Tool for AppSessionTool {
                     Some(&message),
                     started.elapsed(),
                 );
-                return ToolResult::err(message);
+                return Err(message);
             }
         };
 
@@ -2284,7 +2319,7 @@ impl Tool for AppSessionTool {
                 Some(&message),
                 started.elapsed(),
             );
-            return ToolResult::err(message);
+            return Err(message);
         }
 
         let Some(host) = crate::extension_host::client::current() else {
@@ -2298,7 +2333,7 @@ impl Tool for AppSessionTool {
                 Some(&error),
                 started.elapsed(),
             );
-            return ToolResult::err(error);
+            return Err(error);
         };
         let authority = super::app_gateway::McpCallContext::for_extension_caller_with_generation(
             host.binding(),
@@ -2317,7 +2352,7 @@ impl Tool for AppSessionTool {
                     Some(&error),
                     started.elapsed(),
                 );
-                return ToolResult::err(error);
+                return Err(error);
             }
         };
         if let Err(error) = super::app_gateway::authorize_manifest(&self.manifest, &context.caller)
@@ -2331,31 +2366,19 @@ impl Tool for AppSessionTool {
                 Some(&error),
                 started.elapsed(),
             );
-            return ToolResult::err(error);
+            return Err(error);
         }
 
         // Root settles invoke and target needs together for this exact call.
         // Spending Activity confirmation in this preflight would consume it twice.
-        match host
-            .call_app(
-                self.app_id.clone(),
-                self.manifest_tool_name.clone(),
-                Value::Object(args_map.into_iter().collect()),
-                context,
-                self.timeout,
-            )
-            .await
-        {
-            Ok(result) => {
-                let (content, is_error) = render_call_result(result);
-                if is_error {
-                    ToolResult::err(content)
-                } else {
-                    ToolResult::ok(content)
-                }
-            }
-            Err(error) => ToolResult::err(error),
-        }
+        host.call_app(
+            self.app_id.clone(),
+            self.manifest_tool_name.clone(),
+            Value::Object(args_map.into_iter().collect()),
+            context,
+            self.timeout,
+        )
+        .await
     }
 }
 

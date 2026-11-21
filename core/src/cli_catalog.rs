@@ -285,6 +285,7 @@ pub fn builtin_namespaces() -> Vec<NamespaceEntry> {
                 ("unload", "Unload a model"),
                 ("infer", "Run local inference"),
                 ("embed", "Generate embeddings"),
+                ("decide", "Answer bounded decision questions from JSON on stdin"),
                 ("image", "Generate an image"),
                 ("transcribe", "Transcribe audio"),
                 ("translate", "Translate audio into English text"),

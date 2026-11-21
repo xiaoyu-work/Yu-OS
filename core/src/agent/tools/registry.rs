@@ -967,42 +967,13 @@ impl ToolRegistry {
         approval_input: Value,
         approval_reason: &str,
     ) -> ToolResult {
-        let Some(tool) = self.get_for(context, name) else {
-            let reason = self
-                .exposure_decision(context, name)
-                .reason()
-                .unwrap_or("unavailable")
-                .to_string();
-            return ToolResult::err(format!("tool `{name}` is unavailable: {reason}"));
+        let tool = match self
+            .authorize_for_execution(context, name, &approval_input, approval_reason)
+            .await
+        {
+            Ok(tool) => tool,
+            Err(error) => return error,
         };
-
-        if self.approval.is_classified(name) {
-            match self
-                .approval
-                .evaluate_for(
-                    name,
-                    &approval_input,
-                    approval_reason,
-                    tool.approval_boundary(),
-                )
-                .await
-            {
-                crate::agent::runtime::approval::ApprovalOutcome::Approved { .. } => {}
-                crate::agent::runtime::approval::ApprovalOutcome::Denied { reason } => {
-                    return ToolResult::err(format!(
-                        "approval denied for `{name}`: {}",
-                        reason.unwrap_or_else(|| "no reason".to_string())
-                    ));
-                }
-                crate::agent::runtime::approval::ApprovalOutcome::Deferred { prompt } => {
-                    return ToolResult::err(format!(
-                        "approval pending for `{name}`: {}",
-                        prompt.unwrap_or_else(|| "user approval required".to_string())
-                    ));
-                }
-            }
-        }
-
         let guardrails = context.guardrails().clone();
         let approval = self.approval.clone();
         let exposure = context.clone();
@@ -1017,6 +988,52 @@ impl ToolRegistry {
             ),
         )
         .await
+    }
+
+    pub(super) async fn authorize_for_execution(
+        &self,
+        context: &ToolExposureContext,
+        name: &str,
+        approval_input: &Value,
+        approval_reason: &str,
+    ) -> Result<Arc<dyn Tool>, ToolResult> {
+        let Some(tool) = self.get_for(context, name) else {
+            let reason = self
+                .exposure_decision(context, name)
+                .reason()
+                .unwrap_or("unavailable")
+                .to_string();
+            return Err(ToolResult::err(format!("tool `{name}` is unavailable: {reason}")));
+        };
+
+        if self.approval.is_classified(name) {
+            match self
+                .approval
+                .evaluate_for(
+                    name,
+                    approval_input,
+                    approval_reason,
+                    tool.approval_boundary(),
+                )
+                .await
+            {
+                crate::agent::runtime::approval::ApprovalOutcome::Approved { .. } => {}
+                crate::agent::runtime::approval::ApprovalOutcome::Denied { reason } => {
+                    return Err(ToolResult::err(format!(
+                        "approval denied for `{name}`: {}",
+                        reason.unwrap_or_else(|| "no reason".to_string())
+                    )));
+                }
+                crate::agent::runtime::approval::ApprovalOutcome::Deferred { prompt } => {
+                    return Err(ToolResult::err(format!(
+                        "approval pending for `{name}`: {}",
+                        prompt.unwrap_or_else(|| "user approval required".to_string())
+                    )));
+                }
+            }
+        }
+
+        Ok(tool)
     }
 }
 
@@ -1051,6 +1068,20 @@ pub fn default_registry_with_deps(deps: &RegistryDeps) -> ToolRegistry {
     r.register(Arc::new(super::desktop_vision::DesktopVision));
     super::cos_proxy::register_all_with_notes(&mut r, deps.runtime.notes().clone());
     super::cos_apps_session::register_manifests(&mut r, &deps.paths.apps_dir, &deps.app_sessions);
+    match crate::model::tasks::decision::DecisionModel::from_config(&deps.config.decision) {
+        Ok(Some(model)) => {
+            r.register(Arc::new(super::decision::Decide(model.clone())));
+            if let Some(browser) = super::browser_decision::BrowserDecision::new(
+                model,
+                &deps.app_sessions,
+                &deps.paths.apps_dir,
+            ) {
+                r.register(Arc::new(browser));
+            }
+        }
+        Ok(None) => {}
+        Err(error) => tracing::warn!(%error, "could not configure the local decision model"),
+    }
     super::media::register_default_media_tools_with_outputs_dir(
         &mut r,
         deps.paths.media_outputs_dir.clone(),
