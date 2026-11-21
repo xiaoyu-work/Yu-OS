@@ -15,7 +15,7 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOTS = {"product": "products", "capability": "capabilities"}
 PACKAGE_KINDS = {"product": "product", "capability": "shared-capability-client"}
-SOURCE_LOCK_ENV = "CLAW_APP_SOURCE_LOCK"
+SOURCE_LOCK_ENV = "YUOS_APP_SOURCE_LOCK"
 
 
 def read_lock():

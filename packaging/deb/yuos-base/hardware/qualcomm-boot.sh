@@ -1,7 +1,7 @@
 # Shared by the ISO builders and the installed ARM boot configuration.
 
-claw_qcom_boards() {
-    local boards="${1:-}/usr/lib/modules/${2:-}/dtb/qcom/claw-boards.list"
+yuos_qcom_boards() {
+    local boards="${1:-}/usr/lib/modules/${2:-}/dtb/qcom/yuos-boards.list"
     if [ -f "$boards" ]; then
         cat "$boards"
         return
@@ -30,11 +30,11 @@ x1e80100-microsoft-denali-oled.dtb|microsoft,denali-oled|Microsoft Surface Pro 1
 BOARDS
 }
 
-claw_qcom_board() {
-    claw_qcom_boards '' "$2" | awk -F '|' -v "tree=$1" '$1 == tree { print; found=1 } END { exit !found }'
+yuos_qcom_board() {
+    yuos_qcom_boards '' "$2" | awk -F '|' -v "tree=$1" '$1 == tree { print; found=1 } END { exit !found }'
 }
 
-claw_qcom_tree() {
+yuos_qcom_tree() {
     local directory
     for directory in "$1/usr/lib/modules/$2/dtb/qcom" "$1/usr/lib/linux-image-$2/qcom"; do
         if [ -f "$directory/$3" ]; then
@@ -47,10 +47,10 @@ claw_qcom_tree() {
 
 # Keep the DSP off by default: it can reset USB-C storage, and some boards
 # still need a signed image not supplied by Debian.
-claw_qcom_args='acpi=off console=tty0 clk_ignore_unused pd_ignore_unused iommu.passthrough=0'
-claw_qcom_no_dsp='modprobe.blacklist=qcom_q6v5_pas'
+yuos_qcom_args='acpi=off console=tty0 clk_ignore_unused pd_ignore_unused iommu.passthrough=0'
+yuos_qcom_no_dsp='modprobe.blacklist=qcom_q6v5_pas'
 
-claw_qcom_board_args() {
+yuos_qcom_board_args() {
     case "$1" in
         x1e80100-samsung-galaxy-book4-edge-14.dtb)
             echo 'qcom_aoss.prevent_aoss_sleep=1'
@@ -64,7 +64,7 @@ claw_qcom_board_args() {
     esac
 }
 
-claw_qcom_board_sleep() {
+yuos_qcom_board_sleep() {
     case "$1" in
         glymur-asus-zenbook-a16-ux3607oa.dtb)
             echo 'AllowSuspend=no'
@@ -73,28 +73,28 @@ claw_qcom_board_sleep() {
             echo 'MemorySleepMode=s2idle'
             ;;
         *)
-            claw_qcom_laptop8 "$1" || return 0
+            yuos_qcom_laptop8 "$1" || return 0
             echo 'MemorySleepMode=s2idle'
             ;;
     esac
     printf '%s\n' 'AllowHibernation=no' 'AllowSuspendThenHibernate=no' 'AllowHybridSleep=no'
 }
 
-claw_qcom_romulus() {
+yuos_qcom_romulus() {
     case "$1" in
         x1e80100-microsoft-romulus13.dtb|x1e80100-microsoft-romulus13-spi.dtb|x1e80100-microsoft-romulus15.dtb) return 0 ;;
         *) return 1 ;;
     esac
 }
 
-claw_qcom_laptop8() {
+yuos_qcom_laptop8() {
     case "$1" in
         glymur-microsoft-surface-laptop8.dtb|glymur-microsoft-surface-laptop8-15.dtb) return 0 ;;
         *) return 1 ;;
     esac
 }
 
-claw_qcom_nvme_boot() {
+yuos_qcom_nvme_boot() {
     local device
     for device do
         [ -b "$device" ] || return 1
@@ -106,18 +106,18 @@ claw_qcom_nvme_boot() {
 }
 
 # Do not call the private selector *.dtb: the EFI stub also scans for dtb=.
-claw_qcom_iso_menu() {
+yuos_qcom_iso_menu() {
     local rootfs=$1 media=$2 version=$3 label=$4
     local entries tree _compatible model source board_args
     entries=$(
-        claw_qcom_boards "$rootfs" "$version" | while IFS='|' read -r tree _compatible model; do
-            source=$(claw_qcom_tree "$rootfs" "$version" "$tree") || continue
+        yuos_qcom_boards "$rootfs" "$version" | while IFS='|' read -r tree _compatible model; do
+            source=$(yuos_qcom_tree "$rootfs" "$version" "$tree") || continue
             install -Dm0644 "$source" "$media/live/dtb/qcom/$tree" || exit 1
-            board_args=$(claw_qcom_board_args "$tree")
+            board_args=$(yuos_qcom_board_args "$tree")
             cat <<MENU
     menuentry '$model' {
         if devicetree /live/dtb/qcom/$tree; then
-            linux /live/vmlinuz boot=live components $claw_qcom_args $board_args $claw_qcom_no_dsp claw.board_tree=$tree
+            linux /live/vmlinuz boot=live components $yuos_qcom_args $board_args $yuos_qcom_no_dsp claw.board_tree=$tree
             initrd /live/initrd.img
         fi
     }

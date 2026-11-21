@@ -32,7 +32,7 @@ export function wireError(error: string, code: string): string {
  * directly on Linux.
  */
 export function installFakeCos(stdout: string, exitCode = 0): FakeCos {
-  const dir = mkdtempSync(join(tmpdir(), "claw-fakecos-"));
+  const dir = mkdtempSync(join(tmpdir(), "yuos-fakecos-"));
   const bin = join(dir, "yu");
   const argvOut = join(dir, "argv.txt");
   const script = `#!/usr/bin/env node

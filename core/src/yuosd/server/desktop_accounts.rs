@@ -3,7 +3,7 @@
 use super::{ClientIdentity, Command, resolve_group_gid};
 use serde_json::Value;
 
-pub(super) const GROUP: &str = "claw-desktop-users";
+pub(super) const GROUP: &str = "yuos-desktop-users";
 
 pub(super) fn enabled() -> bool {
     std::env::var("YUOSD_DESKTOP_ACCOUNTS").as_deref() == Ok("1")

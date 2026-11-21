@@ -6,15 +6,15 @@ use crate::{Error, Packet};
 
 pub const LOGIN_SOCKET: &str = "/run/yuos/display-login.sock";
 pub const DISPLAY_HOST: &str = "/usr/lib/yuos/bin/yuos-display-host";
-pub const COMPOSITOR: &str = "/usr/libexec/claw-hyprland/Hyprland";
+pub const COMPOSITOR: &str = "/usr/libexec/yuos-hyprland/Hyprland";
 pub const SESSION_DIRECTORY: &str = "/run/yuos/display-sessions";
 
 // Allow workload shutdown, the broker's checked GUI cleanup, and the final handshakes.
 pub const BROKER_RETIRE_TIMEOUT: Duration = Duration::from_secs(5);
 pub const HOST_RETIRE_TIMEOUT: Duration = Duration::from_secs(12);
 pub const PAM_RETIRE_TIMEOUT: Duration = Duration::from_secs(15);
-pub const MENU_LAUNCH_DIGEST: &str = "CLAW_DESKTOP_EXPECTED_DIGEST";
-pub const MENU_LAUNCH_PUBLISHER: &str = "CLAW_DESKTOP_EXPECTED_PUBLISHER";
+pub const MENU_LAUNCH_DIGEST: &str = "YUOS_DESKTOP_EXPECTED_DIGEST";
+pub const MENU_LAUNCH_PUBLISHER: &str = "YUOS_DESKTOP_EXPECTED_PUBLISHER";
 
 pub fn valid_desktop_id(id: &str) -> bool {
     id.len() <= 255 && id.as_bytes().first().is_some_and(u8::is_ascii_alphanumeric)

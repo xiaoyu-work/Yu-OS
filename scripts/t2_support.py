@@ -31,9 +31,9 @@ def t2_package(release, source, provenance, work, out, package):
     python, _ = body.split("\nEOF\n}", 1)
     write_file(stage / "usr/lib/yuos/hw/t2-firmware-convert.py", python + "\n")
     stage_file(source["t2-firmware-license"], doc / "firmware-converter.LICENSE")
-    stage_file(ASSETS / "claw-import-t2-firmware", stage / "usr/sbin/claw-import-t2-firmware", 0o755)
-    stage_file(ASSETS / "claw-t2-fan.service", stage / "usr/lib/systemd/system/claw-t2-fan.service")
-    write_file(stage / "usr/lib/modules-load.d/60-claw-t2.conf", "t2bce_vhci\nhci_bcm4377\n")
+    stage_file(ASSETS / "yuos-import-t2-firmware", stage / "usr/sbin/yuos-import-t2-firmware", 0o755)
+    stage_file(ASSETS / "yuos-t2-fan.service", stage / "usr/lib/systemd/system/yuos-t2-fan.service")
+    write_file(stage / "usr/lib/modules-load.d/60-yuos-t2.conf", "t2bce_vhci\nhci_bcm4377\n")
     package(stage, out, "yuos-t2-support", "1-1", "amd64",
             f"linux-image-{release}, alsa-ucm-conf, python3, libc6, libgcc-s1, kmod, mount, util-linux, systemd, initramfs-tools",
             "Audio profiles, fan service and local wireless firmware import for Apple T2 Macs",

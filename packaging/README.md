@@ -135,7 +135,7 @@ direct product preference writes. Grouping, styles, actions, bounded decoded
 icons and confirmed popup mute are retained without merging renderer graphs.
 `native-boundary` still rejects reintroduced App source links.
 `desktop/justfile` keeps source-only `build-source-fixtures` and
-`install-source-fixtures` with an explicit immutable `CLAW_APP_SOURCE_LOCK`;
+`install-source-fixtures` with an explicit immutable `YUOS_APP_SOURCE_LOCK`;
 production no longer fetches/mounts native App sources or copies manifests.
 Desktop requires runtime-v1 implementation 0.2.1 through the normal template.
 Actual Linux native builds and installed native/GUI acceptance remain
@@ -185,7 +185,7 @@ records `build/app-sources/resolved.json`. Failed branch resolution never
 falls back to an older cache.
 
 Each package build freezes that selection once. Agent packaging uses
-`--write-lock` and passes the resulting snapshot through `CLAW_APP_SOURCE_LOCK`
+`--write-lock` and passes the resulting snapshot through `YUOS_APP_SOURCE_LOCK`
 to all later staging steps. Desktop packaging consumes the snapshot captured
 when its native sources were prepared, not a newer manifest fetched after
 compilation. Both packages retain the selection and exact SHA in
@@ -405,7 +405,7 @@ The unpublished authenticated desktop runtime adds the OS-only
 `yuos-display-session-v2` interface: Agent provides it and Desktop requires
 it. Agent owns `/usr/lib/yuos/bin/yuos-display-host`,
 `/usr/local/bin/yuos-display-session`, `/usr/local/bin/yuos-gui-runner` and
-`/usr/lib/<GNU-multiarch>/security/pam_claw_display.so`. The executables install
+`/usr/lib/<GNU-multiarch>/security/pam_yuos_display.so`. The executables install
 as `0755`, PAM as `0644`, with Root ownership and protected ancestors. Desktop
 owns the compositor/session and the greetd/PAM activation policy.
 It packages the Quickshell greeter, first-run assets, and the fixed local

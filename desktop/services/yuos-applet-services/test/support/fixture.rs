@@ -101,7 +101,7 @@ fi
 
     #[allow(dead_code)]
     pub fn binary(default: &str) -> PathBuf {
-        let binary = std::env::var_os("CLAW_APPLET_TEST_PROVIDER")
+        let binary = std::env::var_os("YUOS_APPLET_TEST_PROVIDER")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(default));
         assert!(

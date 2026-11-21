@@ -128,7 +128,7 @@ static int gui_entry(int count, char **arguments) {
         || !display || strncmp(display, "wayland-", 8) != 0 || strchr(display, '/')
         || !bus || strcmp(bus, "unix:path=/run/user/62050/bus") != 0
         || getenv("WAYLAND_SOCKET") || getenv("DISPLAY") || getenv("XAUTHORITY")
-        || getenv("CLAW_DISPLAY_CONTROL_FD") || getenv("COSMIC_SESSION_SOCK")
+        || getenv("YUOS_DISPLAY_CONTROL_FD") || getenv("COSMIC_SESSION_SOCK")
         || getenv("X_PRIVILEGED_WAYLAND_SOCKET"))
         return 65;
     char path[256];
@@ -246,7 +246,7 @@ static int gui_fixture(void) {
                     || setenv("XAUTHORITY", "/run/forged-authority", 1) != 0
                     || setenv("X_PRIVILEGED_WAYLAND_SOCKET", "98", 1) != 0
                     || setenv("COSMIC_SESSION_SOCK", "/run/forged-session", 1) != 0
-                    || setenv("CLAW_DISPLAY_CONTROL_FD", "97", 1) != 0)
+                    || setenv("YUOS_DISPLAY_CONTROL_FD", "97", 1) != 0)
                     _exit(122);
                 if (scenario >= 25) {
                     if (setenv("ICED_BACKEND", "tiny-skia", 1) != 0)
@@ -404,7 +404,7 @@ static pid_t session_user_child(char *const arguments[], int output, uid_t uid,
             || setenv("XDG_RUNTIME_DIR", "/run/user/62050", 1) != 0
             || setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/run/user/62050/bus", 1) != 0)
             _exit(120);
-        if (role && setenv("CLAW_GUI_FILE_MANAGER_CALL", role, 1) != 0)
+        if (role && setenv("YUOS_GUI_FILE_MANAGER_CALL", role, 1) != 0)
             _exit(121);
         if (strcmp(path, "/run/gui-session-components") == 0
             && (setenv("YUOS_SESSION", "file-manager-stale-session-do-not-use", 1) != 0
@@ -541,7 +541,7 @@ cleanup:
 
 static int file_manager_call(const char *role, uid_t uid) {
     char *const arguments[] = {
-        "/usr/local/bin/claw-gui-broker-fixture", "--exact",
+        "/usr/local/bin/yuos-gui-broker-fixture", "--exact",
         "yuosd::server::gui_fixture::file_manager::private_file_manager_client",
         "--ignored", "--nocapture", "--test-threads=1", NULL
     };

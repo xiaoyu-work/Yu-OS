@@ -21,7 +21,7 @@ BASE_DEB="$DEBS_DIR/yuos-base_${FILE_VERSION}_all.deb"
 # Build this exact version if missing — stale packages from an earlier local
 # build must never satisfy the check.
 if [ ! -f "$AGENT_DEB" ] || [ ! -f "$BASE_DEB" ]; then
-    if [ "${CLAW_PREBUILT_SYSTEM_PACKAGES:-0}" = 1 ]; then
+    if [ "${YUOS_PREBUILT_SYSTEM_PACKAGES:-0}" = 1 ]; then
         echo "error: installer requires the prepared Agent and Base packages for $YUOS_VERSION" >&2
         exit 1
     fi
@@ -56,11 +56,11 @@ install -Dm0644 "$PROJECT_DIR/core/assets/app-store-archive-key.asc" \
 install -Dm0644 "$PROJECT_DIR/packaging/deb/yuos-agent/yuos-apps.sources" \
     "$ROOTFS/etc/apt/sources.list.d/yuos-apps.sources"
 install -Dm0644 "$PROJECT_DIR/packaging/deb/yuos-agent/helium-archive-key.asc" \
-    "$ROOTFS/usr/share/keyrings/claw-helium-archive-key.asc"
-install -Dm0644 "$PROJECT_DIR/packaging/deb/yuos-agent/claw-helium.sources" \
-    "$ROOTFS/etc/apt/sources.list.d/claw-helium.sources"
-install -Dm0644 "$PROJECT_DIR/packaging/deb/yuos-agent/claw-helium.pref" \
-    "$ROOTFS/etc/apt/preferences.d/claw-helium.pref"
+    "$ROOTFS/usr/share/keyrings/yuos-helium-archive-key.asc"
+install -Dm0644 "$PROJECT_DIR/packaging/deb/yuos-agent/yuos-helium.sources" \
+    "$ROOTFS/etc/apt/sources.list.d/yuos-helium.sources"
+install -Dm0644 "$PROJECT_DIR/packaging/deb/yuos-agent/yuos-helium.pref" \
+    "$ROOTFS/etc/apt/preferences.d/yuos-helium.pref"
 mkdir -p "$ROOTFS/var/cache/yuos-debs/apps"
 cp "$APP_PACKAGE_INPUTS"/archives/*.deb "$ROOTFS/var/cache/yuos-debs/apps/"
 app_debs=()

@@ -12,10 +12,10 @@ def test_event_transport_passes_only_business_data_and_preserves_explicit_deadli
         result = events.publish(
             "message.received", "stable-key",
             payload={"object": "app://email/gmail-message?id=message"},
-            entity_id="message", deadline_unix_ms=123, binary="/fixture/cos",
+            entity_id="message", deadline_unix_ms=123, binary="/fixture/yu",
         )
     assert result == {"accepted": True}
-    assert call.call_args.args[:2] == ("/fixture/cos", ["__app_event", "publish"])
+    assert call.call_args.args[:2] == ("/fixture/yu", ["__app_event", "publish"])
     assert json.loads(call.call_args.args[2]) == {
         "event_type": "message.received", "key": "stable-key", "entity_id": "message",
         "payload": {"object": "app://email/gmail-message?id=message"},

@@ -485,7 +485,7 @@ def run(args):
     socket_helper = not pam_helper.stat().st_mode & stat.S_ISUID
     used = {account.pw_uid for account in accounts}
     uid, other_uid = [value for value in range(45000, 46000) if value not in used][:2]
-    with tempfile.TemporaryDirectory(prefix="claw-polkit-test-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="yuos-polkit-test-") as temporary:
         root = Path(temporary)
         root.chmod(0o755)
         driver = root / "approval-driver.py"
@@ -514,14 +514,14 @@ def run(args):
             passwd.write_text(
                 "root:x:0:0:root:/root:/bin/sh\n"
                 f"polkitd:x:{polkit.pw_uid}:{polkit.pw_gid}:PolicyKit:/:/usr/sbin/nologin\n"
-                f"claw-auth-fixture:x:{uid}:{uid}:Yu OS auth fixture:{home}:/bin/sh\n"
-                f"claw-other-fixture:x:{other_uid}:{other_uid}:Other fixture:/nonexistent:/bin/sh\n"
+                f"yuos-auth-fixture:x:{uid}:{uid}:Yu OS auth fixture:{home}:/bin/sh\n"
+                f"yuos-other-fixture:x:{other_uid}:{other_uid}:Other fixture:/nonexistent:/bin/sh\n"
             )
             group = root / "group"
             group.write_text(
                 f"root:x:0:\npolkitd:x:{polkit.pw_gid}:\ncos-extension:x:60999:\n"
-                f"claw-auth-fixture:x:{uid}:\n"
-                f"claw-other-fixture:x:{other_uid}:\n"
+                f"yuos-auth-fixture:x:{uid}:\n"
+                f"yuos-other-fixture:x:{other_uid}:\n"
             )
             hashed = command(
                 "openssl", "passwd", "-6", "-stdin",

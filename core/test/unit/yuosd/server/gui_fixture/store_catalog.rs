@@ -51,7 +51,7 @@ impl Fixture {
         let status = if package_owned {
             std::fs::read(STATUS).unwrap()
         } else {
-            let status = b"Package: claw-native-store-fixture\nStatus: install ok installed\n\
+            let status = b"Package: yuos-native-store-fixture\nStatus: install ok installed\n\
 Priority: optional\nSection: misc\nArchitecture: all\nVersion: 1.0.0\n\
 Maintainer: Private Acceptance <noreply@fixture.invalid>\n\
 Description: Private controlled Store inventory\n\n".to_vec();
@@ -59,9 +59,9 @@ Description: Private controlled Store inventory\n\n".to_vec();
             status
         };
         let packages = if package_owned {
-            [PACKAGE, "claw-package-acceptance-side-effect"]
+            [PACKAGE, "yuos-package-acceptance-side-effect"]
         } else {
-            ["claw-native-store-fixture", "claw-native-store-available"]
+            ["yuos-native-store-fixture", "yuos-native-store-available"]
         };
         let components = packages
             .iter().enumerate().map(|(index, package)| format!(

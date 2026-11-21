@@ -71,11 +71,11 @@ for helper in yuos-gui-runner yuos-display-host yuos-display-session yuos-file-m
     assert_contains "$BUILD_DEBS" "ensure_bin $helper yu" \
         "Agent packaging must build every required GUI helper"
 done
-assert_contains "$BUILD_DEBS" 'ensure_bin libpam_claw_display.so yuos-display-login "${RUST_TARGET/-musl/-gnu}"' \
+assert_contains "$BUILD_DEBS" 'ensure_bin libpam_yuos_display.so yuos-display-login "${RUST_TARGET/-musl/-gnu}"' \
     "the PAM module must be built for GNU rather than musl"
 assert_contains "$BUILD_DEBS" 'install -Dm0644 "$PAM_DISPLAY_MODULE"' \
     "the PAM module must retain its non-executable installation mode"
-assert_contains "$BUILD_DEBS" '/usr/lib/$PAM_MULTIARCH/security/pam_claw_display.so' \
+assert_contains "$BUILD_DEBS" '/usr/lib/$PAM_MULTIARCH/security/pam_yuos_display.so' \
     "the PAM module must use the target multiarch installation directory"
 assert_contains "$PROJECT_DIR/packaging/deb/yuos-agent/control" 'yuos-display-session-v2' \
     "Agent must provide the internal display runtime interface"

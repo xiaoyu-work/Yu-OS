@@ -4,7 +4,7 @@ use super::*;
 fn gated_command_preserves_program_and_literal_arguments() {
     let _environment = crate::test_env::lock_env();
     let executable = std::env::current_exe().unwrap();
-    let _runner = crate::test_env::TestEnvVarGuard::set("CLAW_APP_RUNNER_BIN", &executable);
+    let _runner = crate::test_env::TestEnvVarGuard::set("YUOS_APP_RUNNER_BIN", &executable);
     let arguments = vec![
         "".into(),
         "two words".into(),
@@ -30,7 +30,7 @@ fn missing_runner_is_an_error_not_an_ungated_fallback() {
     let _environment = crate::test_env::lock_env();
     let directory = tempfile::tempdir().unwrap();
     let _runner = crate::test_env::TestEnvVarGuard::set(
-        "CLAW_APP_RUNNER_BIN",
+        "YUOS_APP_RUNNER_BIN",
         directory.path().join("absent"),
     );
     let error = GatedCommand::new(std::env::current_exe().unwrap(), Vec::new())
@@ -148,7 +148,7 @@ mod process {
         let _environment = crate::test_env::lock_env();
         assert!(crate::worker::availability().is_available());
         let runner = std::env::var_os("YUOS_CAPTURED_TEST_RUNNER").expect("real runner input");
-        let _runner = crate::test_env::TestEnvVarGuard::set("CLAW_APP_RUNNER_BIN", &runner);
+        let _runner = crate::test_env::TestEnvVarGuard::set("YUOS_APP_RUNNER_BIN", &runner);
         let root = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
         let marker = root.path().join("apps/gate-probe/started");
         let script = "import pathlib,sys\npathlib.Path(sys.argv[1]).write_bytes(b'started')\nsys.stdout.buffer.write(sys.stdin.buffer.read())\n";

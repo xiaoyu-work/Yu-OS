@@ -23,7 +23,7 @@ context.modules = [
 context.objects = [
     { factory = adapter args = {
         factory.name = support.null-audio-sink
-        node.name = claw-private-null
+        node.name = yuos-private-null
         media.class = Audio/Sink
         audio.position = [ FL FR ]
         object.linger = true
@@ -199,7 +199,7 @@ impl Fixture {
                                 success &= owner_tool("/usr/bin/pw-link")
                                     .args([
                                         &format!("pw-cat:output_{channel}"),
-                                        &format!("claw-private-null:playback_{channel}"),
+                                        &format!("yuos-private-null:playback_{channel}"),
                                     ])
                                     .status()
                                     .is_ok_and(|status| status.success());

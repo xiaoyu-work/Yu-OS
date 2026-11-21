@@ -183,10 +183,10 @@ fn requested_model_wire_is_optional_bounded_and_cannot_select_a_provider() {
 fn task_workspace_wire_is_optional_bounded_and_carries_no_authority() {
     let parsed: TaskSubmit = serde_json::from_value(json!({
         "prompt": "hello",
-        "workspace": "projects/claw",
+        "workspace": "projects/yuos",
     }))
     .unwrap();
-    assert_eq!(parsed.workspace.unwrap().as_str(), "projects/claw");
+    assert_eq!(parsed.workspace.unwrap().as_str(), "projects/yuos");
     assert!(serde_json::from_value::<TaskSubmit>(json!({
         "prompt": "hello",
         "workspace": "x".repeat(4097),

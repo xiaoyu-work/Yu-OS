@@ -219,7 +219,7 @@ async fn post(
     let hints = HashMap::from([
         ("urgency", &urgency),
         ("transient", &transient),
-        ("x-claw-connection-bound", &connection_bound),
+        ("x-yuos-connection-bound", &connection_bound),
     ]);
     proxy
         .notify(

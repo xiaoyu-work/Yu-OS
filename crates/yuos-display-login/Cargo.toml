@@ -7,7 +7,7 @@ license = "Apache-2.0"
 publish = false
 
 [lib]
-name = "pam_claw_display"
+name = "pam_yuos_display"
 crate-type = ["cdylib"]
 
 [dependencies]

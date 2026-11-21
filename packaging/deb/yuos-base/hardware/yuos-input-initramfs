@@ -49,7 +49,7 @@ case "$arch" in
             i2c_mt65xx i2c_hid_acpi nvidia nvidia_modeset nvidia_drm nvidia_uvm \
             nvme nvme_apple apple_pmp pwm_apple leds_pwm
         config=/etc/default/grub.d/60-yuos-qualcomm.cfg
-        if [ -r "$config" ] && grep -Eq "^export CLAW_QCOM_DTB='glymur-microsoft-surface-laptop8(-15)?[.]dtb'$" "$config"; then
+        if [ -r "$config" ] && grep -Eq "^export YUOS_QCOM_DTB='glymur-microsoft-surface-laptop8(-15)?[.]dtb'$" "$config"; then
             laptop8=true
             # The panel and USB-C need SOCCP before disk unlock. Do not force PAS past the boot blacklist.
             set -- "$@" qcom_q6v5_pas ucsi_glink thunderbolt_platform

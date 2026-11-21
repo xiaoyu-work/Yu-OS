@@ -1,5 +1,5 @@
 /etc/apt/apt.conf.d/50yuos-security-floor
 /etc/apt/sources.list.d/yuos-apps.sources
-/etc/apt/sources.list.d/claw-helium.sources
-/etc/apt/preferences.d/claw-helium.pref
+/etc/apt/sources.list.d/yuos-helium.sources
+/etc/apt/preferences.d/yuos-helium.pref
 /etc/yuos/profile.sh

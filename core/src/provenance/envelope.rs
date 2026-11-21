@@ -42,7 +42,7 @@ pub const ALG_ED25519: &str = "ed25519";
 /// Domain separator mixed into the canonical signing bytes. A
 /// signature produced for some other Yu OS structure can never be
 /// replayed as a package signature.
-const CANON_DOMAIN: &[u8] = b"claw-provenance/v1\x00package-envelope\x00";
+const CANON_DOMAIN: &[u8] = b"yuos-provenance/v1\x00package-envelope\x00";
 
 /// Hard caps that bound parsing work before any signature check.
 pub const MAX_ENVELOPE_BYTES: usize = 8 * 1024 * 1024;
@@ -212,7 +212,7 @@ pub enum EnvelopeError {
 /// public key.
 pub fn key_id_for(public_key: &[u8; 32]) -> String {
     let mut h = Sha256Stream::new();
-    h.update(b"claw-provenance/v1\x00publisher-key\x00");
+    h.update(b"yuos-provenance/v1\x00publisher-key\x00");
     h.update(public_key);
     format!("sha256:{}", h.finalize_hex())
 }
@@ -327,7 +327,7 @@ impl Canon {
 /// `package.content_digest` so an artifact can be referenced by a
 /// single stable digest (used for revocation and rollback pinning).
 pub fn content_digest_bytes(files: &[FileEntry]) -> Vec<u8> {
-    let mut c = Canon::new(b"claw-provenance/v1\x00content-tree\x00");
+    let mut c = Canon::new(b"yuos-provenance/v1\x00content-tree\x00");
     c.uint("count", files.len() as u64);
     for f in files {
         c.text("path", &f.path)

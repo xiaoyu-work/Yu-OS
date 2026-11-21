@@ -117,9 +117,9 @@ menuentry "Yu OS Live (failsafe)" {
 GRUBCFG
 
 finalize_iso_platform
-if [[ $DEB_ARCH == arm64 && ( -z ${CLAW_PLATFORM:-} || $CLAW_PLATFORM == aarch64-qualcomm ) ]]; then
+if [[ $DEB_ARCH == arm64 && ( -z ${YUOS_PLATFORM:-} || $YUOS_PLATFORM == aarch64-qualcomm ) ]]; then
     source "$PROJECT_DIR/packaging/deb/yuos-base/hardware/qualcomm-boot.sh"
-    claw_qcom_iso_menu "$ROOTFS" "$ISO_BUILD" "$KERNEL_VERSION" "Yu OS Live" >> "$ISO_BUILD/boot/grub/grub.cfg"
+    yuos_qcom_iso_menu "$ROOTFS" "$ISO_BUILD" "$KERNEL_VERSION" "Yu OS Live" >> "$ISO_BUILD/boot/grub/grub.cfg"
 fi
 
 # 7. Sanity: verify the squashfs layout before invoking grub-mkrescue.

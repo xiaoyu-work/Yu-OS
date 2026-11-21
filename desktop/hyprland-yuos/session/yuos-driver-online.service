@@ -1,0 +1,11 @@
+[Unit]
+Description=Install pending Yu OS hardware packages
+After=NetworkManager.service
+ConditionPathExists=/var/lib/yuos/driver-setup/pending
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/yuos/hw/yuos-driver-setup --online
+
+[Install]
+WantedBy=multi-user.target

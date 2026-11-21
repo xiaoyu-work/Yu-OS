@@ -169,7 +169,7 @@ impl PinnedSources {
         use std::io::{Seek, SeekFrom};
 
         let fd = unsafe {
-            libc::memfd_create(c"claw-worker-account".as_ptr(), libc::MFD_CLOEXEC | libc::MFD_ALLOW_SEALING)
+            libc::memfd_create(c"yuos-worker-account".as_ptr(), libc::MFD_CLOEXEC | libc::MFD_ALLOW_SEALING)
         };
         if fd < 0 {
             return Err(format!("create worker account view: {}", std::io::Error::last_os_error()));
@@ -362,7 +362,7 @@ impl LinuxSandbox {
             "X_PRIVILEGED_WAYLAND_SOCKET",
             "DBUS_SESSION_BUS_ADDRESS",
             "COSMIC_SESSION_SOCK",
-            "CLAW_DISPLAY_CONTROL_FD",
+            "YUOS_DISPLAY_CONTROL_FD",
         ]
         .iter()
         .any(|name| launch.policy.env.contains_key(*name))
@@ -733,7 +733,7 @@ fn build_bwrap_args_with_seccomp(
     push!("--cap-drop", "ALL");
     push!("--new-session");
     push!("--die-with-parent");
-    push!("--hostname", "claw-worker");
+    push!("--hostname", "yuos-worker");
     push!("--uid", uid);
     push!("--gid", gid);
 

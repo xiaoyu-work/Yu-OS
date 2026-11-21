@@ -59,7 +59,7 @@ in this directory contains a `private_key` field.
   refuses any trust root whose path — or any ancestor up to `/` — is a
   symlink, is owned by a non-root user, or is group- or world-writable.
 - A key id uses the canonical `key_id_for` digest: SHA-256 over
-  `claw-provenance/v1\0publisher-key\0` followed by the raw 32-byte
+  `yuos-provenance/v1\0publisher-key\0` followed by the raw 32-byte
   Ed25519 verifying key. The loader recomputes it and rejects an entry whose declared id does
   not bind to its key material, so an id can never be aliased onto a
   different publisher's key.

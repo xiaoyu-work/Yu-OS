@@ -33,7 +33,7 @@ const BROKER_GID: u32 = 61996;
 const APPS: [&str; 2] = ["apt-fixture-alpha", "apt-fixture-beta"];
 const BUNDLE: &str = "yuos-app-acceptance-bundle";
 const SUPPORT: &str = "yuos-app-acceptance-support";
-const SIDE_EFFECT: &str = "claw-package-acceptance-side-effect";
+const SIDE_EFFECT: &str = "yuos-package-acceptance-side-effect";
 const SUPPORT_PATH: &str = "/usr/lib/yuos/python/fixture_support.py";
 const SUPPORT_BYTES: &[u8] = b"VALUE = 'separately dpkg-owned fixture support'\n";
 const PROBE: &str = "yuosd::app_store::apt::tests::private_apt_foreign_uid_probe";
@@ -2104,7 +2104,7 @@ async fn private_apt_hook_identity_and_lost_reply_never_replay() {
         .env("PATH", "/usr/bin:/bin")
         .env("HOME", BASE)
         .env("YUOSD_SOCKET", "/run/yuos/yuosd.sock")
-        .env("CLAW_APP_STORE_REQUEST", &id)
+        .env("YUOS_APP_STORE_REQUEST", &id)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

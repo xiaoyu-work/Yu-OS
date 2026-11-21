@@ -434,7 +434,7 @@ fn root_local_registration_requires_protected_owner_review() {
         std::io::Error::last_os_error()
     );
     let root = tempfile::Builder::new()
-        .prefix("claw-local-review-")
+        .prefix("yuos-local-review-")
         .tempdir_in("/run")
         .unwrap();
     let _home = TestEnvVarGuard::set("HOME", root.path());

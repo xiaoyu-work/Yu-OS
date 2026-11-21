@@ -85,7 +85,7 @@ read-only data and fixed executable selection. `tests/provider_lifecycle.rs`
 isolates orphan adoption in its own process and proves cancellation terminates
 the provider, optional namespace monitor and active policy child in the SDK-owned
 process group, not GUI retirement.
-For exact installed-candidate checks, `CLAW_APPLET_TEST_PROVIDER` selects an
+For exact installed-candidate checks, `YUOS_APPLET_TEST_PROVIDER` selects an
 absolute built ELF in these test fixtures only; the installed provider never
 consults this variable.
 `tests/kernel_policy.rs` is a separately invoked real-kernel fixture:

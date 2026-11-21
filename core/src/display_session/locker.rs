@@ -8,7 +8,7 @@ use yuos_display_control::{Error, InstanceId, wire::monotonic_ms};
 
 use super::containment;
 
-const EXECUTABLE: &str = "/usr/libexec/claw-hyprland/claw-lockscreen";
+const EXECUTABLE: &str = "/usr/libexec/yuos-hyprland/yuos-lockscreen";
 pub(super) const LOCK_START_MS: u64 = 8000;
 
 pub(super) enum Status {

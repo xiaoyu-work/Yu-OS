@@ -434,7 +434,7 @@ fn validated_socket_path(owner_uid: u32) -> Result<PathBuf, String> {
         );
     }
 
-    let socket = runtime_dir.join("claw-browser.sock");
+    let socket = runtime_dir.join("yuos-browser.sock");
     let socket_meta = fs::symlink_metadata(&socket)
         .map_err(|error| format!("inspect attached browser socket: {error}"))?;
     if !socket_meta.file_type().is_socket()

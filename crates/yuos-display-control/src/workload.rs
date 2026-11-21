@@ -159,7 +159,7 @@ impl Workload {
         session.open()?;
         check_cgroup(descriptor.as_fd())?;
         let actual = std::fs::read_link(format!("/proc/self/fd/{}", descriptor.as_raw_fd()))?;
-        let expected = session.path.join(format!("claw-display-{}", epoch.label()));
+        let expected = session.path.join(format!("yuos-display-{}", epoch.label()));
         if actual != expected {
             return Err(Error::Protocol(
                 "workload is not the authenticated session's cgroup",

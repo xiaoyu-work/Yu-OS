@@ -159,7 +159,7 @@ func resolveApp(modality, appID string) (string, error) {
 }
 
 func writePrivateInput(name, value string) (string, func(), error) {
-	file, err := os.CreateTemp("", "claw-ai-"+name+"-*")
+	file, err := os.CreateTemp("", "yuos-ai-"+name+"-*")
 	if err != nil {
 		return "", nil, err
 	}

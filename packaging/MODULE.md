@@ -52,7 +52,7 @@ Debian packages and a signed multi-architecture APT repository.
 | `deb/tests/test-agentd-packaging.sh` | Worker/extension-host binary, identity, service, and isolation contract |
 | `deb/yuos-agent/nearby/`, `deb/tests/test_nearby.py` | D-Bus-only Root radio activation, network/link policies and isolated nearby transport package contract |
 | `../core/src/bin/yuos-file-manager.rs`, `../core/src/display_session/client.rs` | Agent-owned unprivileged FileManager1 transport started only by the authenticated desktop subscriber |
-| `../desktop/hyprland-claw/stage-desktop.sh` | Target-native compositor, shared desktop helpers and greetd/PAM staging; the signed App delivers the shell |
+| `../desktop/hyprland-yuos/stage-desktop.sh` | Target-native compositor, shared desktop helpers and greetd/PAM staging; the signed App delivers the shell |
 | `../crates/yuos-display-login/MODULE.md`, `../core/src/display_session/MODULE.md` | Native GNU PAM/display helpers, OS-only Agent-to-Desktop interface, private installation fixture and logout boundary |
 | `../rootfs/overlay/usr/lib/yuos/init/remove-home-overlay.sh` | Safe managed-home flattening before Base removal |
 | `deb/tests/test-remove-home-overlay.sh` | Merged-tree, metadata, whiteout, and opaque-directory removal regression tests |

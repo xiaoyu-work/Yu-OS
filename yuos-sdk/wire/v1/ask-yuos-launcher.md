@@ -11,7 +11,7 @@ isolation, and becomes non-dumpable. It creates an abstract AF_UNIX listener
 and publishes only its non-sensitive endpoint:
 
 ```text
-SOCKET 1 @claw-ask-v1-<helper-pid>-<sequence>
+SOCKET 1 @yuos-ask-v1-<helper-pid>-<sequence>
 ```
 
 The SDK connects while its process remains the helper's direct parent. The

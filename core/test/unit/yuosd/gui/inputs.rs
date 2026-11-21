@@ -45,7 +45,7 @@ fn display_bus_loader_and_authority_claims_are_not_presentation_keys() {
         "WAYLAND_DISPLAY",
         "WAYLAND_SOCKET",
         "DBUS_SESSION_BUS_ADDRESS",
-        "CLAW_DISPLAY_CONTROL_FD",
+        "YUOS_DISPLAY_CONTROL_FD",
         "LD_PRELOAD",
         "HOME",
         "owner_uid",

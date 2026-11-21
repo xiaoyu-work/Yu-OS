@@ -6,10 +6,10 @@ use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::time::{Duration, Instant};
 
-const EFFECT: &str = "claw-package-acceptance-side-effect";
+const EFFECT: &str = "yuos-package-acceptance-side-effect";
 const SUPPORT: &str = "yuos-app-acceptance-support";
-const UNUSED: &str = "claw-native-package-unused";
-const PENDING: &str = "claw-native-package-pending";
+const UNUSED: &str = "yuos-native-package-unused";
+const PENDING: &str = "yuos-native-package-pending";
 
 fn persist(name: &str, value: &serde_json::Value) {
     let path = private_marker(name);

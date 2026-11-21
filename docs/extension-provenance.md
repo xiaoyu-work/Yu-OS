@@ -65,7 +65,7 @@ What the signature binds:
 The message is a length-prefixed, domain-separated encoding: every
 field is written as `u32le(key.len()) || key || u64le(value.len()) ||
 value`, preceded by the domain separator
-`claw-provenance/v1\0package-envelope\0`. The encoding is injective —
+`yuos-provenance/v1\0package-envelope\0`. The encoding is injective —
 `id="ab", version="c"` and `id="a", version="bc"` produce different
 bytes — so no value can be shifted across a field boundary.
 
@@ -441,8 +441,8 @@ keep honouring trust that was withdrawn while it was running.
 1. **Publisher signature** — a valid envelope signed by a trusted,
    non-revoked key. This is the only route for user-installed content.
 2. **Vendor (package-manager) trust** — the package sits under an
-   approved root (`/usr/lib/yuos`, `/usr/share/yuos`, `/usr/lib/claw`,
-   `/usr/share/claw`) where every path component is root-owned,
+   approved root (`/usr/lib/yuos`, `/usr/share/yuos`, `/usr/lib/yuos`,
+   `/usr/share/yuos`) where every path component is root-owned,
    non-symlink and not group/world-writable. The tree digest is still
    computed and pinned in `<data_dir>/provenance/vendor-pins.json`; a
    change rotates the pin and writes a `provenance.vendor_pin_rotated`
@@ -613,7 +613,7 @@ rather than dropped:
 
 ```bash
 # One-time: create a signing key. Never commit this file.
-yu provenance keygen --out ~/.secrets/claw-release.json --comment "release 2026"
+yu provenance keygen --out ~/.secrets/yuos-release.json --comment "release 2026"
 
 # Publish the printed `trust_entry` object into a trust root:
 #   packaging/deb/yuos-agent/trust/publishers.d/<name>.json  (vendor)
@@ -623,7 +623,7 @@ yu provenance keygen --out ~/.secrets/claw-release.json --comment "release 2026"
 # Sign a package tree.
 yu provenance sign \
   --kind app --id notes --version 1.2.0 \
-  --path ./notes --key ~/.secrets/claw-release.json \
+  --path ./notes --key ~/.secrets/yuos-release.json \
   --entrypoint main.py
 
 # Confirm it authenticates against the active trust store.

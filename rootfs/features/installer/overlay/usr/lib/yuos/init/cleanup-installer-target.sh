@@ -3,7 +3,7 @@ set -eu
 
 restore_or_remove() {
     target="$1"
-    backup="${target}.claw-installed"
+    backup="${target}.yuos-installed"
     if [ -e "$backup" ]; then
         mv -f "$backup" "$target"
     else
@@ -20,13 +20,13 @@ restore_or_remove /etc/motd
 # The users/networkcfg modules have already written the hostname selected
 # in Calamares. Preserve it even when the user intentionally chose the same
 # text as the live hostname.
-rm -f /etc/hostname.claw-installed
+rm -f /etc/hostname.yuos-installed
 
-if [ -x /usr/libexec/claw-oobe ]; then
+if [ -x /usr/libexec/yuos-oobe ]; then
     install -Dm0644 /dev/null /etc/yuos/first-run
     install -d /etc/systemd/system/multi-user.target.wants
-    ln -sfn /usr/lib/systemd/system/claw-driver-online.service \
-        /etc/systemd/system/multi-user.target.wants/claw-driver-online.service
+    ln -sfn /usr/lib/systemd/system/yuos-driver-online.service \
+        /etc/systemd/system/multi-user.target.wants/yuos-driver-online.service
 fi
 
 rm -f \

@@ -51,7 +51,7 @@ trait Closed {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if unsafe { libc::geteuid() } == 0
-        || std::env::var("CLAW_NOTIFICATION_PRIVATE_FIXTURE").as_deref() != Ok("1")
+        || std::env::var("YUOS_NOTIFICATION_PRIVATE_FIXTURE").as_deref() != Ok("1")
     {
         return Err("run only as a synthetic owner in the isolated native fixture".into());
     }

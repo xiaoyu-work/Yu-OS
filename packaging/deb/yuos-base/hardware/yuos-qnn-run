@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -eq 0 ]; then
+    echo "Usage: yuos-qnn-run COMMAND [ARGS...]" >&2
+    exit 2
+fi
+if [ "$(id -u)" -eq 0 ]; then
+    echo "yuos-qnn-run: run inference as the active desktop user, not as root" >&2
+    exit 1
+fi
+
+YUOS_QNN_DIR=/opt/yuos/qnn/2.8.0
+YUOS_QNN_PROVIDER="$YUOS_QNN_DIR/libonnxruntime_providers_qnn.so"
+YUOS_QNN_HTP="$YUOS_QNN_DIR/libQnnHtp.so"
+if [ ! -r "$YUOS_QNN_PROVIDER" ]; then
+    echo "yuos-qnn-run: install the optional QNN runtime first" >&2
+    exit 1
+fi
+if [ ! -r /dev/fastrpc-cdsp ] || [ ! -w /dev/fastrpc-cdsp ] ||
+    [ ! -r /dev/dma_heap/system ] || [ ! -w /dev/dma_heap/system ]; then
+    echo "yuos-qnn-run: the compute DSP or its DMA heap is not available to the active desktop user" >&2
+    exit 1
+fi
+
+LD_LIBRARY_PATH="$YUOS_QNN_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+DSP_LIBRARY_PATH="$YUOS_QNN_DIR/dsp;/usr/lib/dsp/cdsp"
+export YUOS_QNN_PROVIDER YUOS_QNN_HTP LD_LIBRARY_PATH DSP_LIBRARY_PATH
+exec "$@"

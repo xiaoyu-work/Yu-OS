@@ -11,10 +11,10 @@ def test_channel_reply_transports_only_event_text_and_explicit_confirmation():
     with patch.object(channels, "call_json_with_stdin_binary", return_value={"submitted": True}) as call:
         result = channels.control(
             "reply", event_id="channel-event-synthetic", text="Synthetic reply",
-            confirm=True, deadline_unix_ms=123, check_cancelled=cancelled, binary="/fixture/cos",
+            confirm=True, deadline_unix_ms=123, check_cancelled=cancelled, binary="/fixture/yu",
         )
     assert result == {"submitted": True}
-    assert call.call_args.args[:2] == ("/fixture/cos", ["__channel", "control"])
+    assert call.call_args.args[:2] == ("/fixture/yu", ["__channel", "control"])
     assert json.loads(call.call_args.args[2]) == {
         "action": "reply", "event_id": "channel-event-synthetic", "text": "Synthetic reply", "confirm": True,
     }

@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::process::Child;
 use std::time::{Duration, Instant};
 
-pub(crate) const SOCKET_NAME: &str = "claw-thunderbird.sock";
+pub(crate) const SOCKET_NAME: &str = "yuos-thunderbird.sock";
 pub(crate) const MAX_MAIL_FRAME: usize = 32 * 1024 * 1024;
 const MAX_AI_FRAME: usize = 8 * 1024 * 1024;
 const MAX_HOST_FRAME: usize = 1024 * 1024;

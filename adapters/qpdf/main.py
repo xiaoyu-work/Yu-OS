@@ -20,7 +20,7 @@ _HERE = pathlib.Path(__file__).resolve().parent
 
 
 def _qpdf_bin() -> str:
-    explicit = os.environ.get("CLAW_QPDF_BIN")
+    explicit = os.environ.get("YUOS_QPDF_BIN")
     if explicit:
         return explicit
     found = shutil.which("qpdf")

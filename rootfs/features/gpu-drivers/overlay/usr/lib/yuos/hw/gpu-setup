@@ -15,7 +15,7 @@
 #   gpu-setup install           privileged; perform the env-appropriate action
 #                               (apt install on bare metal; no-op + verify in
 #                               WSL/containers). Run via pkexec from the GUI.
-#   gpu-setup motd              write /run/motd.d/40-cos-gpu.motd (used by the
+#   gpu-setup motd              write /run/motd.d/40-yuos-gpu.motd (used by the
 #                               first-boot service so headless WSL/Docker users
 #                               see the GPU status on login)
 #
@@ -305,7 +305,7 @@ maybe_enroll_secureboot() {
     # this is safe under 'set -o pipefail'. $RANDOM is the portable fallback.
     local pw
     pw="$(head -c 9 /dev/urandom | base64 | tr -dc 'A-HJ-NP-Za-hj-np-z2-9' | cut -c1-8)"
-    [ "${#pw}" -ge 6 ] || pw="$(printf 'cos%05d' "$((RANDOM % 100000))")"
+    [ "${#pw}" -ge 6 ] || pw="$(printf 'yuos%05d' "$((RANDOM % 100000))")"
 
     if printf '%s\n%s\n' "$pw" "$pw" | mokutil --import "$cert" >/dev/null 2>&1; then
         local notef=/var/lib/yuos/gpu/secureboot-enroll.txt
@@ -326,7 +326,7 @@ maybe_enroll_secureboot() {
             echo
             echo "  4. The machine reboots into Yu OS with NVIDIA active."
             echo
-            echo "(Miss the screen? Just run 'sudo claw-gpu-setup install' again.)"
+            echo "(Miss the screen? Just run 'sudo yuos-gpu-setup install' again.)"
         } | tee "$notef"
         return 0
     fi
@@ -427,7 +427,7 @@ cmd_install() {
 # login. Kept terse; only speaks up when there's something worth saying.
 cmd_motd() {
     local dir=/run/motd.d
-    local out="$dir/40-cos-gpu.motd"
+    local out="$dir/40-yuos-gpu.motd"
     mkdir -p "$dir"
 
     # A queued-but-not-yet-enrolled Secure Boot key trumps everything else:
@@ -448,7 +448,7 @@ cmd_motd() {
     env="$(detect_env)"
     case "$action" in
         install_kmod)
-            printf 'NVIDIA GPU detected. Run `sudo claw-gpu-setup install` for the proprietary driver (full 3D + CUDA).\n' >"$out"
+            printf 'NVIDIA GPU detected. Run `sudo yuos-gpu-setup install` for the proprietary driver (full 3D + CUDA).\n' >"$out"
             ;;
         wsl_missing)
             if [ "$env" = wsl ]; then

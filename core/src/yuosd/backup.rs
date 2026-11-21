@@ -694,7 +694,7 @@ impl PasswordFile {
     fn new(user: &UserEnvironment, password: &str) -> Result<Self, String> {
         user.validate_runtime()?;
         let mut file = tempfile::Builder::new()
-            .prefix(".claw-restic-password-")
+            .prefix(".yuos-restic-password-")
             .tempfile_in(&user.runtime_dir)
             .map_err(|error| format!("create Restic password file: {error}"))?;
         writeln!(file, "{password}")

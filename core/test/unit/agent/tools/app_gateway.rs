@@ -26,7 +26,7 @@ fn principal(kind: McpPrincipalKind) -> McpPrincipal {
     McpPrincipal {
         kind,
         id: match kind {
-            McpPrincipalKind::ExternalAgent => "spiffe://claw.test/agent/client",
+            McpPrincipalKind::ExternalAgent => "spiffe://yuos.test/agent/client",
             McpPrincipalKind::Cli => "cli-session",
             McpPrincipalKind::SystemAgent => "agent-session",
         }

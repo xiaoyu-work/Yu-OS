@@ -1,0 +1,7 @@
+[Unit]
+Description=Yu OS screen reader
+PartOf=yuos-desktop-session.target
+ConditionPathExists=%h/.config/yuos/screen-reader
+
+[Service]
+ExecStart=/usr/bin/orca

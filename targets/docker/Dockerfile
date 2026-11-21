@@ -2,15 +2,15 @@ FROM scratch
 
 ARG ROOTFS_DIR=build/yuos-rootfs
 COPY ${ROOTFS_DIR}/ /
-COPY --chmod=0755 targets/docker/container-entrypoint.sh /usr/local/sbin/claw-container-entrypoint
+COPY --chmod=0755 targets/docker/container-entrypoint.sh /usr/local/sbin/yuos-container-entrypoint
 
 ENV container=docker
 ENV NODE_MAJOR=24
-ENV CLAW_UID=1000
-ENV CLAW_GID=1000
+ENV YUOS_UID=1000
+ENV YUOS_GID=1000
 
 STOPSIGNAL SIGRTMIN+3
 WORKDIR /workspace
 VOLUME ["/sys/fs/cgroup"]
-ENTRYPOINT ["/usr/local/sbin/claw-container-entrypoint"]
+ENTRYPOINT ["/usr/local/sbin/yuos-container-entrypoint"]
 CMD ["/sbin/init"]

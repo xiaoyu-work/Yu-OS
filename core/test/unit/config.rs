@@ -71,7 +71,7 @@ fn provider_fallback_overrides_provider_specific_fields() {
 fn parse_full_config() {
     let json = r#"{
         "version": "0.1.0",
-        "home": "/home/cos",
+        "home": "/home/yuos",
         "exec": {"timeout": 600, "shell": "/bin/zsh"},
         "net": {"timeout": 10, "allow_outbound": false},
         "web": {"engine": "yuos-browser", "cdp_port": 9333, "timeout": 60, "max_content_length": 100000}

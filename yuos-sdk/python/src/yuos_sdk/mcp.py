@@ -370,7 +370,7 @@ class App:
         reader = _wrap_stdin_for_bounded_lines(sys.stdin)
         executor = ThreadPoolExecutor(
             max_workers=MAX_CONCURRENT_CALLS,
-            thread_name_prefix=f"claw-mcp-{self.name}",
+            thread_name_prefix=f"yuos-mcp-{self.name}",
         )
         self._executor = executor
         try:

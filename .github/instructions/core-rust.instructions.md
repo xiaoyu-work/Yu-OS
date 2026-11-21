@@ -1,5 +1,5 @@
 ---
-applyTo: "core/**/*.rs,crates/claw-*/**/*.rs,crates/cos-*/**/*.rs,yuos-sdk/rust/**/*.rs,yuos-runtime/rust/**/*.rs"
+applyTo: "core/**/*.rs,crates/yuos*/**/*.rs,yuos-sdk/rust/**/*.rs,yuos-runtime/rust/**/*.rs"
 ---
 
 # Core Rust

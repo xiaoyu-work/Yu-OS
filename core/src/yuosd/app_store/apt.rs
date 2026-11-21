@@ -129,7 +129,7 @@ pub(crate) async fn run_bounded(
             .stderr(Stdio::piped())
             .process_group(0);
         if let Some(id) = &commit {
-            command.env("CLAW_APP_STORE_REQUEST", id);
+            command.env("YUOS_APP_STORE_REQUEST", id);
             command.env(
                 crate::yuosd::config::SOCKET_ENV,
                 crate::yuosd::config::socket_path(),

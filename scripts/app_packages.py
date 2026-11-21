@@ -16,7 +16,7 @@ import tarfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_ROOT_ENV = "CLAW_APP_PACKAGE_ROOT"
+PACKAGE_ROOT_ENV = "YUOS_APP_PACKAGE_ROOT"
 APP_NAME = re.compile(r"yuos-(?:app-|apps-|cap-)[a-z0-9][a-z0-9+.-]*\Z")
 APP_INTERFACE = re.compile(r"yuos-app-(?:support|python-[a-z0-9][a-z0-9-]*)-v1\Z")
 RETIRED_DESKTOP = {"yuos-apps-desktop", "yuos-app-desktop-shell"}

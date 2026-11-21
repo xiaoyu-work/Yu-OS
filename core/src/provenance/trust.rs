@@ -843,7 +843,7 @@ impl TrustStore {
 
     fn recompute_generation(&mut self) {
         let mut h = crate::crypto::Sha256Stream::new();
-        h.update(b"claw-provenance/v1\x00trust-generation\x00");
+        h.update(b"yuos-provenance/v1\x00trust-generation\x00");
         for (id, key) in &self.keys {
             h.update(id.as_bytes());
             h.update(&key.public_key);

@@ -1,6 +1,0 @@
-#!/bin/sh
-
-[ -f /var/lib/yuos/driver-setup/pending ] || exit 0
-case "$2" in
-    up|connectivity-change) /usr/bin/systemctl --no-block start claw-driver-online.service ;;
-esac

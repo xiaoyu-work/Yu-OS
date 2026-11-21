@@ -1,6 +1,6 @@
 #include "SecurityContext.hpp"
 #include "../Compositor.hpp"
-#include "../../../hyprland-claw/Yu OS.hpp"
+#include "../../../hyprland-yuos/YuOs.hpp"
 #include <sys/socket.h>
 using namespace Hyprutils::OS;
 
@@ -16,8 +16,8 @@ static int onCloseFdEvent(int fd, uint32_t mask, void* data) {
     return 0;
 }
 
-SP<CSecurityContextSandboxedClient> CSecurityContextSandboxedClient::create(CFileDescriptor clientFD_, uint32_t clawOrigin, uint64_t clawToken) {
-    auto p = SP<CSecurityContextSandboxedClient>(new CSecurityContextSandboxedClient(std::move(clientFD_), clawOrigin, clawToken));
+SP<CSecurityContextSandboxedClient> CSecurityContextSandboxedClient::create(CFileDescriptor clientFD_, uint32_t yuosOrigin, uint64_t yuosToken) {
+    auto p = SP<CSecurityContextSandboxedClient>(new CSecurityContextSandboxedClient(std::move(clientFD_), yuosOrigin, yuosToken));
     if (!p->m_client)
         return nullptr;
     return p;
@@ -29,11 +29,11 @@ static void onSecurityContextClientDestroy(wl_listener* l, void* d) {
     client->onDestroy();
 }
 
-CSecurityContextSandboxedClient::CSecurityContextSandboxedClient(CFileDescriptor clientFD_, uint32_t clawOrigin, uint64_t clawToken) {
+CSecurityContextSandboxedClient::CSecurityContextSandboxedClient(CFileDescriptor clientFD_, uint32_t yuosOrigin, uint64_t yuosToken) {
     wl_list_init(&m_destroyListener.listener.link);
     if (!clientFD_.setFlags(clientFD_.getFlags() | FD_CLOEXEC))
         return;
-    m_client = Yu OS::createClient(clientFD_.take(), {clawOrigin, clawToken});
+    m_client = YuOs::createClient(clientFD_.take(), {yuosOrigin, yuosToken});
     if (!m_client)
         return;
 
@@ -51,8 +51,8 @@ void CSecurityContextSandboxedClient::onDestroy() {
     std::erase_if(PROTO::securityContext->m_sandboxedClients, [this](const auto& e) { return e.get() == this; });
 }
 
-CSecurityContext::CSecurityContext(SP<CWpSecurityContextV1> resource_, int listenFD_, int closeFD_, uint32_t clawOrigin, uint64_t clawToken) :
-    m_clawOrigin(clawOrigin), m_clawToken(clawToken), m_listenFD(listenFD_), m_closeFD(closeFD_), m_resource(resource_) {
+CSecurityContext::CSecurityContext(SP<CWpSecurityContextV1> resource_, int listenFD_, int closeFD_, uint32_t yuosOrigin, uint64_t yuosToken) :
+    m_yuosOrigin(yuosOrigin), m_yuosToken(yuosToken), m_listenFD(listenFD_), m_closeFD(closeFD_), m_resource(resource_) {
     if UNLIKELY (!good())
         return;
 
@@ -120,11 +120,11 @@ CSecurityContext::CSecurityContext(SP<CWpSecurityContextV1> resource_, int liste
             r->error(WP_SECURITY_CONTEXT_V1_ERROR_ALREADY_USED, "Context already committed");
             return;
         }
-        if (!Yu OS::listenerAdded({m_clawOrigin, m_clawToken})) {
+        if (!YuOs::listenerAdded({m_yuosOrigin, m_yuosToken})) {
             wl_client_post_implementation_error(r->client(), "No live Root context authority");
             return;
         }
-        m_clawListener = true;
+        m_yuosListener = true;
         m_committed = true;
 
         LOG(Log::DEBUG, "security_context at 0x{:x} commits", (uintptr_t)this);
@@ -145,8 +145,8 @@ CSecurityContext::~CSecurityContext() {
         wl_event_source_remove(m_listenSource);
     if (m_closeSource)
         wl_event_source_remove(m_closeSource);
-    if (m_clawListener)
-        Yu OS::listenerRemoved({m_clawOrigin, m_clawToken});
+    if (m_yuosListener)
+        YuOs::listenerRemoved({m_yuosOrigin, m_yuosToken});
 }
 
 bool CSecurityContext::good() {
@@ -169,9 +169,9 @@ void CSecurityContext::onListen(uint32_t mask) {
         return;
     }
 
-    if (!Yu OS::acceptsContext({m_clawOrigin, m_clawToken}, clientFD.get()))
+    if (!YuOs::acceptsContext({m_yuosOrigin, m_yuosToken}, clientFD.get()))
         return;
-    auto newClient = CSecurityContextSandboxedClient::create(std::move(clientFD), m_clawOrigin, m_clawToken);
+    auto newClient = CSecurityContextSandboxedClient::create(std::move(clientFD), m_yuosOrigin, m_yuosToken);
     if UNLIKELY (!newClient) {
         LOG(Log::ERR, "security_context at 0x{:x} couldn't create a client", (uintptr_t)this);
         return;
@@ -199,8 +199,8 @@ CSecurityContextManagerResource::CSecurityContextManagerResource(SP<CWpSecurityC
     m_resource->setCreateListener([](CWpSecurityContextManagerV1* r, uint32_t id, int32_t lfd, int32_t cfd) {
         CFileDescriptor listen{lfd};
         CFileDescriptor close{cfd};
-        Yu OS::SOrigin   origin{};
-        if (!Yu OS::contextOrigin(r->client(), origin)) {
+        YuOs::SOrigin   origin{};
+        if (!YuOs::contextOrigin(r->client(), origin)) {
             wl_client_post_implementation_error(r->client(), "No Root context creator authority");
             return;
         }
@@ -246,5 +246,5 @@ bool CSecurityContextProtocol::isClientSandboxed(const wl_client* client) {
 }
 
 void CSecurityContextProtocol::retireClaw(uint64_t token) {
-    std::erase_if(m_contexts, [token](const auto& context) { return token == 0 || context->m_clawToken == token; });
+    std::erase_if(m_contexts, [token](const auto& context) { return token == 0 || context->m_yuosToken == token; });
 }

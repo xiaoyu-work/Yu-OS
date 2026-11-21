@@ -47,7 +47,7 @@ done
 
 # Vendor package roots the verifier accepts must be the ones the package
 # actually installs into.
-for root in /usr/lib/yuos /usr/share/claw; do
+for root in /usr/lib/yuos /usr/share/yuos; do
     assert_contains "$VERIFY_MODULE" "\"$root\"" \
         "the verifier must list $root as an approved package root"
 done

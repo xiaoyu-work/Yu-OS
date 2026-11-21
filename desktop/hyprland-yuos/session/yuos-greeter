@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+ulimit -c 0
+
+# The pre-login UI must render before GPU acceleration is available.
+export QT_QPA_PLATFORM=wayland QT_QUICK_BACKEND=software QS_NO_RELOAD_POPUP=1
+marker=/etc/yuos/local-desktop-setup
+if [ -f "$marker" ]; then
+    exec /usr/libexec/yuos-oobe --local
+fi
+exec /usr/bin/quickshell --path /usr/share/yuos/oobe/greeter.qml

@@ -418,7 +418,7 @@ fn test_status() {
         "--tier".to_string(),
         "1".to_string(),
         "--scope".to_string(),
-        "/home/cos/project".to_string(),
+        "/home/yuos/project".to_string(),
         "--overlap".to_string(),
         "allow".to_string(),
         "--timeout".to_string(),
@@ -430,7 +430,7 @@ fn test_status() {
     assert_eq!(result["id"], "status-job");
     assert_eq!(result["schedule"], "30 14 * * *");
     assert_eq!(result["tier"], 1);
-    assert_eq!(result["scope"], "/home/cos/project");
+    assert_eq!(result["scope"], "/home/yuos/project");
     assert_eq!(result["overlap_policy"], "Allow");
     assert_eq!(result["timeout_secs"], 300);
 }
@@ -575,7 +575,7 @@ fn test_cronjob_serialization_roundtrip() {
         command: "echo hello".to_string(),
         description: "test roundtrip".to_string(),
         tier: Some(1),
-        scope: Some("/home/cos".to_string()),
+        scope: Some("/home/yuos".to_string()),
         credentials: vec!["key1".to_string(), "key2".to_string()],
         enabled: true,
         overlap_policy: OverlapPolicy::Queue,

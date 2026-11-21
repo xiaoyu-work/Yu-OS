@@ -15,7 +15,7 @@ Both are optional. `packages.txt` runs first, then `install.sh`.
 
 | Feature | What it adds |
 |---|---|
-| `kernel-platform` | Opt-in vendor kernel, selected firmware/driver stack and boot settings for `CLAW_PLATFORM`, after the standard kernel and image features |
+| `kernel-platform` | Opt-in vendor kernel, selected firmware/driver stack and boot settings for `YUOS_PLATFORM`, after the standard kernel and image features |
 | `base` | Core CLI tools, Node.js 24 (+ pnpm/typescript/tsx), Python apt packages, runtime dirs, `/etc/yuos/profile.sh` sourcing, version injection |
 | `yuos-core` | `yuos-agent` plus `yuos-base`: Agent/browser binaries, skills, SDK/runtime and OS integration; separately checked App APT packages supply the headless/support/library set |
 | `browser` | Chromium executable and target runtime integration for the browser binaries already shipped by `yuos-agent` |
@@ -73,7 +73,7 @@ sudo ./rootfs/build.sh
 # Headless rootfs without a Chromium renderer
 sudo ./rootfs/build.sh --features base,yuos-core
 
-# Headless rootfs, no cos at all (just Debian + Node)
+# Headless rootfs without Yu OS (just Debian + Node)
 sudo ./rootfs/build.sh --features base
 
 # Desktop VMware image rootfs with VMware Tools guest integration

@@ -2,7 +2,7 @@ Light (
     (
         name: "cosmic-light",
         // Yu OS brand blue (#005CFE) — the single accent across the whole
-        // "Yu OS Glass" design language (from the logo claw-dot). Replaces the
+        // "Yu OS Glass" design language (from the logo yuos-dot). Replaces the
         // macOS Aqua system blue; the sibling semantic colors
         // (red/green/yellow) follow the macOS system palette so destructive /
         // success / warning surfaces feel native.

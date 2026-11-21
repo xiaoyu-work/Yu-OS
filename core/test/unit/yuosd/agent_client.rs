@@ -25,7 +25,7 @@ fn activity_submit_flag_preserves_legacy_options_and_broker_parameters() {
         "--after-task",
         "task-previous",
         "--workspace",
-        "projects/claw",
+        "projects/yuos",
         "--max-turns",
         "4",
     ]
@@ -37,7 +37,7 @@ fn activity_submit_flag_preserves_legacy_options_and_broker_parameters() {
             "session_id": "session-id",
             "activity_id": "activity-id",
             "after_task_id": "task-previous",
-            "workspace": "projects/claw",
+            "workspace": "projects/yuos",
             "max_turns": 4,
         })
     );

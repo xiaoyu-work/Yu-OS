@@ -55,10 +55,10 @@ impl Containment {
                 ));
             }
         }
-        let leader = anchor.path().join(format!("claw-login-{}", epoch.label()));
+        let leader = anchor.path().join(format!("yuos-login-{}", epoch.label()));
         let workload_path = anchor
             .path()
-            .join(format!("claw-display-{}", epoch.label()));
+            .join(format!("yuos-display-{}", epoch.label()));
         let compositor_path = workload_path.join("compositor");
         let mut preparation = Preparation {
             anchor: &anchor,

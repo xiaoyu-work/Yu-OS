@@ -146,7 +146,7 @@ async fn capture(
         .ok_or_else(|| "camera destination has no parent".to_string())?;
     let suffix = if format == "png" { ".png" } else { ".jpg" };
     let mut output_file = tempfile::Builder::new()
-        .prefix(".claw-camera-")
+        .prefix(".yuos-camera-")
         .suffix(suffix)
         .tempfile_in(parent)
         .map_err(|error| format!("create camera output file: {error}"))?;

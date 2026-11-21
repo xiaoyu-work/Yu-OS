@@ -27,8 +27,8 @@ import uuid
 SESSION_ID = "ses_001953abcdef0_123456789abc"
 FORK_SESSION_ID = "ses_001953abcdef1_abcdef123456"
 PRESENTATION_ID = "01234567-89ab-8cde-8123-456789abcdef"
-ANSWER = "CLAW_TUI_PTY_COMPLETED_9F43"
-RUNNING = "CLAW_TUI_PTY_RUNNING_3A91"
+ANSWER = "YUOS_TUI_PTY_COMPLETED_9F43"
+RUNNING = "YUOS_TUI_PTY_RUNNING_3A91"
 PENDING_APPROVAL_ID = "approval-center-pending"
 RECENT_APPROVAL_ID = "approval-center-recent"
 ACTIVITY_ID = "00000000-0000-4000-8000-000000000001"
@@ -445,9 +445,9 @@ class FixtureBroker:
                     "scope": {
                         "kind": "path",
                         "value": (
-                            "/home/claw/" + "long-directory/" * 20 + " report-tail.txt"
+                            "/home/yuos/" + "long-directory/" * 20 + " report-tail.txt"
                             if self.case == "approval-narrow"
-                            else "/**" if metadata else "/home/claw/report.md"
+                            else "/**" if metadata else "/home/yuos/report.md"
                         ),
                     },
                     "session": self.session_id,
@@ -1266,7 +1266,7 @@ def run(cos, case, transcript, original_namespace, trace):
     if os.geteuid() == 0:
         raise RuntimeError("run this fixture as a non-root account, like ordinary Agent chat")
     output = bytearray()
-    with tempfile.TemporaryDirectory(prefix="claw-tui-pty-") as temporary, contextlib.ExitStack() as cleanup:
+    with tempfile.TemporaryDirectory(prefix="yuos-tui-pty-") as temporary, contextlib.ExitStack() as cleanup:
         root = Path(temporary)
         if (
             not re.fullmatch(r"mnt:\[\d+\]", original_namespace)
@@ -1322,7 +1322,7 @@ def run(cos, case, transcript, original_namespace, trace):
                 "tts": {
                     "provider": "none",
                     "model": "system-tts",
-                    "default_voice": "claw",
+                    "default_voice": "yuos",
                     "default_format": "wav",
                 },
             })

@@ -256,7 +256,7 @@ def _dispatch(
             f"{modality}: app_id is required (pass app_id= or set YUOS_APP_ID)"
         )
 
-    with tempfile.TemporaryDirectory(prefix="claw-ai-") as private_dir:
+    with tempfile.TemporaryDirectory(prefix="yuos-ai-") as private_dir:
         cmd = [
             _cos_binary(),
             WIRE_ARG,

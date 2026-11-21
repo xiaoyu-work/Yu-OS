@@ -6,7 +6,7 @@
 //! about in `config.json` (`[[agent.mcp_servers]]`). This module lets
 //! externally installed open-source software show up without anyone
 //! editing config: an adapter package drops a tiny JSON sidecar in
-//! `/usr/share/claw/agent-api/<id>.json` (or the per-user equivalent
+//! `/usr/share/yuos/agent-api/<id>.json` (or the per-user equivalent
 //! under `$XDG_DATA_HOME`) and the agent picks it up at startup.
 //!
 //! ## Manifest schema (`claw.agent-api/v1`)
@@ -19,7 +19,7 @@
 //!                                     // mcp_<name>_<tool> prefix
 //!   "title":   { "en": "Tesseract OCR" },
 //!   "summary": { "en": "OCR engine" },
-//!   "vendor":  "claw-adapter",        // "upstream" | "claw-adapter" | "plugin"
+//!   "vendor":  "yuos-adapter",        // "upstream" | "yuos-adapter" | "plugin"
 //!   "license": "Apache-2.0",
 //!   "transport": "mcp+stdio",         // only stdio is supported today
 //!   "command": "python3",
@@ -46,15 +46,15 @@
 //! `${manifest_dir}` in `command`, any `args` entry, or any `env`
 //! value resolves to the absolute parent directory of the manifest
 //! file. This lets a single manifest work both in-repo (next to
-//! `main.py`) and when installed under `/usr/lib/claw/...` without
+//! `main.py`) and when installed under `/usr/lib/yuos/...` without
 //! changing the JSON.
 //!
 //! ## Search order
 //!
 //! 1. Each path in `cfg.agent.agent_api_paths` (when non-empty —
 //!    overrides everything else for tests / dev).
-//! 2. `$XDG_DATA_HOME/claw/agent-api/` (default
-//!    `$HOME/.local/share/claw/agent-api/`).
+//! 2. `$XDG_DATA_HOME/yuos/agent-api/` (default
+//!    `$HOME/.local/share/yuos/agent-api/`).
 //! 3. Each dir in `$XDG_DATA_DIRS` (default `/usr/local/share:/usr/share`)
 //!    joined with `claw/agent-api/`.
 //!
@@ -112,7 +112,7 @@ pub struct AgentApiManifest {
     pub summary: HashMap<String, String>,
 
     /// `"upstream"` (the project itself ships the manifest),
-    /// `"claw-adapter"` (Yu OS maintains a wrapper around it),
+    /// `"yuos-adapter"` (Yu OS maintains a wrapper around it),
     /// `"plugin"` (an extension to a host app), or anything else for
     /// forward compatibility.
     #[serde(default)]

@@ -14,7 +14,7 @@ case "$1" in
         fi
         config="${DPKG_ROOT:-}/etc/modprobe.d/20-yuos-board.conf"
         if [ ! -L "$config" ] && [ -f "$config" ] &&
-           [ "$(head -n 1 "$config")" = '# Managed by claw-hardware-setup. Put local overrides in a separate file.' ]; then
+           [ "$(head -n 1 "$config")" = '# Managed by yuos-hardware-setup. Put local overrides in a separate file.' ]; then
             rm -f -- "$config"
             dpkg-trigger --no-await update-initramfs
         fi

@@ -81,7 +81,7 @@ async fn portal_path(connection: &Connection, modal: bool) -> Result<Option<Path
         .as_str()
         .trim_start_matches(':')
         .replace('.', "_");
-    let token = format!("claw_capture_{}", uuid::Uuid::new_v4().simple());
+    let token = format!("yuos_capture_{}", uuid::Uuid::new_v4().simple());
     let expected = format!("/org/freedesktop/portal/desktop/request/{sender}/{token}");
     let request = Proxy::new(
         connection,

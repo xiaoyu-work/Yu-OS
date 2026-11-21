@@ -17,9 +17,9 @@ const BASE: &str = "/run/yuos-app-apt-fixture";
 const APP: &str = "gui-boundary-test";
 const DENIED_APP: &str = "gui-package-denied";
 const SUPPORT: &str = "yuos-app-acceptance-support";
-const EFFECT: &str = "claw-package-acceptance-side-effect";
-const UNUSED: &str = "claw-native-package-unused";
-const PENDING: &str = "claw-native-package-pending";
+const EFFECT: &str = "yuos-package-acceptance-side-effect";
+const UNUSED: &str = "yuos-native-package-unused";
+const PENDING: &str = "yuos-native-package-pending";
 const DATA: &str = "/run/display-home/.local/share/yuos/apps/gui-boundary-test";
 const PEER: &str = "yuosd::server::gui_fixture::package::private_native_package_owner";
 const PLUMBING: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/test/unit/yuosd/app_store/repository.py");
@@ -120,7 +120,7 @@ pub(super) struct Custody {
 
 pub(super) fn custody(state: &DaemonState, admission: &Arc<Admission>) -> Custody {
     let root = std::fs::read_to_string("/run/gui-fixture/cgroup").unwrap();
-    assert!(root.trim().starts_with("/sys/fs/cgroup/claw-display-fixture."));
+    assert!(root.trim().starts_with("/sys/fs/cgroup/yuos-display-fixture."));
     std::fs::write(Path::new(root.trim()).join("cgroup.subtree_control"), b"+cpu +memory +pids").unwrap();
     let hosts = Path::new(root.trim()).join("package-hosts");
     std::fs::create_dir(&hosts).unwrap();
@@ -158,7 +158,7 @@ def refused():
     result = subprocess.run(
         ["/usr/local/bin/yu", "--wire=1", "__package_intent", "--retained",
          "review", "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "install",
-         "claw-package-acceptance-side-effect"],
+         "yuos-package-acceptance-side-effect"],
         stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15,
     )
     phase("intent-reply", result.returncode)
@@ -380,7 +380,7 @@ impl OwnerPeer {
             authority, Audience, AudienceSet, Binding, Issuance, Issuer, Principal, Subject, Uses,
         };
         use tokio::io::AsyncBufReadExt;
-        let mut command = ProcessCommand::new("/usr/local/bin/claw-gui-broker-fixture");
+        let mut command = ProcessCommand::new("/usr/local/bin/yuos-gui-broker-fixture");
         command.args(["--exact", PEER, "--ignored", "--nocapture", "--test-threads=1"])
             .env_clear().env("HOME", "/run/display-home")
             .env("PATH", "/usr/local/bin:/usr/bin:/bin").env("YUOS_NATIVE_PACKAGE_PEER", "1")
@@ -412,7 +412,7 @@ impl OwnerPeer {
         let caps = owner_invoke_caps();
         let info = crate::proc::SessionInfo {
             session_id: peer.session.clone(), pid,
-            command: vec!["/usr/local/bin/claw-gui-broker-fixture".into(), PEER.into()],
+            command: vec!["/usr/local/bin/yuos-gui-broker-fixture".into(), PEER.into()],
             started_at: chrono::Utc::now().to_rfc3339(), stdout_path: String::new(), stderr_path: String::new(),
             group: Some("user".into()), parent: None, workdir: None, exit_code: None, ended_at: None,
             tier: Some(2), scope: None, priority: None,
@@ -597,7 +597,7 @@ pub(super) async fn run(group: &std::fs::File) {
     assert!(!crate::approvals::has_approved_grant_for_context_operation(
         &first.session, &first_cap, Some(OWNER), None, Some(&"0".repeat(64)),
     ).unwrap());
-    let wrong = Cap::new(Verb::SYS_PACKAGE, Scope::name("claw-native-package-neighbor"));
+    let wrong = Cap::new(Verb::SYS_PACKAGE, Scope::name("yuos-native-package-neighbor"));
     assert!(!crate::approvals::has_approved_grant_for_context_operation(
         &first.session, &wrong, Some(OWNER), None, first.operation_digest.as_deref(),
     ).unwrap());

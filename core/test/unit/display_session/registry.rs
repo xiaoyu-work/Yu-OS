@@ -74,7 +74,7 @@ impl PrivateRegistryCgroup {
             open_directory(&Path::new("/sys/fs/cgroup").join(relative.trim_start_matches('/')))
                 .unwrap();
         let path = Path::new("/sys/fs/cgroup").join(format!(
-            "claw-display-retirement-{}-{}",
+            "yuos-display-retirement-{}-{}",
             std::process::id(),
             uuid::Uuid::new_v4().simple(),
         ));
@@ -97,7 +97,7 @@ impl PrivateRegistryCgroup {
     fn workload(&mut self, epoch: Epoch) -> Arc<Workload> {
         let anchor = SessionGroup::of(&ProcessIdentity::current().unwrap()).unwrap();
         assert_eq!(anchor.path(), self.path);
-        let path = self.path.join(format!("claw-display-{}", epoch.label()));
+        let path = self.path.join(format!("yuos-display-{}", epoch.label()));
         std::fs::create_dir(&path).unwrap();
         self.workloads.push(path.clone());
         Arc::new(

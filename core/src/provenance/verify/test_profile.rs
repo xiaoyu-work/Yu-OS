@@ -146,7 +146,7 @@ impl Drop for Guard {
         let thread = std::thread::current();
         let lane = match thread.name() {
             Some("gui-file-checks") => "checker",
-            Some("claw-native-fs") => "native_io",
+            Some("yuos-native-fs") => "native_io",
             _ => "controller",
         };
         let mut line = String::new();

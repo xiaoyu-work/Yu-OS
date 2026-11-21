@@ -1,0 +1,15 @@
+[Unit]
+Description=Activate owner-enabled Apple Touch ID
+ConditionPathExists=/etc/yuos-asahi/touch-id
+After=systemd-udev-trigger.service
+Before=fprintd.service
+
+[Service]
+Type=oneshot
+RuntimeDirectory=yuos-asahi-touch-id
+RuntimeDirectoryMode=0700
+ExecCondition=/usr/lib/yuos/asahi/yuos-asahi-touch-id check
+ExecStart=/usr/sbin/modprobe apple_sep
+ExecStartPost=/usr/lib/yuos/asahi/yuos-asahi-touch-id activate
+RemainAfterExit=yes
+TimeoutStartSec=90s

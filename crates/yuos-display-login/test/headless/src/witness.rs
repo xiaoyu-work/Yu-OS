@@ -14,7 +14,7 @@ use smithay::{
 use crate::state::State;
 
 const MIME: &str = "text/plain;charset=utf-8";
-const TAG: &str = "application/x-claw-private-write-witness";
+const TAG: &str = "application/x-yuos-private-write-witness";
 const PAYLOAD: &[u8] = b"private-write-only-source";
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 

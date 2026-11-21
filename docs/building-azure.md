@@ -110,7 +110,7 @@ remains in an upload state and cannot be used as an image source.
 Create a gallery and a generalized Gen2 image definition:
 
 ```bash
-GALLERY=clawOsGallery
+GALLERY=yuosOsGallery
 DEFINITION=yuos
 VERSION=1.0.0
 

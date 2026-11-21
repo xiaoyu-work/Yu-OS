@@ -1,7 +1,7 @@
 
 #include "Compositor.hpp"
-#include "../../hyprland-claw/Yu OS.hpp"
-#include "../../hyprland-claw/Hyprland.hpp"
+#include "../../hyprland-yuos/YuOs.hpp"
+#include "../../hyprland-yuos/Hyprland.hpp"
 #include "helpers/MiscFunctions.hpp"
 #include "render/decorations/DecorationPositioner.hpp"
 #include "config/supplementary/executor/Executor.hpp"
@@ -269,7 +269,7 @@ static std::vector<SP<Aquamarine::IOutput>> pendingOutputs;
 //
 
 static bool filterGlobals(const wl_client* client, const wl_global* global, void* data) {
-    return Yu OS::globalAllowed(client, global, !g_pProtocolManager || g_pProtocolManager->isGlobalPrivileged(global));
+    return YuOs::globalAllowed(client, global, !g_pProtocolManager || g_pProtocolManager->isGlobalPrivileged(global));
 }
 
 //
@@ -290,7 +290,7 @@ void CCompositor::initServer(std::string socketName, int socketFd) {
 
     m_wlEventLoop = wl_display_get_event_loop(m_wlDisplay);
 
-    if (!Yu OS::attach(m_wlDisplay,
+    if (!YuOs::attach(m_wlDisplay,
                       {
                           .stop = [this] { stopCompositor(); },
                           .retireContexts =
@@ -298,8 +298,8 @@ void CCompositor::initServer(std::string socketName, int socketFd) {
                                   if (PROTO::securityContext)
                                       PROTO::securityContext->retireClaw(token);
                               },
-                          .installSelection = Yu OS::installSelection,
-                          .desktop          = Yu OS::desktop,
+                          .installSelection = YuOs::installSelection,
+                          .desktop          = YuOs::desktop,
                       }))
         throwError("Yu OS display authority could not attach to Wayland");
 
@@ -470,7 +470,7 @@ void CCompositor::initServer(std::string socketName, int socketFd) {
     }
     pendingOutputs.clear();
 
-    if (!Yu OS::ready(m_wlDisplaySocket))
+    if (!YuOs::ready(m_wlDisplaySocket))
         throwError("Yu OS display readiness could not be authenticated");
 }
 
@@ -622,7 +622,7 @@ void CCompositor::cleanup() {
     g_pXWayland.reset();
 
     wl_display_destroy_clients(g_pCompositor->m_wlDisplay);
-    Yu OS::clearSelection();
+    YuOs::clearSelection();
 
     State::monitorState()->finish();
     State::fallbackState().reset();
@@ -659,7 +659,7 @@ void CCompositor::cleanup() {
     Config::watcher().reset();
     g_pAsyncResourceGatherer.reset();
 
-    Yu OS::shutdown();
+    YuOs::shutdown();
 
     if (m_aqBackend)
         m_aqBackend.reset();

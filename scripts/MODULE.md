@@ -32,7 +32,7 @@ shared build helpers.
 | `app_platform.py` | Reproducible, versioned SDK/runtime/toolkit development artifact; excludes App helpers and OS providers |
 | `app_packages.py` | Reauthenticate official fresh App APT indexes and final `.deb` bytes; select independent package closure and enforce one-owner OS staging |
 | `app_sources.py` | Prepare explicit immutable App test/development fixtures; never a production package fallback |
-| `app_sources.py --write-lock <path>` | Record the selected SHA for later build steps through `CLAW_APP_SOURCE_LOCK`; never changes the repository selection |
+| `app_sources.py --write-lock <path>` | Record the selected SHA for later build steps through `YUOS_APP_SOURCE_LOCK`; never changes the repository selection |
 | `app_sources.py --stage-shared <root>` | Forward to the selected snapshot's public App common staging CLI; stage only App-owned support under `usr/lib/yuos/python` |
 | `app_sources.py --native` | Refresh product-declared native inputs and record their source snapshot alongside stable ignored build paths |
 

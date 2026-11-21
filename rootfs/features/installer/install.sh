@@ -43,9 +43,9 @@ user ALL=(ALL) NOPASSWD:ALL
 EOF
 chmod 0440 "$ROOTFS/etc/sudoers.d/yuos-installer"
 
-if [ -x "$ROOTFS/usr/libexec/claw-oobe" ]; then
+if [ -x "$ROOTFS/usr/libexec/yuos-oobe" ]; then
     if [ "$DEB_ARCH" = amd64 ]; then
-        hardware=$(mktemp -d "$ROOTFS/tmp/claw-amd64-hardware.XXXXXX")
+        hardware=$(mktemp -d "$ROOTFS/tmp/yuos-amd64-hardware.XXXXXX")
         trap 'rm -rf -- "$hardware"' EXIT
         install -d "$hardware"/{scripts,packaging}
         install -m0644 "$PROJECT_DIR"/scripts/{amd64_hardware,platform_kernels,surface_laptop7}.py "$hardware/scripts/"
@@ -65,7 +65,7 @@ if [ -x "$ROOTFS/usr/libexec/claw-oobe" ]; then
         chroot "$ROOTFS" python3 -B "$inside/scripts/amd64_hardware.py" \
             --cache "$inside/cache" --output /usr/share/yuos/driver-cache
     fi
-    chroot "$ROOTFS" /usr/lib/yuos/hw/claw-driver-setup --stage-offline
+    chroot "$ROOTFS" /usr/lib/yuos/hw/yuos-driver-setup --stage-offline
 fi
 
 echo "  :: Calamares configured; X autostarts on tty1 login"

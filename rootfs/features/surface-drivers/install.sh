@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-[[ $DEB_ARCH == amd64 && -z ${CLAW_PLATFORM:-} ]] || exit 0
+[[ $DEB_ARCH == amd64 && -z ${YUOS_PLATFORM:-} ]] || exit 0
 
 cache=/usr/share/yuos/driver-cache/surface-laptop-7-intel
-work=$(mktemp -d "$ROOTFS/tmp/claw-surface.XXXXXX")
+work=$(mktemp -d "$ROOTFS/tmp/yuos-surface.XXXXXX")
 trap 'rm -rf -- "$work"' EXIT
 inside=${work#"$ROOTFS"}
 chmod 0755 "$work"
@@ -27,16 +27,16 @@ done
 install -Dm0644 "$PROJECT_DIR/packaging/platform-kernels.json" "$work/packaging/platform-kernels.json"
 chroot "$ROOTFS" env PYTHONDONTWRITEBYTECODE=1 python3 "$inside/scripts/platform_kernels.py" \
     x86-surface-laptop-7-intel --debian-kernel "$version" --output "$cache"
-install -d "$ROOTFS/usr/lib/modules/$version/updates/claw-surface"
+install -d "$ROOTFS/usr/lib/modules/$version/updates/yuos-surface"
 dpkg-deb --fsys-tarfile "$ROOTFS$cache"/yuos-surface-laptop-7_*.deb |
-    tar --extract --to-stdout "./usr/lib/modules/$version/updates/claw-surface/surface_aggregator_registry.ko" \
-    >"$ROOTFS/usr/lib/modules/$version/updates/claw-surface/surface_aggregator_registry.ko"
+    tar --extract --to-stdout "./usr/lib/modules/$version/updates/yuos-surface/surface_aggregator_registry.ko" \
+    >"$ROOTFS/usr/lib/modules/$version/updates/yuos-surface/surface_aggregator_registry.ko"
 # This file survives media initramfs regeneration, but is removed on installation.
 install -d "$ROOTFS/etc/modprobe.d"
 printf '%s\n' 'softdep surface_aggregator pre: pinctrl_intel_platform' \
-    >"$ROOTFS/etc/modprobe.d/60-claw-surface-media.conf"
+    >"$ROOTFS/etc/modprobe.d/60-yuos-surface-media.conf"
 printf '%s\n' "$version" >"$ROOTFS$cache/kernel-release"
 chroot "$ROOTFS" depmod -a "$version"
 chroot "$ROOTFS" update-initramfs -u -k "$version"
 initrd=$(chroot "$ROOTFS" lsinitramfs "/boot/initrd.img-$version")
-grep -Eq "(^|/)lib/modules/$version/updates/claw-surface/surface_aggregator_registry\.ko$" <<<"$initrd"
+grep -Eq "(^|/)lib/modules/$version/updates/yuos-surface/surface_aggregator_registry\.ko$" <<<"$initrd"

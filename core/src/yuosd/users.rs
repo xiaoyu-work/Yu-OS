@@ -990,10 +990,10 @@ async fn mutate(
             }
             let mut memberships = groups.map(parse_groups).transpose()?.unwrap_or_default();
             #[cfg(target_os = "linux")]
-            if group_records()?.iter().any(|entry| entry.name == "claw-desktop-users")
-                && !memberships.iter().any(|group| group == "claw-desktop-users")
+            if group_records()?.iter().any(|entry| entry.name == "yuos-desktop-users")
+                && !memberships.iter().any(|group| group == "yuos-desktop-users")
             {
-                memberships.push("claw-desktop-users".into());
+                memberships.push("yuos-desktop-users".into());
             }
             let groups = memberships.join(",");
             if !groups.is_empty() {

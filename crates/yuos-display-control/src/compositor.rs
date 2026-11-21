@@ -62,7 +62,7 @@ pub struct CompositorLink {
 
 impl CompositorLink {
     pub fn receive() -> Result<Self, Error> {
-        if std::env::var_os("CLAW_DISPLAY_CONTROL_FD").as_deref() != Some("3".as_ref()) {
+        if std::env::var_os("YUOS_DISPLAY_CONTROL_FD").as_deref() != Some("3".as_ref()) {
             return Err(Error::Protocol(
                 "Root display activation descriptor is required",
             ));

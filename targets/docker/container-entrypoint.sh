@@ -3,9 +3,9 @@
 
 set -Eeuo pipefail
 
-username="${CLAW_USER:-}"
-uid="${CLAW_UID:-1000}"
-gid="${CLAW_GID:-1000}"
+username="${YUOS_USER:-}"
+uid="${YUOS_UID:-1000}"
+gid="${YUOS_GID:-1000}"
 created_user=""
 created_group=""
 
@@ -29,11 +29,11 @@ trap 'rollback; exit 143' TERM
 [ "$(id -u)" -eq 0 ] || fail "entrypoint must run as root"
 
 [[ "$username" =~ ^[a-z][a-z0-9_-]{0,30}$ ]] \
-    || fail "CLAW_USER must match ^[a-z][a-z0-9_-]{0,30}$"
+    || fail "YUOS_USER must match ^[a-z][a-z0-9_-]{0,30}$"
 [[ "$uid" =~ ^[0-9]+$ ]] && (( uid >= 100 && uid < 60000 )) \
-    || fail "CLAW_UID must be an integer from 100 through 59999"
+    || fail "YUOS_UID must be an integer from 100 through 59999"
 [[ "$gid" =~ ^[0-9]+$ ]] && (( gid >= 100 && gid < 60000 )) \
-    || fail "CLAW_GID must be an integer from 100 through 59999"
+    || fail "YUOS_GID must be an integer from 100 through 59999"
 
 existing_user="$(getent passwd "$username" || true)"
 existing_uid="$(getent passwd "$uid" || true)"

@@ -14,7 +14,7 @@ for artifact in "boot/vmlinuz-$release" "boot/initrd.img-$release" \
 done
 test -f "$rootfs/etc/yuos/local-desktop-setup"
 
-work=$(mktemp -d "$directory/.claw-asahi-payload.XXXXXX")
+work=$(mktemp -d "$directory/.yuos-asahi-payload.XXXXXX")
 trap 'rm -rf -- "$work"' EXIT
 root="$work/root"
 esp="$work/esp"
@@ -36,7 +36,7 @@ EOF
 
 # U-Boot starts the removable EFI loader. Keeping the menu on Linux root makes
 # later update-grub runs independent of the ESP and Apple's boot policy.
-grub_work=$(mktemp -d "$root/tmp/.claw-asahi-grub.XXXXXX")
+grub_work=$(mktemp -d "$root/tmp/.yuos-asahi-grub.XXXXXX")
 inside=${grub_work#"$root"}
 cat > "$grub_work/config" <<EOF
 search --no-floppy --fs-uuid --set=root $uuid

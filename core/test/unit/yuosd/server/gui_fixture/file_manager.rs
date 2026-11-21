@@ -45,7 +45,7 @@ fn private_file_manager_client() {
             "private caller escaped fixture isolation"
         );
     }
-    let role = std::env::var("CLAW_GUI_FILE_MANAGER_CALL").unwrap();
+    let role = std::env::var("YUOS_GUI_FILE_MANAGER_CALL").unwrap();
     assert_eq!(role == "other", uid == CLIENT);
     tokio::runtime::Builder::new_current_thread()
         .enable_all()

@@ -2,7 +2,7 @@ Dark (
     (
         name: "cosmic-dark",
         // Yu OS brand blue (#005CFE) — the single accent across the whole
-        // "Yu OS Glass" design language (from the logo claw-dot). Replaces the
+        // "Yu OS Glass" design language (from the logo yuos-dot). Replaces the
         // macOS Aqua dark-mode blue so light and dark share one brand accent.
         blue: (
             c: "#005CFE",

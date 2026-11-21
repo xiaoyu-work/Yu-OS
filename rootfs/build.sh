@@ -209,7 +209,7 @@ artifact_hash() {
             find "$PROJECT_DIR/build/debs" -maxdepth 1 -type f -name '*.deb' -print0
         fi
         if [[ ",$FEATURES," == *",desktop,"* ]]; then
-            shell_pin="${CLAW_APP_PACKAGE_ROOT:-$PROJECT_DIR/build/app-packages}/desktop-shell-$DEB_ARCH/selection.json"
+            shell_pin="${YUOS_APP_PACKAGE_ROOT:-$PROJECT_DIR/build/app-packages}/desktop-shell-$DEB_ARCH/selection.json"
             if [ -f "$shell_pin" ]; then
                 printf '%s\0' "$shell_pin"
             fi
@@ -245,7 +245,7 @@ ENVIRONMENT_HASH="$(
         printf 'YUOS_APT_PUBLIC_KEY_FILE=%s\0' "${YUOS_APT_PUBLIC_KEY_FILE:-}"
         printf 'YUOS_APT_PUBLIC_KEY_URL=%s\0' "${YUOS_APT_PUBLIC_KEY_URL:-}"
         printf 'YUOS_APT_PUBLIC_KEY_FINGERPRINT=%s\0' "${YUOS_APT_PUBLIC_KEY_FINGERPRINT:-}"
-        printf 'CLAW_PLATFORM=%s\0' "${CLAW_PLATFORM:-}"
+        printf 'YUOS_PLATFORM=%s\0' "${YUOS_PLATFORM:-}"
     } | sha256sum | awk '{print $1}'
 )"
 

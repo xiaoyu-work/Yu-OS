@@ -71,7 +71,7 @@ fn session_command(subscription: &Subscription, executable: impl AsRef<OsStr>) -
         .env_remove("DISPLAY")
         .env_remove("XAUTHORITY")
         .env_remove("X_PRIVILEGED_WAYLAND_SOCKET")
-        .env_remove("CLAW_DISPLAY_CONTROL_FD");
+        .env_remove("YUOS_DISPLAY_CONTROL_FD");
     command
 }
 
@@ -118,7 +118,7 @@ fn run_desktop(
     subscription: &Subscription,
 ) -> Result<(), Error> {
     if Path::new("/etc/yuos/first-run").is_file() {
-        let entrypoint = "/usr/libexec/claw-oobe";
+        let entrypoint = "/usr/libexec/yuos-oobe";
         let mut setup = command(entrypoint).spawn()?;
         wait_for_entrypoint(subscription, &mut setup)?;
         if !command(entrypoint)
@@ -129,7 +129,7 @@ fn run_desktop(
             return Err(Error::Protocol("first-run setup did not record completion"));
         }
     }
-    let target = "claw-desktop-session.target";
+    let target = "yuos-desktop-session.target";
     if !command("/usr/bin/systemctl")
         .args(["--user", "start", target])
         .status()?

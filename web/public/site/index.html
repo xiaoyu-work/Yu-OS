@@ -366,10 +366,10 @@
           </header>
           <p>Run the full OS image in a privileged container.</p>
 <pre class="code-block mono" id="codeDocker"><span class="t-prompt">$</span> docker pull ghcr.io/xiaoyu-work/yu-os:latest
-<span class="t-prompt">$</span> docker run -d --name claw --privileged \
-    -e CLAW_USER=yourname -v ./workspace:/workspace \
+<span class="t-prompt">$</span> docker run -d --name yuos --privileged \
+    -e YUOS_USER=yourname -v ./workspace:/workspace \
     ghcr.io/xiaoyu-work/yu-os
-<span class="t-prompt">$</span> docker exec -it claw /usr/local/sbin/claw-container-entrypoint shell</pre>
+<span class="t-prompt">$</span> docker exec -it yuos /usr/local/sbin/yuos-container-entrypoint shell</pre>
           <button class="copy-btn copy-btn-card" data-copy="#codeDocker">copy</button>
         </article>
       </div>

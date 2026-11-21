@@ -108,10 +108,10 @@ enable_fingerprint_auth() {
 enroll_desktop_accounts() {
     # Keep the existing sudo socket group unchanged. This supplemental group
     # only admits the broker's desktop route set for local sign-in accounts.
-    systemd-sysusers /usr/lib/sysusers.d/claw-desktop-users.conf
+    systemd-sysusers /usr/lib/sysusers.d/yuos-desktop-users.conf
     awk -F: '$3 >= 1000 && $3 < 60000 && $7 !~ /\/(false|nologin)$/ {print $1}' /etc/passwd |
         while IFS= read -r user; do
-            usermod --append --groups claw-desktop-users -- "$user"
+            usermod --append --groups yuos-desktop-users -- "$user"
         done
 }
 
@@ -141,7 +141,7 @@ if [ "$1" = "configure" ]; then
             # A build-time hiccup must not abort package configuration.
             systemd-tmpfiles --create || true
         fi
-        /usr/libexec/claw-desktop-locales
+        /usr/libexec/yuos-desktop-locales
     fi
     commit_security_floor
     if [ -z "$DPKG_ROOT" ]; then

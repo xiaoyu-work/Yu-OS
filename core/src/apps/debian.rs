@@ -85,7 +85,7 @@ fn data_path_allowed(path: &Path, directory: bool) -> bool {
             "cosmic",
             "doc",
             "licenses",
-            "claw",
+            "yuos",
             "yuos-apps",
         ]
         .iter()

@@ -17,7 +17,7 @@ fn normalizes_documented_operating_system_aliases() {
 
 #[test]
 fn normalizes_system_agent_deployment_aliases() {
-    for entity in ["claw-agent", "yu_agent", "system agent deployment"] {
+    for entity in ["yuos-agent", "yu_agent", "system agent deployment"] {
         let fact = normalize_fact(
             "environment",
             entity,

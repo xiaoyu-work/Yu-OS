@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ACCOUNT=cos
+ACCOUNT=yuos
 STATE_DIR=/var/lib/yuos
 COMPLETE="$STATE_DIR/local-first-login.complete"
 

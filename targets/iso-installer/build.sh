@@ -31,7 +31,7 @@ ISO_BUILD="$PROJECT_DIR/build/iso-installer-build"
 source "$PROJECT_DIR/scripts/lib/arch.sh"
 source "$PROJECT_DIR/scripts/lib/image-profiles.sh"
 source "$PROJECT_DIR/targets/common/platform-iso.sh"
-if [[ $DEB_ARCH == amd64 || ${CLAW_PLATFORM:-} == aarch64-qualcomm ]]; then
+if [[ $DEB_ARCH == amd64 || ${YUOS_PLATFORM:-} == aarch64-qualcomm ]]; then
     select_iso_platform installer "$IMAGE_FEATURES_DESKTOP_INSTALLER"
 else
     select_iso_platform installer "$IMAGE_FEATURES_INSTALLER"
@@ -96,8 +96,8 @@ mksquashfs "$ROOTFS" "$ISO_BUILD/live/filesystem.squashfs" \
     -comp zstd -Xcompression-level 19 \
     -noappend
 
-if [[ ,$ISO_FEATURES, == *,surface-drivers,* || ${CLAW_PLATFORM:-} == @(x86-surface-laptop-7-intel|aarch64-qualcomm) ]]; then
-    bash "$SCRIPT_DIR/surface-input/build.sh" "$ROOTFS" "$ISO_BUILD/live" "${CLAW_PLATFORM:-amd64}"
+if [[ ,$ISO_FEATURES, == *,surface-drivers,* || ${YUOS_PLATFORM:-} == @(x86-surface-laptop-7-intel|aarch64-qualcomm) ]]; then
+    bash "$SCRIPT_DIR/surface-input/build.sh" "$ROOTFS" "$ISO_BUILD/live" "${YUOS_PLATFORM:-amd64}"
 fi
 
 cp "$KERNEL" "$ISO_BUILD/live/vmlinuz"
@@ -130,9 +130,9 @@ menuentry "Install Yu OS (failsafe)" {
 }
 GRUBCFG
 
-if [[ $DEB_ARCH == arm64 && ( -z ${CLAW_PLATFORM:-} || $CLAW_PLATFORM == aarch64-qualcomm ) ]]; then
+if [[ $DEB_ARCH == arm64 && ( -z ${YUOS_PLATFORM:-} || $YUOS_PLATFORM == aarch64-qualcomm ) ]]; then
     source "$PROJECT_DIR/packaging/deb/yuos-base/hardware/qualcomm-boot.sh"
-    claw_qcom_iso_menu "$ROOTFS" "$ISO_BUILD" "$KERNEL_VERSION" "Install Yu OS" >> "$ISO_BUILD/boot/grub/grub.cfg"
+    yuos_qcom_iso_menu "$ROOTFS" "$ISO_BUILD" "$KERNEL_VERSION" "Install Yu OS" >> "$ISO_BUILD/boot/grub/grub.cfg"
 fi
 finalize_iso_platform installer
 

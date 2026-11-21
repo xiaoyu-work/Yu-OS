@@ -969,7 +969,7 @@ fn temp_for_target(target: &Path) -> Result<tempfile::NamedTempFile, String> {
         .map(|value| format!(".{value}"))
         .unwrap_or_default();
     tempfile::Builder::new()
-        .prefix(".claw-config-")
+        .prefix(".yuos-config-")
         .suffix(&suffix)
         .tempfile_in(parent)
         .map_err(|error| format!("create config temporary file: {error}"))

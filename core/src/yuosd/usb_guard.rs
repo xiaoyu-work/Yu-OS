@@ -17,7 +17,7 @@ use super::client_identity::ClientIdentity;
 const TOOL_TIMEOUT: Duration = Duration::from_secs(60);
 const LOCK_TIMEOUT: Duration = Duration::from_secs(5);
 const STREAM_CAP_BYTES: usize = 2 * 1024 * 1024;
-const POLICY_PATH: &str = "/etc/udev/rules.d/99-claw-usb-guard.rules";
+const POLICY_PATH: &str = "/etc/udev/rules.d/99-yuos-usb-guard.rules";
 static USB_LOCK: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
 
 #[derive(Clone, Serialize, Deserialize)]

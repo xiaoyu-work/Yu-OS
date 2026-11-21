@@ -6,7 +6,7 @@
 #include "init/initHelpers.hpp"
 #include "ipc/s1/S1.hpp"
 #include "helpers/env/Env.hpp"
-#include "../../hyprland-claw/Yu OS.hpp"
+#include "../../hyprland-yuos/YuOs.hpp"
 
 #include <csignal>
 #include <cstdio>
@@ -199,7 +199,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (!verifyConfig && !Yu OS::initialize()) {
+    if (!verifyConfig && !YuOs::initialize()) {
         std::println(stderr, "[ ERROR ] Yu OS Root display activation is required.");
         return 1;
     }

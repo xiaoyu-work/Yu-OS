@@ -56,7 +56,7 @@ source "$RELEASE_SECURITY_DIR/sign-manifest.sh"
 # Reject an unusable requested key before fetching App inputs or changing staging.
 RELEASE_SECURITY_PASSPHRASE="${GPG_PASSPHRASE:-}"
 unset GPG_PASSPHRASE
-RELEASE_SECURITY_KEY_ID="$(claw_resolve_signing_key)" || exit 1
+RELEASE_SECURITY_KEY_ID="$(yuos_resolve_signing_key)" || exit 1
 
 APP_RUNTIME_VERSION="$(python3 "$PROJECT_DIR/scripts/app_packages.py" runtime-version)"
 if [ "$PACKAGE_SET" = all ] || [ "$PACKAGE_SET" = agent ]; then
@@ -369,7 +369,7 @@ fi
 write_release_manifest() {
     local package="$1" stage="$2" arch="$3"
     install -d -m 0755 "$stage/usr/lib/yuos/release-security"
-    claw_write_release_manifest \
+    yuos_write_release_manifest \
         "$RELEASE_SECURITY_KEY_ID" "$RELEASE_SECURITY_PASSPHRASE" \
         "$MAKE_MANIFEST" "$package" "$VERSION" "$arch" \
         "$RELEASE_SECURITY_SUITE" "$stage" "$RELEASE_SECURITY_POLICY" \
@@ -446,11 +446,11 @@ install -Dm0644 "$PROJECT_DIR/core/assets/app-store-archive-key.asc" \
 install -Dm0644 "$SCRIPT_DIR/yuos-agent/yuos-apps.sources" \
     "$AGENT_STAGE/etc/apt/sources.list.d/yuos-apps.sources"
 install -Dm0644 "$SCRIPT_DIR/yuos-agent/helium-archive-key.asc" \
-    "$AGENT_STAGE/usr/share/keyrings/claw-helium-archive-key.asc"
-install -Dm0644 "$SCRIPT_DIR/yuos-agent/claw-helium.sources" \
-    "$AGENT_STAGE/etc/apt/sources.list.d/claw-helium.sources"
-install -Dm0644 "$SCRIPT_DIR/yuos-agent/claw-helium.pref" \
-    "$AGENT_STAGE/etc/apt/preferences.d/claw-helium.pref"
+    "$AGENT_STAGE/usr/share/keyrings/yuos-helium-archive-key.asc"
+install -Dm0644 "$SCRIPT_DIR/yuos-agent/yuos-helium.sources" \
+    "$AGENT_STAGE/etc/apt/sources.list.d/yuos-helium.sources"
+install -Dm0644 "$SCRIPT_DIR/yuos-agent/yuos-helium.pref" \
+    "$AGENT_STAGE/etc/apt/preferences.d/yuos-helium.pref"
 render_control "$SCRIPT_DIR/yuos-agent/postinst" "$AGENT_STAGE/DEBIAN/postinst.body"
 {
     cat "$SCRIPT_DIR/yuos-agent/extension-identities.sh"
@@ -501,7 +501,7 @@ LAUNCHER_BACKEND_BIN="$(ensure_launcher_backend)" || {
     echo "error: OS Launcher backend binary not built" >&2; exit 1; }
 APP_APT_HOOK_BIN="$(ensure_bin yuos-app-apt-hook yu)" || {
     echo "error: yuos-app-apt-hook binary not built" >&2; exit 1; }
-PAM_DISPLAY_MODULE="$(ensure_bin libpam_claw_display.so yuos-display-login "${RUST_TARGET/-musl/-gnu}")" || {
+PAM_DISPLAY_MODULE="$(ensure_bin libpam_yuos_display.so yuos-display-login "${RUST_TARGET/-musl/-gnu}")" || {
     echo "error: native GNU PAM display module not built (libpam0g-dev is required)" >&2; exit 1; }
 MAIL_AI_HOST_BIN="$(ensure_bin yuos-mail-ai-host yu)" || {
     echo "error: yuos-mail-ai-host binary not built" >&2; exit 1; }
@@ -523,7 +523,7 @@ echo "  :: yuos-display-session   <- $DISPLAY_SESSION_BIN"
 echo "  :: yuos-file-manager      <- $FILE_MANAGER_BIN"
 echo "  :: yuos-notification-panel <- $NOTIFICATION_PANEL_BIN"
 echo "  :: yuos-app-apt-hook      <- $APP_APT_HOOK_BIN"
-echo "  :: pam_claw_display.so    <- $PAM_DISPLAY_MODULE"
+echo "  :: pam_yuos_display.so    <- $PAM_DISPLAY_MODULE"
 echo "  :: yuos-mail-ai-host      <- $MAIL_AI_HOST_BIN"
 echo "  :: yuos-security-floor    <- $SECURITY_FLOOR_BIN"
 install -m 755 "$YUOS_BIN" "$AGENT_STAGE/usr/local/bin/yu"
@@ -559,7 +559,7 @@ case "$DEB_ARCH" in
     *) echo "error: unsupported PAM display architecture: $DEB_ARCH" >&2; exit 1 ;;
 esac
 install -Dm0644 "$PAM_DISPLAY_MODULE" \
-    "$AGENT_STAGE/usr/lib/$PAM_MULTIARCH/security/pam_claw_display.so"
+    "$AGENT_STAGE/usr/lib/$PAM_MULTIARCH/security/pam_yuos_display.so"
 install -m 755 "$MAIL_AI_HOST_BIN" "$AGENT_STAGE/usr/lib/yuos/yuos-mail-ai-host"
 install -Dm0644 "$PROJECT_DIR/tools/browser_native_host.py" \
     "$AGENT_STAGE/usr/lib/yuos/browser-native-host.py"
@@ -573,17 +573,17 @@ install -m 644 \
     "$PROJECT_DIR/rootfs/overlay/usr/share/polkit-1/actions/org.yuos.approval.policy" \
     "$AGENT_STAGE/usr/share/polkit-1/actions/org.yuos.approval.policy"
 
-CLAW_SEMANTIC_DAEMON_BIN="$(
+YUOS_SEMANTIC_DAEMON_BIN="$(
     ensure_bin yuos-semantic-daemon yuos-semantic "${RUST_TARGET/-musl/-gnu}"
 )" || { echo "error: yuos-semantic-daemon binary not built" >&2; exit 1; }
-CLAW_SEMANTIC_CLI_BIN="$(
+YUOS_SEMANTIC_CLI_BIN="$(
     ensure_bin yuos-semantic yuos-semantic "${RUST_TARGET/-musl/-gnu}"
 )" || { echo "error: yuos-semantic binary not built" >&2; exit 1; }
-echo "  :: yuos-semantic-daemon  <- $CLAW_SEMANTIC_DAEMON_BIN"
-echo "  :: yuos-semantic         <- $CLAW_SEMANTIC_CLI_BIN"
-install -m 755 "$CLAW_SEMANTIC_DAEMON_BIN" \
+echo "  :: yuos-semantic-daemon  <- $YUOS_SEMANTIC_DAEMON_BIN"
+echo "  :: yuos-semantic         <- $YUOS_SEMANTIC_CLI_BIN"
+install -m 755 "$YUOS_SEMANTIC_DAEMON_BIN" \
     "$AGENT_STAGE/usr/local/bin/yuos-semantic-daemon"
-install -m 755 "$CLAW_SEMANTIC_CLI_BIN" "$AGENT_STAGE/usr/local/bin/yuos-semantic"
+install -m 755 "$YUOS_SEMANTIC_CLI_BIN" "$AGENT_STAGE/usr/local/bin/yuos-semantic"
 
 install -m 644 "$PROJECT_DIR/rootfs/overlay/etc/yuos/profile.sh" \
     "$AGENT_STAGE/etc/yuos/profile.sh"
@@ -634,8 +634,8 @@ install -Dm0644 "$NEARBY_ASSETS/90-yuos-nearby-unmanaged.conf" \
     "$AGENT_STAGE/usr/lib/NetworkManager/conf.d/90-yuos-nearby-unmanaged.conf"
 install -Dm0644 "$NEARBY_ASSETS/10-yuos-nearby-awdl0.link" \
     "$AGENT_STAGE/usr/lib/systemd/network/10-yuos-nearby-awdl0.link"
-install -m 644 "$USER_UNITS_SRC/claw-recoll-index.service" \
-    "$AGENT_STAGE/usr/lib/systemd/user/claw-recoll-index.service"
+install -m 644 "$USER_UNITS_SRC/yuos-recoll-index.service" \
+    "$AGENT_STAGE/usr/lib/systemd/user/yuos-recoll-index.service"
 install -m 644 "$USER_UNITS_SRC/yuos-semantic.service" \
     "$AGENT_STAGE/usr/lib/systemd/user/yuos-semantic.service"
 
@@ -692,16 +692,16 @@ install -m 644 "$PROJECT_DIR/rootfs/features/systemd/overlay/etc/default/yuos-ho
     "$BASE_STAGE/etc/default/yuos-home"
 
 HARDWARE_SRC="$SCRIPT_DIR/yuos-base/hardware"
-install -Dm0755 "$HARDWARE_SRC/claw-hardware-setup" "$BASE_STAGE/usr/sbin/claw-hardware-setup"
-install -Dm0755 "$HARDWARE_SRC/claw-driver-setup" "$BASE_STAGE/usr/lib/yuos/hw/claw-driver-setup"
-install -Dm0755 "$HARDWARE_SRC/import-board-firmware" "$BASE_STAGE/usr/sbin/claw-import-board-firmware"
-install -Dm0755 "$HARDWARE_SRC/claw-qnn-run" "$BASE_STAGE/usr/bin/claw-qnn-run"
+install -Dm0755 "$HARDWARE_SRC/yuos-hardware-setup" "$BASE_STAGE/usr/sbin/yuos-hardware-setup"
+install -Dm0755 "$HARDWARE_SRC/yuos-driver-setup" "$BASE_STAGE/usr/lib/yuos/hw/yuos-driver-setup"
+install -Dm0755 "$HARDWARE_SRC/import-board-firmware" "$BASE_STAGE/usr/sbin/yuos-import-board-firmware"
+install -Dm0755 "$HARDWARE_SRC/yuos-qnn-run" "$BASE_STAGE/usr/bin/yuos-qnn-run"
 install -Dm0755 "$HARDWARE_SRC/yuos-input-initramfs" \
     "$BASE_STAGE/usr/share/initramfs-tools/hooks/yuos-input"
 install -Dm0644 "$HARDWARE_SRC/qualcomm-boot.sh" "$BASE_STAGE/usr/lib/yuos/hw/qualcomm-boot.sh"
 install -Dm0755 "$HARDWARE_SRC/configure-qualcomm-boot" "$BASE_STAGE/usr/lib/yuos/hw/configure-qualcomm-boot"
 install -Dm0755 "$HARDWARE_SRC/configure-romulus-resume" "$BASE_STAGE/usr/lib/yuos/hw/configure-romulus-resume"
-install -Dm0755 "$HARDWARE_SRC/09_claw_qualcomm" "$BASE_STAGE/etc/grub.d/09_claw_qualcomm"
+install -Dm0755 "$HARDWARE_SRC/09_yuos_qualcomm" "$BASE_STAGE/etc/grub.d/09_yuos_qualcomm"
 install -Dm0644 "$HARDWARE_SRC/69-yuos-hardware.rules" \
     "$BASE_STAGE/usr/lib/udev/rules.d/69-yuos-hardware.rules"
 install -Dm0644 "$HARDWARE_SRC/99-yuos-hardware.quirks" \

@@ -56,7 +56,7 @@ def dell(source, provenance, work, out):
     stage_file(files / utility.name, utility, 0o755)
     stage_file(files / daemon.name, daemon, 0o755)
     stage_file(upstream / "LICENSE", stage / "usr/share/doc" / name / "copyright")
-    replace(utility, 'CONFIG_PATH="$HOME/.config/omarchy/dell-haptic.conf"', "CONFIG_PATH=/etc/claw-dell-haptics.conf")
+    replace(utility, 'CONFIG_PATH="$HOME/.config/omarchy/dell-haptic.conf"', "CONFIG_PATH=/etc/yuos-dell-haptics.conf")
     replace(utility, "  previous_level=$(level_for_intensity", """  if (( EUID != 0 )); then
     echo "Setting haptic intensity requires root." >&2
     exit 1
@@ -70,7 +70,7 @@ def dell(source, provenance, work, out):
   printf '# Dell XPS touchpad haptic intensity.\\n# Presets: low=10, mid=50, high=100.\\nINTENSITY=%s\\n' "$intensity" >"$CONFIG_PATH"
 }""", """write_config() (
   local intensity=$1 staged
-  staged=$(mktemp /etc/.claw-dell-haptics.XXXXXX)
+  staged=$(mktemp /etc/.yuos-dell-haptics.XXXXXX)
   trap 'rm -f -- "$staged"' EXIT
   printf 'INTENSITY=%s\\n' "$intensity" >"$staged"
   chmod 0644 "$staged"
@@ -81,7 +81,7 @@ def dell(source, provenance, work, out):
     replace(daemon, 'USER_HOME = Path(\n'
             '    os.environ.get("DELL_XPS_TOUCHPAD_HAPTICS_HOME", str(Path.home()))\n'
             ')\nCONFIG_PATH = USER_HOME / ".config/omarchy/dell-haptic.conf"',
-            'CONFIG_PATH = Path("/etc/claw-dell-haptics.conf")\n'
+            'CONFIG_PATH = Path("/etc/yuos-dell-haptics.conf")\n'
             'TOUCHPAD = Path("/sys/bus/i2c/devices/i2c-VEN_06CB:00")')
     replace(daemon, "def find_hidraw():", """def is_touchpad(path):
     try:
@@ -127,7 +127,7 @@ ProtectSystem=strict
 [Install]
 WantedBy=multi-user.target
 """)
-    write_file(stage / "usr/lib/udev/rules.d/99-claw-dell-xps-haptics.rules",
+    write_file(stage / "usr/lib/udev/rules.d/99-yuos-dell-xps-haptics.rules",
                'ACTION=="add", SUBSYSTEM=="i2c", KERNEL=="i2c-VEN_06CB:00", '
                'ATTR{[dmi/id]sys_vendor}=="Dell Inc.", TAG+="systemd", '
                'ENV{SYSTEMD_WANTS}+="dell-xps-touchpad-haptics.service"\n')
@@ -187,8 +187,8 @@ esac
     stage_relay(relay, source, stage, name, "usr/bin/v4l2-relayd")
     stage_file(stage / "usr/share/doc" / name / "v4l2-relayd.LICENSE", stage / "usr/share/doc" / name / "copyright")
     assets = PACKAGING / "camlink"
-    stage_file(assets / "71-claw-camlink.rules", stage / "usr/lib/udev/rules.d/71-claw-camlink.rules")
-    for unit in ("claw-camlink-loopback.service", "claw-camlink-relay.service"):
+    stage_file(assets / "71-yuos-camlink.rules", stage / "usr/lib/udev/rules.d/71-yuos-camlink.rules")
+    for unit in ("yuos-camlink-loopback.service", "yuos-camlink-relay.service"):
         stage_file(assets / unit, stage / "usr/lib/systemd/system" / unit)
     package(stage, dest, name, "0.2.0-3+yuos2", "amd64",
             f"v4l2loopback-dkms (>= {version}), v4l2loopback-utils, gstreamer1.0-plugins-base, "
@@ -294,12 +294,12 @@ def intel_ipu7(source, provenance, work, out, relay):
         stage_file(bins / "lib/firmware/intel/ipu" / firmware, stage / "usr/lib/firmware/updates/intel/ipu" / firmware)
     stage_relay(relay, source, stage, name, "usr/lib/yuos/ipu7/v4l2-relayd")
     assets = PACKAGING / "ipu7"
-    for unit in ("claw-ipu7-init.service", "claw-ipu7-camera.service"):
+    for unit in ("yuos-ipu7-init.service", "yuos-ipu7-camera.service"):
         stage_file(assets / unit, stage / "usr/lib/systemd/system" / unit)
-    stage_file(assets / "claw-ipu7-camera", runtime / "claw-ipu7-camera", 0o755)
-    stage_file(assets / "claw-ipu7-sleep", stage / "usr/lib/systemd/system-sleep/claw-ipu7-sleep", 0o755)
-    stage_file(assets / "71-claw-ipu7.rules", stage / "usr/lib/udev/rules.d/71-claw-ipu7.rules")
-    write_file(stage / "usr/lib/tmpfiles.d/claw-ipu7.conf", "d /run/camera 0700 root root -\n")
+    stage_file(assets / "yuos-ipu7-camera", runtime / "yuos-ipu7-camera", 0o755)
+    stage_file(assets / "yuos-ipu7-sleep", stage / "usr/lib/systemd/system-sleep/yuos-ipu7-sleep", 0o755)
+    stage_file(assets / "71-yuos-ipu7.rules", stage / "usr/lib/udev/rules.d/71-yuos-ipu7.rules")
+    write_file(stage / "usr/lib/tmpfiles.d/yuos-ipu7.conf", "d /run/camera 0700 root root -\n")
     write_file(stage / "DEBIAN/prerm", f"""#!/bin/sh
 set -e
 case "$1" in
@@ -319,9 +319,9 @@ esac
             {key: provenance[key] for key in (*IPU7_INPUTS, RECIPES, RELAY)},
             f"""[ "$1" = configure ] || exit 0
 /usr/lib/dkms/common.postinst {driver} '{version}' /usr/share/{driver} "" "${{2:-}}"
-deb-systemd-helper enable claw-ipu7-init.service >/dev/null
+deb-systemd-helper enable yuos-ipu7-init.service >/dev/null
 """, """[ "$1" = purge ] || exit 0
-deb-systemd-helper purge claw-ipu7-init.service >/dev/null
+deb-systemd-helper purge yuos-ipu7-init.service >/dev/null
 """)
 
 
@@ -382,7 +382,7 @@ def rog(source, provenance, work, out):
         text = (tree / "data" / filename).read_text()
         text = text.replace("[Unit]\n", '[Unit]\nConditionFirmware=smbios-field(sys_vendor = "ASUSTeK COMPUTER INC.")\n', 1)
         write_file(unit, text)
-    rule = stage / "usr/lib/udev/rules.d/99-claw-asusd.rules"
+    rule = stage / "usr/lib/udev/rules.d/99-yuos-asusd.rules"
     write_file(rule, 'ACTION=="add", DRIVER=="asus-nb-wmi", '
                'ATTR{[dmi/id]sys_vendor}=="ASUSTeK COMPUTER INC.", ATTR{[dmi/id]product_family}=="*ROG*", '
                'TAG+="systemd", ENV{SYSTEMD_WANTS}+="asusd.service asus-shutdown.service"\n')
@@ -425,7 +425,7 @@ def tuxedo(source, provenance, work, out):
         if path.is_file():
             stage_file(path, stage / path.relative_to(upstream / "files"))
     stage_file(upstream / "LICENSE", stage / "usr/share/doc" / name / "copyright")
-    write_file(stage / "usr/lib/modprobe.d/60-claw-tuxedo-backlight.conf", "blacklist clevo_xsm_wmi\n")
+    write_file(stage / "usr/lib/modprobe.d/60-yuos-tuxedo-backlight.conf", "blacklist clevo_xsm_wmi\n")
     write_file(stage / "DEBIAN/prerm", f"""#!/bin/sh
 set -e
 case "$1" in

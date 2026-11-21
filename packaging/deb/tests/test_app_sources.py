@@ -539,7 +539,7 @@ def _browser_asset_check(tmp_path, *, writable=False):
         (extension / name).write_text("installed product resource\n")
     host = tmp_path / "browser-native-host.py"
     host.write_bytes((ROOT / "tools/browser_native_host.py").read_bytes())
-    launcher = tmp_path / "claw-browser-host"
+    launcher = tmp_path / "yuos-browser-host"
     launcher.write_text("#!/bin/sh\nexit 0\n")
     launcher.chmod(0o755)
     if writable:
@@ -578,7 +578,7 @@ def browser_transport():
 
 def test_browser_transport_refuses_socket_overrides(browser_transport, monkeypatch):
     monkeypatch.setenv("XDG_RUNTIME_DIR", "/tmp/not-the-runtime-dir")
-    monkeypatch.setenv("CLAW_BROWSER_SOCK", "/tmp/attacker.sock")
+    monkeypatch.setenv("YUOS_BROWSER_SOCK", "/tmp/attacker.sock")
     with pytest.raises(RuntimeError, match="must resolve"):
         browser_transport._socket_path()
 
@@ -601,7 +601,7 @@ def test_browser_transport_peer_identity_comes_from_kernel(browser_transport):
 
 def test_os_installer_owns_shared_desktop_policy_without_app_sources():
     source = ROOT / "rootfs/features/desktop/overlay/usr/share/polkit-1"
-    assert (source / "rules.d/claw-settings.rules").is_file()
+    assert (source / "rules.d/yuos-settings.rules").is_file()
     import xml.etree.ElementTree as ET
 
     action = ET.parse(source / "actions/com.yuos.Settings.Users.policy").find("action")
@@ -709,7 +709,7 @@ def test_os_build_refuses_missing_official_artifacts_without_fetching_source(tmp
         capture_output=True, text=True, env={
             **os.environ, "YUOS_PACKAGE_VERSION": "1:0.0.9", "ARCH": "amd64",
             "YUOS_DEB_OUT_DIR": str(tmp_path / "debs"), "YUOS_DEB_STAGE_DIR": str(tmp_path / "staging"),
-            "CLAW_APP_SOURCE_LOCK": str(tmp_path / "must-not-resolve-source.json"),
+            "YUOS_APP_SOURCE_LOCK": str(tmp_path / "must-not-resolve-source.json"),
         },
     )
     assert result.returncode != 0
@@ -1380,7 +1380,7 @@ def test_native_inputs_follow_lock_updates_without_stale_files(locked_source):
 def test_native_manual_image_and_asset_build_paths_agree():
     script = (ROOT / "rootfs/features/desktop/install.sh").read_text()
     assert "scripts/app_sources.py" not in script
-    assert "desktop/hyprland-claw/stage-desktop.sh" in script
+    assert "desktop/hyprland-yuos/stage-desktop.sh" in script
     assert '"$APP_PACKAGE_INPUTS"/archives/*.deb' in script
 
 

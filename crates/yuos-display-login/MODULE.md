@@ -1,6 +1,6 @@
 # Root Display Login Handoff
 
-The OS-only PAM module is loaded by the `claw-desktop` greetd service for
+The OS-only PAM module is loaded by the `yuos-desktop` greetd service for
 authenticated user sessions. The graphical greeter has a separate PAM service
 and does not start the protected Hyprland compositor. The module checks the PAM account against
 the kernel audit UID/session established by `pam_loginuid`, captures the
@@ -22,7 +22,7 @@ confirm startup or teardown. Inherited PAM state cannot clean up the parent's
 session.
 
 Build `cargo build -p yuos-display-login --locked` with GNU PAM development
-files. Agent installs the resulting `libpam_claw_display.so` in the
+files. Agent installs the resulting `libpam_yuos_display.so` in the
 architecture-specific system PAM module directory. This is not a public App SDK.
 
 The private display test command is `bash scripts/ci/test-boundaries.sh display`
@@ -34,4 +34,4 @@ can use the real Hyprland executable for activation-only evidence; its
 Neither establishes graphical login, rendering or installed signed-App acceptance.
 
 See the [session module](../../core/src/display_session/MODULE.md) and
-[native compositor integration](../../desktop/hyprland-claw/MODULE.md).
+[native compositor integration](../../desktop/hyprland-yuos/MODULE.md).

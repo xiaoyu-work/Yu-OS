@@ -295,12 +295,12 @@ fi
 # Sign Release in both formats and publish the exact binary keyring that
 # Yu OS images pin with signed-by=.
 #
-# The passphrase never reaches argv: `claw_gpg_*` hands it to gpg on a
+# The passphrase never reaches argv: `yuos_gpg_*` hands it to gpg on a
 # pipe under --passphrase-fd 0.
 echo ":: signing with GPG key $GPG_KEY_ID"
 source "$PROJECT_DIR/packaging/release-security/gpg-sign.sh"
-claw_gpg_sign_detached "$GPG_KEY_ID" "dists/$SUITE/Release" "dists/$SUITE/Release.gpg"
-claw_gpg_sign_clear "$GPG_KEY_ID" "dists/$SUITE/Release" "dists/$SUITE/InRelease"
+yuos_gpg_sign_detached "$GPG_KEY_ID" "dists/$SUITE/Release" "dists/$SUITE/Release.gpg"
+yuos_gpg_sign_clear "$GPG_KEY_ID" "dists/$SUITE/Release" "dists/$SUITE/InRelease"
 test -s "dists/$SUITE/InRelease"
 test -s "dists/$SUITE/Release.gpg"
 test -s "$REPO_DIR/yuos-archive-keyring.gpg"

@@ -111,7 +111,7 @@ jobs:
     env:
       ARCH: ${{ matrix.arch }}
       YUOS_PACKAGE_VERSION: ${{ needs.prepare.outputs.version }}
-      CLAW_APP_PACKAGE_ROOT: ${{ github.workspace }}/build/release/app-packages
+      YUOS_APP_PACKAGE_ROOT: ${{ github.workspace }}/build/release/app-packages
     steps:
       - uses: actions/checkout@v5
         with:
@@ -253,7 +253,7 @@ jobs:
     env:
       ARCH: ${{ matrix.arch }}
       YUOS_PACKAGE_VERSION: ${{ needs.prepare.outputs.version }}
-      CLAW_APP_PACKAGE_ROOT: ${{ github.workspace }}/build/release/app-packages
+      YUOS_APP_PACKAGE_ROOT: ${{ github.workspace }}/build/release/app-packages
     steps:
       - name: Prepare disposable hosted-runner build space
         run: |
@@ -288,7 +288,7 @@ jobs:
         env:
           GPG_PASSPHRASE: ${{ secrets.CLAW_OS_APT_SIGNING_PASSPHRASE }}
         run: |
-          sudo --preserve-env=GNUPGHOME,YUOS_RELEASE_SECURITY_KEY_ID,GPG_PASSPHRASE,YUOS_PACKAGE_VERSION,CLAW_APP_PACKAGE_ROOT \
+          sudo --preserve-env=GNUPGHOME,YUOS_RELEASE_SECURITY_KEY_ID,GPG_PASSPHRASE,YUOS_PACKAGE_VERSION,YUOS_APP_PACKAGE_ROOT \
             env ARCH="$ARCH" DESKTOP_PACKAGE_ONLY=1 \
             ./rootfs/build.sh --features base,desktop
 
@@ -351,7 +351,7 @@ jobs:
     env:
       ARCH: ${{ matrix.arch }}
       YUOS_PACKAGE_VERSION: ${{ needs.prepare.outputs.version }}
-      CLAW_APP_PACKAGE_ROOT: ${{ github.workspace }}/build/release/app-packages
+      YUOS_APP_PACKAGE_ROOT: ${{ github.workspace }}/build/release/app-packages
       YUOS_APT_PUBLIC_KEY_FILE: ${{ github.workspace }}/build/release/yuos-archive-keyring.gpg
       YUOS_RELEASE_SECURITY_KEYRING: ${{ github.workspace }}/build/release/yuos-archive-keyring.gpg
     steps:
@@ -389,7 +389,7 @@ jobs:
 
       - name: Build one rootfs from the prepared Agent and Base packages
         run: |
-          sudo --preserve-env=YUOS_PACKAGE_VERSION,YUOS_APT_PUBLIC_KEY_FILE,CLAW_APP_PACKAGE_ROOT \
+          sudo --preserve-env=YUOS_PACKAGE_VERSION,YUOS_APT_PUBLIC_KEY_FILE,YUOS_APP_PACKAGE_ROOT \
             env ARCH="$ARCH" ./rootfs/build.sh --features "$ROOTFS_FEATURES"
 
       - name: Verify the shared rootfs has no human account
@@ -437,7 +437,7 @@ jobs:
 
       - name: Package WSL from the same stamped rootfs
         run: |
-          sudo --preserve-env=YUOS_PACKAGE_VERSION,YUOS_APT_PUBLIC_KEY_FILE,CLAW_APP_PACKAGE_ROOT \
+          sudo --preserve-env=YUOS_PACKAGE_VERSION,YUOS_APT_PUBLIC_KEY_FILE,YUOS_APP_PACKAGE_ROOT \
             env ARCH="$ARCH" FEATURES="$ROOTFS_FEATURES" ./targets/wsl/build.sh
 
       - name: Compute WSL checksums
@@ -463,7 +463,7 @@ jobs:
     env:
       ARCH: amd64
       YUOS_PACKAGE_VERSION: ${{ needs.prepare.outputs.version }}
-      CLAW_APP_PACKAGE_ROOT: ${{ github.workspace }}/build/release/app-packages
+      YUOS_APP_PACKAGE_ROOT: ${{ github.workspace }}/build/release/app-packages
       YUOS_APT_PUBLIC_KEY_FILE: ${{ github.workspace }}/build/release/yuos-archive-keyring.gpg
       YUOS_RELEASE_SECURITY_KEYRING: ${{ github.workspace }}/build/release/yuos-archive-keyring.gpg
     steps:
@@ -512,8 +512,8 @@ jobs:
 
       - name: Compose a Debian 13 Desktop installer from the verified packages
         run: |
-          sudo --preserve-env=ARCH,YUOS_PACKAGE_VERSION,YUOS_APT_PUBLIC_KEY_FILE,CLAW_APP_PACKAGE_ROOT \
-            env CLAW_PREBUILT_SYSTEM_PACKAGES=1 ./build.sh iso-installer
+          sudo --preserve-env=ARCH,YUOS_PACKAGE_VERSION,YUOS_APT_PUBLIC_KEY_FILE,YUOS_APP_PACKAGE_ROOT \
+            env YUOS_PREBUILT_SYSTEM_PACKAGES=1 ./build.sh iso-installer
 
       - name: Verify package versions and BIOS and UEFI boot entries
         run: |

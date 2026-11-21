@@ -77,8 +77,8 @@ editing additional surfaces.
 | App installation or requested-permission disclosure | `core/src/apps/installation.rs`, `core/src/apps/permission_review.rs` | Shared lint, CLI review, exact verified package, protected review controller and separate owner App policy; confirmation alone grants no runtime authority |
 | OS preinstalled App defaults | `scripts/app_packages.py`, `core/src/yuosd/preinstalled.rs` | Exact signed release selection, separate owner denials, scoped App grants; never infer permission from a publisher or App ID |
 | OS permission review UI or decision | `core/src/yuosd/system_review.rs`, `crates/yuosd-client/MODULE.md` | Shared App/capability DTO, protected display revisions, terminal and native renderers, bounded polkit helper, owner-only cancellation and existing approval authority |
-| Authenticated display login or GUI App lifetime | `core/src/display_session/MODULE.md`, `core/src/yuosd/gui/MODULE.md` | `crates/claw-display-{control,login}/`, `core/src/worker/gui_transport/`, compositor/session/PAM startup, checked permission retirement and `docs/updating.md` |
-| Desktop sign-in or system updates | `desktop/hyprland-claw/MODULE.md`, `docs/updating.md` | OS-started Settings GUI in `yuos-app`, private GUI broker, greetd/PAM and the offline APT unit |
+| Authenticated display login or GUI App lifetime | `core/src/display_session/MODULE.md`, `core/src/yuosd/gui/MODULE.md` | `crates/yuos-display-{control,login}/`, `core/src/worker/gui_transport/`, compositor/session/PAM startup, checked permission retirement and `docs/updating.md` |
+| Desktop sign-in or system updates | `desktop/hyprland-yuos/MODULE.md`, `docs/updating.md` | OS-started Settings GUI in `yuos-app`, private GUI broker, greetd/PAM and the offline APT unit |
 | Bundled App product boundary or source fork | `docs/app-product-redesign.md`, external `yuos-app` guides, `packaging/MODULE.md` | Product UI/backend, App-owned common support, manifests, provenance/licenses, native launchers, account/state migration, compatibility packaging |
 | Adapter | `adapters/<id>/app.json`, `adapters/<id>/main.py` | adapter tests and external binary dependency |
 | App/SDK wire contract | `yuos-sdk/wire/`, language SDK package | generated bindings, conformance tests, `publish-sdk-release.yml` |
@@ -88,8 +88,8 @@ editing additional surfaces.
 | Debian/APT package | `packaging/deb/`, `packaging/apt-repo/` | `release.yml` package targets (`core` coordinates Agent/Base), `scripts/ci/`, rootfs package-install features |
 | Update downgrade protection | `core/src/update/`, `packaging/release-security/policy.json` | `packaging/deb/common/`, maintainer scripts, `packaging/apt-repo/verify-release-security.sh`, `docs/updating.md` |
 | Web desktop or website | `web/src/App.tsx`, `web/MODULE.md` | `web/src/components/`, `web/public/site/`, Pages composition workflow |
-| Desktop component | `desktop/README.md`, `desktop/PROVENANCE.md`, component README | `desktop/hyprland-claw/` native staging and login; Desktop Shell and standalone native Apps are built in `yuos-app` |
-| Hyprland/Quickshell desktop replacement | `desktop/hyprland-claw/MODULE.md`, `core/src/display_session/MODULE.md` | Full native compositor source, existing Root display/GUI authority, `core/src/yuosd/desktop/windows.rs`, other desktop providers and signed external Caelestia frontend; source presence never authorizes activation |
+| Desktop component | `desktop/README.md`, `desktop/PROVENANCE.md`, component README | `desktop/hyprland-yuos/` native staging and login; Desktop Shell and standalone native Apps are built in `yuos-app` |
+| Hyprland/Quickshell desktop replacement | `desktop/hyprland-yuos/MODULE.md`, `core/src/display_session/MODULE.md` | Full native compositor source, existing Root display/GUI authority, `core/src/yuosd/desktop/windows.rs`, other desktop providers and signed external Caelestia frontend; source presence never authorizes activation |
 | Migrated App / shared-capability source | [`yuos-app`](https://github.com/xiaoyu-work/yuos-app), `packaging/apps.lock.json` | Product UI/business/MCP/native source and explicitly kinded capability clients live there; `scripts/app_sources.py` resolves main and stages one immutable build snapshot |
 | CI workflow | `.github/workflows/` | scripts invoked by the workflow; only `test.yml` runs on pull requests, while publication workflows are manually dispatched or reusable |
 
@@ -132,7 +132,7 @@ Tests that exercise a migrated product use a resolved immutable App source
 snapshot. Run `python3 scripts/app_sources.py` first to fetch current App `main`
 and record its exact SHA (CI does this explicitly). Do not maintain a commit
 pin in the version-2 repository selection. Multi-step package builds retain
-one generated snapshot through `CLAW_APP_SOURCE_LOCK`; SDK artifact pins,
+one generated snapshot through `YUOS_APP_SOURCE_LOCK`; SDK artifact pins,
 runtime package verification and installed update authority are unchanged.
 Cargo never downloads product fixtures or substitutes local App source for a
 declared external App. The lock's optional `capabilities` list resolves only

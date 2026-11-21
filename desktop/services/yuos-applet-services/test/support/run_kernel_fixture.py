@@ -103,7 +103,7 @@ def main():
                 "YUOS_PROVENANCE_RUNTIME_DIR": str(case_root / "provenance"),
                 "YUOS_PROC_DATA_DIR": str(routed),
                 "YUOS_PERMS_MODE": "strict",
-                "CLAW_APPLET_KERNEL_CASE": case,
+                "YUOS_APPLET_KERNEL_CASE": case,
             }
             if case != "missing-session":
                 environment["YUOS_SESSION"] = "applet-private-fixture"

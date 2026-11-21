@@ -21,7 +21,7 @@ DIRECTORIES = {"esp/", "esp/EFI/", "esp/EFI/BOOT/", "esp/m1n1/"}
 ESP_BYTES = 500 * 1024**2
 
 
-class ClawInstaller(engine.InstallerMain):
+class YuOsInstaller(engine.InstallerMain):
     def check_cur_os(self):
         if self.cur_os:
             owners = self.cur_os.admin_users or ()
@@ -45,7 +45,7 @@ class ClawInstaller(engine.InstallerMain):
     def bless(self):
         super().bless()
         if self.sysinfo.device_class == "j700ap":
-            from claw_neo import check_startup_disk
+            from yuos_neo import check_startup_disk
 
             check_startup_disk(self.dutil, self.ins.osi.vgid)
 
@@ -106,15 +106,15 @@ def run(mode):
     mac = engine.system.SystemInfo()
     neo = None
     if mac.device_class == "j700ap":
-        if not Path("claw_neo.py").is_file():
+        if not Path("yuos_neo.py").is_file():
             raise ValueError("use the MacBook Neo restore environment staged by install-macos.sh")
-        import claw_neo as neo
+        import yuos_neo as neo
 
         neo.select_board(mac)
     template = template_for(PAYLOAD, mac, neo)
     metadata = {"os_list": [template]}
     Path("installer_data.json").write_text(json.dumps(metadata), encoding="utf-8")
-    installer = ClawInstaller(Path("version.tag").read_text().strip())
+    installer = YuOsInstaller(Path("version.tag").read_text().strip())
     installer.sysinfo = mac
     installer.device = engine.DEVICES[mac.device_class]
     ipsw = installer.choose_ipsw(template["supported_fw"])

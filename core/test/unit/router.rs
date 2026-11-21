@@ -311,7 +311,7 @@ fn app_stdin_opt_in_resolves_only_installed_manifest_operations() {
 
 #[test]
 fn recovery_hint_permission_denied() {
-    let hint = recovery_hint("Permission denied on /home/cos/file.txt").unwrap();
+    let hint = recovery_hint("Permission denied on /home/yuos/file.txt").unwrap();
     assert_eq!(hint["hint"], "Permission denied. Check file permissions.");
     let try_cmds = hint["try"].as_array().unwrap();
     assert!(try_cmds
@@ -327,7 +327,7 @@ fn recovery_hint_eperm_variant() {
 
 #[test]
 fn recovery_hint_file_not_found() {
-    let hint = recovery_hint("No such file or directory: /home/cos/missing").unwrap();
+    let hint = recovery_hint("No such file or directory: /home/yuos/missing").unwrap();
     assert_eq!(
         hint["hint"],
         "File or command not found. Verify the path exists."
@@ -1153,7 +1153,7 @@ fn with_runtime_app_test_env(
 
     let _apps = crate::test_env::TestEnvVarGuard::set("YUOS_APPS_DIR", &apps);
     let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", &data);
-    let _runner = crate::test_env::TestEnvVarGuard::set("CLAW_APP_RUNNER_BIN", &runner);
+    let _runner = crate::test_env::TestEnvVarGuard::set("YUOS_APP_RUNNER_BIN", &runner);
     let _local_sessions = crate::test_env::TestEnvVarGuard::set("YUOS_TEST_LOCAL_APP_SESSIONS", "1");
     let _path = crate::test_env::TestEnvVarGuard::set("PATH", path);
     let _wayland = crate::test_env::TestEnvVarGuard::remove("WAYLAND_DISPLAY");

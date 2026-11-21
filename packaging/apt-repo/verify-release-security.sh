@@ -375,7 +375,7 @@ PY
     gpg_sign="$PROJECT_DIR/packaging/release-security/gpg-sign.sh"
     # shellcheck source=/dev/null
     source "$gpg_sign"
-    claw_gpg_sign_detached "$GPG_KEY_ID" "$OUT_DIR/baseline.json" \
+    yuos_gpg_sign_detached "$GPG_KEY_ID" "$OUT_DIR/baseline.json" \
         "$OUT_DIR/baseline.json.asc"
     echo "  :: release-security baseline established"
 fi

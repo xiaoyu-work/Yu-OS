@@ -133,15 +133,15 @@ Run the container:
 ```bash
 docker pull ghcr.io/xiaoyu-work/yu-os:latest
 mkdir -p ./workspace
-docker run -d --name claw --privileged \
-  -e CLAW_USER=yourname \
+docker run -d --name yuos --privileged \
+  -e YUOS_USER=yourname \
   -v ./workspace:/workspace \
   ghcr.io/xiaoyu-work/yu-os:latest
-docker exec -it claw /usr/local/sbin/claw-container-entrypoint shell
+docker exec -it yuos /usr/local/sbin/yuos-container-entrypoint shell
 ```
 
 Replace `yourname` with the UNIX username to create. The default UID/GID is
-1000; set `CLAW_UID` and `CLAW_GID` when a Linux host needs numeric ownership
+1000; set `YUOS_UID` and `YUOS_GID` when a Linux host needs numeric ownership
 to match a bind mount.
 
 </details>
@@ -213,7 +213,7 @@ Call structured system primitives directly, or ask the built-in agent to choose
 and combine them:
 
 ```bash
-cos  # list primitives
+yu  # list primitives
 yu app web read https://example.com  # fetch URL → {url, title, text, links}
 yu agent setup text  # configure the conversational text model
 yu agent ask "why is my network so slow right now?"

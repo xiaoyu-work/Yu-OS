@@ -20,9 +20,9 @@ if [ -d "$FEATURE_DIR/overlay" ] && [ -n "$(ls -A "$FEATURE_DIR/overlay" 2>/dev/
     cp -a --no-preserve=ownership "$FEATURE_DIR/overlay/." "$ROOTFS/"
 fi
 
-# 2. The helper must be executable, and reachable as `claw-gpu-setup` on PATH.
+# 2. The helper must be executable, and reachable as `yuos-gpu-setup` on PATH.
 chmod 0755 "$ROOTFS/usr/lib/yuos/hw/gpu-setup"
-ln -sf /usr/lib/yuos/hw/gpu-setup "$ROOTFS/usr/bin/claw-gpu-setup"
+ln -sf /usr/lib/yuos/hw/gpu-setup "$ROOTFS/usr/bin/yuos-gpu-setup"
 
 # 3. Enable the first-boot detection service. We symlink directly (same
 #    approach the systemd feature falls back to) so it works inside the

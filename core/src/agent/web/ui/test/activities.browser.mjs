@@ -3072,7 +3072,7 @@ try {
       input.dispatchEvent(new Event('input', {bubbles: true}));
     })()`);
   };
-  await fillNotificationField("ntfy topic", "claw-inbox-fixture");
+  await fillNotificationField("ntfy topic", "yuos-inbox-fixture");
   await fillNotificationField("Quiet hours start", "22:30");
   await fillNotificationField("Quiet hours end", "07:15");
   await click(`document.querySelector('#critical-alerts')`);
@@ -3082,13 +3082,13 @@ try {
   rejectNotificationPreferencesOnce = true;
   await clickText("Save changes");
   await wait("document.body.innerText.includes('Notification settings fixture rejected the save.')", "failed preference save preserves the dialog");
-  assert.equal(await evaluate("document.querySelector('[aria-label=\"ntfy topic\"]').value"), "claw-inbox-fixture");
+  assert.equal(await evaluate("document.querySelector('[aria-label=\"ntfy topic\"]').value"), "yuos-inbox-fixture");
   assert.equal(await evaluate("document.querySelector('[aria-label=\"Quiet hours start\"]').value"), "22:30");
   await clickText("Save changes");
   await wait("!document.querySelector('[role=\"dialog\"]') && document.body.innerText.includes('Notification settings saved.')", "checked settings save");
   assert.equal(notificationPreferences.desktop_min_severity, "error");
   assert.equal(notificationPreferences.ntfy_enabled, true);
-  assert.equal(notificationPreferences.ntfy_topic, "claw-inbox-fixture");
+  assert.equal(notificationPreferences.ntfy_topic, "yuos-inbox-fixture");
   assert.equal(notificationPreferences.dnd_start_minute_utc, 1350);
   assert.equal(notificationPreferences.dnd_end_minute_utc, 435);
   assert.equal(notificationPreferences.critical_bypasses_dnd, false);

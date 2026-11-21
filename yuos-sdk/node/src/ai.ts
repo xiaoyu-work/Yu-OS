@@ -169,7 +169,7 @@ function resolveApp(modality: string, appId?: string): string {
 function dispatch(a: DispatchArgs): AiResponse {
   const app = resolveApp(a.modality, a.appId);
   const argv = ["ai", "chat", "--app", app, "--origin", a.origin];
-  const privateDir = mkdtempSync(join(tmpdir(), "claw-ai-"));
+  const privateDir = mkdtempSync(join(tmpdir(), "yuos-ai-"));
   try {
     if (a.prompt != null) {
       const promptPath = join(privateDir, "prompt");

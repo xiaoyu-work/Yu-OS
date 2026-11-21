@@ -200,7 +200,7 @@ fn test_watch_history_write_and_read() {
         writeln!(
             f,
             "{}",
-            json!({"timestamp": "2026-03-25T10:00:00Z", "source": "file", "path": "/home/cos/main.py", "event": "modified"})
+            json!({"timestamp": "2026-03-25T10:00:00Z", "source": "file", "path": "/home/yuos/main.py", "event": "modified"})
         )
         .unwrap();
         writeln!(
@@ -218,7 +218,7 @@ fn test_watch_history_write_and_read() {
     // Filter by source.
     let result = cmd_watch_history(&["--source".into(), "file".into()]).unwrap();
     assert_eq!(result["count"], 1);
-    assert_eq!(result["events"][0]["path"], "/home/cos/main.py");
+    assert_eq!(result["events"][0]["path"], "/home/yuos/main.py");
 
     // Filter by --since.
     let result = cmd_watch_history(&["--since".into(), "2026-03-25T10:00:03Z".into()]).unwrap();
@@ -242,7 +242,7 @@ fn test_log_watch_event() {
     let watch_dir = data_dir.join("watch");
     let _ = fs::remove_dir_all(&watch_dir);
 
-    let event = json!({"path": "/home/cos/test.rs", "event": "created"});
+    let event = json!({"path": "/home/yuos/test.rs", "event": "created"});
     log_watch_event("file", &event);
 
     let hist_file = watch_dir.join("history.jsonl");
@@ -251,7 +251,7 @@ fn test_log_watch_event() {
     let content = fs::read_to_string(&hist_file).unwrap();
     let parsed: Value = serde_json::from_str(content.trim()).unwrap();
     assert_eq!(parsed["source"], "file");
-    assert_eq!(parsed["path"], "/home/cos/test.rs");
+    assert_eq!(parsed["path"], "/home/yuos/test.rs");
     assert_eq!(parsed["event"], "created");
     assert!(
         parsed["timestamp"].as_str().is_some(),

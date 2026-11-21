@@ -28,7 +28,7 @@ fi
 # headless/SSH user managers. Their ConditionPathIsExecutable directives
 # make missing optional binaries a clean skip.
 mkdir -p "$ROOTFS/etc/systemd/user/default.target.wants"
-for unit in claw-recoll-index.service yuos-semantic.service; do
+for unit in yuos-recoll-index.service yuos-semantic.service; do
     if [ -f "$ROOTFS/usr/lib/systemd/user/$unit" ]; then
         ln -sf "/usr/lib/systemd/user/$unit" \
             "$ROOTFS/etc/systemd/user/default.target.wants/$unit"

@@ -176,7 +176,7 @@ impl PrivateInputFile {
             .map(|duration| duration.as_nanos())
             .unwrap_or(0);
         let path = std::env::temp_dir().join(format!(
-            "claw-ai-{}-{nonce}-{sequence}-{label}",
+            "yuos-ai-{}-{nonce}-{sequence}-{label}",
             std::process::id()
         ));
         let mut options = OpenOptions::new();

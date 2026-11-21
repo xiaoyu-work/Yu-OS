@@ -66,7 +66,7 @@ CLI or Agent
        authenticated caller App/session identity, without a business-name entitlement
        exact action capability
        owner uid and owner-only runtime/socket metadata
-  -> $XDG_RUNTIME_DIR/claw-browser.sock
+  -> $XDG_RUNTIME_DIR/yuos-browser.sock
        OS browser_native_host.py accepts only a root peer
   -> Chromium Native Messaging
   -> background.js
@@ -168,14 +168,14 @@ registration remain unchanged. Reload the extension/browser explicitly.
 
 | Path | Contents |
 | --- | --- |
-| `/usr/share/claw/extensions/claw-agent-browser/` | unpacked extension |
-| `/etc/chromium/policies/managed/claw-agent.json` | extension policy |
+| `/usr/share/yuos/extensions/yuos-agent-browser/` | unpacked extension |
+| `/etc/chromium/policies/managed/yuos-agent.json` | extension policy |
 | `/etc/chromium/native-messaging-hosts/com.yuos.browser.json` | native-host registration pinned to the extension id |
 | `/etc/chromium/native-messaging-hosts/com.yuos.browser_chat.json` | separate chat registration, when Desktop chat host is installed |
-| `/usr/lib/yuos/claw-browser-host` | fixed native-host launcher |
+| `/usr/lib/yuos/yuos-browser-host` | fixed native-host launcher |
 | `/usr/lib/yuos/browser-native-host.py` | OS-owned Native Messaging/socket bridge |
 | `/usr/lib/yuos/browser-chat-native-host` | Desktop-owned client for the existing local Agent bridge |
-| `$XDG_RUNTIME_DIR/claw-browser.sock` | owner-owned mode-`0600` socket; root clients only |
+| `$XDG_RUNTIME_DIR/yuos-browser.sock` | owner-owned mode-`0600` socket; root clients only |
 
 The Native Messaging host validates that `XDG_RUNTIME_DIR` resolves exactly to
 `/run/user/<uid>`. It has no socket-path environment override. `yuosd` verifies

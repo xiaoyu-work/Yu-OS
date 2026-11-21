@@ -237,7 +237,7 @@ fn sender_process(connection: Connection) -> std::process::Child {
             "transport::tests::private_sender_process",
             "--nocapture",
         ])
-        .env("CLAW_DISPLAY_PRIVATE_SENDER", "1")
+        .env("YUOS_DISPLAY_PRIVATE_SENDER", "1")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null());
     unsafe {
@@ -281,7 +281,7 @@ fn an_expected_child_is_authenticated_by_its_actual_message_credentials() {
 
 #[test]
 fn private_sender_process() {
-    if std::env::var("CLAW_DISPLAY_PRIVATE_SENDER").as_deref() != Ok("1") {
+    if std::env::var("YUOS_DISPLAY_PRIVATE_SENDER").as_deref() != Ok("1") {
         return;
     }
     let connection = Connection::from_owned(unsafe { OwnedFd::from_raw_fd(3) }).unwrap();

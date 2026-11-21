@@ -21,7 +21,7 @@ def unoccupied_identities():
             pass
         else:
             raise RuntimeError(f"refusing an existing host/reserved UID {uid}")
-    for name in ("claw-display-test", "claw-display-other", *(f"yuos-ext-{i:02}" for i in range(64))):
+    for name in ("yuos-display-test", "yuos-display-other", *(f"yuos-ext-{i:02}" for i in range(64))):
         try:
             pwd.getpwnam(name)
         except KeyError:
@@ -35,7 +35,7 @@ def unoccupied_identities():
             pass
         else:
             raise RuntimeError(f"refusing an existing host/reserved GID {gid}")
-    for name in ("yuos-extension", "claw-display-test", "claw-display-other"):
+    for name in ("yuos-extension", "yuos-display-test", "yuos-display-other"):
         try:
             grp.getgrnam(name)
         except KeyError:

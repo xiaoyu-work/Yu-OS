@@ -92,7 +92,7 @@ def main():""")
     ast.parse(tool.read_text(), filename=str(tool))
     stage_file(tree / recipes / "cards", stage / "usr/share/ath12k-board-fallback/cards")
     stage_file(tree / "LICENSE", stage / "usr/share/doc" / name / "copyright")
-    write_file(stage / "usr/lib/systemd/system/claw-radio-board-data.service", """\
+    write_file(stage / "usr/lib/systemd/system/yuos-radio-board-data.service", """\
 [Unit]
 Description=Prepare matched Qualcomm Wi-Fi board data
 After=systemd-udev-trigger.service

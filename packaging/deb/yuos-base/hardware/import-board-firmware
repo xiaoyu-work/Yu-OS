@@ -306,7 +306,7 @@ def surface_firmware(sources):
                     raise ValueError(f"{name}: refusing to replace existing OEM firmware")
             if not pending:
                 continue
-            with tempfile.TemporaryDirectory(prefix="claw-surface-firmware-", dir="/var/tmp") as tmp:
+            with tempfile.TemporaryDirectory(prefix="yuos-surface-firmware-", dir="/var/tmp") as tmp:
                 work = Path(tmp)
                 archive = work / f"{label}.msi"
                 download(archive, url, size, checksum, local)
@@ -452,7 +452,7 @@ def qualcomm_firmware(files, archives, *, denali_sensor=False):
             if denali_sensor and checksum != DENALI_SENSOR_SHA256:
                 raise ValueError("Surface Pro 11 sensor configuration requires the pinned Microsoft MSI")
             extra = (DENALI_SENSOR_MEMBER,) if denali_sensor else ()
-            with tempfile.TemporaryDirectory(prefix="claw-qualcomm-firmware-", dir="/var/tmp") as tmp:
+            with tempfile.TemporaryDirectory(prefix="yuos-qualcomm-firmware-", dir="/var/tmp") as tmp:
                 work = Path(tmp)
                 archive = work / f"drivers.{'exe' if kind == 'inno' else kind}"
                 download(archive, url, size, checksum)
@@ -619,4 +619,4 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (OSError, ValueError, KeyError, tarfile.TarError, subprocess.SubprocessError) as error:
-        raise SystemExit(f"claw-import-board-firmware: {error}") from error
+        raise SystemExit(f"yuos-import-board-firmware: {error}") from error

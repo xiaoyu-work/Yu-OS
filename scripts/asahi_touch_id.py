@@ -39,17 +39,17 @@ def asahi_touch_id_package(profile, source, provenance, work, out, package):
         raise ValueError("the private Touch ID library must retain the fprintd ABI")
     stage_file(tree / "COPYING", docs / "copyright")
     stage_file(source[key], docs / "libfprint-source.tar.gz")
-    stage_file(ASSETS / "claw-asahi-touch-id", stage / "usr/lib/yuos/asahi/claw-asahi-touch-id", 0o755)
-    stage_file(ASSETS / "claw-asahi-fprintd", stage / "usr/lib/yuos/asahi/claw-asahi-fprintd", 0o755)
+    stage_file(ASSETS / "yuos-asahi-touch-id", stage / "usr/lib/yuos/asahi/yuos-asahi-touch-id", 0o755)
+    stage_file(ASSETS / "yuos-asahi-fprintd", stage / "usr/lib/yuos/asahi/yuos-asahi-fprintd", 0o755)
     (stage / "usr/sbin").mkdir(parents=True)
-    (stage / "usr/sbin/claw-asahi-touch-id").symlink_to("../lib/cos/asahi/claw-asahi-touch-id")
+    (stage / "usr/sbin/yuos-asahi-touch-id").symlink_to("../lib/yuos/asahi/yuos-asahi-touch-id")
     release = profile["release"]
     write_file(stage / "usr/share/yuos/asahi/touch-id-kernel", release + "\n")
     for file, target in (
-        ("claw-asahi-touch-id.service", "usr/lib/systemd/system"),
-        ("70-claw-asahi-fprintd.conf", "usr/lib/systemd/system/fprintd.service.d"),
-        ("80-claw-asahi-touch-id.conf", "usr/share/yuos/asahi"),
-        ("70-claw-asahi-touch-id.rules", "usr/lib/udev/rules.d"),
+        ("yuos-asahi-touch-id.service", "usr/lib/systemd/system"),
+        ("70-yuos-asahi-fprintd.conf", "usr/lib/systemd/system/fprintd.service.d"),
+        ("80-yuos-asahi-touch-id.conf", "usr/share/yuos/asahi"),
+        ("70-yuos-asahi-touch-id.rules", "usr/lib/udev/rules.d"),
     ):
         stage_file(ASSETS / file, stage / target / file)
     package(stage, out, name, "1-2", "arm64", f"linux-image-{release.lower()} (= {release.lower()}+yuos2), "

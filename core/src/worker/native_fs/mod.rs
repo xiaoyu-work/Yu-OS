@@ -478,7 +478,7 @@ impl NativeFsView {
         let target =
             CString::new(mountpoint.as_os_str().as_bytes()).map_err(|error| error.to_string())?;
         let source =
-            CString::new(format!("claw-native-fs-{}", uuid::Uuid::new_v4().simple())).unwrap();
+            CString::new(format!("yuos-native-fs-{}", uuid::Uuid::new_v4().simple())).unwrap();
         let options = CString::new(format!(
             "fd={},rootmode=40000,user_id={owner},group_id={gid},allow_other,default_permissions,max_read=131072",
             device.as_raw_fd(),
@@ -530,7 +530,7 @@ impl NativeFsView {
         let state = shared.clone();
         view.worker = Some(
             std::thread::Builder::new()
-                .name("claw-native-fs".into())
+                .name("yuos-native-fs".into())
                 .spawn(move || {
                     struct Ended(Arc<Shared>);
                     impl Drop for Ended {
@@ -560,7 +560,7 @@ impl NativeFsView {
         let observer = shared.clone();
         view.watcher = Some(
             std::thread::Builder::new()
-                .name("claw-native-fs-watch".into())
+                .name("yuos-native-fs-watch".into())
                 .spawn(move || {
                     struct WatchEnded(Arc<Shared>);
                     impl Drop for WatchEnded {
@@ -578,7 +578,7 @@ impl NativeFsView {
         );
         view.monitor = Some(
             std::thread::Builder::new()
-                .name("claw-native-fs-custody".into())
+                .name("yuos-native-fs-custody".into())
                 .spawn(move || {
                     while !shared.monitor_stop.load(Ordering::Acquire) {
                         if shared.live().is_err()

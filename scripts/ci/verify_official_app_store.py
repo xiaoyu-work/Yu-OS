@@ -18,7 +18,7 @@ import urllib.request
 
 
 ORIGIN = "http://127.0.0.1:38082"
-OWNER = "claw-store-acceptance"
+OWNER = "yuos-store-acceptance"
 UID = 20001
 
 

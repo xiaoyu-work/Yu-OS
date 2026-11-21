@@ -26,7 +26,7 @@ case "$2" in
 esac
 requirement=$(restore_requirement "$3") || fail "use the ten-character Apple Team ID"
 
-work=$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/claw-restore.XXXXXX")
+work=$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/yuos-restore.XXXXXX")
 trap '/bin/rm -rf -- "$work"' EXIT
 fetch_pinned "$NEO_SOURCE_URL" "$NEO_SOURCE_SHA256" "$work/source.tar.gz" \
     || fail "could not verify the pinned Neo restore helper source"

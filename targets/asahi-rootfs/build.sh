@@ -20,14 +20,14 @@ if [[ $mode == --installer-payload ]]; then
     done
 fi
 
-export CLAW_PLATFORM=aarch64-apple
+export YUOS_PLATFORM=aarch64-apple
 "$PROJECT_DIR/rootfs/build.sh" --features "$IMAGE_FEATURES_ASAHI"
 ROOTFS="$PROJECT_DIR/build/yuos-rootfs"
 test -s "$ROOTFS/usr/lib/yuos/asahi/boot.bin"
 test -s "$ROOTFS/usr/lib/yuos/asahi/boot-j700.bin"
 
 if [[ $mode == --installer-payload ]]; then
-    identity=$(python3 "$PROJECT_DIR/scripts/platform_kernels.py" "$CLAW_PLATFORM" --describe)
+    identity=$(python3 "$PROJECT_DIR/scripts/platform_kernels.py" "$YUOS_PLATFORM" --describe)
     read -r _ release _ <<< "$identity"
     exec bash "$PROJECT_DIR/targets/asahi-rootfs/installer-payload.sh" "$ROOTFS" "$release" \
         "$PROJECT_DIR/build/yuos-asahi-arm64-installer.zip"

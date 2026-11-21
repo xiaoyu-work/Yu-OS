@@ -59,7 +59,7 @@ impl Payload {
         }
         let fd = unsafe {
             libc::memfd_create(
-                c"claw-selection".as_ptr(),
+                c"yuos-selection".as_ptr(),
                 libc::MFD_CLOEXEC | libc::MFD_ALLOW_SEALING,
             )
         };

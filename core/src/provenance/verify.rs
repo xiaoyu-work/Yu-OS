@@ -48,8 +48,8 @@ use test_profile::{Span, Step};
 pub const VENDOR_PACKAGE_ROOTS: &[&str] = &[
     "/usr/lib/yuos",
     "/usr/share/yuos",
-    "/usr/lib/claw",
-    "/usr/share/claw",
+    "/usr/lib/yuos",
+    "/usr/share/yuos",
 ];
 
 /// Total bytes hashed for one package.

@@ -130,7 +130,7 @@ fn write_only() {
         peer.publish_selection_with_mimes(
             target,
             b"private-write-only-source",
-            &[MIME, "application/x-claw-private-write-witness"],
+            &[MIME, "application/x-yuos-private-write-witness"],
         );
         peer.roundtrip();
         peer.clear_selection(target);
@@ -207,7 +207,7 @@ fn aliases_refused() {
     }
     assert!(std::env::var_os("DISPLAY").is_none());
     assert!(std::env::var_os("WAYLAND_SOCKET").is_none());
-    assert!(std::env::var_os("CLAW_DISPLAY_CONTROL_FD").is_none());
+    assert!(std::env::var_os("YUOS_DISPLAY_CONTROL_FD").is_none());
     let _peer = peer(Protocol::Core);
 }
 

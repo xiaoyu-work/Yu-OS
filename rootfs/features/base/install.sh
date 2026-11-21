@@ -53,6 +53,6 @@ sed -i "s/@YUOS_VERSION@/$YUOS_VERSION/g" \
 mkdir -p "$ROOTFS/var/lib/yuos"
 
 # Source COS profile on every interactive login.
-if ! grep -q 'cos/profile.sh' "$ROOTFS/etc/bash.bashrc" 2>/dev/null; then
+if ! grep -q 'yuos/profile.sh' "$ROOTFS/etc/bash.bashrc" 2>/dev/null; then
     echo '[ -f /etc/yuos/profile.sh ] && . /etc/yuos/profile.sh' >> "$ROOTFS/etc/bash.bashrc"
 fi

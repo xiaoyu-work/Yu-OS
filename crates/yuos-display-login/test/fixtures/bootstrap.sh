@@ -172,12 +172,12 @@ if [[ "$gui" == 1 && "$package_fixture" == 0 ]]; then
 fi
 install -d -m0755 /usr/lib/yuos/bin
 install -m0755 "$host" /usr/lib/yuos/bin/yuos-display-host
-install -Dm0755 "$compositor" /usr/libexec/claw-hyprland/Hyprland
-install -m0644 "$pam_module" "/usr/lib/$(uname -m)-linux-gnu/security/pam_claw_display.so"
+install -Dm0755 "$compositor" /usr/libexec/yuos-hyprland/Hyprland
+install -m0644 "$pam_module" "/usr/lib/$(uname -m)-linux-gnu/security/pam_yuos_display.so"
 if [[ "$gui" == 1 ]]; then
     install -d -m0755 /usr/local/bin
-    install -m0755 "$registry" /usr/local/bin/claw-gui-broker-fixture
-    registry=/usr/local/bin/claw-gui-broker-fixture
+    install -m0755 "$registry" /usr/local/bin/yuos-gui-broker-fixture
+    registry=/usr/local/bin/yuos-gui-broker-fixture
     install -m0755 "$cos" /usr/local/bin/yu
     if [[ "$native_product" == capture ]]; then
         install -m0755 "$native_capture_helper" /usr/local/bin/yuosd
@@ -196,7 +196,7 @@ if [[ "$gui" == 1 ]]; then
         install -m0755 "${YUOS_APP_APT_TEST_HOST:?matching compiled App Host}" /usr/local/bin/yuos-extension-host
         install -m0644 tools/app_apt_metadata.py /usr/lib/yuos/app-apt-metadata.py
     fi
-    install -m0755 "$probe" /usr/lib/yuos/bin/claw-gui-probe
+    install -m0755 "$probe" /usr/lib/yuos/bin/yuos-gui-probe
     install -m0755 "$pam_fixture" /usr/lib/yuos/bin/pam-login-fixture
     install -d -m0755 /usr/lib/yuos/apps /usr/lib/yuos/trust/publishers.d
     mount -t tmpfs -o mode=0755,nosuid,nodev tmpfs /usr/lib/yuos/apps
@@ -222,10 +222,10 @@ if [[ "$gui" == 1 ]]; then
 fi
 printf '%s\n' \
     'root:x:0:0:root:/root:/bin/sh' \
-    'claw-display-test:x:62050:62050:Private display fixture:/run/display-home:/bin/sh' \
-    'claw-display-other:x:62051:62051:Private negative caller:/run/display-other-home:/bin/sh' \
+    'yuos-display-test:x:62050:62050:Private display fixture:/run/display-home:/bin/sh' \
+    'yuos-display-other:x:62051:62051:Private negative caller:/run/display-other-home:/bin/sh' \
     >"$private/passwd"
-printf '%s\n' 'root:x:0:' 'claw-display-test:x:62050:' 'claw-display-other:x:62051:' >"$private/group"
+printf '%s\n' 'root:x:0:' 'yuos-display-test:x:62050:' 'yuos-display-other:x:62051:' >"$private/group"
 hash=$(printf '%s\n' 'private-disposable-display-fixture-password' | openssl passwd -6 -stdin)
 printf 'root:!:20000:0:99999:7:::\nclaw-display-test:%s:20000:0:99999:7:::\nclaw-display-other:!:20000:0:99999:7:::\n' "$hash" \
     >"$private/shadow"
@@ -244,9 +244,9 @@ printf '%s\n' \
     'auth required pam_unix.so' \
     'account required pam_unix.so' \
     'session required pam_loginuid.so' \
-    'session required pam_claw_display.so close-before' \
-    'session required pam_claw_display.so open-after' >"$private/pam/claw-desktop"
-group=/sys/fs/cgroup/claw-display-fixture.$BASHPID
+    'session required pam_yuos_display.so close-before' \
+    'session required pam_yuos_display.so open-after' >"$private/pam/yuos-desktop"
+group=/sys/fs/cgroup/yuos-display-fixture.$BASHPID
 mkdir -m0755 -- "$group"
 printf '%s\n' "$group" >"$private/cgroup"
 registry_pid=
@@ -263,7 +263,7 @@ cleanup() {
         wait "$registry_pid" || true
     fi
     if [[ "$(realpath -e -- "$group")" != "$group" \
-        || ! "$group" =~ ^/sys/fs/cgroup/claw-display-fixture\.[[:alnum:]]+$ ]]; then
+        || ! "$group" =~ ^/sys/fs/cgroup/yuos-display-fixture\.[[:alnum:]]+$ ]]; then
         printf 'refusing an unexpected private cgroup cleanup target\n' >&2
         exit 1
     fi
@@ -329,8 +329,8 @@ if [[ "$gui" == 1 ]]; then
   <policy context="default">
     <deny user="*"/>
     <allow user="root"/>
-    <allow user="claw-display-test"/>
-    <allow user="claw-display-other"/>
+    <allow user="yuos-display-test"/>
+    <allow user="yuos-display-other"/>
     <deny own="*"/>
     <deny send_destination="*"/>
     <allow receive_sender="*"/>
@@ -338,11 +338,11 @@ if [[ "$gui" == 1 ]]; then
   <policy user="root">
     <allow send_destination="org.freedesktop.DBus"/>
   </policy>
-  <policy user="claw-display-test">
+  <policy user="yuos-display-test">
     <allow own="*"/>
     <allow send_destination="*"/>
   </policy>
-  <policy user="claw-display-other">
+  <policy user="yuos-display-other">
     <allow send_destination="org.freedesktop.DBus"/>
     <allow send_destination="org.freedesktop.FileManager1"/>
   </policy>

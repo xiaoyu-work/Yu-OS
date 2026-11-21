@@ -424,7 +424,7 @@ assert pathlib.Path.cwd() == data
 assert not (data.parent / "sibling" / "secret").exists()
 assert not (data.parent.parent / "credentials").exists()
 for name in ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "XAUTHORITY",
-             "YUOS_PROC_DATA_DIR", "CLAW_APP_RUNNER_BIN"):
+             "YUOS_PROC_DATA_DIR", "YUOS_APP_RUNNER_BIN"):
     assert name not in os.environ, name
 try:
     socket.socket(socket.AF_INET, socket.SOCK_STREAM)

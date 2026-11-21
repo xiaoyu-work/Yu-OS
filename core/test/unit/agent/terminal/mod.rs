@@ -26,10 +26,10 @@ fn parse(args: &[&str]) -> Result<ChatOptions, String> {
 fn app() -> App {
     App::new(
         BackendInfo {
-            home: "/home/claw".into(),
+            home: "/home/yuos".into(),
             provider: "ollama".into(),
-            model: "claw-model".into(),
-            models: vec!["claw-model".into(), "other-model".into()],
+            model: "yuos-model".into(),
+            models: vec!["yuos-model".into(), "other-model".into()],
             provider_ready: true,
             model_catalog_warning: None,
         },
@@ -60,7 +60,7 @@ fn job(status: &str) -> Job {
         id: "task-1".into(),
         session_id: "ses_001953abcdef0_123456789abc".into(),
         activity_id: None,
-        workspace: Some("/home/claw/project".into()),
+        workspace: Some("/home/yuos/project".into()),
         after_task_id: None,
         prompt: "Run the terminal test".into(),
         status: status.into(),
@@ -69,11 +69,11 @@ fn job(status: &str) -> Job {
         finished_at: None,
         response: None,
         error: None,
-        requested_model: Some("claw-model".into()),
+        requested_model: Some("yuos-model".into()),
         requested_reasoning_effort: None,
         plan_only: false,
         provider: Some("ollama".into()),
-        model: Some("claw-model".into()),
+        model: Some("yuos-model".into()),
         turns_used: None,
     }
 }
@@ -119,7 +119,7 @@ fn terminal_selection_preserves_plain_compatibility() {
 }
 
 #[test]
-fn parser_accepts_only_claw_terminal_options() {
+fn parser_accepts_only_yuos_terminal_options() {
     let options = parse(&[
         "--session",
         "ses_existing",
@@ -148,7 +148,7 @@ fn parser_accepts_only_claw_terminal_options() {
 }
 
 #[test]
-fn claw_commands_are_closed_and_semantic() {
+fn yuos_commands_are_closed_and_semantic() {
     assert_eq!(parse_command("/help"), Some(Command::Help));
     assert_eq!(
         parse_command("/resume ses_1"),
@@ -466,17 +466,17 @@ fn queued_tasks_retain_the_broker_acknowledged_workspace_and_dependency() {
     let mut app = app();
     let mut queued = job("pending");
     queued.prompt = "first queued task".into();
-    queued.workspace = Some("/home/claw/project-a".into());
+    queued.workspace = Some("/home/yuos/project-a".into());
     queued.after_task_id = Some("task-active".into());
     app.queue_task(queued);
     let queued = app.queued_tasks.pop_front().unwrap();
     assert_eq!(queued.prompt, "first queued task");
-    assert_eq!(queued.workspace.as_deref(), Some("/home/claw/project-a"));
+    assert_eq!(queued.workspace.as_deref(), Some("/home/yuos/project-a"));
     assert_eq!(queued.after_task_id.as_deref(), Some("task-active"));
 }
 
 #[test]
-fn searchable_pickers_return_typed_claw_selections() {
+fn searchable_pickers_return_typed_yuos_selections() {
     let mut app = app();
     app.open_model_picker();
     app.picker_insert('o');
@@ -929,7 +929,7 @@ fn task_controls_change_only_future_task_defaults() {
     assert_eq!(app.task_max_turns, Some(8));
     assert_eq!(app.task_reasoning_effort.as_deref(), Some("minimal"));
     assert!(app.task_plan_only);
-    assert_eq!(app.selected_model, "claw-model");
+    assert_eq!(app.selected_model, "yuos-model");
 }
 
 #[test]
@@ -1283,7 +1283,7 @@ fn platform_mcp_center_exposes_metadata_without_launch_material() {
 }
 
 #[test]
-fn platform_extensions_center_preserves_one_claw_extension_model() {
+fn platform_extensions_center_preserves_one_yuos_extension_model() {
     let mut app = app();
     app.open_platform_overview(PlatformOverview {
         presentation: "{}".into(),
@@ -1571,7 +1571,7 @@ fn platform_account_center_requires_logout_confirmation_and_never_scans_import_r
 }
 
 #[test]
-fn voice_center_uses_claw_media_models_without_claiming_realtime_capture() {
+fn voice_center_uses_yuos_media_models_without_claiming_realtime_capture() {
     let mut app = app();
     assert_eq!(
         handle_key(
@@ -1624,10 +1624,10 @@ fn approvals_default_to_readable_authorize_once() {
     app.add_approvals(vec![ApprovalRequest {
         id: "approval-1".into(),
         verb: "fs.write".into(),
-        scope: json!({"path": "/home/claw/output"}),
+        scope: json!({"path": "/home/yuos/output"}),
         label: "Create or modify files".into(),
         description: "Write new files or change existing ones in the granted folder.".into(),
-        target: "/home/claw/output".into(),
+        target: "/home/yuos/output".into(),
         reason: "Write requested output".into(),
         status: "pending".into(),
         session: "ses_001953abcdef0_123456789abc".into(),
@@ -1678,14 +1678,14 @@ fn approvals_default_to_readable_authorize_once() {
         .unwrap();
     assert_eq!(authorize.bg, Color::Magenta);
     assert!(output.contains("Create or modify files"));
-    assert!(output.contains("Target: /home/claw/output"));
+    assert!(output.contains("Target: /home/yuos/output"));
     assert!(output.contains("Write new files or change existing ones"));
     assert!(output.contains("Left/Right choose"));
     assert!(output.contains("Esc/Ctrl+C stop task"));
     assert!(!output.contains("Enter send"));
 
     let request = app.pending_approvals.front_mut().unwrap();
-    request.target = format!("/home/claw/{}/ report-tail.txt", "long-directory".repeat(12));
+    request.target = format!("/home/yuos/{}/ report-tail.txt", "long-directory".repeat(12));
     request.scope = json!({"kind": "path", "value": request.target});
     for (width, height) in [(80, 18), (40, 12), (24, 8)] {
         app.approval_scroll = 0;
@@ -1790,7 +1790,7 @@ fn model_output_is_redacted_and_control_safe() {
 }
 
 #[test]
-fn ratatui_frame_is_claw_owned_and_contains_core_state() {
+fn ratatui_frame_is_yuos_owned_and_contains_core_state() {
     let mut app = app();
     app.begin_task(&job("running"));
     app.push_assistant_delta("## Result\n\nClaw completed the work.");
@@ -1814,7 +1814,7 @@ fn ratatui_frame_is_claw_owned_and_contains_core_state() {
 }
 
 #[test]
-fn slash_palette_exposes_only_supported_claw_commands() {
+fn slash_palette_exposes_only_supported_yuos_commands() {
     let mut app = app();
     app.insert_text("/m");
     let backend = TestBackend::new(100, 28);
@@ -1846,7 +1846,7 @@ fn activity_commands_use_one_palette_entry() {
 }
 
 #[test]
-fn picker_and_working_header_render_real_claw_state() {
+fn picker_and_working_header_render_real_yuos_state() {
     let mut app = app();
     app.open_model_picker();
     app.picker_insert('o');
@@ -1936,7 +1936,7 @@ fn durable_task_picker_opens_redacted_details_and_exact_actions() {
         created_at: "2026-01-01T00:00:00Z".into(),
         session_id: Some("ses_001953abcdef0_123456789abc".into()),
         activity_id: None,
-        workspace: Some("/home/claw/project".into()),
+        workspace: Some("/home/yuos/project".into()),
         after_task_id: None,
         waiting_on: 0,
         cancel_requested: false,
@@ -2000,10 +2000,10 @@ fn approval_center_keeps_history_read_only_and_pending_decisions_exact() {
     let pending = ApprovalRequest {
         id: "approval-center-1".into(),
         verb: "fs.write".into(),
-        scope: json!({"kind": "path", "value": "/home/claw/output"}),
+        scope: json!({"kind": "path", "value": "/home/yuos/output"}),
         label: "Create or modify files".into(),
         description: "Write new files or change existing ones in the granted folder.".into(),
-        target: "/home/claw/output".into(),
+        target: "/home/yuos/output".into(),
         reason: "Write the requested output".into(),
         status: "pending".into(),
         session: "ses_001953abcdef0_123456789abc".into(),

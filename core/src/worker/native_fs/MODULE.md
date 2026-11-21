@@ -372,7 +372,7 @@ bash scripts/ci/test-boundaries.sh native-fs
 
 # The underlying compiler commands:
 cargo test --locked -p yu --bin yu --no-run
-cargo build --locked --manifest-path desktop/comp/test/display-control/Cargo.toml --bin claw-gui-probe
+cargo build --locked --manifest-path desktop/comp/test/display-control/Cargo.toml --bin yuos-gui-probe
 ```
 
 Use compiler-selected Root test and probe ELFs, not a guessed binary filename

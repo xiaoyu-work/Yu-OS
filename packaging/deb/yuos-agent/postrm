@@ -25,7 +25,7 @@ case "$1" in
             command -v identity_purge_owned >/dev/null 2>&1 &&
                 identity_purge_owned
         fi
-        rm -f "$DPKG_ROOT/etc/systemd/user/default.target.wants/claw-recoll-index.service"
+        rm -f "$DPKG_ROOT/etc/systemd/user/default.target.wants/yuos-recoll-index.service"
         rm -f "$DPKG_ROOT/etc/systemd/user/default.target.wants/yuos-semantic.service"
         if [ -z "$DPKG_ROOT" ] && [ -x /usr/bin/deb-systemd-helper ]; then
             deb-systemd-helper purge yuosd.service >/dev/null || true

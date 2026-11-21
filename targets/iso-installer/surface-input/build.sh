@@ -21,7 +21,7 @@ case "$profile" in
         package=yuos-surface-laptop-7
         dpkg-deb -x "$cache"/surface-laptop-7-intel/"${package}"_*.deb "$payload"
         copy_payload etc/iptsd.d/99-surface-laptop-7-touchpad.conf
-        copy_payload usr/share/libinput/65-claw-surface.quirks
+        copy_payload usr/share/libinput/65-yuos-surface.quirks
         ;;
     aarch64-qualcomm)
         package=yuos-surface-snapdragon-iptsd
@@ -44,19 +44,19 @@ if [[ $profile != "x86-surface-laptop-7-intel" ]]; then
     cp -a "$payload/usr/share/doc/$package" "$layer/usr/share/doc/"
     # Use the packaged probe rule, but only after the live service has matched the board.
     {
-        printf '%s\n' 'TEST!="/run/claw-installer-surface-input", GOTO="claw_live_iptsd_end"'
+        printf '%s\n' 'TEST!="/run/yuos-installer-surface-input", GOTO="yuos_live_iptsd_end"'
         cat "$payload/usr/lib/udev/rules.d/50-iptsd.rules"
-        printf '\n%s\n' 'LABEL="claw_live_iptsd_end"'
+        printf '\n%s\n' 'LABEL="yuos_live_iptsd_end"'
     } >"$layer/usr/lib/udev/rules.d/50-iptsd.rules"
 fi
 
-service=claw-installer-surface-input.service
+service=yuos-installer-surface-input.service
 units=$layer/usr/lib/systemd/system
 install -Dm0644 "$assets/$service" "$units/$service"
 install -d "$units/getty@tty1.service.wants"
 ln -s "../$service" "$units/getty@tty1.service.wants/$service"
-install -Dm0755 "$assets/claw-installer-surface-input" "$layer/usr/lib/yuos/init/claw-installer-surface-input"
-install -Dm0644 "$assets/90-claw-installer-surface-input.rules" "$layer/usr/lib/udev/rules.d/90-claw-installer-surface-input.rules"
+install -Dm0755 "$assets/yuos-installer-surface-input" "$layer/usr/lib/yuos/init/yuos-installer-surface-input"
+install -Dm0644 "$assets/90-yuos-installer-surface-input.rules" "$layer/usr/lib/udev/rules.d/90-yuos-installer-surface-input.rules"
 
 # Calamares unpacks only filesystem.squashfs; live-boot mounts this layer above it.
 mksquashfs "$layer" "$live/surface-input.squashfs" -comp zstd -noappend -all-root

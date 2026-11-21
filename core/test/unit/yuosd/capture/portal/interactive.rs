@@ -259,7 +259,7 @@ async fn private_interactive_helper_reports_only_after_os_portal_close() {
             std::path::PathBuf::from(std::env::var(variable).unwrap())
         );
     }
-    let root = std::path::Path::new("/run/claw-capture-gui-fixture");
+    let root = std::path::Path::new("/run/yuos-capture-gui-fixture");
     fs::create_dir(root).unwrap();
     fs::set_permissions(root, fs::Permissions::from_mode(0o755)).unwrap();
     let binary = root.join("yuosd");

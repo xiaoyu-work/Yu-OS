@@ -410,11 +410,11 @@ display() {
         fi
         "${isolated[@]}" bash --noprofile --norc crates/yuos-display-login/test/fixtures/bootstrap.sh \
             "$test_binary" "$CARGO_TARGET_DIR/debug/yuos-display-host" \
-            "$CARGO_TARGET_DIR/debug/claw-display-headless-fixture" \
-            "$CARGO_TARGET_DIR/debug/libpam_claw_display.so" \
+            "$CARGO_TARGET_DIR/debug/yuos-display-headless-fixture" \
+            "$CARGO_TARGET_DIR/debug/libpam_yuos_display.so" \
             "$CARGO_TARGET_DIR/pam-login-fixture" "$private" \
             "$CARGO_TARGET_DIR/debug/yu" "$CARGO_TARGET_DIR/debug/yuos-gui-runner" \
-            "$CARGO_TARGET_DIR/debug/yuos-app-runner" "$CARGO_TARGET_DIR/debug/claw-gui-probe" \
+            "$CARGO_TARGET_DIR/debug/yuos-app-runner" "$CARGO_TARGET_DIR/debug/yuos-gui-probe" \
             "$CARGO_TARGET_DIR/debug/yuos-display-session" "$CARGO_TARGET_DIR/debug/yuos-file-manager" \
             "${selectors[@]}"
     done
@@ -427,7 +427,7 @@ display() {
         --ignored --nocapture --test-threads=1 \
         | tee "$RUNNER_TEMP/gui-retirement.log"
     retired_group="$(sed -n 's/.*private retirement cgroup: //p' "$RUNNER_TEMP/gui-retirement.log")"
-    [[ "$retired_group" =~ ^/sys/fs/cgroup/claw-display-retirement-[0-9]+-[0-9a-f]+$ ]]
+    [[ "$retired_group" =~ ^/sys/fs/cgroup/yuos-display-retirement-[0-9]+-[0-9a-f]+$ ]]
     sudo test ! -e "$retired_group"
     sudo timeout 15 unshare --mount --net --fork \
         bash --noprofile --norc -c '

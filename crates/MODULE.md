@@ -18,7 +18,7 @@ CLI, semantic, and embedding surfaces.
 | `yuos-embed/` | Reusable embedding, extraction, chunking, walking, and storage contracts |
 | `yuos-semantic/` | Filesystem semantic daemon, config, service orchestration, and CLI |
 | `yuosd-client/` | Unprivileged typed broker discovery, framing, envelopes, deadlines, and errors |
-| `claw-compositor/` | OS-private native compositor enforcement bridge; no Agent or App capability authority |
+| `yuos-compositor/` | OS-private native compositor enforcement bridge; no Agent or App capability authority |
 | `yuos-cli/` | First-party CLI tooling |
 | `obscura-*/` | Vendored browser-engine internals |
 | `../Cargo.toml` | Workspace membership and shared dependencies |

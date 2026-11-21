@@ -60,7 +60,7 @@ pub(crate) fn use_stripped_app_runner() -> TestEnvVarGuard {
         }
         target
     });
-    TestEnvVarGuard::set("CLAW_APP_RUNNER_BIN", runner)
+    TestEnvVarGuard::set("YUOS_APP_RUNNER_BIN", runner)
 }
 
 // ---------------------------------------------------------------------------

@@ -7,7 +7,7 @@ desktop session installed by this tree.
 
 | Path | Responsibility |
 | --- | --- |
-| `hyprland/`, `hyprland-claw/` | Compositor, private Root adapter, target-native staging, and session assets |
+| `hyprland/`, `hyprland-yuos/` | Compositor, private Root adapter, target-native staging, and session assets |
 | [`agent/`](agent/README.md) | Native Agent client and bridge; the system Agent stays in `core/` |
 | [`services/yuos-applet-services/`](services/yuos-applet-services/MODULE.md) | Read-only Calendar/telemetry and existing App policy client, no desktop UI |
 | `toolkit/`, `text/`, `theme/`, `time/`, `icons/`, `icons-tela/` | Shared rendering/toolkit libraries and assets for existing Apps |

@@ -19,7 +19,7 @@ tui() {
             --yu "$yu_fixture" \
             --case "$scenario" \
             --original-mount-namespace "$original_namespace" \
-            --transcript "/tmp/claw-tui-$scenario.log"
+            --transcript "/tmp/yuos-tui-$scenario.log"
     done
 }
 

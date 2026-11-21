@@ -838,9 +838,9 @@ SIGNER="$RELEASE_SECURITY_DIR/sign-manifest.sh"
 source "$SIGNER"
 
 for script in "$DEB_DIR/build-debs.sh" "$DEB_DIR/build-desktop-deb.sh"; do
-    grep -Fq 'claw_resolve_signing_key' "$script" \
+    grep -Fq 'yuos_resolve_signing_key' "$script" \
         || fail "$(basename "$script") does not use the shared key resolver"
-    grep -Fq 'claw_write_release_manifest' "$script" \
+    grep -Fq 'yuos_write_release_manifest' "$script" \
         || fail "$(basename "$script") does not use the shared manifest writer"
     grep -q 'RELEASE_SECURITY_KEY_ID=""' "$script" \
         && fail "$(basename "$script") still clears a requested signing key"
@@ -850,7 +850,7 @@ ok "both package builds resolve and sign through the shared fail-closed helper"
 # No key requested: an unsigned build, clearly announced.
 unsigned_key="$(
     YUOS_RELEASE_SECURITY_KEY_ID="" GPG_KEY_ID="" \
-        claw_resolve_signing_key 2>"$WORK/unsigned-key.err"
+        yuos_resolve_signing_key 2>"$WORK/unsigned-key.err"
 )" || fail "a build with no signing key must be allowed"
 [ -z "$unsigned_key" ] || fail "no key was requested, yet one was resolved"
 grep -q "UNSIGNED LOCAL BUILD" "$WORK/unsigned-key.err" \
@@ -858,7 +858,7 @@ grep -q "UNSIGNED LOCAL BUILD" "$WORK/unsigned-key.err" \
 
 # A key that is requested but unavailable is fatal.
 if YUOS_RELEASE_SECURITY_KEY_ID="DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF" \
-    claw_resolve_signing_key >/dev/null 2>"$WORK/missing-key.err"; then
+    yuos_resolve_signing_key >/dev/null 2>"$WORK/missing-key.err"; then
     fail "a requested but unavailable signing key was accepted"
 fi
 grep -q "secret key is unavailable" "$WORK/missing-key.err" \
@@ -893,7 +893,7 @@ exec "$(command -v gpg)" "\$@"
 EOF
 chmod +x "$FAILING_BIN/gpg"
 
-if PATH="$FAILING_BIN:$PATH" claw_write_release_manifest \
+if PATH="$FAILING_BIN:$PATH" yuos_write_release_manifest \
     "$KEY_ID" "" "$MAKE_MANIFEST" yuos-agent "$V1" amd64 trixie \
     "$SIGN_STAGE" "$POLICY" "$SIGN_OUT" >/dev/null 2>"$WORK/sign-failure.err"; then
     fail "a failed signature was reported as success"
@@ -929,7 +929,7 @@ exec "$(command -v gpg)" "\$@"
 EOF
 chmod +x "$TRUNCATING_BIN/gpg"
 
-if PATH="$TRUNCATING_BIN:$PATH" claw_write_release_manifest \
+if PATH="$TRUNCATING_BIN:$PATH" yuos_write_release_manifest \
     "$KEY_ID" "" "$MAKE_MANIFEST" yuos-agent "$V1" amd64 trixie \
     "$SIGN_STAGE" "$POLICY" "$SIGN_OUT" >/dev/null 2>"$WORK/bad-signature.err"; then
     fail "a signature that does not verify was accepted"
@@ -941,14 +941,14 @@ ok "a signature that does not verify aborts the build and removes the manifest"
 
 # A genuine signed build still works, and an unsigned one is allowed but
 # carries no signature.
-claw_write_release_manifest "$KEY_ID" "" "$MAKE_MANIFEST" yuos-agent "$V1" \
+yuos_write_release_manifest "$KEY_ID" "" "$MAKE_MANIFEST" yuos-agent "$V1" \
     amd64 trixie "$SIGN_STAGE" "$POLICY" "$SIGN_OUT" >/dev/null \
     || fail "a genuine signed build must succeed"
 [ -s "$SIGN_OUT.asc" ] || fail "a signed build produced no signature"
 gpgv --keyring "$KEYRING" "$SIGN_OUT.asc" "$SIGN_OUT" >/dev/null 2>&1 \
     || fail "the signature does not verify against the publishing key"
 rm -f "$SIGN_OUT" "$SIGN_OUT.asc"
-claw_write_release_manifest "" "" "$MAKE_MANIFEST" yuos-agent "$V1" \
+yuos_write_release_manifest "" "" "$MAKE_MANIFEST" yuos-agent "$V1" \
     amd64 trixie "$SIGN_STAGE" "$POLICY" "$SIGN_OUT" >/dev/null \
     || fail "an explicitly unsigned local build must succeed"
 [ -s "$SIGN_OUT" ] || fail "an unsigned build produced no manifest"

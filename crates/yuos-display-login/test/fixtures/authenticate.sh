@@ -14,9 +14,9 @@ mount --make-rprivate /
 mount -t tmpfs -o mode=0755,nosuid,nodev tmpfs /run
 printf '%s\n' \
     'root:x:0:0:root:/root:/bin/sh' \
-    'claw-display-test:x:62050:62050:Private display fixture:/run/display-home:/bin/sh' \
+    'yuos-display-test:x:62050:62050:Private display fixture:/run/display-home:/bin/sh' \
     >"$private/passwd"
-printf '%s\n' 'root:x:0:' 'claw-display-test:x:62050:' >"$private/group"
+printf '%s\n' 'root:x:0:' 'yuos-display-test:x:62050:' >"$private/group"
 hash=$(printf '%s\n' 'private-disposable-display-fixture-password' | openssl passwd -6 -stdin)
 printf 'root:!:20000:0:99999:7:::\nclaw-display-test:%s:20000:0:99999:7:::\n' "$hash" \
     >"$private/shadow"
@@ -30,7 +30,7 @@ mkdir -m 0700 "$private/pam"
 printf '%s\n' \
     'auth required pam_unix.so' \
     'account required pam_unix.so' \
-    'session required pam_loginuid.so' >"$private/pam/claw-desktop"
+    'session required pam_loginuid.so' >"$private/pam/yuos-desktop"
 if "$fixture" "$private/pam" deny-password; then
     printf 'wrong private password was accepted\n' >&2
     exit 1

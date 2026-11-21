@@ -19,7 +19,7 @@ import sys
 BASE = Path("/run/yuos-app-apt-fixture")
 BUNDLE = "yuos-app-acceptance-bundle"
 SUPPORT = "yuos-app-acceptance-support"
-SIDE_EFFECT = "claw-package-acceptance-side-effect"
+SIDE_EFFECT = "yuos-package-acceptance-side-effect"
 VERSION = "1.0.0"
 PORT = 38081
 PRIVATE_MOUNTS = (
@@ -110,7 +110,7 @@ def isolate():
     mirror(Path("/usr"), shadow, ("lib", "share"))
     mirror(Path("/usr/lib"), shadow / "lib", ("cos",))
     mirror(Path("/usr/share"), shadow / "share", ("doc",))
-    for directory in ("lib/cos/apps", "lib/cos/python", "lib/cos/bin", "share/doc"):
+    for directory in ("lib/yuos/apps", "lib/yuos/python", "lib/yuos/bin", "share/doc"):
         (shadow / directory).mkdir(parents=True, exist_ok=True)
     mount(shadow, "/usr", flags=4096 | 16384)
     mount("tmpfs", "/usr/local/bin", "tmpfs", 2 | 4, "mode=0755,size=1073741824")

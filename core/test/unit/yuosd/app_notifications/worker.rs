@@ -456,7 +456,7 @@ async fn notifications_actual_native_worker_durable_delivery_and_owner_bound_ui(
                 "Untrusted sender",
                 Vec::<&str>::new(),
                 std::collections::HashMap::from([(
-                    "x-claw-notification-id",
+                    "x-yuos-notification-id",
                     zbus::zvariant::Value::from(id),
                 )]),
                 0_i32,

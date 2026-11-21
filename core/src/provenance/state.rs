@@ -196,7 +196,7 @@ pub fn fingerprint_files(files: &[(String, Vec<u8>)]) -> String {
     let mut sorted: Vec<&(String, Vec<u8>)> = files.iter().collect();
     sorted.sort_by(|a, b| a.0.cmp(&b.0));
     let mut h = crate::crypto::Sha256Stream::new();
-    h.update(b"claw-provenance/v1\x00trust-domain\x00");
+    h.update(b"yuos-provenance/v1\x00trust-domain\x00");
     h.update(&(sorted.len() as u64).to_le_bytes());
     for (name, body) in sorted {
         h.update(&(name.len() as u64).to_le_bytes());

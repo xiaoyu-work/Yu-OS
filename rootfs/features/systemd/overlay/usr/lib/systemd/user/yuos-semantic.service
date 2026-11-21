@@ -1,7 +1,7 @@
 [Unit]
 Description=YuOS: semantic (embedding) document index daemon
 Documentation=man:yuos-semantic(1)
-After=claw-recoll-index.service
+After=yuos-recoll-index.service
 ConditionPathIsExecutable=/usr/local/bin/yuos-semantic-daemon
 StartLimitIntervalSec=300
 StartLimitBurst=5

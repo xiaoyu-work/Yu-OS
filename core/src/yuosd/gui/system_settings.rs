@@ -37,7 +37,7 @@ pub(super) async fn request(params: Value, owner: u32) -> Result<Value, BrokerEr
     let name = serde_json::to_value(action).expect("system settings action is serializable");
     let name = name.as_str().expect("system settings action is a string");
     let output = tokio::time::timeout(Duration::from_secs(105), async {
-        let mut child = tokio::process::Command::new("/usr/libexec/claw-system-settings")
+        let mut child = tokio::process::Command::new("/usr/libexec/yuos-system-settings")
             .arg(name)
             .arg(owner.to_string())
             .env_clear()

@@ -56,33 +56,33 @@ declare -A prepared_arches=()
 # Every request is cache-busting. A CDN or proxy that keeps serving a
 # stale snapshot would otherwise hide a newer published version from
 # the regression checks below and make a downgrade look legitimate.
-CLAW_NO_CACHE=(
+YUOS_NO_CACHE=(
     -H 'Cache-Control: no-cache, no-store, max-age=0'
     -H 'Pragma: no-cache'
 )
-CLAW_FETCH_STATUS=000
-CLAW_FETCH_RC=0
+YUOS_FETCH_STATUS=000
+YUOS_FETCH_RC=0
 
 # Run curl and report *curl's* exit status. `if ! status="$(curl ...)"`
 # leaves `$?` describing the `!`, not the command, so the diagnostics
 # always claimed exit 0. Capture it explicitly instead; the fail-closed
 # control flow is unchanged.
-claw_fetch() {
+yuos_fetch() {
     local url="$1" out="$2"
     local body rc separator='?'
     case "$url" in *\?*) separator='&' ;; esac
     set +e
     body="$(curl -L -sS --fail-with-body -o "$out" -w '%{http_code}' \
-        "${CLAW_NO_CACHE[@]}" "${url}${separator}cachebust=$(date -u +%s)-$$")"
+        "${YUOS_NO_CACHE[@]}" "${url}${separator}cachebust=$(date -u +%s)-$$")"
     rc="$?"
     set -e
-    CLAW_FETCH_STATUS="${body:-000}"
-    CLAW_FETCH_RC="$rc"
+    YUOS_FETCH_STATUS="${body:-000}"
+    YUOS_FETCH_RC="$rc"
     return "$rc"
 }
 
-if ! claw_fetch "$inrelease_url" "$tmp/InRelease"; then
-    case "$CLAW_FETCH_STATUS" in
+if ! yuos_fetch "$inrelease_url" "$tmp/InRelease"; then
+    case "$YUOS_FETCH_STATUS" in
         404)
             echo ":: no existing signed APT repository; starting a new package pool"
             : > "$PREVIOUS_RELEASE_SECURITY_DIR/.no-existing-repository"
@@ -90,14 +90,14 @@ if ! claw_fetch "$inrelease_url" "$tmp/InRelease"; then
             ;;
         *)
             echo "error: could not read the existing APT repository (curl exit" >&2
-            echo "       $CLAW_FETCH_RC, HTTP $CLAW_FETCH_STATUS): $inrelease_url" >&2
+            echo "       $YUOS_FETCH_RC, HTTP $YUOS_FETCH_STATUS): $inrelease_url" >&2
             echo "       Refusing to publish: a fetch failure is not evidence that" >&2
             echo "       the repository is empty." >&2
             exit 1
             ;;
     esac
 fi
-status="$CLAW_FETCH_STATUS"
+status="$YUOS_FETCH_STATUS"
 if [ "$status" != "200" ]; then
     echo "error: existing APT repository returned HTTP $status: $inrelease_url" >&2
     exit 1
@@ -180,12 +180,12 @@ fetch_signed_artifact() {
     local body="$tmp/$name" signature="$tmp/$name.asc"
     local body_status signature_status body_rc signature_rc
 
-    claw_fetch "$url" "$body" || true
-    body_status="$CLAW_FETCH_STATUS"
-    body_rc="$CLAW_FETCH_RC"
-    claw_fetch "$url.asc" "$signature" || true
-    signature_status="$CLAW_FETCH_STATUS"
-    signature_rc="$CLAW_FETCH_RC"
+    yuos_fetch "$url" "$body" || true
+    body_status="$YUOS_FETCH_STATUS"
+    body_rc="$YUOS_FETCH_RC"
+    yuos_fetch "$url.asc" "$signature" || true
+    signature_status="$YUOS_FETCH_STATUS"
+    signature_rc="$YUOS_FETCH_RC"
 
     if [ "$body_rc" != "0" ] || [ "$signature_rc" != "0" ] \
         || [ "$body_status" != "200" ] || [ "$signature_status" != "200" ]; then

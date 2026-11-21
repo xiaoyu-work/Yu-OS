@@ -38,7 +38,7 @@ pub fn run_app_stdio(
 use local::use_yuosd_backend as use_yuosd_app_session_backend;
 
 pub(crate) fn app_runner_path() -> std::path::PathBuf {
-    if let Some(path) = std::env::var_os("CLAW_APP_RUNNER_BIN") {
+    if let Some(path) = std::env::var_os("YUOS_APP_RUNNER_BIN") {
         return path.into();
     }
     if let Ok(current) = std::env::current_exe() {

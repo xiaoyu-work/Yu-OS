@@ -29,7 +29,7 @@ case "$1" in
             fi
         fi
         rm -f "$DPKG_ROOT/etc/systemd/user/default.target.wants/yuosd.service"
-        rm -f "$DPKG_ROOT/etc/systemd/user/default.target.wants/claw-recoll-index.service"
+        rm -f "$DPKG_ROOT/etc/systemd/user/default.target.wants/yuos-recoll-index.service"
         rm -f "$DPKG_ROOT/etc/systemd/user/default.target.wants/yuos-semantic.service"
         ;;
     upgrade)

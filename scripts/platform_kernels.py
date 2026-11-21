@@ -217,14 +217,14 @@ def kernel_package(profile, source, provenance, work, out, *, board_tools=False)
             version += "+yuos1"
         write_qualcomm_boards(boards)
     if "boot" in profile:
-        config = stage / "usr/lib/modprobe.d/90-claw-apple-speakers.conf"
+        config = stage / "usr/lib/modprobe.d/90-yuos-apple-speakers.conf"
         config.parent.mkdir(parents=True)
-        loader = f"/usr/lib/yuos/asahi/claw-asahi-audio load '{release}'" if "asahi_audio" in profile else "/bin/false"
+        loader = f"/usr/lib/yuos/asahi/yuos-asahi-audio load '{release}'" if "asahi_audio" in profile else "/bin/false"
         # Keep alias autoload blocked; the install hook admits only calibrated boards.
         config.write_text(f"blacklist snd_soc_macaudio\ninstall snd_soc_macaudio {loader}\n", encoding="utf-8")
         # This Aurora release can write shared Secure Enclave state. Never probe it before owner consent.
-        config.with_name("90-claw-apple-touch-id.conf").write_text(
-            "blacklist apple_sep\ninstall apple_sep /usr/lib/yuos/asahi/claw-asahi-touch-id load\n", encoding="utf-8")
+        config.with_name("90-yuos-apple-touch-id.conf").write_text(
+            "blacklist apple_sep\ninstall apple_sep /usr/lib/yuos/asahi/yuos-asahi-touch-id load\n", encoding="utf-8")
         if "asahi_audio" in profile:
             version += "+yuos2"
     package(
@@ -294,7 +294,7 @@ def write_qualcomm_boards(directory):
     if not rows:
         raise ValueError("the platform kernel is missing Qualcomm board descriptions")
     labels = Counter(row[2] for row in rows)
-    with (directory / "claw-boards.list").open("w", encoding="utf-8") as boards:
+    with (directory / "yuos-boards.list").open("w", encoding="utf-8") as boards:
         for tree, compatible, model in rows:
             if labels[model] > 1:
                 model += f" ({tree.removesuffix('.dtb')})"
@@ -309,7 +309,7 @@ def nvidia_package(profile, source, provenance, work, out, kernel_version):
     stage = work / "nvidia"
     build_nvidia_modules(source["nvidia-modules"], version, release, work / "linux", work, stage)
     stage_nvidia_userspace(source["nvidia-userspace"], version, work, stage)
-    options = stage / "usr/lib/modprobe.d/90-claw-nvidia.conf"
+    options = stage / "usr/lib/modprobe.d/90-yuos-nvidia.conf"
     options.parent.mkdir(parents=True)
     options.write_text("options nvidia_drm modeset=1 fbdev=1\nsoftdep nvidia post: nvidia_drm\n", encoding="utf-8")
     package(

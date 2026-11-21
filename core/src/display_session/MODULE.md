@@ -10,7 +10,7 @@ parent/start identity; the request has no owner, session, epoch or executable
 fields. The broker generates a fresh epoch and retains the workload guard
 before the compositor can dispatch protocols.
 
-`host.rs` starts the protected `/usr/libexec/claw-hyprland/Hyprland` with the
+`host.rs` starts the protected `/usr/libexec/yuos-hyprland/Hyprland` with the
 authenticated account's credentials and a cleared environment. The inherited
 control descriptor precedes Wayland dispatch. Bounded locale values come from
 the PAM handle, not a loader environment; the compositor and downstream
@@ -93,9 +93,9 @@ work; regional persistence/readback does not establish startup consumption.
 | `/usr/lib/yuos/bin/yuos-display-host` | Agent |
 | `/usr/local/bin/yuos-display-session` | Agent |
 | `/usr/local/bin/yuos-gui-runner` | Agent |
-| `/usr/lib/<GNU-multiarch>/security/pam_claw_display.so` | Agent |
-| `/usr/libexec/claw-hyprland/Hyprland` | Desktop |
-| `/etc/pam.d/claw-desktop` and greetd startup integration | Desktop |
+| `/usr/lib/<GNU-multiarch>/security/pam_yuos_display.so` | Agent |
+| `/usr/libexec/yuos-hyprland/Hyprland` | Desktop |
+| `/etc/pam.d/yuos-desktop` and greetd startup integration | Desktop |
 
 Agent provides the OS-only `yuos-display-session-v2` ABI; Desktop requires
 it. The PAM library is built for the GNU target and requires the system PAM

@@ -139,13 +139,13 @@ fn install_packages(package_only: bool, native: Option<native_products::Product>
     }
     eprintln!(
         "private selected-read timing sourceStep=fixture_probe_elf_bytes probeElfBytes={}",
-        std::fs::metadata("/usr/lib/yuos/bin/claw-gui-probe").unwrap().len(),
+        std::fs::metadata("/usr/lib/yuos/bin/yuos-gui-probe").unwrap().len(),
     );
     for id in ["gui-boundary-test", "gui-boundary-zero", "gui-file-manager-test"] {
         let dir = Path::new("/usr/lib/yuos/apps").join(id);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
-        std::fs::copy("/usr/lib/yuos/bin/claw-gui-probe", dir.join("gui-probe")).unwrap();
+        std::fs::copy("/usr/lib/yuos/bin/yuos-gui-probe", dir.join("gui-probe")).unwrap();
         std::fs::set_permissions(
             dir.join("gui-probe"),
             std::fs::Permissions::from_mode(0o755),
@@ -244,8 +244,8 @@ fn install_packages(package_only: bool, native: Option<native_products::Product>
             });
             if package_only {
                 let optional = [
-                    "yuos-app-acceptance-support", "claw-package-acceptance-side-effect",
-                    "claw-native-package-unused", "claw-native-package-pending",
+                    "yuos-app-acceptance-support", "yuos-package-acceptance-side-effect",
+                    "yuos-native-package-unused", "yuos-native-package-pending",
                 ].into_iter().map(|name| serde_json::json!({
                     "verb":"sys.package", "scope":{"kind":"fixed","scope":{"kind":"name","value":name}},
                     "why":{"en":"Request this exact private Debian target through protected Critical OS review"}
@@ -927,7 +927,7 @@ async fn run_home_metadata_window(group: &std::fs::File, case: usize, ending: &s
         fields.get(4).copied() == metadata_path.to_str()
             && fields.iter().position(|field| *field == "-").is_some_and(|at|
                 fields.get(at + 1) == Some(&"fuse")
-                    && fields.get(at + 2).is_some_and(|source| source.starts_with("claw-native-fs-")))
+                    && fields.get(at + 2).is_some_and(|source| source.starts_with("yuos-native-fs-")))
     }));
     let group_path = std::fs::read_link(format!("/proc/self/fd/{}", retained.group.as_raw_fd())).unwrap();
     let processes = std::fs::read_to_string(group_path.join("cgroup.procs")).unwrap().lines().map(|pid| {
@@ -1965,7 +1965,7 @@ fn private_native_fs_kernel() {
     }), "native mutation evidence must use the private bootstrap's volatile state mount");
     assert_eq!(std::fs::read_to_string("/proc/self/loginuid").unwrap().trim(), "4294967295");
     let cgroup = std::fs::read_to_string("/run/gui-fixture/cgroup").unwrap();
-    assert!(cgroup.trim().starts_with("/sys/fs/cgroup/claw-display-fixture."));
+    assert!(cgroup.trim().starts_with("/sys/fs/cgroup/yuos-display-fixture."));
     let cgroup = Path::new(cgroup.trim());
     std::fs::write(cgroup.join("cgroup.subtree_control"), b"+cpu +memory +pids").unwrap();
     let _ = tracing_subscriber::fmt().with_max_level(tracing::Level::INFO)
@@ -2037,7 +2037,7 @@ fn private_native_fs_kernel() {
             tier: TrustTier::AppOperation, label: "private-native-fs-kernel".into(),
             program: "/usr/local/bin/yuos-app-runner".into(),
             argv: vec!["--launch-gate".into(), entry_token.clone(), "--".into(),
-                "/usr/lib/yuos/bin/claw-gui-probe".into(), "native-fs-kernel".into(), "/resource-view".into()],
+                "/usr/lib/yuos/bin/yuos-gui-probe".into(), "native-fs-kernel".into(), "/resource-view".into()],
             workdir: "/data".into(),
             mounts: vec![if ending == "write" {
                     Mount::read_write(&mountpoint, "/resource-view", MountClass::Output)
@@ -2257,7 +2257,7 @@ fn private_gui_fixture_selected(
         });
         let path = std::fs::read_to_string("/run/gui-fixture/cgroup").unwrap();
         let path = path.trim();
-        assert!(path.starts_with("/sys/fs/cgroup/claw-display-fixture."));
+        assert!(path.starts_with("/sys/fs/cgroup/yuos-display-fixture."));
         let root = Path::new(path);
         std::fs::write(root.join("cgroup.subtree_control"), b"+cpu +memory +pids").unwrap();
         if package_only && native.is_none() {

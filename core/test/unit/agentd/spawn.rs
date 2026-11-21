@@ -16,10 +16,10 @@ fn an_agent_worker_never_points_at_a_home_its_owner_does_not_control() {
 fn the_worker_binary_can_be_pinned_for_a_dev_tree() {
     let _lock = crate::test_env::lock_env();
     let previous = std::env::var_os("YUOS_AGENTD_BIN");
-    std::env::set_var("YUOS_AGENTD_BIN", "/opt/claw/yuos-agentd");
+    std::env::set_var("YUOS_AGENTD_BIN", "/opt/yuos/yuos-agentd");
     assert_eq!(
         worker_binary_path(),
-        std::path::PathBuf::from("/opt/claw/yuos-agentd")
+        std::path::PathBuf::from("/opt/yuos/yuos-agentd")
     );
     match previous {
         Some(value) => std::env::set_var("YUOS_AGENTD_BIN", value),

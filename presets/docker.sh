@@ -2,7 +2,7 @@
 # presets/docker.sh — Yu OS as a Docker image.
 #
 # Builds the headless Yu OS Docker image: the full non-desktop OS
-# runtime (cos / yuosd / browser stack) packaged as a container. No
+# runtime (yu / yuosd / browser stack) packaged as a container. No
 # desktop UI, no boot/VM-only features — containers share the host kernel.
 #
 # Uses the docker target's own default feature set (base, yuos-core,

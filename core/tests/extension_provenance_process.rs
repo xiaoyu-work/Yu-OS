@@ -672,7 +672,7 @@ fn scratch(label: &str) -> PathBuf {
     let home = std::env::var_os("HOME")
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir);
-    let base = home.join(".cache").join("cos-provenance-it");
+    let base = home.join(".cache").join("yuos-provenance-it");
     let dir = base.join(format!("{label}-{}", uuid::Uuid::new_v4().simple()));
     fs::create_dir_all(&dir).unwrap();
     let _ = fs::set_permissions(&base, fs::Permissions::from_mode(0o700));

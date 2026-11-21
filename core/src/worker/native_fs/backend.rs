@@ -1428,7 +1428,7 @@ impl Filesystem {
             Ok(_) => return Err(libc::EEXIST),
         }
         let descriptor =
-            unsafe { libc::memfd_create(c"claw-native-save".as_ptr(), libc::MFD_CLOEXEC) };
+            unsafe { libc::memfd_create(c"yuos-native-save".as_ptr(), libc::MFD_CLOEXEC) };
         if descriptor < 0 {
             return Err(errno(std::io::Error::last_os_error()));
         }

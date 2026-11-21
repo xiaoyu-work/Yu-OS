@@ -84,7 +84,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "claw-smithay-selection-read-tests"
+name = "yuos-smithay-selection-read-tests"
 version = "0.0.0"
 dependencies = [
  "rustix",

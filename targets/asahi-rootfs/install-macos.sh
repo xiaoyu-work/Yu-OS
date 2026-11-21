@@ -49,7 +49,7 @@ else
     [ "$#" -eq 3 ] || fail "the restore helper is only needed on MacBook Neo"
 fi
 
-work=$(/usr/bin/mktemp -d /private/var/tmp/claw-asahi.XXXXXX)
+work=$(/usr/bin/mktemp -d /private/var/tmp/yuos-asahi.XXXXXX)
 trap '/bin/rm -rfx -- "$work"' EXIT
 if [ "$model" = Mac17,5 ]; then
     decoder="$work/restore-image"
@@ -77,7 +77,7 @@ if [ "$model" = Mac17,5 ]; then
     /usr/bin/tar -oxzf "$work/neo-source.tar.gz" -C "$work/neo" "$overlay" "$NEO_SOURCE_ROOT/LICENSE"
     /usr/bin/install -m 0600 "$work/neo/$overlay"/omarchy_*.py "$work/runtime/"
     /usr/bin/install -m 0600 "$work/neo/$NEO_SOURCE_ROOT/LICENSE" "$work/runtime/LICENSE.neo"
-    /usr/bin/install -m 0600 "$scripts/install-macos-neo.py" "$work/runtime/claw_neo.py"
+    /usr/bin/install -m 0600 "$scripts/install-macos-neo.py" "$work/runtime/yuos_neo.py"
 fi
 
 cd "$work/runtime"

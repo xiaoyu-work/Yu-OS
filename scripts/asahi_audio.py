@@ -43,11 +43,11 @@ def m3_speaker_protection(source, work, stage, doc):
         for path in (card, *(profiles / "aop_audio").glob(f"* J{model} High-Power Audio Interface.conf")):
             stage_file(path, stage / "usr/share/alsa/ucm2/conf.d" / path.relative_to(profiles))
     ids = "|".join(f"AppleJ{model}" for model in M3_MODELS)
-    write_file(stage / "usr/lib/udev/rules.d/96-claw-asahi-m3-speakers.rules", f"""SUBSYSTEM=="sound", DRIVERS=="snd-soc-macaudio", GOTO="claw_asahi_m3_audio"
-GOTO="claw_asahi_m3_audio_end"
-LABEL="claw_asahi_m3_audio"
+    write_file(stage / "usr/lib/udev/rules.d/96-yuos-asahi-m3-speakers.rules", f"""SUBSYSTEM=="sound", DRIVERS=="snd-soc-macaudio", GOTO="yuos_asahi_m3_audio"
+GOTO="yuos_asahi_m3_audio_end"
+LABEL="yuos_asahi_m3_audio"
 KERNEL=="pcmC*D2c", ATTRS{{id}}=="{ids}", TAG+="systemd", ENV{{SYSTEMD_WANTS}}+="speakersafetyd.service"
-LABEL="claw_asahi_m3_audio_end"
+LABEL="yuos_asahi_m3_audio_end"
 """)
     stage_file(tree / "LICENSE", doc / "speakersafetyd.LICENSE")
     stage_file(ucm / "LICENSE.asahi", doc / "alsa-ucm.LICENSE")
@@ -76,21 +76,21 @@ def neo_audio(source, work, stage, doc, release):
     wireplumber = stage / "usr/share/wireplumber"
     stage_file(dsp / "conf/asahi-unplugged-routes.lua", wireplumber / "scripts/device/asahi-unplugged-routes.lua")
     stage_file(dsp / "conf/asahi-restore-volume.lua", wireplumber / "scripts/node/asahi-restore-volume.lua")
-    stage_file(ASSETS / "99-claw-asahi-neo.conf", wireplumber / "wireplumber.conf.d/99-claw-asahi-neo.conf")
-    write_file(stage / "usr/lib/udev/rules.d/96-claw-asahi-neo-speakers.rules", """SUBSYSTEM=="sound", DRIVERS=="snd-soc-macaudio", GOTO="claw_asahi_neo_audio"
-GOTO="claw_asahi_neo_audio_end"
-LABEL="claw_asahi_neo_audio"
-KERNEL=="pcmC*D2c", ATTRS{id}=="AppleJ700", ENV{ACP_IGNORE}="1", TAG+="systemd", ENV{SYSTEMD_WANTS}+="claw-asahi-neo-speaker-guard.service"
-LABEL="claw_asahi_neo_audio_end"
+    stage_file(ASSETS / "99-yuos-asahi-neo.conf", wireplumber / "wireplumber.conf.d/99-yuos-asahi-neo.conf")
+    write_file(stage / "usr/lib/udev/rules.d/96-yuos-asahi-neo-speakers.rules", """SUBSYSTEM=="sound", DRIVERS=="snd-soc-macaudio", GOTO="yuos_asahi_neo_audio"
+GOTO="yuos_asahi_neo_audio_end"
+LABEL="yuos_asahi_neo_audio"
+KERNEL=="pcmC*D2c", ATTRS{id}=="AppleJ700", ENV{ACP_IGNORE}="1", TAG+="systemd", ENV{SYSTEMD_WANTS}+="yuos-asahi-neo-speaker-guard.service"
+LABEL="yuos_asahi_neo_audio_end"
 """)
-    write_file(stage / "usr/lib/systemd/system/claw-asahi-neo-speaker-guard.service", f"""[Unit]
+    write_file(stage / "usr/lib/systemd/system/yuos-asahi-neo-speaker-guard.service", f"""[Unit]
 Description=Protect MacBook Neo speakers
-After=claw-asahi-audio.service
+After=yuos-asahi-audio.service
 StartLimitIntervalSec=60
 StartLimitBurst=5
 
 [Service]
-ExecCondition=/usr/lib/yuos/asahi/claw-asahi-audio check {release} speakerguardd
+ExecCondition=/usr/lib/yuos/asahi/yuos-asahi-audio check {release} speakerguardd
 ExecStart=/{NEO_DAEMON} -c /{THERMAL} -C AppleJ700 --wait-for-card 30
 DynamicUser=yes
 SupplementaryGroups=audio
@@ -136,15 +136,15 @@ def asahi_audio_package(profile, source, provenance, work, out, package):
     stage_file(tree / "LICENSE", doc / "copyright")
     stage_file(tree / "LICENCE.MIT", doc / "asahi-audio.MIT")
     stage_file(source[key], doc / "asahi-audio-source.tar.gz")
-    stage_file(ASSETS / "claw-asahi-audio", stage / "usr/lib/yuos/asahi/claw-asahi-audio", 0o755)
-    write_file(stage / "usr/lib/systemd/system/claw-asahi-audio.service", f"""[Unit]
+    stage_file(ASSETS / "yuos-asahi-audio", stage / "usr/lib/yuos/asahi/yuos-asahi-audio", 0o755)
+    write_file(stage / "usr/lib/systemd/system/yuos-asahi-audio.service", f"""[Unit]
 Description=Load protected Asahi audio on a supported Mac
 ConditionKernelVersion={release}
 After=systemd-udev-trigger.service
 
 [Service]
 Type=oneshot
-ExecCondition=/usr/lib/yuos/asahi/claw-asahi-audio check {release}
+ExecCondition=/usr/lib/yuos/asahi/yuos-asahi-audio check {release}
 ExecStart=/usr/sbin/modprobe snd_soc_macaudio
 RemainAfterExit=yes
 
@@ -157,7 +157,7 @@ WantedBy=multi-user.target
         neo_audio(source, work, stage, doc, release)
         override += f"""
 [Service]
-ExecCondition=/usr/lib/yuos/asahi/claw-asahi-audio check {release} speakersafetyd
+ExecCondition=/usr/lib/yuos/asahi/yuos-asahi-audio check {release} speakersafetyd
 ExecStart=
 ExecStart=/{DAEMON} -c /{THERMAL}/ -m 7
 """
@@ -167,7 +167,7 @@ ExecStart=/{DAEMON} -c /{THERMAL}/ -m 7
         calibration.mkdir(parents=True)
         for model in MODELS:
             (calibration / f"j{model}.conf").symlink_to(f"/usr/share/speakersafetyd/apple/j{model}.conf")
-    write_file(stage / "usr/lib/systemd/system/speakersafetyd.service.d/10-claw-asahi.conf", override)
+    write_file(stage / "usr/lib/systemd/system/speakersafetyd.service.d/10-yuos-asahi.conf", override)
     version = "1-3+native3" if extended else "1-3+base2"
     runtime = ", libasound2t64, libgcc-s1, libc6 (>= 2.34)" if extended else ""
     wp = "0.5.12" if extended else "0.5.8"

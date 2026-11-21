@@ -861,7 +861,7 @@ pub fn run_apt_hook() -> Result<(), String> {
         if unsafe { libc::getuid() } != 0 || unsafe { libc::geteuid() } != 0 {
             return Err("APT delivery hooks require the tracked Root installer".into());
         }
-        let id = std::env::var("CLAW_APP_STORE_REQUEST").map_err(|_| "Missing APT request context")?;
+        let id = std::env::var("YUOS_APP_STORE_REQUEST").map_err(|_| "Missing APT request context")?;
         request_path(&id)?;
         let mut bytes = Vec::new();
         std::io::stdin().take(1024 * 1024 + 1).read_to_end(&mut bytes).map_err(|error| error.to_string())?;

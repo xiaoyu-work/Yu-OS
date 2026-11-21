@@ -92,7 +92,7 @@ def kernel_modules(profile, source, fixes, work, stage, kbuild):
         write_file(directory / "Kbuild", definitions + "\nobj-m := " +
                    " ".join(module + ".o" for module in modules.split()) + "\n")
     subprocess.run(["make", "-C", kbuild, f"M={tree}", f"-j{os.cpu_count()}", "modules"], check=True)
-    destination = stage / "usr/lib/modules" / release / "updates/claw-surface"
+    destination = stage / "usr/lib/modules" / release / "updates/yuos-surface"
     for path, modules in MODULES.items():
         for module in modules.split():
             filename = module + ".ko"
@@ -202,7 +202,7 @@ algorithms:
       gamma: 2.4
   - Agc:
 """)
-    write_file(stage / "usr/share/wireplumber/wireplumber.conf.d/60-claw-romulus-ir.conf", """monitor.libcamera.rules = [
+    write_file(stage / "usr/share/wireplumber/wireplumber.conf.d/60-yuos-romulus-ir.conf", """monitor.libcamera.rules = [
   {
     matches = [{ api.libcamera.path = "/base/soc@0/cci@ac15000/i2c-bus@0/camera@10" }]
     actions = { update-props = { device.disabled = true } }
@@ -233,7 +233,7 @@ def romulus_fastrpc(archive, work, stage, package_name):
         raise ValueError("libcdsprpc.so: missing FastRPC build output")
     stage_file(tree / "test/fastrpc-healthcheck", stage / "usr/bin/fastrpc-healthcheck", 0o755)
     stage_file(tree / "LICENSE.txt", stage / "usr/share/doc" / package_name / "fastrpc.LICENSE")
-    write_file(stage / "usr/lib/udev/rules.d/70-claw-romulus-fastrpc.rules",
+    write_file(stage / "usr/lib/udev/rules.d/70-yuos-romulus-fastrpc.rules",
                'SUBSYSTEM=="misc", KERNEL=="fastrpc-cdsp", TAG+="uaccess"\n'
                'SUBSYSTEM=="dma_heap", KERNEL=="system", TAG+="uaccess"\n')
     write_file(stage / "DEBIAN/triggers", "activate-noawait ldconfig\n")
@@ -267,17 +267,17 @@ def camera_packages(source, fixes, work, out):
 
 def configs(fixes, stage):
     source = fixes / "configs/etc"
-    stage_file(source / "modprobe.d/surface-sam.conf", stage / "usr/lib/modprobe.d/60-claw-surface.conf")
-    write_file(stage / "usr/share/initramfs-tools/modules.d/claw-surface",
+    stage_file(source / "modprobe.d/surface-sam.conf", stage / "usr/lib/modprobe.d/60-yuos-surface.conf")
+    write_file(stage / "usr/share/initramfs-tools/modules.d/yuos-surface",
                "pinctrl_intel_platform\nsurface_aggregator\nsurface_aggregator_registry\nsurface_hid\n")
     stage_file(source / "iptsd.d/99-surface-laptop-7-touchpad.conf",
                stage / "etc/iptsd.d/99-surface-laptop-7-touchpad.conf")
-    stage_file(source / "libinput/local-overrides.quirks", stage / "usr/share/libinput/65-claw-surface.quirks")
+    stage_file(source / "libinput/local-overrides.quirks", stage / "usr/share/libinput/65-yuos-surface.quirks")
     stage_file(source / "wireplumber/wireplumber.conf.d/50-surface-sl7-hide-ipu7-raw.conf",
-               stage / "usr/share/wireplumber/wireplumber.conf.d/50-claw-surface.conf")
+               stage / "usr/share/wireplumber/wireplumber.conf.d/50-yuos-surface.conf")
     model = "/sys/bus/acpi/devices/MSHW0551:00"
     wake = (source / "udev/rules.d/90-surface-sam-wakeup.rules").read_text()
-    write_file(stage / "usr/lib/udev/rules.d/90-claw-surface-wakeup.rules",
+    write_file(stage / "usr/lib/udev/rules.d/90-yuos-surface-wakeup.rules",
                wake.replace('ACTION=="add", ', f'TEST=="{model}", ACTION=="add", '))
     for name in ("btintel-pcie.sh", "sl7-card-reader.sh"):
         script = (fixes / "configs/usr/lib/systemd/system-sleep" / name).read_text()

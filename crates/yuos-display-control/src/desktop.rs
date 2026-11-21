@@ -168,7 +168,7 @@ pub fn seal_response(bytes: &[u8]) -> Result<OwnedFd, Error> {
     validate_response(bytes)?;
     let raw = unsafe {
         libc::memfd_create(
-            c"claw-desktop-response".as_ptr(),
+            c"yuos-desktop-response".as_ptr(),
             libc::MFD_CLOEXEC | libc::MFD_ALLOW_SEALING,
         )
     };

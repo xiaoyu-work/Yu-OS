@@ -447,7 +447,7 @@ fn presentation_metadata(
 
 fn derive_presentation_id(id: &SessionId) -> PresentationId {
     let mut hasher = Sha256::new();
-    hasher.update(b"claw-tui/thread/v1\0");
+    hasher.update(b"yuos-tui/thread/v1\0");
     hasher.update(id.as_str().as_bytes());
     let digest = hasher.finalize();
     let mut bytes = [0u8; 16];

@@ -1,5 +1,5 @@
 #include "DataDevice.hpp"
-#include "../../../../hyprland-claw/Yu OS.hpp"
+#include "../../../../hyprland-yuos/YuOs.hpp"
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -35,7 +35,7 @@ CWLDataOfferResource::CWLDataOfferResource(SP<CWlDataOffer> resource_, SP<IDataS
     m_resource->setOnDestroy([this](CWlDataOffer* r) { PROTO::data->destroyResource(this); });
 
     m_resource->setAccept([this](CWlDataOffer* r, uint32_t serial, const char* mime) {
-        if (m_selection && !Yu OS::permitted(r->client(), CLAW_SELECTION_READ))
+        if (m_selection && !YuOs::permitted(r->client(), YUOS_SELECTION_READ))
             return;
         if (!m_source) {
             LOG(Log::WARN, "Possible bug: Accept on an offer w/o a source");
@@ -55,7 +55,7 @@ CWLDataOfferResource::CWLDataOfferResource(SP<CWlDataOffer> resource_, SP<IDataS
 
     m_resource->setReceive([this](CWlDataOffer* r, const char* mime, int fd) {
         CFileDescriptor sendFd{fd};
-        if (m_selection && !Yu OS::permitted(r->client(), CLAW_SELECTION_READ))
+        if (m_selection && !YuOs::permitted(r->client(), YUOS_SELECTION_READ))
             return;
         if (!m_source) {
             LOG(Log::WARN, "Possible bug: Receive on an offer w/o a source");
@@ -152,7 +152,7 @@ bool CWLDataOfferResource::good() {
 }
 
 void CWLDataOfferResource::sendData() {
-    if (m_selection && !Yu OS::permitted(m_resource->client(), CLAW_SELECTION_READ))
+    if (m_selection && !YuOs::permitted(m_resource->client(), YUOS_SELECTION_READ))
         return;
     if (!m_source)
         return;
@@ -308,7 +308,7 @@ CWLDataDeviceResource::CWLDataDeviceResource(SP<CWlDataDevice> resource_) : m_re
     m_client = m_resource->client();
 
     m_resource->setSetSelection([](CWlDataDevice* r, wl_resource* sourceR, uint32_t serial) {
-        if (!Yu OS::permitted(r->client(), CLAW_SELECTION_WRITE))
+        if (!YuOs::permitted(r->client(), YUOS_SELECTION_WRITE))
             return;
         auto source = sourceR ? CWLDataSourceResource::fromResource(sourceR) : CSharedPointer<CWLDataSourceResource>{};
         if (!source) {
@@ -518,7 +518,7 @@ SP<IDataDevice> CWLDataDeviceProtocol::dataDeviceForClient(wl_client* c) {
 
 void CWLDataDeviceProtocol::sendSelectionToDevice(SP<IDataDevice> dev, SP<IDataSource> sel) {
     const auto WL = dev->getWayland();
-    if (!WL || !Yu OS::permitted(WL->client(), CLAW_SELECTION_READ))
+    if (!WL || !YuOs::permitted(WL->client(), YUOS_SELECTION_READ))
         return;
     if (!sel) {
         dev->sendSelection(nullptr);

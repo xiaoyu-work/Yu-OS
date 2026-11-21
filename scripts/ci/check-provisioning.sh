@@ -9,8 +9,8 @@ scripts=(
     tools/install-mail-ai.sh
     packaging/deb/build-debs.sh
     packaging/deb/build-desktop-deb.sh
-    desktop/hyprland-claw/build-locker.sh
-    desktop/hyprland-claw/stage-desktop.sh
+    desktop/hyprland-yuos/build-locker.sh
+    desktop/hyprland-yuos/stage-desktop.sh
     rootfs/features/desktop/install.sh
     crates/yuos-display-login/test/fixtures/bootstrap.sh
     crates/yuos-display-login/test/fixtures/authenticate.sh

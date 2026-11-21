@@ -10,7 +10,7 @@ Type=oneshot
 RemainAfterExit=yes
 # Reads an explicit admin/first-boot target from /etc/default/yuos-home.
 # When unset, the helper resolves an existing human user's passwd home;
-# if no such user exists yet it defers without creating /home/cos.
+# if no such user exists yet it defers without creating /home/yuos.
 EnvironmentFile=-/etc/default/yuos-home
 ExecStart=/usr/lib/yuos/init/setup-home.sh
 StandardOutput=journal

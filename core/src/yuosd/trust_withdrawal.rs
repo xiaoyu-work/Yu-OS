@@ -992,10 +992,10 @@ mod tests {
             let home_source = root.join("run/yuos/withdrawal-home");
             let foreign_source = root.join("run/yuos/withdrawal-foreign");
             let control = root.join("control");
-            for directory in [&home_source, &foreign_source, &control, &root.join("etc/yuos"), &root.join("var-lib/cos"), &root.join("run/yuos/caps"), &root.join("vendor-trust")] {
+            for directory in [&home_source, &foreign_source, &control, &root.join("etc/yuos"), &root.join("var-lib/yuos"), &root.join("run/yuos/caps"), &root.join("vendor-trust")] {
                 std::fs::create_dir_all(directory).unwrap();
             }
-            for directory in ["etc", "etc/yuos", "var-lib", "var-lib/cos", "run", "run/yuos", "run/yuos/caps", "vendor-trust"] {
+            for directory in ["etc", "etc/yuos", "var-lib", "var-lib/yuos", "run", "run/yuos", "run/yuos/caps", "vendor-trust"] {
                 std::fs::set_permissions(root.join(directory), std::fs::Permissions::from_mode(0o755)).unwrap();
             }
             std::fs::set_permissions(&control, std::fs::Permissions::from_mode(0o711)).unwrap();

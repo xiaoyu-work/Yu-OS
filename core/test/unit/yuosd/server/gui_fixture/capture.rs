@@ -71,7 +71,7 @@ impl Portal {
         let token = String::try_from(options.remove("handle_token").unwrap()).unwrap();
         assert!(options.is_empty());
         assert!(token
-            .strip_prefix("claw_portal_")
+            .strip_prefix("yuos_portal_")
             .is_some_and(|id| id.len() == 32 && id.bytes().all(|byte| byte.is_ascii_hexdigit())));
         let sender = header.sender().unwrap().to_string();
         let bus = zbus::fdo::DBusProxy::new(connection).await.unwrap();

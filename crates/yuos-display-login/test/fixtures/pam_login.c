@@ -46,7 +46,7 @@ static int kernel_number(const char *path, unsigned *number) {
 #include "gui_fixture.h"
 
 static int display_hook(pam_handle_t *handle, int opening) {
-    void *module = dlopen("/usr/lib/x86_64-linux-gnu/security/pam_claw_display.so",
+    void *module = dlopen("/usr/lib/x86_64-linux-gnu/security/pam_yuos_display.so",
                           RTLD_NOW | RTLD_LOCAL);
     if (!module)
         return PAM_SYSTEM_ERR;
@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
             : "private-disposable-display-fixture-password"
     };
     pam_handle_t *handle = NULL;
-    int result = pam_start_confdir("claw-desktop", "claw-display-test",
+    int result = pam_start_confdir("yuos-desktop", "yuos-display-test",
                                   &conv, argv[1], &handle);
     if (result == PAM_SUCCESS)
         result = pam_authenticate(handle, PAM_SILENT);

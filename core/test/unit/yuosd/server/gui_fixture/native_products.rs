@@ -782,7 +782,7 @@ fn process_failure_evidence(
         .map(|tasks| tasks.filter_map(Result::ok).take(256).filter_map(|task| {
             let path = task.path();
             let name = std::fs::read_to_string(path.join("comm")).ok()?;
-            name.trim().starts_with("claw-native-fs").then(|| serde_json::json!({
+            name.trim().starts_with("yuos-native-fs").then(|| serde_json::json!({
                 "tid": task.file_name().to_string_lossy(), "name": name.trim(),
                 "stat": read(&path.join("stat")), "wchan": read(&path.join("wchan")),
                 "syscall": read(&path.join("syscall")), "stack": read(&path.join("stack")),

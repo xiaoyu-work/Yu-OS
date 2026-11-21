@@ -52,7 +52,7 @@ fi
 # `splash` is kept from 50-yuos.cfg: it is what starts plymouth, which
 # covers the boot-to-greeter transition.
 mkdir -p "$ROOTFS/etc/default/grub.d"
-if [[ -f "$ROOTFS/etc/greetd/claw-desktop.toml" ]]; then
+if [[ -f "$ROOTFS/etc/greetd/yuos-desktop.toml" ]]; then
     cat > "$ROOTFS/etc/default/grub.d/60-yuos-vm.cfg" <<'EOF'
 # Keep the serial console for recovery, without Plymouth switching to text.
 GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3 audit=1 console=tty0 console=ttyS0,115200n8 plymouth.ignore-serial-consoles"

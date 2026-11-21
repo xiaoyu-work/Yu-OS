@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 fn tmpdir(label: &str) -> PathBuf {
     let p = std::env::temp_dir().join(format!(
-        "cos-skills-prov-{label}-{}",
+        "yuos-skills-prov-{label}-{}",
         Uuid::new_v4().simple()
     ));
     fs::create_dir_all(&p).unwrap();

@@ -22,7 +22,7 @@ OUT_DIR="$PROJECT_DIR/build/debs"
 source "$PROJECT_DIR/scripts/lib/package-version.sh"
 VERSION="$(package_version "$PROJECT_DIR")"
 APP_RUNTIME_VERSION="$(python3 "$PROJECT_DIR/scripts/app_packages.py" runtime-version)"
-NATIVE_DEPS="${CLAW_DESKTOP_RUNTIME_DEPS:?native dependency scan is required}"
+NATIVE_DEPS="${YUOS_DESKTOP_RUNTIME_DEPS:?native dependency scan is required}"
 if [[ ! "$NATIVE_DEPS" =~ ^[a-z0-9+.,~:\(\)=\<\>\ -]+$ ]]; then
     echo "error: invalid native desktop package dependencies" >&2
     exit 1
@@ -41,8 +41,8 @@ if [ -e "$STAGE_ROOT/usr/bin/pop-launcher" ] || [ -L "$STAGE_ROOT/usr/bin/pop-la
     echo "error: shared Launcher runtime belongs to yuos-agent, not Desktop" >&2
     exit 1
 fi
-compositor="$STAGE_ROOT/usr/libexec/claw-hyprland/Hyprland"
-locker="$STAGE_ROOT/usr/libexec/claw-hyprland/claw-lockscreen"
+compositor="$STAGE_ROOT/usr/libexec/yuos-hyprland/Hyprland"
+locker="$STAGE_ROOT/usr/libexec/yuos-hyprland/yuos-lockscreen"
 APPLET_PROVIDER="$STAGE_ROOT/usr/libexec/yuos-applet-provider"
 for executable in "$APPLET_PROVIDER" "$compositor" "$locker"; do
 if [ ! -f "$executable" ] || [ ! -x "$executable" ] || [ -L "$executable" ]; then
@@ -140,7 +140,7 @@ source "$RELEASE_SECURITY_DIR/sign-manifest.sh"
 # no unrelated build step inherits it.
 RELEASE_SECURITY_PASSPHRASE="${GPG_PASSPHRASE:-}"
 unset GPG_PASSPHRASE
-RELEASE_SECURITY_KEY_ID="$(claw_resolve_signing_key)" || exit 1
+RELEASE_SECURITY_KEY_ID="$(yuos_resolve_signing_key)" || exit 1
 if [ -z "${SOURCE_DATE_EPOCH:-}" ]; then
     SOURCE_DATE_EPOCH="$(git -C "$PROJECT_DIR" log -1 --pretty=%ct 2>/dev/null || true)"
     [ -n "$SOURCE_DATE_EPOCH" ] && export SOURCE_DATE_EPOCH
@@ -148,7 +148,7 @@ fi
 
 DESKTOP_MANIFEST="$STAGE_ROOT/usr/lib/yuos/release-security/yuos-desktop/manifest.json"
 install -d -m 0755 "$STAGE_ROOT/usr/lib/yuos/release-security"
-claw_write_release_manifest \
+yuos_write_release_manifest \
     "$RELEASE_SECURITY_KEY_ID" "$RELEASE_SECURITY_PASSPHRASE" \
     "$RELEASE_SECURITY_DIR/make-manifest.py" yuos-desktop "$VERSION" \
     "$DEB_ARCH" "${SUITE:-trixie}" "$STAGE_ROOT" "$RELEASE_SECURITY_POLICY" \

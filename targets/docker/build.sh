@@ -3,13 +3,13 @@
 #
 # Produces the headless Yu OS Docker image: the full non-desktop OS runtime
 # (`base,yuos-core,browser,systemd,apt-source,qwen3-embedding`) with Yu OS's own
-# cos/yuosd agent, apps, skills, browser automation, upgrade source, and the
+# yu/yuosd agent, apps, skills, browser automation, upgrade source, and the
 # local embedding stack on architectures where upstream ships a Linux
 # ort-genai runtime. It intentionally does not include desktop UI,
 # installer/boot/VM-only features, or third-party agent providers such as
 # copilot-cli.
 #
-# The entrypoint creates the account named by CLAW_USER before systemd starts.
+# The entrypoint creates the account named by YUOS_USER before systemd starts.
 #
 # Environment variables:
 #   TAG        Docker image tag (default: yuos)

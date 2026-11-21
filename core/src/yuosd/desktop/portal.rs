@@ -55,7 +55,7 @@ impl Prepared {
             .await.map_err(|error| error.to_string())?;
         let sender = connection.unique_name().ok_or("OS portal has no unique name")?
             .as_str().trim_start_matches(':').replace('.', "_");
-        let token = format!("claw_portal_{}", uuid::Uuid::new_v4().simple());
+        let token = format!("yuos_portal_{}", uuid::Uuid::new_v4().simple());
         let expected = OwnedObjectPath::try_from(format!(
             "/org/freedesktop/portal/desktop/request/{sender}/{token}",
         )).map_err(|error| error.to_string())?;

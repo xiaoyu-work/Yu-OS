@@ -69,9 +69,9 @@ def main(version):
     if os.geteuid() != 0:
         raise SystemExit("disk hibernation setup requires root")
     resume = resume_partition(Path("/etc/fstab"), Path("/etc/crypttab"), Path("/proc/meminfo"))
-    initramfs = Path("/etc/initramfs-tools/conf.d/zz-claw-romulus-resume")
+    initramfs = Path("/etc/initramfs-tools/conf.d/zz-yuos-romulus-resume")
     initramfs.write_text(f"RESUME={resume or 'none'}\n")
-    sleep = Path("/etc/systemd/sleep.conf.d/60-claw-romulus.conf")
+    sleep = Path("/etc/systemd/sleep.conf.d/60-yuos-romulus.conf")
     sleep.parent.mkdir(parents=True, exist_ok=True)
     sleep.write_text(f"[Sleep]\nAllowHibernation={'yes' if resume else 'no'}\nHibernateMode=shutdown\n"
                      "AllowHybridSleep=no\nAllowSuspendThenHibernate=no\n")

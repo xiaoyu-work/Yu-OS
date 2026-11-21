@@ -678,7 +678,7 @@ async fn live_backtrace(coredump: &Value, matches: &[String]) -> Result<Value, S
 
 fn crash_tempdir() -> Result<tempfile::TempDir, String> {
     let mut builder = tempfile::Builder::new();
-    builder.prefix("claw-crash-");
+    builder.prefix("yuos-crash-");
     if Path::new("/var/tmp").is_dir() {
         builder
             .tempdir_in("/var/tmp")

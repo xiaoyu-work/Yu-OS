@@ -1,8 +1,0 @@
-[Plymouth Theme]
-Name=Yu OS
-Description=Yu OS boot splash
-ModuleName=script
-
-[script]
-ImageDir=/usr/share/plymouth/themes/claw
-ScriptFile=/usr/share/plymouth/themes/claw/claw.script

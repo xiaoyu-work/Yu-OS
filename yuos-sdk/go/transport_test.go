@@ -151,8 +151,8 @@ func readArgv(t *testing.T, path string) []string {
 }
 
 func TestYuBinaryResolution(t *testing.T) {
-	t.Setenv("YUOS_KERNEL_BIN", "/x/claw")
-	if got := YuBinary(); got != "/x/claw" {
+	t.Setenv("YUOS_KERNEL_BIN", "/x/yuos")
+	if got := YuBinary(); got != "/x/yuos" {
 		t.Fatalf("YUOS_KERNEL_BIN should win, got %q", got)
 	}
 	os.Unsetenv("YUOS_KERNEL_BIN")

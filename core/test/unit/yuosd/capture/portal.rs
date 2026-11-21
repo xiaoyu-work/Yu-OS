@@ -229,7 +229,7 @@ async fn private_os_portal_helper_uses_root_dispatch_without_app_program() {
             PathBuf::from(std::env::var(variable).unwrap()),
         );
     }
-    let root = Path::new("/run/claw-capture-fixture");
+    let root = Path::new("/run/yuos-capture-fixture");
     fs::create_dir(root).unwrap();
     fs::set_permissions(root, fs::Permissions::from_mode(0o755)).unwrap();
     let binary = root.join("yuosd");

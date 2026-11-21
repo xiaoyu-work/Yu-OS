@@ -245,7 +245,7 @@ fn help() -> Value {
         "examples": [
             "yu agent diagnose \"why is my computer slow?\"",
             "yu agent diagnose --domain network \"网络为什么很慢\"",
-            "yu agent diagnose --domain storage --path /home/cos \"what is using disk space?\""
+            "yu agent diagnose --domain storage --path /home/yuos \"what is using disk space?\""
         ],
     })
 }

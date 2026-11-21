@@ -104,7 +104,7 @@ impl SessionManager {
             .any(|line| line == "NoNewPrivs:\t1"));
         assert_eq!(mode, "fail");
         assert!(auxiliary.is_empty());
-        assert!(name.starts_with("claw-settings-") && name.ends_with(".service"));
+        assert!(name.starts_with("yuos-settings-") && name.ends_with(".service"));
         let properties = properties
             .into_iter()
             .collect::<std::collections::BTreeMap<_, _>>();
@@ -222,10 +222,10 @@ fn fixture_process(role: &str, root: &Path, uid: u32, gid: u32) -> Command {
         .env("HOME", root)
         .env("PATH", "/usr/bin:/bin")
         .env("TMPDIR", root)
-        .env("CLAW_SETTINGS_FIXTURE_ROLE", role)
-        .env("CLAW_SETTINGS_FIXTURE_ROOT", root)
-        .env("CLAW_SETTINGS_FIXTURE_UID", uid.to_string())
-        .env("CLAW_SETTINGS_FIXTURE_GID", gid.to_string())
+        .env("YUOS_SETTINGS_FIXTURE_ROLE", role)
+        .env("YUOS_SETTINGS_FIXTURE_ROOT", root)
+        .env("YUOS_SETTINGS_FIXTURE_UID", uid.to_string())
+        .env("YUOS_SETTINGS_FIXTURE_GID", gid.to_string())
         .env("YUOS_DATA_DIR", root.join("data"));
     command
 }
@@ -250,13 +250,13 @@ fn request_process(role: &str, root: &Path, uid: u32, gid: u32) -> Command {
 #[test]
 #[ignore = "requires root only to test owner-UID dropping against an isolated private session bus"]
 fn settings_user_service_process_fixture() {
-    if let Ok(role) = std::env::var("CLAW_SETTINGS_FIXTURE_ROLE") {
-        let root = PathBuf::from(std::env::var_os("CLAW_SETTINGS_FIXTURE_ROOT").unwrap());
-        let uid = std::env::var("CLAW_SETTINGS_FIXTURE_UID")
+    if let Ok(role) = std::env::var("YUOS_SETTINGS_FIXTURE_ROLE") {
+        let root = PathBuf::from(std::env::var_os("YUOS_SETTINGS_FIXTURE_ROOT").unwrap());
+        let uid = std::env::var("YUOS_SETTINGS_FIXTURE_UID")
             .unwrap()
             .parse()
             .unwrap();
-        let gid = std::env::var("CLAW_SETTINGS_FIXTURE_GID")
+        let gid = std::env::var("YUOS_SETTINGS_FIXTURE_GID")
             .unwrap()
             .parse()
             .unwrap();

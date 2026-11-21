@@ -883,7 +883,7 @@ pub fn run_sdk_launcher() -> Result<(), LaunchError> {
 fn bind_sdk_listener() -> io::Result<(UnixListener, String)> {
     let sequence = SDK_ENDPOINT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     let endpoint = format!(
-        "claw-ask-v{SDK_LAUNCHER_PROTOCOL}-{}-{sequence}",
+        "yuos-ask-v{SDK_LAUNCHER_PROTOCOL}-{}-{sequence}",
         std::process::id()
     );
     if endpoint.len() + 1 > 108 {

@@ -46,7 +46,7 @@ case "$component" in
             usr/local/bin/yuos-gui-runner
             usr/local/bin/yuos-display-session
             usr/lib/yuos/bin/yuos-display-host
-            "usr/lib/$(dpkg-architecture -a"$ARCH" -qDEB_HOST_MULTIARCH)/security/pam_claw_display.so"
+            "usr/lib/$(dpkg-architecture -a"$ARCH" -qDEB_HOST_MULTIARCH)/security/pam_yuos_display.so"
             usr/lib/sysusers.d/yuos-agent.conf
             usr/local/bin/yuos-semantic
             usr/local/bin/yuos-semantic-daemon
@@ -54,9 +54,9 @@ case "$component" in
             usr/lib/yuos/python/yuos_runtime/__init__.py
             usr/share/keyrings/yuos-apps-archive-key.asc
             etc/apt/sources.list.d/yuos-apps.sources
-            usr/share/keyrings/claw-helium-archive-key.asc
-            etc/apt/sources.list.d/claw-helium.sources
-            etc/apt/preferences.d/claw-helium.pref
+            usr/share/keyrings/yuos-helium-archive-key.asc
+            etc/apt/sources.list.d/yuos-helium.sources
+            etc/apt/preferences.d/yuos-helium.pref
             usr/lib/yuos/bin/yuos-app-apt-hook
             usr/lib/yuos/bin/yuos-notification-panel
             usr/lib/yuos/app-apt-metadata.py
@@ -96,20 +96,20 @@ case "$component" in
         ;;
     desktop)
         required=(
-            usr/libexec/claw-hyprland/Hyprland
-            usr/libexec/claw-greeter
-            usr/libexec/claw-create-local-owner
-            usr/libexec/claw-desktop-locales
+            usr/libexec/yuos-hyprland/Hyprland
+            usr/libexec/yuos-greeter
+            usr/libexec/yuos-create-local-owner
+            usr/libexec/yuos-desktop-locales
             usr/share/yuos/oobe/greeter.qml
             usr/share/yuos/oobe/shell.qml
             usr/share/yuos/oobe/wallpaper-blurred.jpg
             usr/share/backgrounds/yuos/yuos-default.jpg
             usr/share/polkit-1/actions/org.yuos.local-desktop-setup.policy
-            usr/share/polkit-1/rules.d/claw-local-desktop-setup.rules
+            usr/share/polkit-1/rules.d/yuos-local-desktop-setup.rules
             etc/xdg/hypr/hyprland.lua
-            usr/share/wayland-sessions/claw.desktop
-            etc/pam.d/claw-desktop
-            etc/greetd/claw-desktop.toml
+            usr/share/wayland-sessions/yuos.desktop
+            etc/pam.d/yuos-desktop
+            etc/greetd/yuos-desktop.toml
             usr/local/bin/yuos-agent-ui
             usr/local/bin/yuos-agent-bridge
             usr/local/bin/yuos-ask-launcher

@@ -28,7 +28,7 @@ impl Probe {
             .env("HOME", "/run/display-home")
             .env("PATH", "/usr/local/bin:/usr/bin:/bin")
             .env("YUOSD_SOCKET", "/run/yuos/yuosd.sock")
-            .env("CLAW_NOTIFICATION_PRIVATE_FIXTURE", "1")
+            .env("YUOS_NOTIFICATION_PRIVATE_FIXTURE", "1")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());

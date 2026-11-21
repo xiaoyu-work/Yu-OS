@@ -4,7 +4,7 @@ use super::*;
 fn parses_cos_resources_response() {
     let summary = parse_resources(
         br#"{
-            "disk":{"path":"/home/claw","total_mb":100000,"used_mb":42000,"free_mb":58000},
+            "disk":{"path":"/home/yuos","total_mb":100000,"used_mb":42000,"free_mb":58000},
             "memory":{"total_mb":16000,"used_mb":6000,"available_mb":10000}
         }"#,
     )

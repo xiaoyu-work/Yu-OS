@@ -262,7 +262,7 @@ fn run_python_app_handles_stdout_larger_than_pipe_buffer() {
     .unwrap();
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(&runner, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let _runner = crate::test_env::TestEnvVarGuard::set("CLAW_APP_RUNNER_BIN", &runner);
+    let _runner = crate::test_env::TestEnvVarGuard::set("YUOS_APP_RUNNER_BIN", &runner);
 
     // Hard timeout: any deadlock regresses this into a 10s failure
     // rather than a session-killing hang.
@@ -926,7 +926,7 @@ fn explicit_stdin_bytes_reach_python_and_polyglot_children() {
     .unwrap();
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(&runner, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let _runner = crate::test_env::TestEnvVarGuard::set("CLAW_APP_RUNNER_BIN", &runner);
+    let _runner = crate::test_env::TestEnvVarGuard::set("YUOS_APP_RUNNER_BIN", &runner);
 
     let python = state.path().join("python-app");
     std::fs::create_dir_all(&python).unwrap();

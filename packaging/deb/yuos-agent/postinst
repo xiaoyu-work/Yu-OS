@@ -98,13 +98,13 @@ case "$1" in
         rmdir "$DPKG_ROOT/var/log/aos" 2>/dev/null || true
 
         if [ -f "$DPKG_ROOT/etc/bash.bashrc" ] && \
-           ! grep -q 'cos/profile.sh' "$DPKG_ROOT/etc/bash.bashrc"; then
+           ! grep -q 'yuos/profile.sh' "$DPKG_ROOT/etc/bash.bashrc"; then
             echo '[ -f /etc/yuos/profile.sh ] && . /etc/yuos/profile.sh' \
                 >> "$DPKG_ROOT/etc/bash.bashrc"
         fi
 
         mkdir -p "$DPKG_ROOT/etc/systemd/user/default.target.wants"
-        for unit in claw-recoll-index.service yuos-semantic.service; do
+        for unit in yuos-recoll-index.service yuos-semantic.service; do
             ln -sf "/usr/lib/systemd/user/$unit" \
                 "$DPKG_ROOT/etc/systemd/user/default.target.wants/$unit"
         done

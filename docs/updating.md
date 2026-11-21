@@ -176,7 +176,7 @@ release schedules:
 
 After upgrading Base and Desktop (if installed), reboot to apply the [hardware workarounds](image-architecture.md#hardware-enablement) to devices already present and reload the desktop's libinput rules. Existing installs do not gain newly added image-only firmware packages via the Base upgrade; install `firmware-cirrus` or, on a Qualcomm arm64 machine, `firmware-qcom-soc` from the configured Debian repositories if needed.
 
-On an affected x86 machine that was installed before the board options shipped, `claw-hardware-setup --print` shows the matching options. `sudo claw-hardware-setup` applies them and rebuilds the boot images; reboot to load them. Add local modprobe options in a separate file, not in the file managed by the command.
+On an affected x86 machine that was installed before the board options shipped, `yuos-hardware-setup --print` shows the matching options. `sudo yuos-hardware-setup` applies them and rebuilds the boot images; reboot to load them. Add local modprobe options in a separate file, not in the file managed by the command.
 
 An [experimental Snapdragon X install](image-architecture.md#experimental-snapdragon-x-boot) keeps the chosen board in `/etc/default/grub.d/60-yuos-qualcomm.cfg`. Kernel upgrades generate boot entries only for kernels that still ship that board's tree and a matching initramfs. Keep the last working kernel until its replacement has booted on the device.
 
@@ -455,7 +455,7 @@ and pids controllers plus a working `cgroup.kill` are available; ordinary
 non-agent `yuosd` primitives remain available. On supported systemd hosts no
 manual migration is required.
 
-Desktop also gives `claw-desktop-users` a named socket ACL. The additional
+Desktop also gives `yuos-desktop-users` a named socket ACL. The additional
 admission is limited to desktop launch, owner consent and desktop provider
 routes, not administrative or headless Agent access. The original socket
 group and its behavior are unchanged on headless installs.
@@ -748,7 +748,7 @@ Load the Yu OS extension in Helium to use the signed-in path.
 
 To enable the Yu OS Agent side panel on an existing Desktop installation, update
 the Desktop and Browser App, rerun `tools/install-browser-agent.sh` with the
-same `CLAW_EXT_ID`, and reload the extension. Pin the extension to open chat from
+same `YUOS_EXT_ID`, and reload the extension. Pin the extension to open chat from
 the toolbar. If the local desktop Agent bridge is unavailable, open the
 desktop Agent once or sign out and back in; browser control on Agent-only
 installs does not require the Desktop chat client.
@@ -960,7 +960,7 @@ The installed system Settings GUI also needs the matching signed Settings App
 to change lasting permissions. Older transient or reusable approvals are not
 converted to lasting App permission.
 The Desktop package owns the native locker and its dedicated
-`/etc/pam.d/claw-desktop-lock` service. Both the Agent supervisor and Desktop
+`/etc/pam.d/yuos-desktop-lock` service. Both the Agent supervisor and Desktop
 compositor must support the private locker descriptor before exposing Lock.
 This does not change the greetd login PAM stack or give the Shell access to
 authentication inputs.

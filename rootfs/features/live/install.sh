@@ -59,7 +59,7 @@ EOF
 
 for path in etc/hostname etc/issue etc/motd; do
     if [ -e "$ROOTFS/$path" ]; then
-        cp -a "$ROOTFS/$path" "$ROOTFS/$path.claw-installed"
+        cp -a "$ROOTFS/$path" "$ROOTFS/$path.yuos-installed"
     fi
 done
 

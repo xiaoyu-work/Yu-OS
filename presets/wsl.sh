@@ -2,7 +2,7 @@
 # presets/wsl.sh — Yu OS as an installable WSL2 distribution.
 #
 # Builds a modern WSL distribution containing the headless Yu OS
-# runtime (cos / yuosd / browser stack, no COSMIC desktop — WSL has no
+# runtime (yu / yuosd / browser stack, no COSMIC desktop — WSL has no
 # graphical session). Install it on Windows with:
 #
 #     wsl --install --from-file build\yuos-wsl-<arch>.wsl \

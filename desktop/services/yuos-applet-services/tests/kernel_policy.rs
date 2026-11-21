@@ -26,7 +26,7 @@ async fn real_kernel_context() {
         unsafe { libc::prctl(libc::PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0) },
         1
     );
-    let case = std::env::var("CLAW_APPLET_KERNEL_CASE").unwrap();
+    let case = std::env::var("YUOS_APPLET_KERNEL_CASE").unwrap();
     let client = Client::installed();
     match case.as_str() {
         "exact-history-read" => {
