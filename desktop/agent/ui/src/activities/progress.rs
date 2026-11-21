@@ -6,7 +6,7 @@ use super::{
 };
 use cosmic::theme;
 use cosmic::widget::{Column, Row, container, text};
-use yuos_agent_protocol::{AutoWorkNext, AutoWorkOutcome, AutoWorkPhase, AutoWorkRecord};
+use yuos_agent_protocol::{AutoWorkNext, AutoWorkPhase, AutoWorkRecord};
 
 impl Activities {
     pub(super) fn detail_navigation_enabled(&self) -> bool {
@@ -46,6 +46,7 @@ impl Activities {
     pub(super) fn progress_view<'a>(
         &'a self,
         detail: &'a ActivityDetailResponse,
+        available: bool,
     ) -> Element<'a, AppMessage> {
         let mut content = Column::new()
             .spacing(8)
@@ -69,8 +70,10 @@ impl Activities {
                 )
                 .into();
         };
-        let status = if !work.has_in_flight() && !matches!(work.phase, AutoWorkPhase::Review | AutoWorkPhase::Held)
-            && (!work.enabled || detail.activity.state != ActivityState::Active) {
+        let status = if !work.has_in_flight()
+            && !matches!(work.phase, AutoWorkPhase::Review | AutoWorkPhase::Held)
+            && (!work.enabled || detail.activity.state != ActivityState::Active)
+        {
             fl!("activity-progress-stopped")
         } else {
             match work.phase {
@@ -113,7 +116,7 @@ impl Activities {
             ));
             for task in &batch.tasks {
                 let state = if let Some(record) = batch.finished.get(&task.id) {
-                    if reported_done(record) {
+                    if record.reported_done() {
                         fl!("activity-progress-reported")
                     } else {
                         fl!("activity-progress-review")
@@ -129,19 +132,40 @@ impl Activities {
                         )
                 } else if !work.enabled || detail.activity.state != ActivityState::Active {
                     fl!("activity-progress-stopped")
-                } else if task
-                    .after
-                    .iter()
-                    .all(|id| batch.finished.get(id).is_some_and(reported_done))
-                {
+                } else if task.after.iter().all(|id| {
+                    batch
+                        .finished
+                        .get(id)
+                        .is_some_and(AutoWorkRecord::reported_done)
+                }) {
                     fl!("activity-progress-ready")
                 } else {
                     fl!("activity-progress-dependencies")
                 };
                 let mut row = Column::new()
                     .spacing(3)
-                    .push(text(&task.task).size(13.0))
+                    .push(text(batch.instruction(task)).size(13.0))
                     .push(text(format!("{} · {state}", task.id)).size(12.0));
+                if batch.retry_task.as_deref() == Some(task.id.as_str()) {
+                    row = row.push(text(fl!("activity-subtask-retry-scheduled")).size(12.0));
+                }
+                if let Some(record) = batch
+                    .finished
+                    .get(&task.id)
+                    .filter(|record| !record.reported_done())
+                {
+                    let reason = record.message.as_deref().or_else(|| {
+                        match &record.checkpoint.as_ref()?.next {
+                            AutoWorkNext::Review { reason } | AutoWorkNext::Blocked { reason } => {
+                                Some(reason.as_str())
+                            }
+                            _ => None,
+                        }
+                    });
+                    if let Some(reason) = reason {
+                        row = row.push(text(reason).size(12.0));
+                    }
+                }
                 if !task.after.is_empty() {
                     row = row.push(
                         text(fl!(
@@ -162,6 +186,29 @@ impl Activities {
                         Message::ToggleRun(id.clone()),
                         self.detail_navigation_enabled(),
                     ));
+                }
+                if self.detail_navigation_enabled() {
+                    let action = if work.can_retry(&task.id)
+                        && detail.activity.state == ActivityState::Active
+                    {
+                        Some(fl!("activity-subtask-retry"))
+                    } else if batch.can_edit(&task.id) && super::editable(detail.activity.state) {
+                        Some(fl!("activity-subtask-edit"))
+                    } else {
+                        None
+                    };
+                    if let Some(label) = action {
+                        row = row.push(control(
+                            label,
+                            Message::AutomaticWork(super::automatic_work::Message::Subtask(
+                                task.id.clone(),
+                            )),
+                            available,
+                        ));
+                    }
+                }
+                if self.automatic_work.is_editing_subtask(&task.id) {
+                    row = row.push(self.automatic_work_view(detail, available));
                 }
                 tasks = tasks.push(
                     container(row)
@@ -295,12 +342,4 @@ impl Activities {
         }
         content.push(self.receipts_view(detail, available)).into()
     }
-}
-
-fn reported_done(record: &AutoWorkRecord) -> bool {
-    record.outcome == AutoWorkOutcome::Reported
-        && record
-            .checkpoint
-            .as_ref()
-            .is_some_and(|checkpoint| matches!(checkpoint.next, AutoWorkNext::Done))
 }

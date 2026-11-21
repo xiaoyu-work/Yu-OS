@@ -1311,8 +1311,11 @@ plan a finite batch of child Jobs with explicit predecessor dependencies.
 Up to two children in a batch may be in flight. A child unlocks a successor
 only after durable success, checked retirement and its `done` handoff. The
 coordinator continues only once the batch finishes; a failed or uncertain
-child stops new dispatch and requires review. Job completion wakes that same loop;
-waiting uses a bounded next-check time or a configured, same-owner-visible
+child stops new dispatch and requires review.
+with a displayed revision, the owner can edit an unreserved child or use
+scheduler-authorized recovery to retry one inspected child. The original
+plan, dependencies, other results and immutable attempt history are retained.
+Job completion wakes that same loop; waiting uses a bounded next-check time or a configured, same-owner-visible
 event after its durable watermark. Idle scans never invoke a model.
 
 The worker exposes a reporting-only handoff tool only for Root-bound automatic

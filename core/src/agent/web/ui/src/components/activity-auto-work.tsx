@@ -16,6 +16,10 @@ export function ActivityAutoWorkPanel({ activityId, ownerUid, active, editable, 
   const [review, setReview] = useState(false);
   const [nextTask, setNextTask] = useState("");
   const [reviewNote, setReviewNote] = useState("");
+  const [stepDraft, setStepDraft] = useState<{
+    activity: string; id: string; revision: string; task: string; retry: boolean; note: string;
+  } | null>(null);
+  const step = stepDraft?.activity === activityId ? stepDraft : null;
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -29,6 +33,7 @@ export function ActivityAutoWorkPanel({ activityId, ownerUid, active, editable, 
   async function change(action: () => Promise<unknown>, notice: string) {
     if (await mutate(action, notice) && mounted.current) {
       setForm(null); setReview(false);
+      setStepDraft(null);
     }
   }
   return (
@@ -66,16 +71,28 @@ export function ActivityAutoWorkPanel({ activityId, ownerUid, active, editable, 
                   const finished = work.parallel?.finished.get(task.id);
                   const running = work.parallel?.running.get(task.id);
                   const job = finished ?? running;
+                  const instruction = work.parallel?.edits.get(task.id) ?? task.task;
+                  const done = finished?.outcome === "reported" && finished.checkpoint?.next.kind === "done";
                   const ready = task.after.every((id) => work.parallel?.finished.get(id)?.checkpoint?.next.kind === "done"
                     && work.parallel.finished.get(id)?.outcome === "reported");
+                  const retry = !!finished && !done && !work.enabled && work.phase === "held" && !inFlight && active && ready;
+                  const next = finished?.checkpoint?.next;
+                  const reason = finished?.message ?? (next?.kind === "blocked" || next?.kind === "review" ? next.reason : null);
                   return <li key={task.id} className="whitespace-pre-wrap break-words text-sm">
-                    <div>{task.task}</div>
+                    <div>{instruction}</div>
                     <div className="text-xs text-muted-foreground">
-                      {task.id} · {finished ? finished.checkpoint?.next.kind === "done" && finished.outcome === "reported"
+                      {task.id} · {work.parallel?.retry_task === task.id ? "Retry requested" : finished ? done
                         ? "Reported done" : "Needs review" : running ? "In flight" : !work.enabled ? "Stopped" : ready ? "Ready" : "Waiting for dependencies"}
                       {task.after.length ? ` · After ${task.after.join(", ")}` : ""}
                     </div>
+                    {reason && <p className="text-xs">{reason}</p>}
                     {job && <a className="text-xs underline" href={`#/tasks/${encodeURIComponent(job.job_id)}`}>Inspect Job</a>}
+                    {(retry || (editable && !finished && !running)) && (
+                      <Button size="sm" variant="ghost" disabled={blocked || !!form || review || !!step} onClick={() =>
+                        setStepDraft({ activity: activityId, id: task.id, revision: work.revision,
+                          task: retry ? "" : instruction, retry, note: "" })
+                      }>{retry ? "Inspect and retry this step" : "Edit pending step"}</Button>
+                    )}
                   </li>;
                 })}
               </ul>
@@ -91,16 +108,16 @@ export function ActivityAutoWorkPanel({ activityId, ownerUid, active, editable, 
           )}
           <div className="flex flex-wrap gap-2">
             {work.enabled ? (
-              <Button size="sm" variant="outline" disabled={blocked || !!form || review}
+              <Button size="sm" variant="outline" disabled={blocked || !!form || review || !!step}
                 onClick={() => void change(() => autoWorkApi.enabled(activityId, ownerUid, work.revision, false), "Automatic progression stopped; any current Job is unchanged.")}>
                 Stop automatic progression
               </Button>
             ) : needsReview ? (
-              <Button size="sm" disabled={blocked || !active || inFlight || !!form || review} onClick={() => {
+              <Button size="sm" disabled={blocked || !active || inFlight || !!form || review || !!step} onClick={() => {
                 setRevision(work.revision); setNextTask(""); setReviewNote(""); setReview(true);
               }}>Review and resume work</Button>
             ) : (
-              <Button size="sm" disabled={blocked || !active || inFlight || !!form || review}
+              <Button size="sm" disabled={blocked || !active || inFlight || !!form || review || !!step}
                 onClick={() => void change(() => autoWorkApi.enabled(activityId, ownerUid, work.revision, true), "Automatic progression explicitly enabled.")}>
                 Start automatic work
               </Button>
@@ -108,13 +125,42 @@ export function ActivityAutoWorkPanel({ activityId, ownerUid, active, editable, 
           </div>
         </>
       ) : <p className="text-sm text-muted-foreground">Automatic progression is not configured or enabled.</p>}
-      {!form && !review && (
+      {!form && !review && !step && (
         <Button className="w-fit" size="sm" variant="outline"
           disabled={blocked || !editable || inFlight || needsReview}
           onClick={() => {
             setRevision(work?.revision ?? null);
             setForm(work?.config ?? { task: "", check_interval_secs: 3600, wake_event: null });
           }}>{work ? "Edit automatic work" : "Configure automatic work"}</Button>
+      )}
+      {step && (
+        <form className="grid gap-3 border-t pt-3" onSubmit={(event) => {
+          event.preventDefault();
+          if (blocked) return;
+          if (step.retry) {
+            void change(
+              () => autoWorkApi.enabled(activityId, ownerUid, step.revision, true, step.task, step.note, step.id),
+              "Retry requested for this step only. Previous evidence is retained.",
+            );
+          } else {
+            void change(() => autoWorkApi.edit(activityId, ownerUid, step.revision, step.id, step.task), "Pending step updated.");
+          }
+        }}>
+          <p className="text-sm font-medium">{step.retry ? "Recover" : "Edit"} subtask: {step.id}</p>
+          {step.retry && <p className="text-xs">Inspect the previous result and external state before retrying. Do not repeat an effect whose result is uncertain.</p>}
+          <label className="grid gap-1 text-sm">Step instruction
+            <Textarea value={step.task} maxLength={2048} disabled={disabled} onChange={(event) => setStepDraft({ ...step, task: event.target.value })} />
+          </label>
+          {step.retry && <label className="grid gap-1 text-sm">What you inspected
+            <Textarea value={step.note} maxLength={2048} disabled={disabled} onChange={(event) => setStepDraft({ ...step, note: event.target.value })} />
+          </label>}
+          <div className="flex gap-2">
+            <Button type="submit" disabled={blocked || !step.task.trim() || (step.retry && !step.note.trim())}>
+              {step.retry ? "Retry only this step" : "Save step"}
+            </Button>
+            <Button type="button" variant="outline" disabled={disabled} onClick={() => setStepDraft(null)}>Discard</Button>
+          </div>
+        </form>
       )}
       {form && (
         <form className="grid gap-3 border-t pt-3" onSubmit={(event) => {

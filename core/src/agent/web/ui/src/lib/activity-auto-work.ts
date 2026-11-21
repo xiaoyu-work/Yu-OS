@@ -24,7 +24,10 @@ export type WorkRecord = {
   child?: { parent_job_id: string; task_id: string };
 };
 type WorkSegment = { job_id: string; session_id: string; generation: string; prepared_at: string; checkpoint: WorkCheckpoint | null };
-type WorkBatch = { parent_job_id: string; tasks: WorkTask[]; running: Map<string, WorkSegment>; finished: Map<string, WorkRecord> };
+type WorkBatch = {
+  parent_job_id: string; tasks: WorkTask[]; running: Map<string, WorkSegment>;
+  finished: Map<string, WorkRecord>; edits: Map<string, string>; retry_task?: string;
+};
 export type AutoWork = {
   activity_id: string; owner_uid: number; revision: string; config: WorkDraft;
   enabled: boolean; generation: string | null; phase: "ready" | "running" | "waiting" | "review" | "held";
@@ -152,7 +155,7 @@ function readSegment(value: unknown, generation: string | null): WorkSegment {
 }
 
 function readBatch(value: unknown, generation: string | null): WorkBatch {
-  const item = object(value, ["parent_job_id", "tasks", "running", "finished"]);
+  const item = object(value, ["parent_job_id", "tasks", "running", "finished"], ["edits", "retry_task"]);
   if (!record(item.running) || !record(item.finished)) invalid();
   const parent_job_id = text(item.parent_job_id, 128), tasks = readTasks(item.tasks);
   const jobs = new Set([parent_job_id]);
@@ -171,7 +174,20 @@ function readBatch(value: unknown, generation: string | null): WorkBatch {
     jobs.add(report.job_id);
     finished.set(id, report);
   }
-  return { parent_job_id, tasks, running, finished };
+  const edits = new Map<string, string>();
+  if (Object.prototype.hasOwnProperty.call(item, "edits")) {
+    if (!record(item.edits) || Object.keys(item.edits).length > tasks.length) invalid();
+    for (const [id, instruction] of Object.entries(item.edits)) {
+      if (!tasks.some((task) => task.id === id)) invalid();
+      edits.set(id, text(instruction, 2048));
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(item, "retry_task")) {
+    const retry_task = taskId(item.retry_task);
+    if (!edits.has(retry_task) || (!running.has(retry_task) && !finished.has(retry_task))) invalid();
+    return { parent_job_id, tasks, running, finished, edits, retry_task };
+  }
+  return { parent_job_id, tasks, running, finished, edits };
 }
 export function readAutoWork(value: unknown, id: string): AutoWork {
   const item = object(value, [
@@ -221,11 +237,19 @@ export const autoWorkApi = {
     if (saved.enabled || JSON.stringify(saved.config) !== JSON.stringify(submitted)) invalid();
     return saved;
   },
-  enabled: async (id: string, owner: number, revision: string, enabled: boolean, nextTask?: string, note?: string) => {
+  edit: async (id: string, owner: number, revision: string, task_id: string, task: string) => {
+    const saved = acknowledgement(await api.post<unknown>(endpoint(id), {
+      expected_revision: revision, edit: { task_id: taskId(task_id), task: text(task, 2048) },
+    }), id, owner, revision);
+    if (saved.parallel?.edits.get(task_id) !== task) invalid();
+    return saved;
+  },
+  enabled: async (id: string, owner: number, revision: string, enabled: boolean, nextTask?: string, note?: string, retryTask?: string) => {
     const saved = acknowledgement(await api.post<unknown>(`${endpoint(id)}/enabled`, {
       expected_revision: revision, enabled, next_task: nextTask ?? null, review_note: note ?? null,
+      ...(retryTask !== undefined && { retry_task: taskId(retryTask) }),
     }), id, owner, revision);
-    if (saved.enabled !== enabled) invalid();
+    if (saved.enabled !== enabled || (retryTask !== undefined && saved.parallel?.retry_task !== retryTask)) invalid();
     return saved;
   },
 };

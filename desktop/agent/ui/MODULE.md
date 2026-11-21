@@ -16,7 +16,7 @@ versioned desktop Agent protocol without importing yuosd or core models.
 | `src/activities/execution_limits.rs` | Fixed execution-constraints card, explicit refresh, lifetime-counter/status presentation, and revision-bound configuration/toggle handling; no authority or execution |
 | `src/activities/monetary_budget.rs` | Fixed configured-accounting card, exact-CAS create/update/toggles, and spent/reserved/remaining presentation; no pricing, invoice, ledger or policy authority |
 | `src/activities/automatic_work.rs` | Shared automatic-work state, explicit scheduler-authorized start/stop, stopped configuration and revision-bound reviewed resumption; no local execution loop or progress authority |
-| `src/activities/progress.rs` | Progress and parent/subtask dependencies, plus expandable history grouped by exact Job identity; no local scheduling or inferred receipt links |
+| `src/activities/progress.rs` | Progress, parent/subtask dependencies, pending edits and inspected per-step retry controls, plus history grouped by exact Job identity; no local scheduling or inferred receipt links |
 | `src/activities/capability_policy.rs` | Fixed typed capability rule/scope controls, owner-scoped snapshots and CAS-bound edits/toggles; no grants, approval decisions or resource resolution |
 | `src/session.rs` | Canonical/legacy session projection, verified Job-bound history reconstruction, presentation controls, retry branches, and transcript models |
 | `src/stream_state.rs` | Generation-aware stream reduction, viewer detachment, terminal states, explicit cancellation, and stale-event rejection |

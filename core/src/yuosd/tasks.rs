@@ -653,6 +653,9 @@ pub fn retry(params: Value, client: &ClientIdentity) -> Result<Value, String> {
     else {
         return Err(format!("task not found: {id}"));
     };
+    if original.activity_work_generation.is_some() {
+        return Err("Inspect and resume automatic work from its Activity; ordinary task retry would bypass the retained plan.".into());
+    }
     if !matches!(
         original.status,
         JobStatus::Ok | JobStatus::Error | JobStatus::Cancelled

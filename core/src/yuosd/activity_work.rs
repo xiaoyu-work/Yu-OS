@@ -25,7 +25,17 @@ pub fn get(params: Value, client: &ClientIdentity) -> Result<Value, BrokerError>
 pub fn set(params: Value, client: &ClientIdentity) -> Result<Value, BrokerError> {
     let owner = owner(client)?;
     let request: body::ActivityWorkSet = decode(params)?;
-    request.work.validate().map_err(service_error)?;
+    let change = match (request.work, request.edit) {
+        (Some(work), None) => ActivityWorkChange::Configure(work),
+        (None, Some(edit)) if request.expected_revision.is_some() => {
+            ActivityWorkChange::EditChild(edit)
+        }
+        _ => {
+            return Err(BrokerError::execution(
+                "supply only a work configuration or a revision-bound subtask edit",
+            ))
+        }
+    };
     activities::validate_id(request.id.as_str()).map_err(service_error)?;
     encode(
         activities::open_default()
@@ -34,7 +44,7 @@ pub fn set(params: Value, client: &ClientIdentity) -> Result<Value, BrokerError>
                 owner,
                 request.id.as_str(),
                 request.expected_revision,
-                ActivityWorkChange::Configure(request.work),
+                change,
             )
             .map_err(service_error)?,
     )
@@ -55,7 +65,10 @@ pub async fn enabled(params: Value, client: &ClientIdentity) -> Result<Value, Br
         )));
     }
     if !request.enabled {
-        if request.next_task.is_some() || request.review_note.is_some() {
+        if request.next_task.is_some()
+            || request.review_note.is_some()
+            || request.retry_task.is_some()
+        {
             return Err(BrokerError::execution(
                 "stopping work does not accept a next task or review note",
             ));
@@ -99,6 +112,19 @@ pub async fn enabled(params: Value, client: &ClientIdentity) -> Result<Value, Br
         "--event-type".into(),
         event_type.into(),
     ];
+    if let Some(id) = &request.retry_task {
+        let task = request
+            .next_task
+            .as_ref()
+            .ok_or_else(|| BrokerError::execution("a retry requires a safe next task"))?;
+        let note = request
+            .review_note
+            .as_ref()
+            .ok_or_else(|| BrokerError::execution("a retry requires an inspection note"))?;
+        work.validate_retry(id.as_str(), task.as_str(), note.as_str())
+            .map_err(service_error)?;
+        args.extend(["--work-retry-task".into(), id.as_str().into()]);
+    }
     if let Some(task) = request.next_task {
         activities::validate_work_task(task.as_str()).map_err(service_error)?;
         args.extend(["--work-next-task".into(), task.as_str().to_string()]);
@@ -121,6 +147,13 @@ pub async fn enabled(params: Value, client: &ClientIdentity) -> Result<Value, Br
         || confirmed.owner_uid != owner
         || !confirmed.enabled
         || confirmed.revision != work.revision + 1
+        || request.retry_task.as_ref().is_some_and(|id| {
+            confirmed
+                .parallel
+                .as_ref()
+                .and_then(|batch| batch.retry_task.as_deref())
+                != Some(id.as_str())
+        })
     {
         return Err(BrokerError::unavailable(
             "scheduler Activity work acknowledgement differs",

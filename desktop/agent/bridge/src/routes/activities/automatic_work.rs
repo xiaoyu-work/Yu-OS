@@ -58,11 +58,7 @@ pub async fn set(
         .map_err(upstream_error)?;
     let work: ActivityAutoWork =
         serde_json::from_value(value).map_err(|error| ApiError::bad_gateway(error.to_string()))?;
-    if !work.matches_owner(&id, owner()?)
-        || work.enabled
-        || work.config != request.work
-        || work.revision != request.expected_revision.unwrap_or(0) + 1
-    {
+    if !work.matches_owner(&id, owner()?) || !request.acknowledges(&work) {
         return Err(ApiError::bad_gateway(
             "Activity work configuration acknowledgement differs",
         ));
@@ -84,10 +80,7 @@ pub async fn enabled(
         .map_err(upstream_error)?;
     let work: ActivityAutoWork =
         serde_json::from_value(value).map_err(|error| ApiError::bad_gateway(error.to_string()))?;
-    if !work.matches_owner(&id, owner()?)
-        || work.enabled != request.enabled
-        || work.revision != request.expected_revision + 1
-    {
+    if !work.matches_owner(&id, owner()?) || !request.acknowledges(&work) {
         return Err(ApiError::bad_gateway(
             "Activity work enablement acknowledgement differs",
         ));

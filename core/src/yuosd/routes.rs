@@ -787,7 +787,7 @@ routes! {
         budget: Budget::mutation(),
         authority: peer(Audience::Task),
         body: body::ActivityWorkSet,
-        audit: &[("id", FieldRule::Token),("expected_revision", FieldRule::Count),("work",FieldRule::Size)],
+        audit: &[("id", FieldRule::Token),("expected_revision", FieldRule::Count),("work",FieldRule::Size),("edit",FieldRule::Size)],
         run: |c| activity_work::set(c.params,c.client),
     }
     ActivityWorkEnabled {
@@ -797,7 +797,7 @@ routes! {
         budget: Budget::mutation(),
         authority: peer(Audience::Task),
         body: body::ActivityWorkEnabled,
-        audit: &[("id", FieldRule::Token),("expected_revision", FieldRule::Count),("enabled", FieldRule::Flag)],
+        audit: &[("id", FieldRule::Token),("expected_revision", FieldRule::Count),("enabled", FieldRule::Flag),("retry_task", FieldRule::Token)],
         run: |c| activity_work::enabled(c.params,c.client).await,
     }
     ActivityObjectAttach {

@@ -1,7 +1,7 @@
 //! Precision-safe presentation of the shared Activity work contract.
 
 use super::*;
-use crate::activities::{ActivityWork, ActivityWorkDraft, ActivityWorkRecord};
+use crate::activities::{ActivityWork, ActivityWorkDraft, ActivityWorkEdit, ActivityWorkRecord};
 use crate::yuosd::wire::requests::{ActivityWorkEnabled, ActivityWorkGet, ActivityWorkSet};
 
 #[derive(Debug, Deserialize)]
@@ -9,7 +9,8 @@ use crate::yuosd::wire::requests::{ActivityWorkEnabled, ActivityWorkGet, Activit
 pub struct WorkSet {
     #[serde(deserialize_with = "required_nullable")]
     expected_revision: Option<String>,
-    work: ActivityWorkDraft,
+    work: Option<ActivityWorkDraft>,
+    edit: Option<ActivityWorkEdit>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -19,6 +20,7 @@ pub struct WorkEnabled {
     enabled: bool,
     next_task: Option<String>,
     review_note: Option<String>,
+    retry_task: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -81,27 +83,45 @@ pub async fn set(
     body: Result<Json<WorkSet>, JsonRejection>,
 ) -> Result<Json<Value>, ApiError> {
     let body = json_body(body)?;
-    body.work
-        .validate()
-        .map_err(|error| bad_request(error.to_string()))?;
     let revision = body
         .expected_revision
         .as_deref()
         .map(|value| decimal_u64("expected_revision", value, i64::MAX as u64))
         .transpose()?;
+    match (&body.work, &body.edit) {
+        (Some(work), None) => work.validate(),
+        (None, Some(edit)) if revision.is_some() => edit.validate(),
+        _ => {
+            return Err(bad_request(
+                "supply only a work configuration or a revision-bound subtask edit",
+            ))
+        }
+    }
+    .map_err(|error| bad_request(error.to_string()))?;
     let Json(value) = request(
         Command::ActivityWorkSet,
         with_id::<ActivityWorkSet>(
             id.clone(),
             json!({
-                "expected_revision":revision,"work":body.work,
+                "expected_revision":revision,"work":body.work,"edit":body.edit,
             }),
         )?,
     )
     .await?;
     let work: ActivityWork =
         serde_json::from_value(value).map_err(|error| bad_gateway(error.to_string()))?;
-    if work.revision != revision.unwrap_or(0) + 1 || work.enabled || work.config != body.work {
+    if work.revision != revision.unwrap_or(0) + 1
+        || body
+            .work
+            .as_ref()
+            .is_some_and(|draft| work.enabled || work.config != *draft)
+        || body.edit.as_ref().is_some_and(|edit| {
+            work.parallel
+                .as_ref()
+                .and_then(|batch| batch.edits.get(&edit.task_id))
+                != Some(&edit.task)
+        })
+    {
         return Err(bad_gateway(
             "Activity work configuration acknowledgement differs",
         ));
@@ -126,14 +146,22 @@ pub async fn enabled(
             id.clone(),
             json!({
                 "expected_revision":revision,"enabled":body.enabled,
-                "next_task":body.next_task,"review_note":body.review_note,
+                "next_task":body.next_task,"review_note":body.review_note,"retry_task":body.retry_task,
             }),
         )?,
     )
     .await?;
     let work: ActivityWork =
         serde_json::from_value(value).map_err(|error| bad_gateway(error.to_string()))?;
-    if work.revision != revision + 1 || work.enabled != body.enabled {
+    if work.revision != revision + 1
+        || work.enabled != body.enabled
+        || body.retry_task.as_deref().is_some_and(|id| {
+            work.parallel
+                .as_ref()
+                .and_then(|batch| batch.retry_task.as_deref())
+                != Some(id)
+        })
+    {
         return Err(bad_gateway(
             "Activity work enablement acknowledgement differs",
         ));

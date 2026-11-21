@@ -8,6 +8,7 @@ pub(super) fn parse(command: &str, args: &[String]) -> Result<(Command, Value), 
     crate::activities::validate_id(id).map_err(|error| error.to_string())?;
     let mut params = json!({"id":id});
     let mut draft = json!({"check_interval_secs":3600,"wake_event":null});
+    let mut edit = json!({});
     let mut source = None;
     let mut event_type = None;
     let mut seen = std::collections::BTreeSet::new();
@@ -27,9 +28,12 @@ pub(super) fn parse(command: &str, args: &[String]) -> Result<(Command, Value), 
             }
             ("set-work", "--wake-source") => source = Some(value.clone()),
             ("set-work", "--wake-event") => event_type = Some(value.clone()),
+            ("edit-work-task", "--task-id") => edit["task_id"] = json!(value),
+            ("edit-work-task", "--task") => edit["task"] = json!(value),
+            ("start-work", "--retry-task") => params["retry_task"] = json!(value),
             ("start-work", "--next-task") => params["next_task"] = json!(value),
             ("start-work", "--review-note") => params["review_note"] = json!(value),
-            ("set-work" | "start-work" | "stop-work", "--expected-revision") => {
+            ("set-work" | "edit-work-task" | "start-work" | "stop-work", "--expected-revision") => {
                 let revision = value.parse::<u64>().map_err(|_| "invalid work revision")?;
                 if revision == 0 {
                     return Err("work revision must be positive".into());
@@ -58,6 +62,16 @@ pub(super) fn parse(command: &str, args: &[String]) -> Result<(Command, Value), 
                 serde_json::from_value(draft).map_err(|error| error.to_string())?;
             work.validate().map_err(|error| error.to_string())?;
             params["work"] = serde_json::to_value(work).map_err(|error| error.to_string())?;
+            Command::ActivityWorkSet
+        }
+        "edit-work-task" => {
+            if params.get("expected_revision").is_none() {
+                return Err("editing a subtask requires --expected-revision".into());
+            }
+            let edit: crate::activities::ActivityWorkEdit =
+                serde_json::from_value(edit).map_err(|error| error.to_string())?;
+            edit.validate().map_err(|error| error.to_string())?;
+            params["edit"] = json!(edit);
             Command::ActivityWorkSet
         }
         "start-work" | "stop-work" => {

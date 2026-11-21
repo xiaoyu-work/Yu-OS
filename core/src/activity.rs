@@ -52,7 +52,7 @@ pub fn run(command: &str, args: &[String]) -> Result<Value, String> {
 }
 
 fn parse(command: &str, args: &[String]) -> Result<(Command, Value), String> {
-    if matches!(command,"work" | "set-work" | "start-work" | "stop-work") {
+    if matches!(command,"work" | "set-work" | "edit-work-task" | "start-work" | "stop-work") {
         return work::parse(command,args);
     }
     if matches!(

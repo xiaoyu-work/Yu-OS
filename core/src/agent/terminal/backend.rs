@@ -585,6 +585,7 @@ pub(super) trait Backend: Send + Sync {
     async fn set_activity_work_enabled(
         &self, _id: &str, _revision: u64, _enabled: bool,
         _next_task: Option<String>, _review_note: Option<String>,
+        _retry_task: Option<String>,
     ) -> Result<ActivityControls, String> {
         Err("Activity automatic work controls are unavailable".into())
     }
@@ -1228,6 +1229,7 @@ impl Backend for BrokerBackend {
             ActivityControlPolicy::CapabilityPolicy => {
                 (Command::ActivityCapabilityPolicySet, "policy")
             }
+            ActivityControlPolicy::AutomaticWork if draft.get("task_id").is_some() => (Command::ActivityWorkSet,"edit"),
             ActivityControlPolicy::AutomaticWork => (Command::ActivityWorkSet,"work"),
         };
         let mut params = json!({ "id": id });
@@ -1271,11 +1273,12 @@ impl Backend for BrokerBackend {
     async fn set_activity_work_enabled(
         &self, id: &str, revision: u64, enabled: bool,
         next_task: Option<String>, review_note: Option<String>,
+        retry_task: Option<String>,
     ) -> Result<ActivityControls,String> {
         validate_token(id,"Activity id")?;
         let value = self.call(Command::ActivityWorkEnabled,json!({
             "id":id,"expected_revision":revision,"enabled":enabled,
-            "next_task":next_task,"review_note":review_note,
+            "next_task":next_task,"review_note":review_note,"retry_task":retry_task,
         })).await?;
         let state: crate::activities::ActivityWork = serde_json::from_value(value)
             .map_err(|error|format!("invalid work acknowledgement: {error}"))?;
@@ -1283,6 +1286,8 @@ impl Backend for BrokerBackend {
         if state.activity_id != id || state.owner_uid != self.owner_uid
             || state.revision != revision.checked_add(1).ok_or("work revision exhausted")?
             || state.enabled != enabled
+            || retry_task.as_deref().is_some_and(|id| state.parallel.as_ref()
+                .and_then(|batch| batch.retry_task.as_deref()) != Some(id))
         {
             return Err("Activity work acknowledgement differs".into());
         }

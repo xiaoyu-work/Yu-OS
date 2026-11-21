@@ -323,7 +323,8 @@ pub struct ActivityWorkGet {
 pub struct ActivityWorkSet {
     pub id: Token,
     pub expected_revision: Option<u64>,
-    pub work: crate::activities::ActivityWorkDraft,
+    pub work: Option<crate::activities::ActivityWorkDraft>,
+    pub edit: Option<crate::activities::ActivityWorkEdit>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -334,6 +335,7 @@ pub struct ActivityWorkEnabled {
     pub enabled: bool,
     pub next_task: Option<Text<8192>>,
     pub review_note: Option<Text<2048>>,
+    pub retry_task: Option<Token>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

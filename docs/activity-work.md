@@ -108,6 +108,28 @@ links by run. Automatic-work controls and policy configuration live under
 
 ## Review and recovery
 
+Use **Edit pending step** in an Activity's progress view to revise a subtask
+that has not been reserved. Its dependencies and the other steps do not
+change. A stale edit is rejected rather than applied to work that has started.
+
+For a held subtask, open its previous Job first. After checking the actual
+outcome, use **Inspect and retry this step**, supply a safe instruction and
+record what you checked. The retry gets a fresh Job and session. No other
+subtask starts during the retry. The old attempt and successful siblings
+remain in history; if the retry succeeds, dependents can continue using
+those successful results. If another step still needs review, the batch
+stays held. The inspection note is not proof of what happened.
+
+The same controls are available in Agent Web and at the terminal:
+
+```bash
+yu activity edit-work-task "$activity_id" --task-id collect --expected-revision 8 \
+  --task "Collect only the remaining documents"
+yu activity start-work "$activity_id" --retry-task categorize --expected-revision 9 \
+  --next-task "Verify the existing output before adding any missing items" \
+  --review-note "Checked the previous Job and its destination"
+```
+
 Three consecutive continuing segments reporting no progress stop for review.
 An intentional wait is not counted as a stalled continuation. A result
 without a structured handoff, an execution failure, cancellation, missing
@@ -115,7 +137,8 @@ correlation or an indeterminate outcome also stops instead of automatically
 repeating the original prompt. Execution limits and expiry remain independent
 hard ceilings; reported progress cannot extend them.
 
-After inspecting the previous Job and external state, resume explicitly:
+To replace the plan with a fresh next task instead, resume explicitly without
+`--retry-task`:
 
 ```bash
 yu activity work "$activity_id"

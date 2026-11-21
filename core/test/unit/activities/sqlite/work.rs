@@ -53,6 +53,7 @@ fn enable(service: &SqliteActivityService, work: &ActivityWork) -> ActivityWork 
                 generation: uuid::Uuid::new_v4().to_string(),
                 next_task: None,
                 review_note: None,
+                retry_task: None,
             },
         )
         .unwrap()
@@ -163,6 +164,7 @@ fn repeated_no_progress_requires_explicit_review_and_a_new_task() {
                 generation: uuid::Uuid::new_v4().to_string(),
                 next_task: None,
                 review_note: None,
+                retry_task: None,
             }
         )
         .is_err());
@@ -175,6 +177,7 @@ fn repeated_no_progress_requires_explicit_review_and_a_new_task() {
                 generation: uuid::Uuid::new_v4().to_string(),
                 next_task: Some("Inspect a different source".into()),
                 review_note: Some("Reviewed the stalled attempts".into()),
+                retry_task: None,
             },
         )
         .unwrap();

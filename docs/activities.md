@@ -275,6 +275,8 @@ worker controls.
 ## Event-driven work
 
 An enabled Activity can also schedule [dependent parallel subtasks](activity-work.md#parallel-subtasks).
+The owner can [edit pending steps or recover one held subtask](activity-work.md#review-and-recovery)
+without replacing the plan or repeating successful siblings.
 The native **Progress** and **History** tabs show the shared execution state
 and retained run evidence. A reported subtask result does not complete the
 Activity or authorize a downstream operation.

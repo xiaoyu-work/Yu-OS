@@ -1385,7 +1385,7 @@ impl Activities {
             return content
                 .push(section(fl!("activity-goal"), &activity.goal))
                 .push(attention_view(detail, true))
-                .push(self.progress_view(detail))
+                .push(self.progress_view(detail, automatic_work_available))
                 .push(self.manual_run_view(detail, available))
                 .into();
         }

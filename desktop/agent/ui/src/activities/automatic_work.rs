@@ -6,8 +6,8 @@ use super::{
     theme, widget,
 };
 use yuos_agent_protocol::{
-    ActivityAutoWork, ActivityAutoWorkResponse, AutoWorkDraft, AutoWorkEnabledRequest,
-    AutoWorkEvent, AutoWorkPhase, AutoWorkSetRequest,
+    ActivityAutoWork, ActivityAutoWorkResponse, AutoWorkDraft, AutoWorkEdit,
+    AutoWorkEnabledRequest, AutoWorkEvent, AutoWorkPhase, AutoWorkSetRequest,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -24,6 +24,7 @@ pub enum Message {
     Refresh,
     Configure,
     Review,
+    Subtask(String),
     Start,
     Stop,
     Field(Field, String),
@@ -42,6 +43,12 @@ impl State {
     pub(super) fn is_editing(&self) -> bool {
         self.form.is_some()
     }
+
+    pub(super) fn is_editing_subtask(&self, id: &str) -> bool {
+        self.form
+            .as_ref()
+            .is_some_and(|form| form.task_id.as_deref() == Some(id))
+    }
 }
 
 #[derive(Debug)]
@@ -49,6 +56,7 @@ pub(super) struct Form {
     id: String,
     revision: Option<u64>,
     review: bool,
+    task_id: Option<String>,
     task: String,
     interval: String,
     source: String,
@@ -120,6 +128,7 @@ impl Activities {
                     id: detail.activity.id.clone(),
                     revision: work.map(|work| work.revision),
                     review,
+                    task_id: None,
                     task: if review {
                         String::new()
                     } else {
@@ -134,6 +143,39 @@ impl Activities {
                     event_type: work
                         .and_then(|work| work.config.wake_event.as_ref())
                         .map_or(String::new(), |event| event.event_type.clone()),
+                    note: String::new(),
+                });
+                self.error = None;
+                self.notice = None;
+                self.invalidate_operation_preview();
+            }
+            Message::Subtask(id) => {
+                let detail = self.detail.as_ref()?;
+                let work = self.automatic_work.response.as_ref()?.work.as_ref()?;
+                let batch = work.parallel.as_ref()?;
+                let task = batch.tasks.iter().find(|task| task.id == id)?;
+                let review = batch.finished.contains_key(&id);
+                if !editable(detail.activity.state)
+                    || self.automatic_work.is_editing()
+                    || !(batch.can_edit(&id)
+                        || detail.activity.state == super::ActivityState::Active
+                            && work.can_retry(&id))
+                {
+                    return None;
+                }
+                self.automatic_work.form = Some(Form {
+                    id: detail.activity.id.clone(),
+                    revision: Some(work.revision),
+                    review,
+                    task_id: Some(id),
+                    task: if review {
+                        String::new()
+                    } else {
+                        batch.instruction(task).into()
+                    },
+                    interval: String::new(),
+                    source: String::new(),
+                    event_type: String::new(),
                     note: String::new(),
                 });
                 self.error = None;
@@ -166,12 +208,30 @@ impl Activities {
                         enabled: true,
                         next_task: Some(form.task.clone()),
                         review_note: Some(form.note.clone()),
+                        retry_task: form.task_id.clone(),
                     };
                     if let Err(error) = request.validate() {
                         self.error = Some(error.into());
                         return None;
                     }
                     Action::EnableAutomaticWork {
+                        activity_id: form.id.clone(),
+                        request,
+                    }
+                } else if let Some(id) = &form.task_id {
+                    let request = AutoWorkSetRequest {
+                        expected_revision: form.revision,
+                        work: None,
+                        edit: Some(AutoWorkEdit {
+                            task_id: id.clone(),
+                            task: form.task.clone(),
+                        }),
+                    };
+                    if let Err(error) = request.validate() {
+                        self.error = Some(error.into());
+                        return None;
+                    }
+                    Action::SetAutomaticWork {
                         activity_id: form.id.clone(),
                         request,
                     }
@@ -185,7 +245,7 @@ impl Activities {
                     };
                     let request = AutoWorkSetRequest {
                         expected_revision: form.revision,
-                        work: AutoWorkDraft {
+                        work: Some(AutoWorkDraft {
                             task: form.task.clone(),
                             check_interval_secs: interval,
                             wake_event: if form.source.is_empty() && form.event_type.is_empty() {
@@ -196,7 +256,8 @@ impl Activities {
                                     event_type: form.event_type.clone(),
                                 })
                             },
-                        },
+                        }),
+                        edit: None,
                     };
                     if let Err(error) = request.validate() {
                         self.error = Some(error.into());
@@ -229,6 +290,7 @@ impl Activities {
                             enabled,
                             next_task: None,
                             review_note: None,
+                            retry_task: None,
                         },
                     },
                     connected,
@@ -261,16 +323,16 @@ impl Activities {
         work: ActivityAutoWork,
         connected: bool,
     ) -> Option<Request> {
-        if !self.work_ack_matches(id, &work)
-            || work.enabled
-            || work.config != request.work
-            || request.expected_revision.unwrap_or(0).checked_add(1) != Some(work.revision)
-        {
+        if !self.work_ack_matches(id, &work) || !request.acknowledges(&work) {
             self.error = Some(fl!("activity-auto-work-invalid"));
             return None;
         }
         self.automatic_work.form = None;
-        self.notice = Some(fl!("activity-auto-work-configured"));
+        self.notice = Some(if request.edit.is_some() {
+            fl!("activity-subtask-edited")
+        } else {
+            fl!("activity-auto-work-configured")
+        });
         self.refresh_automatic_work(connected)
     }
 
@@ -281,15 +343,14 @@ impl Activities {
         work: ActivityAutoWork,
         connected: bool,
     ) -> Option<Request> {
-        if !self.work_ack_matches(id, &work)
-            || work.enabled != request.enabled
-            || request.expected_revision.checked_add(1) != Some(work.revision)
-        {
+        if !self.work_ack_matches(id, &work) || !request.acknowledges(&work) {
             self.error = Some(fl!("activity-auto-work-invalid"));
             return None;
         }
         self.automatic_work.form = None;
-        self.notice = Some(if request.enabled {
+        self.notice = Some(if request.retry_task.is_some() {
+            fl!("activity-subtask-retry-scheduled")
+        } else if request.enabled {
             fl!("activity-auto-work-started")
         } else {
             fl!("activity-auto-work-stopped")
@@ -325,6 +386,16 @@ impl Activities {
             .push(text(fl!("activity-auto-work-semantics")).size(12.0))
             .push(text(fl!("activity-auto-work-reports")).size(12.0));
         if let Some(form) = &self.automatic_work.form {
+            if let Some(task_id) = &form.task_id {
+                card = card.push(
+                    text(if form.review {
+                        fl!("activity-subtask-review-title", id = task_id.clone())
+                    } else {
+                        fl!("activity-subtask-edit-title", id = task_id.clone())
+                    })
+                    .size(15.0),
+                );
+            }
             card = card
                 .push(
                     text(fl!(
@@ -348,7 +419,7 @@ impl Activities {
                         Field::ReviewNote,
                         available,
                     ));
-            } else {
+            } else if form.task_id.is_none() {
                 card = card
                     .push(work_input(
                         fl!("activity-auto-work-interval"),
@@ -373,7 +444,13 @@ impl Activities {
                 Row::new()
                     .spacing(8)
                     .push(work_control(
-                        fl!("activity-auto-work-save"),
+                        if form.review && form.task_id.is_some() {
+                            fl!("activity-subtask-retry-submit")
+                        } else if form.task_id.is_some() {
+                            fl!("activity-subtask-save")
+                        } else {
+                            fl!("activity-auto-work-save")
+                        },
                         Message::Save,
                         available,
                     ))
@@ -387,8 +464,15 @@ impl Activities {
             ));
             match self.automatic_work.response.as_ref() {
                 None => {
-                    card = card.push(text(self.automatic_work.load_error.clone()
-                        .unwrap_or_else(|| fl!("activity-auto-work-load"))).size(12.0));
+                    card = card.push(
+                        text(
+                            self.automatic_work
+                                .load_error
+                                .clone()
+                                .unwrap_or_else(|| fl!("activity-auto-work-load")),
+                        )
+                        .size(12.0),
+                    );
                 }
                 Some(response) => {
                     let current = response.work.as_ref();

@@ -24,6 +24,7 @@ fn automatic_work_requests_are_closed_owner_free_and_revision_checked() {
         enabled: true,
         next_task: Some("Inspect before continuing".into()),
         review_note: Some("Checked the previous result".into()),
+        retry_task: None,
     };
     request.validate().unwrap();
     let roundtrip: AutoWorkEnabledRequest =

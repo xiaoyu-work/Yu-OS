@@ -59,6 +59,11 @@ pub(super) fn preflight_enable(
         if note.len() > 2048 || note.contains('\0') {
             return Err("work review note is invalid or exceeds 2048 bytes".into());
         }
+        if let Some(task_id) = flag(args, "work-retry-task") {
+            let task = flag(args, "work-next-task").ok_or("a retry requires a safe next task")?;
+            let note = flag(args, "work-review-note").ok_or("a retry requires an inspection note")?;
+            work.validate_retry(&task_id, &task, &note).map_err(|error| error.to_string())?;
+        }
     }
     binding(owner, activity_id)?;
     Ok(())
@@ -382,7 +387,7 @@ fn scheduled_context(
     }
     let payload = serde_json::json!({
         "role": if child.is_some() { "subtask" } else { "coordinator" },
-        "next_task": child.map_or(work.next_task.as_str(), |task| task.task.as_str()),
+        "next_task": child.map_or(work.next_task.as_str(), |task| batch.instruction(task)),
         "task_id": child.map(|task| &task.id),
         "parent_job_id": batch.parent_job_id,
         "reports": reports,

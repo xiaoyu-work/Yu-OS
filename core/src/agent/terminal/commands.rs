@@ -143,6 +143,7 @@ pub(super) enum Command {
         enabled: bool,
         next_task: Option<String>,
         review_note: Option<String>,
+        retry_task: Option<String>,
     },
     ActivityEvidence(String),
     ActivityPreview {
@@ -322,10 +323,12 @@ pub(super) fn parse(value: &str) -> Option<Command> {
                     struct WorkResume {
                         next_task: Option<String>,
                         review_note: Option<String>,
+                        retry_task: Option<String>,
                     }
                     let options: WorkResume = serde_json::from_str(text).ok()?;
                     request["next_task"] = json!(options.next_task);
                     request["review_note"] = json!(options.review_note);
+                    request["retry_task"] = json!(options.retry_task);
                 }
                 serde_json::from_value::<crate::yuosd::wire::requests::ActivityWorkEnabled>(
                     request.clone(),
@@ -346,6 +349,7 @@ pub(super) fn parse(value: &str) -> Option<Command> {
                         .get("review_note")
                         .and_then(Value::as_str)
                         .map(str::to_string),
+                    retry_task: request.get("retry_task").and_then(Value::as_str).map(str::to_string),
                 },
                 None => Command::Unknown(value.to_string()),
             }
@@ -991,10 +995,10 @@ pub(super) fn execute(
                 |app, controls| { app.open_activity_controls(controls); Ok(()) },
             ).mutation()));
         }
-        Command::ActivityWorkEnabled { id,revision,enabled,next_task,review_note } => {
+        Command::ActivityWorkEnabled { id,revision,enabled,next_task,review_note,retry_task } => {
             return Ok(Some(Request::new(
                 "Saving automatic Activity work",
-                async move { backend.set_activity_work_enabled(&id, revision, enabled, next_task, review_note).await },
+                async move { backend.set_activity_work_enabled(&id, revision, enabled, next_task, review_note,retry_task).await },
                 |app, controls| { app.open_activity_controls(controls); Ok(()) },
             ).mutation()));
         }

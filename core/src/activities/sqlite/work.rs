@@ -293,6 +293,7 @@ pub(super) fn change(
             generation,
             next_task,
             review_note,
+            retry_task,
         } => {
             if !activity.state.allows_work() {
                 return Err(ActivityError::Conflict(
@@ -333,7 +334,21 @@ pub(super) fn change(
                 }
             }
             work.generation = Some(parse_id(&generation)?);
-            if let Some(task) = next_task {
+            if let Some(id) = retry_task {
+                let task = next_task.ok_or_else(|| {
+                    ActivityError::Invalid("a retry requires a safe next task".into())
+                })?;
+                let note = review_note.as_deref().ok_or_else(|| {
+                    ActivityError::Invalid("a retry requires an inspection note".into())
+                })?;
+                work.validate_retry(&id, &task, note)?;
+                let batch = work
+                    .parallel
+                    .as_mut()
+                    .ok_or_else(|| corrupt("subtask plan is missing"))?;
+                batch.edits.insert(id.clone(), task);
+                batch.retry_task = Some(id);
+            } else if let Some(task) = next_task {
                 super::super::validate_text("next work task", &task, 8192, false, true)?;
                 work.next_task = task;
                 work.parallel = None;
@@ -346,8 +361,29 @@ pub(super) fn change(
         }
         ActivityWorkChange::Disable => {
             work.enabled = false;
+            if let Some(batch) = &mut work.parallel {
+                if batch.running.is_empty() && batch.retry_task.take().is_some() {
+                    work.phase = ActivityWorkPhase::Held;
+                }
+            }
             work.message =
                 Some("Automatic progression is stopped; an existing Job is not cancelled.".into());
+        }
+        ActivityWorkChange::EditChild(edit) => {
+            edit.validate()?;
+            configurable(&activity)?;
+            let batch = work.parallel.as_mut().ok_or_else(|| {
+                ActivityError::Conflict("the Activity has no pending subtask plan".into())
+            })?;
+            if !batch.tasks.iter().any(|task| task.id == edit.task_id)
+                || batch.running.contains_key(&edit.task_id)
+                || batch.finished.contains_key(&edit.task_id)
+            {
+                return Err(ActivityError::Conflict(
+                    "only a not-yet-started subtask can be edited".into(),
+                ));
+            }
+            batch.edits.insert(edit.task_id, edit.task);
         }
         ActivityWorkChange::Reserve {
             generation,
@@ -394,6 +430,10 @@ pub(super) fn change(
                 .parallel
                 .as_mut()
                 .ok_or_else(|| corrupt("missing parallel plan"))?;
+            if batch.retry_task.as_deref() == Some(task_id.as_str()) {
+                // Replace only the selected outcome; the previous attempt stays in the ledger.
+                batch.finished.remove(&task_id);
+            }
             batch.running.insert(
                 task_id,
                 ActivityWorkSegment {
@@ -513,7 +553,11 @@ pub(super) fn change(
                     .parallel
                     .as_mut()
                     .ok_or_else(|| corrupt("subtask lost its batch"))?;
-                if !record.child_reported_done() && !batch.failed() {
+                let retried = batch.retry_task.as_deref() == Some(child.task_id.as_str());
+                if retried {
+                    batch.retry_task = None;
+                }
+                if !record.child_reported_done() && (retried || !batch.failed()) {
                     work.enabled = false;
                     work.message = message.or_else(|| match record.checkpoint.as_ref().map(|checkpoint| &checkpoint.next) {
                         Some(ActivityWorkNext::Blocked { reason } | ActivityWorkNext::Review { reason }) => Some(reason.clone()),
@@ -524,8 +568,15 @@ pub(super) fn change(
                 work.phase = if !batch.running.is_empty() {
                     ActivityWorkPhase::Running
                 } else if batch.failed() {
+                    work.enabled = false;
+                    if retried && record.child_reported_done() {
+                        work.message = Some("Another subtask still needs review.".into());
+                    }
                     ActivityWorkPhase::Held
                 } else {
+                    if retried && work.enabled {
+                        work.message = None;
+                    }
                     ActivityWorkPhase::Ready
                 };
             } else {
@@ -577,6 +628,8 @@ pub(super) fn change(
                                     tasks: tasks.clone(),
                                     running: Default::default(),
                                     finished: Default::default(),
+                                    edits: Default::default(),
+                                    retry_task: None,
                                 });
                             }
                             ActivityWorkNext::Done => {
@@ -628,6 +681,9 @@ pub(super) fn change(
                 ));
             }
             work.enabled = false;
+            if let Some(batch) = &mut work.parallel {
+                batch.retry_task = None;
+            }
             work.phase = ActivityWorkPhase::Held;
             work.message = Some(message);
             work.next_wake_at = None;

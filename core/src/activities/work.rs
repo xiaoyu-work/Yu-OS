@@ -98,6 +98,24 @@ fn valid_task_id(id: &str) -> bool {
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'-' | b'_'))
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ActivityWorkEdit {
+    pub task_id: String,
+    pub task: String,
+}
+
+impl ActivityWorkEdit {
+    pub fn validate(&self) -> Result<(), ActivityError> {
+        if !valid_task_id(&self.task_id) {
+            return Err(ActivityError::Invalid(
+                "invalid automatic subtask ID".into(),
+            ));
+        }
+        validate_text("subtask instruction", &self.task, 2048, false, true)
+    }
+}
+
 fn validate_plan(tasks: &[ActivityWorkTask]) -> Result<(), ActivityError> {
     if !(2..=MAX_PARALLEL_TASKS).contains(&tasks.len()) {
         return Err(ActivityError::Invalid(
@@ -233,6 +251,10 @@ pub struct ActivityWorkBatch {
     pub tasks: Vec<ActivityWorkTask>,
     pub running: BTreeMap<String, ActivityWorkSegment>,
     pub finished: BTreeMap<String, ActivityWorkRecord>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub edits: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry_task: Option<String>,
 }
 
 impl ActivityWorkBatch {
@@ -244,6 +266,18 @@ impl ActivityWorkBatch {
 
     fn succeeded(&self) -> bool {
         self.finished.len() == self.tasks.len() && !self.failed()
+    }
+
+    fn dependencies_done(&self, task: &ActivityWorkTask) -> bool {
+        task.after.iter().all(|id| {
+            self.finished
+                .get(id)
+                .is_some_and(ActivityWorkRecord::child_reported_done)
+        })
+    }
+
+    pub(crate) fn instruction<'a>(&'a self, task: &'a ActivityWorkTask) -> &'a str {
+        self.edits.get(&task.id).unwrap_or(&task.task)
     }
 }
 
@@ -309,20 +343,61 @@ impl ActivityWork {
             )
             || self.current.is_some()
             || batch.running.len() >= MAX_IN_FLIGHT_CHILDREN
-            || batch.failed()
         {
+            return None;
+        }
+        if let Some(id) = &batch.retry_task {
+            return if batch.running.is_empty() {
+                batch
+                    .tasks
+                    .iter()
+                    .find(|task| &task.id == id && batch.dependencies_done(task))
+            } else {
+                None
+            };
+        }
+        if batch.failed() {
             return None;
         }
         batch.tasks.iter().find(|task| {
             !batch.running.contains_key(&task.id)
                 && !batch.finished.contains_key(&task.id)
-                && task.after.iter().all(|id| {
-                    batch
-                        .finished
-                        .get(id)
-                        .is_some_and(ActivityWorkRecord::child_reported_done)
-                })
+                && batch.dependencies_done(task)
         })
+    }
+
+    pub(crate) fn validate_retry(
+        &self,
+        task_id: &str,
+        task: &str,
+        note: &str,
+    ) -> Result<(), ActivityError> {
+        ActivityWorkEdit {
+            task_id: task_id.into(),
+            task: task.into(),
+        }
+        .validate()?;
+        validate_text("subtask review note", note, 2048, false, true)?;
+        if self.enabled
+            || self.has_in_flight()
+            || self.phase != ActivityWorkPhase::Held
+            || self.parallel.as_ref().is_none_or(|batch| {
+                batch.retry_task.is_some()
+                    || !batch
+                        .finished
+                        .get(task_id)
+                        .is_some_and(|record| !record.child_reported_done())
+                    || !batch
+                        .tasks
+                        .iter()
+                        .any(|task| task.id == task_id && batch.dependencies_done(task))
+            })
+        {
+            return Err(ActivityError::Conflict(
+                "only an inspected, held subtask can be retried".into(),
+            ));
+        }
+        Ok(())
     }
 
     pub fn due_at(&self, now: DateTime<Utc>) -> Result<bool, ActivityError> {
@@ -393,40 +468,68 @@ impl ActivityWork {
                     "work segment generation differs".into(),
                 ));
             }
-            if let Some(batch) = &self.parallel {
-                validate_plan(&batch.tasks)?;
-                super::execution_limits::validate_job_id(&batch.parent_job_id)?;
-                let mut jobs = BTreeSet::from([batch.parent_job_id.as_str()]);
-                if batch.running.len() > MAX_IN_FLIGHT_CHILDREN
-                    || batch
-                        .running
-                        .keys()
-                        .chain(batch.finished.keys())
-                        .any(|id| !batch.tasks.iter().any(|task| task.id == *id))
-                    || batch.running.iter().any(|(id, segment)| {
-                        batch.finished.contains_key(id) || !jobs.insert(&segment.job_id)
-                    })
-                {
-                    return Err(ActivityError::Invalid(
-                        "invalid parallel work reservation".into(),
-                    ));
-                }
-                for (id, record) in &batch.finished {
-                    record.validate()?;
-                    if !jobs.insert(&record.job_id)
-                        || record.child.as_ref().is_none_or(|link| {
-                            link.parent_job_id != batch.parent_job_id || link.task_id != *id
-                        })
-                    {
-                        return Err(ActivityError::Invalid(
-                            "invalid parallel work result identity".into(),
-                        ));
-                    }
-                }
-            }
             work_time(&segment.prepared_at)?;
             if let Some(checkpoint) = &segment.checkpoint {
                 checkpoint.validate()?;
+            }
+        }
+        if let Some(batch) = &self.parallel {
+            validate_plan(&batch.tasks)?;
+            super::execution_limits::validate_job_id(&batch.parent_job_id)?;
+            let mut jobs = BTreeSet::from([batch.parent_job_id.as_str()]);
+            if batch.running.len() > MAX_IN_FLIGHT_CHILDREN
+                || batch
+                    .running
+                    .keys()
+                    .chain(batch.finished.keys())
+                    .any(|id| !batch.tasks.iter().any(|task| task.id == *id))
+                || batch.running.iter().any(|(id, segment)| {
+                    batch.finished.contains_key(id) || !jobs.insert(&segment.job_id)
+                })
+            {
+                return Err(ActivityError::Invalid(
+                    "invalid parallel work reservation".into(),
+                ));
+            }
+            for (id, record) in &batch.finished {
+                record.validate()?;
+                if !jobs.insert(&record.job_id)
+                    || record.child.as_ref().is_none_or(|link| {
+                        link.parent_job_id != batch.parent_job_id || link.task_id != *id
+                    })
+                {
+                    return Err(ActivityError::Invalid(
+                        "invalid parallel work result identity".into(),
+                    ));
+                }
+            }
+            for (id, instruction) in &batch.edits {
+                if !batch.tasks.iter().any(|task| task.id == *id) {
+                    return Err(ActivityError::Invalid(
+                        "edited subtask is not in the plan".into(),
+                    ));
+                }
+                validate_text("subtask instruction", instruction, 2048, false, true)?;
+            }
+            if let Some(id) = &batch.retry_task {
+                let reserved = batch.running.contains_key(id) && batch.running.len() == 1;
+                let waiting = self.enabled
+                    && batch.running.is_empty()
+                    && batch
+                        .finished
+                        .get(id)
+                        .is_some_and(|record| !record.child_reported_done());
+                if !(reserved || waiting)
+                    || !batch.edits.contains_key(id)
+                    || !batch
+                        .tasks
+                        .iter()
+                        .any(|task| task.id == *id && batch.dependencies_done(task))
+                {
+                    return Err(ActivityError::Invalid(
+                        "invalid subtask recovery reservation".into(),
+                    ));
+                }
             }
         }
         if let Some(record) = &self.last_checkpoint {
@@ -488,10 +591,12 @@ impl ActivityWorkRecord {
 #[derive(Debug, Clone)]
 pub enum ActivityWorkChange {
     Configure(ActivityWorkDraft),
+    EditChild(ActivityWorkEdit),
     Enable {
         generation: String,
         next_task: Option<String>,
         review_note: Option<String>,
+        retry_task: Option<String>,
     },
     Disable,
     Reserve {

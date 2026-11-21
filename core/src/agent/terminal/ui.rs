@@ -1175,6 +1175,8 @@ fn render_activity_controls(frame: &mut Frame<'_>, screen: Rect, app: &App) {
         let in_flight = batch.get("running").and_then(serde_json::Value::as_object).map_or(0, |jobs| jobs.len());
         let reported = batch.get("finished").and_then(serde_json::Value::as_object).map_or(0, |jobs| jobs.len());
         lines.push(Line::raw(format!("Subtasks: {total} total, {in_flight} in flight, {reported} settled. Run yu activity work for exact dependencies.")));
+        lines.push(Line::raw("Edit a pending step with /activity-work-set ID REV | {\"task_id\":\"STEP\",\"task\":\"Revised instruction\"}."));
+        lines.push(Line::raw("For a held step, add \"retry_task\":\"STEP\" to /activity-work-enable's reviewed resume details."));
     }
     frame.render_widget(Clear, area);
     frame.render_widget(

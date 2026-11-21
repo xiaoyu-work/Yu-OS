@@ -40,7 +40,8 @@ fn automatic_work_configuration_is_initially_stopped_and_conflicts_keep_the_draf
     );
     let write = update(&mut state, Message::Save).unwrap();
     assert!(matches!(&write.action,Action::SetAutomaticWork {request,..}
-        if request.expected_revision.is_none() && request.work.check_interval_secs==3600));
+        if request.expected_revision.is_none()
+            && request.work.as_ref().is_some_and(|work| work.check_interval_secs == 3600)));
     state.update(
         ActivityMessage::Loaded {
             generation: write.generation,

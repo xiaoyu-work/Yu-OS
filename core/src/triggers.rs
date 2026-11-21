@@ -300,6 +300,7 @@ fn validate_arguments(command: &str, args: &[String]) -> Result<(), String> {
             "work-revision",
             "work-next-task",
             "work-review-note",
+            "work-retry-task",
         ],
         "list" => &["activity"],
         "remove" | "rm" | "enable" | "disable" | "run" => &["id"],
@@ -345,7 +346,7 @@ fn validate_arguments(command: &str, args: &[String]) -> Result<(), String> {
                     value.parse::<u64>().ok().filter(|revision| *revision > 0)
                         .ok_or("--work-revision requires a positive revision")?;
                 }
-                "work-next-task" | "work-review-note" if value.trim().is_empty() => {
+                "work-next-task" | "work-review-note" | "work-retry-task" if value.trim().is_empty() => {
                     return Err(format!("{arg} must not be empty"));
                 }
                 "prompt" if value.trim().is_empty() => {
@@ -885,6 +886,7 @@ fn cmd_add(args: &[String]) -> Result<Value, String> {
                     crate::activities::ActivityWorkChange::Enable {
                         generation:rule.generation.clone().ok_or("work generation is missing")?,
                         next_task:flag(args,"work-next-task"),review_note:flag(args,"work-review-note"),
+                        retry_task:flag(args,"work-retry-task"),
                     }).map_err(|error| error.to_string())?;
             return Ok(json!({"ok":true,"id":id,"work":state}));
         }

@@ -166,13 +166,38 @@ pub struct AutoWorkBatch {
     pub tasks: Vec<AutoWorkTask>,
     pub running: BTreeMap<String, AutoWorkSegment>,
     pub finished: BTreeMap<String, AutoWorkRecord>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub edits: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry_task: Option<String>,
 }
 
 impl AutoWorkBatch {
+    pub fn can_edit(&self, id: &str) -> bool {
+        self.tasks.iter().any(|task| task.id == id)
+            && !self.running.contains_key(id)
+            && !self.finished.contains_key(id)
+    }
+
+    pub fn instruction<'a>(&'a self, task: &'a AutoWorkTask) -> &'a str {
+        self.edits.get(&task.id).unwrap_or(&task.task)
+    }
+
     fn valid_for(&self, generation: Option<&str>) -> bool {
         let mut jobs = BTreeSet::from([self.parent_job_id.as_str()]);
         text(&self.parent_job_id, 128)
             && valid_plan(&self.tasks)
+            && self.edits.iter().all(|(id, task)| {
+                text(task, 2048) && self.tasks.iter().any(|entry| entry.id == *id)
+            })
+            && self.retry_task.as_ref().is_none_or(|id| {
+                self.edits.contains_key(id)
+                    && (self.running.contains_key(id)
+                        || self
+                            .finished
+                            .get(id)
+                            .is_some_and(|record| !record.reported_done()))
+            })
             && self.running.len() <= 2
             && self.running.iter().all(|(id, segment)| {
                 !self.finished.contains_key(id)
@@ -214,6 +239,14 @@ pub struct AutoWorkRecord {
 }
 
 impl AutoWorkRecord {
+    pub fn reported_done(&self) -> bool {
+        self.outcome == AutoWorkOutcome::Reported
+            && self
+                .checkpoint
+                .as_ref()
+                .is_some_and(|checkpoint| matches!(checkpoint.next, AutoWorkNext::Done))
+    }
+
     fn valid(&self) -> bool {
         text(&self.job_id, 128)
             && text(&self.session_id, 128)
@@ -258,6 +291,31 @@ pub struct ActivityAutoWork {
 }
 
 impl ActivityAutoWork {
+    pub fn can_retry(&self, id: &str) -> bool {
+        !self.enabled
+            && !self.has_in_flight()
+            && self.phase == AutoWorkPhase::Held
+            && self.parallel.as_ref().is_some_and(|batch| {
+                batch.retry_task.is_none()
+                    && batch
+                        .finished
+                        .get(id)
+                        .is_some_and(|record| !record.reported_done())
+                    && batch
+                        .tasks
+                        .iter()
+                        .find(|task| task.id == id)
+                        .is_some_and(|task| {
+                            task.after.iter().all(|id| {
+                                batch
+                                    .finished
+                                    .get(id)
+                                    .is_some_and(AutoWorkRecord::reported_done)
+                            })
+                        })
+            })
+    }
+
     pub fn has_in_flight(&self) -> bool {
         self.current.is_some()
             || self
@@ -342,13 +400,47 @@ pub struct AutoWorkQuery {}
 pub struct AutoWorkSetRequest {
     #[serde(deserialize_with = "required_nullable")]
     pub expected_revision: Option<u64>,
-    pub work: AutoWorkDraft,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub work: Option<AutoWorkDraft>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edit: Option<AutoWorkEdit>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AutoWorkEdit {
+    pub task_id: String,
+    pub task: String,
 }
 
 impl AutoWorkSetRequest {
     pub fn validate(&self) -> Result<(), &'static str> {
         revision(self.expected_revision)?;
-        self.work.validate()
+        match (&self.work, &self.edit) {
+            (Some(work), None) => work.validate(),
+            (None, Some(edit))
+                if self.expected_revision.is_some()
+                    && task_id(&edit.task_id)
+                    && text(&edit.task, 2048) =>
+            {
+                Ok(())
+            }
+            _ => Err("Invalid automatic-work configuration or subtask edit"),
+        }
+    }
+
+    pub fn acknowledges(&self, work: &ActivityAutoWork) -> bool {
+        self.expected_revision.unwrap_or(0).checked_add(1) == Some(work.revision)
+            && match (&self.work, &self.edit) {
+                (Some(draft), None) => !work.enabled && &work.config == draft,
+                (None, Some(edit)) => {
+                    work.parallel
+                        .as_ref()
+                        .and_then(|batch| batch.edits.get(&edit.task_id))
+                        == Some(&edit.task)
+                }
+                _ => false,
+            }
     }
 }
 
@@ -359,12 +451,23 @@ pub struct AutoWorkEnabledRequest {
     pub enabled: bool,
     pub next_task: Option<String>,
     pub review_note: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_task: Option<String>,
 }
 
 impl AutoWorkEnabledRequest {
     pub fn validate(&self) -> Result<(), &'static str> {
         revision(Some(self.expected_revision))?;
         if (!self.enabled && (self.next_task.is_some() || self.review_note.is_some()))
+            || self.retry_task.as_ref().is_some_and(|id| {
+                !self.enabled
+                    || !task_id(id)
+                    || self
+                        .next_task
+                        .as_deref()
+                        .is_none_or(|task| !text(task, 2048))
+                    || self.review_note.is_none()
+            })
             || self
                 .next_task
                 .as_deref()
@@ -377,6 +480,17 @@ impl AutoWorkEnabledRequest {
             return Err("Invalid automatic-work resume details");
         }
         Ok(())
+    }
+
+    pub fn acknowledges(&self, work: &ActivityAutoWork) -> bool {
+        self.expected_revision.checked_add(1) == Some(work.revision)
+            && self.enabled == work.enabled
+            && self.retry_task.as_deref().is_none_or(|id| {
+                work.parallel
+                    .as_ref()
+                    .and_then(|batch| batch.retry_task.as_deref())
+                    == Some(id)
+            })
     }
 }
 
