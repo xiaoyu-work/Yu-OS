@@ -2,9 +2,9 @@
 
 Yu OS uses [Hyprland](hyprland-yuos/MODULE.md) with the signed
 [Desktop Shell App](https://github.com/xiaoyu-work/yuos-app/tree/main/products/desktop-shell),
-which owns Quickshell, Caelestia, and their private runtime. Desktop builds
-require that App from the authenticated package channel. They do not build or
-install another desktop if it is unavailable.
+which owns Quickshell, Caelestia, and their private runtime. The OS release
+builds it from the locked `yuos-app/main` commit and embeds the signed payload
+in `yuos-desktop`; there is no separate Shell release or APT package.
 
 The OS owns greetd/PAM login, display and App authority, system services,
 and the native Agent interface. The Agent's terminal and Web use do not

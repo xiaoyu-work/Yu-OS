@@ -45,8 +45,9 @@ Desktop. `apt install yuos-desktop` installs all Yu OS Apps, including the
 headless set and the individually packaged graphical Apps and Thunderbird
 integration. It replaces the separately named Shell package and removes the
 obsolete `yuos-apps-desktop` metapackage if present. Configure both signed
-channels for the normal transaction. Desktop releases check the approved
-Shell input and the complete App APT closure before package assembly.
+channels for the normal transaction. Desktop releases build and seal the
+Shell at one locked App main revision and separately verify the signed App APT
+closure before package assembly.
 
 The matching Agent and Desktop packages carry the OS release's
 [preapproved App selection](../packaging/README.md#preinstalled-app-defaults).

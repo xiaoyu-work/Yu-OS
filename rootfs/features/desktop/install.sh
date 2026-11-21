@@ -62,7 +62,7 @@ test -s "$ROOTFS/usr/share/backgrounds/yuos/yuos-default.jpg"
 test -f "$ROOTFS/etc/pam.d/yuos-desktop-lock"
 shell_manifest=/usr/lib/yuos/apps/desktop-shell/app.json
 test "$(chroot "$ROOTFS" dpkg-query -S "$shell_manifest")" = "yuos-desktop: $shell_manifest"
-test -s "$ROOTFS/usr/lib/yuos/apps/desktop-shell/.provenance.json"
+python3 "$PROJECT_DIR/scripts/desktop_shell.py" check --architecture "$DEB_ARCH" --stage "$ROOTFS" >/dev/null
 test -f "$ROOTFS/usr/share/wayland-sessions/yuos.desktop"
 test "$(readlink "$ROOTFS/etc/systemd/system/display-manager.service")" = /usr/lib/systemd/system/greetd.service
 echo "  :: installed the authenticated Hyprland desktop and signed Desktop Shell"

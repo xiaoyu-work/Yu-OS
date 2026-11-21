@@ -20,7 +20,7 @@ Both are optional. `packages.txt` runs first, then `install.sh`.
 | `yuos-core` | `yuos-agent` plus `yuos-base`: Agent/browser binaries, skills, SDK/runtime and OS integration; separately checked App APT packages supply the headless/support/library set |
 | `browser` | Chromium executable and target runtime integration for the browser binaries already shipped by `yuos-agent` |
 | `qwen3-embedding` | Downloads the public Hugging Face `johnucm/Qwen-Qwen3-Embedding-0.6B-onnx` ONNX GenAI bundle into `/var/lib/yuos/models/qwen3-embedding-0.6b/v1` and installs the validated `ort` plus `ort-genai` pair in `/var/lib/yuos/engines` where upstream provides Linux assets |
-| `desktop` | Packages the OS compositor and services with the approved signed Desktop Shell, then installs all ordinary Yu OS Apps from checked independent APT packages. Set `DESKTOP_SKIP=1` for runtime deps + overlay only, never a completed desktop. |
+| `desktop` | Packages the OS compositor and services with the signed Desktop Shell built from locked App source, then installs all ordinary Yu OS Apps from checked independent APT packages. Set `DESKTOP_SKIP=1` for runtime deps + overlay only, never a completed desktop. |
 | `yuos-mail-ai` | Registers the MailExtension with Thunderbird and installs OS NM/policy wiring. Mail App/XPI packages own product bytes; Agent owns the authority launcher and SDK/runtime. Never overwrites them or builds a UI copy. Requires Thunderbird. |
 | `copilot-cli` | Installs `@github/copilot` globally via npm so `copilot` is on every user's `$PATH`. Used by the external Terminal product's `@`-trigger AI integration. |
 | `systemd` | Yu OS system services plus `systemd-coredump`, so the system agent can diagnose process crashes on desktop and headless images. |

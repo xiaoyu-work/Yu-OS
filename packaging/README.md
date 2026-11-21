@@ -71,8 +71,9 @@ fail closed; there is no production source fallback. Images install the same
 checked independent `.deb` files in the ordinary APT transaction.
 
 Desktop embeds only the signed `desktop-shell` App in
-`/usr/lib/yuos/apps/desktop-shell`. Release preparation freezes the approved
-immutable Shell build from `yuos-app`, and assembly checks its signature,
+`/usr/lib/yuos/apps/desktop-shell`. The OS release locks the `yuos-app/main`
+commit and builds its UI natively on Debian 13. OS-controlled assembly seals
+the Shell with the official App publisher and verifies its signed inventory,
 entrypoint, resources and target architecture without changing the App tree.
 Its launcher, identity and permission checks are unchanged. The remaining
 63 identities and Mail's Thunderbird integration are separately owned packages
@@ -80,7 +81,7 @@ required by Desktop, not an installed `yuos-apps-desktop` metapackage.
 The historical immutable metapackage remains in the App archive for retention.
 
 Bootstrap publishes the approved SDK and independent App APT packages first,
-then the OS packages. Desktop also needs its approved signed Shell build input.
+then the OS packages. Desktop does not need a separate Shell publication.
 Agent only *recommends* the headless set, so App runtime dependencies create
 no circular hard dependency and Agent-only
 Ubuntu/WSL installs do not require the full Desktop. Configure both signed
@@ -610,7 +611,11 @@ channel.
 Before a signed release, add the existing OS archive's armored GPG private key
 and passphrase to the repository Actions secrets `YUOS_APT_SIGNING_PRIVATE_KEY`
 and `YUOS_APT_SIGNING_PASSPHRASE`. Reuse the trusted archive key; these settings
-do not rotate it.
+do not rotate it. Desktop targets additionally require the approved App
+Ed25519 key JSON in the OS repository's
+`YUOS_APPS_PROVENANCE_SIGNING_PRIVATE_KEY` Actions secret. It must match the
+publisher installed by `yuos-agent`; it is only used in the OS sealing step,
+never by the App source build.
 
 The **Release Yu OS** workflow (`release.yml`) has one target selector:
 
@@ -619,17 +624,21 @@ The **Release Yu OS** workflow (`release.yml`) has one target selector:
 | `agent` | `yuos-agent` for amd64 and arm64, with TUI, Ubuntu install/reinstall and actual official Store/browser/MCP checks |
 | `base` | `yuos-base` (`Architecture: all`) |
 | `core` | Agent and Base together, without Desktop or image builds; coordinated protocol updates and headless recovery |
-| `desktop` | `yuos-desktop` for amd64 and arm64, using native GitHub-hosted Ubuntu runners |
+| `desktop` | `yuos-desktop` for amd64 and arm64, including the Shell from locked App main built natively on Debian 13 |
 | `installer` | Candidate amd64 Desktop Calamares ISO and checksum, verified against same-run signed packages; workflow artifacts only |
 | `images` | Shared-rootfs Docker/WSL images; consumes same-run signed Agent/Base packages without publishing them to APT |
 | `website` | Website and Pages composition; preserves every existing package |
 | `all` | Shared tests, all packages, Docker/WSL and one Pages publication |
 
 Each run freezes one commit-derived package version and the authenticated
-App APT package closure for selected architectures. Only the shared test suite
-in `all` separately receives an explicit immutable App-source fixture; no
-production builder consumes it. Package checks reverify official APT evidence
-and refuse App/support/library ownership before upload. Images download the
+App APT package closure for selected architectures. `desktop`, `installer`
+and `all` lock App main for the Shell build; `all` uses that same commit for
+the separate test fixture. The OS run retains only intermediate build and
+verification artifacts for the Shell, not a standalone release. A change in
+the App revision does not bump the OS package version; publishing different
+Desktop bytes still requires a newer OS version. Package checks reverify
+official APT evidence and refuse ordinary App/support/library ownership
+before upload. Images download the
 signed Agent/Base packages instead of rebuilding the common binaries; Docker
 and WSL share one stamped rootfs per architecture.
 

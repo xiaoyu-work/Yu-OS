@@ -24,11 +24,29 @@ fi
 
 version="$(bash scripts/lib/package-version.sh)"
 mkdir -p build/release
+app_revision=
+if [ "$desktop" = true ]; then
+    app_revision="$(python3 - "$target" <<'PY'
+import sys
+from scripts import app_sources
+
+selection = app_sources.read_lock()
+if selection["version"] != 2:
+    raise ValueError("Desktop releases must resolve the authoritative App main")
+revision = app_sources.resolve_main(selection)
+if sys.argv[1] == "all":
+    # The reusable test workflow uses the very same commit. Production
+    # ordinary App packages still come exclusively from the signed APT inputs.
+    app_sources.write_lock(
+        "build/release/app-sources.json",
+        {**selection, "version": 1, "revision": revision},
+    )
+print(revision)
+PY
+)"
+fi
 if [ "$agent" = true ] || [ "$desktop" = true ]; then
     python3 scripts/app_packages.py check-version --version "$version"
-fi
-if [ "$desktop" = true ]; then
-    : "${DESKTOP_SHELL_RELEASE:?an approved Desktop Shell build version is required for a Desktop release}"
 fi
 export YUOS_APP_PACKAGE_ROOT="$GITHUB_WORKSPACE/build/release/app-packages"
 for variant in agent desktop; do
@@ -36,29 +54,11 @@ for variant in agent desktop; do
     if [ "$variant" = desktop ] && [ "$desktop" != true ]; then continue; fi
     for architecture in amd64 arm64; do
         python3 scripts/app_packages.py prepare --variant "$variant" --architecture "$architecture"
-        if [ "$variant" = desktop ]; then
-            python3 scripts/desktop_shell.py prepare --architecture "$architecture" --version "$DESKTOP_SHELL_RELEASE"
-        fi
     done
 done
-if [ "$target" = all ]; then
-    # Test-only immutable sources are separate from production APT inputs.
-    # The reusable test workflow consumes this lock; no package builder does.
-    python3 - <<'PY'
-from scripts import app_sources
-
-selection = app_sources.read_lock()
-if selection["version"] == 2:
-    selection = {
-        **selection,
-        "version": 1,
-        "revision": app_sources.resolve_main(selection),
-    }
-app_sources.write_lock("build/release/app-sources.json", selection)
-PY
-fi
 {
     printf 'version=%s\n' "$version"
+    printf 'app_revision=%s\n' "$app_revision"
     printf 'agent=%s\nbase=%s\ndesktop=%s\nimages=%s\ninstaller=%s\npages=%s\n' \
         "$agent" "$base" "$desktop" "$images" "$installer" "$pages"
 } >> "$GITHUB_OUTPUT"

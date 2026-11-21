@@ -17,10 +17,6 @@ on:
           - images
           - website
           - all
-      desktop_shell_version:
-        description: "Approved immutable Desktop Shell build version (required for desktop, installer or all)"
-        required: false
-        type: string
       release_security_bootstrap:
         description: "One-time migration for a package repository without a release-security baseline"
         required: false
@@ -45,6 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.plan.outputs.version }}
+      app_revision: ${{ steps.plan.outputs.app_revision }}
       agent: ${{ steps.plan.outputs.agent }}
       base: ${{ steps.plan.outputs.base }}
       desktop: ${{ steps.plan.outputs.desktop }}
@@ -56,15 +53,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install isolated Desktop Shell verifier dependency
-        if: inputs.target == 'desktop' || inputs.target == 'installer' || inputs.target == 'all'
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends bubblewrap
-
-      - name: Freeze release version, authenticated Apps and Desktop Shell input
+      - name: Freeze release version, authenticated App packages and Desktop source revision
         id: plan
         env:
           RELEASE_TARGET: ${{ inputs.target }}
-          DESKTOP_SHELL_RELEASE: ${{ inputs.desktop_shell_version }}
           RELEASE_SECURITY_BOOTSTRAP: ${{ inputs.release_security_bootstrap && '1' || '0' }}
         run: bash scripts/ci/prepare-release.sh
 
@@ -239,9 +231,11 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  build-desktop:
+  build-desktop-shell:
     needs: [prepare, test]
     if: ${{ !failure() && !cancelled() && needs.prepare.outputs.desktop == 'true' }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -251,8 +245,54 @@ jobs:
           - arch: arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
+    container: debian:trixie
     env:
       ARCH: ${{ matrix.arch }}
+      APP_REVISION: ${{ needs.prepare.outputs.app_revision }}
+    steps:
+      - run: apt-get update -qq && apt-get install -y --no-install-recommends git ca-certificates python3
+
+      - uses: actions/checkout@v5
+        with:
+          repository: xiaoyu-work/yuos-app
+          ref: ${{ needs.prepare.outputs.app_revision }}
+          persist-credentials: false
+
+      - name: Compile and archive the locked Desktop UI without signing material
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test "$(git rev-parse HEAD)" = "$APP_REVISION"
+          python3 tools/release_ci.py build --desktop-shell --architecture "$ARCH"
+          python3 tools/build_desktop_shell.py --architecture "$ARCH"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-shell-${{ matrix.arch }}
+          path: build/desktop-shell/unsigned-${{ matrix.arch }}.tar.gz
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+          overwrite: true
+
+  build-desktop:
+    needs: [prepare, test, build-desktop-shell]
+    if: >-
+      ${{ !failure() && !cancelled() && needs.prepare.outputs.desktop == 'true' &&
+          needs.build-desktop-shell.result == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            musl_target: x86_64-unknown-linux-musl
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            musl_target: aarch64-unknown-linux-musl
+    runs-on: ${{ matrix.runner }}
+    env:
+      ARCH: ${{ matrix.arch }}
+      RUST_TARGET: ${{ matrix.musl_target }}
       YUOS_PACKAGE_VERSION: ${{ needs.prepare.outputs.version }}
       YUOS_APP_PACKAGE_ROOT: ${{ github.workspace }}/build/release/app-packages
     steps:
@@ -271,6 +311,7 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
+          persist-credentials: false
 
       - uses: actions/download-artifact@v4
         with:
@@ -279,6 +320,29 @@ jobs:
 
       - name: Install host build tools
         run: sudo apt-get update -qq && sudo apt-get install -y musl-tools debootstrap curl ca-certificates python3 gnupg git-lfs bubblewrap
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.musl_target }}
+
+      - name: Build the isolated provenance CLI from this OS revision
+        run: |
+          cargo build --release --locked -p yu --bin yu --target "$RUST_TARGET"
+          install -D -m 0755 "target/$RUST_TARGET/release/yu" \
+            "$YUOS_APP_PACKAGE_ROOT/yu-provenance-linux-$ARCH"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: unsigned-shell-${{ matrix.arch }}
+          path: build/shell-unsigned
+
+      - name: Seal the locked Desktop Shell with the official Yu OS App publisher
+        env:
+          APP_REVISION: ${{ needs.prepare.outputs.app_revision }}
+          YUOS_APPS_PROVENANCE_SIGNING_PRIVATE_KEY: ${{ secrets.YUOS_APPS_PROVENANCE_SIGNING_PRIVATE_KEY }}
+        run: |
+          python3 scripts/desktop_shell.py seal --architecture "$ARCH" --source-revision "$APP_REVISION" \
+            --unsigned-archive "build/shell-unsigned/unsigned-$ARCH.tar.gz"
 
       - name: Import signing key
         env:
@@ -295,6 +359,16 @@ jobs:
 
       - name: Verify Desktop ownership, App APT inputs and signed release manifest
         run: bash scripts/ci/verify-package.sh desktop
+
+      - name: Retain the verified Shell selection for the same-run installer
+        if: needs.prepare.outputs.installer == 'true' && matrix.arch == 'amd64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: shell-verification-amd64
+          path: build/release/app-packages/desktop-shell-amd64/selection.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
 
       - name: Upload Desktop package
         uses: actions/upload-artifact@v4
@@ -459,7 +533,9 @@ jobs:
 
   build-installer:
     needs: [prepare, build-agent, build-base, build-desktop]
-    if: ${{ !failure() && !cancelled() && needs.prepare.outputs.installer == 'true' }}
+    if: >-
+      ${{ !failure() && !cancelled() && needs.prepare.outputs.installer == 'true' &&
+          needs.build-desktop.result == 'success' }}
     runs-on: ubuntu-24.04
     env:
       ARCH: amd64
@@ -498,12 +574,31 @@ jobs:
           name: yuos-desktop-amd64
           path: build/debs
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: shell-verification-amd64
+          path: build/release/app-packages/desktop-shell-amd64
+
       - name: Install ISO build tools
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            debootstrap curl ca-certificates python3 gnupg dpkg-dev bubblewrap \
+            debootstrap curl ca-certificates python3 gnupg dpkg-dev bubblewrap musl-tools \
             squashfs-tools xorriso mtools grub-common grub-efi-amd64-bin grub-pc-bin
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Build the isolated provenance CLI from this OS revision
+        env:
+          APP_REVISION: ${{ needs.prepare.outputs.app_revision }}
+        run: |
+          jq -e --arg revision "$APP_REVISION" '.source_revision == $revision' \
+            "$YUOS_APP_PACKAGE_ROOT/desktop-shell-amd64/selection.json" >/dev/null
+          cargo build --release --locked -p yu --bin yu --target x86_64-unknown-linux-musl
+          install -D -m 0755 target/x86_64-unknown-linux-musl/release/yu \
+            "$YUOS_APP_PACKAGE_ROOT/yu-provenance-linux-amd64"
 
       - name: Verify the same-run system packages and signed App closure
         run: |

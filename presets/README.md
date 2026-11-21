@@ -14,7 +14,7 @@ wrappers.
 
 | Preset | Command | Produces |
 | --- | --- | --- |
-| **Desktop VM** | `sudo ./presets/desktop.sh` | Bootable COSMIC desktop VM image (`vmdk`, 50G) for VMware. Full graphical Yu OS. |
+| **Desktop VM** | `sudo ./presets/desktop.sh` | Bootable Yu OS desktop VM (`vmdk`, 50G) for VMware. Follow the [local desktop prerequisites](../docs/building-desktop.md#local-build-prerequisites) first. |
 | **WSL** | `sudo ./presets/wsl.sh` | Modern `.wsl` package with first-launch account creation. |
 | **Docker** | `./presets/docker.sh` | Headless Yu OS Docker image (container runtime). |
 

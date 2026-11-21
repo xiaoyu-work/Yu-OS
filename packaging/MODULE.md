@@ -70,11 +70,13 @@ install the resulting packages. Package dependencies express runtime layering
 without forcing synchronized versions or publication schedules.
 
 One release run freezes a package version and authenticated App APT inputs.
-Desktop releases also freeze an approved signed Desktop Shell build and verify
-its final installed tree; the App remains launched by the common Host. The image matrix
+Desktop targets also resolve App main once, build the Shell natively on Debian
+13, and sign and verify its tree on OS-controlled runners. The App remains
+launched by the common Host. The image matrix
 consumes the same signed Agent/Base `.deb` artifacts rather than rebuilding
 their binaries and installs the checked App packages as independent owners.
-Only `all` tests separately receive an immutable source fixture. Desktop's
+The `all` tests receive an immutable source fixture locked to the same App
+revision. Desktop's other
 product UI/private-library links are removed: original product binaries and
 resources come from App packages; OS notification presentation uses the public
 SDK. The source guard remains and rejects reintroduced links, without a source

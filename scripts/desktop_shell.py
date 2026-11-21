@@ -1,7 +1,9 @@
-"""Embed the immutable signed App payload into yuos-desktop."""
+"""Seal and embed the locked Desktop Shell source build into yuos-desktop."""
 
 import argparse
+import gzip
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
@@ -16,209 +18,295 @@ APP = "desktop-shell"
 ENTRY = "bin/yuos-desktop-shell"
 SHELL_QML = "resources/usr/share/yuos-desktop-shell/shell.qml"
 BUILD_FORMAT = "yuos.desktop-shell-build/v1"
+SELECTION_FORMAT = "yuos.desktop-shell-selection/v1"
 MAX_BYTES = 264 * 1024 * 1024
 MAX_FILES = 20_001
+MAX_METADATA = 8 * 1024 * 1024
+SHA256 = re.compile(r"[0-9a-f]{64}")
+REVISION = re.compile(r"[0-9a-f]{40}")
+VERSION = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
+MACHINE = {"amd64": 62, "arm64": 183}
 PUBLISHER = ROOT / "packaging/deb/yuos-agent/trust/publishers.d/yuos-app.json"
-RELEASE = "https://github.com/xiaoyu-work/yuos-app/releases/download"
-VERIFIER_LOCK = ROOT / "packaging/provenance-tools.lock.json"
-
-
-def download(url, limit, destination=None):
-    output = ["--output", destination] if destination else []
-    return run([
-        "curl", "--proto", "=https", "--proto-redir", "=https", "--fail", "--silent", "--show-error",
-        "--location", "--max-time", "600", "--max-filesize", str(limit), *output, url,
-    ]).stdout
+SIGNING_KEY = "YUOS_APPS_PROVENANCE_SIGNING_PRIVATE_KEY"
 
 
 def inputs(architecture):
     return work_root() / f"desktop-shell-{architecture}"
 
 
-def host_architecture():
-    return run(["dpkg", "--print-architecture"]).stdout.decode().strip()
+def unique_object(pairs):
+    value = {}
+    for key, entry in pairs:
+        if key in value:
+            raise ValueError("Desktop Shell metadata contains a duplicate field")
+        value[key] = entry
+    return value
 
 
-def verifier(architecture):
-    return work_root() / f"yu-provenance-linux-{architecture}"
+def metadata(path):
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_METADATA:
+        raise ValueError(f"Expected bounded regular Desktop Shell metadata: {path.name}")
+    value = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_object)
+    if not isinstance(value, dict):
+        raise ValueError(f"Expected a Desktop Shell JSON object: {path.name}")
+    return value
 
 
-def verifier_pin(architecture):
-    pin = json.loads(VERIFIER_LOCK.read_text())
-    version = pin["version"]
-    digest = pin["sha256"][architecture]
-    if not re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)", version) or (
-        not re.fullmatch(r"[0-9a-f]{64}", digest)
+def payload_contract(root, architecture, revision):
+    manifest = metadata(root / "app.json")
+    version = manifest["version"]
+    desktop = manifest["desktop"]
+    if (
+        manifest["id"] != APP or manifest["runtime"] != "binary" or manifest["entry"] != ENTRY
+        or not isinstance(version, str) or not VERSION.fullmatch(version)
+        or not isinstance(desktop, dict) or desktop.get("exec") != "--gui"
+        or desktop.get("entry", ENTRY) != ENTRY or desktop.get("entries", {}) != {}
+        or {"mcp", "operations", "web_ui"}.intersection(manifest)
     ):
-        raise ValueError("Invalid approved Yu OS provenance tool pin")
-    url = (
-        "https://github.com/xiaoyu-work/Yu-OS/releases/download/"
-        f"yuos-sdk-v{version}/yu-provenance-linux-{architecture}"
+        raise ValueError("Desktop Shell requires its declared GUI-only App entrypoint")
+    entry = root / ENTRY
+    if not entry.is_file() or not entry.stat().st_mode & 0o100 or not (root / SHELL_QML).is_file():
+        raise ValueError("Desktop Shell requires a regular executable entry and private Shell QML")
+    with entry.open("rb") as stream:
+        if not target_elf(stream.read(20), architecture):
+            raise ValueError("Desktop Shell does not match the target architecture")
+    build = metadata(root / "build.json")
+    if (build["format"], build["architecture"], build["release_version"], build["source_revision"]) != (
+        BUILD_FORMAT, architecture, version, revision,
+    ):
+        raise ValueError("Desktop Shell build does not match the target, App manifest or locked App revision")
+    depends = build["depends"]
+    if not isinstance(depends, list) or not depends or any(
+        not isinstance(item, str) or not re.fullmatch(r"[a-z0-9][a-z0-9.+-]*(?: \(>= [A-Za-z0-9.+:~-]+\))?", item)
+        for item in depends
+    ):
+        raise ValueError("Invalid Desktop Shell Debian runtime dependencies")
+    return version, ", ".join(depends)
+
+
+def target_elf(header, architecture):
+    return (
+        len(header) == 20 and header[:7] == b"\x7fELF\x02\x01\x01"
+        and int.from_bytes(header[18:20], "little") == MACHINE[architecture]
     )
-    return url, digest
 
 
-def verify(root, architecture, pin):
-    host = host_architecture()
-    tool = verifier(host)
-    _, digest = verifier_pin(host)
-    if not tool.is_file() or sha256(tool) != digest:
-        raise ValueError("Missing or changed public Desktop Shell verifier")
-    publisher = json.loads(PUBLISHER.read_text())["keys"][0]["key_id"]
-    # The pinned verifier uses passwd, not $HOME, to find its trust store.
+def provenance(root, *, key=None, version=None):
+    host = run(["dpkg", "--print-architecture"]).stdout.decode().strip()
+    tool = work_root() / f"yu-provenance-linux-{host}"
+    if tool.is_symlink() or not tool.is_file() or not os.access(tool, os.X_OK):
+        raise ValueError(f"Build the native musl Yu OS CLI from this checkout and install it at {tool}")
+    # The CLI uses passwd, not $HOME, for its isolated trust and audit paths.
     with tempfile.TemporaryDirectory(prefix="yuos-desktop-shell-trust-") as scratch:
-        publisher_file = Path(scratch) / PUBLISHER.name
-        shutil.copyfile(PUBLISHER, publisher_file)
-        publisher_file.chmod(0o644)
         home = Path(scratch) / "home"
         home.mkdir(mode=0o700)
         passwd = Path(scratch) / "passwd"
         passwd.write_text("builder:x:0:0:Build verifier:/home/builder:/bin/false\n")
-        isolate = [
+        sandbox = [
             "bwrap", "--unshare-all", "--die-with-parent", "--uid", "0", "--gid", "0",
             "--clearenv", "--setenv", "LC_ALL", "C", "--chdir", "/",
             "--ro-bind", passwd, "/etc/passwd", "--bind", home, "/home/builder",
-            "--ro-bind", publisher_file, "/publisher.json",
-            "--ro-bind", tool, "/yu", "--ro-bind", root, "/payload",
-            "--", "/yu", "--json", "provenance",
+            "--ro-bind", tool, "/yu",
         ]
-        subprocess.run(
-            [*isolate, "trust", "add", "--file", "/publisher.json"], check=True, capture_output=True,
-        )
-        result = subprocess.run(
-            [*isolate, "verify", "--kind", "app", "--id", APP, "--path", "/payload"],
-            check=True, capture_output=True,
-        )
-    report = json.loads(result.stdout)
+        cli = ["--", "/yu", "--json", "provenance"]
+        app = ["--kind", "app", "--id", APP, "--path", "/payload"]
+        if key is not None:
+            run([
+                *sandbox, "--bind", root, "/payload", "--ro-bind", key, "/key.json",
+                *cli, "sign", *app, "--version", version, "--key", "/key.json",
+                "--entrypoint", ENTRY, "--resource", SHELL_QML,
+            ])
+            return None
+        isolate = [*sandbox, "--ro-bind", root, "/payload", "--ro-bind", PUBLISHER, "/publisher.json", *cli]
+        run([*isolate, "trust", "add", "--file", "/publisher.json"])
+        return json.loads(run([*isolate, "verify", *app]).stdout)
+
+
+def verify(root, architecture, pin):
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError("Missing regular Desktop Shell payload directory")
+    report = provenance(root)
     package = report["package"]
+    publisher = metadata(PUBLISHER)["keys"][0]["key_id"]
     if report["verified"] is not True or report["manifest_path"] != "app.json" or (
         report["entrypoints"] != [ENTRY] or package["trust"] != "publisher"
         or package["publisher_key_id"] != publisher
     ):
         raise ValueError("Desktop Shell requires its existing App publisher and GUI entrypoint")
     envelope = root / ".provenance.json"
-    if json.loads(envelope.read_text())["package"]["resources"] != [SHELL_QML]:
+    if metadata(envelope)["package"]["resources"] != [SHELL_QML]:
         raise ValueError("Desktop Shell requires signed private resources")
-    if pin.get("envelope_sha256") not in (None, sha256(envelope)):
+    if pin["envelope_sha256"] != sha256(envelope):
         raise ValueError("Desktop Shell differs from the frozen release input")
-    manifest = json.loads((root / "app.json").read_text())
-    if manifest["id"] != APP or manifest["version"] != package["version"] or (
-        manifest["runtime"] != "binary" or manifest["entry"] != ENTRY
-        or manifest["desktop"]["exec"] != "--gui"
-    ):
-        raise ValueError("Signed Desktop Shell manifest does not match the GUI launch contract")
-    with (root / ENTRY).open("rb") as stream:
-        header = stream.read(20)
-    if header[:7] != b"\x7fELF\x02\x01\x01" or int.from_bytes(header[18:20], "little") != {
-        "amd64": 62, "arm64": 183,
-    }[architecture]:
-        raise ValueError("Desktop Shell does not match the target architecture")
-    build = json.loads((root / "build.json").read_text())
-    if (build["format"], build["architecture"], build["release_version"], build["source_revision"]) != (
-        BUILD_FORMAT, architecture, pin["release_version"], pin["source_revision"],
-    ):
-        raise ValueError("Signed Desktop Shell does not match the selected release and source revision")
-    depends = build["depends"]
-    if not isinstance(depends, list) or not depends or any(
-        not isinstance(item, str) or not re.fullmatch(r"[a-z0-9][a-z0-9.+-]*(?: \(>= [A-Za-z0-9.+:~-]+\))?", item)
-        for item in depends
-    ):
-        raise ValueError("Invalid signed Desktop Shell Debian runtime dependencies")
-    return ", ".join(depends)
+    version, depends = payload_contract(root, architecture, pin["source_revision"])
+    if version != package["version"] or version != pin["release_version"]:
+        raise ValueError("Signed Desktop Shell does not match the selected App manifest version")
+    return depends
 
 
-def extract(archive, root, checksum):
-    if not archive.is_file() or archive.stat().st_size > MAX_BYTES or sha256(archive) != checksum:
+def validate_archive(archive):
+    # tarfile parses extended headers before exposing members. Bound raw
+    # headers and the gzip stream before allowing tarfile to process them.
+    with gzip.open(archive, "rb") as stream:
+        count = total = 0
+        extended = False
+        while True:
+            block = stream.read(tarfile.BLOCKSIZE)
+            if len(block) != tarfile.BLOCKSIZE:
+                raise ValueError("Truncated Desktop Shell archive header")
+            if not any(block):
+                tail = stream.read(tarfile.RECORDSIZE + 1)
+                if extended or not tarfile.BLOCKSIZE <= len(tail) <= tarfile.RECORDSIZE or any(tail):
+                    raise ValueError("Invalid Desktop Shell archive end")
+                return
+            node = tarfile.TarInfo.frombuf(block, "utf-8", "strict")
+            count += 1
+            total += node.size
+            if node.size < 0 or total > MAX_BYTES or count > 2 * MAX_FILES:
+                raise ValueError("Desktop Shell archive exceeds its inventory limits")
+            if node.type == tarfile.XHDTYPE and not extended and node.size <= 64 * 1024:
+                extended = True
+            elif node.type in (tarfile.REGTYPE, tarfile.AREGTYPE, tarfile.DIRTYPE):
+                extended = False
+            else:
+                raise ValueError("Unsupported Desktop Shell archive header")
+            blocks = (node.size + tarfile.BLOCKSIZE - 1) // tarfile.BLOCKSIZE
+            stream.seek(blocks * tarfile.BLOCKSIZE, os.SEEK_CUR)
+
+
+def extract(archive, root, architecture, checksum=None):
+    if archive.is_symlink() or not archive.is_file() or archive.stat().st_size > MAX_BYTES or (
+        checksum is not None and sha256(archive) != checksum
+    ):
         raise ValueError("Missing or changed Desktop Shell archive")
+    validate_archive(archive)
     root.mkdir()
     root.chmod(0o755)
+    directories = {PurePosixPath(".")}
     nodes = set()
     size = 0
     with tarfile.open(archive, mode="r|gz") as payload:
         for member in payload:
             path = PurePosixPath(member.name)
+            folded = member.name.casefold()
             size += member.size
             if (
                 path.is_absolute() or path.as_posix() != member.name or not path.parts or ".." in path.parts
-                or path in nodes or len(nodes) >= MAX_FILES or size > MAX_BYTES or member.size < 0
+                or "\\" in member.name or any(ord(char) < 32 or ord(char) == 127 for char in member.name)
+                or path.parent not in directories or folded in nodes or len(nodes) >= MAX_FILES
+                or size > MAX_BYTES or member.size < 0
                 or member.uid or member.gid or member.mode & 0o7022
                 or (not member.isdir() and not member.isfile()) or member.issparse()
-                or set(member.pax_headers) - {"path"}
+                or set(member.pax_headers) - {"path"} or (member.isdir() and member.size)
             ):
-                raise ValueError(f"Invalid Desktop Shell archive entry: {member.name}")
+                raise ValueError(f"Invalid Desktop Shell archive entry: {member.name!r}")
             payload.extract(member, root, filter="data")
-            (root / path).chmod(member.mode)
-            nodes.add(path)
+            extracted = root / path
+            extracted.chmod(member.mode)
+            nodes.add(folded)
+            if member.isdir():
+                directories.add(path)
+            else:
+                with extracted.open("rb") as stream:
+                    header = stream.read(20)
+                if header.startswith(b"\x7fELF") and not target_elf(header, architecture):
+                    raise ValueError(f"Wrong architecture in Desktop Shell archive: {member.name!r}")
 
 
-def prepare(architecture, version):
-    if not re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)", version):
-        raise ValueError("Select an approved MAJOR.MINOR.PATCH Desktop Shell release")
-    tag = f"yuos-desktop-shell-v{version}"
-    asset = f"desktop-shell-linux-{architecture}.tar.gz"
-    release = json.loads(download(f"https://api.github.com/repos/xiaoyu-work/yuos-app/releases/tags/{tag}", 2**20))
-    if release["immutable"] is not True or release["draft"] or release["tag_name"] != tag:
-        raise ValueError("Desktop Shell release must be published and immutable")
-    expected = [entry["digest"] for entry in release["assets"] if entry["name"] == asset]
-    revision = release["target_commitish"]
-    if len(expected) != 1 or not re.fullmatch(r"sha256:[0-9a-f]{64}", expected[0] or "") or (
-        not re.fullmatch(r"[0-9a-f]{40}", revision)
+def archive_payload(root, destination):
+    def normalize(entry):
+        entry.uid = entry.gid = entry.mtime = 0
+        entry.uname = entry.gname = ""
+        return entry
+
+    with destination.open("xb") as stream, gzip.GzipFile(
+        filename="", mode="wb", fileobj=stream, mtime=0, compresslevel=6,
+    ) as compressed, tarfile.open(fileobj=compressed, mode="w|", format=tarfile.PAX_FORMAT) as archive:
+        for path in sorted(root.rglob("*")):
+            archive.add(path, arcname=path.relative_to(root).as_posix(), recursive=False, filter=normalize)
+
+
+def seal(architecture, revision, unsigned):
+    signing_material = os.environ.pop(SIGNING_KEY, "")
+    if not signing_material:
+        raise ValueError(f"Set {SIGNING_KEY} on the OS signer to the approved Yu OS App publisher key JSON")
+    if not REVISION.fullmatch(revision):
+        raise ValueError("Desktop Shell requires the exact locked App Git revision")
+    publisher = metadata(PUBLISHER)["keys"][0]
+    try:
+        identity = json.loads(signing_material)
+    except ValueError:
+        raise ValueError(f"{SIGNING_KEY} must contain Yu OS App publisher key JSON") from None
+    if not isinstance(identity, dict) or any(
+        identity.get(field) != publisher[field] for field in ("key_id", "public_key", "algorithm")
     ):
-        raise ValueError("Desktop Shell release requires its exact source revision and archive SHA256")
-    pin = {"release_version": version, "source_revision": revision, "archive_sha256": expected[0][7:]}
+        raise ValueError(f"{SIGNING_KEY} must match the official Yu OS App publisher bundled by this checkout")
     directory = inputs(architecture)
     directory.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="prepare-", dir=directory) as scratch:
+    with tempfile.TemporaryDirectory(prefix="seal-", dir=directory) as scratch:
         scratch = Path(scratch)
-        for arch in {architecture, host_architecture()}:
-            tool = verifier(arch)
-            url, digest = verifier_pin(arch)
-            if tool.is_file() and sha256(tool) == digest:
-                continue
-            candidate = scratch / tool.name
-            download(url, 128 * 1024 * 1024, candidate)
-            if sha256(candidate) != digest:
-                raise ValueError("Public Desktop Shell verifier SHA256 mismatch")
-            candidate.chmod(0o755)
-            candidate.replace(tool)
-        archive = scratch / "payload.tar.gz"
-        download(f"{RELEASE}/{tag}/{asset}", MAX_BYTES, archive)
         root = scratch / APP
-        extract(archive, root, pin["archive_sha256"])
+        extract(unsigned, root, architecture)
+        envelope = root / ".provenance.json"
+        if envelope.exists():
+            raise ValueError("Desktop Shell source build must be unsigned")
+        version, _ = payload_contract(root, architecture, revision)
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", prefix="yuos-app-key-") as key:
+            key.write(signing_material)
+            key.flush()
+            try:
+                provenance(root, key=Path(key.name), version=version)
+            except subprocess.CalledProcessError:
+                raise ValueError(f"Signing failed; check the native CLI and approved {SIGNING_KEY}") from None
+        envelope.chmod(0o644)
+        pin = {
+            "format": SELECTION_FORMAT, "architecture": architecture, "release_version": version,
+            "source_revision": revision, "envelope_sha256": sha256(envelope),
+        }
         verify(root, architecture, pin)
-        pin["envelope_sha256"] = sha256(root / ".provenance.json")
-        (scratch / "selection.json").write_text(json.dumps(pin, sort_keys=True) + "\n")
+        archive = scratch / "payload.tar.gz"
+        archive_payload(root, archive)
+        pin["archive_sha256"] = sha256(archive)
+        (scratch / "selection.json").write_text(json.dumps(pin, sort_keys=True) + "\n", encoding="utf-8")
         archive.replace(directory / archive.name)
         (scratch / "selection.json").replace(directory / "selection.json")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["prepare", "stage", "check"])
-    parser.add_argument("--architecture", choices=["amd64", "arm64"], required=True)
-    parser.add_argument("--version")
-    parser.add_argument("--stage", type=Path)
+    commands = parser.add_subparsers(dest="command", required=True)
+    sign = commands.add_parser("seal")
+    sign.add_argument("--source-revision", required=True)
+    sign.add_argument("--unsigned-archive", type=Path, required=True)
+    stage = commands.add_parser("stage")
+    check = commands.add_parser("check")
+    for command in (sign, stage, check):
+        command.add_argument("--architecture", choices=MACHINE, required=True)
+    for command in (stage, check):
+        command.add_argument("--stage", type=Path, required=True)
     args = parser.parse_args()
-    if args.command == "prepare":
-        if not args.version:
-            parser.error("prepare requires --version")
-        prepare(args.architecture, args.version)
+    if args.command == "seal":
+        seal(args.architecture, args.source_revision, args.unsigned_archive)
         return
-    if not args.stage:
-        parser.error("stage and check require --stage")
     directory = inputs(args.architecture)
     selection = directory / "selection.json"
     if not selection.is_file():
-        raise ValueError("Approved Desktop Shell inputs are required; run scripts/desktop_shell.py prepare")
-    pin = json.loads(selection.read_text())
-    if not re.fullmatch(r"[0-9a-f]{64}", pin["envelope_sha256"]):
-        raise ValueError("Missing frozen Desktop Shell envelope digest")
+        raise ValueError("Sealed Desktop Shell inputs are required; see docs/building-desktop.md")
+    pin = metadata(selection)
+    if pin.get("format") != SELECTION_FORMAT or pin.get("architecture") != args.architecture or not all(
+        isinstance(pin.get(field), str) and pattern.fullmatch(pin[field])
+        for field, pattern in (
+            ("archive_sha256", SHA256), ("envelope_sha256", SHA256),
+            ("source_revision", REVISION), ("release_version", VERSION),
+        )
+    ):
+        raise ValueError("Invalid sealed Desktop Shell selection; seal the current App build")
     root = args.stage / DESKTOP_SHELL_ROOT
     if args.command == "stage":
         root.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix=".shell-", dir=root.parent) as scratch:
             candidate = Path(scratch) / APP
-            extract(directory / "payload.tar.gz", candidate, pin["archive_sha256"])
+            extract(directory / "payload.tar.gz", candidate, args.architecture, pin["archive_sha256"])
             verify(candidate, args.architecture, pin)
             if root.exists() or root.is_symlink():
                 raise ValueError("Desktop Shell staging path already exists")
@@ -233,5 +321,5 @@ if __name__ == "__main__":
     except subprocess.CalledProcessError as error:
         details = error.stderr or error.stdout or str(error).encode()
         raise SystemExit(f"error: Desktop Shell input failed: {details.decode(errors='replace').strip()}")
-    except (ValueError, KeyError, OSError, tarfile.TarError) as error:
+    except (ValueError, KeyError, OSError, EOFError, tarfile.TarError) as error:
         raise SystemExit(f"error: Desktop Shell input failed: {error}")

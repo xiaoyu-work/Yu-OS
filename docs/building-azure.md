@@ -37,9 +37,10 @@ sudo apt install -y git build-essential pkg-config \
     util-linux e2fsprogs grub-efi-amd64-bin grub-pc-bin bubblewrap
 ```
 
-Install the Rust toolchain as described in
-[Building the desktop image](building-desktop.md), then build one of the
-supported flavors:
+For the desktop flavor, follow the
+[local desktop build prerequisites](building-desktop.md#local-build-prerequisites)
+to build and seal the Shell and prepare the signed App APT inputs first.
+Then build one of the supported flavors:
 
 ```bash
 # Headless Azure image, 16 GiB virtual OS disk.
@@ -204,8 +205,8 @@ ssh yuosadmin@<vm-address>
 sudo passwd yuosadmin
 ```
 
-The desktop image requires the signed Desktop Shell App from the authenticated
-App APT channel. It does not substitute another desktop if that package is
-unavailable. The Azure serial console is text-only; to see the running
+The signed Desktop Shell is built from the locked App source revision and
+embedded in `yuos-desktop`; the other Apps come from the authenticated App APT
+channel. The Azure serial console is text-only; to see the running
 Wayland session, configure a compatible remote display transport separately.
 No password or Internet-facing remote desktop service is baked into the image.
