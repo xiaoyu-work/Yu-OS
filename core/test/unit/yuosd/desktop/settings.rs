@@ -139,9 +139,25 @@ impl SessionManager {
         assert_eq!(target, args.len() - 2);
         let page = args.last().unwrap().clone();
         assert!(["applications", "users", "sound"].contains(&page.as_str()));
-        assert!(!args
+        let mut env_keys: Vec<_> = args[2..target]
             .iter()
-            .any(|arg| arg.starts_with("YUOS_") || arg.starts_with("CLAW_")));
+            .map(|arg| arg.split_once('=').unwrap().0)
+            .collect();
+        env_keys.sort_unstable();
+        assert_eq!(
+            env_keys,
+            [
+                "DBUS_SESSION_BUS_ADDRESS",
+                "HOME",
+                "LC_ALL",
+                "LOGNAME",
+                "PATH",
+                "USER",
+                "WAYLAND_DISPLAY",
+                "XDG_CURRENT_DESKTOP",
+                "XDG_RUNTIME_DIR",
+            ]
+        );
         assert!(args.contains(&format!(
             "DBUS_SESSION_BUS_ADDRESS=unix:path={}/bus",
             self.root.display()

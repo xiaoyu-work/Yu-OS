@@ -45,7 +45,7 @@ use super::fsec::{self, PathTrustError};
 use super::state::{self, TrustDomain, TrustState, TrustWatch};
 
 /// Schema string for a publisher trust file.
-pub const TRUST_SCHEMA_V1: &str = "claw.trust/v1";
+pub const TRUST_SCHEMA_V1: &str = "yuos.trust/v1";
 /// Schema string for the developer (unsigned-package) trust file.
 pub const DEV_TRUST_SCHEMA_V1: &str = "yuos.trust-dev/v1";
 

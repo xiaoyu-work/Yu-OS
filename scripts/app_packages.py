@@ -27,11 +27,11 @@ APP_ENVELOPE = ".provenance.json"
 
 
 def run(arguments, **kwargs):
-    private = {
-        "APT_CONFIG", "GPG_PASSPHRASE", "YUOS_APT_SIGNING_PRIVATE_KEY",
-        "CLAW_APPS_APT_SIGNING_PRIVATE_KEY", "CLAW_APPS_APT_SIGNING_PASSPHRASE",
+    environment = {
+        key: value for key, value in os.environ.items()
+        if key not in {"APT_CONFIG", "GPG_PASSPHRASE"}
+        and not key.endswith(("_APT_SIGNING_PRIVATE_KEY", "_APT_SIGNING_PASSPHRASE"))
     }
-    environment = {key: value for key, value in os.environ.items() if key not in private}
     return subprocess.run(
         [str(argument) for argument in arguments], env=environment,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, **kwargs,

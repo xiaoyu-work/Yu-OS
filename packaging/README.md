@@ -446,8 +446,8 @@ selector or new installed App identity is involved.
 cannot be targets. Normal Root admission still
 verifies that target's signed GUI, actual ancestry and delegation, owner,
 PAM/kernel login, protected review, capabilities, sandbox and managed lifetime.
-The helper clears inherited authority/override environment, including all
-`YUOS_*` and `CLAW*` markers, and forwards only basic owner/presentation settings.
+The helper starts with a cleared environment and forwards only an explicit
+allowlist of owner and presentation settings, without runtime authority or overrides.
 Apps still have no raw user bus, FileManager1 bridge or weakened IPC sandbox.
 
 Each request permits at most 128 URLs, 4096 UTF-8 bytes per URL and 64 KiB of

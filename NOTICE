@@ -1,7 +1,7 @@
-Claw OS
+Yu OS
 Copyright (c) 2026 Claw OS Contributors
 
-Original Claw OS components are licensed under the Apache License, Version 2.0;
+Original project components are licensed under the Apache License, Version 2.0;
 see LICENSE. Vendored components retain their upstream licenses.
 
 This product also includes a vendored fork of the COSMIC Desktop
@@ -20,5 +20,5 @@ desktop/agent/web/packages/). The original MIT license text is preserved
 verbatim at desktop/agent/web/LICENSE. Cloud-coding-agent specific subsystems
 (GitHub integration, sandbox VM orchestration, PR workflow, auth, database)
 have been removed; remaining surface area is chat, sessions, model selector,
-attachments, and voice input UI. Modifications by Claw OS contributors are
+attachments, and voice input UI. Modifications by the contributors credited above are
 tracked via the git history of this repository.

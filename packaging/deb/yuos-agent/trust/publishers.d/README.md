@@ -48,13 +48,13 @@ sudo yu provenance trust record-system
 yu provenance trust add --file publisher.json
 ```
 
-Both paths take a `claw.trust/v1` document containing **public** key
+Both paths take a `yuos.trust/v1` document containing **public** key
 material only. `packaging/deb/build-debs.sh` refuses to build if a file
 in this directory contains a `private_key` field.
 
 ## Rules for a file in this directory
 
-- One `claw.trust/v1` document per file, public material only.
+- One `yuos.trust/v1` document per file, public material only.
 - Installed mode `0644`, directories `0755`, owner `root`. The loader
   refuses any trust root whose path — or any ancestor up to `/` — is a
   symlink, is owned by a non-root user, or is group- or world-writable.
@@ -68,7 +68,7 @@ in this directory contains a `private_key` field.
 
 ```json
 {
-  "schema": "claw.trust/v1",
+  "schema": "yuos.trust/v1",
   "keys": [
     {
       "key_id": "sha256:<64 hex>",

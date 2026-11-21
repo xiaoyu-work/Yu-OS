@@ -63,12 +63,12 @@ impl Drop for Bus {
     }
 }
 
-struct FakeCos {
+struct FakeYu {
     directory: tempfile::TempDir,
     executable: PathBuf,
 }
 
-impl FakeCos {
+impl FakeYu {
     fn new(block: bool) -> Self {
         let directory = tempfile::Builder::new()
             .prefix("fm-yu-")
@@ -89,8 +89,7 @@ from pathlib import Path
 root = Path({root})
 record = {{
     "argv": sys.argv[1:],
-    "authority": {{k: v for k, v in os.environ.items() if k.startswith(("YUOS_", "CLAW"))}},
-    "loader": os.environ.get("LD_PRELOAD"),
+    "env_keys": sorted(os.environ),
     "path": os.environ.get("PATH"),
     "cwd": os.getcwd(),
     "loginuid": Path("/proc/self/loginuid").read_text(),
@@ -256,7 +255,7 @@ fn configured_target_is_only_a_canonical_routing_preference() {
         vec!["--app", "install"],
         vec!["--app", "stdio"],
         vec!["--app", "valid", "--session", "borrowed"],
-        vec!["--cos", "/not-installed"],
+        vec!["--binary", "/not-installed"],
     ] {
         assert!(configured_app(arguments.into_iter().map(OsString::from)).is_err());
     }
@@ -280,7 +279,7 @@ fn uri_bounds_include_the_encoded_gui_request() {
 #[tokio::test]
 async fn private_bus_authenticates_the_sender_and_preserves_literal_gui_arguments() {
     let bus = Bus::new();
-    let fake = FakeCos::new(false);
+    let fake = FakeYu::new(false);
     let uid = unsafe { libc::getuid() };
     let running = Running::new(&bus, uid, fake.launcher()).await;
     let client = bus.connection().await;
@@ -303,8 +302,7 @@ async fn private_bus_authenticates_the_sender_and_preserves_literal_gui_argument
             .chain(uris.iter().cloned())
             .collect::<Vec<_>>();
         assert_eq!(record["argv"], serde_json::json!(expected));
-        assert_eq!(record["authority"], serde_json::json!({}));
-        assert!(record["loader"].is_null());
+        assert_eq!(record["env_keys"], serde_json::json!(["LANG", "PATH"]));
         assert_eq!(record["path"], "/usr/local/bin:/usr/bin:/bin");
         assert_eq!(record["cwd"], "/");
         for field in ["loginuid", "sessionid"] {
@@ -334,7 +332,7 @@ async fn private_bus_authenticates_the_sender_and_preserves_literal_gui_argument
 #[tokio::test]
 async fn private_bus_rejects_bad_uris_and_limits_without_execution() {
     let bus = Bus::new();
-    let fake = FakeCos::new(false);
+    let fake = FakeYu::new(false);
     let running = Running::new(&bus, unsafe { libc::getuid() }, fake.launcher()).await;
     let client = bus.connection().await;
     for uris in [
@@ -366,7 +364,7 @@ async fn private_bus_rejects_bad_uris_and_limits_without_execution() {
 #[tokio::test]
 async fn private_bus_bounds_pending_children_and_shutdown_waits_without_retry() {
     let bus = Bus::new();
-    let fake = FakeCos::new(true);
+    let fake = FakeYu::new(true);
     let running = Running::new(&bus, unsafe { libc::getuid() }, fake.launcher()).await;
     let client = bus.connection().await;
     for _ in 0..MAX_PENDING {

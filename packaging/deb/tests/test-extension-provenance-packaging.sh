@@ -23,6 +23,7 @@ PROJECT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../../.." && pwd)
 BUILD="$PROJECT_DIR/packaging/deb/build-debs.sh"
 TRUST_MODULE="$PROJECT_DIR/core/src/provenance/trust.rs"
 VERIFY_MODULE="$PROJECT_DIR/core/src/provenance/verify.rs"
+SIGN_MODULE="$PROJECT_DIR/core/src/provenance/sign.rs"
 VENDOR_TRUST_DIR="$PROJECT_DIR/packaging/deb/yuos-agent/trust/publishers.d"
 
 fail() {
@@ -67,7 +68,7 @@ assert_contains "$BUILD" '"private_key"' \
 # third-party is trusted until an operator installs a key) or it holds
 # real, structurally valid public keys. A placeholder, a key with no
 # accountable owner, or an entry that is not a well-formed
-# `claw.trust/v1` document is worse than nothing: it manufactures a
+# `yuos.trust/v1` document is worse than nothing: it manufactures a
 # trusted signer.
 vendor_entries=0
 if [ -d "$VENDOR_TRUST_DIR" ]; then
@@ -76,8 +77,8 @@ if [ -d "$VENDOR_TRUST_DIR" ]; then
         if grep -q '"private_key"' "$entry"; then
             fail "vendor trust file ships private key material: $entry"
         fi
-        if ! grep -q '"schema"[[:space:]]*:[[:space:]]*"claw.trust/v1"' "$entry"; then
-            fail "vendor trust file must declare schema claw.trust/v1: $entry"
+        if ! grep -q '"schema"[[:space:]]*:[[:space:]]*"yuos\.trust/v1"' "$entry"; then
+            fail "vendor trust file must declare schema yuos.trust/v1: $entry"
         fi
         if ! grep -q '"algorithm"[[:space:]]*:[[:space:]]*"ed25519"' "$entry"; then
             fail "vendor trust file must declare algorithm ed25519: $entry"
@@ -123,12 +124,14 @@ while IFS= read -r -d '' doc; do
 done < <(find "$PROJECT_DIR/docs" "$PROJECT_DIR/packaging" -name '*.md' -type f -print0 2>/dev/null)
 
 # Nothing in the tree may carry a signing key.
+signing_schema=$(sed -nE 's/^pub const SIGNING_KEY_SCHEMA_V1: &str = "([^"]+)";$/\1/p' "$SIGN_MODULE")
+[ -n "$signing_schema" ] || fail "could not identify the private signer schema"
 while IFS= read -r -d '' candidate; do
     case "$candidate" in
         */target/*|*/build/*) continue ;;
     esac
     fail "repository contains signing key material: $candidate"
-done < <(grep -rlZ --include='*.json' '"schema"[[:space:]]*:[[:space:]]*"claw.signing-key/v1"' \
+done < <(grep -rlFZ --include='*.json' -- "\"$signing_schema\"" \
     "$PROJECT_DIR" 2>/dev/null || true)
 
 # Verification must not be reachable from the environment: a packaged
