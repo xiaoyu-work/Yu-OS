@@ -302,7 +302,7 @@
     },
     "aarch64-apple": {
       "arch": "arm64",
-      "release": "7.2.11-16-claw-apple",
+      "release": "7.2.11-16-yuos-apple",
       "kernel": "aurora-kernel",
       "boot": ["m1n1", "uboot"],
       "asahi_vulkan": true,
@@ -310,8 +310,8 @@
     },
     "aarch64-qualcomm": {
       "arch": "arm64",
-      "release": "7.3.0-72-claw",
-      "installer_release": "7.3.0-72-claw-qcom",
+      "release": "7.3.0-72-yuos",
+      "installer_release": "7.3.0-72-yuos-qcom",
       "dtbs": true,
       "romulus": [
         "surface-snapdragon-iptsd", "surface-snapdragon-fixes",
@@ -320,7 +320,7 @@
     },
     "aarch64-n1x": {
       "arch": "arm64",
-      "release": "7.3.0-72-claw",
+      "release": "7.3.0-72-yuos",
       "boot_args": "console=tty0 acpi=nospcr pci=hpbussize=0x20",
       "dtbs": true,
       "gpu": ["nvidia-modules", "nvidia-userspace"],
@@ -328,7 +328,7 @@
     },
     "aarch64-gb10": {
       "arch": "arm64",
-      "release": "7.3.0-72-claw",
+      "release": "7.3.0-72-yuos",
       "dtbs": true,
       "gpu": ["nvidia-modules", "nvidia-userspace"]
     }

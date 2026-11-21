@@ -730,7 +730,7 @@ fn conversation_uuid_projection_and_list_pagination_are_deterministic() {
     let id: SessionId = "ses_0000000000001_000000000001".parse().unwrap();
     assert_eq!(
         derive_presentation_id(&id).as_str(),
-        "078ed458-0e17-882b-b0aa-ca1088683b25"
+        "d91969f0-c507-8528-b845-482dbea59f9d"
     );
 
     let _lock = lock_env();

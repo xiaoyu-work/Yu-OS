@@ -133,8 +133,8 @@ pub struct ChatRequest {
     pub stop_sequences: Vec<String>,
 
     /// Provider-specific extras (Anthropic `metadata`, OpenAI `seed`, etc.)
-    /// — pass-through, opaque to the trait. Keys beginning with `__` are
-    /// internal; neither they nor the retired `_cos_` keys reach providers.
+    /// — pass-through, opaque to the trait. Underscore-prefixed keys are
+    /// reserved for internal use and never reach providers.
     #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
     pub extra: serde_json::Value,
 }
@@ -151,13 +151,9 @@ impl ChatRequest {
             .as_object()
             .into_iter()
             .flat_map(|extra| extra.iter())
-            .filter(|(key, _)| !is_reserved_extra_key(key))
+            .filter(|(key, _)| !key.starts_with('_'))
             .map(|(key, value)| (key.as_str(), value))
     }
-}
-
-fn is_reserved_extra_key(key: &str) -> bool {
-    key.starts_with("_cos_") || key.starts_with("__")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

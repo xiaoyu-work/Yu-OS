@@ -838,7 +838,7 @@ fn spawn_desktop_process(
         .env("XDG_RUNTIME_DIR", &runtime)
         .env("WAYLAND_DISPLAY", display)
         .env("XDG_SESSION_TYPE", "wayland")
-        .env("XDG_CURRENT_DESKTOP", "Hyprland")
+        .env("XDG_CURRENT_DESKTOP", super::DESKTOP_NAMES)
         .current_dir(&home)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -936,7 +936,7 @@ fn spawn_compositor(
             format!("unix:path={runtime}/bus"),
         )
         .env("XDG_SESSION_TYPE", "wayland")
-        .env("XDG_CURRENT_DESKTOP", "Hyprland")
+        .env("XDG_CURRENT_DESKTOP", super::DESKTOP_NAMES)
         .env("XDG_SESSION_DESKTOP", "Hyprland")
         .env("LIBINPUT_QUIRKS_DIR", "/usr/share/yuos-hyprland/libinput")
         .env("YUOS_DISPLAY_CONTROL_FD", "3")

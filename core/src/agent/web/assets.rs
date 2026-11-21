@@ -30,7 +30,7 @@ const CONTENT_SECURITY_POLICY: &str = concat!(
     "img-src 'self' data: https:; ",
     "manifest-src 'self'; ",
     "object-src 'none'; ",
-    "script-src 'self' 'sha256-yGQ7P8d0Uq6HLg7pYkJSwY4l8l84Xini2kPVHLZLFG8='; ",
+    "script-src 'self' 'sha256-5wfmBx+HiwWmDbIvSXXWTSaiQ1RkFHYUL9fYrltdRTA='; ",
     "script-src-attr 'none'; ",
     "style-src 'self' 'unsafe-inline'; ",
     "worker-src 'none'"

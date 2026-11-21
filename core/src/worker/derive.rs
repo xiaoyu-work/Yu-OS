@@ -335,7 +335,10 @@ pub(crate) fn gui_operation(
     policy.env.insert("WAYLAND_DISPLAY".to_string(), super::linux::GUI_WAYLAND_SOCKET.to_string());
     policy.env.insert("XDG_RUNTIME_DIR".to_string(), "/run/yuos".to_string());
     policy.env.insert("XDG_SESSION_TYPE".to_string(), "wayland".to_string());
-    policy.env.insert("XDG_CURRENT_DESKTOP".to_string(), "COSMIC".to_string());
+    policy.env.insert(
+        "XDG_CURRENT_DESKTOP".to_string(),
+        crate::display_session::DESKTOP_NAMES.to_string(),
+    );
     policy.env.remove("YUOS_APP_RESOURCE_DIR");
     policy.env.remove("XDG_DATA_DIRS");
     let resources = app_dir.join("resources");

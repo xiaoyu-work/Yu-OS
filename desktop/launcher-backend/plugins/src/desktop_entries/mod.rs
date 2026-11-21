@@ -42,7 +42,7 @@ const EXCLUSIONS: &[&str] = &["GNOME Shell", "Initial Setup"];
 
 struct App<W> {
     current_desktop: Option<Vec<String>>,
-    is_desktop_cosmic: bool,
+    supports_extended_context: bool,
     desktop_entries: Vec<DesktopEntry>,
     locales: Vec<String>,
     tx: W,
@@ -51,9 +51,16 @@ struct App<W> {
 
 impl<W: AsyncWrite + Unpin> App<W> {
     fn new(tx: W) -> Self {
+        let current_desktop = fde::current_desktop();
+        let supports_extended_context = is_session_cosmic()
+            || current_desktop.as_ref().is_some_and(|desktops| {
+                desktops
+                    .iter()
+                    .any(|desktop| desktop.eq_ignore_ascii_case("X-YuOS"))
+            });
         Self {
-            current_desktop: fde::current_desktop(),
-            is_desktop_cosmic: is_session_cosmic(),
+            current_desktop,
+            supports_extended_context,
             desktop_entries: Vec::new(),
             locales: fde::get_languages_from_env(),
             tx,
@@ -176,7 +183,7 @@ impl<W: AsyncWrite + Unpin> App<W> {
         if let Some(entry) = self.desktop_entries.get(id as usize) {
             let gpu_len = self.gpus.as_ref().map(Vec::len).unwrap_or(0) as u32;
 
-            let gpu_preference = if self.is_desktop_cosmic {
+            let gpu_preference = if self.supports_extended_context {
                 if context < gpu_len {
                     GpuPreference::SpecificIdx(context)
                 } else if entry.prefers_non_default_gpu() {
@@ -193,7 +200,7 @@ impl<W: AsyncWrite + Unpin> App<W> {
             let response = PluginResponse::DesktopEntry {
                 path: entry.path.to_path_buf(),
                 gpu_preference,
-                action_name: (self.is_desktop_cosmic && context >= gpu_len).then(|| {
+                action_name: (self.supports_extended_context && context >= gpu_len).then(|| {
                     entry.actions().unwrap_or_default()[(context - gpu_len) as usize].to_string()
                 }),
             };
@@ -204,8 +211,8 @@ impl<W: AsyncWrite + Unpin> App<W> {
 
     async fn context(&mut self, id: u32) {
         if let Some(entry) = self.desktop_entries.get(id as usize) {
-            let options = if self.is_desktop_cosmic {
-                self.cosmic_context(entry).await
+            let options = if self.supports_extended_context {
+                self.extended_context(entry).await
             } else {
                 self.gnome_context(entry).await
             };
@@ -295,7 +302,7 @@ impl<W: AsyncWrite + Unpin> App<W> {
         }
     }
 
-    async fn cosmic_context(&self, entry: &DesktopEntry) -> Vec<ContextOption> {
+    async fn extended_context(&self, entry: &DesktopEntry) -> Vec<ContextOption> {
         let mut options = Vec::new();
 
         if let Some(gpus) = self.gpus.as_ref() {

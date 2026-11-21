@@ -4,4 +4,4 @@ Comment=Yu OS desktop
 Exec=/usr/local/bin/yuos-display-session --desktop
 TryExec=/usr/local/bin/yuos-display-session
 Type=Application
-DesktopNames=Hyprland
+DesktopNames=Hyprland;X-YuOS;

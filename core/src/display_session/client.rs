@@ -79,7 +79,7 @@ fn desktop_session(subscription: &Subscription) -> Result<(), Error> {
     let command = |program: &str| {
         let mut command = session_command(subscription, program);
         command
-            .env("XDG_CURRENT_DESKTOP", "Hyprland")
+            .env("XDG_CURRENT_DESKTOP", super::DESKTOP_NAMES)
             .env("XDG_SESSION_DESKTOP", "Hyprland")
             .env("GDK_BACKEND", "wayland")
             .env("QT_QPA_PLATFORM", "wayland")

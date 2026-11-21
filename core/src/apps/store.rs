@@ -30,7 +30,7 @@ const ARCHIVE_KEY: &str = include_str!("../../assets/app-store-archive-key.asc")
 pub(crate) fn web_product(app_id: &str, source_kind: &str, source_name: &str) -> bool {
     matches!(source_kind, "product" | "capability")
         && !matches!(source_name, "store" | "launcher")
-        && !matches!(app_id, "pkg" | "yuos-store" | "launcher" | "cosmic-launcher" | "yuos-launcher")
+        && !matches!(app_id, "pkg" | "yuos-store" | "launcher" | "yuos-launcher")
 }
 
 pub(crate) fn app_package_name(name: &str) -> bool {
@@ -274,8 +274,7 @@ impl AptPackage {
 
 impl Record {
     pub(crate) fn desktop_available(&self) -> bool {
-        self.app_id != "cosmic-launcher"
-            && (self.architecture == "all" || self.architecture == architecture())
+        self.architecture == "all" || self.architecture == architecture()
     }
 
     pub(crate) fn web_product(&self) -> bool {

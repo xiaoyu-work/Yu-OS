@@ -10,3 +10,4 @@ pub mod registry;
 pub(crate) mod runtime;
 
 pub(crate) const SHELL_APP: &str = "desktop-shell";
+pub(crate) const DESKTOP_NAMES: &str = "Hyprland:X-YuOS";

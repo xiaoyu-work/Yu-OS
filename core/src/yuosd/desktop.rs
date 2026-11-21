@@ -871,7 +871,7 @@ pub(super) fn configured_user_command(
             "DBUS_SESSION_BUS_ADDRESS",
             format!("unix:path={}/bus", environment.runtime_dir.display()),
         )
-        .env("XDG_CURRENT_DESKTOP", "COSMIC")
+        .env("XDG_CURRENT_DESKTOP", crate::display_session::DESKTOP_NAMES)
         .current_dir("/")
         .stdin(Stdio::null());
     let uid = environment.uid;
