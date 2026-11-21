@@ -43,8 +43,14 @@ The local desktop VM opens the graphical setup wizard without asking you to
 sign in. Create your account, optionally choose an avatar, and select
 **Finish** to enter the desktop.
 After logout or reboot, sign in with that account and password. Sign-in and
-lock show the Claw wallpaper full-screen, with the time above and the
-password field at the bottom. First-run setup keeps its frosted-glass panels.
+lock show the time above and the password field at the bottom. First-run
+setup keeps its frosted-glass panels.
+
+Setup, sign-in, and lock share the original Yu OS mountain wallpaper at
+`/usr/share/backgrounds/claw-os/yuos-default.jpg`. To use the same default
+after sign-in, choose a signed Desktop Shell release that reads this system
+file; `desktop-shell-v0.1.0` still uses its own bundled image. A wallpaper
+chosen by the user takes precedence on the desktop.
 
 The signed system shell starts with its built-in desktop permissions.
 Other App permission requests still appear in the graphical OS review
@@ -52,8 +58,11 @@ window. The headless VM still sets up its `cos` account on the serial console.
 
 On an installed machine, the greeter and desktop use the connected display's
 preferred mode as reported by its graphics driver. The setup wizard fits that
-screen and uses a compact layout on narrow displays. A VM uses the mode its
-virtual display advertises; resizing the viewer window is hypervisor-specific.
+screen and uses a compact layout on narrow displays. The default wallpaper
+scales proportionally to fill the display, cropping the edges when the aspect
+ratio differs. A VM uses the mode its virtual display advertises; resizing
+the viewer window is hypervisor-specific. No per-resolution wallpaper copies
+are needed.
 
 With the matching signed Shell, selecting an installed App in the desktop
 menu submits its launch without a separate review. Claw Apps keep their
