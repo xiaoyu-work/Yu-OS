@@ -61,7 +61,7 @@
       "type": "object",
       "required": ["period", "units_used", "units_cap"],
       "additionalProperties": false,
-      "description": "App budget snapshot after the call.",
+      "description": "App usage snapshot after the call. units_cap is zero unless an owner-set per-App override applies. This is not the owner's aggregate budget.",
       "properties": {
         "period": { "type": "string" },
         "units_used": {

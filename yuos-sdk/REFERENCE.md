@@ -4,11 +4,12 @@ New to the SDK? Start with the [Quickstart](QUICKSTART.md).
 
 ## The model
 
-Apps expose MCP services to the system Agent, permitted external agents, and
-authenticated human CLI/desktop clients. They cannot call other Apps, directly
-or through App-owned AI agents. Cross-App orchestration belongs to the built-in
-system Agent. Apps may use gated AI, controlled system services, and shared
-libraries; `tools.call` addresses the fixed AI primitive catalog, not App MCP.
+Only the built-in System Agent can discover and call an App's enabled MCP
+tools as an Agent. It needs no App-access grant. An owner can still use an
+App directly from its UI or CLI. An App cannot invoke other Apps, directly
+or through an App-owned AI agent. Apps may use gated AI, controlled system
+services, and shared libraries; `tools.call` addresses a separate capability-
+checked primitive catalog, not App MCP.
 
 Outbound AI and catalog calls use a `yu --wire=1` subprocess. The OS verifies
 authority against the registered workload; an App ID argument or environment
@@ -82,6 +83,13 @@ In `app.json`, add the capability you need, for example `{"verb": "ai.chat"}`.
 Send the actual input in the SDK call, without a model ID. Exposing App tools
 for the system Agent to call via MCP is a separate path.
 
+Declare input origins (and, if needed, a safety profile) in the `ai` block.
+Do not declare a budget. The owner sets one limit for App inference in
+**Settings → AI Budget**. The limit covers all six model slots and all Apps
+for the current UTC month; `0` means unlimited. Yu OS records usage even
+without a limit and notifies the owner near or at the limit. Budget units
+are not money, and the System Agent and Activity budgets are separate.
+
 | Settings slot | SDK call or `infer` input | App capability | Result |
 |---|---|---|---|
 | `text` | `chat(prompt, …)` | `ai.chat` or `ai.chat.untrusted` | Text |
@@ -128,8 +136,11 @@ automatically.
 
 The standalone budget query in Python, Node, and Go reports the App, period,
 and units used. The CLI does not return a cap, so the query result has no
-cap field. The chat reply's separate budget snapshot still returns its
-actual cap.
+cap field. The chat reply retains its wire-v1 App usage snapshot.
+`units_cap` is `0` unless an existing owner-set per-App override applies;
+it never exposes the owner's total limit. Handle `BUDGET_EXCEEDED` without
+automatically retrying or prompting for a new permission. `max_units` is
+an optional ceiling for a particular request, not a manifest setting.
 
 ### App-owned tools
 

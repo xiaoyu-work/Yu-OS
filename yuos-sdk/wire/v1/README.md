@@ -34,13 +34,17 @@ An output is one vector (at most 8192 values), one transcript (at most
 64 KiB), one image or audio result (less than 3 MiB), or one decision reply.
 Oversized replies fail; the broker does not silently truncate them.
 
-All slots share the App and owner AI budget. Non-chat calls reserve and
+All slots count toward the owner's monthly App inference limit. Non-chat calls reserve and
 charge operation units: sanitized UTF-8 bytes for embedding, at least 50
 units or one per sanitized text byte for TTS (whichever is higher), 50 units
 per started KiB of STT audio, 1000 per image, and one unit per serialized byte
 of decision input. These are policy weights, not a provider invoice. Optional
 `max_units` can lower the per-call ceiling. Once dispatched, an incomplete
 request may still use its reserved units.
+
+The v1 chat `budget` snapshot is App-scoped. `units_cap` is zero unless a
+legacy owner-set per-App override applies. The owner aggregate and its limit
+are only shown in system Settings, not returned to Apps.
 
 A GUI model choice that is off returns `PERMISSION_DENIED` with
 `detail.reason = "model_permission_required"`, the `app_id` and `verb`, and

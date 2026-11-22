@@ -10,11 +10,12 @@ Rust, Python, Node, and Go bindings.
 - Maintain versioned wire types and operation/capability schemas.
 - Define the MCP-first App service contract: lifecycle, caller restrictions,
   manifest-declared tools, and capability needs.
-- Admit System Agent, permitted external Agent, and authenticated CLI callers,
-  never Apps or App-owned agents. Cross-App orchestration is system-Agent-owned.
+- Only the built-in System Agent calls enabled App MCP tools as an Agent; the
+  authenticated owner's direct CLI/UI is separate. Apps and their agents cannot
+  invoke other Apps.
 - Provide public SDK calls without exposing internal broker details.
 - `yu ai chat` transports bounded text, an optional App instruction and a
-  per-call budget to the authenticated broker. It uses the owner's model
+  optional per-call limit to the authenticated broker. It uses the owner's model
   without Agent context or system tools. Structured `chat --request-stdin`
   accepts App-owned function schemas and results; Apps execute proposals
   themselves. Legacy catalog names are rejected.
@@ -24,6 +25,8 @@ Rust, Python, Node, and Go bindings.
 - App operations, MCP tools, and GUI entries can declare a supported AI verb
   without a scope. Root resolves the owner's exact model; the SDK and App do
   not supply a model ID.
+- The owner configures the monthly App inference limit in Settings, not in the
+  manifest. v1 usage replies remain App-scoped.
 - Keep language bindings behaviorally compatible.
 - Publish bounded App-owned events through the same live session and named IPC
   capability. Root derives identity/source; reported events never delegate work.

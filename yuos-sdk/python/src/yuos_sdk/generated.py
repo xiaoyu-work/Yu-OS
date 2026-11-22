@@ -69,7 +69,8 @@ class AiUsage(TypedDict):
 class AiBudget(TypedDict):
     """ai_budget.
 
-    App budget snapshot after the call.
+    App usage snapshot after the call. units_cap is zero unless an owner-set
+    per-App override applies. This is not the owner's aggregate budget.
     """
     period: str
     units_used: int
@@ -622,23 +623,15 @@ class Scope(_ScopeRequired, total=False):
     """
     value: str
 
-class _AipolicyRequired(TypedDict):
-    budget: "Aibudget"
-
-class Aipolicy(_AipolicyRequired, total=False):
+class Aipolicy(TypedDict, total=False):
     """aiPolicy.
 
-    Budget + safety envelope under which the app may exercise ai.* verbs. Apps
-    never pick the model; the OS owns the provider.
+    App AI origin and safety policy. The owner configures models and budgets in
+    system Settings.
     """
     safety: str
     origins: List[str]
     tools: List[str]
-
-class Aibudget(TypedDict, total=False):
-    """aiBudget.
-    """
-    monthly_units: int
 
 class _McpserviceRequired(TypedDict):
     tools: List["Mcptool"]
@@ -1210,7 +1203,7 @@ def _validate_wire_schema(
         for index, item in enumerate(value):
             _validate_wire_schema(item_rule, root, item, schema_name, f"{path}[{index}]")
 
-_WIRE_SCHEMA_AI: Dict[str, Any] = decode_wire_json(r'''{"$defs":{"AiToolCall":{"additionalProperties":false,"properties":{"id":{"type":"string"},"input":{},"name":{"type":"string"}},"required":["id","name","input"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":true,"description":"Stable text-chat reply returned by `yu ai chat`.","properties":{"budget":{"additionalProperties":false,"description":"App budget snapshot after the call.","properties":{"period":{"type":"string"},"units_cap":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"},"units_used":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"}},"required":["period","units_used","units_cap"],"type":"object"},"model":{"description":"Provider model id actually used.","type":"string"},"provider":{"description":"Provider name actually used.","type":"string"},"provider_state":{"description":"Optional model-issued continuation data. Echo unchanged with the related App tool results.","type":"string","x-max-utf8-bytes":65536},"review":{"additionalProperties":false,"description":"Safety policy actually applied by the kernel.","properties":{"prompt_redacted":{"type":"boolean"},"safety":{"enum":["strict","standard","minimal"],"type":"string"}},"required":["safety","prompt_redacted"],"type":"object"},"text":{"description":"Assistant text returned by the configured provider.","type":"string"},"tool_calls":{"description":"Proposed calls to functions defined by the App. The App validates and executes them, not Yu OS.","items":{"$ref":"#/$defs/AiToolCall"},"type":"array"},"usage":{"additionalProperties":false,"description":"Token and unit accounting for this call.","properties":{"input_tokens":{"maximum":4294967295,"minimum":0,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"output_tokens":{"maximum":4294967295,"minimum":0,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"units":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"}},"required":["input_tokens","output_tokens","units"],"type":"object"},"verb":{"description":"Capability verb derived by the kernel for this call.","enum":["ai.chat","ai.chat.untrusted"],"type":"string"}},"required":["text","model","provider","verb","usage","budget","review"],"title":"AI request / reply","type":"object"}''')
+_WIRE_SCHEMA_AI: Dict[str, Any] = decode_wire_json(r'''{"$defs":{"AiToolCall":{"additionalProperties":false,"properties":{"id":{"type":"string"},"input":{},"name":{"type":"string"}},"required":["id","name","input"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":true,"description":"Stable text-chat reply returned by `yu ai chat`.","properties":{"budget":{"additionalProperties":false,"description":"App usage snapshot after the call. units_cap is zero unless an owner-set per-App override applies. This is not the owner's aggregate budget.","properties":{"period":{"type":"string"},"units_cap":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"},"units_used":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"}},"required":["period","units_used","units_cap"],"type":"object"},"model":{"description":"Provider model id actually used.","type":"string"},"provider":{"description":"Provider name actually used.","type":"string"},"provider_state":{"description":"Optional model-issued continuation data. Echo unchanged with the related App tool results.","type":"string","x-max-utf8-bytes":65536},"review":{"additionalProperties":false,"description":"Safety policy actually applied by the kernel.","properties":{"prompt_redacted":{"type":"boolean"},"safety":{"enum":["strict","standard","minimal"],"type":"string"}},"required":["safety","prompt_redacted"],"type":"object"},"text":{"description":"Assistant text returned by the configured provider.","type":"string"},"tool_calls":{"description":"Proposed calls to functions defined by the App. The App validates and executes them, not Yu OS.","items":{"$ref":"#/$defs/AiToolCall"},"type":"array"},"usage":{"additionalProperties":false,"description":"Token and unit accounting for this call.","properties":{"input_tokens":{"maximum":4294967295,"minimum":0,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"output_tokens":{"maximum":4294967295,"minimum":0,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"units":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"}},"required":["input_tokens","output_tokens","units"],"type":"object"},"verb":{"description":"Capability verb derived by the kernel for this call.","enum":["ai.chat","ai.chat.untrusted"],"type":"string"}},"required":["text","model","provider","verb","usage","budget","review"],"title":"AI request / reply","type":"object"}''')
 
 def validate_ai(value: Any) -> None:
     """Validate a value against wire/v1/ai.schema.json."""

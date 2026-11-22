@@ -151,7 +151,6 @@
         "runtime": "binary",
         "entry": "bin/command",
         "ai": {
-          "budget": {"monthly_units": 10},
           "safety": "strict",
           "origins": ["external-content"]
         },

@@ -24,7 +24,7 @@ def run(command, args):
   "id": "hello-ai",
   "version": "0.1.0",
   "name": {"en": "Hello AI"},
-  "ai": {"origins": ["user-input"], "budget": {"monthly_units": 5000}},
+  "ai": {"origins": ["user-input"]},
   "operations": {
     "summarize": {
       "label": {"en": "Summarize text"},
@@ -36,7 +36,7 @@ def run(command, args):
 ```
 
 `app.json` asks for permission to use AI chat. `main.py` sends the text to summarize.
-Yu OS checks permission, consent, and budget. The App does not specify a model.
+The user chooses the model and budget in Settings. The App specifies neither.
 
 From the parent directory, sign with your
 [system-trusted App key](../docs/extension-provenance.md#trust-roots).
