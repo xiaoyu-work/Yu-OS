@@ -3,6 +3,7 @@ use super::*;
 struct Environment {
     directory: tempfile::TempDir,
     previous: Option<std::ffi::OsString>,
+    previous_config: Option<std::ffi::OsString>,
     _guard: std::sync::MutexGuard<'static, ()>,
 }
 
@@ -16,8 +17,18 @@ impl Environment {
         Self {
             directory,
             previous,
+            previous_config: std::env::var_os("YUOS_CONFIG_PATH"),
             _guard: guard,
         }
+    }
+
+    fn model(&self, name: &str) -> InstallModel {
+        let path = self.directory.path().join("config.json");
+        std::fs::write(&path, serde_json::json!({
+            "agent": {"provider": "mock", "model": name},
+        }).to_string()).unwrap();
+        std::env::set_var("YUOS_CONFIG_PATH", path);
+        InstallModel::for_owner(crate::provenance::fsec::effective_uid()).unwrap().unwrap()
     }
 
     fn package(&self, version: &str, network: bool) -> VerifiedPackage {
@@ -43,15 +54,20 @@ impl Environment {
                 }
             });
         }
+        self.package_from_manifest(&path, manifest)
+    }
+
+    fn package_from_manifest(&self, path: &Path, manifest: serde_json::Value) -> VerifiedPackage {
+        std::fs::create_dir_all(path).unwrap();
         std::fs::write(path.join("app.json"), manifest.to_string()).unwrap();
         std::fs::write(
             path.join("main.py"),
             "# no App code is executed by review\n",
         )
         .unwrap();
-        crate::test_env::sign_test_package(&path, PackageKind::App, "review-app");
+        crate::test_env::sign_test_package(path, PackageKind::App, "review-app");
         crate::provenance::verify::verify_package(
-            &path,
+            path,
             &crate::provenance::VerifyOptions::new(PackageKind::App).signature_only(),
             &crate::provenance::trust_store(),
         )
@@ -65,7 +81,63 @@ impl Drop for Environment {
             Some(value) => std::env::set_var("YUOS_DATA_DIR", value),
             None => std::env::remove_var("YUOS_DATA_DIR"),
         }
+        match self.previous_config.take() {
+            Some(value) => std::env::set_var("YUOS_CONFIG_PATH", value),
+            None => std::env::remove_var("YUOS_CONFIG_PATH"),
+        }
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn install_ai_is_hidden_without_an_optional_request_and_bound_to_verified_delivery() {
+    let environment = Environment::new();
+    let owner = crate::provenance::fsec::effective_uid();
+    let model = environment.model("owner-model");
+    let mut manifest = serde_json::json!({
+        "id": "review-app", "version": "1.0.0", "schema_version": 2,
+        "name": {"en": "Review App"},
+        "mcp": {"tools": [{"name": "review.inspect", "summary": {"en": "Inspect"}}]},
+        "ai": {"budget": {"monthly_units": 1000}, "origins": ["external-content"]}
+    });
+    let mcp_only = environment.package_from_manifest(&environment.directory.path().join("only-mcp"), manifest.clone());
+    let no_ai_choice = submit(owner, ReviewKind::AppInstall, &mcp_only, "install".into()).unwrap();
+    assert!(no_ai_choice.ai_model.is_none());
+    assert!(no_ai_choice.permission_review().unwrap().permissions.iter().all(|permission|
+        no_ai_choice.ai_choice(permission, &mcp_only.ceiling()).unwrap().is_none()));
+    assert!(!has_install_gui_ai(owner, &mcp_only, &model, Verb::AI_CHAT_UNTRUSTED).unwrap());
+
+    manifest["desktop"] = serde_json::json!({
+        "needs": [],
+        "optional_needs": [{
+            "verb": "ai.chat.untrusted",
+            "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}},
+            "why": {"en": "Suggest edits using the owner's model"}
+        }]
+    });
+    let package = environment.package_from_manifest(&environment.directory.path().join("optional-ai"), manifest);
+    let delivery = DeliveryReview {
+        digest: "a".repeat(64),
+        packages: vec![DeliveryPackage { package: "yuos-app-review".into(),
+            version: "1.0.0".into(), architecture: "all".into() }],
+    };
+    let review = submit_delivery(owner, &package, "install".into(), delivery.clone()).unwrap();
+    let disclosure = review.permission_review().unwrap();
+    let (choice, cap) = review.ai_choice(&disclosure.permissions[0], &package.ceiling()).unwrap().unwrap();
+    assert_eq!(cap.scope, crate::caps::Scope::name("owner-model"));
+    assert!(decide(owner, &review.id, true, Some(&package)).is_err());
+    decide_with_permissions(owner, &review.id, true, Some(&package), [(choice.clone(), true)].into()).unwrap();
+    consume_delivery(owner, &review.id, &package, &delivery.digest).unwrap();
+    let allows = |model: &InstallModel| has_install_gui_ai(owner, &package, model, Verb::AI_CHAT_UNTRUSTED).unwrap();
+    assert!(!allows(&model));
+    assert!(complete_install(owner, &review.id, &PackageRef::of(&package), Some(&"b".repeat(64))).is_err());
+    complete_install(owner, &review.id, &PackageRef::of(&package), Some(&delivery.digest)).unwrap();
+    assert!(allows(&model));
+    assert!(!has_install_gui_ai(owner.wrapping_add(1), &package, &model, Verb::AI_CHAT_UNTRUSTED).unwrap());
+    assert!(!allows(&environment.model("changed-model")));
+    environment.model("owner-model");
+    revoke_installed_gui_ai(owner, &package, &model, &choice).unwrap();
+    assert!(!allows(&model));
 }
 
 #[test]

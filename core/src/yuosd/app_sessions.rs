@@ -2394,7 +2394,27 @@ fn authorize_optional_gui_needs(
         Ok(selected) => selected,
         Err(_) => return result,
     };
+    let installed_ai = if apply_saved && selected.optional_needs.iter().any(|need|
+        crate::caps::manifest::requests_configured_ai(&need.scope))
+    {
+        let verified = app.require_verified().and_then(|package| {
+            match crate::ai::consent::InstallModel::for_owner(delegation.uid)? {
+                Some(model) => crate::approvals::system_review::installed_gui_ai(delegation.uid, package, &model),
+                None => Ok(Vec::new()),
+            }
+        });
+        match verified {
+            Ok(choices) => choices,
+            Err(error) => {
+                tracing::warn!(app = %app.manifest.id, %error, "optional installed AI consent is unavailable");
+                Vec::new()
+            }
+        }
+    } else {
+        Vec::new()
+    };
     for (index, need) in selected.optional_needs.iter().enumerate() {
+        let install_ai = crate::caps::manifest::requests_configured_ai(&need.scope);
         let owner_scope = match &need.scope {
             ScopeBinding::OwnerPath { path } if selected.optional_need_is_bound(need) =>
                 crate::caps::manifest::resolve_owner_path(need.verb, path, &delegation.paths).ok(),
@@ -2402,6 +2422,9 @@ fn authorize_optional_gui_needs(
         };
         let requested = if !selected.optional_need_is_bound(need) {
             None
+        } else if install_ai {
+            installed_ai.iter().find(|(_, cap)| cap.verb == need.verb)
+                .map(|(_, cap)| vec![cap.clone()])
         } else {
             match &need.scope {
                 ScopeBinding::Fixed { scope } => Some(vec![Cap::new(need.verb, scope.clone())]),
@@ -2458,7 +2481,7 @@ fn authorize_optional_gui_needs(
             let system_default = desktop_shell || (owner_settings && gui::owner_settings_cap(&cap));
             #[cfg(not(target_os = "linux"))]
             let system_default = false;
-            if system_default || defaults.is_some_and(|defaults| defaults.allows(&cap, &delegation.paths.home))
+            if install_ai || system_default || defaults.is_some_and(|defaults| defaults.allows(&cap, &delegation.paths.home))
                 || (apply_saved && policy.allows(&cap)) || delegation.ceiling.covers(&cap)
             {
                 granted.insert(cap);

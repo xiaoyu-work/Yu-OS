@@ -4,8 +4,9 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::apps::permission_review::PermissionReview;
-use crate::caps::Manifest;
+use crate::ai::consent::InstallModel;
+use crate::apps::permission_review::{PermissionReview, RequestedPermission};
+use crate::caps::{Cap, Manifest, Verb};
 use crate::provenance::runtime::PackageRef;
 use crate::provenance::{PackageKind, TrustTier, VerifiedPackage};
 
@@ -56,6 +57,12 @@ pub struct ReviewRecord {
     pub delivery: Option<DeliveryReview>,
     #[serde(default, skip_serializing_if = "super::app_policy::Choices::is_empty")]
     pub(crate) permission_choices: super::app_policy::Choices,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) ai_model: Option<InstallModel>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    installed_at_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeSet::is_empty")]
+    revoked_ai_choices: std::collections::BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -107,6 +114,30 @@ impl ReviewRecord {
         self.package.publisher_key_id.is_some() && !self.is_official_apt_install()
     }
 
+    pub(crate) fn is_revoked_ai_choice(&self, id: &str) -> bool {
+        self.revoked_ai_choices.contains(id)
+    }
+
+    pub(crate) fn ai_choice(
+        &self,
+        permission: &RequestedPermission,
+        ceiling: &crate::provenance::Ceiling,
+    ) -> Result<Option<(String, Cap)>, String> {
+        let Some(model) = self.ai_model.as_ref().filter(|_| {
+            self.kind == ReviewKind::AppInstall
+                && self.package.publisher_key_id.is_some()
+                && permission.requests_install_ai()
+        }) else { return Ok(None); };
+        let (cap, _) = super::canonical_capability(permission.verb, model.scope())?;
+        if !ceiling.allows_cap(&cap) {
+            return Ok(None);
+        }
+        let key = serde_json::to_vec(&(
+            "install-ai", &self.package, &self.contract_digest, model, permission.decision_id()?,
+        )).map_err(|error| error.to_string())?;
+        Ok(Some((crate::crypto::sha256_hex(&key), cap)))
+    }
+
     fn confirms_official_install(&self, package: &PackageRef) -> Result<bool, String> {
         Ok(self.is_official_apt_install()
             && self.package == *package
@@ -136,6 +167,11 @@ impl ReviewRecord {
             && now()? >= self.expires_at
         {
             return Ok(ReviewState::Expired);
+        }
+        if matches!(self.state, ReviewState::Pending | ReviewState::Approved)
+            && self.ai_model.is_some() && InstallModel::for_owner(self.owner_uid)? != self.ai_model
+        {
+            return Ok(ReviewState::Stale);
         }
         Ok(self.state)
     }
@@ -373,6 +409,15 @@ fn submit_record(
 ) -> Result<ReviewRecord, String> {
     let (manifest, review) = snapshot(package)?;
     let package_ref = PackageRef::of(package);
+    let ai_model = if kind == ReviewKind::AppInstall && package_ref.publisher_key_id.is_some()
+        && review.requests_install_ai()
+    {
+        InstallModel::for_owner(owner)?
+    } else {
+        None
+    };
+    // A general Store click can still confirm delivery, never optional AI.
+    let store_confirmed = store_confirmed && ai_model.is_none();
     let submitted_at = now()?;
     let expires_at = submitted_at
         .checked_add(REVIEW_LIFETIME_SECS)
@@ -392,6 +437,7 @@ fn submit_record(
                 && record.contract_digest == review.contract_digest
                 && record.source_dir == package.dir()
                 && record.delivery == delivery
+                && record.ai_model == ai_model
             {
                 if store_confirmed && state == ReviewState::Pending {
                     return Err("An existing protected review cannot be changed by a Store click".into());
@@ -402,6 +448,7 @@ fn submit_record(
         let owner_generation = current_generation(owner, &manifest.id)?;
         let accepted = existing.iter().rev().find(|record| {
             delivery.is_none()
+                && ai_model.is_none()
                 && record.owner_generation == owner_generation
                 && record.state == ReviewState::Consumed
                 && record.package.id == package_ref.id
@@ -435,6 +482,9 @@ fn submit_record(
             inherited_from: accepted.map(|record| record.id.clone()),
             delivery,
             permission_choices: Default::default(),
+            ai_model,
+            installed_at_ms: None,
+            revoked_ai_choices: Default::default(),
         };
         save(&record)?;
         Ok(record)
@@ -478,13 +528,13 @@ pub(crate) fn decide_with_permissions(
             require_package(&record, package)?;
             let previous = permission_choices(owner, &record.package)?;
             let mut required = std::collections::BTreeSet::new();
-            if record.can_choose_permissions() {
-                let ceiling = package.ceiling();
-                for permission in record.resolved_permissions()?.permissions {
-                    if permission.persistent_cap(&ceiling).is_some() {
-                        let id = permission.decision_id()?;
-                        if !previous.contains_key(&id) { required.insert(id); }
-                    }
+            let ceiling = package.ceiling();
+            for permission in record.resolved_permissions()?.permissions {
+                if let Some((id, _)) = record.ai_choice(&permission, &ceiling)? {
+                    required.insert(id);
+                } else if record.can_choose_permissions() && permission.persistent_cap(&ceiling).is_some() {
+                    let id = permission.decision_id()?;
+                    if !previous.contains_key(&id) { required.insert(id); }
                 }
             }
             if !required.iter().eq(choices.keys()) {
@@ -508,6 +558,106 @@ pub(crate) fn decide_with_permissions(
         save(&record)?;
         Ok(record)
     })
+}
+
+/// Called only after the installed bytes and transaction outcome were verified.
+/// The pre-publication consume step alone is deliberately not enough.
+pub(crate) fn complete_install(
+    owner: u32,
+    id: &str,
+    package: &PackageRef,
+    delivery: Option<&str>,
+) -> Result<(), String> {
+    let review = get(owner, id)?;
+    if review.ai_model.is_none() && !review.permission_review()?.requests_install_ai() {
+        return Ok(());
+    }
+    crate::filelock::with_exclusive_path_lock(&super::grant_lock_path(), || {
+        let mut review = get(owner, id)?;
+        if review.kind != ReviewKind::AppInstall
+            || &review.package != package
+            || review.delivery.as_ref().map(|plan| plan.digest.as_str()) != delivery
+        {
+            return Err("Installed App differs from its protected AI choice".into());
+        }
+        if review.installed_at_ms.is_none()
+            && review.effective_state()? == ReviewState::Consumed
+            && now()? < review.expires_at
+            && (review.ai_model.is_none() || InstallModel::for_owner(owner)? == review.ai_model)
+        {
+            review.installed_at_ms = Some(crate::agentd::grant::now_ms());
+            save(&review)?;
+        }
+        Ok(())
+    })
+}
+
+pub(crate) fn installed_gui_ai(
+    owner: u32,
+    package: &VerifiedPackage,
+    model: &InstallModel,
+) -> Result<Vec<(String, Cap)>, String> {
+    let (_, disclosure) = snapshot(package)?;
+    if !disclosure.requests_install_ai() {
+        return Ok(Vec::new());
+    }
+    let Some(review) = latest_installed_ai(owner, package, model, &disclosure.contract_digest)? else {
+        return Ok(Vec::new());
+    };
+    let ceiling = package.ceiling();
+    let mut allowed = Vec::new();
+    for permission in &disclosure.permissions {
+        if let Some((id, cap)) = review.ai_choice(permission, &ceiling)? {
+            if review.permission_choices.get(&id) == Some(&true) && !review.is_revoked_ai_choice(&id) {
+                allowed.push((id, cap));
+            }
+        }
+    }
+    Ok(allowed)
+}
+
+fn latest_installed_ai(
+    owner: u32,
+    package: &VerifiedPackage,
+    model: &InstallModel,
+    contract: &str,
+) -> Result<Option<ReviewRecord>, String> {
+    let package_ref = PackageRef::of(package);
+    let generation = current_generation(owner, package.id())?;
+    let latest = records(owner)?.into_iter().filter(|review| {
+        review.kind == ReviewKind::AppInstall
+            && review.package == package_ref
+            && review.contract_digest == contract
+            && review.state == ReviewState::Consumed
+            && review.owner_generation == generation
+            && review.installed_at_ms.is_some()
+    }).max_by_key(|review| (review.installed_at_ms, review.id.clone()));
+    Ok(latest.filter(|review| review.ai_model.as_ref() == Some(model)))
+}
+
+pub(crate) fn revoke_installed_gui_ai(
+    owner: u32, package: &VerifiedPackage, model: &InstallModel, id: &str,
+) -> Result<(), String> {
+    let (_, disclosure) = snapshot(package)?;
+    crate::filelock::with_exclusive_path_lock(&super::grant_lock_path(), || {
+        let mut review = latest_installed_ai(owner, package, model, &disclosure.contract_digest)?
+            .ok_or("The installed AI choice is no longer current")?;
+        if review.permission_choices.get(id) != Some(&true)
+            || !disclosure.permissions.iter().filter(|permission| permission.requests_install_ai())
+                .any(|permission| review.ai_choice(permission, &package.ceiling())
+                    .is_ok_and(|choice| choice.is_some_and(|(choice, _)| choice == id)))
+        {
+            return Err("The installed AI choice is no longer current".into());
+        }
+        review.revoked_ai_choices.insert(id.to_string());
+        save(&review)
+    })
+}
+
+pub(crate) fn has_install_gui_ai(
+    owner: u32, package: &VerifiedPackage, model: &InstallModel, verb: Verb,
+) -> Result<bool, String> {
+    Ok(installed_gui_ai(owner, package, model)?.iter().any(|(_, cap)| cap.verb == verb))
 }
 
 pub fn consume(owner: u32, id: &str, package: &VerifiedPackage) -> Result<ReviewRecord, String> {

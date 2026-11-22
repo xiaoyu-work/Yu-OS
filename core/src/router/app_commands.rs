@@ -755,6 +755,15 @@ fn install_cmd_with_publisher(
         return Ok(Some(envelope.to_string()));
     }
 
+    if permission_review.requests_install_ai() {
+        envelope["consent"] = json!({
+            "needed": true,
+            "mode": "protected_install_review",
+            "hint": "Optional GUI AI follows the installing owner's explicit OS review choice; directory installs are reviewed for UID 0 only."
+        });
+        return Ok(Some(envelope.to_string()));
+    }
+
     if no_consent || auto_yes {
         envelope["consent"] = json!({
             "needed": true,

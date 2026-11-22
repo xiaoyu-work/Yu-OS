@@ -67,6 +67,7 @@ pub struct Decision {
     grant_ref: GrantRef,
     issuer: Issuer,
     audience: Audience,
+    gui_session: bool,
     route: &'static str,
     subject: Subject,
     caps: CapSet,
@@ -99,6 +100,7 @@ impl Decision {
             grant_ref: view.id.audit_ref(),
             issuer: view.issuer,
             audience,
+            gui_session: view.audience.contains(Audience::GuiResource),
             route,
             subject: view.subject,
             caps: view.caps,
@@ -124,6 +126,10 @@ impl Decision {
 
     pub fn audience(&self) -> Audience {
         self.audience
+    }
+
+    pub(crate) fn is_gui_session(&self) -> bool {
+        self.gui_session
     }
 
     pub fn owner_uid(&self) -> u32 {

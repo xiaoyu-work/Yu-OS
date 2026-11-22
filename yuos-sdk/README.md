@@ -199,6 +199,12 @@ policy controls redaction; `strict` and `standard` currently do the same
 prompt-secret redaction, and `minimal` does not redact. No profile promises
 prompt-injection detection. Unsupported modality helpers are not published.
 
+For an optional GUI feature, declare
+[`$configured-ai-model` in the App manifest](../docs/app-development.md#optional-system-ai-at-installation)
+to request the owner's configured model in the protected installation
+review. This is a separate choice, not authority to select a provider or
+access a document. The SDK chat call does not change.
+
 Node AI and catalog calls return promises. Pass the MCP call's `signal` to
 carry its cancellation and deadline through to `yu`. In Go, pass the
 `*MCPCall` to `ChatContext`, `CallToolContext`, `BudgetContext`, or

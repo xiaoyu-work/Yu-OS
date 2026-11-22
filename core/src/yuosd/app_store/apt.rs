@@ -754,6 +754,15 @@ pub(super) async fn verify_installed(pending: &Prepared) -> Result<Value, String
     store::web_metadata(app.require_verified()?)
 }
 
+pub(crate) fn complete_install_reviews(owner: u32, plan: &Plan) -> Result<(), String> {
+    if plan.hook_consumed {
+        for review in &plan.reviews {
+            reviews::complete_install(owner, &review.review_id, &review.package, Some(&plan.digest))?;
+        }
+    }
+    Ok(())
+}
+
 pub async fn hook(params: Value, client: &ClientIdentity) -> Result<Value, BrokerError> {
     if client.require_uid().map_err(BrokerError::authorization)? != 0 {
         return Err(BrokerError::authorization(

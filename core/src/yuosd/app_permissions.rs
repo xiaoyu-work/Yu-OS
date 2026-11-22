@@ -32,13 +32,21 @@ pub(super) async fn owner_settings(
         let ceiling = package.ceiling();
         let mut review = crate::apps::permission_review::PermissionReview::from_manifest(&app.manifest)?;
         review.resolve_owner_paths(&crate::caps::args::PathContext { home: home.to_path_buf(), cwd: None })?;
+        let ai_choices = if review.requests_install_ai() {
+            match crate::ai::consent::InstallModel::for_owner(uid)? {
+                Some(model) => approvals::system_review::installed_gui_ai(uid, package, &model)?,
+                None => Vec::new(),
+            }
+        } else {
+            Vec::new()
+        };
         let preinstalled = super::preinstalled::approved(package);
         let revision = crate::crypto::sha256_hex(
-            &serde_json::to_vec(&(&binding, &decisions, &blocks, preinstalled))
+            &serde_json::to_vec(&(&binding, &decisions, &blocks, preinstalled, &ai_choices))
                 .map_err(|error| error.to_string())?,
         );
         if show {
-            let permissions = review.permissions.into_iter().filter(|permission| {
+            let mut permissions = review.permissions.into_iter().filter(|permission| {
                 binding.publisher_key_id.is_some() && permission.persistent_cap(&ceiling).is_some()
                     && !matches!(app_id.as_str(), "yuos-settings" | "desktop-shell")
             }).map(|permission| {
@@ -55,21 +63,38 @@ pub(super) async fn owner_settings(
                     "target":cap.scope.human_target(), "enabled":enabled,
                 }))
             }).collect::<Result<Vec<_>, _>>()?;
+            for (id, cap) in &ai_choices {
+                let meta = crate::caps::lookup_meta(cap.verb).ok_or("Unknown AI permission")?;
+                permissions.push(json!({
+                    "permission_id": id, "label": meta.label.current(),
+                    "description": "Optional AI allowed at installation. Switch it off here; a new install review is required to enable it again.",
+                    "target": cap.scope.human_target(), "enabled": true,
+                }));
+            }
             return Ok(json!({"app_id":app_id, "permissions":permissions, "revision":revision}));
         }
         if params["revision"].as_str() != Some(&revision) {
             return Err("The app or its permissions changed. Refresh Settings before trying again.".into());
         }
         let id = super::permissions::required_string(&params, "permission_id")?;
-        let permission = review.permissions.into_iter()
-            .find(|permission| permission.decision_id().as_deref() == Ok(id.as_str()))
-            .and_then(|permission| permission.persistent_cap(&ceiling))
-            .ok_or("This permission is not available for the current app.")?;
         let allowed = action == "allow";
         if !allowed && action != "deny" {
             return Err("Invalid App permission choice.".into());
         }
-        app_policy::set_choice(uid, &binding, id.clone(), permission, allowed)?;
+        if ai_choices.iter().any(|(choice, _)| choice == &id) {
+            if allowed {
+                return Err("Optional AI must be enabled in the protected App install review.".into());
+            }
+            let model = crate::ai::consent::InstallModel::for_owner(uid)?
+                .ok_or("The installed AI choice is no longer current")?;
+            approvals::system_review::revoke_installed_gui_ai(uid, package, &model, &id)?;
+        } else {
+            let permission = review.permissions.into_iter()
+                .find(|permission| permission.decision_id().as_deref() == Ok(id.as_str()))
+                .and_then(|permission| permission.persistent_cap(&ceiling))
+                .ok_or("This permission is not available for the current app.")?;
+            app_policy::set_choice(uid, &binding, id.clone(), permission, allowed)?;
+        }
         crate::provenance::audit("app.permission_changed", json!({
             "owner_uid":uid, "app_id":app_id, "publisher":binding.publisher_key_id,
             "permission_id":id, "allowed":allowed,

@@ -89,6 +89,7 @@ mod effects;
 pub use effects::{EffectKind, EffectRecovery, OperationEffect};
 mod desktop;
 pub use desktop::{is_valid_gui_entry_name, DesktopEntry, GuiEntry};
+pub(crate) use desktop::{requests_configured_ai, CONFIGURED_AI_MODEL};
 mod owner_path;
 pub use owner_path::resolve_owner_path;
 
@@ -1375,6 +1376,12 @@ impl Manifest {
                         detail,
                     }
                 })?;
+                if requests_configured_ai(&need.scope) {
+                    return Err(ManifestError::DesktopInvalid {
+                        field: "operations",
+                        detail: "$configured-ai-model is only valid in GUI optional_needs".into(),
+                    });
+                }
                 need.why
                     .validate()
                     .map_err(|d| ManifestError::NeedInvalid {
@@ -1554,6 +1561,12 @@ impl Manifest {
                             detail,
                         }
                     })?;
+                    if requests_configured_ai(&need.scope) {
+                        return Err(ManifestError::DesktopInvalid {
+                            field: "mcp",
+                            detail: "$configured-ai-model is only valid in GUI optional_needs".into(),
+                        });
+                    }
                     need.why
                         .validate()
                         .map_err(|d| ManifestError::McpNeedInvalid {

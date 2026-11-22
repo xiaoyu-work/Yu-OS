@@ -786,7 +786,9 @@ confirmation and remains saved until changed in Settings. An unchanged choice
 for the same publisher is carried forward; broader scopes or new uses need
 their own choice. Optional denied features stay unavailable, and a required
 denial prevents that launch. Argument-bound access, selected file contents,
-AI consent and Agent-run operations do not inherit standing GUI permission.
+and Agent-run operations do not inherit standing GUI permission. The optional
+system AI choice described below is bound to the exact package and model, not
+carried forward like ordinary GUI choices.
 
 Exact App builds selected by the OS release use its
 [preinstalled defaults](../packaging/README.md#preinstalled-app-defaults)
@@ -1077,7 +1079,34 @@ startup rights. Wild bindings keep the same bounded parent-only meaning.
 Package, App-deny, Activity, Workspace and protected-resource/mount rules
 still apply; unsupported optional resources are not mounted as a fallback.
 Optional argument-bound/conditional needs remain unbound. AI needs still
-require a valid AI policy, and paid-model consent/budgets remain separate.
+require a valid AI policy and remain budget-gated.
+
+#### Optional system AI at installation
+
+To offer optional system AI at installation, declare one of the chat verbs in
+that GUI's `optional_needs` with
+`"scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}}`.
+For document input use `ai.chat.untrusted`, with `external-content` in `ai.origins`,
+strict or standard safety, and a positive `ai.budget.monthly_units`. For input
+without external content use `ai.chat` with its corresponding origin. This
+reserved name is not a wildcard or model selector; Root resolves it to the
+installing owner's exact configured provider and model. It is rejected in
+mandatory GUI needs, operations and MCP tools.
+
+Only verified publisher-signed Apps requesting this optional feature get this
+choice, and only when a model is configured. The protected Store reviews show
+the provider, model and AI policy; accepting installation alone does not enable
+it. Explicit Allow takes effect only after verified publication. Normal owner
+GUI launches may then call the same SDK `ai.chat` without a second AI prompt.
+Turning it off in Settings → Applications retires the current grant. A changed
+package or configured model requires a new install decision. A declined or
+unavailable choice leaves ordinary App use available and grants no file,
+MCP, or Agent permissions. Legacy App AI policies without this GUI declaration
+retain their separate AI consent flow.
+
+Signed directory installation remains a direct Root publication and the
+protected review belongs to UID 0. It must not enable an ordinary user's AI
+session. For owner-scoped desktop opt-in, use the protected Store flow.
 
 The authenticated review lists required and optional purposes separately and
 includes optional declarations in the permission-contract digest and deny

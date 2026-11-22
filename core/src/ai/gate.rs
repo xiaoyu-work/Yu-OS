@@ -395,6 +395,9 @@ pub enum AiError {
     )]
     ConsentRequired { app: String },
 
+    #[error("optional AI for app `{app}` requires an explicit install choice for the current package and model")]
+    InstallConsentRequired { app: String },
+
     #[error(
         "consent for app `{app}` is stale (changed: {changed:?}) — \
          run `yu app consent grant {app}` to review the new AI policy and re-approve"
@@ -478,6 +481,7 @@ impl AiError {
             AiError::NoAiPolicy { .. }
             | AiError::AppDisabled(_)
             | AiError::ConsentRequired { .. }
+            | AiError::InstallConsentRequired { .. }
             | AiError::ConsentStale { .. }
             | AiError::OriginNotAllowed { .. }
             | AiError::ToolNotInPolicy { .. }
@@ -600,7 +604,7 @@ fn denial_reason_token(err: &AiError) -> &'static str {
         AiError::NoAiPolicy { .. } => "no_ai_policy",
         AiError::AppDisabled(_) => "app_disabled",
         AiError::BadOverride { .. } => "bad_override",
-        AiError::ConsentRequired { .. } => "consent_required",
+        AiError::ConsentRequired { .. } | AiError::InstallConsentRequired { .. } => "consent_required",
         AiError::ConsentStale { .. } => "consent_stale",
         AiError::BadConsent { .. } => "bad_consent",
         AiError::BadOrigin(_) => "bad_origin",
@@ -803,28 +807,55 @@ async fn chat_inner(
     }
     let policy = overrides::apply_to_policy(&manifest_policy, user_override.as_ref());
 
+    // The owner, not the App, selects the provider and model.
+    let verb = modality.verb();
+    let config = config::current_snapshot();
+    let cfg = &config.agent;
+    let model = cfg.model.clone();
+
     // 1b. Require fresh user consent. The user must have explicitly
     //     approved the App's AI ask — consent tracks the **manifest**
     //     policy (not the override), so a developer pushing a looser
     //     manifest update forces a re-prompt even if the user's
     //     override keeps the effective policy tight.
-    let stored_consent = consent::load(&req.app_id).map_err(|detail| AiError::BadConsent {
-        app: req.app_id.clone(),
-        detail,
-    })?;
-    let stored_consent = stored_consent.ok_or_else(|| AiError::ConsentRequired {
-        app: req.app_id.clone(),
-    })?;
-    if let consent::Freshness::Stale { changed } =
-        consent::freshness(&manifest_policy, &stored_consent)
-    {
-        return Err(AiError::ConsentStale {
-            app: req.app_id.clone(),
-            changed,
-        });
+    let bad_consent = |detail| AiError::BadConsent { app: req.app_id.clone(), detail };
+    let consent_required = || AiError::ConsentRequired { app: req.app_id.clone() };
+    let optional_gui = authority.filter(|authority| authority.is_gui_session()).filter(|authority| {
+        let named = authority.session().ok()
+            .and_then(|session| session.command.first())
+            .and_then(|command| command.strip_prefix("--gui:"));
+        app.manifest.gui_entry(named).is_ok_and(|entry| entry.optional_needs.iter().any(|need| {
+            need.verb == verb && crate::caps::manifest::requests_configured_ai(&need.scope)
+        }))
+    });
+    if let Some(authority) = optional_gui {
+        let install_consent_required = || AiError::InstallConsentRequired { app: req.app_id.clone() };
+        if policy.budget.monthly_units == 0 {
+            return Err(AiError::AppDisabled(req.app_id.clone()));
+        }
+        let configured = consent::InstallModel::from_config(cfg).ok_or_else(install_consent_required)?;
+        let package = app.require_verified().map_err(bad_consent)?;
+        let running = crate::provenance::runtime::package_for(
+            authority.owner_uid(), authority.session_id().ok_or_else(install_consent_required)?,
+        ).map_err(bad_consent)?;
+        if running.as_ref() != Some(&crate::provenance::runtime::PackageRef::of(package))
+            || !crate::approvals::system_review::has_install_gui_ai(
+            authority.owner_uid(), package, &configured, verb,
+        ).map_err(bad_consent)? {
+            return Err(install_consent_required());
+        }
+    } else {
+        let stored_consent = consent::load(&req.app_id).map_err(bad_consent)?
+            .ok_or_else(consent_required)?;
+        if let consent::Freshness::Stale { changed } =
+            consent::freshness(&manifest_policy, &stored_consent)
+        {
+            return Err(AiError::ConsentStale {
+                app: req.app_id.clone(),
+                changed,
+            });
+        }
     }
-
-    let verb = modality.verb();
 
     // 3. Parse and validate origin against the manifest's allowlist.
     //    Even non-chat modalities have an origin field — e.g. an app
@@ -841,13 +872,6 @@ async fn chat_inner(
     // 4. Per-modality input validation. The "analyze" verbs require
     //    an input file; the "generate" verbs require a text prompt.
     validate_inputs(req, modality)?;
-
-    // 5. Resolve the model. Apps don't get to pick — the OS owner
-    //    configures one provider and one model in
-    //    `/etc/yuos/agent.toml`, and every app call uses that.
-    let config = config::current_snapshot();
-    let cfg = &config.agent;
-    let model = cfg.model.clone();
 
     // 6. Capability check at the kernel boundary.
     if authority.is_none() {

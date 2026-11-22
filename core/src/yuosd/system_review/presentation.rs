@@ -52,18 +52,28 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
         StoredKind::AppActivation => ReviewKind::Activation,
     };
     let permissions = disclosure.permissions.iter().map(|permission| {
-        let id = permission.decision_id()?;
-        let current = record.permission_choices.get(&id).or_else(|| previous.get(&id)).map(|choice| {
-            if *choice { PermissionChoice::AllowAlways } else { PermissionChoice::Deny }
+        let ai_choice = record.ai_choice(permission, &ceiling)?;
+        let id = match &ai_choice {
+            Some((id, _)) => id.clone(),
+            None => permission.decision_id()?,
+        };
+        let current = record.permission_choices.get(&id).or_else(|| {
+            ai_choice.is_none().then(|| previous.get(&id)).flatten()
+        }).map(|choice| {
+            if *choice && !record.is_revoked_ai_choice(&id) { PermissionChoice::AllowAlways } else { PermissionChoice::Deny }
         });
         let selectable = status == ReviewStatus::Pending && current.is_none()
-            && record.can_choose_permissions()
-            && permission.persistent_cap(&ceiling).is_some();
+            && (ai_choice.is_some() || (record.can_choose_permissions()
+                && permission.persistent_cap(&ceiling).is_some()));
         Ok(ReviewPermission {
             id,
             verb: permission.verb.as_str().to_string(),
             label: permission.label.clone(),
-            blurb: permission.description.clone(),
+            blurb: if permission.requests_install_ai() {
+                "Optional. Allows this App's declared AI policy for this model after installation. The App may send text to the provider shown. Leaving AI off does not block the App.".into()
+            } else {
+                permission.description.clone()
+            },
             risk: risk(permission.risk),
             scope: ReviewScope {
                 kind: if matches!(permission.scope, ScopeBinding::Fixed { .. }) || permission.resolved_scope.is_some() {
@@ -71,11 +81,14 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
                 } else {
                     ScopeKind::LateBound
                 },
-                description: match &permission.resolved_scope {
-                    Some(_) if matches!(&permission.scope, ScopeBinding::OwnerPath { path } if path == "**") =>
+                description: match (&ai_choice, &permission.resolved_scope) {
+                    (Some((_, cap)), _) => format!("{} · {}", cap.scope.human_target(),
+                        record.ai_model.as_ref().expect("AI choice has a model").provider),
+                    (_, _) if permission.requests_install_ai() => "Owner-configured model (no eligible model selected for this review)".into(),
+                    (_, Some(_)) if matches!(&permission.scope, ScopeBinding::OwnerPath { path } if path == "**") =>
                         "Your home folder".into(),
-                    Some(scope) => scope.human_target(),
-                    None => crate::apps::permission_review::scope_description(&permission.scope)?,
+                    (_, Some(scope)) => scope.human_target(),
+                    (_, None) => crate::apps::permission_review::scope_description(&permission.scope)?,
                 },
             },
             condition: permission.when.as_ref().map(serde_json::to_string).transpose()
@@ -87,7 +100,11 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
             current,
             supported_choices: if selectable { vec![PermissionChoice::AllowAlways, PermissionChoice::Deny] } else { Vec::new() },
             unsupported_reason: (!selectable).then(|| if current.is_some() {
-                "Your choice is saved. Change it in Settings → Applications.".into()
+                if ai_choice.is_some() {
+                    "This choice takes effect only after verified installation. You can turn it off in Settings → Applications.".into()
+                } else {
+                    "Your choice is saved. Change it in Settings → Applications.".into()
+                }
             } else {
                 "Installing the app does not grant this access. It is decided when the relevant action is used.".into()
             }),
@@ -132,7 +149,11 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
     }
     if let Some(policy) = &disclosure.ai_policy {
         disclosures.push(ReviewDetail {
-            label: "AI policy (separate consent required)".into(),
+            label: if record.ai_model.is_some() {
+                "AI policy (included only if you explicitly allow the AI choice)".into()
+            } else {
+                "AI policy (separate consent required)".into()
+            },
             value: serde_json::to_string_pretty(policy).map_err(|error| error.to_string())?,
         });
     }

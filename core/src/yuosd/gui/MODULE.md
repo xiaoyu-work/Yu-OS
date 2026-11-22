@@ -19,6 +19,10 @@ low- and medium-risk defaults for that exact build's explicit GUI needs on a
 direct desktop launch. The Root-held delivery receipt and verified installed
 tree must remain current. Owner denials and the package/resource ceilings still
 apply, and this never provides defaults to an App, task, or MCP caller.
+Optional GUI chat using `$configured-ai-model` instead requires the owner's
+explicit exact package/model install choice. Launch resolves it to one name
+scope, and the AI gate rechecks it against the running GUI, current package
+and provider configuration. Revocation uses the existing checked App retirement.
 Wild needs still inherit only the launcher's bounded scopes.
 Argument-bound GUI needs are unsupported/unbound. Explicit conditional GUI
 needs are also unbound, not unconditional grants; the legacy operation union

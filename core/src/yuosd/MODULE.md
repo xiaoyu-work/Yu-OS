@@ -52,7 +52,7 @@ and agent tasks.
 | `routes.rs` | The route registry: wire name, typed decode, access class, budget, audit fields, authorization descriptor, handler |
 | `authority/` | The capability authority: grants, opaque handles, attenuation, the route middleware and its audit facts |
 | `agent_client.rs` | Client RPC for agent task submit/result/cancel/status |
-| `ai.rs` | Authenticated App single-shot AI gate; owner configuration, current transient capabilities, bounded concurrency/deadline, no App-local provider execution |
+| `ai.rs`, `../ai/gate.rs` | Authenticated App single-shot AI gate; owner configuration, live capabilities, exact install consent for declared optional GUI chat, bounded concurrency/deadline, no App-local provider execution |
 | `tasks.rs` | Task queue, summary/list, cancel, retry, and session continuity |
 | `conversations.rs`, `conversations/` | Owner-scoped Agent conversation create/get/list/update/fork/revert, stable frontend UUID projection, verified task/message annotations, bounded actual Job metadata, owner-identity snapshots, and non-destructive replay exclusions; no task execution or authority |
 | `memory.rs` | Shared owner-identity/read-only history opening and legacy session views; missing stores stay absent and existing ownership is never changed |
@@ -82,7 +82,7 @@ and agent tasks.
 | `app_permissions.rs` | Capability-gated App permission service: verified declarations, owner/App deny gates, pending durable restoration, fine-grained revocation; no approval authority or fixed UI identity |
 | `gui/`, `app_sessions/gui.rs` | Root-supervised default/named GUI instances; signed entry/selector binding, exclusive GUI needs or legacy operation-only needs, live parent/grant/policy checks, independent selection rights and checked retirement |
 | `../display_session/` | Root PAM/login activation and compositor control; owner sockets or Wayland labels cannot register authority |
-| `system_review.rs`, `system_review/presentation.rs` | Shared App/capability review projection, owner-scoped display revisions, root-only choices, fresh package verification and one-use App confirmation |
+| `system_review.rs`, `system_review/presentation.rs` | Shared App/capability review projection, owner-scoped display revisions, root-only choices, fresh package verification and one-use App confirmation; optional AI choice activates only after the installer verifies completion |
 | `app_services.rs`, `app_services/retirement.rs` | Persistent owner/App service manager, retained cleanup custody, lifecycle policy, capacity/restart control, and single-use call authorization |
 | `../extension_host/broker.rs` | Purpose-bound private proxy: verifies SCM credentials, Host/child ancestry, route class, and nearest child session before normal dispatch |
 | `scheduler.rs` | Proactive-scheduler authority: validates `yu cron` / `yu triggers` requests and derives what a job may carry |

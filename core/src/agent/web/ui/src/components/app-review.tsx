@@ -59,8 +59,7 @@ export function AppReviewDialog({ review, onConfirmed, onCancel, progress }: {
         <p className="flex items-center gap-2 font-medium"><ShieldCheck className="h-4 w-4" />
           App permissions</p>
         <p className="mt-2 text-muted-foreground">
-          Choose what this app may access. Your choices stay in effect until you change them in Settings.
-          AI access and file selections are separate.
+          Choose what this app may access. File selections still require their own approval.
         </p>
       </div>
       <div className="grid gap-2">

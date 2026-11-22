@@ -263,6 +263,10 @@ paths and uses the same checked fence/retirement through a direct kernel-UID-0, 
 broker route. Root selects its configured App root, consumes the exact protected
 review inside publication, and retains durable admission blocking on incomplete
 cleanup or uncertain publication; disconnection never cancels the controller.
+An authenticated optional GUI chat request makes a separate model-bound AI
+choice available in the install review. Root records it against the exact
+owner, signed package and AI policy only after the installer verifies success;
+the existing GUI grant issuer and AI gate both require that choice.
 Publication dispatch is durable before tree writes and cannot be replayed after
 an unknown outcome. `yu app install --recover <app-id>` only verifies the
 original installed package/manifest, destination/delivery ownership and absence

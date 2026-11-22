@@ -500,6 +500,11 @@ async fn commit_authenticated(
                     .map_err(BrokerError::indeterminate)?;
                 std::fs::remove_dir_all(root().join("staging").join(&pending.request_id))
                     .map_err(|error| BrokerError::indeterminate(error.to_string()))?;
+                #[cfg(target_os = "linux")]
+                if let Some(plan) = &pending.apt {
+                    apt::complete_install_reviews(owner_uid, plan)
+                        .map_err(BrokerError::indeterminate)?;
+                }
                 Ok(json!({"status": "installed", "app": app}))
             }
             Err(error) => {

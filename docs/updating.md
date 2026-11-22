@@ -1019,11 +1019,14 @@ requires a matching Agent package; older Store clients continue to use their
 existing package queries and intents.
 
 In the desktop Store, clicking **Install** or **Update** confirms that exact
-vendor-signed Yu OS App release without a second App or permission dialog.
-Acceptance means queued, not installed. Installation grants no standing
-permissions; a direct desktop launch can use the OS's ordinary defaults for
-the confirmed build. Owner denials, sensitive permissions, and any separate
-confirmation for stopping all Apps still apply.
+vendor-signed Yu OS App release. If an authenticated App in the delivery
+requests [optional system AI](app-development.md#optional-system-ai-at-installation),
+the transaction waits for the separate choice in the OS permission review.
+Other Yu OS Apps and ordinary Linux packages do not show that choice.
+Acceptance means queued, not installed; choosing not to allow AI does not
+prevent installation. A direct desktop launch can use the OS's ordinary
+defaults for the confirmed build. Owner denials, sensitive permissions, and
+any separate confirmation for stopping all Apps still apply.
 Flatpak is limited to the exact app ref, configured installation/remotes and
 reviewed deployment commits. The OS verifies the result as the requesting
 desktop user, including for system-wide installs and updates. Local archives,

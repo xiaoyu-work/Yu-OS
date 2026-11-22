@@ -1,7 +1,25 @@
 use serde::{Deserialize, Serialize};
 
-use super::{Manifest, ManifestError, Need, NeedCondition, ScopeBinding, Verb};
+use super::{AiPolicy, AiSafety, Manifest, ManifestError, Need, NeedCondition, PromptOrigin, ScopeBinding, Verb};
+use crate::caps::Scope;
 use crate::i18n::LocalizedText;
+
+pub(crate) const CONFIGURED_AI_MODEL: &str = "$configured-ai-model";
+
+pub(crate) fn requests_configured_ai(scope: &ScopeBinding) -> bool {
+    matches!(scope, ScopeBinding::Fixed { scope: Scope::Name(name) } if name == CONFIGURED_AI_MODEL)
+}
+
+fn supports_optional_ai(verb: Verb, policy: &AiPolicy) -> bool {
+    policy.budget.monthly_units > 0
+        && match verb {
+            Verb::AI_CHAT => policy.origins.iter().any(|origin|
+                matches!(origin, PromptOrigin::Trusted | PromptOrigin::UserInput)),
+            Verb::AI_CHAT_UNTRUSTED => policy.safety != AiSafety::Minimal
+                && policy.origins.contains(&PromptOrigin::ExternalContent),
+            _ => false,
+        }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -167,9 +185,9 @@ pub(super) fn validate(manifest: &Manifest) -> Result<(), ManifestError> {
         validate_entry(entry).map_err(|detail| invalid("entry", &detail))?;
     }
     if let Some(needs) = &desktop.needs {
-        validate_needs(manifest, "default", needs)?;
+        validate_needs(manifest, "default", needs, false)?;
     }
-    validate_needs(manifest, "default optional", &desktop.optional_needs)?;
+    validate_needs(manifest, "default optional", &desktop.optional_needs, true)?;
     if desktop.entries.len() > 64 {
         return Err(invalid("entries", "at most 64 additional GUI entries are allowed"));
     }
@@ -195,8 +213,8 @@ pub(super) fn validate(manifest: &Manifest) -> Result<(), ManifestError> {
             .name
             .validate()
             .map_err(|detail| invalid("entries", &format!("{name}.name: {detail}")))?;
-        validate_needs(manifest, name, &entry.needs)?;
-        validate_needs(manifest, &format!("{name} optional"), &entry.optional_needs)?;
+        validate_needs(manifest, name, &entry.needs, false)?;
+        validate_needs(manifest, &format!("{name} optional"), &entry.optional_needs, true)?;
     }
     Ok(())
 }
@@ -221,11 +239,17 @@ fn validate_entry(entry: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_needs(manifest: &Manifest, name: &str, needs: &[Need]) -> Result<(), ManifestError> {
+fn validate_needs(manifest: &Manifest, name: &str, needs: &[Need], optional: bool) -> Result<(), ManifestError> {
     for (index, need) in needs.iter().enumerate() {
         let context = |detail| invalid("needs", &format!("{name} need #{index}: {detail}"));
         need.why.validate().map_err(context)?;
         super::validate_literal_path_scopes(&need.scope).map_err(context)?;
+        if requests_configured_ai(&need.scope)
+            && !(optional && need.when.is_none() && manifest.ai.as_ref().is_some_and(|policy|
+                supports_optional_ai(need.verb, policy)))
+        {
+            return Err(context("the configured model requires an unconditional optional GUI chat need and a compatible finite AI policy".into()));
+        }
         if let ScopeBinding::OwnerPath { path } = &need.scope {
             super::owner_path::validate(need.verb, path).map_err(context)?;
         }

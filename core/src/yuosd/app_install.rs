@@ -347,6 +347,7 @@ fn publish(
     })?;
     let published = checked_outcome(pending, &delivery)?;
     save(pending, Phase::Installed)?;
+    reviews::complete_install(0, &pending.review_id, &pending.package, None)?;
     crate::provenance::audit("provenance.app_installed", published.provenance.clone());
     Ok(published)
 }

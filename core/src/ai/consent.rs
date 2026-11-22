@@ -44,6 +44,50 @@ use serde::{Deserialize, Serialize};
 use crate::caps::manifest::{AiPolicy, AiSafety, PromptOrigin};
 use crate::paths;
 
+/// Exact configured destination shown in an install review. The routing hash
+/// detects reconfiguration without exposing endpoint settings in presentation.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct InstallModel {
+    pub(crate) model: String,
+    pub(crate) provider: String,
+    routing: String,
+}
+
+impl InstallModel {
+    pub(crate) fn for_owner(owner: u32) -> Result<Option<Self>, String> {
+        let home = paths::verified_home_for_uid(owner)?;
+        let path = std::env::var_os("YUOS_CONFIG_PATH").map(PathBuf::from)
+            .or_else(|| std::env::var_os("YUOS_USER_CONFIG_DIR").map(|dir| PathBuf::from(dir).join("config.json")))
+            .unwrap_or_else(|| paths::user_config_path_for(&home));
+        Ok(Self::from_config(&crate::config::load_from_path(&path).agent))
+    }
+
+    pub(crate) fn from_config(config: &crate::config::AgentConfig) -> Option<Self> {
+        let valid = |value: &str| {
+            !value.trim().is_empty() && value.len() <= 128
+                && !value.contains(['*', '?', '[', ']', '{', '}'])
+                && !value.chars().any(char::is_control)
+        };
+        if !valid(&config.provider) || !valid(&config.model)
+            || config.model == crate::caps::manifest::CONFIGURED_AI_MODEL
+        {
+            return None;
+        }
+        Some(Self {
+            model: config.model.clone(),
+            provider: config.provider.clone(),
+            routing: crate::crypto::sha256_hex(
+                &serde_json::to_vec(&config.base_url).ok()?,
+            ),
+        })
+    }
+
+    pub(crate) fn scope(&self) -> crate::caps::Scope {
+        crate::caps::Scope::name(&self.model)
+    }
+}
+
 /// Current schema version. Bump if the on-disk shape changes in a
 /// way that requires a re-prompt.
 ///

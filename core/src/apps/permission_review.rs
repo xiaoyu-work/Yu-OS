@@ -40,6 +40,16 @@ pub struct RequestedPermission {
     pub uses: Vec<PermissionUse>,
 }
 
+impl RequestedPermission {
+    pub(crate) fn requests_install_ai(&self) -> bool {
+        crate::caps::manifest::requests_configured_ai(&self.scope)
+            && self.when.is_none()
+            && matches!(self.verb, Verb::AI_CHAT | Verb::AI_CHAT_UNTRUSTED)
+            && !self.uses.is_empty()
+            && self.uses.iter().all(|usage| usage.optional && usage.entry.starts_with("gui:"))
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServiceDisclosure {
     pub lifecycle: McpLifecycle,
@@ -80,6 +90,10 @@ pub struct PermissionReview {
 }
 
 impl PermissionReview {
+    pub(crate) fn requests_install_ai(&self) -> bool {
+        self.permissions.iter().any(|permission| permission.requests_install_ai())
+    }
+
     /// Presentation only. Root supplies the authenticated owner context.
     pub fn resolve_owner_paths(&mut self, paths: &crate::caps::args::PathContext) -> Result<(), String> {
         for permission in &mut self.permissions {

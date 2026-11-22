@@ -7,6 +7,7 @@ use std::sync::{Mutex, OnceLock};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use crate::approvals::system_review as reviews;
 use crate::caps::{Cap, Scope, Verb};
 use crate::proc::SessionInfo;
 
@@ -512,7 +513,8 @@ fn projection(record: &Record) -> Value {
         .map(|plan| {
             plan.delivery.reviews
                 .iter()
-                .filter(|_| !plan.official_store)
+                .filter(|review| !plan.official_store || reviews::get(record.owner_uid, &review.review_id)
+                    .is_ok_and(|record| record.ai_model.is_some()))
                 .map(|review| json!({"app_id": review.app_id, "review_id": review.review_id}))
                 .collect::<Vec<_>>()
         })
@@ -759,7 +761,9 @@ fn accept_locked(
 
 async fn confirmations(record: &mut Record) -> Result<(), String> {
     let plan = record.plan.as_ref().ok_or("Missing protected package plan")?;
-    if !plan.official_store {
+    if !plan.official_store || plan.delivery.reviews.iter().any(|review|
+        reviews::get(record.owner_uid, &review.review_id).is_ok_and(|record| record.ai_model.is_some()))
+    {
         record.phase = Phase::AwaitingAppConfirmation;
         save(record)?;
     }
@@ -999,6 +1003,9 @@ async fn execute(
     record.phase = Phase::Applied;
     record.error = None;
     save(record)?;
+    app_store::apt::complete_install_reviews(
+        record.owner_uid, &record.plan.as_ref().unwrap().delivery,
+    )?;
     Ok(())
 }
 
