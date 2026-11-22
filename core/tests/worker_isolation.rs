@@ -1522,7 +1522,7 @@ fn fixture_services(python: &Path, app_id: &str, caps: &CapSet) -> PathBuf {
         })
         .collect::<Vec<_>>();
     let mut script = format!(
-        "#!/usr/bin/python3\nCOS = {}\nAPP = {}\nCREDENTIALS = {}\n",
+        "#!/usr/bin/python3\nYU = {}\nAPP = {}\nCREDENTIALS = {}\n",
         serde_json::to_string(env!("CARGO_BIN_EXE_yu")).unwrap(),
         serde_json::to_string(app_id).unwrap(),
         serde_json::to_string(&names).unwrap(),
