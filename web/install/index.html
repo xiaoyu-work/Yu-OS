@@ -82,7 +82,14 @@ yu agent chat</code></pre>
       <section class="install-section" aria-labelledby="from-source">
         <h2 id="from-source">Build from source</h2>
         <div class="build-options">
-          <p>Run the build commands from an existing Yu OS source checkout on Linux or WSL2. These options need build tools and package access; they are not prebuilt downloads.</p>
+          <p>On Linux or WSL2, clone Yu OS into your home directory. You'll need Git and terminal access to <code>github.com</code>.</p>
+          <figure class="command">
+            <figcaption>Linux terminal</figcaption>
+            <pre><code>cd ~ &amp;&amp;
+git clone https://github.com/xiaoyu-work/Yu-OS.git &amp;&amp;
+cd Yu-OS</code></pre>
+          </figure>
+          <p>Run the build commands below from the checkout. If you already have the source, skip cloning and open that directory. These options require build tools and package access.</p>
           <details>
             <summary>Windows / WSL2</summary>
             <figure class="command">
