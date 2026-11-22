@@ -941,9 +941,10 @@ not the separate network-diagnostics provider.
 
 These requirements describe the unpublished Root-managed display implementation,
 not approval to deploy it or a completed installed-system acceptance result.
-Agent supplies the internal `yuos-display-session-v2` interface and native
+Agent supplies the internal `yuos-display-session-v3` interface and native
 PAM/display helpers; Desktop supplies the matching protected Hyprland
-executable and greetd/PAM startup configuration. The Agent and Desktop upgrade
+executable and greetd/PAM startup configuration. APT cannot pair the new
+Desktop or Agent with its previous v2 counterpart. The Agent and Desktop upgrade
 must be coordinated with the OS-owned Desktop Shell. Root refuses Shell launch
 unless the installed package, private floor, release signature and complete
 tree agree; an active dpkg transaction prevents a new Shell startup. The

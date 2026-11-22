@@ -103,8 +103,9 @@ work; regional persistence/readback does not establish startup consumption.
 | `/usr/libexec/yuos-hyprland/Hyprland` | Desktop |
 | `/etc/pam.d/yuos-desktop` and greetd startup integration | Desktop |
 
-Agent provides the OS-only `yuos-display-session-v2` ABI; Desktop requires
-it. The PAM library is built for the GNU target and requires the system PAM
+Agent provides the OS-only `yuos-display-session-v3` interface; Desktop requires
+it. The previous v2 and current package pair cannot be mixed. The PAM library is
+built for the GNU target and requires the system PAM
 development library. Package assembly takes real architecture-checked ELF
 inputs, never an App payload or a source-only substitute.
 

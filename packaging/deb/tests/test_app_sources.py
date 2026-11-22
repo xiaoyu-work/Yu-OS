@@ -38,6 +38,37 @@ packages = importlib.util.module_from_spec(PACKAGE_SPEC)
 PACKAGE_SPEC.loader.exec_module(packages)
 
 
+def test_display_session_dependency_rejects_mixed_generations(tmp_path):
+    agent = packages.fields((ROOT / "packaging/deb/yuos-agent/control").read_text())
+    desktop = packages.fields((ROOT / "packaging/deb/yuos-desktop/control").read_text())
+    provides = [item.strip() for item in agent["Provides"].split(",")]
+    depends = [item.strip() for item in desktop["Depends"].split(",")]
+    offered = [item for item in provides if "yuos-display-session-" in item]
+    required = [item for item in depends if "yuos-display-session-" in item]
+    assert offered == required == ["yuos-display-session-v3"]
+
+    control = tmp_path / "control"
+    control.write_text("Source: fixture\n\nPackage: fixture\nArchitecture: all\nDescription: fixture\n")
+    for offered, required, compatible in (
+        ("yuos-display-session-v2", "yuos-display-session-v2", True),
+        ("yuos-display-session-v2", required[0], False),
+        (offered[0], "yuos-display-session-v2", False),
+        (offered[0], required[0], True),
+    ):
+        (tmp_path / "status").write_text(
+            "Package: yuos-agent\nStatus: install ok installed\nPriority: optional\n"
+            "Section: admin\nArchitecture: all\nVersion: 1\n"
+            f"Provides: {offered}\nDescription: metadata fixture\n\n"
+        )
+        result = subprocess.run(
+            ["dpkg-checkbuilddeps", "-I", f"--admindir={tmp_path}", "-d", required, str(control)],
+            capture_output=True, text=True,
+        )
+        assert (result.returncode == 0) is compatible, result.stderr
+        if not compatible:
+            assert f"unmet build dependencies: {required}" in result.stderr
+
+
 @pytest.fixture(scope="module")
 def published_source():
     return sources.prepare_sources(sources.read_lock())

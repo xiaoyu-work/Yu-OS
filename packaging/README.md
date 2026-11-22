@@ -38,7 +38,7 @@ packaging/
 |---|---|---|---|
 | `yuos-agent` | `yu` with the Yu OS-owned TUI, `yuosd`, `yuos-agentd`, browser provider, semantic binaries, skills, SDK/runtime, trust roots, Agent system/user units and App channel configuration; no App payloads | `amd64`, `arm64` | Debian/Ubuntu runtime libraries, `systemd`, and `pkexec`; recommends `yuos-apps-agent` and Helium |
 | `yuos-base` | `yuos-init`, managed agent-home setup, Yu OS boot/service policy, and model-specific udev/libinput rules | `all` | `yuos-agent` |
-| `yuos-desktop` | Protected Hyprland, graphical login and Agent, system services, and the OS-owned Desktop Shell (Quickshell, Caelestia and private Qt) | `amd64`, `arm64` | `yuos-base`, `yuos-display-session-v2`, `yuos-apps-agent`, every individual graphical Yu OS App package and the Thunderbird integration |
+| `yuos-desktop` | Protected Hyprland, graphical login and Agent, system services, and the OS-owned Desktop Shell (Quickshell, Caelestia and private Qt) | `amd64`, `arm64` | `yuos-base`, `yuos-display-session-v3`, `yuos-apps-agent`, every individual graphical Yu OS App package and the Thunderbird integration |
 
 Keep the [hardware workarounds](../docs/image-architecture.md#hardware-enablement) in `deb/yuos-base/hardware/`. Base stages the system udev and libinput data; Desktop stages the same libinput quirk source into Hyprland's private libinput database. Both packages use the existing signed release path.
 
@@ -404,8 +404,10 @@ retains the overlay/recovery data; see
 ## Authenticated desktop runtime
 
 The unpublished authenticated desktop runtime adds the OS-only
-`yuos-display-session-v2` interface: Agent provides it and Desktop requires
-it. Agent owns `/usr/lib/yuos/bin/yuos-display-host`,
+`yuos-display-session-v3` interface: Agent provides it and Desktop requires
+it. The previous v2 Desktop and the new Agent cannot satisfy each other's
+dependency, nor can the previous Agent satisfy the new Desktop.
+Agent owns `/usr/lib/yuos/bin/yuos-display-host`,
 `/usr/local/bin/yuos-display-session`, `/usr/local/bin/yuos-gui-runner` and
 `/usr/lib/<GNU-multiarch>/security/pam_yuos_display.so`. The executables install
 as `0755`, PAM as `0644`, with Root ownership and protected ancestors. Desktop

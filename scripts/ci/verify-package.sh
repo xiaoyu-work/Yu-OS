@@ -69,7 +69,11 @@ case "$component" in
         )
         dpkg-deb -f "$deb" Provides | grep -qw yuos-calendar-read-v1
         dpkg-deb -f "$deb" Provides | grep -qw yuos-nearby-v1
-        dpkg-deb -f "$deb" Provides | grep -qw yuos-display-session-v2
+        dpkg-deb -f "$deb" Provides | grep -qw yuos-display-session-v3
+        if dpkg-deb -f "$deb" Provides | grep -qw yuos-display-session-v2; then
+            echo "error: Agent still advertises the incompatible display session v2" >&2
+            exit 1
+        fi
         dpkg-deb -f "$deb" Provides | grep -qw yuos-browser-render-v1
         if grep -Eq '/(yuos-browser(-worker)?|yuos-browser\.service)$' "$files"; then
             echo "error: legacy raw browser service is still packaged" >&2
@@ -95,6 +99,12 @@ case "$component" in
         fi
         ;;
     desktop)
+        dpkg-deb -f "$deb" Depends \
+            | grep -Eq '(^|,)[[:space:]]*yuos-display-session-v3([[:space:]]*,|[[:space:]]*$)'
+        if dpkg-deb -f "$deb" Depends | grep -qw yuos-display-session-v2; then
+            echo "error: Desktop still accepts the incompatible display session v2" >&2
+            exit 1
+        fi
         required=(
             usr/libexec/yuos-hyprland/Hyprland
             usr/lib/yuos/system-desktop/bin/yuos-desktop-shell
