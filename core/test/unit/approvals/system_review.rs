@@ -109,11 +109,10 @@ fn install_ai_is_hidden_without_an_optional_request_and_bound_to_verified_delive
 
     manifest["desktop"] = serde_json::json!({
         "needs": [],
-        "optional_needs": [{
-            "verb": "ai.chat.untrusted",
-            "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}},
-            "why": {"en": "Suggest edits using the owner's model"}
-        }]
+        "optional_needs": [
+            {"verb": "ai.chat.untrusted", "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}}},
+            {"verb": "ai.decide", "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}}}
+        ]
     });
     let package = environment.package_from_manifest(&environment.directory.path().join("optional-ai"), manifest);
     let delivery = DeliveryReview {
@@ -138,6 +137,32 @@ fn install_ai_is_hidden_without_an_optional_request_and_bound_to_verified_delive
     environment.model("owner-model");
     revoke_installed_gui_ai(owner, &package, &model, &choice).unwrap();
     assert!(!allows(&model));
+
+    let binding = PackageRef::of(&package);
+    let (manifest, _) = snapshot(&package).unwrap();
+    let mut config = crate::config::YuConfig::default();
+    config.agent.model = "owner-model".into();
+    config.decision.model = "local-decision".into();
+    let choices = |owner, config: &crate::config::YuConfig| {
+        crate::ai::consent::gui_ai_choices(owner, &package, &manifest, config).unwrap()
+    };
+    let pending = choices(owner, &config);
+    assert!(pending.iter().all(|choice| !choice.enabled));
+    let decision = pending.iter().find(|choice| choice.cap.verb == Verb::AI_DECIDE).unwrap();
+    crate::approvals::app_policy::set_choice(
+        owner, &binding, decision.id.clone(), decision.cap.clone(), true,
+    ).unwrap();
+    let enabled = choices(owner, &config);
+    assert_eq!(enabled.iter().filter(|choice| choice.enabled).count(), 1);
+    assert!(enabled.iter().any(|choice| choice.id == decision.id && choice.enabled));
+    assert!(choices(owner.wrapping_add(1), &config).iter().all(|choice| !choice.enabled));
+    config.decision.model = "another-model".into();
+    assert!(choices(owner, &config).iter().all(|choice| !choice.enabled));
+    config.decision.model = "local-decision".into();
+    crate::approvals::app_policy::set_choice(
+        owner, &binding, decision.id.clone(), decision.cap.clone(), false,
+    ).unwrap();
+    assert!(choices(owner, &config).iter().all(|choice| !choice.enabled));
 }
 
 #[test]

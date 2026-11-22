@@ -2433,12 +2433,8 @@ fn authorize_optional_gui_needs(
     let installed_ai = if apply_saved && selected.optional_needs.iter().any(|need|
         crate::caps::manifest::requests_configured_ai(&need.scope))
     {
-        let verified = app.require_verified().and_then(|package| {
-            match crate::ai::consent::InstallModel::for_owner(delegation.uid)? {
-                Some(model) => crate::approvals::system_review::installed_gui_ai(delegation.uid, package, &model),
-                None => Ok(Vec::new()),
-            }
-        });
+        let verified = app.require_verified().and_then(|package|
+            crate::ai::consent::gui_ai_for_owner(delegation.uid, package, &app.manifest));
         match verified {
             Ok(choices) => choices,
             Err(error) => {
@@ -2459,8 +2455,8 @@ fn authorize_optional_gui_needs(
         let requested = if !selected.optional_need_is_bound(need) {
             None
         } else if install_ai {
-            installed_ai.iter().find(|(_, cap)| cap.verb == need.verb)
-                .map(|(_, cap)| vec![cap.clone()])
+            installed_ai.iter().find(|choice| choice.enabled && choice.cap.verb == need.verb)
+                .map(|choice| vec![choice.cap.clone()])
         } else {
             match &need.scope {
                 ScopeBinding::Fixed { scope } => Some(vec![Cap::new(need.verb, scope.clone())]),
@@ -2869,7 +2865,9 @@ pub async fn relay(
     // The same obligation the server enforces for a direct call: a
     // route that derives its own capability and answered without
     // spending one has authorized nothing, so nothing is released.
-    if !authority::obligation_met(decision.as_ref()) {
+    if !authority::obligation_met(decision.as_ref())
+        && !super::ai::may_return_without_spend(route.name, &outcome)
+    {
         tracing::error!(
             route = route.name,
             "relayed route answered without exercising its capability requirement"

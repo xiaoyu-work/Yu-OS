@@ -89,6 +89,130 @@ class AiToolCall(TypedDict):
     name: str
     input: Any
 
+class AiInference(TypedDict):
+    """App AI inference reply.
+    """
+    provider: str
+    model: str
+    units: int
+    output: Any
+
+class EmbeddingOutput(TypedDict):
+    """EmbeddingOutput.
+    """
+    kind: str
+    vector: List[float]
+
+class _SpeechOutputRequired(TypedDict):
+    kind: str
+    format: str
+    audio_base64: str
+
+class SpeechOutput(_SpeechOutputRequired, total=False):
+    """SpeechOutput.
+    """
+    sample_rate_hz: int
+
+class TranscriptionOutput(TypedDict):
+    """TranscriptionOutput.
+    """
+    kind: str
+    text: str
+
+class ImageOutput(TypedDict):
+    """ImageOutput.
+    """
+    kind: str
+    format: str
+    image_base64: str
+
+class DecisionOutput(TypedDict):
+    """DecisionOutput.
+    """
+    kind: str
+    answers: Dict[str, Any]
+
+class ChoiceAnswer(TypedDict):
+    """ChoiceAnswer.
+    """
+    type: str
+    choice: str
+    probabilities: Dict[str, Any]
+
+class NoulAnswer(TypedDict):
+    """NoulAnswer.
+    """
+    type: str
+    noul: float
+
+class ScoreAnswer(TypedDict):
+    """ScoreAnswer.
+    """
+    type: str
+    score: float
+    probabilities: Dict[str, Any]
+
+class _AiInferenceRequestRequired(TypedDict):
+    origin: str
+    input: Any
+
+class AiInferenceRequest(_AiInferenceRequestRequired, total=False):
+    """App AI inference request.
+    """
+    max_units: int
+
+class EmbedInput(TypedDict):
+    """EmbedInput.
+    """
+    kind: str
+    text: str
+
+class SpeechInput(TypedDict):
+    """SpeechInput.
+    """
+    kind: str
+    text: str
+
+class TranscriptionInput(TypedDict):
+    """TranscriptionInput.
+    """
+    kind: str
+    audio_base64: str
+    format: str
+
+class ImageInput(TypedDict):
+    """ImageInput.
+    """
+    kind: str
+    prompt: str
+
+class DecisionInput(TypedDict):
+    """DecisionInput.
+    """
+    kind: str
+    state: Any
+    questions: Dict[str, Any]
+
+class ChoiceQuestion(TypedDict):
+    """ChoiceQuestion.
+    """
+    type: str
+    instructions: str
+    criteria: Dict[str, Any]
+
+class NoulQuestion(TypedDict):
+    """NoulQuestion.
+    """
+    type: str
+    instructions: str
+
+class ScoreQuestion(TypedDict):
+    """ScoreQuestion.
+    """
+    type: str
+    instructions: str
+    criteria: List[str]
+
 class App(TypedDict, total=False):
     """App-verb invocation reply.
 
@@ -402,14 +526,15 @@ class Defaultedpositional(TypedDict, total=False):
 class _NeedRequired(TypedDict):
     verb: str
     scope: "Scopebinding"
-    why: "Localizedtext"
 
 class Need(_NeedRequired, total=False):
     """need.
 
-    A single capability request: verb + scope binding + human reason.
+    A single capability request: verb and scope, with a reason required for non-
+    AI requests.
     """
     when: "Needcondition"
+    why: "Localizedtext"
 
 class _NeedconditionRequired(TypedDict):
     kind: str
@@ -648,6 +773,13 @@ def validate_ai_review_safety(value: str) -> None:
     allowed = ['strict', 'standard', 'minimal']
     if value not in allowed:
         raise ValueError(f"invalid ai_review.safety value: {value!r}")
+
+def validate_ai_inference_request_origin(value: str) -> None:
+    """Raise ValueError if value is not in the ai_inference_request.origin
+    enum. Mirrors generated::validate_ai_inference_request_origin."""
+    allowed = ['trusted', 'user-input', 'external-content']
+    if value not in allowed:
+        raise ValueError(f"invalid ai_inference_request.origin value: {value!r}")
 
 def validate_file_change_plan_state(value: str) -> None:
     """Raise ValueError if value is not in the file_change_plan.state
@@ -1028,6 +1160,18 @@ _WIRE_SCHEMA_AI: Dict[str, Any] = decode_wire_json(r'''{"$defs":{"AiToolCall":{"
 def validate_ai(value: Any) -> None:
     """Validate a value against wire/v1/ai.schema.json."""
     _validate_wire_schema(_WIRE_SCHEMA_AI, _WIRE_SCHEMA_AI, value, "Ai", "$")
+
+_WIRE_SCHEMA_AI_INFERENCE: Dict[str, Any] = decode_wire_json(r'''{"$defs":{"ChoiceAnswer":{"additionalProperties":false,"properties":{"choice":{"maxLength":48,"minLength":1,"type":"string"},"probabilities":{"additionalProperties":{"maximum":1,"minimum":0,"type":"number"},"type":"object"},"type":{"const":"choice","type":"string"}},"required":["type","choice","probabilities"],"type":"object"},"DecisionOutput":{"additionalProperties":false,"properties":{"answers":{"additionalProperties":{"oneOf":[{"$ref":"#/$defs/ChoiceAnswer"},{"$ref":"#/$defs/NoulAnswer"},{"$ref":"#/$defs/ScoreAnswer"}]},"type":"object"},"kind":{"const":"decision","type":"string"}},"required":["kind","answers"],"type":"object"},"EmbeddingOutput":{"additionalProperties":false,"properties":{"kind":{"const":"embed","type":"string"},"vector":{"items":{"maximum":3.4028235e+38,"minimum":-3.4028235e+38,"type":"number"},"type":"array"}},"required":["kind","vector"],"type":"object"},"ImageOutput":{"additionalProperties":false,"properties":{"format":{"enum":["png","jpg","webp"],"type":"string"},"image_base64":{"maxLength":4192940,"minLength":4,"type":"string"},"kind":{"const":"imagegen","type":"string"}},"required":["kind","format","image_base64"],"type":"object"},"NoulAnswer":{"additionalProperties":false,"properties":{"noul":{"maximum":1,"minimum":0,"type":"number"},"type":{"const":"noul","type":"string"}},"required":["type","noul"],"type":"object"},"ScoreAnswer":{"additionalProperties":false,"properties":{"probabilities":{"additionalProperties":{"maximum":1,"minimum":0,"type":"number"},"type":"object"},"score":{"maximum":9,"minimum":0,"type":"number"},"type":{"const":"score","type":"string"}},"required":["type","score","probabilities"],"type":"object"},"SpeechOutput":{"additionalProperties":false,"properties":{"audio_base64":{"maxLength":4192940,"minLength":4,"type":"string"},"format":{"enum":["wav","mp3","ogg","pcm"],"type":"string"},"kind":{"const":"tts","type":"string"},"sample_rate_hz":{"maximum":4294967295,"minimum":1,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"}},"required":["kind","format","audio_base64"],"type":"object"},"TranscriptionOutput":{"additionalProperties":false,"properties":{"kind":{"const":"stt","type":"string"},"text":{"type":"string","x-max-utf8-bytes":65536}},"required":["kind","text"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai_inference.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"model":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"output":{"oneOf":[{"$ref":"#/$defs/EmbeddingOutput"},{"$ref":"#/$defs/SpeechOutput"},{"$ref":"#/$defs/TranscriptionOutput"},{"$ref":"#/$defs/ImageOutput"},{"$ref":"#/$defs/DecisionOutput"}],"x-ts-type":"EmbeddingOutput | SpeechOutput | TranscriptionOutput | ImageOutput | DecisionOutput"},"provider":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"units":{"maximum":4294967295,"minimum":1,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"}},"required":["provider","model","units","output"],"title":"App AI inference reply","type":"object"}''')
+
+def validate_ai_inference(value: Any) -> None:
+    """Validate a value against wire/v1/ai_inference.schema.json."""
+    _validate_wire_schema(_WIRE_SCHEMA_AI_INFERENCE, _WIRE_SCHEMA_AI_INFERENCE, value, "AiInference", "$")
+
+_WIRE_SCHEMA_AI_INFERENCE_REQUEST: Dict[str, Any] = decode_wire_json(r'''{"$defs":{"ChoiceQuestion":{"additionalProperties":false,"properties":{"criteria":{"additionalProperties":{"maxLength":400,"minLength":1,"type":"string"},"type":"object"},"instructions":{"maxLength":1000,"minLength":1,"type":"string"},"type":{"const":"choice","type":"string"}},"required":["type","instructions","criteria"],"type":"object"},"DecisionInput":{"additionalProperties":false,"properties":{"kind":{"const":"decision","type":"string"},"questions":{"additionalProperties":{"oneOf":[{"$ref":"#/$defs/ChoiceQuestion"},{"$ref":"#/$defs/NoulQuestion"},{"$ref":"#/$defs/ScoreQuestion"}]},"type":"object"},"state":{}},"required":["kind","state","questions"],"type":"object"},"EmbedInput":{"additionalProperties":false,"properties":{"kind":{"const":"embed","type":"string"},"text":{"minLength":1,"type":"string","x-max-utf8-bytes":16384}},"required":["kind","text"],"type":"object"},"ImageInput":{"additionalProperties":false,"properties":{"kind":{"const":"imagegen","type":"string"},"prompt":{"minLength":1,"type":"string","x-max-utf8-bytes":4096}},"required":["kind","prompt"],"type":"object"},"NoulQuestion":{"additionalProperties":false,"properties":{"instructions":{"maxLength":1000,"minLength":1,"type":"string"},"type":{"const":"noul","type":"string"}},"required":["type","instructions"],"type":"object"},"ScoreQuestion":{"additionalProperties":false,"properties":{"criteria":{"items":{"maxLength":400,"minLength":1,"type":"string"},"type":"array"},"instructions":{"maxLength":1000,"minLength":1,"type":"string"},"type":{"const":"score","type":"string"}},"required":["type","instructions","criteria"],"type":"object"},"SpeechInput":{"additionalProperties":false,"properties":{"kind":{"const":"tts","type":"string"},"text":{"minLength":1,"type":"string","x-max-utf8-bytes":4096}},"required":["kind","text"],"type":"object"},"TranscriptionInput":{"additionalProperties":false,"properties":{"audio_base64":{"maxLength":699052,"minLength":4,"type":"string"},"format":{"enum":["wav","mp3","ogg"],"type":"string"},"kind":{"const":"stt","type":"string"}},"required":["kind","audio_base64","format"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai_inference_request.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"input":{"oneOf":[{"$ref":"#/$defs/EmbedInput"},{"$ref":"#/$defs/SpeechInput"},{"$ref":"#/$defs/TranscriptionInput"},{"$ref":"#/$defs/ImageInput"},{"$ref":"#/$defs/DecisionInput"}],"x-ts-type":"EmbedInput | SpeechInput | TranscriptionInput | ImageInput | DecisionInput"},"max_units":{"maximum":4294967295,"minimum":1,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"origin":{"enum":["trusted","user-input","external-content"],"type":"string"}},"required":["origin","input"],"title":"App AI inference request","type":"object"}''')
+
+def validate_ai_inference_request(value: Any) -> None:
+    """Validate a value against wire/v1/ai_inference_request.schema.json."""
+    _validate_wire_schema(_WIRE_SCHEMA_AI_INFERENCE_REQUEST, _WIRE_SCHEMA_AI_INFERENCE_REQUEST, value, "AiInferenceRequest", "$")
 
 _WIRE_SCHEMA_BUDGET_SHOW: Dict[str, Any] = decode_wire_json(r'''{"$id":"https://yuos.dev/wire/v1/budget_show.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"description":"Shape returned by `yu agent budget show <app>`.","properties":{"app":{"type":"string"},"period":{"type":"string"},"units_used":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"}},"required":["app","period","units_used"],"title":"AI budget show reply","type":"object"}''')
 

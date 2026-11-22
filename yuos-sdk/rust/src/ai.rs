@@ -22,6 +22,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use serde::{Deserialize, Serialize};
 
 use crate::{yu_call_json_structured, BridgeError, StructuredCosError};
+pub use crate::generated::{AiInference, AiInferenceRequest};
 
 // ---------------------------------------------------------------------------
 // Response shape
@@ -163,6 +164,46 @@ pub fn chat(prompt: &str, opts: ChatOpts) -> Result<AiResponse, AiError> {
         .filter(|value| !value.trim().is_empty())
         .ok_or_else(|| AiError::InvalidArg("chat: prompt origin is required".into()))?;
     dispatch(prompt, origin, &opts)
+}
+
+/// Run the owner's configured embedding, speech, image, or decision model.
+pub fn infer(request: &AiInferenceRequest) -> Result<AiInference, AiError> {
+    let value = serde_json::to_value(request)
+        .map_err(|error| AiError::InvalidArg(error.to_string()))?;
+    let input = serde_json::to_vec(&value)
+        .map_err(|error| AiError::InvalidArg(error.to_string()))?;
+    if input.len() > 720 * 1024 {
+        return Err(AiError::InvalidArg("AI request exceeds the byte limit".into()));
+    }
+    crate::generated::validate_ai_inference_request(&value)
+        .map_err(|error| AiError::InvalidArg(error.to_string()))?;
+    let response = crate::yu_call_json_structured_input(
+        "ai", "infer", ["ai", "infer", "--request-stdin"], Some(&input),
+        std::process::Stdio::piped(), None,
+    );
+    let mut reply = match response {
+        Ok(reply) => reply,
+        Err(StructuredCosError::App(error)) =>
+            return Err(classify_ai_error(&error.message, &error.payload)),
+        Err(StructuredCosError::Bridge(error)) => return Err(AiError::Bridge(error)),
+    };
+    crate::generated::validate_ai_inference(&reply)
+        .map_err(|error| AiError::Unavailable(error.to_string()))?;
+    if reply["output"]["kind"] != value["input"]["kind"] {
+        return Err(AiError::Unavailable("AI inference reply does not match the request".into()));
+    }
+    crate::generated::normalize_ai_inference_integers(&mut reply);
+    serde_json::from_value(reply).map_err(|error| AiError::Unavailable(error.to_string()))
+}
+
+/// Open Applications settings after a user action. This does not authorize AI.
+pub fn open_permission_settings() -> Result<(), AiError> {
+    match yu_call_json_structured("ai", "settings", ["ai", "settings"]) {
+        Ok(_) => Ok(()),
+        Err(StructuredCosError::App(error)) =>
+            Err(classify_ai_error(&error.message, &error.payload)),
+        Err(StructuredCosError::Bridge(error)) => Err(AiError::Bridge(error)),
+    }
 }
 
 // ---------------------------------------------------------------------------

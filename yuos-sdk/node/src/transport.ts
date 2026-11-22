@@ -98,6 +98,7 @@ export async function yuCallJsonAsync(
   label: string,
   args: string[],
   signal?: AbortSignal,
+  input?: string,
 ): Promise<unknown> {
   signal?.throwIfAborted();
   const bin = yuBinary();
@@ -128,7 +129,14 @@ export async function yuCallJsonAsync(
         reject(error);
       }
     });
-    child.stdin?.end();
+    // The CLI can refuse before draining stdin; its envelope is authoritative.
+    child.stdin?.on("error", (error: NodeJS.ErrnoException) => {
+      if (error.code !== "EPIPE" && !signal?.aborted) {
+        child.kill("SIGKILL");
+        reject(new Unavailable(`${label} could not send its request`));
+      }
+    });
+    child.stdin?.end(input);
   });
 }
 

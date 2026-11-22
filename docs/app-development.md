@@ -702,13 +702,15 @@ determines redaction. The label does not prove the input is safe.
 
 Declare an `ai` policy in the manifest and the matching capability on the
 calling surface: `ai.chat.untrusted` for `external-content`, or `ai.chat`
-for `trusted` and `user-input`. The owner configures the model. A declaration
-does not authorize a call.
+for `trusted` and `user-input`. See the [SDK model table](../yuos-sdk/REFERENCE.md#ai-support)
+for non-chat capabilities. The owner configures the model. A declaration
+does not authorize a call. `why` is optional on AI needs; the system
+supplies its own permission description.
 
 | Calling surface | Owner consent |
 |---|---|
 | An operation, MCP tool, or GUI call not using the configured-model opt-in | The owner grants separate consent to the App's AI policy with `yu app consent grant <id>`. Changes to the policy require renewed consent. |
-| An eligible GUI entry using [optional system AI](#optional-system-ai-at-installation) | The owner explicitly allows it in the protected Store installation review for the exact package and configured model. That GUI call does not require a second `consent grant`. |
+| An eligible GUI entry using [optional model permissions](#model-permissions-in-settings) | The owner explicitly allows the App to use that model in Settings → Applications. The Store can also offer optional text AI during installation. Neither path requires a second `consent grant` for the selected GUI entry. |
 
 Both paths still require the matching capability and are subject to budgeting
 and the effective policy. The optional GUI choice does not flow to other
@@ -1081,15 +1083,49 @@ choice, and only when a model is configured. The protected Store reviews show
 the provider, model and AI policy; accepting installation alone does not enable
 it. Explicit Allow takes effect only after verified publication. Normal owner
 GUI launches may then call the same SDK `ai.chat` without a second AI prompt.
-Turning it off in Settings → Applications retires the current grant. A changed
-package or configured model requires a new install decision. A declined or
-unavailable choice leaves ordinary App use available and grants no file,
-MCP, or Agent permissions. Legacy App AI policies without this GUI declaration
-retain their separate AI consent flow.
+Turning it off in Settings → Applications retires the current grant. A declined
+or unavailable choice leaves ordinary App use available. The installation
+choice is for text AI; all supported models can be managed as described below.
 
 Signed directory installation remains a direct Root publication and the
 protected review belongs to UID 0. It must not enable an ordinary user's AI
-session. For owner-scoped desktop opt-in, use the protected Store flow.
+session. The ordinary owner can make a separate choice in Settings.
+
+#### Model permissions in Settings
+
+Declare a model capability in the relevant GUI entry's `optional_needs`.
+Use an unconditional fixed name of `$configured-ai-model` and a positive
+App AI budget. For example, to offer speech synthesis:
+
+```json
+{
+  "verb": "ai.audio.tts",
+  "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}}
+}
+```
+
+An eligible signed App starts without the right. When the user requests the
+feature, catch the SDK's permission error. For `detail.reason ==
+"model_permission_required"`, show App-owned copy such as “Enable speech
+for this App in Settings → Applications.” Open Settings only when the user
+selects that action:
+
+```python
+try:
+    speech = ai.infer({"origin": "user-input", "input": {"kind": "tts", "text": text}})
+except ai.AiDenied as error:
+    if error.payload.get("detail", {}).get("reason") != "model_permission_required":
+        raise
+    # Show your prompt; use ai.open_permission_settings as the button handler.
+```
+
+The button uses the separate `desktop.launch` capability scoped to
+`com.yuos.Settings`. If unavailable, keep the manual Settings instructions
+visible. Opening Settings does not authorize or send the prompt. After the
+owner enables the exact App/model choice, reopen the App and let the user
+retry. Changing a choice retires the old App session. A changed package or
+destination requires its own choice. This grants no MCP invoke, filesystem,
+provider credentials, or model-selection authority.
 
 The authenticated review lists required and optional purposes separately and
 includes optional declarations in the permission-contract digest and deny

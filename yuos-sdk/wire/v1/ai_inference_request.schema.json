@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yuos.dev/wire/v1/ai_inference_request.schema.json",
+  "title": "App AI inference request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["origin", "input"],
+  "properties": {
+    "origin": { "type": "string", "enum": ["trusted", "user-input", "external-content"] },
+    "max_units": { "type": "integer", "minimum": 1, "maximum": 4294967295, "x-rust-type": "u32", "x-go-type": "uint32" },
+    "input": {
+      "x-ts-type": "EmbedInput | SpeechInput | TranscriptionInput | ImageInput | DecisionInput",
+      "oneOf": [
+        { "$ref": "#/$defs/EmbedInput" },
+        { "$ref": "#/$defs/SpeechInput" },
+        { "$ref": "#/$defs/TranscriptionInput" },
+        { "$ref": "#/$defs/ImageInput" },
+        { "$ref": "#/$defs/DecisionInput" }
+      ]
+    }
+  },
+  "$defs": {
+    "EmbedInput": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "text"],
+      "properties": {
+        "kind": { "type": "string", "const": "embed" },
+        "text": { "type": "string", "minLength": 1, "x-max-utf8-bytes": 16384 }
+      }
+    },
+    "SpeechInput": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "text"],
+      "properties": {
+        "kind": { "type": "string", "const": "tts" },
+        "text": { "type": "string", "minLength": 1, "x-max-utf8-bytes": 4096 }
+      }
+    },
+    "TranscriptionInput": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "audio_base64", "format"],
+      "properties": {
+        "kind": { "type": "string", "const": "stt" },
+        "audio_base64": { "type": "string", "minLength": 4, "maxLength": 699052 },
+        "format": { "type": "string", "enum": ["wav", "mp3", "ogg"] }
+      }
+    },
+    "ImageInput": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "prompt"],
+      "properties": {
+        "kind": { "type": "string", "const": "imagegen" },
+        "prompt": { "type": "string", "minLength": 1, "x-max-utf8-bytes": 4096 }
+      }
+    },
+    "DecisionInput": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "state", "questions"],
+      "properties": {
+        "kind": { "type": "string", "const": "decision" },
+        "state": {},
+        "questions": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              { "$ref": "#/$defs/ChoiceQuestion" },
+              { "$ref": "#/$defs/NoulQuestion" },
+              { "$ref": "#/$defs/ScoreQuestion" }
+            ]
+          }
+        }
+      }
+    },
+    "ChoiceQuestion": {
+      "type": "object", "additionalProperties": false, "required": ["type", "instructions", "criteria"],
+      "properties": {
+        "type": { "type": "string", "const": "choice" },
+        "instructions": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "criteria": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 400 } }
+      }
+    },
+    "NoulQuestion": {
+      "type": "object", "additionalProperties": false, "required": ["type", "instructions"],
+      "properties": {
+        "type": { "type": "string", "const": "noul" },
+        "instructions": { "type": "string", "minLength": 1, "maxLength": 1000 }
+      }
+    },
+    "ScoreQuestion": {
+      "type": "object", "additionalProperties": false, "required": ["type", "instructions", "criteria"],
+      "properties": {
+        "type": { "type": "string", "const": "score" },
+        "instructions": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "criteria": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 400 } }
+      }
+    }
+  }
+}

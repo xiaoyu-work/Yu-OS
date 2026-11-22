@@ -50,13 +50,18 @@ import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Mapping, Optional
+from typing import Any, Dict, List, Literal, Mapping, NoReturn, Optional, cast
 
 from ._transport import WIRE_ARG, WireDenied, WireUnavailable, decode_response
 from .generated import (
+    AiInference,
+    AiInferenceRequest,
     WireDecodeError,
     WireJsonValue,
+    encode_wire_json,
     validate_ai,
+    validate_ai_inference,
+    validate_ai_inference_request,
     validate_budget_show,
     wire_integer_to_int,
 )
@@ -207,6 +212,41 @@ def chat(
         app_id=app_id,
         tools=tools,
     )
+
+
+def infer(request: AiInferenceRequest) -> AiInference:
+    """Run the owner's configured embedding, speech, image, or decision model."""
+    data = encode_wire_json(request).encode("utf-8")
+    if len(data) > 720 * 1024:
+        raise AiError("AI request exceeds the byte limit")
+    validate_ai_inference_request(request)
+    reply = _model_call("infer", "--request-stdin", data=data)
+    try:
+        validate_ai_inference(reply)
+    except WireDecodeError as error:
+        raise AiUnavailable(str(error)) from error
+    if reply["output"]["kind"] != request["input"]["kind"]:
+        raise AiUnavailable("AI inference reply does not match the request")
+    reply["units"] = wire_integer_to_int(reply["units"])
+    return cast(AiInference, reply)
+
+
+def open_permission_settings() -> None:
+    """Open Applications settings after a user action; this does not authorize AI."""
+    _model_call("settings")
+
+
+def _model_call(command: str, *args: str, data: bytes = b"") -> Dict[str, Any]:
+    try:
+        proc = subprocess.run(
+            [_yu_binary(), WIRE_ARG, "ai", command, *args],
+            input=data, capture_output=True, check=False, timeout=_DEFAULT_TIMEOUT_S,
+        )
+        return decode_response(proc.stdout.decode("utf-8"), proc.returncode, f"yu ai {command}")
+    except WireDenied as error:
+        _raise_for_error(error.payload)
+    except (WireUnavailable, OSError, UnicodeError, subprocess.TimeoutExpired) as error:
+        raise AiUnavailable(str(error)) from error
 
 
 def budget(app_id: Optional[str] = None) -> BudgetUsage:
@@ -360,7 +400,7 @@ def _parse_response(env: Any) -> AiResponse:
     )
 
 
-def _raise_for_error(env: Mapping[str, Any]) -> None:
+def _raise_for_error(env: Mapping[str, Any]) -> NoReturn:
     code = str(env["code"])
     if code == "BUDGET_EXCEEDED":
         raise AiBudgetExceeded(env)

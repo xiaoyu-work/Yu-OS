@@ -28,10 +28,15 @@ import {
 import {
   WireDecodeError,
   materializeWireValue,
+  stringifyWireJson,
   type WireJsonValue,
   validateAi,
+  validateAiInference,
+  validateAiInferenceRequest,
   validateBudgetShow,
   type AiBudget,
+  type AiInference,
+  type AiInferenceRequest,
 } from "./generated";
 
 /** Base class for every error this module raises. */
@@ -147,6 +152,45 @@ export async function chat(prompt: string, opts: ChatOptions): Promise<AiRespons
     return parseResponse(data);
   } finally {
     await rm(privateDir, { recursive: true, force: true });
+  }
+}
+
+/** Invoke the owner's configured embedding, speech, image, or decision model. */
+export async function infer(
+  request: AiInferenceRequest,
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<AiInference> {
+  const input = stringifyWireJson(materializeWireValue(request));
+  if (Buffer.byteLength(input) > 720 * 1024) throw new AiError("AI request exceeds the byte limit");
+  validateAiInferenceRequest(request);
+  let data: unknown;
+  try {
+    data = await yuCallJsonAsync("yu ai infer", ["ai", "infer", "--request-stdin"], signal, input);
+  } catch (error) {
+    if (error instanceof Denied) raiseForError(error.payload);
+    if (error instanceof Unavailable) throw new AiUnavailable(error.message);
+    throw error;
+  }
+  try {
+    validateAiInference(data);
+  } catch (error) {
+    if (error instanceof WireDecodeError) throw new AiUnavailable(error.message);
+    throw error;
+  }
+  if (data.output.kind !== request.input.kind) {
+    throw new AiUnavailable("AI inference reply does not match the request");
+  }
+  return data;
+}
+
+/** Open Applications settings after a user action. This does not authorize AI. */
+export async function openPermissionSettings(): Promise<void> {
+  try {
+    await yuCallJsonAsync("yu ai settings", ["ai", "settings"]);
+  } catch (error) {
+    if (error instanceof Denied) raiseForError(error.payload);
+    if (error instanceof Unavailable) throw new AiUnavailable(error.message);
+    throw error;
   }
 }
 

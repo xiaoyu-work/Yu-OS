@@ -226,8 +226,8 @@
     },
     "need": {
       "type": "object",
-      "description": "A single capability request: verb + scope binding + human reason.",
-      "required": ["verb", "scope", "why"],
+      "description": "A single capability request: verb and scope, with a reason required for non-AI requests.",
+      "required": ["verb", "scope"],
       "additionalProperties": true,
       "not": {
         "properties": { "verb": { "const": "ai.bypass" } },
@@ -239,6 +239,9 @@
       }, {
         "if": {"properties": {"scope": {"properties": {"transform": {"const": "brokered-file"}}, "required": ["transform"]}}, "required": ["scope"]},
         "then": {"properties": {"verb": {"enum": ["fs.read", "fs.write"]}, "scope": {"properties": {"kind": {"const": "from-arg"}}}}}
+      }, {
+        "if": {"not": {"properties": {"verb": {"pattern": "^ai\\."}}}},
+        "then": {"required": ["why"]}
       }],
       "properties": {
         "verb": {
@@ -259,7 +262,7 @@
             "clipboard.read", "clipboard.write",
             "device.audio", "device.bluetooth", "device.media-route", "device.printer", "device.display", "device.camera", "device.microphone", "device.location", "device.sensor", "device.usb",
             "time.cron", "time.delay",
-            "ai.chat", "ai.chat.untrusted", "ai.embed", "ai.image.generate", "ai.image.analyze", "ai.audio.tts", "ai.audio.stt", "ai.vision.analyze", "ai.video.generate", "ai.video.analyze", "ai.bypass",
+            "ai.chat", "ai.chat.untrusted", "ai.embed", "ai.decide", "ai.image.generate", "ai.image.analyze", "ai.audio.tts", "ai.audio.stt", "ai.vision.analyze", "ai.video.generate", "ai.video.analyze", "ai.bypass",
             "desktop.launch", "desktop.window", "desktop.capture", "desktop.media.observe", "desktop.media.control",
             "browser.tabs.read", "browser.nav", "browser.dom.read", "browser.dom.write", "browser.input.secret", "browser.eval",
             "mail.accounts", "mail.read", "mail.draft", "mail.send"
@@ -267,7 +270,7 @@
         },
         "scope": { "$ref": "#/$defs/scopeBinding" },
         "when": { "$ref": "#/$defs/needCondition", "description": "Explicit condition under which this capability is required." },
-        "why": { "$ref": "#/$defs/localizedText", "description": "Plain-language reason shown in the approval dialog." }
+        "why": { "$ref": "#/$defs/localizedText", "description": "Optional for AI needs. The system always supplies the capability description." }
       }
     },
     "needCondition": {

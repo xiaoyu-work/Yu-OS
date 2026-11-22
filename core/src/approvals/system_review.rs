@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::ai::consent::InstallModel;
 use crate::apps::permission_review::{PermissionReview, RequestedPermission};
-use crate::caps::{Cap, Manifest, Verb};
+use crate::caps::{Cap, Manifest};
+#[cfg(test)]
+use crate::caps::Verb;
 use crate::provenance::runtime::PackageRef;
 use crate::provenance::{PackageKind, TrustTier, VerifiedPackage};
 
@@ -635,6 +637,7 @@ fn latest_installed_ai(
     Ok(latest.filter(|review| review.ai_model.as_ref() == Some(model)))
 }
 
+#[cfg(test)]
 pub(crate) fn revoke_installed_gui_ai(
     owner: u32, package: &VerifiedPackage, model: &InstallModel, id: &str,
 ) -> Result<(), String> {
@@ -654,6 +657,7 @@ pub(crate) fn revoke_installed_gui_ai(
     })
 }
 
+#[cfg(test)]
 pub(crate) fn has_install_gui_ai(
     owner: u32, package: &VerifiedPackage, model: &InstallModel, verb: Verb,
 ) -> Result<bool, String> {

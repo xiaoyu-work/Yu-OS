@@ -86,7 +86,7 @@ pub async fn control(
             }
             validate_action(&action, identifier.as_deref(), app_id.as_deref(), &uris)?;
         }
-        match native_launch_target(authority, &action, app_id.as_deref()) {
+        match native_launch_target_for_request(authority, &action, app_id.as_deref(), &uris) {
             Some(NativeLaunchTarget::Terminal) => {
                 return open_terminal(&uris, authority, uid, gid, home, peer_pid).await;
             }
@@ -234,12 +234,40 @@ fn native_launch_target(
     authority.caps().covers(&target.spawn_cap()).then_some(target)
 }
 
+fn native_launch_target_for_request(
+    authority: &Decision,
+    action: &str,
+    app_id: Option<&str>,
+    uris: &[String],
+) -> Option<NativeLaunchTarget> {
+    if action == "launch" && app_id == Some("com.yuos.Settings")
+        && uris == ["settings://applications"]
+        && authority.is_gui_session()
+        && authority.caps().covers(&settings_launch_cap())
+    {
+        return Some(NativeLaunchTarget::Settings);
+    }
+    native_launch_target(authority, action, app_id)
+}
+
+fn settings_launch_cap() -> Cap {
+    Cap::new(Verb::DESKTOP_LAUNCH, Scope::name("com.yuos.Settings"))
+}
+
 fn authorize_native_launch(
     authority: &Decision,
     target: NativeLaunchTarget,
     local_path: Option<&str>,
 ) -> Result<Authorized, String> {
-    let mut caps = vec![target.spawn_cap()];
+    let spawn = target.spawn_cap();
+    let mut caps = vec![if matches!(target, NativeLaunchTarget::Settings)
+        && authority.is_gui_session()
+        && !authority.caps().covers(&spawn)
+    {
+        settings_launch_cap()
+    } else {
+        spawn
+    }];
     match (target, local_path) {
         (NativeLaunchTarget::Files, Some(path)) => {
             caps.push(Cap::new(Verb::FS_META, Scope::path(path)));

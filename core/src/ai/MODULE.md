@@ -15,6 +15,11 @@ system callers that request AI work outside the interactive agent loop.
   Workers receive neither the session registry, provider credentials nor network
   access. The gate uses the live exact App capability, owner configuration,
   verified manifest, consent, budget and safety policy; no local fallback exists.
+- Serve SDK `yu ai infer` through the same App authority and budget. The owner
+  configures the destination; binary data is bounded stdin/reply data.
+  Configured local embeddings and decisions run as the owner in a fixed worker.
+- Resolve exact configured-model choices for optional GUI AI through the
+  protected Settings App. These choices do not admit Agent-to-App calls.
 - Persist safety-filtered provider requests in the owner's AI budget database
   (`ai_inputs`), correlated to the authenticated App session. This history is
   not App or agent memory. Cancellation retains the dispatched reservation's
@@ -27,6 +32,7 @@ system callers that request AI work outside the interactive agent loop.
 | `gate.rs` | AI request validation, authorization, provider call |
 | `consent.rs` | Persisted consent decisions |
 | `chat.rs` | AI chat request surface |
+| `inference.rs`, `inference/` | Closed App model input, configured provider dispatch, and owner-local worker |
 
 ## Dependencies
 

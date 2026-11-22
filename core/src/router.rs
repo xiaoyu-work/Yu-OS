@@ -341,15 +341,7 @@ fn send_yuosd(
     command: Command,
     params: Value,
 ) -> Result<crate::yuosd::protocol::Response, crate::yuosd::client::ClientError> {
-    let request = crate::yuosd::protocol::Request::build(command, params);
-    if env::var("YUOS_APP_GUI").as_deref() == Ok("1")
-        && crate::yuosd::app_sessions::gui::provider_route(command).is_ok()
-        && command.route().authority.audience == crate::yuosd::authority::Audience::SystemService
-    {
-        crate::yuosd::client::request_gui_provider_blocking(request)
-    } else {
-        crate::yuosd::client::request_blocking(crate::paths::yuosd_socket_path(), request)
-    }
+    crate::yuosd::client::request_for_session(crate::yuosd::protocol::Request::build(command, params))
 }
 
 fn request_wire_yuosd(command: Command, params: Value) -> Result<Value, String> {
@@ -1290,8 +1282,18 @@ fn dispatch_with_stdin_impl(
         return Ok(Some(value.to_string()));
     }
 
-    if name == "__desktop" {
-        let desktop = parse_desktop_bridge_args(args)?;
+    if name == "__desktop" || args == ["ai", "settings"] {
+        let desktop = if name == "__desktop" {
+            parse_desktop_bridge_args(args)?
+        } else {
+            DesktopBridgeArgs {
+                action: "launch".into(),
+                identifier: None,
+                app_id: Some("com.yuos.Settings".into()),
+                workspace: None,
+                uris: vec!["settings://applications".into()],
+            }
+        };
         let session = env::var("YUOS_SESSION")
             .map_err(|_| "internal desktop command requires YUOS_SESSION".to_string())?;
         let value = request_yuosd(
@@ -2295,6 +2297,10 @@ fn dispatch_with_stdin_impl(
     // "app" namespace → route to declared app runtimes
     if name == "app" {
         return dispatch_app(&args[1..], stdin_data);
+    }
+    if name == "ai" && args.get(1).is_some_and(|command| command == "infer") {
+        return crate::ai::inference::cli(&args[2..], stdin_data.as_deref())
+            .map(|value| Some(value.to_string()));
     }
 
     // Built-in OS primitives

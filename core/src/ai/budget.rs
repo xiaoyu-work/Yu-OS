@@ -145,7 +145,7 @@ impl Store {
         session: &str,
         app: &str,
         origin: &str,
-        request: &crate::agent::llm::types::ChatRequest,
+        request: &impl serde::Serialize,
     ) -> Result<(), String> {
         self.conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS ai_inputs (

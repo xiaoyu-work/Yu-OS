@@ -7,11 +7,38 @@ language-idiomatic wrapper over this protocol.
 
 ## Stable AI surface
 
-Wire v1 exposes text chat only: `ai.chat` and `ai.chat.untrusted`.
+Text chat uses `ai.chat` and `ai.chat.untrusted`. The additive
+`yu ai infer --request-stdin` operation accepts
+[`ai_inference_request.schema.json`](ai_inference_request.schema.json) and
+returns [`ai_inference.schema.json`](ai_inference.schema.json) in the same
+wire-v1 envelope. It uses the owner's embedding, TTS, STT, image generation,
+or local decision slot. It does not enable the reserved vision/video chat flags.
+
 SDK callers must declare prompt origin; `origin=external-content` selects
-the latter capability. The effective App and owner policy independently
-determines redaction. The origin label does not guarantee a safety tier.
-Unsupported modalities are not published as placeholder SDK APIs.
+`ai.chat.untrusted` for chat. The effective policy determines redaction of
+cloud text prompts. Raw audio and owner-local structured decision requests
+are not text prompts and do not receive that redaction.
+
+Inference stdin accepts up to 720 KiB of JSON. `embed` text is limited to
+16 KiB, TTS and image prompts to 4 KiB, STT input bytes to 512 KiB, and
+decision requests to the local decision model's 16 KiB request envelope.
+An output is one vector (at most 8192 values), one transcript (at most
+64 KiB), one image or audio result (less than 3 MiB), or one decision reply.
+Oversized replies fail; the broker does not silently truncate them.
+
+All slots share the App and owner AI budget. Non-chat calls reserve and
+charge operation units: sanitized UTF-8 bytes for embedding, at least 50
+units or one per sanitized text byte for TTS (whichever is higher), 50 units
+per started KiB of STT audio, 1000 per image, and one unit per serialized byte
+of decision input. These are policy weights, not a provider invoice. Optional
+`max_units` can lower the per-call ceiling. Once dispatched, an incomplete
+request may still use its reserved units.
+
+A GUI model choice that is off returns `PERMISSION_DENIED` with
+`detail.reason = "model_permission_required"`, the `app_id` and `verb`, and
+`settings_page = "applications"`. `yu ai settings` opens that page for a GUI
+with the separate `desktop.launch:com.yuos.Settings` grant. It cannot grant
+permission or retry the model request.
 
 ## Transport
 

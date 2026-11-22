@@ -73,6 +73,126 @@ type AiToolCall struct {
 	Input interface{} `json:"input"`
 }
 
+// AiInference — App AI inference reply.
+type AiInference struct {
+	Provider string `json:"provider"`
+	Model string `json:"model"`
+	Units uint32 `json:"units"`
+	Output interface{} `json:"output"`
+}
+
+// EmbeddingOutput — EmbeddingOutput.
+type EmbeddingOutput struct {
+	Kind string `json:"kind"`
+	Vector []float64 `json:"vector"`
+}
+
+// SpeechOutput — SpeechOutput.
+type SpeechOutput struct {
+	Kind string `json:"kind"`
+	Format string `json:"format"`
+	SampleRateHz uint32 `json:"sample_rate_hz,omitempty"`
+	AudioBase64 string `json:"audio_base64"`
+}
+
+// TranscriptionOutput — TranscriptionOutput.
+type TranscriptionOutput struct {
+	Kind string `json:"kind"`
+	Text string `json:"text"`
+}
+
+// ImageOutput — ImageOutput.
+type ImageOutput struct {
+	Kind string `json:"kind"`
+	Format string `json:"format"`
+	ImageBase64 string `json:"image_base64"`
+}
+
+// DecisionOutput — DecisionOutput.
+type DecisionOutput struct {
+	Kind string `json:"kind"`
+	Answers map[string]interface{} `json:"answers"`
+}
+
+// ChoiceAnswer — ChoiceAnswer.
+type ChoiceAnswer struct {
+	Type string `json:"type"`
+	Choice string `json:"choice"`
+	Probabilities map[string]interface{} `json:"probabilities"`
+}
+
+// NoulAnswer — NoulAnswer.
+type NoulAnswer struct {
+	Type string `json:"type"`
+	Noul float64 `json:"noul"`
+}
+
+// ScoreAnswer — ScoreAnswer.
+type ScoreAnswer struct {
+	Type string `json:"type"`
+	Score float64 `json:"score"`
+	Probabilities map[string]interface{} `json:"probabilities"`
+}
+
+// AiInferenceRequest — App AI inference request.
+type AiInferenceRequest struct {
+	Origin string `json:"origin"`
+	MaxUnits uint32 `json:"max_units,omitempty"`
+	Input interface{} `json:"input"`
+}
+
+// EmbedInput — EmbedInput.
+type EmbedInput struct {
+	Kind string `json:"kind"`
+	Text string `json:"text"`
+}
+
+// SpeechInput — SpeechInput.
+type SpeechInput struct {
+	Kind string `json:"kind"`
+	Text string `json:"text"`
+}
+
+// TranscriptionInput — TranscriptionInput.
+type TranscriptionInput struct {
+	Kind string `json:"kind"`
+	AudioBase64 string `json:"audio_base64"`
+	Format string `json:"format"`
+}
+
+// ImageInput — ImageInput.
+type ImageInput struct {
+	Kind string `json:"kind"`
+	Prompt string `json:"prompt"`
+}
+
+// DecisionInput — DecisionInput.
+type DecisionInput struct {
+	Kind string `json:"kind"`
+	State interface{} `json:"state"`
+	Questions map[string]interface{} `json:"questions"`
+}
+
+// ChoiceQuestion — ChoiceQuestion.
+type ChoiceQuestion struct {
+	Type string `json:"type"`
+	Instructions string `json:"instructions"`
+	Criteria map[string]interface{} `json:"criteria"`
+}
+
+// NoulQuestion — NoulQuestion.
+type NoulQuestion struct {
+	Type string `json:"type"`
+	Instructions string `json:"instructions"`
+}
+
+// ScoreQuestion — ScoreQuestion.
+type ScoreQuestion struct {
+	Type string `json:"type"`
+	Instructions string `json:"instructions"`
+	Criteria []string `json:"criteria"`
+}
+
 // App — App-verb invocation reply.
 // Success data for `yu --wire=1 app <id> <verb> [args]`. The kernel places the
 // operation-specific object under the wire envelope's `data` field.
@@ -346,12 +466,13 @@ type Defaultedpositional struct {
 }
 
 // Need — need.
-// A single capability request: verb + scope binding + human reason.
+// A single capability request: verb and scope, with a reason required for non-AI
+// requests.
 type Need struct {
 	Verb string `json:"verb"`
 	Scope Scopebinding `json:"scope"`
 	When *Needcondition `json:"when,omitempty"`
-	Why Localizedtext `json:"why"`
+	Why *Localizedtext `json:"why,omitempty"`
 }
 
 // Needcondition — needCondition.
@@ -558,6 +679,15 @@ func ValidateAiReviewSafety(value string) error {
 		return nil
 	}
 	return fmt.Errorf("invalid ai_review.safety value: %q", value)
+}
+
+// ValidateAiInferenceRequestOrigin reports an error if value is not in the ai_inference_request.origin enum.
+func ValidateAiInferenceRequestOrigin(value string) error {
+	switch value {
+	case "trusted", "user-input", "external-content":
+		return nil
+	}
+	return fmt.Errorf("invalid ai_inference_request.origin value: %q", value)
 }
 
 // ValidateFileChangePlanState reports an error if value is not in the file_change_plan.state enum.
@@ -908,6 +1038,32 @@ func ValidateAi(value any) error {
 		panic("generated wire schema is invalid: " + err.Error())
 	}
 	return validateWireSchema(schema, schema, value, "Ai", "$")
+}
+
+const wireSchemaAiInference = "{\"$defs\":{\"ChoiceAnswer\":{\"additionalProperties\":false,\"properties\":{\"choice\":{\"maxLength\":48,\"minLength\":1,\"type\":\"string\"},\"probabilities\":{\"additionalProperties\":{\"maximum\":1,\"minimum\":0,\"type\":\"number\"},\"type\":\"object\"},\"type\":{\"const\":\"choice\",\"type\":\"string\"}},\"required\":[\"type\",\"choice\",\"probabilities\"],\"type\":\"object\"},\"DecisionOutput\":{\"additionalProperties\":false,\"properties\":{\"answers\":{\"additionalProperties\":{\"oneOf\":[{\"$ref\":\"#/$defs/ChoiceAnswer\"},{\"$ref\":\"#/$defs/NoulAnswer\"},{\"$ref\":\"#/$defs/ScoreAnswer\"}]},\"type\":\"object\"},\"kind\":{\"const\":\"decision\",\"type\":\"string\"}},\"required\":[\"kind\",\"answers\"],\"type\":\"object\"},\"EmbeddingOutput\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"const\":\"embed\",\"type\":\"string\"},\"vector\":{\"items\":{\"maximum\":3.4028235e+38,\"minimum\":-3.4028235e+38,\"type\":\"number\"},\"type\":\"array\"}},\"required\":[\"kind\",\"vector\"],\"type\":\"object\"},\"ImageOutput\":{\"additionalProperties\":false,\"properties\":{\"format\":{\"enum\":[\"png\",\"jpg\",\"webp\"],\"type\":\"string\"},\"image_base64\":{\"maxLength\":4192940,\"minLength\":4,\"type\":\"string\"},\"kind\":{\"const\":\"imagegen\",\"type\":\"string\"}},\"required\":[\"kind\",\"format\",\"image_base64\"],\"type\":\"object\"},\"NoulAnswer\":{\"additionalProperties\":false,\"properties\":{\"noul\":{\"maximum\":1,\"minimum\":0,\"type\":\"number\"},\"type\":{\"const\":\"noul\",\"type\":\"string\"}},\"required\":[\"type\",\"noul\"],\"type\":\"object\"},\"ScoreAnswer\":{\"additionalProperties\":false,\"properties\":{\"probabilities\":{\"additionalProperties\":{\"maximum\":1,\"minimum\":0,\"type\":\"number\"},\"type\":\"object\"},\"score\":{\"maximum\":9,\"minimum\":0,\"type\":\"number\"},\"type\":{\"const\":\"score\",\"type\":\"string\"}},\"required\":[\"type\",\"score\",\"probabilities\"],\"type\":\"object\"},\"SpeechOutput\":{\"additionalProperties\":false,\"properties\":{\"audio_base64\":{\"maxLength\":4192940,\"minLength\":4,\"type\":\"string\"},\"format\":{\"enum\":[\"wav\",\"mp3\",\"ogg\",\"pcm\"],\"type\":\"string\"},\"kind\":{\"const\":\"tts\",\"type\":\"string\"},\"sample_rate_hz\":{\"maximum\":4294967295,\"minimum\":1,\"type\":\"integer\",\"x-go-type\":\"uint32\",\"x-rust-type\":\"u32\"}},\"required\":[\"kind\",\"format\",\"audio_base64\"],\"type\":\"object\"},\"TranscriptionOutput\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"const\":\"stt\",\"type\":\"string\"},\"text\":{\"type\":\"string\",\"x-max-utf8-bytes\":65536}},\"required\":[\"kind\",\"text\"],\"type\":\"object\"}},\"$id\":\"https://yuos.dev/wire/v1/ai_inference.schema.json\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"additionalProperties\":false,\"properties\":{\"model\":{\"minLength\":1,\"type\":\"string\",\"x-max-utf8-bytes\":256},\"output\":{\"oneOf\":[{\"$ref\":\"#/$defs/EmbeddingOutput\"},{\"$ref\":\"#/$defs/SpeechOutput\"},{\"$ref\":\"#/$defs/TranscriptionOutput\"},{\"$ref\":\"#/$defs/ImageOutput\"},{\"$ref\":\"#/$defs/DecisionOutput\"}],\"x-ts-type\":\"EmbeddingOutput | SpeechOutput | TranscriptionOutput | ImageOutput | DecisionOutput\"},\"provider\":{\"minLength\":1,\"type\":\"string\",\"x-max-utf8-bytes\":256},\"units\":{\"maximum\":4294967295,\"minimum\":1,\"type\":\"integer\",\"x-go-type\":\"uint32\",\"x-rust-type\":\"u32\"}},\"required\":[\"provider\",\"model\",\"units\",\"output\"],\"title\":\"App AI inference reply\",\"type\":\"object\"}"
+
+// ValidateAiInference validates a value against wire/v1/ai_inference.schema.json.
+func ValidateAiInference(value any) error {
+	var schema map[string]any
+	decoder := json.NewDecoder(strings.NewReader(wireSchemaAiInference))
+	decoder.UseNumber()
+	if err := decoder.Decode(&schema); err != nil {
+		panic("generated wire schema is invalid: " + err.Error())
+	}
+	return validateWireSchema(schema, schema, value, "AiInference", "$")
+}
+
+const wireSchemaAiInferenceRequest = "{\"$defs\":{\"ChoiceQuestion\":{\"additionalProperties\":false,\"properties\":{\"criteria\":{\"additionalProperties\":{\"maxLength\":400,\"minLength\":1,\"type\":\"string\"},\"type\":\"object\"},\"instructions\":{\"maxLength\":1000,\"minLength\":1,\"type\":\"string\"},\"type\":{\"const\":\"choice\",\"type\":\"string\"}},\"required\":[\"type\",\"instructions\",\"criteria\"],\"type\":\"object\"},\"DecisionInput\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"const\":\"decision\",\"type\":\"string\"},\"questions\":{\"additionalProperties\":{\"oneOf\":[{\"$ref\":\"#/$defs/ChoiceQuestion\"},{\"$ref\":\"#/$defs/NoulQuestion\"},{\"$ref\":\"#/$defs/ScoreQuestion\"}]},\"type\":\"object\"},\"state\":{}},\"required\":[\"kind\",\"state\",\"questions\"],\"type\":\"object\"},\"EmbedInput\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"const\":\"embed\",\"type\":\"string\"},\"text\":{\"minLength\":1,\"type\":\"string\",\"x-max-utf8-bytes\":16384}},\"required\":[\"kind\",\"text\"],\"type\":\"object\"},\"ImageInput\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"const\":\"imagegen\",\"type\":\"string\"},\"prompt\":{\"minLength\":1,\"type\":\"string\",\"x-max-utf8-bytes\":4096}},\"required\":[\"kind\",\"prompt\"],\"type\":\"object\"},\"NoulQuestion\":{\"additionalProperties\":false,\"properties\":{\"instructions\":{\"maxLength\":1000,\"minLength\":1,\"type\":\"string\"},\"type\":{\"const\":\"noul\",\"type\":\"string\"}},\"required\":[\"type\",\"instructions\"],\"type\":\"object\"},\"ScoreQuestion\":{\"additionalProperties\":false,\"properties\":{\"criteria\":{\"items\":{\"maxLength\":400,\"minLength\":1,\"type\":\"string\"},\"type\":\"array\"},\"instructions\":{\"maxLength\":1000,\"minLength\":1,\"type\":\"string\"},\"type\":{\"const\":\"score\",\"type\":\"string\"}},\"required\":[\"type\",\"instructions\",\"criteria\"],\"type\":\"object\"},\"SpeechInput\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"const\":\"tts\",\"type\":\"string\"},\"text\":{\"minLength\":1,\"type\":\"string\",\"x-max-utf8-bytes\":4096}},\"required\":[\"kind\",\"text\"],\"type\":\"object\"},\"TranscriptionInput\":{\"additionalProperties\":false,\"properties\":{\"audio_base64\":{\"maxLength\":699052,\"minLength\":4,\"type\":\"string\"},\"format\":{\"enum\":[\"wav\",\"mp3\",\"ogg\"],\"type\":\"string\"},\"kind\":{\"const\":\"stt\",\"type\":\"string\"}},\"required\":[\"kind\",\"audio_base64\",\"format\"],\"type\":\"object\"}},\"$id\":\"https://yuos.dev/wire/v1/ai_inference_request.schema.json\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"additionalProperties\":false,\"properties\":{\"input\":{\"oneOf\":[{\"$ref\":\"#/$defs/EmbedInput\"},{\"$ref\":\"#/$defs/SpeechInput\"},{\"$ref\":\"#/$defs/TranscriptionInput\"},{\"$ref\":\"#/$defs/ImageInput\"},{\"$ref\":\"#/$defs/DecisionInput\"}],\"x-ts-type\":\"EmbedInput | SpeechInput | TranscriptionInput | ImageInput | DecisionInput\"},\"max_units\":{\"maximum\":4294967295,\"minimum\":1,\"type\":\"integer\",\"x-go-type\":\"uint32\",\"x-rust-type\":\"u32\"},\"origin\":{\"enum\":[\"trusted\",\"user-input\",\"external-content\"],\"type\":\"string\"}},\"required\":[\"origin\",\"input\"],\"title\":\"App AI inference request\",\"type\":\"object\"}"
+
+// ValidateAiInferenceRequest validates a value against wire/v1/ai_inference_request.schema.json.
+func ValidateAiInferenceRequest(value any) error {
+	var schema map[string]any
+	decoder := json.NewDecoder(strings.NewReader(wireSchemaAiInferenceRequest))
+	decoder.UseNumber()
+	if err := decoder.Decode(&schema); err != nil {
+		panic("generated wire schema is invalid: " + err.Error())
+	}
+	return validateWireSchema(schema, schema, value, "AiInferenceRequest", "$")
 }
 
 const wireSchemaBudgetShow = "{\"$id\":\"https://yuos.dev/wire/v1/budget_show.schema.json\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"additionalProperties\":false,\"description\":\"Shape returned by `yu agent budget show <app>`.\",\"properties\":{\"app\":{\"type\":\"string\"},\"period\":{\"type\":\"string\"},\"units_used\":{\"maximum\":18446744073709551615,\"minimum\":0,\"type\":\"integer\",\"x-go-type\":\"uint64\",\"x-rust-type\":\"u64\",\"x-ts-type\":\"number | bigint\"}},\"required\":[\"app\",\"period\",\"units_used\"],\"title\":\"AI budget show reply\",\"type\":\"object\"}"

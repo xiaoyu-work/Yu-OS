@@ -189,6 +189,7 @@ impl Verb {
     pub const AI_CHAT: Verb = Verb::new("ai.chat");
     pub const AI_CHAT_UNTRUSTED: Verb = Verb::new("ai.chat.untrusted");
     pub const AI_EMBED: Verb = Verb::new("ai.embed");
+    pub const AI_DECIDE: Verb = Verb::new("ai.decide");
     pub const AI_IMAGE_GENERATE: Verb = Verb::new("ai.image.generate");
     pub const AI_IMAGE_ANALYZE: Verb = Verb::new("ai.image.analyze");
     pub const AI_AUDIO_TTS: Verb = Verb::new("ai.audio.tts");
@@ -320,6 +321,7 @@ pub const ALL_VERBS: &[Verb] = &[
     Verb::AI_CHAT,
     Verb::AI_CHAT_UNTRUSTED,
     Verb::AI_EMBED,
+    Verb::AI_DECIDE,
     Verb::AI_IMAGE_GENERATE,
     Verb::AI_IMAGE_ANALYZE,
     Verb::AI_AUDIO_TTS,

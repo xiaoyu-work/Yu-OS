@@ -17,6 +17,8 @@ fn supports_optional_ai(verb: Verb, policy: &AiPolicy) -> bool {
                 matches!(origin, PromptOrigin::Trusted | PromptOrigin::UserInput)),
             Verb::AI_CHAT_UNTRUSTED => policy.safety != AiSafety::Minimal
                 && policy.origins.contains(&PromptOrigin::ExternalContent),
+            Verb::AI_EMBED | Verb::AI_AUDIO_TTS | Verb::AI_AUDIO_STT
+            | Verb::AI_IMAGE_GENERATE | Verb::AI_DECIDE => !policy.origins.is_empty(),
             _ => false,
         }
 }
@@ -242,13 +244,13 @@ fn validate_entry(entry: &str) -> Result<(), String> {
 fn validate_needs(manifest: &Manifest, name: &str, needs: &[Need], optional: bool) -> Result<(), ManifestError> {
     for (index, need) in needs.iter().enumerate() {
         let context = |detail| invalid("needs", &format!("{name} need #{index}: {detail}"));
-        need.why.validate().map_err(context)?;
+        need.validate_purpose().map_err(context)?;
         super::validate_literal_path_scopes(&need.scope).map_err(context)?;
         if requests_configured_ai(&need.scope)
             && !(optional && need.when.is_none() && manifest.ai.as_ref().is_some_and(|policy|
                 supports_optional_ai(need.verb, policy)))
         {
-            return Err(context("the configured model requires an unconditional optional GUI chat need and a compatible finite AI policy".into()));
+            return Err(context("the configured model requires an unconditional optional GUI AI need and a compatible finite AI policy".into()));
         }
         if let ScopeBinding::OwnerPath { path } = &need.scope {
             super::owner_path::validate(need.verb, path).map_err(context)?;

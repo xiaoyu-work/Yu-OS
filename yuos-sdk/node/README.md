@@ -24,7 +24,7 @@ Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
 | Module       | What                                                          | Equivalent CLI                       |
 |--------------|---------------------------------------------------------------|--------------------------------------|
 | `mcp`        | Manifest-bound MCP App service runtime over private stdio      | launched by the Yu OS App Host        |
-| `ai`         | Stable gated `chat` / `chat-untrusted` access                 | `yu ai chat --app <id>`             |
+| `ai`         | Six configured model slots through `chat` and `infer`         | `yu ai chat` / `yu ai infer`        |
 | `tools`      | Call catalog tools the model proposes (`call`, `catalog`)      | `yu ai tool <name> --app <id>`      |
 | `gui`        | Desktop GUI bootstrap (kernel context, agent overlay)          | launched via `yu app <id> --gui`    |
 | `objects`    | Pure canonical App object identifiers                        | No transport or dispatch           |
@@ -118,6 +118,10 @@ spelling, byte limits, and the optional manifest `objects` resolver declaration.
 [shared AI contract](../REFERENCE.md#ai-support) and [App consent requirements](../../docs/app-development.md#7-ai-features).
 Use the SDK rather than a provider SDK or `yu agent`. The owner configures
 the provider and model.
+
+Use `await ai.infer(request, {signal})` for the other model slots.
+`await ai.openPermissionSettings()` opens the [model permission page](../../docs/app-development.md#model-permissions-in-settings)
+after a user action and with the separate desktop launcher permission.
 
 ## Errors
 

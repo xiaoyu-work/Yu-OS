@@ -3,6 +3,8 @@
   "validation": {
     "schemas": [
       "ai",
+      "ai_inference",
+      "ai_inference_request",
       "budget_show",
       "envelope",
       "file_change_plan",

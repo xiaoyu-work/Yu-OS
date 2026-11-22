@@ -739,7 +739,9 @@ pub(crate) async fn dispatch(
     // the authority one spend. If it answered without taking one, the
     // authority has no record that anything was authorized, so there is
     // nothing to release.
-    if !super::authority::obligation_met(decision) {
+    if !super::authority::obligation_met(decision)
+        && !super::ai::may_return_without_spend(route.name, &result)
+    {
         tracing::error!(
             route = route.name,
             "route answered without exercising its capability requirement"

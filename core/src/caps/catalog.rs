@@ -749,6 +749,14 @@ pub const CATALOG: &[CapMeta] = &[
         Risk::Low,
     ),
     CapMeta::new(
+        Verb::AI_DECIDE,
+        ScopeKind::Name,
+        LocalizedStr::new("Use the local decision model"),
+        LocalizedStr::new("Ask the configured local model to classify or score data. Answers cannot take actions."),
+        "🧮",
+        Risk::Low,
+    ),
+    CapMeta::new(
         Verb::AI_IMAGE_GENERATE,
         ScopeKind::Name,
         LocalizedStr::new("Generate images with AI"),

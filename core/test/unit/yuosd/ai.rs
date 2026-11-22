@@ -63,6 +63,25 @@ fn ai_cli_worker_probe() {
     assert_eq!(result["text"], "[mock] document text");
 }
 
+#[test]
+fn missing_gui_model_choice_returns_app_recovery_details_not_a_grant() {
+    let error = error_reply(
+        "demo",
+        gate::AiError::ModelSettingsRequired { app: "demo".into(), verb: Verb::AI_AUDIO_TTS },
+    );
+    assert!(may_return_without_spend("ai.infer", &Err(error.clone())));
+    assert!(!may_return_without_spend("system.desktop.control", &Err(error.clone())));
+    assert!(!may_return_without_spend("ai.infer", &Ok(json!({"provider_result":"not authorized"}))));
+    let data = error.data.unwrap();
+    assert_eq!(data["ai_error"]["code"], "PERMISSION_DENIED");
+    assert_eq!(data["ai_error"]["detail"], json!({
+        "reason": "model_permission_required", "app_id": "demo",
+        "verb": "ai.audio.tts", "settings_page": "applications"
+    }));
+    let error = error_reply("demo", gate::AiError::ConsentRequired { app: "demo".into() });
+    assert_eq!(error.data.unwrap()["ai_error"]["detail"]["reason"], "consent_required");
+}
+
 /// The socket, credential verification, route decoder, authority middleware and
 /// gate are real. Only the LLM provider is the existing offline mock.
 #[tokio::test]
@@ -80,9 +99,14 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
     let _apps = TestEnvVarGuard::set("YUOS_APPS_DIR", root.join("apps"));
     let _caps = TestEnvVarGuard::set("YUOS_PROC_DATA_DIR", root.join("caps"));
     let _runtime = TestEnvVarGuard::set("YUOS_PROVENANCE_RUNTIME_DIR", root.join("runtime"));
+    let embed_provider = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     std::fs::write(
         root.join("config.json"),
-        r#"{"agent":{"provider":"mock","model":"test-model"}}"#,
+        json!({
+            "agent": {"provider": "mock", "model": "test-model"},
+            "embed": {"provider": "ollama", "model": "embed-test",
+                "base_url": format!("http://{}/v1", embed_provider.local_addr().unwrap())}
+        }).to_string(),
     )
     .unwrap();
     let dir = root.join("apps").join("yuos-edit");
@@ -92,6 +116,8 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
         "operations": {"run":{"label":{"en":"test"}, "args":[], "needs":[{
             "verb":"ai.chat.untrusted", "scope":{"kind":"fixed", "scope":{"kind":"name","value":"test-model"}},
             "why":{"en":"test"}
+        }, {
+            "verb": "ai.embed", "scope":{"kind":"fixed", "scope":{"kind":"name","value":"embed-test"}}
         }]}},
         "ai":{"budget":{"monthly_units":50000}, "safety":"strict",
               "origins":["external-content"], "tools":["fs.read_text"]}
@@ -132,7 +158,7 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
             caps: CapSet::from_caps(vec![Cap::new(
                 Verb::AI_CHAT_UNTRUSTED,
                 Scope::name("test-model"),
-            )]),
+            ), Cap::new(Verb::AI_EMBED, Scope::name("embed-test"))]),
             lifetime: std::time::Duration::from_secs(60),
             uses: Uses::Unbounded,
             index_session: true,
@@ -220,6 +246,52 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
         })
         .unwrap(),
     );
+    let mut params_infer = json!({
+        "session": sid, "app_id": "yuos-edit",
+        "request": {"origin": "external-content", "max_units": 1,
+            "input": {"kind": "embed", "text": "to embed"}}
+    });
+    let refused = crate::yuosd::server::dispatch_verified_request(
+        Request::build(Command::AiInference, params_infer.clone()),
+        &identity, &state, &admission,
+    ).await;
+    assert_eq!(
+        refused.error.as_ref().and_then(|error| error.data.as_ref())
+            .and_then(|data| data["ai_error"]["code"].as_str()),
+        Some("BUDGET_EXCEEDED"), "{refused:?}",
+    );
+    assert!(tokio::time::timeout(std::time::Duration::from_millis(20), embed_provider.accept())
+        .await.is_err(), "budget denial contacted the provider");
+    let mock = tokio::spawn(async move {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let (mut client, _) = embed_provider.accept().await.unwrap();
+        let mut bytes = vec![0; 4096];
+        let payload = br#"{"data":[{"embedding":[0.25,0.5],"index":0}],"model":"embed-test"}"#;
+        // Wait for the complete short request, including the text in the body.
+        let mut received = Vec::new();
+        while !received.windows(8).any(|bytes| bytes == b"to embed") {
+            let size = client.read(&mut bytes).await.unwrap();
+            assert_ne!(size, 0);
+            received.extend(&bytes[..size]);
+        }
+        assert!(received.starts_with(b"POST /v1/embeddings "));
+        let header = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n",
+            payload.len()
+        );
+        client.write_all(header.as_bytes()).await.unwrap();
+        client.write_all(payload).await.unwrap();
+    });
+    params_infer["request"]["max_units"] = json!(20);
+    let inferred = crate::yuosd::server::dispatch_verified_request(
+        Request::build(Command::AiInference, params_infer),
+        &identity, &state, &admission,
+    ).await;
+    let result = inferred.result.unwrap_or_else(|| panic!("inference failed: {:?}", inferred.error));
+    assert_eq!(result["model"], "embed-test");
+    assert_eq!(result["units"], 8);
+    assert_eq!(result["output"], json!({"kind":"embed", "vector":[0.25, 0.5]}));
+    mock.await.unwrap();
     async fn dispatch(
         params: Value,
         identity: &ClientIdentity,

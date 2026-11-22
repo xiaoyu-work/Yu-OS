@@ -35,8 +35,7 @@ This limits the App's permission; it does not select the model.
       "args": [{"name": "text", "kind": "text", "required": true}],
       "needs": [{
         "verb": "ai.chat",
-        "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "YOUR_MODEL_ID"}},
-        "why": {"en": "Summarize the text you enter."}
+        "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "YOUR_MODEL_ID"}}
       }]
     }
   }
@@ -62,5 +61,6 @@ Approve any capability prompt. The model generates the text in `summary`, for ex
 {"summary": "The launch moved to Friday because testing isn't finished."}
 ```
 
-[AI permissions and other input sources](../docs/app-development.md#7-ai-features) ·
-[Let the system Agent call your App (MCP)](../docs/app-development.md#quickstart-an-mcp-only-app)
+[All model slots](REFERENCE.md#ai-support) ·
+[Model permissions in Settings](../docs/app-development.md#model-permissions-in-settings) ·
+[Separate path: Agent calls your App (MCP)](../docs/app-development.md#quickstart-an-mcp-only-app)

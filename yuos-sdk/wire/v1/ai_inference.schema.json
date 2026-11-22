@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yuos.dev/wire/v1/ai_inference.schema.json",
+  "title": "App AI inference reply",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["provider", "model", "units", "output"],
+  "properties": {
+    "provider": { "type": "string", "minLength": 1, "x-max-utf8-bytes": 256 },
+    "model": { "type": "string", "minLength": 1, "x-max-utf8-bytes": 256 },
+    "units": { "type": "integer", "minimum": 1, "maximum": 4294967295, "x-rust-type": "u32", "x-go-type": "uint32" },
+    "output": {
+      "x-ts-type": "EmbeddingOutput | SpeechOutput | TranscriptionOutput | ImageOutput | DecisionOutput",
+      "oneOf": [
+        { "$ref": "#/$defs/EmbeddingOutput" },
+        { "$ref": "#/$defs/SpeechOutput" },
+        { "$ref": "#/$defs/TranscriptionOutput" },
+        { "$ref": "#/$defs/ImageOutput" },
+        { "$ref": "#/$defs/DecisionOutput" }
+      ]
+    }
+  },
+  "$defs": {
+    "EmbeddingOutput": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "vector"],
+      "properties": {
+        "kind": { "type": "string", "const": "embed" },
+        "vector": { "type": "array", "items": { "type": "number", "minimum": -3.4028235e38, "maximum": 3.4028235e38 } }
+      }
+    },
+    "SpeechOutput": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "format", "audio_base64"],
+      "properties": {
+        "kind": { "type": "string", "const": "tts" },
+        "format": { "type": "string", "enum": ["wav", "mp3", "ogg", "pcm"] },
+        "sample_rate_hz": { "type": "integer", "minimum": 1, "maximum": 4294967295, "x-rust-type": "u32", "x-go-type": "uint32" },
+        "audio_base64": { "type": "string", "minLength": 4, "maxLength": 4192940 }
+      }
+    },
+    "TranscriptionOutput": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "text"],
+      "properties": {
+        "kind": { "type": "string", "const": "stt" },
+        "text": { "type": "string", "x-max-utf8-bytes": 65536 }
+      }
+    },
+    "ImageOutput": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "format", "image_base64"],
+      "properties": {
+        "kind": { "type": "string", "const": "imagegen" },
+        "format": { "type": "string", "enum": ["png", "jpg", "webp"] },
+        "image_base64": { "type": "string", "minLength": 4, "maxLength": 4192940 }
+      }
+    },
+    "DecisionOutput": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "answers"],
+      "properties": {
+        "kind": { "type": "string", "const": "decision" },
+        "answers": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              { "$ref": "#/$defs/ChoiceAnswer" },
+              { "$ref": "#/$defs/NoulAnswer" },
+              { "$ref": "#/$defs/ScoreAnswer" }
+            ]
+          }
+        }
+      }
+    },
+    "ChoiceAnswer": {
+      "type": "object", "additionalProperties": false, "required": ["type", "choice", "probabilities"],
+      "properties": {
+        "type": { "type": "string", "const": "choice" },
+        "choice": { "type": "string", "minLength": 1, "maxLength": 48 },
+        "probabilities": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 } }
+      }
+    },
+    "NoulAnswer": {
+      "type": "object", "additionalProperties": false, "required": ["type", "noul"],
+      "properties": {
+        "type": { "type": "string", "const": "noul" },
+        "noul": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "ScoreAnswer": {
+      "type": "object", "additionalProperties": false, "required": ["type", "score", "probabilities"],
+      "properties": {
+        "type": { "type": "string", "const": "score" },
+        "score": { "type": "number", "minimum": 0, "maximum": 9 },
+        "probabilities": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 } }
+      }
+    }
+  }
+}

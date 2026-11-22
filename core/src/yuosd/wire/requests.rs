@@ -1808,6 +1808,14 @@ pub struct AiChat {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AiInference {
+    pub session: Token,
+    pub app_id: Name,
+    pub request: crate::ai::inference::InferenceRequest,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum FilesystemOperation {
     Read {

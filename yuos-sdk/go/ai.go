@@ -18,7 +18,9 @@
 package yuossdk
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -118,6 +120,59 @@ func ChatContext(ctx context.Context, prompt string, opts ChatOptions) (*AiRespo
 		return nil, err
 	}
 	return dispatch(ctx, prompt, opts)
+}
+
+// Infer invokes the owner's configured embedding, speech, image, or decision model.
+func Infer(ctx context.Context, request AiInferenceRequest) (*AiInference, error) {
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+	if len(payload) > 720*1024 {
+		return nil, fmt.Errorf("AI request exceeds the byte limit")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.UseNumber()
+	var body map[string]any
+	if err := decoder.Decode(&body); err != nil {
+		return nil, err
+	}
+	if err := ValidateAiInferenceRequest(body); err != nil {
+		return nil, err
+	}
+	out, err := yuCallJSONContext(ctx, "yu ai infer", []string{"ai", "infer", "--request-stdin"}, payload)
+	if err != nil {
+		if denied, ok := err.(*DeniedError); ok {
+			return nil, classifyError(denied.Payload)
+		}
+		if unavailable, ok := err.(*UnavailableError); ok {
+			return nil, &AiUnavailableError{Msg: unavailable.Msg}
+		}
+		return nil, err
+	}
+	if err := ValidateAiInference(out.Data); err != nil {
+		return nil, &AiUnavailableError{Msg: err.Error()}
+	}
+	reply := asMap(out.Data)
+	if asMap(reply["output"])["kind"] != asMap(body["input"])["kind"] {
+		return nil, &AiUnavailableError{Msg: "AI inference reply does not match the request"}
+	}
+	return &AiInference{
+		Provider: asString(reply["provider"]),
+		Model:    asString(reply["model"]),
+		Units:    asUint32(reply["units"]),
+		Output:   reply["output"],
+	}, nil
+}
+
+// OpenAiPermissionSettings opens Applications settings after a user action.
+// It does not authorize AI or retry the failed call.
+func OpenAiPermissionSettings(ctx context.Context) error {
+	_, err := yuCallJSONContext(ctx, "yu ai settings", []string{"ai", "settings"})
+	if denied, ok := err.(*DeniedError); ok {
+		return classifyError(denied.Payload)
+	}
+	return err
 }
 
 // Budget returns current-period usage for an app; the CLI does not report

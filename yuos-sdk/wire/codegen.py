@@ -227,6 +227,8 @@ def rust_struct(name: str, schema: dict, defs: dict, out: list[str]) -> None:
         snake = _snake(pname)
         if snake != pname:
             rename = f'    #[serde(rename = "{pname}")]\n'
+        if snake == "type":
+            snake = "r#type"
         if pname not in required:
             out.append(f'    #[serde(default, skip_serializing_if = "Option::is_none")]')
             out.append(f"{rename}    pub {snake}: Option<{rust_ty}>,")
@@ -1259,7 +1261,8 @@ def _emit_ts_validation(
         "  if (isLosslessNumber(value)) return value.value;",
         "  if (isWireDecimal(value)) return value.lexeme;",
         "  if (typeof value === \"bigint\") return value.toString();",
-        "  if (typeof value === \"number\" && Number.isFinite(value) && Number.isSafeInteger(value)) {",
+        "  if (typeof value === \"number\" && Number.isFinite(value)",
+        "      && (!Number.isInteger(value) || Number.isSafeInteger(value))) {",
         "    return value.toString();",
         "  }",
         "  return undefined;",

@@ -16,9 +16,8 @@
 //!   - `--prompt` (text only)                       → `ai.chat`
 //!   - `--prompt` + `--origin external-content`     → `ai.chat.untrusted`
 //!
-//! Embed, image, vision, audio, and video selectors are reserved for an
-//! experimental future surface and currently return an explicit
-//! unsupported error before app policy, consent, caps, or budget work.
+//! Other configured model slots use `yu ai infer --request-stdin`.
+//! Legacy non-text flags on `yu ai chat` do not invoke those slots.
 //!
 //! Flags:
 //!   --app <id>           App requesting the call (required).
@@ -187,7 +186,7 @@ pub fn chat_cmd(args: &[String]) -> Result<Value, String> {
         return Err(super::wire_error(
             "UNKNOWN_VERB",
             format!(
-                "modality `{modality}` is currently unsupported; only chat/chat-untrusted are stable"
+                "modality `{modality}` is not accepted by chat; use `yu ai infer` for configured embedding, speech or image generation"
             ),
             None,
         ));
@@ -258,11 +257,16 @@ fn broker_chat(req: gate::ChatRequest) -> Result<Value, String> {
         "prompt": req.prompt, "system": req.system, "max_units": req.max_units,
         "tools": req.tools,
     });
-    let command = crate::yuosd::routes::Command::AiChat;
+    broker_request(crate::yuosd::routes::Command::AiChat, params)
+}
+
+pub(super) fn broker_request(
+    command: crate::yuosd::routes::Command,
+    params: Value,
+) -> Result<Value, String> {
     (command.route().decode)(params.clone())
-        .map_err(|_| super::invalid_args("AI request exceeds the bounded chat contract"))?;
-    let response = crate::yuosd::client::request_blocking(
-        crate::paths::yuosd_socket_path(),
+        .map_err(|_| super::invalid_args("invalid or oversized App AI request"))?;
+    let response = crate::yuosd::client::request_for_session(
         crate::yuosd::protocol::Request::build(command, params),
     )
     .map_err(|error| super::wire_error("KERNEL_UNAVAILABLE", error.to_string(), None))?;

@@ -2221,6 +2221,19 @@ routes! {
             super::ai::chat(c.params, c.client, authority).await
         },
     }
+    AiInference {
+        name: "ai.infer",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget { max_in_flight: 4, deadline: Deadline::Uninterruptible },
+        authority: session(Audience::SystemService),
+        body: body::AiInference,
+        audit: &[("session", FieldRule::Token), ("app_id", FieldRule::Identifier), ("request", FieldRule::Size)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::ai::infer(c.params, c.client, authority).await
+        },
+    }
     GuiFileReadRequest {
         name: "gui.file.read.request",
         access: Access::User,

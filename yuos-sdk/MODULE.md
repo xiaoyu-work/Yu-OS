@@ -16,6 +16,9 @@ Rust, Python, Node, and Go bindings.
 - AI chat retains its public options and error envelope while `yu ai chat`
   transports bounded prompt/system/tool/budget data to the authenticated broker.
   Hosted Apps neither resolve local session registries nor own provider access.
+- Use `ai.infer` for the other five model slots. Its versioned request/reply
+  carry only model inputs and results, never a provider selection, file path,
+  or grant. Optional GUI permission failures carry a Settings recovery reason.
 - Keep language bindings behaviorally compatible.
 - Publish bounded App-owned events through the same live session and named IPC
   capability. Root derives identity/source; reported events never delegate work.

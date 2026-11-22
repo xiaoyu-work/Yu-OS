@@ -18,7 +18,7 @@ Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
 
 | Module      | Purpose                                                                         |
 |-------------|---------------------------------------------------------------------------------|
-| `ai`        | Stable `chat` / `chat-untrusted` access through `yu ai chat`.                  |
+| `ai`        | Six configured model slots through `chat` and `infer`.                         |
 | `mcp`       | Manifest-bound App MCP runtime, call context, and stdio transport.                |
 | `applet`    | Versioned OS Calendar/task/telemetry client and separate history-permission preflight. |
 | `tools`     | `yu ai tool <name>` — fulfil catalog tools the model proposed.                 |
@@ -169,6 +169,10 @@ optional App manifest `objects` resolver declaration.
 `ai::chat` requires explicit `.origin(...)`. `external-content` selects
 `ai.chat.untrusted`, not a safety profile. See the
 [shared AI contract](../REFERENCE.md#ai-support).
+
+Use `ai::infer(&request)` for the other model slots. `ai::open_permission_settings()`
+opens the [model permission page](../../docs/app-development.md#model-permissions-in-settings)
+after a user action and with the separate desktop launcher permission.
 
 ## Configuration
 

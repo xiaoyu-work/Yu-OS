@@ -374,6 +374,8 @@ pub struct ReviewReport {
 
 #[derive(Debug, thiserror::Error)]
 pub enum AiError {
+    #[error("{0}")]
+    InvalidInference(&'static str),
     #[error("unknown app `{0}` — not present in YUOS_APPS_DIR")]
     UnknownApp(String),
 
@@ -395,8 +397,8 @@ pub enum AiError {
     )]
     ConsentRequired { app: String },
 
-    #[error("optional AI for app `{app}` requires an explicit install choice for the current package and model")]
-    InstallConsentRequired { app: String },
+    #[error("AI permission {verb} for app `{app}` is off; allow it in Settings → Applications")]
+    ModelSettingsRequired { app: String, verb: crate::caps::Verb },
 
     #[error(
         "consent for app `{app}` is stale (changed: {changed:?}) — \
@@ -475,13 +477,16 @@ impl AiError {
     pub fn wire_code(&self) -> &'static str {
         match self {
             AiError::UnknownApp(_) => "UNKNOWN_APP",
-            AiError::BadOrigin(_) | AiError::ModalityConflict(_) | AiError::MissingInput { .. } => {
+            AiError::BadOrigin(_)
+            | AiError::ModalityConflict(_)
+            | AiError::MissingInput { .. }
+            | AiError::InvalidInference(_) => {
                 "INVALID_ARGS"
             }
             AiError::NoAiPolicy { .. }
             | AiError::AppDisabled(_)
             | AiError::ConsentRequired { .. }
-            | AiError::InstallConsentRequired { .. }
+            | AiError::ModelSettingsRequired { .. }
             | AiError::ConsentStale { .. }
             | AiError::OriginNotAllowed { .. }
             | AiError::ToolNotInPolicy { .. }
@@ -529,11 +534,6 @@ pub(crate) async fn chat_authorized(
 ) -> Result<ChatResult, AiError> {
     authority
         .require_app(&req.app_id)
-        .map_err(|error| AiError::Denied(serde_json::json!({"error": error})))?;
-    let modality = Modality::derive(&req)?;
-    let model = config::current_snapshot().agent.model.clone();
-    let _authorized = authority
-        .require(crate::caps::Cap::new(modality.verb(), Scope::name(model)))
         .map_err(|error| AiError::Denied(serde_json::json!({"error": error})))?;
     chat_with_authority(req, Some(authority)).await
 }
@@ -598,13 +598,14 @@ async fn chat_with_authority(
 /// in lockstep with the [`AiError`] variants — operators and tests
 /// rely on the exact spellings, so don't rename without updating the
 /// grep'able doc on [`LlmRunRecord::denial_reason`].
-fn denial_reason_token(err: &AiError) -> &'static str {
+pub(crate) fn denial_reason_token(err: &AiError) -> &'static str {
     match err {
         AiError::UnknownApp(_) => "unknown_app",
         AiError::NoAiPolicy { .. } => "no_ai_policy",
         AiError::AppDisabled(_) => "app_disabled",
         AiError::BadOverride { .. } => "bad_override",
-        AiError::ConsentRequired { .. } | AiError::InstallConsentRequired { .. } => "consent_required",
+        AiError::ConsentRequired { .. } => "consent_required",
+        AiError::ModelSettingsRequired { .. } => "model_permission_required",
         AiError::ConsentStale { .. } => "consent_stale",
         AiError::BadConsent { .. } => "bad_consent",
         AiError::BadOrigin(_) => "bad_origin",
@@ -614,6 +615,7 @@ fn denial_reason_token(err: &AiError) -> &'static str {
         AiError::ToolNotInPolicy { .. } => "tool_not_in_policy",
         AiError::UnknownTool(_) => "unknown_tool",
         AiError::MissingInput { .. } => "missing_input",
+        AiError::InvalidInference(_) => "invalid_args",
         AiError::Denied(_) => "caps_denied",
         AiError::Budget(_) => "budget_exceeded",
         AiError::UserBudgetExceeded { .. } => "user_budget_exceeded",
@@ -637,7 +639,7 @@ fn denial_reason_token(err: &AiError) -> &'static str {
 ///
 /// The user-row is opt-in: if `user_cap == 0` the per-user ledger
 /// is not touched at all.
-struct BudgetReservation {
+pub(super) struct BudgetReservation {
     store: Store,
     app_id: String,
     estimated: u64,
@@ -662,6 +664,21 @@ fn map_budget_error(error: BudgetError) -> AiError {
 }
 
 impl BudgetReservation {
+    pub(super) fn for_app(
+        authority: Option<&crate::yuosd::authority::Decision>,
+        app_id: &str,
+        units: u64,
+        cap: u64,
+    ) -> Result<Self, AiError> {
+        let store = match authority {
+            Some(authority) => Store::open_for_owner(authority.owner_uid()),
+            None => Store::open(),
+        }
+        .map_err(AiError::Internal)?;
+        let user_cap = user_budget::load().map_err(AiError::Internal)?.monthly_units;
+        Self::reserve(store, app_id.to_owned(), units, cap, user_cap)
+    }
+
     fn reserve(
         mut store: Store,
         app_id: String,
@@ -690,14 +707,32 @@ impl BudgetReservation {
         })
     }
 
-    fn retain_estimate_on_drop(&mut self) {
+    pub(super) fn retain_estimate_on_drop(&mut self) {
         self.refund_on_drop = false;
+    }
+
+    pub(super) fn record_input(
+        &self,
+        authority: &crate::yuosd::authority::Decision,
+        origin: &str,
+        input: &impl serde::Serialize,
+    ) -> Result<(), AiError> {
+        self.store
+            .record_input(
+                authority
+                    .session_id()
+                    .ok_or_else(|| AiError::Internal("missing App session".into()))?,
+                &self.app_id,
+                origin,
+                input,
+            )
+            .map_err(AiError::Internal)
     }
 
     /// Settle the reservation against the actual usage. After this
     /// returns the guard no longer holds a debt — `Drop` will not
     /// refund.
-    fn commit(mut self, actual_units: u64) -> Result<crate::ai::budget::Snapshot, AiError> {
+    pub(super) fn commit(mut self, actual_units: u64) -> Result<crate::ai::budget::Snapshot, AiError> {
         let app_id = self.app_id.clone();
         let mut buckets = vec![(
             app_id.as_str(),
@@ -758,18 +793,12 @@ impl Drop for BudgetReservation {
     }
 }
 
-/// Inner gate sequence. Returns the structured error variants so
-/// [`chat`] can map them to a stable `denial_reason` for the audit
-/// stream before the caller sees them.
-async fn chat_inner(
-    req: &ChatRequest,
+pub(super) fn app_policy(
+    app_id: &str,
+    origin: &str,
+    verb: crate::caps::Verb,
     authority: Option<&crate::yuosd::authority::Decision>,
-) -> Result<ChatResult, AiError> {
-    let modality = Modality::derive(req)?;
-    if !modality.is_chat_like() {
-        return Err(AiError::ModalityNotSupported(modality.label()));
-    }
-
+) -> Result<crate::caps::manifest::AiPolicy, AiError> {
     // 1. Locate the app and its AI policy.
     let app = if authority.is_some() {
         // A long-lived broker must reverify, not keep a stale cached policy
@@ -778,17 +807,17 @@ async fn chat_inner(
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("/usr/lib/yuos/apps"));
         apps::discover_verified(&dir)
-            .remove(&req.app_id)
-            .ok_or_else(|| AiError::UnknownApp(req.app_id.clone()))?
+            .remove(app_id)
+            .ok_or_else(|| AiError::UnknownApp(app_id.to_owned()))?
     } else {
-        lookup_app(&req.app_id)?
+        lookup_app(app_id)?
     };
     let manifest_policy = app
         .manifest
         .ai
         .as_ref()
         .ok_or_else(|| AiError::NoAiPolicy {
-            app: req.app_id.clone(),
+            app: app_id.to_owned(),
         })?
         .clone();
 
@@ -796,30 +825,24 @@ async fn chat_inner(
     //     tighten — never loosen — the manifest. A missing override
     //     file is normal; a malformed file aborts the call so the
     //     user notices the problem.
-    let user_override = overrides::load(&req.app_id).map_err(|detail| AiError::BadOverride {
-        app: req.app_id.clone(),
+    let user_override = overrides::load(app_id).map_err(|detail| AiError::BadOverride {
+        app: app_id.to_owned(),
         detail,
     })?;
     if let Some(o) = &user_override {
         if o.disabled {
-            return Err(AiError::AppDisabled(req.app_id.clone()));
+            return Err(AiError::AppDisabled(app_id.to_owned()));
         }
     }
     let policy = overrides::apply_to_policy(&manifest_policy, user_override.as_ref());
-
-    // The owner, not the App, selects the provider and model.
-    let verb = modality.verb();
-    let config = config::current_snapshot();
-    let cfg = &config.agent;
-    let model = cfg.model.clone();
 
     // 1b. Require fresh user consent. The user must have explicitly
     //     approved the App's AI ask — consent tracks the **manifest**
     //     policy (not the override), so a developer pushing a looser
     //     manifest update forces a re-prompt even if the user's
     //     override keeps the effective policy tight.
-    let bad_consent = |detail| AiError::BadConsent { app: req.app_id.clone(), detail };
-    let consent_required = || AiError::ConsentRequired { app: req.app_id.clone() };
+    let bad_consent = |detail| AiError::BadConsent { app: app_id.to_owned(), detail };
+    let consent_required = || AiError::ConsentRequired { app: app_id.to_owned() };
     let optional_gui = authority.filter(|authority| authority.is_gui_session()).filter(|authority| {
         let named = authority.session().ok()
             .and_then(|session| session.command.first())
@@ -829,52 +852,70 @@ async fn chat_inner(
         }))
     });
     if let Some(authority) = optional_gui {
-        let install_consent_required = || AiError::InstallConsentRequired { app: req.app_id.clone() };
+        let consent_required = || AiError::ModelSettingsRequired { app: app_id.to_owned(), verb };
         if policy.budget.monthly_units == 0 {
-            return Err(AiError::AppDisabled(req.app_id.clone()));
+            return Err(AiError::AppDisabled(app_id.to_owned()));
         }
-        let configured = consent::InstallModel::from_config(cfg).ok_or_else(install_consent_required)?;
         let package = app.require_verified().map_err(bad_consent)?;
         let running = crate::provenance::runtime::package_for(
-            authority.owner_uid(), authority.session_id().ok_or_else(install_consent_required)?,
+        authority.owner_uid(), authority.session_id().ok_or_else(consent_required)?,
         ).map_err(bad_consent)?;
-        if running.as_ref() != Some(&crate::provenance::runtime::PackageRef::of(package))
-            || !crate::approvals::system_review::has_install_gui_ai(
-            authority.owner_uid(), package, &configured, verb,
-        ).map_err(bad_consent)? {
-            return Err(install_consent_required());
+        if running.as_ref() != Some(&crate::provenance::runtime::PackageRef::of(package)) {
+        return Err(AiError::Denied(serde_json::json!({"error": "App package changed; restart it"})));
+        }
+        let choices = consent::gui_ai_choices(
+        authority.owner_uid(), package, &app.manifest, &config::current_snapshot(),
+        ).map_err(bad_consent)?;
+        let choice = choices.iter().find(|choice| choice.cap.verb == verb)
+        .ok_or_else(|| AiError::Provider("No usable model is available for this App permission".into()))?;
+        if !choice.enabled || !authority.caps().covers(&choice.cap) {
+        return Err(consent_required());
         }
     } else {
-        let stored_consent = consent::load(&req.app_id).map_err(bad_consent)?
+        let stored_consent = consent::load(app_id).map_err(bad_consent)?
             .ok_or_else(consent_required)?;
         if let consent::Freshness::Stale { changed } =
             consent::freshness(&manifest_policy, &stored_consent)
         {
             return Err(AiError::ConsentStale {
-                app: req.app_id.clone(),
+                app: app_id.to_owned(),
                 changed,
             });
         }
     }
 
-    // 3. Parse and validate origin against the manifest's allowlist.
-    //    Even non-chat modalities have an origin field — e.g. an app
-    //    that summarises external pages might also caption the images
-    //    on those pages, and the origin classification still matters.
-    let origin = parse_origin(&req.origin)?;
-    if !policy.origins.contains(&origin) {
+    if !policy.origins.contains(&parse_origin(origin)?) {
         return Err(AiError::OriginNotAllowed {
-            got: req.origin.clone(),
+            got: origin.to_owned(),
             allowed: policy.origins.iter().map(origin_label).collect(),
         });
     }
+    Ok(policy)
+}
 
-    // 4. Per-modality input validation. The "analyze" verbs require
-    //    an input file; the "generate" verbs require a text prompt.
+async fn chat_inner(
+    req: &ChatRequest,
+    authority: Option<&crate::yuosd::authority::Decision>,
+) -> Result<ChatResult, AiError> {
+    let modality = Modality::derive(req)?;
+    if !modality.is_chat_like() {
+        return Err(AiError::ModalityNotSupported(modality.label()));
+    }
+    let verb = modality.verb();
+    let config = config::current_snapshot();
+    let cfg = &config.agent;
+    let model = cfg.model.clone();
+    let authorization = authority.map(|authority| {
+        authority.require(crate::caps::Cap::new(verb, Scope::name(&model)))
+    });
+    let policy = app_policy(&req.app_id, &req.origin, verb, authority)?;
     validate_inputs(req, modality)?;
 
     // 6. Capability check at the kernel boundary.
-    if authority.is_none() {
+    if let Some(authorization) = authorization {
+        let _authorized = authorization
+            .map_err(|error| AiError::Denied(serde_json::json!({"error": error})))?;
+    } else {
         caps::require(verb, Scope::name(&model)).map_err(|d| AiError::Denied(d.to_json()))?;
     }
 
@@ -962,20 +1003,11 @@ async fn chat_inner(
 
     let provider = llm::registry::build(&cfg.provider, &model, cfg)
         .map_err(|e| AiError::Provider(e.to_string()))?;
-    let store = match authority {
-        Some(authority) => Store::open_for_owner(authority.owner_uid()),
-        None => Store::open(),
-    }
-    .map_err(AiError::Internal)?;
-    let user_cap = user_budget::load()
-        .map_err(AiError::Internal)?
-        .monthly_units;
-    let mut reservation = BudgetReservation::reserve(
-        store,
-        req.app_id.clone(),
+    let mut reservation = BudgetReservation::for_app(
+        authority,
+        &req.app_id,
         estimated_units,
         policy.budget.monthly_units,
-        user_cap,
     )?;
 
     // 10. Invoke the provider. Any provider error drops the guard and
@@ -984,17 +1016,7 @@ async fn chat_inner(
         authority
             .ensure_current()
             .map_err(|error| AiError::Denied(serde_json::json!({"error": error})))?;
-        reservation
-            .store
-            .record_input(
-                authority
-                    .session_id()
-                    .ok_or_else(|| AiError::Internal("missing App session".into()))?,
-                &req.app_id,
-                &req.origin,
-                &llm_req,
-            )
-            .map_err(AiError::Internal)?;
+        reservation.record_input(authority, &req.origin, &llm_req)?;
         // Once dispatched, cancellation cannot prove the upstream spent zero.
         reservation.retain_estimate_on_drop();
         let response = await_authorized(authority, provider.chat(llm_req)).await;
@@ -1079,6 +1101,13 @@ pub(crate) async fn await_authorized(
     authority: &crate::yuosd::authority::Decision,
     pending: impl std::future::Future<Output = LlmResult<LlmChatResponse>>,
 ) -> Result<LlmChatResponse, AiError> {
+    await_live(authority, pending).await
+}
+
+pub(super) async fn await_live<T, E: std::fmt::Display>(
+    authority: &crate::yuosd::authority::Decision,
+    pending: impl std::future::Future<Output = Result<T, E>>,
+) -> Result<T, AiError> {
     authority
         .ensure_current()
         .map_err(|error| AiError::Denied(serde_json::json!({"error": error})))?;
@@ -1229,7 +1258,7 @@ fn safety_label(s: AiSafety) -> String {
     }
 }
 
-fn apply_safety(prompt: &str, safety: AiSafety) -> (String, bool) {
+pub(super) fn apply_safety(prompt: &str, safety: AiSafety) -> (String, bool) {
     match safety {
         AiSafety::Minimal => (prompt.to_string(), false),
         AiSafety::Standard | AiSafety::Strict => {

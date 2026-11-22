@@ -222,8 +222,8 @@ pub struct AiPolicy {
 /// Per-period AI token cap. Zero disables enforcement.
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AiBudget {
-    /// Abstract billing units (1 chat token = 1 unit, 1 image = 1000
-    /// units, 1s TTS = 50 units, etc.). The kernel hard-denies any
+    /// Abstract billing units, with the charge defined by the AI operation.
+    /// The kernel hard-denies any
     /// call whose pre-charge estimate would push usage over the cap.
     #[serde(default)]
     pub monthly_units: u64,
@@ -792,7 +792,17 @@ pub struct Need {
     /// Reason shown to the user in the approval dialog. Authors are
     /// expected to write this in plain language ("Read the file you
     /// asked me to summarise"), not jargon.
+    #[serde(default, skip_serializing_if = "LocalizedText::is_empty")]
     pub why: LocalizedText,
+}
+
+impl Need {
+    fn validate_purpose(&self) -> Result<(), String> {
+        if self.why.is_empty() && self.verb.as_str().starts_with("ai.") {
+            return Ok(());
+        }
+        self.why.validate()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -1395,8 +1405,7 @@ impl Manifest {
                         detail: "$configured-ai-model is only valid in GUI optional_needs".into(),
                     });
                 }
-                need.why
-                    .validate()
+                need.validate_purpose()
                     .map_err(|d| ManifestError::NeedInvalid {
                         op: op_name.clone(),
                         idx,
@@ -1581,8 +1590,7 @@ impl Manifest {
                             detail: "$configured-ai-model is only valid in GUI optional_needs".into(),
                         });
                     }
-                    need.why
-                        .validate()
+                    need.validate_purpose()
                         .map_err(|d| ManifestError::McpNeedInvalid {
                             tool: tool.name.clone(),
                             idx,

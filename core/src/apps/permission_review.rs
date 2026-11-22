@@ -42,9 +42,12 @@ pub struct RequestedPermission {
 
 impl RequestedPermission {
     pub(crate) fn requests_install_ai(&self) -> bool {
-        crate::caps::manifest::requests_configured_ai(&self.scope)
-            && self.when.is_none()
-            && matches!(self.verb, Verb::AI_CHAT | Verb::AI_CHAT_UNTRUSTED)
+        matches!(self.verb, Verb::AI_CHAT | Verb::AI_CHAT_UNTRUSTED)
+            && self.requests_configured_gui_ai()
+    }
+
+    pub(crate) fn requests_configured_gui_ai(&self) -> bool {
+        crate::caps::manifest::requests_configured_ai(&self.scope) && self.when.is_none()
             && !self.uses.is_empty()
             && self.uses.iter().all(|usage| usage.optional && usage.entry.starts_with("gui:"))
     }
@@ -381,7 +384,11 @@ fn collect(
         });
         permission.uses.push(PermissionUse {
             entry: entry.to_string(),
-            purpose: need.why.clone(),
+            purpose: if need.why.is_empty() {
+                crate::i18n::LocalizedText::en(metadata.blurb.get(crate::i18n::Locale::En))
+            } else {
+                need.why.clone()
+            },
             arguments: arguments.to_vec(),
             optional,
         });

@@ -143,6 +143,18 @@ pub fn request_blocking(
     request_blocking_inner(socket_path.as_ref(), request, false)
 }
 
+pub(crate) fn request_for_session(request: Request) -> Result<Response, ClientError> {
+    let command = request.command;
+    if std::env::var("YUOS_APP_GUI").as_deref() == Ok("1")
+        && super::app_sessions::gui::provider_route(command).is_ok()
+        && command.route().authority.audience == super::authority::Audience::SystemService
+    {
+        request_gui_provider_blocking(request)
+    } else {
+        request_blocking(crate::paths::yuosd_socket_path(), request)
+    }
+}
+
 /// This provider hop is pinned/authenticated in the Root GUI connect mediator.
 /// Namespace-translated peer UIDs are not used as Root or approval authority.
 #[cfg(target_os = "linux")]

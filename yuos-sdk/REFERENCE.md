@@ -72,21 +72,43 @@ generated binding compatibility. No new SDK execution API is introduced.
 
 ## AI support
 
-Across Rust, Python, Node, and Go, the hand-written AI surface is `chat` /
-`chat-untrusted`. Chat requires an explicit origin: `trusted` for
+Apps call the owner's configured model through the SDK. This is separate
+from exposing MCP tools for the system Agent to call.
+
+| Settings slot | SDK call or `infer` input | App capability | Result |
+|---|---|---|---|
+| `text` | `chat(prompt, …)` | `ai.chat` or `ai.chat.untrusted` | Text |
+| `embed` | `{"kind":"embed","text":"..."}` | `ai.embed` | `vector` |
+| `tts` | `{"kind":"tts","text":"..."}` | `ai.audio.tts` | `format`, `audio_base64`, and `sample_rate_hz` if known |
+| `stt` | `{"kind":"stt","format":"wav","audio_base64":"..."}` | `ai.audio.stt` | `text` |
+| `imagegen` | `{"kind":"imagegen","prompt":"..."}` | `ai.image.generate` | `format` and `image_base64` |
+| `decision` | `{"kind":"decision","state":{},"questions":{…}}` | `ai.decide` | `answers` for the [System One questions](../docs/decision-model.md) |
+
+Inference returns `{provider, model, units, output}`; `output.kind` matches
+the requested kind. For example, Python:
+
+```python
+result = ai.infer({"origin": "user-input", "input": {"kind": "embed", "text": text}})
+vector = result["output"]["vector"]
+```
+
+In Node, use `await ai.infer(request, {signal})`; Go uses `Infer(ctx, request)`;
+Rust uses `ai::infer(&request)`. Input and output media cross as bytes encoded
+in base64, not paths or URLs. A missing provider or runtime returns an error.
+
+Both `infer` and `chat` require explicit origin: `trusted` for
 developer-authored text, `user-input` for text typed by the user, and
 `external-content` for files, web pages, email, or other outside content.
-`external-content` selects the `ai.chat.untrusted` capability. It does not
+For chat, `external-content` selects `ai.chat.untrusted`. It does not
 force a safety profile or prove provenance. The effective App and owner
 policy controls redaction; `strict` and `standard` currently do the same
 prompt-secret redaction, and `minimal` does not redact. No profile promises
-prompt-injection detection. Unsupported modality helpers are not published.
+prompt-injection detection.
 
 For an optional GUI feature, declare
-[`$configured-ai-model` in the App manifest](../docs/app-development.md#optional-system-ai-at-installation)
-to request the owner's configured model in the protected installation
-review. This is a separate choice, not authority to select a provider or
-access a document. The SDK chat call does not change.
+[`$configured-ai-model` in the App manifest](../docs/app-development.md#model-permissions-in-settings).
+On a model permission error the App can show its own message and link to
+Settings → Applications. The App cannot approve its own request.
 
 Node AI and catalog calls return promises. Pass the MCP call's `signal` to
 carry its cancellation and deadline through to `yu`. In Go, pass the
@@ -198,7 +220,7 @@ is a separate artifact.
 | SDK surface | [Rust](rust/README.md) | [Python](python/README.md) | [Node](node/README.md) | [Go](go/README.md) |
 |---|---|---|---|---|
 | Development toolchain | Stable Cargo/Rust used by CI | Python 3.10+ | Node.js 18+ | Go 1.21+ |
-| Gated AI chat and fixed catalog tools | Yes | Yes | Yes | Yes |
+| Gated AI model calls and fixed catalog tools | Yes | Yes | Yes | Yes |
 | Standalone AI usage query | — | Yes | Yes | Yes |
 | Manifest-bound MCP services, progress, and cancellation | Yes | Yes | Yes | Yes |
 | GUI bootstrap, object references, manifest helpers, events, and channels | Yes | Yes | Yes | Yes |

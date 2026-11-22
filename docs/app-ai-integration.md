@@ -261,7 +261,9 @@ The broker checks registered session ancestry before App launch and rejects
 App-origin system Agent task and proactive-job admission.
 
 Apps may use controlled system services, shared libraries, and the public
-SDK's gated AI when their manifests declare the corresponding capabilities.
+SDK's [six model slots](../yuos-sdk/REFERENCE.md#ai-support) when their
+manifests declare the corresponding capabilities. Agent-to-App authorization
+does not grant these App-to-model rights.
 `tools.call` addresses the fixed `yu ai tool` primitive catalog, not arbitrary
 App tools. Provider credentials,
 model selection, budgets, prompt-origin policy, and model-visible logging stay

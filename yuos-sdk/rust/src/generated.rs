@@ -81,6 +81,146 @@ pub struct AiToolCall {
     pub input: serde_json::Value,
 }
 
+/// App AI inference reply
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AiInference {
+    pub provider: String,
+    pub model: String,
+    pub units: u32,
+    pub output: serde_json::Value,
+}
+
+/// EmbeddingOutput
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EmbeddingOutput {
+    pub kind: String,
+    pub vector: Vec<f64>,
+}
+
+/// SpeechOutput
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SpeechOutput {
+    pub kind: String,
+    pub format: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sample_rate_hz: Option<u32>,
+    pub audio_base64: String,
+}
+
+/// TranscriptionOutput
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TranscriptionOutput {
+    pub kind: String,
+    pub text: String,
+}
+
+/// ImageOutput
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ImageOutput {
+    pub kind: String,
+    pub format: String,
+    pub image_base64: String,
+}
+
+/// DecisionOutput
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DecisionOutput {
+    pub kind: String,
+    pub answers: serde_json::Value,
+}
+
+/// ChoiceAnswer
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ChoiceAnswer {
+    pub r#type: String,
+    pub choice: String,
+    pub probabilities: serde_json::Value,
+}
+
+/// NoulAnswer
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct NoulAnswer {
+    pub r#type: String,
+    pub noul: f64,
+}
+
+/// ScoreAnswer
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ScoreAnswer {
+    pub r#type: String,
+    pub score: f64,
+    pub probabilities: serde_json::Value,
+}
+
+/// App AI inference request
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AiInferenceRequest {
+    pub origin: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_units: Option<u32>,
+    pub input: serde_json::Value,
+}
+
+/// EmbedInput
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EmbedInput {
+    pub kind: String,
+    pub text: String,
+}
+
+/// SpeechInput
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SpeechInput {
+    pub kind: String,
+    pub text: String,
+}
+
+/// TranscriptionInput
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TranscriptionInput {
+    pub kind: String,
+    pub audio_base64: String,
+    pub format: String,
+}
+
+/// ImageInput
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ImageInput {
+    pub kind: String,
+    pub prompt: String,
+}
+
+/// DecisionInput
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DecisionInput {
+    pub kind: String,
+    pub state: serde_json::Value,
+    pub questions: serde_json::Value,
+}
+
+/// ChoiceQuestion
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ChoiceQuestion {
+    pub r#type: String,
+    pub instructions: String,
+    pub criteria: serde_json::Value,
+}
+
+/// NoulQuestion
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct NoulQuestion {
+    pub r#type: String,
+    pub instructions: String,
+}
+
+/// ScoreQuestion
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ScoreQuestion {
+    pub r#type: String,
+    pub instructions: String,
+    pub criteria: Vec<String>,
+}
+
 /// App-verb invocation reply
 /// Success data for `yu --wire=1 app <id> <verb> [args]`. The kernel places the
 /// operation-specific object under the wire envelope's `data` field.
@@ -431,14 +571,16 @@ pub struct Defaultedpositional {
 }
 
 /// need
-/// A single capability request: verb + scope binding + human reason.
+/// A single capability request: verb and scope, with a reason required for non-AI
+/// requests.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Need {
     pub verb: String,
     pub scope: Scopebinding,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub when: Option<Needcondition>,
-    pub why: Localizedtext,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub why: Option<Localizedtext>,
 }
 
 /// needCondition
@@ -713,6 +855,19 @@ pub fn validate_ai_review_safety(value: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("invalid ai_review.safety value: {value}"))
+    }
+}
+
+/// Reject values outside the ai_inference_request.origin enum.
+///
+/// The wire schema lists a closed set of allowed values; a kernel
+/// that emits an unknown one should not be silently accepted.
+pub fn validate_ai_inference_request_origin(value: &str) -> Result<(), String> {
+    const ALLOWED: &[&str] = &["trusted", "user-input", "external-content"];
+    if ALLOWED.iter().any(|a| *a == value) {
+        Ok(())
+    } else {
+        Err(format!("invalid ai_inference_request.origin value: {value}"))
     }
 }
 
@@ -1114,6 +1269,32 @@ pub fn validate_ai(value: &serde_json::Value) -> Result<(), WireDecodeError> {
 
 pub fn normalize_ai_integers(value: &mut serde_json::Value) {
     let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_AI)
+        .expect("generated wire schema must be valid JSON");
+    normalize_wire_integers(&schema, &schema, value);
+}
+
+const _WIRE_SCHEMA_AI_INFERENCE: &str = r###"{"$defs":{"ChoiceAnswer":{"additionalProperties":false,"properties":{"choice":{"maxLength":48,"minLength":1,"type":"string"},"probabilities":{"additionalProperties":{"maximum":1,"minimum":0,"type":"number"},"type":"object"},"type":{"const":"choice","type":"string"}},"required":["type","choice","probabilities"],"type":"object"},"DecisionOutput":{"additionalProperties":false,"properties":{"answers":{"additionalProperties":{"oneOf":[{"$ref":"#/$defs/ChoiceAnswer"},{"$ref":"#/$defs/NoulAnswer"},{"$ref":"#/$defs/ScoreAnswer"}]},"type":"object"},"kind":{"const":"decision","type":"string"}},"required":["kind","answers"],"type":"object"},"EmbeddingOutput":{"additionalProperties":false,"properties":{"kind":{"const":"embed","type":"string"},"vector":{"items":{"maximum":3.4028235e+38,"minimum":-3.4028235e+38,"type":"number"},"type":"array"}},"required":["kind","vector"],"type":"object"},"ImageOutput":{"additionalProperties":false,"properties":{"format":{"enum":["png","jpg","webp"],"type":"string"},"image_base64":{"maxLength":4192940,"minLength":4,"type":"string"},"kind":{"const":"imagegen","type":"string"}},"required":["kind","format","image_base64"],"type":"object"},"NoulAnswer":{"additionalProperties":false,"properties":{"noul":{"maximum":1,"minimum":0,"type":"number"},"type":{"const":"noul","type":"string"}},"required":["type","noul"],"type":"object"},"ScoreAnswer":{"additionalProperties":false,"properties":{"probabilities":{"additionalProperties":{"maximum":1,"minimum":0,"type":"number"},"type":"object"},"score":{"maximum":9,"minimum":0,"type":"number"},"type":{"const":"score","type":"string"}},"required":["type","score","probabilities"],"type":"object"},"SpeechOutput":{"additionalProperties":false,"properties":{"audio_base64":{"maxLength":4192940,"minLength":4,"type":"string"},"format":{"enum":["wav","mp3","ogg","pcm"],"type":"string"},"kind":{"const":"tts","type":"string"},"sample_rate_hz":{"maximum":4294967295,"minimum":1,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"}},"required":["kind","format","audio_base64"],"type":"object"},"TranscriptionOutput":{"additionalProperties":false,"properties":{"kind":{"const":"stt","type":"string"},"text":{"type":"string","x-max-utf8-bytes":65536}},"required":["kind","text"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai_inference.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"model":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"output":{"oneOf":[{"$ref":"#/$defs/EmbeddingOutput"},{"$ref":"#/$defs/SpeechOutput"},{"$ref":"#/$defs/TranscriptionOutput"},{"$ref":"#/$defs/ImageOutput"},{"$ref":"#/$defs/DecisionOutput"}],"x-ts-type":"EmbeddingOutput | SpeechOutput | TranscriptionOutput | ImageOutput | DecisionOutput"},"provider":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"units":{"maximum":4294967295,"minimum":1,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"}},"required":["provider","model","units","output"],"title":"App AI inference reply","type":"object"}"###;
+pub fn validate_ai_inference(value: &serde_json::Value) -> Result<(), WireDecodeError> {
+    let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_AI_INFERENCE)
+        .expect("generated wire schema must be valid JSON");
+    validate_wire_schema(&schema, &schema, value, "AiInference", "$")
+}
+
+pub fn normalize_ai_inference_integers(value: &mut serde_json::Value) {
+    let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_AI_INFERENCE)
+        .expect("generated wire schema must be valid JSON");
+    normalize_wire_integers(&schema, &schema, value);
+}
+
+const _WIRE_SCHEMA_AI_INFERENCE_REQUEST: &str = r###"{"$defs":{"ChoiceQuestion":{"additionalProperties":false,"properties":{"criteria":{"additionalProperties":{"maxLength":400,"minLength":1,"type":"string"},"type":"object"},"instructions":{"maxLength":1000,"minLength":1,"type":"string"},"type":{"const":"choice","type":"string"}},"required":["type","instructions","criteria"],"type":"object"},"DecisionInput":{"additionalProperties":false,"properties":{"kind":{"const":"decision","type":"string"},"questions":{"additionalProperties":{"oneOf":[{"$ref":"#/$defs/ChoiceQuestion"},{"$ref":"#/$defs/NoulQuestion"},{"$ref":"#/$defs/ScoreQuestion"}]},"type":"object"},"state":{}},"required":["kind","state","questions"],"type":"object"},"EmbedInput":{"additionalProperties":false,"properties":{"kind":{"const":"embed","type":"string"},"text":{"minLength":1,"type":"string","x-max-utf8-bytes":16384}},"required":["kind","text"],"type":"object"},"ImageInput":{"additionalProperties":false,"properties":{"kind":{"const":"imagegen","type":"string"},"prompt":{"minLength":1,"type":"string","x-max-utf8-bytes":4096}},"required":["kind","prompt"],"type":"object"},"NoulQuestion":{"additionalProperties":false,"properties":{"instructions":{"maxLength":1000,"minLength":1,"type":"string"},"type":{"const":"noul","type":"string"}},"required":["type","instructions"],"type":"object"},"ScoreQuestion":{"additionalProperties":false,"properties":{"criteria":{"items":{"maxLength":400,"minLength":1,"type":"string"},"type":"array"},"instructions":{"maxLength":1000,"minLength":1,"type":"string"},"type":{"const":"score","type":"string"}},"required":["type","instructions","criteria"],"type":"object"},"SpeechInput":{"additionalProperties":false,"properties":{"kind":{"const":"tts","type":"string"},"text":{"minLength":1,"type":"string","x-max-utf8-bytes":4096}},"required":["kind","text"],"type":"object"},"TranscriptionInput":{"additionalProperties":false,"properties":{"audio_base64":{"maxLength":699052,"minLength":4,"type":"string"},"format":{"enum":["wav","mp3","ogg"],"type":"string"},"kind":{"const":"stt","type":"string"}},"required":["kind","audio_base64","format"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai_inference_request.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"input":{"oneOf":[{"$ref":"#/$defs/EmbedInput"},{"$ref":"#/$defs/SpeechInput"},{"$ref":"#/$defs/TranscriptionInput"},{"$ref":"#/$defs/ImageInput"},{"$ref":"#/$defs/DecisionInput"}],"x-ts-type":"EmbedInput | SpeechInput | TranscriptionInput | ImageInput | DecisionInput"},"max_units":{"maximum":4294967295,"minimum":1,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"origin":{"enum":["trusted","user-input","external-content"],"type":"string"}},"required":["origin","input"],"title":"App AI inference request","type":"object"}"###;
+pub fn validate_ai_inference_request(value: &serde_json::Value) -> Result<(), WireDecodeError> {
+    let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_AI_INFERENCE_REQUEST)
+        .expect("generated wire schema must be valid JSON");
+    validate_wire_schema(&schema, &schema, value, "AiInferenceRequest", "$")
+}
+
+pub fn normalize_ai_inference_request_integers(value: &mut serde_json::Value) {
+    let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_AI_INFERENCE_REQUEST)
         .expect("generated wire schema must be valid JSON");
     normalize_wire_integers(&schema, &schema, value);
 }

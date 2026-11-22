@@ -45,8 +45,8 @@
 //!
 //! ## CLI surface
 //!
-//! - `yu ai chat --app <id> …` — one-shot App-gated call. The only
-//!   sanctioned entry point for installed Apps to reach a model.
+//! - `yu ai chat --app <id> …` — App-gated conversational text.
+//! - `yu ai infer --request-stdin` — the other configured model slots.
 //! - `yu agent budget …` — per-App budget ledger (lives under
 //!   `yu agent` for historical reasons; will likely move under
 //!   `yu ai budget` in a future cleanup).
@@ -61,6 +61,7 @@ pub mod budget;
 pub mod chat;
 pub mod consent;
 pub mod gate;
+pub mod inference;
 pub mod overrides;
 pub mod tools;
 pub mod user_budget;
@@ -104,7 +105,7 @@ pub fn run(command: &str, args: &[String]) -> Result<serde_json::Value, String> 
         "tools" => tools_list_cmd(args),
         other => Err(wire_error(
             "UNKNOWN_VERB",
-            format!("unknown command: yu ai {other}. try: chat | tool | tools"),
+            format!("unknown command: yu ai {other}. try: chat | infer | settings | tool | tools"),
             None,
         )),
     }

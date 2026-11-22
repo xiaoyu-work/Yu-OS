@@ -55,8 +55,10 @@ To verify inference, pipe a request to `yu model decide`:
 ```
 
 Configured system Agent sessions can use `yu_decide` for the same request.
-This is not an App AI permission or a new credential or provider API for
-Apps. No decision request is added to ordinary chat unless a tool is called.
+Apps use `ai.infer` with `input.kind = "decision"` and a scoped `ai.decide`
+need, not the Agent's `yu_decide` tool. The broker uses the authenticated
+owner's local model, AI consent, and budget. No decision request is added
+to ordinary chat, and none of these answers authorizes an action.
 
 ## Helium
 

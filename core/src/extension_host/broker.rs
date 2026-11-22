@@ -39,6 +39,7 @@ const CHILD_PROVIDER_ROUTES: &[Command] = &[
     Command::SystemChannelControl,
     Command::SystemAppPermissions,
     Command::AiChat,
+    Command::AiInference,
     Command::CredentialOauthRefresh,
     Command::SystemAudioControl,
     Command::SystemAccessibilityControl,

@@ -215,7 +215,7 @@ pub(crate) fn validate_model_alias(model: &str) -> Result<(), String> {
 }
 
 impl DecisionRequest {
-    fn validate(&self) -> Result<(), String> {
+    pub(crate) fn validate(&self) -> Result<(), String> {
         if self.questions.is_empty() || self.questions.len() > MAX_QUESTIONS {
             return Err("expected one to eight decision questions".into());
         }

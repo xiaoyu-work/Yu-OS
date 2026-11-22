@@ -66,6 +66,7 @@ route.
 | Model-input trust | Closed trust lattice, model-input source registry, labelled segments, and the bounded data fence for non-policy content | `core/src/agent/trust/` |
 | LLM abstraction | Provider registry, wire adapters, streaming accumulation, fallback chain, credentials, and usage | `core/src/agent/llm/` |
 | Local decision task | Bounded System One judgments via an owner-only socket; independent of chat and action authority | `core/src/model/tasks/decision.rs`, [Decision models](docs/decision-model.md) |
+| App model inference | Six configured model slots behind the App's own broker capabilities, consent and budget; separate from Agent-to-App MCP authorization | `core/src/ai/`, `core/src/yuosd/ai.rs`, [SDK AI reference](yuos-sdk/REFERENCE.md#ai-support) |
 | Tool/capability layer | Model-visible tool registry, guardrails, MCP attachment, scope checks, and approval boundaries | `core/src/agent/tools/`, `core/src/caps/` |
 | Credential service | Validated credential identities, cryptography and master-key ownership, encrypted atomic persistence, authorization, refresh lifecycle, OAuth flows, and stable CLI facade | `core/src/credential/` |
 | Memory and sessions | SQLite/FTS memory, semantic recall, session/message persistence, curation, checkpoints, and owner-scoped learned-memory reset that preserves execution evidence | `core/src/agent/memory/`, `core/src/session/`, `core/src/checkpoint.rs` |

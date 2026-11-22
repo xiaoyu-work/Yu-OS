@@ -29,7 +29,7 @@ Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
 
 | Area          | Functions                                                          | Equivalent CLI                    |
 |---------------|--------------------------------------------------------------------|-----------------------------------|
-| AI            | `Chat`, `ChatContext`; `Budget`, `BudgetContext` (usage only)      | `yu ai chat --app <id>`          |
+| AI            | `Chat`, `ChatContext`, `Infer`; `Budget` and `BudgetContext` (usage only) | `yu ai chat` / `yu ai infer` |
 | Tools         | `CallTool`, `Catalog`, their `Context` variants, and `ForChat`     | `yu ai tool <name> --app <id>`   |
 | MCP service   | `LoadMCPApp`, `(*MCPApp).Bind`, `Serve`, `ServeStdio`               | App Host private stdio transport  |
 | GUI           | `IsGUILaunch`, `Context`, `(*GuiContext).OpenAgentOverlay`         | launched via `yu app <id> --gui` |
@@ -151,6 +151,10 @@ report usage without a cap; the chat reply still contains the actual cap.
 
 Use the SDK rather than a provider SDK or `yu agent`. The owner configures
 the provider and model; see [App consent requirements](../../docs/app-development.md#7-ai-features).
+
+Use `Infer(ctx, request)` for the other model slots. `OpenAiPermissionSettings(ctx)`
+opens the [model permission page](../../docs/app-development.md#model-permissions-in-settings)
+after a user action and with the separate desktop launcher permission.
 
 ## Errors
 

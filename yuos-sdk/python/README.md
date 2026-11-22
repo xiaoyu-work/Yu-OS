@@ -33,7 +33,7 @@ def summarize(body: str) -> dict:
 
 | Module                  | Purpose                                                                |
 |-------------------------|------------------------------------------------------------------------|
-| `yuos_sdk.ai`        | Stable `chat` / `chat-untrusted` access through `yu ai chat`.          |
+| `yuos_sdk.ai`        | The six configured model slots through `chat` and `infer`.          |
 | `yuos_sdk.tools`     | `yu ai tool <name>` — fulfil catalog tools the model proposed.        |
 | `yuos_sdk.gui`       | Desktop GUI bootstrap and kernel-provided launch context.              |
 | `yuos_sdk.mcp`       | Manifest-bound App MCP server, call context, progress, and cancellation. |
@@ -127,6 +127,9 @@ the optional App manifest `objects` resolver declaration.
 content; it selects `ai.chat.untrusted`, not a safety profile. See the
 [shared AI contract](../REFERENCE.md#ai-support). `ai.budget()` reports current
 usage (App, period, and units used), without a cap.
+
+Use `ai.infer(request)` for the other model slots. For a GUI model permission
+denial, see the [custom prompt and Settings example](../../docs/app-development.md#model-permissions-in-settings).
 
 ## Configuration
 

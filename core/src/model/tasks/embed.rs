@@ -362,10 +362,13 @@ impl Embedder for OpenAICompatEmbedder {
             .await
             .map_err(|e| EmbedError::Transport(e.to_string()))?;
         let status = resp.status();
-        let bytes = resp
-            .bytes()
-            .await
-            .map_err(|e| EmbedError::Transport(e.to_string()))?;
+        let bytes = crate::agent::media::util::read_bytes_capped(
+            resp,
+            crate::agent::media::util::MAX_TEXT_BODY_BYTES,
+            "embedding provider",
+        )
+        .await
+        .map_err(|error| EmbedError::Transport(error.to_string()))?;
         if !status.is_success() {
             return Err(classify_http_error(status.as_u16(), &bytes));
         }

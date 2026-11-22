@@ -42,7 +42,9 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use crate::caps::manifest::{AiPolicy, AiSafety, PromptOrigin};
+use crate::caps::{Cap, Manifest, Verb};
 use crate::paths;
+use crate::provenance::{runtime::PackageRef, VerifiedPackage};
 
 /// Exact configured destination shown in an install review. The routing hash
 /// detects reconfiguration without exposing endpoint settings in presentation.
@@ -56,20 +58,143 @@ pub(crate) struct InstallModel {
 
 impl InstallModel {
     pub(crate) fn for_owner(owner: u32) -> Result<Option<Self>, String> {
-        let home = paths::verified_home_for_uid(owner)?;
-        let path = std::env::var_os("YUOS_CONFIG_PATH").map(PathBuf::from)
-            .or_else(|| std::env::var_os("YUOS_USER_CONFIG_DIR").map(|dir| PathBuf::from(dir).join("config.json")))
-            .unwrap_or_else(|| paths::user_config_path_for(&home));
-        Ok(Self::from_config(&crate::config::load_from_path(&path).agent))
+        Ok(Self::from_config(&owner_config(owner)?.agent))
     }
+}
 
+fn owner_config(owner: u32) -> Result<crate::config::YuConfig, String> {
+    let home = paths::verified_home_for_uid(owner)?;
+    let path = std::env::var_os("YUOS_CONFIG_PATH")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("YUOS_USER_CONFIG_DIR")
+                .map(|dir| PathBuf::from(dir).join("config.json"))
+        })
+        .unwrap_or_else(|| paths::user_config_path_for(&home));
+    Ok(crate::config::load_from_path(&path))
+}
+
+#[derive(Serialize)]
+pub(crate) struct GuiAiChoice {
+    pub(crate) id: String,
+    pub(crate) cap: Cap,
+    pub(crate) target: InstallModel,
+    pub(crate) enabled: bool,
+}
+
+pub(crate) fn gui_ai_for_owner(
+    owner: u32,
+    package: &VerifiedPackage,
+    manifest: &Manifest,
+) -> Result<Vec<GuiAiChoice>, String> {
+    gui_ai_choices(owner, package, manifest, &owner_config(owner)?)
+}
+
+pub(crate) fn gui_ai_choices(
+    owner: u32,
+    package: &VerifiedPackage,
+    manifest: &Manifest,
+    config: &crate::config::YuConfig,
+) -> Result<Vec<GuiAiChoice>, String> {
+    use crate::approvals::{app_policy, system_review};
+
+    let binding = PackageRef::of(package);
+    if binding.publisher_key_id.is_none() {
+        return Ok(Vec::new());
+    }
+    let review = crate::apps::permission_review::PermissionReview::from_manifest(manifest)?;
+    let saved = app_policy::choices(owner, &binding)?;
+    let legacy = if review.requests_install_ai() {
+        match InstallModel::from_config(&config.agent) {
+            Some(model) => system_review::installed_gui_ai(owner, package, &model)?,
+            None => Vec::new(),
+        }
+    } else {
+        Vec::new()
+    };
+    let ceiling = package.ceiling();
+    let generation = crate::approvals::generations::current(
+        Some(owner),
+        &format!("system-review:{}", package.id()),
+    )?;
+    let mut result = Vec::new();
+    for permission in review
+        .permissions
+        .iter()
+        .filter(|permission| permission.requests_configured_gui_ai())
+    {
+        let Some(target) = gui_target(permission.verb, config)? else {
+            continue;
+        };
+        let cap = Cap::new(permission.verb, target.scope());
+        if !ceiling.allows_cap(&cap) {
+            continue;
+        }
+        let key = serde_json::to_vec(&(
+            "settings-ai-v1",
+            &binding,
+            generation,
+            permission.verb,
+            &target,
+        ))
+        .map_err(|error| error.to_string())?;
+        let id = crate::crypto::sha256_hex(&key);
+        let enabled = saved
+            .get(&id)
+            .copied()
+            .unwrap_or_else(|| legacy.iter().any(|(_, granted)| *granted == cap));
+        if !result.iter().any(|choice: &GuiAiChoice| choice.id == id) {
+            result.push(GuiAiChoice {
+                id,
+                cap,
+                target,
+                enabled,
+            });
+        }
+    }
+    Ok(result)
+}
+
+fn gui_target(
+    verb: Verb,
+    config: &crate::config::YuConfig,
+) -> Result<Option<InstallModel>, String> {
+    if matches!(verb, Verb::AI_CHAT | Verb::AI_CHAT_UNTRUSTED) {
+        return Ok(InstallModel::from_config(&config.agent));
+    }
+    let Some((provider, model)) = super::inference::target_identity(verb, config) else {
+        return Ok(None);
+    };
+    let selection = match verb {
+        Verb::AI_AUDIO_TTS => serde_json::to_value(&config.tts),
+        Verb::AI_AUDIO_STT => serde_json::to_value(&config.stt),
+        Verb::AI_IMAGE_GENERATE => serde_json::to_value(&config.imagegen),
+        Verb::AI_DECIDE => serde_json::to_value(&config.decision),
+        Verb::AI_EMBED if config.embed.provider == "agent-auto" => {
+            serde_json::to_value((&config.embed, &config.agent))
+        }
+        Verb::AI_EMBED => serde_json::to_value(&config.embed),
+        _ => return Ok(None),
+    }
+    .map_err(|error| error.to_string())?;
+    let encoded = serde_json::to_vec(&selection).map_err(|error| error.to_string())?;
+    Ok(Some(InstallModel {
+        model,
+        provider,
+        routing: crate::crypto::sha256_hex(&encoded),
+    }))
+}
+
+impl InstallModel {
     pub(crate) fn from_config(config: &crate::config::AgentConfig) -> Option<Self> {
         let valid = |value: &str| {
-            !value.trim().is_empty() && value.len() <= 128
+            !value.trim().is_empty()
+                && value.len() <= 128
                 && !value.contains(['*', '?', '[', ']', '{', '}'])
                 && !value.chars().any(char::is_control)
         };
-        if !valid(&config.provider) || !valid(&config.model)
+        if !valid(&config.provider)
+            || !valid(&config.model)
             || config.model == crate::caps::manifest::CONFIGURED_AI_MODEL
         {
             return None;
@@ -77,9 +202,7 @@ impl InstallModel {
         Some(Self {
             model: config.model.clone(),
             provider: config.provider.clone(),
-            routing: crate::crypto::sha256_hex(
-                &serde_json::to_vec(&config.base_url).ok()?,
-            ),
+            routing: crate::crypto::sha256_hex(&serde_json::to_vec(&config.base_url).ok()?),
         })
     }
 
@@ -162,11 +285,10 @@ pub fn load(app_id: &str) -> Result<Option<Consent>, String> {
 pub fn save(app_id: &str, consent: &Consent) -> Result<(), String> {
     let path = consent_path(app_id);
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("create {}: {e}", parent.display()))?;
+        fs::create_dir_all(parent).map_err(|e| format!("create {}: {e}", parent.display()))?;
     }
-    let body = serde_json::to_string_pretty(consent)
-        .map_err(|e| format!("serialize consent: {e}"))?;
+    let body =
+        serde_json::to_string_pretty(consent).map_err(|e| format!("serialize consent: {e}"))?;
     let tmp = path.with_extension("json.tmp");
     fs::write(&tmp, &body).map_err(|e| format!("write {}: {e}", tmp.display()))?;
     fs::rename(&tmp, &path)
@@ -258,7 +380,10 @@ pub fn format_for_review(app_id: &str, policy: &AiPolicy) -> String {
         "  budget.monthly_units : {}\n",
         policy.budget.monthly_units
     ));
-    out.push_str(&format!("  safety               : {}\n", safety_label(policy.safety)));
+    out.push_str(&format!(
+        "  safety               : {}\n",
+        safety_label(policy.safety)
+    ));
     let origins = policy
         .origins
         .iter()
