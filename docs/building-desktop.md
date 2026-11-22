@@ -84,8 +84,9 @@ lock show the Yu OS wallpaper full-screen, with the time above and the
 password field at the bottom. First-run setup keeps its frosted-glass panels.
 
 Setup, sign-in, lock, and the signed Desktop Shell share the default wallpaper at
-`/usr/share/backgrounds/yuos/yuos-default.jpg`. A wallpaper chosen by the user
-takes precedence on the desktop.
+`/usr/share/backgrounds/yuos/yuos-default.jpg`: the centered Yu OS mark on a
+light-gray background. A wallpaper chosen by the user takes precedence on
+the desktop.
 
 The signed system shell starts with its built-in desktop permissions.
 Other App permission requests still appear in the graphical OS review

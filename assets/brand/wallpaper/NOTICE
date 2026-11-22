@@ -1,10 +1,14 @@
-Yu OS default wallpaper, 5472 × 3606.
+Yu OS default wallpaper, 3840 × 2160.
 
+yuos-default.svg is the source for yuos-default.jpg and the softened
+yuos-default-blurred.jpg used behind the first-run panel. This original
+Yu OS artwork is covered by the repository's Apache License 2.0
+(installed as wallpaper.LICENSE).
+
+Previous mountain wallpaper (no longer shipped):
 Restored unchanged from commit a7256abd4b2d5a7d694d6cde75a1a35dac2b2e30.
 Original distribution: https://github.com/xiaoyu-work/Yu-OS
 Original image SHA-256: f8751a0207f0cd6ae0b5cefdf5ae14dff633d69a615600a4fc48be997c2dcc6e
-Licensed under Creative Commons Attribution-ShareAlike 4.0 International.
-See LICENSE.
-
-yuos-default-blurred.jpg is a downsampled and softened derivative of
-yuos-default.jpg, used for the frosted panels. It has the same license.
+The original image and its softened derivative were licensed under Creative
+Commons Attribution-ShareAlike 4.0 International; the corresponding LICENSE
+is retained in this source directory.

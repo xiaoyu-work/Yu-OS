@@ -26,9 +26,12 @@ original notice ships with the binary. The Yu OS native password form replaces
 the upstream indicator. The PAM patch requires the dedicated Yu OS service
 for unlock and removes non-PAM recovery paths.
 
-The [original mountain wallpaper](../assets/brand/wallpaper/NOTICE)
-is used unchanged for setup, sign-in and lock under its existing CC BY-SA 4.0
-license. No COSMIC greeter or compositor code is used for these pages.
+The [default wallpaper](../assets/brand/wallpaper/yuos-default.svg) centers
+the Yu OS mark on a light-gray background. The image and its softened variant
+are original project artwork under [Apache-2.0](../LICENSE); see the
+[artwork notice](../assets/brand/wallpaper/NOTICE) for the previous mountain
+image's attribution. No COSMIC greeter or compositor code is used for these
+pages.
 
 The [bundled account avatars](../assets/brand/avatars/) are original generated
 illustrations for Yu OS. They use no third-party characters or images.

@@ -87,8 +87,8 @@ Settings Users can create a standard or administrator account with a
 password, or reset the password of a selected local account. The OS keeps
 that input out of the App credential store and process arguments.
 The wizard keeps its glass panels. The greeter and the in-session locker use
-the original Yu OS wallpaper full-screen, with a large clock at the top and the
-account and password at the bottom. Cage and Qt Quick render the pre-login UI
+the light Yu OS wallpaper full-screen, with dark clock and account captions
+and the password field at the bottom. Cage and Qt Quick render the pre-login UI
 in software; the authenticated desktop retains its normal graphics backend.
 Before greetd starts, the OS hides the text cursor on its configured graphics
 VT only. Mode changes can still briefly blank the display; the login PAM path
