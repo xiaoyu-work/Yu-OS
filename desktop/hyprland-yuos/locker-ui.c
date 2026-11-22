@@ -162,16 +162,16 @@ static void text(cairo_t *cr, const char *label, double x, double y, double widt
 	g_object_unref(line);
 }
 
-static void paint_clock(cairo_t *cr, const struct layout *box) {
+static void paint_clock(cairo_t *cr, const struct layout *box, uint32_t ink) {
 	time_t now = time(NULL);
 	struct tm local;
 	if (localtime_r(&now, &local)) {
 		char date[80], time_label[16];
 		strftime(date, sizeof(date), "%A, %B %-d", &local);
 		strftime(time_label, sizeof(time_label), "%H:%M", &local);
-		text(cr, date, 0, 12, CONTENT_WIDTH, 20, 0xf4f8ffff, true, PANGO_ALIGN_CENTER);
+		text(cr, date, 0, 12, CONTENT_WIDTH, 20, ink, true, PANGO_ALIGN_CENTER);
 		text(cr, time_label, 0, 23 + box->clock_size / 2, CONTENT_WIDTH,
-				box->clock_size, 0xf4f8ffff, true, PANGO_ALIGN_CENTER);
+				box->clock_size, ink, true, PANGO_ALIGN_CENTER);
 	}
 }
 
@@ -198,7 +198,7 @@ static void paint_avatar(cairo_t *cr, double y) {
 }
 
 static void paint_form(cairo_t *cr, const struct layout *box, enum auth_state auth,
-		size_t characters, bool caps_lock) {
+		size_t characters, bool caps_lock, bool light_background) {
 	bool checking = auth == AUTH_STATE_VALIDATING;
 	bool rejected = auth == AUTH_STATE_INVALID && !characters;
 	bool enabled = !checking && characters > 0;
@@ -206,7 +206,8 @@ static void paint_form(cairo_t *cr, const struct layout *box, enum auth_state au
 	uint32_t border = rejected ? 0xffc4c0ff : 0xffffffb3;
 
 	paint_avatar(cr, y - 79);
-	text(cr, account, FIELD_X, y - 24, FIELD_WIDTH, 18, 0xf4f8ffff, true, PANGO_ALIGN_CENTER);
+	text(cr, account, FIELD_X, y - 24, FIELD_WIDTH, 18,
+			light_background ? 0x182634ff : 0xf4f8ffff, true, PANGO_ALIGN_CENTER);
 
 	rounded(cr, FIELD_X + 0.5, y + 0.5, FIELD_WIDTH - 1, FIELD_HEIGHT - 1, (FIELD_HEIGHT - 1) / 2.0);
 	cairo_set_source_u32(cr, 0x151c26c4);
@@ -251,12 +252,14 @@ static void paint_form(cairo_t *cr, const struct layout *box, enum auth_state au
 		: rejected ? "Password not accepted. Try again."
 		: caps_lock ? "Caps Lock is on." : NULL;
 	if (hint) {
+		uint32_t ink = light_background ? (rejected ? 0x962620ff : 0x3e5366ff)
+			: (rejected ? border : 0xd7e3efff);
 		text(cr, hint, FIELD_X, y + FIELD_HEIGHT + 16, FIELD_WIDTH, 14,
-				rejected ? border : 0xd7e3efff, false, PANGO_ALIGN_CENTER);
+				ink, false, PANGO_ALIGN_CENTER);
 	}
 }
 
-static bool render_form(struct swaylock_surface *surface) {
+static bool render_form(struct swaylock_surface *surface, bool light_background) {
 	struct layout box = layout(surface);
 	int scale = surface->scale;
 	const struct swaylock_state *state = surface->state;
@@ -276,8 +279,9 @@ static bool render_form(struct swaylock_surface *surface) {
 	cairo_paint(cr);
 	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
 	cairo_scale(cr, box.zoom * scale, box.zoom * scale);
-	paint_clock(cr, &box);
-	paint_form(cr, &box, state->auth_state, state->password.characters, state->xkb.caps_lock);
+	paint_clock(cr, &box, light_background ? 0x182634ff : 0xf4f8ffff);
+	paint_form(cr, &box, state->auth_state, state->password.characters,
+			state->xkb.caps_lock, light_background);
 
 	wl_subsurface_set_position(surface->subsurface, box.x, box.y);
 	wl_surface_set_buffer_scale(surface->child, scale);
@@ -304,6 +308,8 @@ void render(struct swaylock_surface *surface) {
 	}
 
 	struct swaylock_state *state = surface->state;
+	bool custom_background = surface->image && state->args.mode != BACKGROUND_MODE_SOLID_COLOR;
+	bool light_background = wallpaper && !custom_background;
 	struct pool_buffer background;
 	bool resized = width != surface->last_buffer_width || height != surface->last_buffer_height;
 	if (resized) {
@@ -314,26 +320,28 @@ void render(struct swaylock_surface *surface) {
 		cairo_t *cr = background.cairo;
 		cairo_set_source_u32(cr, state->args.colors.background | 0xffu);
 		cairo_paint(cr);
-		if (surface->image && state->args.mode != BACKGROUND_MODE_SOLID_COLOR) {
+		if (custom_background) {
 			render_background_image(cr, surface->image, state->args.mode, width, height);
 		} else if (wallpaper) {
 			render_background_image(cr, wallpaper, BACKGROUND_MODE_FILL, width, height);
 		}
-		cairo_pattern_t *scrim = cairo_pattern_create_linear(0, 0, 0, height);
-		cairo_pattern_add_color_stop_rgba(scrim, 0.0, 16/255., 25/255., 35/255., 171/255.);
-		cairo_pattern_add_color_stop_rgba(scrim, 0.3, 16/255., 25/255., 35/255., 99/255.);
-		cairo_pattern_add_color_stop_rgba(scrim, 0.59, 16/255., 25/255., 35/255., 22/255.);
-		cairo_pattern_add_color_stop_rgba(scrim, 1.0, 16/255., 25/255., 35/255., 101/255.);
-		cairo_set_source(cr, scrim);
-		cairo_paint(cr);
-		cairo_pattern_destroy(scrim);
+		if (!light_background) {
+			cairo_pattern_t *scrim = cairo_pattern_create_linear(0, 0, 0, height);
+			cairo_pattern_add_color_stop_rgba(scrim, 0.0, 16/255., 25/255., 35/255., 171/255.);
+			cairo_pattern_add_color_stop_rgba(scrim, 0.3, 16/255., 25/255., 35/255., 99/255.);
+			cairo_pattern_add_color_stop_rgba(scrim, 0.59, 16/255., 25/255., 35/255., 22/255.);
+			cairo_pattern_add_color_stop_rgba(scrim, 1.0, 16/255., 25/255., 35/255., 101/255.);
+			cairo_set_source(cr, scrim);
+			cairo_paint(cr);
+			cairo_pattern_destroy(scrim);
+		}
 		wl_surface_attach(surface->surface, background.buffer, 0, 0);
 		wl_surface_damage_buffer(surface->surface, 0, 0, INT32_MAX, INT32_MAX);
 		surface->last_buffer_width = width;
 		surface->last_buffer_height = height;
 	}
 	wl_surface_set_buffer_scale(surface->surface, surface->scale);
-	surface->dirty = !render_form(surface);
+	surface->dirty = !render_form(surface, light_background);
 	surface->frame = wl_surface_frame(surface->surface);
 	wl_callback_add_listener(surface->frame, &frame_listener, surface);
 	wl_surface_commit(surface->surface);

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160" role="img">
+<title>Yu OS</title>
+<rect width="3840" height="2160" fill="#f3f5f7"/>
+<g transform="translate(1920 1080) scale(0.72) translate(-310.5 -297)">
+  <path d="M64 514 298 70M230 514 381 226M388 514 483 334" fill="none" stroke="#1e1e1e" stroke-width="70" stroke-linecap="round"/>
+  <circle cx="553" cy="520" r="39" fill="#005cfe"/>
+</g>
+</svg>

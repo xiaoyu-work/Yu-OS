@@ -107,7 +107,7 @@ ShellRoot {
         title: "Yu OS"
         visibility: Window.FullScreen
         flags: Qt.FramelessWindowHint
-        color: "#101923"
+        color: "#f3f5f7"
         onClosing: event => event.accepted = false
 
         Image {
@@ -117,16 +117,6 @@ ShellRoot {
             sourceSize.width: Math.min(3200, Math.max(1280, Math.ceil(width * Screen.devicePixelRatio)))
             asynchronous: true
         }
-        Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: "#ab101923" }
-                GradientStop { position: 0.3; color: "#63101923" }
-                GradientStop { position: 0.59; color: "#16101923" }
-                GradientStop { position: 1.0; color: "#65101923" }
-            }
-        }
-
         Item {
             id: scene
             readonly property real fit: Math.min(1, Math.max(1, window.width) / 384,
@@ -197,17 +187,15 @@ ShellRoot {
                     model: root.accounts
                     textRole: "name"
                     Accessible.name: qsTr("Account")
-                    palette.window: "#1d2938"
-                    palette.text: "#f4f8ff"
+                    palette.window: "#f3f5f7"
+                    palette.base: "#f3f5f7"
+                    palette.text: "#182634"
                     palette.highlightedText: "white"
-                    palette.highlight: "#577493"
-                    palette.mid: "#54667d"
-                    palette.light: "#36495e"
-                    palette.midlight: "#465c74"
+                    palette.highlight: "#28579e"
                     background: Rectangle {
                         radius: height / 2
-                        color: accounts.hovered || accounts.down ? "#28ffffff" : "transparent"
-                        border.color: accounts.activeFocus ? "#b3ffffff" : "transparent"
+                        color: accounts.hovered || accounts.down ? "#14182634" : "transparent"
+                        border.color: accounts.activeFocus ? "#28579e" : "transparent"
                     }
                     indicator: Caption {
                         x: accounts.width - width - 14
@@ -306,7 +294,7 @@ ShellRoot {
                     width: parent.width
                     wrapMode: Text.Wrap
                     horizontalAlignment: Text.AlignHCenter
-                    color: root.authenticationRejected ? "#ffc4c0" : "#edf5ff"
+                    color: root.authenticationRejected ? "#962620" : "#3e5366"
                     text: root.notice
                 }
                 Controls.Button {
@@ -319,7 +307,7 @@ ShellRoot {
                     text: root.otherAccount ? qsTr("Choose an account") : qsTr("Other account")
                     contentItem: Caption {
                         text: switchAccount.text
-                        color: switchAccount.hovered ? "white" : "#d7e3ef"
+                        color: switchAccount.hovered ? "#182634" : "#3e5366"
                         font.underline: switchAccount.hovered || switchAccount.visualFocus
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -337,7 +325,7 @@ ShellRoot {
     }
 
     component Caption: Text {
-        color: "#f4f8ff"
+        color: "#182634"
         font.family: "Inter"
         font.pixelSize: 14
         textFormat: Text.PlainText

@@ -128,7 +128,7 @@ install -Dm0644 "$project/assets/brand/yuos-icon-192.png" "$stage/usr/share/yuos
 install -Dm0644 "$project/assets/brand/wallpaper/yuos-default.jpg" "$stage/usr/share/backgrounds/yuos/yuos-default.jpg"
 install -Dm0644 "$project/assets/brand/wallpaper/yuos-default-blurred.jpg" "$stage/usr/share/yuos/oobe/wallpaper-blurred.jpg"
 install -Dm0644 "$project/assets/brand/wallpaper/NOTICE" "$license/wallpaper.NOTICE"
-install -Dm0644 "$project/assets/brand/wallpaper/LICENSE" "$license/wallpaper.LICENSE"
+install -Dm0644 "$project/LICENSE" "$license/wallpaper.LICENSE"
 install -Dm0644 "$session/yuos-driver-online.service" "$stage/usr/lib/systemd/system/yuos-driver-online.service"
 install -Dm0755 "$session/70-yuos-driver-setup" "$stage/usr/lib/NetworkManager/dispatcher.d/70-yuos-driver-setup"
 
