@@ -34,17 +34,15 @@ Installed Yu OS binaries arrive through packages built from the current
 source. Reuse is allowed only when the complete stamp, artifacts, environment,
 architecture, and feature list match.
 
-The release workflow downloads its same-run, signed Agent/Base packages and
-separately authenticated App APT inputs before
-headless image composition. `yuos-core/install.sh` looks up the exact version,
+Release CI uses rootfs only to build the Desktop package. In local image
+composition, `yuos-core/install.sh` looks up the exact version,
 including Debian's `%3a` filename encoding for the security epoch, so existing
 artifacts satisfy composition without a second binary/package build. It
 configures the signed App channel and installs the checked App/support/library
 `.deb` closure in the ordinary transaction, without deleting an existing Apps
 root or copying product source into Agent. Desktop uses the same independent
-package graph, including matching native packages. The manual installer build
-opts into prebuilt-only composition after verifying all three same-run system
-packages; missing artifacts cannot start another build.
+package graph, including matching native packages. Prebuilt-only composition
+requires the matching package artifacts and does not start another build.
 
 Production Desktop no longer resolves App `main`, mounts native App sources or
 copies App manifests. Shell product UI/private-library links are removed,

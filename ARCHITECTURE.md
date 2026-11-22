@@ -96,7 +96,7 @@ route.
 | Migrated App products | Product UI, business implementation, MCP and upstream source live in a separate repository; Mail native build and product cutover remain in progress | [`yuos-app`](https://github.com/xiaoyu-work/yuos-app), `packaging/apps.lock.json` |
 | Shared-capability clients | Legacy facades are explicitly separate from business products; Document Engine owns `doc` and Storage SDK owns `db`, while privileged providers and SDK stay in the OS | External `yuos-app/capabilities/`, `packaging/apps.lock.json` |
 | Image composition | Reusable rootfs features and profile definitions | `rootfs/`, `scripts/lib/image-profiles.sh` |
-| Website | Static marketing site staged with shared brand assets before Pages composition | `web/`, `.github/workflows/release.yml` (`website` target) |
+| Website | Static marketing site staged with shared brand assets beside the signed APT repository | `web/`, `.github/workflows/release.yml` |
 | Distribution | WSL/Docker/VM/ISO/Azure packaging, Debian packages, signed APT repo, releases | `targets/`, `packaging/`, `.github/workflows/` |
 
 ## Dependency Rules
@@ -1080,7 +1080,7 @@ lifecycle, configuration, service orchestration, and user-facing commands.
 - Targets package a profile; they do not independently redefine OS contents.
 - Debian packages are assembled from built binaries and source-tree files and
   do not require a rootfs build.
-- Docker and WSL share one rootfs per architecture in their combined workflow.
+- WSL and Docker are local builds from the same headless profile.
 - Authenticity and freshness are separate properties. Repository and package
   signatures prove the publisher; a monotonic, root-owned local security floor
   under `/var/lib/yuos/security` proves the release is not superseded. Every
@@ -2467,52 +2467,34 @@ Lifecycle outcome categories are carried on the versioned host protocol.
 Transport connect/timeout, host crash, protocol, and remote-call failures are
 assigned by trusted code paths; remote text never selects an audit action.
 
-### Image and package publication
+### OS package publication
 
 ```text
 one OS commit + date-based Debian package version + immutable App snapshot
-  -> shared tests for a full release
-  -> one Agent build per architecture + one Base package
-  -> packaging/deb/build-debs.sh
-  -> signed Agent/Base .deb artifacts
-       -> rootfs/build.sh + shared headless profile
-       -> one stamped rootfs per architecture
-       -> Docker image + WSL package
+  -> shared tests
+  -> one Base package and Agent/Desktop packages for amd64 and arm64
+  -> verified .debs from this run
 
-the same App snapshot + dedicated desktop rootfs build
-  -> signed Desktop .deb artifacts
-
-web source
-  -> npm run build
-  -> one independent web artifact
-
-selected .deb artifacts + authenticated existing pool + web artifact
+verified .debs + authenticated existing pool + staged static website
   -> one signed APT/Pages composition
   -> GitHub Pages
 ```
 
 `test.yml` runs on pull requests and remains manually dispatchable/reusable.
-The other three workflows are manually dispatched: `release.yml` selects
-`agent`, `base`, `core`, `desktop`, `images`, `website` or `all`; SDK and App development
-platform releases retain independent versions and entry points. `all` runs the
-shared tests first. Component targets retain their existing build/install
-checks. Same-run artifacts bind the image packages and App snapshot rather
-than treating Cargo caches or an older run as release output.
-Release runs queue without cancellation; selected packages merge and deploy
-to Pages once. APT indexes intentionally have no expiry or scheduled refresh;
-signature, package-manifest validity and downgrade checks remain enforced.
+`release.yml` is manually dispatched on `main` and always publishes Agent,
+Base and Desktop together. It does not produce downloadable OS images.
+SDK and App development platform releases retain independent entry points.
+OS releases queue without cancellation. The publisher uses same-run artifacts
+and checks protocol compatibility against both the new pool and authenticated
+previous manifests before signing. APT indexes intentionally have no expiry or
+scheduled refresh; signatures, manifest validity and downgrade checks remain
+enforced.
 
 On Desktop, the authenticated Settings App requests a signed channel check or
 an administrator-authorized update through its private GUI broker. The
 Root-owned updater prepares the OS package set independently of `yuosd`,
 then `system-update.target` applies it before the next login. Neither
 the App nor the running desktop is the package transaction owner.
-
-The `core` target publishes Agent/Base together without a Desktop or image
-build. Before repository signing, protocol compatibility is checked against
-both the candidate pool and authenticated previous package manifests.
-Independent package versions are allowed; a partial release cannot publish a
-sibling below the shared protocol floor enforced on installed machines.
 
 ## Entry Points
 
@@ -2536,9 +2518,9 @@ sibling below the shared protocol floor enforced on installed machines.
 | Debian package build | `packaging/deb/build-debs.sh` | Installed package artifacts |
 | APT repository build | `packaging/apt-repo/build-repo.sh` | Signed repository assembly |
 | Website | `web/index.html` | Static marketing site |
-| Website publication | `.github/workflows/release.yml` (`website` target) | Independent website staging and Pages composition |
+| Website publication | `.github/workflows/release.yml` | Static website staged beside the signed APT repository |
 | CI test workflow | `.github/workflows/test.yml` | Pull-request/manual/reusable test workflow |
-| OS release workflow | `.github/workflows/release.yml` | Manual component selection or full publication |
+| OS release workflow | `.github/workflows/release.yml` | One manual signed APT publication |
 
 ## Cross-Cutting Constraints
 

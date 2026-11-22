@@ -10,7 +10,7 @@ redefining the operating-system feature set.
 - Build WSL, Docker, VM, ISO, and cloud-specific artifacts.
 - Apply platform integration and first-boot identity policy.
 - Keep platform-only overlays out of the shared rootfs.
-- Produce deterministic artifact paths consumed by workflows/releases.
+- Produce deterministic local image paths.
 
 ## Key Files
 
@@ -29,7 +29,7 @@ redefining the operating-system feature set.
 ## Dependencies
 
 Targets consume `build/yuos-rootfs` and profile definitions. WSL and Docker
-share one rootfs per architecture in CI. Azure obtains identity from
+use the shared headless profile. Azure obtains identity from
 cloud-init; WSL uses first-launch OOBE; Docker creates the requested user at
 container startup. These target policies must not leak back into reusable
 rootfs features.

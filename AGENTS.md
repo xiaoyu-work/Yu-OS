@@ -84,8 +84,8 @@ editing additional surfaces.
 | App/SDK wire contract | `yuos-sdk/wire/`, language SDK package | generated bindings, conformance tests, `publish-sdk-release.yml` |
 | App development platform release | `packaging/app-platform.json`, `scripts/app_platform.py`, `docs/app-platform.md` | Versioned SDK/runtime/toolkit exports; `publish-app-platform.yml`; never App helpers or private OS providers |
 | Rootfs composition | `scripts/lib/image-profiles.sh`, `rootfs/build.sh`, `rootfs/features/` | target build script and package contents |
-| WSL or Docker image | `.github/workflows/release.yml` (`images` target), `targets/wsl/`, `targets/docker/` | shared rootfs profile and same-run signed Agent/Base packages |
-| Debian/APT package | `packaging/deb/`, `packaging/apt-repo/` | `release.yml` package targets (`core` coordinates Agent/Base), `scripts/ci/`, rootfs package-install features |
+| WSL or Docker image | `targets/wsl/`, `targets/docker/`, `CONTRIBUTING.md` | local builds from the shared rootfs profile; not part of publication CI |
+| Debian/APT package | `packaging/deb/`, `packaging/apt-repo/` | `release.yml` publishes Agent/Base/Desktop together, `scripts/ci/`, rootfs package-install features |
 | Update downgrade protection | `core/src/update/`, `packaging/release-security/policy.json` | `packaging/deb/common/`, maintainer scripts, `packaging/apt-repo/verify-release-security.sh`, `docs/updating.md` |
 | Website | `web/index.html`, `web/MODULE.md` | `web/stage.sh`, `assets/brand/`, Pages composition workflow |
 | Desktop component | `desktop/README.md`, `desktop/PROVENANCE.md`, component README | `desktop/hyprland-yuos/` native staging and login; Desktop Shell and standalone native Apps are built in `yuos-app` |

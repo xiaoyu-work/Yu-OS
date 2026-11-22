@@ -1535,44 +1535,23 @@ report invalid ownership instead of bypassing owner isolation.
 
 ## Maintainer publication step
 
-Pushing a commit does not immediately make it available to existing
-installations. Publication workflows are manually dispatched. A maintainer can
-publish each package independently through **Release Yu OS** (`release.yml`):
-select `agent`, `base`, or `desktop`. Desktop uses native GitHub-hosted Ubuntu
-amd64/arm64 runners; disposable-CI-only removal of unused toolchains precedes
-the existing 30 GB free-space preflight. `images` publishes Docker/WSL from one
-headless rootfs per architecture, using the same run's signed Agent/Base packages without
-publishing those packages to APT. `website` updates the website while preserving
-the signed package pool. `all` runs shared tests and publishes every channel.
+Pushing a commit does not publish it. Run **Release Yu OS** (`release.yml`)
+on `main` to publish one date-based version of Agent, Base and Desktop to the
+signed APT source. There are no component or image targets to choose. Existing
+systems see the new version through their normal update path; users do not
+need to download or import a replacement image.
 
-Select `core` to publish Agent and Base together without building Desktop or
-images. This is required when a protocol change makes an older sibling
-manifest incompatible. Publication checks the new pool against both sibling
-protocol generations and authenticated previous manifests before signing the
-index; a partial release that would fail the installed floor is refused.
-Compatible package versions need not match.
-
-Every run freezes one OS package version and, when needed, authenticated
-App APT inputs for both architectures. Production builds never use App source
-fixtures; only `all` separately freezes one immutable source snapshot for its
-shared tests. Agent publication also checks actual official Store installation
-and installed product browser/MCP calls for a synthetic owner on disposable CI.
-Each release requires the repository Actions secret
-`YUOS_APT_SIGNING_PRIVATE_KEY`. Set
-`YUOS_APT_SIGNING_PASSPHRASE` only when that private key is encrypted. The
-publisher restores other packages from the current signed repository, merges
-all selected packages once, signs the new multi-architecture indexes, and
-deploys GitHub Pages once alongside one website build. Publications queue
-without cancellation so release runs cannot overwrite each other's state.
-Non-expiring APT indexes require no scheduled re-signing; key and package
-manifest validity remain independent.
+The [release workflow](../packaging/README.md#independent-publication) runs the
+shared tests, requires authenticated App inputs and verifies package
+compatibility before one Pages deployment. Releases queue without
+cancellation; non-expiring APT indexes need no scheduled re-signing.
 
 ### Recovering a partially configured Agent/Base pair
 
 If Base configuration reports an older protocol than the system requires,
 the repository needs a compatible coordinated release. Do not remove the
 security floor, force a downgrade or repeatedly configure the same old Base.
-After a compatible `core` release is published, upgrade both packages in one
+After a compatible Yu OS update is published, upgrade both packages in one
 APT transaction:
 
 ```bash
@@ -1590,8 +1569,8 @@ Agent now provides `yuos-nearby-v1`, the fixed non-root
 `/usr/lib/yuos/bin/yuos-nearby-worker` and dedicated
 `/usr/lib/yuos/bin/yuos-nearby-radio`. Both belong to the signed component
 inventory. Desktop's new sharing center depends on that service interface,
-not an exact Agent package version. Publish/install the compatible Agent
-before a targeted Desktop update, or use the coordinated release target.
+not an exact Agent package version. The release workflow publishes the
+compatible Agent and Desktop together.
 
 The radio is D-Bus activated and never enabled as a boot-time receive window.
 Only Root may acquire it; installing the package does not copy Owly's

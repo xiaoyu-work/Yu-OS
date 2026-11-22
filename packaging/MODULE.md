@@ -7,8 +7,8 @@ Debian packages and a signed multi-architecture APT repository.
 
 ## Responsibilities
 
-- Assemble and publish `yuos-agent`, `yuos-base`, and
-  `yuos-desktop` independently.
+- Assemble `yuos-agent`, `yuos-base`, and `yuos-desktop` as separate packages
+  for one coordinated APT publication.
 - Preserve conffiles and run service-safe maintainer scripts.
 - Bind each release to a signed release-security manifest so an installed
   system can refuse a superseded — but still validly signed — release.
@@ -59,7 +59,7 @@ Debian packages and a signed multi-architecture APT repository.
 | `apt-repo/build-repo.sh` | Multi-arch non-expiring Release, by-hash indexes, and GPG signatures |
 | [`../web/`](../web/) | Independent web source; `dist/` is consumed during Pages composition |
 | [`README.md`](README.md) | Package contract and manual commands |
-| `../.github/workflows/release.yml` | Independent package targets or full release; one signed APT/Pages composition |
+| `../.github/workflows/release.yml` | One signed Agent/Base/Desktop APT release |
 | `../scripts/ci/verify-package.sh` | Shared pre-upload payload, snapshot and signed manifest checks |
 
 ## Dependencies
@@ -67,22 +67,19 @@ Debian packages and a signed multi-architecture APT repository.
 Package assembly consumes compiled binaries and source files; it does not need
 a rootfs except for the separately staged desktop package. Rootfs features
 install the resulting packages. Package dependencies express runtime layering
-without forcing synchronized versions or publication schedules.
+without binding every installed package to an exact sibling version.
 
 One release run freezes a package version and authenticated App APT inputs.
-Desktop targets also resolve App main once, build the Shell natively on Debian
+Each run also resolves App main once, builds the Shell natively on Debian
 13, and sign and verify its tree on OS-controlled runners. The App remains
-launched by the common Host. The image matrix
-consumes the same signed Agent/Base `.deb` artifacts rather than rebuilding
-their binaries and installs the checked App packages as independent owners.
-The `all` tests receive an immutable source fixture locked to the same App
-revision. Desktop's other
+launched by the common Host. The shared tests receive an immutable source
+fixture locked to the same App revision. Desktop's other
 product UI/private-library links are removed: original product binaries and
 resources come from App packages; OS notification presentation uses the public
 SDK. The source guard remains and rejects reintroduced links, without a source
 fallback or native surface removal.
-The APT publisher merges all selected package families
-once, preserving the authenticated candidates for families not rebuilt.
+The APT publisher merges the three OS packages once and refuses to replace
+equal or newer authenticated candidates.
 
 The coordinated first transfer is strictly below `1:0.2.1`; runtime ABI stays
 1. Agent's versioned `yuos-app-runtime-v1` Provides is rendered from
@@ -95,12 +92,10 @@ packages before the new Agent. SDK/runtime Python and Root authority stay
 OS-owned; `_shared`, `gateway`, `canonical_argv` and `yuos_files` do not.
 See [current ownership and bootstrap blockers](README.md#coordinated-021-source-ownership-cutover).
 
-Independent publication must still preserve protocol compatibility. Before
+Coordinated publication must preserve protocol compatibility. Before
 signing an index, the publisher rejects package protocol generations below
-either a sibling's generation or the previously published floor. Use the
-`core` release target to advance Agent/Base together, or `all` when Desktop
-also needs updating; never lower installed security-floor checks to repair a
-mixed repository.
+either a sibling's generation or the previously published floor. Never lower
+installed security-floor checks to repair a mixed repository.
 
 Agent explicitly depends on `libc-bin` for its fixed `/usr/bin/getent` egress
 resolver. Lookup uses the installed NSS configuration in a bounded, owned child;

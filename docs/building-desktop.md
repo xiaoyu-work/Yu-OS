@@ -70,11 +70,9 @@ See [the Azure build](building-azure.md) for a generalized Gen2 VHD.
 
 ## Installer
 
-For a bootable amd64 installer, the manual **Release Yu OS → installer**
-target builds a BIOS/UEFI Calamares ISO from the same run's verified Agent,
-Base and Desktop packages. The ISO and its SHA-256 checksum are run artifacts,
-not a public release or hardware certification. Verify a clean installation and
-an upgrade on a disposable disk before distributing the image.
+The release workflow publishes updates to APT, not installer downloads.
+For local Calamares testing, use the same signed App and Desktop Shell
+inputs above and follow [Build an Installable ISO](../CONTRIBUTING.md#build-an-installable-iso).
 
 ## Login
 

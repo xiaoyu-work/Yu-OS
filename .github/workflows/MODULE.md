@@ -54,17 +54,15 @@ dispatched and reusable test/publication pipelines.
 - Exercise the independent nearby transport's actual TLS loopback, private
   D-Bus lease/failed-retirement cases and Root-only temporary-file/sandbox
   boundaries without acquiring wireless hardware; see `scripts/ci/test-boundaries.sh nearby`.
-- Build shared Docker/WSL images per architecture.
-- Build and sign independent multi-architecture APT packages/repository.
-- Stage the static marketing website as an independent Pages input.
-- Publish GHCR manifests, WSL releases, and GitHub Pages.
+- Build and verify Agent, Base and Desktop packages for one signed APT release.
+- Stage the static marketing website beside the APT repository on GitHub Pages.
 
 ## Key Files
 
 | Path | Role |
 | --- | --- |
 | `test.yml` | Pull-request, manual, and reusable test/clippy workflow |
-| `release.yml` | Manual `agent`, `base`, `core`, `desktop`, `images`, `website` or `all` release; shared package builds, one website/APT composition and Pages deployment |
+| `release.yml` | Manual OS release on `main`; publishes the signed Agent, Base and Desktop updates together |
 | `publish-sdk-release.yml` | GitHub SDK artifacts and synchronized language tags |
 | `publish-app-platform.yml` | Manually published versioned SDK/runtime/toolkit development artifact for independent App builds |
 | `../actionlint.yaml` | Compatibility with GitHub's queued concurrency |
@@ -72,36 +70,27 @@ dispatched and reusable test/publication pipelines.
 
 There are four workflow entry points. `release.yml` freezes one
 [date-based package version](../../packaging/README.md#independent-publication)
-and, when Apps are needed, one App-main snapshot for the whole run. `all`
-calls `test.yml` with that snapshot before building. Targeted releases
-retain their component checks without rerunning the full shared suite.
-Agent/Base packages are built once and downloaded by the image matrix; image
-jobs never compile the shared Rust binaries. Docker and WSL consume the same
-stamped rootfs per architecture. Desktop retains its dedicated full-rootfs
-build and native source graph.
-Its package jobs use native GitHub-hosted amd64/arm64 runners and remove only
+and one App-main snapshot for the whole run. It calls `test.yml` with that
+snapshot before building the packages. Desktop retains its dedicated rootfs
+build and native source graph. Its package jobs use native GitHub-hosted
+amd64/arm64 runners and remove only
 unused Android, .NET and GHC toolchains from those disposable machines before
-the existing disk-space preflight. Package-only publication does not select
-the image targets.
+the existing disk-space preflight.
 
-`core` publishes Agent and Base together without building Desktop or images.
-Its Agent matrix installs and reinstalls that exact pair in one APT transaction
-and verifies the installed floor before uploading the Agent packages.
+The Agent matrix installs and reinstalls the exact Agent/Base pair in one
+APT transaction and verifies the installed floor before uploading the packages.
 Before Agent upload, the amd64 runner also installs the actual official
 signed App Store KV/DB bundle for a fresh synthetic owner through protected
 displayed-revision review, then runs the existing real product browser/MCP
 driver against the installed Web server. This is public-origin delivery
 acceptance, not a source-fixture or physical-device claim.
-Use it when their protocol generations must advance together. The publisher
-compares every package's declared protocols with the maximum in both the new
-pool and authenticated previous manifests; incompatible partial releases fail
-before Pages deployment. Compatible package versions may still differ.
+The publisher compares every package's declared protocols with both the new
+pool and authenticated previous manifests before Pages deployment.
 
-Release runs queue without cancelling one another. Selected packages are merged
-with the authenticated existing pool only once, alongside one independent web
-build, then signed and deployed once. `images` builds signed Agent/Base inputs
-without publishing those packages to APT. `website` preserves the existing
-signed package pool. Non-expiring indexes need no scheduled refresh.
+Release runs queue without cancelling one another. All packages are merged
+with the authenticated existing pool, signed and deployed alongside the staged
+website. Non-expiring indexes need no scheduled refresh. This workflow does
+not build installer, Docker or WSL images.
 
 SDK publication also builds tested portable `yu` signing executables for amd64
 and arm64 from that same commit, after its full Root validation succeeds.

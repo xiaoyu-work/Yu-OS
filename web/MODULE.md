@@ -19,9 +19,8 @@ root beside the signed APT repository.
 
 ## Publication
 
-The `website` target of `.github/workflows/release.yml` stages `web/` as an
-independent artifact. Pages composition places it at `/` and the APT
-repository under `/apt`; neither is included in the other.
+`.github/workflows/release.yml` stages `web/` during signed OS publication.
+Pages composition places the site at `/` and the APT repository under `/apt`.
 
 ## Validation
 

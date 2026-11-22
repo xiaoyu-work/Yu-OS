@@ -610,46 +610,34 @@ channel.
 Before a signed release, add the existing OS archive's armored GPG private key
 and passphrase to the repository Actions secrets `YUOS_APT_SIGNING_PRIVATE_KEY`
 and `YUOS_APT_SIGNING_PASSPHRASE`. Reuse the trusted archive key; these settings
-do not rotate it. Desktop targets additionally require the approved App
+do not rotate it. Sealing the bundled Desktop Shell also requires the approved App
 Ed25519 key JSON in the OS repository's
 `YUOS_APPS_PROVENANCE_SIGNING_PRIVATE_KEY` Actions secret. It must match the
 publisher installed by `yuos-agent`; it is only used in the OS sealing step,
 never by the App source build.
 
-The **Release Yu OS** workflow (`release.yml`) has one target selector:
+Run **Release Yu OS** (`release.yml`) on `main` to publish `yuos-agent`,
+`yuos-base` and `yuos-desktop` together. After the shared tests, CI builds Agent
+and Desktop for amd64 and arm64 and one architecture-independent Base package.
+It publishes those updates to the signed APT source, not a GitHub Release or
+an installer, Docker or WSL download.
 
-| Target | Builds and publishes |
-| --- | --- |
-| `agent` | `yuos-agent` for amd64 and arm64, with TUI, Ubuntu install/reinstall and actual official Store/browser/MCP checks |
-| `base` | `yuos-base` (`Architecture: all`) |
-| `core` | Agent and Base together, without Desktop or image builds; coordinated protocol updates and headless recovery |
-| `desktop` | `yuos-desktop` for amd64 and arm64, including the Shell from locked App main built natively on Debian 13 |
-| `installer` | Candidate amd64 Desktop Calamares ISO and checksum, verified against same-run signed packages; workflow artifacts only |
-| `images` | Shared-rootfs Docker/WSL images; consumes same-run signed Agent/Base packages without publishing them to APT |
-| `website` | Website and Pages composition; preserves every existing package |
-| `all` | Shared tests, all packages, Docker/WSL and one Pages publication |
-
-Each run freezes one version for every selected OS package and architecture,
+Each run freezes one version for all OS packages and architectures,
 for example `1:0.1.0+r20261121.01`. The date is the UTC dispatch date. Each new
-dispatch reserves the next daily number (`.01`, `.02`, …), even if it does not
-publish packages; rerunning the same workflow run reuses its number. The `+r`
+dispatch reserves the next daily number (`.01`, `.02`, …), even if it fails;
+rerunning the same workflow run reuses its number. The `+r`
 suffix sorts after the former `+git` versions at the same base version and
 Debian epoch. Standalone App versions are independent.
 
-The workflow also freezes the authenticated App APT package closure for
-selected architectures. `desktop`, `installer` and `all` lock App main for
-the Shell build; `all` uses that same commit for the separate test fixture.
-The OS run retains only intermediate build and verification artifacts for the
-Shell, not a standalone release. Start a new run to build a later App revision
-and publish it as a newer OS package. Package checks reverify official APT
-evidence and refuse ordinary App/support/library ownership before upload.
-Images download the signed Agent/Base packages instead of rebuilding the common
-binaries; Docker and WSL share one stamped rootfs per architecture.
+The workflow freezes the authenticated App APT package closure for both
+architectures and one App main commit for the native Debian 13 Shell build
+and separate test fixture. It seals the Shell for `yuos-desktop`, not for a
+standalone release. Package checks reverify official APT evidence and refuse
+ordinary App/support/library ownership before upload.
 
-One publisher gathers every selected package and one website artifact. It
-reads the current signed repository, restores the latest packages not rebuilt
-by the caller, and compares each locally built package with the signed candidate
-for that package and architecture. Only a strictly newer local version replaces
+One publisher gathers the packages from this run, stages the website, and
+compares each package and architecture against the authenticated current
+repository. Only a strictly newer package version replaces
 the existing candidate; equal or older artifacts are discarded before the
 indexes are regenerated, signed, and deployed to Pages. A build that carries a
 *lower security epoch* is refused outright, even when its Debian version sorts
@@ -663,10 +651,8 @@ repository publishes; the set must be mutually compatible; and nothing may
 regress the epoch, the version, or the bytes of a version already published.
 Protocol generations are compared against the maximum across the candidate
 pool and authenticated previous package manifests. A newer package version
-cannot lower that floor, and an Agent-only release cannot preserve a Base
-whose declared protocols are too old. Select `core` for a coordinated
-Agent/Base release, or `all` if Desktop also declares an older protocol.
-Compatible package versions remain independently publishable.
+cannot lower that floor. Publishing the OS packages together ensures that
+compatible protocol changes are available in the same update.
 
 Publication is anchored to a **signed baseline marker**. Once a repository has
 published `dists/<suite>/release-security/baseline.json` and advertised
@@ -675,8 +661,8 @@ publication must retrieve and verify that marker and every published
 per-package manifest. A `curl` failure, a non-200 status, a missing manifest or
 a signature failure is fatal — never "there is no repository yet". Establishing
 the baseline for a repository that predates downgrade protection is a
-deliberate, one-time migration: select a package target in `release.yml` with its
-`release_security_bootstrap` input enabled. It is rejected once the marker
+deliberate, one-time migration: dispatch `release.yml` with
+`release_security_bootstrap` enabled. It is rejected once the marker
 exists, and no ordinary build can set it.
 
 The marker is never advertised without the artifact behind it.
@@ -739,7 +725,7 @@ sudo apt install yuos-agent
 That one package installs and enables `yuosd.service`. It does not install
 Yu OS home overlays, boot policy, or desktop integration. To turn a composed
 rootfs into Yu OS, install `yuos-base`; its runtime dependency pulls in
-`yuos-agent` without coupling their release schedules.
+`yuos-agent`.
 
 Repository builds require `GPG_KEY_ID` and refuse to emit unsigned metadata.
 GitHub Actions imports the private key from the
@@ -749,10 +735,8 @@ Local rootfs builds should set `YUOS_APT_PUBLIC_KEY_FILE` to a trusted
 binary export of that public key. Download fallback is available only when
 `YUOS_APT_PUBLIC_KEY_FINGERPRINT` is supplied explicitly.
 
-Package publication workflows require `YUOS_APT_SIGNING_PRIVATE_KEY` and
-cannot publish without it. Image workflows never fall back to an unsigned
-source: when the key is unavailable they omit the `apt-source` feature while
-continuing to build Docker and WSL artifacts.
+The release workflow requires `YUOS_APT_SIGNING_PRIVATE_KEY` and cannot publish
+without it. A local image using `apt-source` must use the trusted archive key.
 
 OAuth client registration and end-user authorization are runtime concerns.
 Agent packages and publication workflows never accept or embed Google or
