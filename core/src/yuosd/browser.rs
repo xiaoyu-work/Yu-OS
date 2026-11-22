@@ -82,6 +82,8 @@ pub async fn control(params: Value, authority: &Decision) -> Result<Value, Broke
             BrokerError::execution(format!("invalid browser control request: {error}"))
         })?;
         let prepared = prepare_action(&request).map_err(BrokerError::execution)?;
+        super::app_sessions::require_product_component(authority, &["browser-attached"])
+            .map_err(BrokerError::authorization)?;
         let _authorized = authority
             .require(prepared.capability)
             .map_err(BrokerError::authorization)?;

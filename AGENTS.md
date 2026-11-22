@@ -211,7 +211,12 @@ Documentation-only changes do not require code tests.
   execute app entrypoint code.
 - Apps never call model-provider SDKs directly. AI access goes through the
   Yu OS SDK/agent gate so consent, budgets, logging, and provider ownership
-  remain centralized.
+  remain centralized. Use AI verb-only needs; the owner chooses the model and
+  monthly budget in Settings, not the App manifest.
+- Ordinary Apps can use their own data, owner-selected files and default
+  public egress as described in the [App guide](docs/app-development.md).
+  Do not add App-to-App permissions. The built-in System Agent calls enabled
+  App MCP tools through the authenticated App Host.
 - Privileged or model-visible behavior must remain capability-gated and
   reconstructable from session/audit logs.
 - Reuse the service-definition/provider/consumer seam documented in
@@ -245,7 +250,7 @@ protocol, authorization or other platform contract actually changes.
 
 Permission-related changes must also remain visible in the OS-generated
 installation review, including conditional needs, argument constraints, AI
-policy and background/external-Agent access. A review digest is comparison
+input policy and System Agent MCP availability. A review digest is comparison
 data, never an authorization token. Ordinary installation or selecting a
 default handler grants no requested capabilities. Preinstalled App defaults
 come only from the OS package's verified release selection.

@@ -43,9 +43,9 @@ family is distinct from the generated CLI schemas' mathematical integers.
 
 | Operation | Additional fields | Existing OS authorization |
 | --- | --- | --- |
-| `calendar-day` | `date`: year `-9999..9999`, month `1..12`, Gregorian day valid for that month/year | `data.db.read:Name(calendar)` |
-| `calendar-today` | None | `data.db.read:Name(calendar)` |
-| `tasks` | None | `agent.observe:Name(tasks)` |
+| `calendar-day` | `date`: year `-9999..9999`, month `1..12`, Gregorian day valid for that month/year | Verified Calendar product plus `data.db.read:Name(calendar)` |
+| `calendar-today` | None | Same as `calendar-day` |
+| `tasks` | None | Non-App OS session with `agent.observe:Name(tasks)` |
 | `system` | None | `sys.observe:Wild` |
 | `history-check` | `permission`: `read` or `write` | Respectively `clipboard.read:Name(history)` or `clipboard.write:Name(history)` |
 
@@ -60,10 +60,11 @@ or a transferable authorization token.
 The installed helper selects `/usr/local/bin/yu` directly, ignoring `YUOS_BIN`
 and `PATH` overrides. A successful policy response must affirm exactly the
 requested verb and scope. Calendar uses the owner-scoped OS read service,
-which independently checks the existing named read grant. The caller's data
-directory never selects Calendar storage. Only bounded records return; the
-private database view and query process remain OS-owned. Other policy probes
-do not attest a caller-selected resource directory.
+which independently checks the live Calendar product binding and named read
+grant. The caller's data directory never selects Calendar storage. Only
+bounded records return; the private database view and query process remain
+OS-owned. Apps cannot use the task operation to get System Agent data.
+Other policy probes do not attest a caller-selected resource directory.
 
 ## Responses
 

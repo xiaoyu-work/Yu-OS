@@ -141,8 +141,6 @@ impl Fixture {
         })).unwrap()).unwrap();
         drop(selector);
         let expected = [
-            ("system.calendar.day", "day", Verb::DATA_DB_READ, "calendar"),
-            ("system.observation.query", "tasks", Verb::AGENT_OBSERVE, "tasks"),
             ("system.observation.query", "resources", Verb::SYS_OBSERVE, "resources"),
         ];
         let mut floor = first_frame["buffer_commits"].as_u64().unwrap();
@@ -150,18 +148,25 @@ impl Fixture {
         loop {
             check_native_process(retained, process)?;
             let audit = audit_since(0);
+            if audit.iter().any(|record| {
+                record["event"] == "yuosd.request" && record["params"]["session"] == session
+                    && (record["command"] == "system.calendar.day"
+                        || record["command"] == "system.observation.query"
+                            && record["params"]["action"] == "tasks")
+            }) {
+                return Err("Widget Rail requested another product's private records".into());
+            }
             let mut requests = Vec::new();
             let mut uses = Vec::new();
             for (route, action, verb, scope) in expected {
                 let matching = audit.iter().filter(|record| record["event"] == "yuosd.request"
                     && record["command"] == route && record["params"]["session"] == session
-                    && (route == "system.calendar.day" || record["params"]["action"] == action))
+                    && record["params"]["action"] == action)
                     .collect::<Vec<_>>();
                 assert!(matching.len() <= 8, "unbounded Widget Rail startup query repetition");
                 for request in &matching {
                     if request["ok"] != true || request["client"]["uid"] != OWNER
                         || !request["client"]["pid"].as_u64().is_some_and(|pid| pid > 1)
-                        || (route == "system.calendar.day" && self.query_day(&request["params"]).is_none())
                     {
                         return Err(format!("Widget Rail {action} reader failed: {request}"));
                     }
@@ -197,11 +202,10 @@ impl Fixture {
                 let report = serde_json::json!({
                     "schema":"yuos.private-native-desktop-widgets-consumer/v1",
                     "instance":instance, "owner_uid":OWNER, "requests":requests, "exact_scope_uses":uses,
-                    "fixture_event_id":EVENT_ID, "fixture_event_title":EVENT_TITLE,
                     "passive_panel_snapshot":frame["snapshot"], "window":frame,
                     "raw_calendar_database":false, "real_existing_reader_success":true,
                     "sdk_reply_delivery_and_decode_asserted":false, "card_text_rendering_asserted":false,
-                    "coverage":"Original Widget Rail panel pixels and successful exact-owner Calendar/task/resource SDK reads; no Agent/model, raw Calendar database or owner bus. Reply decoding and exact painted card text require independent inspection.",
+                    "coverage":"Widget Rail panel pixels and successful OS resource read without Calendar or Agent task requests, raw Calendar database or owner bus.",
                 });
                 let path = "/run/gui-fixture/native-desktop-widgets-consumer.json";
                 let bytes = serde_json::to_vec_pretty(&report).unwrap();

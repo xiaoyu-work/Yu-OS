@@ -97,7 +97,7 @@ and agent tasks.
 | `capture.rs`, `capture/` | Exact-output non-interactive screenshots and Root-held per-GUI interactive portal custody; authenticated OS helpers, live screen spend, metadata-only GUI results and checked portal/helper retirement; no App program or raw App bus |
 | `media_player.rs`, `media_player/gui.rs` | Capability-gated media clients and the exact managed native GUI exchange; separate caller grants, current package/instance binding, live UI commands/status and deadlines, without owner-bus or compatibility-executable discovery |
 | `clipboard.rs`, `clipboard/history.rs` | Independent selection/history capabilities; owner/session-bound legacy selection and private CopyQ data relay, with no App-name entitlement. History Restore extracts the matched standard MIME data and writes through the authenticated Root display, not CopyQ's unverified clipboard target |
-| `calendar.rs`, `calendar/files.rs` | Owner-scoped Calendar read service; exact named grant, pinned live database view and bounded unprivileged reader, with no App data mount delivered to callers |
+| `calendar.rs`, `calendar/files.rs` | Calendar-product-only read service; exact grant, pinned database view and bounded unprivileged reader |
 | `desktop.rs` | Owner desktop service; Files reveals only its fixed target; Terminal, Store and Settings open only their fixed binaries with an optional directory/package/page under their original independent process-spawn grants |
 | `desktop/windows.rs` | Capability-gated window, output and workspace state and closed actions through the authenticated Root display channel; epoch-bound window IDs and read-only effect observation, with no owner compositor socket |
 | `desktop/settings.rs` | Fixed Settings user-service activation; authenticated owner manager, closed GUI environment, independent lifetime and startup acknowledgement without weakening daemon/worker NoNewPrivileges |
@@ -286,8 +286,9 @@ Native and Web acceptance remains product-owned and separately gated.
 `system.calendar.day` accepts only a session and Gregorian year/month/day.
 It derives the authenticated owner's existing `apps/calendar/calendar/events.db`,
 requires `data.db.read:Name(calendar)` and never accepts a caller path, owner,
-SQL statement or executable. Any independently authorized client may read;
-neither `calendar` nor a panel identity grants permission. The five-second
+SQL statement or executable. Only the live verified Calendar product
+(including its own panel) can use this route. A grant or a matching name
+without the installed publisher and workload binding is not enough. The five-second
 reader uses the existing query semantics in a separate GPL OS executable,
 not product code or a core-linked desktop library.
 
@@ -308,6 +309,10 @@ through that parent. This does not expose a database in the host or App
 namespace, allow directory enumeration or relax the daemon's private umask.
 The genuine native Calendar consumer regression runs under `0077` and checks
 the parent mode, actual dropped-reader success and checked view retirement.
+
+Attached browser control likewise requires the live verified Browser product.
+The OS observation route continues to expose system resource telemetry with
+the existing scope. App sessions cannot use it to read System Agent Jobs.
 
 Ordinary operation and GUI registration are reserved for the direct owner
 frontend. Task Hosts can relay System Agent MCP calls but cannot register an

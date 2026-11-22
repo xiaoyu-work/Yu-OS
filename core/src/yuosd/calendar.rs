@@ -1,5 +1,5 @@
-//! Owner-scoped Calendar observation. Only the OS reader receives database
-//! descriptors; callers receive bounded records, never paths or file access.
+//! Calendar product panel read. Only the reader receives database descriptors;
+//! the verified product receives bounded records, never raw file access.
 
 use std::time::Duration;
 
@@ -36,6 +36,8 @@ fn authorize(
             "Calendar authority belongs to another owner",
         ));
     }
+    super::app_sessions::require_product_component(authority, &["calendar", "panel-calendar"])
+        .map_err(BrokerError::authorization)?;
     authority
         .require(Cap::new(Verb::DATA_DB_READ, Scope::name("calendar")))
         .map_err(BrokerError::authorization)

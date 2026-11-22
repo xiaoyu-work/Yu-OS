@@ -39,7 +39,7 @@ fn decision(app: Option<&str>, caps: Vec<Cap>) -> Decision {
 }
 
 #[test]
-fn calendar_requires_the_exact_owner_and_live_read_scope_not_a_client_name() {
+fn calendar_read_grant_alone_cannot_open_the_private_store() {
     let _lock = crate::test_env::lock_env();
     let root = tempfile::tempdir().unwrap();
     let _data = crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", root.path());
@@ -51,26 +51,10 @@ fn calendar_requires_the_exact_owner_and_live_read_scope_not_a_client_name() {
         Some("independent-client"),
         None,
     ] {
-        let allowed = decision(app, vec![cap.clone()]);
-        assert!(authorize(&allowed, uid + 1).is_err());
-        assert!(!crate::yuosd::authority::obligation_met(Some(&allowed)));
-        assert_eq!(
-            authorize(&allowed, uid).unwrap().spent(),
-            std::slice::from_ref(&cap)
-        );
-        assert_eq!(allowed.app_id(), app);
-        assert!(
-            authorize(&allowed, uid).is_err(),
-            "one read spends one grant use"
-        );
-        for caps in [
-            vec![],
-            vec![Cap::new(Verb::DATA_DB_READ, Scope::name("other"))],
-            vec![Cap::new(Verb::DATA_DB_WRITE, Scope::name("calendar"))],
-            vec![Cap::new(Verb::FS_READ, Scope::Wild)],
-        ] {
-            assert!(authorize(&decision(app, caps), uid).is_err());
-        }
+        let unverified = decision(app, vec![cap.clone()]);
+        assert!(authorize(&unverified, uid + 1).is_err());
+        assert!(authorize(&unverified, uid).is_err());
+        assert!(!crate::yuosd::authority::obligation_met(Some(&unverified)));
     }
     let revoked = decision(Some("independent-client"), vec![cap]);
     authority().revoke_session(revoked.session_id().unwrap());

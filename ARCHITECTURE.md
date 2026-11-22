@@ -479,8 +479,8 @@ vendored Helium source. The OS admits both private headless rendering and
 attached tab actions through separate typed providers. Desktop and headless
 rendering use the same installed Helium browser without sharing a profile.
 
-Calendar, Clipboard and Widget Rail retain their complete original native UI,
-localization and resources in independent App packages. The OS `cosmic-applets`
+Calendar, Clipboard and Widget Rail own their native UI,
+localization and resources in App packages. The OS `cosmic-applets`
 dispatcher no longer links those libraries, injects product callbacks or
 generates their templates/aliases. Their unchanged panel desktop IDs select
 App-owned real binaries through common-Host compatibility launchers.
@@ -490,8 +490,9 @@ Shared read-only Calendar,
 task-list and telemetry providers and policy checks live in
 `desktop/services/yuos-applet-services`, not in an App. Agent Activity shares
 only the task-list provider; task mutations and Agent execution remain OS-owned.
-Widget Rail's presentation mapping is App-owned; OS telemetry/provider policy
-remains separate. No new state store or cross-App call is introduced.
+Widget Rail shows shared OS resource telemetry. Calendar's private records
+stay with Calendar and its own panel, and System Agent Jobs stay with OS
+Agent surfaces. No new state store or cross-App call is introduced.
 `panel-calendar`, `panel-clipboard` and `widget-rail` remain independently
 App-owned, with original launcher identities and independent grants
 unchanged; installed updates remain signed APT packages.
@@ -506,8 +507,9 @@ development export. This source interface does not release a new SDK, replace
 the current App pin, complete authenticated GUI/resource admission, or authorize
 CopyQ/Wayland access. The removed shell links are not a source fallback.
 
-Calendar day reads now cross `system.calendar.day` under the exact
-`data.db.read:calendar` grant. `yuosd` selects the authenticated owner's existing
+The verified Calendar product uses `system.calendar.day` with the existing
+`data.db.read:calendar` grant. Other Apps cannot use that grant as access to
+Calendar's data. `yuosd` selects the authenticated owner's existing
 Calendar store and gives an unprivileged OS reader a private, descriptor-pinned,
 kernel-read-only/NOSYMFOLLOW directory view. Live sidecars retain SQLite's
 transaction and checkpoint semantics. The query/filter implementation stays

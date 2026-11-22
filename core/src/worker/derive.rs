@@ -62,15 +62,16 @@ const FORBIDDEN_ROOTS: &[&str] = &[
     "/root",
 ];
 
-/// Directory names that are credential stores wherever they appear.
+/// Private stores that must not be exposed by a generic file grant.
 const FORBIDDEN_COMPONENTS: &[&str] = &[
     ".ssh",
     ".gnupg",
     ".aws",
     ".docker",
     ".kube",
+    ".thunderbird",
     ".config/yuos",
-    ".local/share/yuos/credentials",
+    ".local/share/yuos",
 ];
 
 /// Ceiling on how many mounts one launch may derive from its granted
@@ -1149,11 +1150,24 @@ fn sdk_python_path() -> Option<String> {
 /// actually occur — so a deep tree does not turn a launch into a walk
 /// of the whole filesystem.
 fn reject_forbidden_descendants(prefix: &Path) -> Result<(), String> {
+    let home = crate::paths::current_home_override()
+        .or_else(|| std::env::var_os("HOME").map(PathBuf::from));
     for component in FORBIDDEN_COMPONENTS {
-        if prefix.join(component).exists() {
+        if prefix.join(component).exists()
+            || home.as_ref().is_some_and(|home| {
+                let store = home.join(component);
+                store.starts_with(prefix)
+                    || store.canonicalize().is_ok_and(|path| path.starts_with(prefix))
+            })
+        {
             return Err(format!(
                 "recursive scope would expose credential store `{component}`"
             ));
+        }
+        if let Some(root) = std::env::var_os("YUOS_USER_DATA_DIR").map(PathBuf::from) {
+            if root.starts_with(prefix) || root.canonicalize().is_ok_and(|path| path.starts_with(prefix)) {
+                return Err("recursive scope would expose private Yu OS data".into());
+            }
         }
     }
     for root in FORBIDDEN_ROOTS {
@@ -1210,6 +1224,12 @@ fn reject_forbidden_with_home(path: &Path, home: Option<&Path>) -> Result<(), St
             return Err(format!(
                 "worker sandbox refuses to expose credential store `{component}`"
             ));
+        }
+        if let Some(root) = std::env::var_os("YUOS_USER_DATA_DIR").map(PathBuf::from) {
+            if root.is_absolute() && path.starts_with(&root) {
+                return Err("worker sandbox refuses to expose private Yu OS data".into());
+            }
+            reject_store_alias(path, &root)?;
         }
         if let Some(home) = home {
             reject_store_alias(path, &home.join(component))?;

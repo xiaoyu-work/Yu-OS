@@ -202,30 +202,12 @@ impl Draft {
 }
 
 fn verify_system_gui(launch: &AppLaunch) -> Result<(), String> {
-    use crate::provenance::{
-        envelope::ENVELOPE_FILE, fsec, trust::VENDOR_TRUST_ROOT, TrustSource, TrustTier,
-    };
-    use std::path::Path;
-
-    let package = launch.package();
-    let trust = crate::provenance::trust_store();
-    let publisher = Path::new(VENDOR_TRUST_ROOT).join("yuos-app.json");
-    if package.dir() != Path::new("/usr/lib/yuos/apps").join(launch.app_id())
-        || launch.manifest().runtime != crate::caps::manifest::Runtime::Binary
-        || package.tier() != TrustTier::Vendor
-        || !matches!(package.source(), TrustSource::Publisher { key_id }
-            if trust.key(key_id).is_some_and(|key| key.source == publisher))
+    if launch.manifest().runtime != crate::caps::manifest::Runtime::Binary
+        || launch.package().id() != launch.app_id()
     {
         return Err("system desktop role requires the installed vendor-signed GUI".into());
     }
-    fsec::require_secure_location(package.dir(), &[0]).map_err(|error| error.to_string())?;
-    for path in package.files().map(|file| file.path.as_str()).chain([ENVELOPE_FILE]) {
-        let node = fsec::lstat(&package.dir().join(path)).map_err(|error| error.to_string())?;
-        if node.uid != 0 || node.is_symlink || node.is_group_or_world_writable() {
-            return Err("system desktop package contains an unprotected resource".into());
-        }
-    }
-    package.assert_current(&trust).map_err(|error| error.to_string())
+    super::verify_vendor_app(launch.package(), &crate::provenance::trust_store())
 }
 
 pub(super) fn owner_settings_cap(cap: &Cap) -> bool {

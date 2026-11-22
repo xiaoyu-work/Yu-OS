@@ -40,7 +40,7 @@ fn decision(app: Option<&str>, cap: Option<Cap>) -> Decision {
 }
 
 #[test]
-fn observation_requires_live_exact_owner_and_capabilities_not_an_app_name() {
+fn observations_keep_system_resources_shared_but_app_task_reads_denied() {
     let _lock = crate::test_env::lock_env();
     let root = tempfile::tempdir().unwrap();
     let _caps = crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", root.path());
@@ -55,6 +55,11 @@ fn observation_requires_live_exact_owner_and_capabilities_not_an_app_name() {
         ] {
             let allowed = decision(app, Some(cap.clone()));
             assert!(authorize(&allowed, owner + 1, action).is_err());
+            if action == "tasks" && app.is_some() {
+                assert!(authorize(&allowed, owner, action).is_err());
+                assert!(!crate::yuosd::authority::obligation_met(Some(&allowed)));
+                continue;
+            }
             assert_eq!(authorize(&allowed, owner, action).unwrap().spent(), &[cap]);
             assert!(authorize(&allowed, owner, action).is_err());
             assert!(authorize(&decision(app, None), owner, action).is_err());
@@ -79,7 +84,7 @@ fn observation_requires_live_exact_owner_and_capabilities_not_an_app_name() {
         .is_err());
     }
     let revoked = decision(
-        Some("independent-observer"),
+        None,
         Some(Cap::new(Verb::AGENT_OBSERVE, Scope::name("tasks"))),
     );
     authority().revoke_session(revoked.session_id().unwrap());

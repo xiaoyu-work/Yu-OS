@@ -86,13 +86,11 @@ derive it from Host HOME. Task registration must supply its Root-owned binding;
 missing bindings are errors, not empty temporary stores. See
 [persistent data and update behavior](updating.md#app-data-moves-into-per-app-directories).
 
-The public App data client's Calendar day/today operations read the
-authenticated owner's Calendar store through the OS service, not through the
-caller's local data directory. They require the existing named
-`data.db.read:calendar` capability, independently of caller identity or language.
-Write authority does not substitute for read authority, and the response grants
-no filesystem access. Calendar's provider, overlap, timezone and sorting
-semantics are unchanged; the public SDK request/response format is unchanged.
+Calendar and its panel are surfaces of the same product. The old Calendar
+day/today client remains wire-compatible for that verified product only;
+`data.db.read:calendar` is not an entitlement for unrelated Apps to read the
+Calendar store. Private mailbox, signed-in browser tabs and System Agent tasks
+are also not shared App data. General OS telemetry is a separate service.
 
 Bundled source ownership is independent of the installed App identity.
 Migrated business products live under external `products/`; shared-capability

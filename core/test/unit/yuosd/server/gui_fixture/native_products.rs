@@ -250,10 +250,10 @@ impl Product {
         }
         let mut needs = Vec::new();
         if self.panel {
-            needs.push(Cap::new(Verb::DATA_DB_READ, Scope::name("calendar")));
             if self.name == "desktop-widgets" {
                 needs.push(Cap::new(Verb::SYS_OBSERVE, Scope::name("resources")));
-                needs.push(Cap::new(Verb::AGENT_OBSERVE, Scope::name("tasks")));
+            } else {
+                needs.push(Cap::new(Verb::DATA_DB_READ, Scope::name("calendar")));
             }
             needs.push(Cap::unscoped(Verb::UI_PANEL));
         }
@@ -1001,9 +1001,8 @@ pub(super) async fn run(group: &std::fs::File, product: Product) {
     let editor = product.name == "editor";
     let package_owned = Path::new("/run/gui-fixture/native-store-package").exists();
     assert!(!package_owned || product.name == "store");
-    let calendar_fixture = product.startup_needs().iter().any(|cap| {
-        cap.verb == Verb::DATA_DB_READ && cap.scope == Scope::name("calendar")
-    }).then(calendar_popup::Fixture::prepare);
+    let calendar_fixture = matches!(product.name, "calendar" | "desktop-widgets")
+        .then(calendar_popup::Fixture::prepare);
     let mut clipboard_fixture = if product.name == "clipboard" {
         Some(clipboard_history::Fixture::prepare().await)
     } else {

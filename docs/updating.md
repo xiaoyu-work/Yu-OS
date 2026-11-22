@@ -1049,6 +1049,24 @@ apply. System Agent and Activity budgets are unchanged. The native Settings
 page requires the matching OS runtime; an older runtime does not write a
 fallback setting.
 
+## App isolation and desktop defaults
+
+Update Yu OS runtime and desktop together and use the matching signed
+`yuos-app-mail` and `yuos-app-mail-desktop` packages. Restart Thunderbird so
+the bundled extension and Native Messaging host reconnect with Mail protocol
+v2. An incompatible combination refuses Mail automation instead of reopening
+the old generic mailbox route. Thunderbird login, account/profile data and
+native mail UI are not migrated. The independent AI-only bridge does not gain
+mailbox access.
+
+Apps no longer get a grant to call other Apps. The built-in System Agent
+can call enabled tools in the target App's MCP service. Calendar's own panel
+still shows events; Widget Rail shows OS resources, not private Calendar
+records or System Agent prompts. Ordinary signed owner launches use the
+[public-only TCP proxy](app-development.md#10-what-an-operation-can-reach);
+the [system Open dialog](app-development.md#open-a-user-selected-file) gives
+a signed GUI an exact read, without opening a broader filesystem grant.
+
 ## System Updates in Settings
 
 Desktop requires the matching Agent's `yuos-desktop-settings-v1` interface.

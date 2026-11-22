@@ -28,6 +28,19 @@ For other capabilities, see [App events](wire/v1/app-events.md),
 [App data services](wire/v1/applet-services.md). Each requires the applicable
 OS service and grant.
 
+## Desktop defaults
+
+Apps can use their own data directory without a separate permission. An
+ordinary signed App launched by the owner can use the
+[public outbound TCP proxy](../docs/app-development.md#10-what-an-operation-can-reach)
+without a manifest permission. The proxy does not allow LAN access,
+listening, or raw IP sockets.
+
+In a signed GUI, the [system Open dialog](../docs/app-development.md#open-a-user-selected-file)
+gives that window read access to the file the user chooses, without a second
+prompt or a manifest permission for Open. It does not grant folder browsing,
+write access, or access to another App's private data.
+
 ## App object references
 
 Every binding exports the generated `ObjectRef` data contract and pure

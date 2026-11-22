@@ -21,7 +21,14 @@ fn authorize(authority: &Decision, owner: u32, action: &str) -> Result<Authorize
         ));
     }
     let cap = match action {
-        "tasks" => Cap::new(Verb::AGENT_OBSERVE, Scope::name("tasks")),
+        "tasks" if authority.app_id().is_none() => {
+            Cap::new(Verb::AGENT_OBSERVE, Scope::name("tasks"))
+        }
+        "tasks" => {
+            return Err(BrokerError::authorization(
+                "App sessions cannot read the System Agent's tasks",
+            ));
+        }
         "resources" => Cap::new(Verb::SYS_OBSERVE, Scope::name("resources")),
         _ => return Err(BrokerError::execution("Unknown observation action")),
     };

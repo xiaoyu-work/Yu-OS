@@ -113,15 +113,6 @@ async fn calendar_sdk_actor() {
         month: 9,
         day: 9,
     };
-    if std::env::var("YUOS_CALENDAR_CASE").unwrap() == "allowed" {
-        let events = client.calendar_day(date).await.unwrap();
-        assert_eq!(events.len(), 2, "{events:?}");
-        assert!(events
-            .iter()
-            .any(|event| event.title == "Calendar MCP event"));
-        assert!(events.iter().any(|event| event.id == "wal-event"));
-        assert!(!events.iter().any(|event| event.title.contains("decoy")));
-    }
     assert!(matches!(
         client.calendar_day(date).await,
         Err(ClientError::Provider(Failure {
@@ -355,7 +346,7 @@ async fn calendar_mcp_to_broker_reader_and_public_sdk() {
         b"not the Calendar database",
     )
     .unwrap();
-    for case in ["allowed", "wrong-scope"] {
+    for case in ["no-product-binding", "wrong-scope"] {
         let mut command = std::process::Command::new("/run/calendar-sdk-actor");
         command
             .args([
@@ -373,7 +364,6 @@ async fn calendar_mcp_to_broker_reader_and_public_sdk() {
             .env("YUOS_SESSION", "calendar-reader-session")
             .env("YUOS_PROC_DATA_DIR", format!("/run/yuos/caps/{}", owner.uid))
             .env("YUOS_CALENDAR_ACTOR", "1")
-            .env("YUOS_CALENDAR_CASE", case)
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::inherit())
             .stderr(std::process::Stdio::inherit());
@@ -395,7 +385,7 @@ async fn calendar_mcp_to_broker_reader_and_public_sdk() {
         let session = "calendar-reader-session";
         let caps = crate::caps::CapSet::from_caps([Cap::new(
             Verb::DATA_DB_READ,
-            Scope::name(if case == "allowed" {
+            Scope::name(if case == "no-product-binding" {
                 "calendar"
             } else {
                 "other"

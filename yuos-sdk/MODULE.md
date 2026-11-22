@@ -80,11 +80,8 @@ Rust, Python, Node, and Go bindings.
 `yuos-runtime/` is a separate internal package for bundled apps; public apps
 must not depend on its policy/runtime internals.
 
-The public manifest vocabulary includes `mail.accounts`, `mail.read`, `mail.draft` and
-`mail.send` manifest vocabulary. Mailbox read/draft and sender rights remain
-independent, profile-qualified named resources; metadata does not grant them.
-Clients use the existing explicit-binary stdin transport, while OS Mail
-execution, native-peer authentication and startup remain broker-owned.
+There are no public mailbox grants. The verified Mail product uses its own
+private Native Messaging exchange; other Apps do not gain access to it.
 
 Object resolver DTO fields remain `operation`, `id_arg`, and optional
 `revision_arg`. Core binds that selector through the ordinary App command

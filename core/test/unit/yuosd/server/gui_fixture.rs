@@ -107,13 +107,18 @@ fn install_packages(package_only: bool, native: Option<native_products::Product>
     std::fs::create_dir_all(root).unwrap();
     let key =
         SigningKeyFile::generate(Some("private authenticated GUI fixture".to_string())).unwrap();
+    let publisher = root.join(if native.is_some_and(|product| product.app == "panel-calendar") {
+        "yuos-app.json"
+    } else {
+        "gui-fixture.json"
+    });
     std::fs::write(
-        root.join("gui-fixture.json"),
+        &publisher,
         serde_json::to_vec(&key.trust_entry(&[PackageKind::App])).unwrap(),
     )
     .unwrap();
     std::fs::set_permissions(
-        root.join("gui-fixture.json"),
+        &publisher,
         std::fs::Permissions::from_mode(0o644),
     )
     .unwrap();

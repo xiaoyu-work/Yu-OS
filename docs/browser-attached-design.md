@@ -63,7 +63,7 @@ CLI or Agent
   -> hidden yu __browser bridge
   -> typed system.browser.control route
   -> yuosd verifies:
-       authenticated caller App/session identity, without a business-name entitlement
+       live session of the verified installed Browser product component
        exact action capability
        owner uid and owner-only runtime/socket metadata
   -> $XDG_RUNTIME_DIR/yuos-browser.sock
@@ -76,8 +76,9 @@ CLI or Agent
   -> user's logged-in tab
 ```
 
-The App cannot access the browser socket from its sandbox. It can submit only
-the closed `BrowserControl` request schema to `yuosd`. The daemon maps that
+Other Apps cannot gain access to signed-in tabs by requesting `browser.*`
+grants. The owning App cannot access the browser socket from its sandbox.
+It can submit only the closed `BrowserControl` request schema to `yuosd`. The daemon maps that
 request to a fixed extension verb and injects authority-bearing fields such as
 `expected_origin`, `allow_secret`, and `allow_eval`; those fields cannot be
 supplied by MCP arguments.

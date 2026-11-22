@@ -148,8 +148,10 @@ async fn settings_launch_requires_exact_original_proc_scope_before_desktop_acces
         vec![Cap::new(Verb::PROC_SPAWN, Scope::name("yuos-store"))],
     ].into_iter().enumerate() {
         let decision = decision_for_app(Some("yuos-settings"), caps, &format!("settings-denied-{index}"));
-        let error = open_settings(&[], &decision, 1000, 1000, PathBuf::from("/nonexistent"), 1)
-            .await.unwrap_err();
+        let error = open_settings(
+            &[], &decision, NativeLaunchTarget::Settings.spawn_cap(),
+            1000, 1000, PathBuf::from("/nonexistent"), 1,
+        ).await.unwrap_err();
         assert!(!error.contains("home"), "{error}");
     }
 }

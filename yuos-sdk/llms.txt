@@ -12,6 +12,7 @@ Pick the guide for the direction you need: **App â†’ model** or **system Agent â
 - Use the Gateway's call context, not tool arguments or environment variables, for caller identity. Keep MCP stdout for protocol messages; log to stderr.
 - Use SDK chat with an explicit origin: `trusted` for developer-authored text, `user-input` for typed input, and `external-content` for outside data. Declare the corresponding AI capability and follow the owner consent path. Do not call model providers directly.
 - Apps cannot invoke other Apps; the built-in System Agent can call enabled App MCP tools without an App-access grant. The target App's own capabilities still apply.
+- Ordinary owner-launched signed Apps get their own data directory and a public-only outbound TCP proxy without manifest needs. The system Open dialog gives a signed GUI read access to the exact selected file, not to folders, writes, or other Apps' data.
 
 ## Start
 

@@ -61,6 +61,78 @@ use super::state::DaemonState;
 #[cfg(target_os = "linux")]
 pub(crate) mod gui;
 
+pub(super) fn require_product_component(
+    decision: &authority::Decision,
+    components: &[&str],
+) -> Result<(), String> {
+    use crate::provenance::{
+        runtime::{self, InstanceClass, PackageRef}, verify, PackageKind,
+    };
+
+    let refused = || "This data belongs to the verified owning product".to_string();
+    let app_id = decision.app_id().filter(|id| components.contains(id)).ok_or_else(refused)?;
+    let session = decision.session()?;
+    if session.app_id.as_deref() != Some(app_id)
+        || decision.session_id() != Some(session.session_id.as_str())
+        || session.pending_bind
+        || session.ended_at.is_some()
+    {
+        return Err(refused());
+    }
+    let owner = decision.owner_uid();
+    let trust = crate::provenance::trust_store();
+    runtime::assert_live_instance(owner, &session.session_id, &trust)?;
+    let instance = runtime::instance_for(owner, &session.session_id)?.ok_or_else(refused)?;
+    let process = instance.process.ok_or_else(refused)?;
+    if instance.class != InstanceClass::App
+        || process.uid != owner
+        || process.pid != session.pid
+        || process.start_time_ticks.is_none()
+        || process.start_time_ticks != session.start_time_ticks
+        || process.start_time_ticks != crate::proc::read_start_time_ticks_pub(process.pid)
+    {
+        return Err(refused());
+    }
+    let root = std::path::Path::new("/usr/lib/yuos/apps").join(app_id);
+    let installed = verify::verify_package(
+        &root,
+        &verify::VerifyOptions::new(PackageKind::App).expect_id(app_id).signature_only(),
+        &trust,
+    ).map_err(|_| refused())?;
+    if instance.package.as_ref() != Some(&PackageRef::of(&installed)) {
+        return Err(refused());
+    }
+    verify_vendor_app(&installed, &trust)?;
+    decision.ensure_current()
+}
+
+fn verify_vendor_app(
+    package: &crate::provenance::VerifiedPackage,
+    trust: &crate::provenance::trust::TrustStore,
+) -> Result<(), String> {
+    use crate::provenance::{
+        envelope::ENVELOPE_FILE, fsec, trust::VENDOR_TRUST_ROOT, TrustSource, TrustTier,
+    };
+    use std::path::Path;
+
+    let publisher = Path::new(VENDOR_TRUST_ROOT).join("yuos-app.json");
+    if package.dir() != Path::new("/usr/lib/yuos/apps").join(package.id())
+        || package.tier() != TrustTier::Vendor
+        || !matches!(package.source(), TrustSource::Publisher { key_id }
+            if trust.key(key_id).is_some_and(|key| key.source == publisher))
+    {
+        return Err("This service requires its installed vendor-signed App".into());
+    }
+    fsec::require_secure_location(package.dir(), &[0]).map_err(|error| error.to_string())?;
+    for path in package.files().map(|file| file.path.as_str()).chain([ENVELOPE_FILE]) {
+        let node = fsec::lstat(&package.dir().join(path)).map_err(|error| error.to_string())?;
+        if node.uid != 0 || node.is_symlink || node.is_group_or_world_writable() {
+            return Err("Installed vendor App contains an unprotected resource".into());
+        }
+    }
+    package.assert_current(trust).map_err(|error| error.to_string())
+}
+
 /// How long an issued handle may be used to bind a child process.
 /// Long enough for a slow interpreter start, short enough that a
 /// forgotten handle is not standing authority.
