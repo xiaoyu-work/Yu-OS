@@ -90,6 +90,8 @@ pub enum SystemSettingsAction {
     DecisionApply,
     DecisionTest,
     DecisionReset,
+    AiBudgetStatus,
+    AiBudgetApply,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,6 +103,8 @@ pub struct SystemSettings {
     pub account: Option<SystemSettingsAccount>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub decision_model: Option<Text<128>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub monthly_units: Option<u64>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

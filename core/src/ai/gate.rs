@@ -10,7 +10,6 @@
 //!          │                  manifest.ai origin allowlist
 //!          │                          │   ▲
 //!          │                          │   │ tighten only:
-//!          │                          │   │   budget = min(M, U)
 //!          │                          │   │   safety = stricter(M, U)
 //!          │                          │   │   origins = M ∩ U
 //!          │                          │   │
@@ -27,8 +26,7 @@
 //!          │                          │
 //!          │                          ▼
 //!          │                  budget::reserve (hard-deny overcap)
-//!          │                          │   per-app cap from manifest
-//!          │                          │   user cap from
+//!          │                          │   owner limit from
 //!          │                          │   $HOME/.config/yuos/ai/budget.json
 //!          │                          │   (0 = unlimited)
 //!          │                          ▼
@@ -51,10 +49,9 @@
 //! model** — the machine owner does, once, in agent config.
 //!
 //! On top of the manifest, the kernel reads a per-user override file
-//! at `$HOME/.config/yuos/apps/<id>.json` (written by the Cosmic
-//! Settings UI). The override can only **tighten** the manifest:
-//! lower the budget, raise the safety profile, shrink the origin
-//! allowlist, or kill-switch the App entirely. See
+//! at `$HOME/.config/yuos/apps/<id>.json`. It can raise the safety
+//! profile, shrink the origin allowlist, or disable an App. Existing
+//! owner-set per-App limits are also preserved. See
 //! [`crate::ai::overrides`] for the merge semantics.
 //!
 //! Above and orthogonal to overrides, the kernel requires a fresh
@@ -107,7 +104,7 @@ use super::user_budget;
 pub struct ChatRequest {
     /// App id this call is attributed to. The gate looks up the app's
     /// manifest to honour its `ai` policy (prompt origin allowlist,
-    /// monthly budget, safety profile). The model is **not** under app
+    /// safety profile). The model is **not** under app
     /// control — the OS picks it from `/etc/yuos/agent.toml`.
     pub app_id: String,
     /// Where the prompt text originated — `"trusted"`, `"user-input"`,
@@ -432,12 +429,8 @@ pub enum AiError {
     #[error("{0}")]
     Budget(#[from] BudgetError),
 
-    #[error(
-        "user-level AI budget exceeded: {used} of {cap} units used \
-         this period across all apps — raise the cap in Settings → AI \
-         → Budget, or set it to 0 to disable the user-level ceiling"
-    )]
-    UserBudgetExceeded { used: u64, cap: u64 },
+    #[error("The owner's App AI budget cannot cover this request. See Settings > AI Budget.")]
+    UserBudgetExceeded,
 
     #[error(
         "request unit limit exceeded: conservative maximum is {required} units, \
@@ -473,7 +466,7 @@ impl AiError {
             | AiError::OriginNotAllowed { .. }
             | AiError::Denied(_) => "PERMISSION_DENIED",
             AiError::Budget(BudgetError::OverUnitCap { .. })
-            | AiError::UserBudgetExceeded { .. }
+            | AiError::UserBudgetExceeded
             | AiError::RequestBudgetExceeded { .. } => "BUDGET_EXCEEDED",
             AiError::Safety(_) => "SAFETY_VIOLATION",
             AiError::ModalityNotSupported(_) => "UNKNOWN_VERB",
@@ -599,7 +592,7 @@ pub(crate) fn denial_reason_token(err: &AiError) -> &'static str {
         AiError::InvalidInference(_) => "invalid_args",
         AiError::Denied(_) => "caps_denied",
         AiError::Budget(_) => "budget_exceeded",
-        AiError::UserBudgetExceeded { .. } => "user_budget_exceeded",
+        AiError::UserBudgetExceeded => "user_budget_exceeded",
         AiError::RequestBudgetExceeded { .. } => "request_budget_exceeded",
         AiError::Provider(_) => "provider_error",
         AiError::Safety(_) => "safety_block",
@@ -618,14 +611,13 @@ pub(crate) fn denial_reason_token(err: &AiError) -> &'static str {
 /// 2. `commit(actual)` — decrements that reservation and increments usage.
 /// 3. drop before provider success — releases it; drop after success charges it.
 ///
-/// The user-row is opt-in: if `user_cap == 0` the per-user ledger
-/// is not touched at all.
+/// The owner aggregate is always tracked, including in unlimited mode.
 pub(super) struct BudgetReservation {
     store: Store,
     app_id: String,
     estimated: u64,
     per_app_cap: u64,
-    user_cap: u64,
+    owner: Option<u32>,
     /// Period that the underlying SQL row was tagged with at
     /// `reserve` time. Re-using this for settle/refund avoids a
     /// month-boundary race where the request started in period N
@@ -635,15 +627,6 @@ pub(super) struct BudgetReservation {
     refund_on_drop: bool,
 }
 
-fn map_budget_error(error: BudgetError) -> AiError {
-    match error {
-        BudgetError::OverUnitCap { app, used, cap } if app == user_budget::USER_BUDGET_BUCKET => {
-            AiError::UserBudgetExceeded { used, cap }
-        }
-        other => AiError::Budget(other),
-    }
-}
-
 impl BudgetReservation {
     pub(super) fn for_app(
         authority: Option<&crate::yuosd::authority::Decision>,
@@ -651,38 +634,57 @@ impl BudgetReservation {
         units: u64,
         cap: u64,
     ) -> Result<Self, AiError> {
-        let store = match authority {
-            Some(authority) => Store::open_for_owner(authority.owner_uid()),
+        let owner = authority.map(|decision| decision.owner_uid());
+        let store = match owner {
+            Some(owner) => Store::open_for_owner(owner),
             None => Store::open(),
         }
         .map_err(AiError::Internal)?;
-        let user_cap = user_budget::load().map_err(AiError::Internal)?.monthly_units;
-        Self::reserve(store, app_id.to_owned(), units, cap, user_cap)
+        Self::reserve_with(store, app_id.into(), units, cap, owner, || {
+            user_budget::limit(owner)
+        })
     }
 
+    #[cfg(test)]
     fn reserve(
-        mut store: Store,
+        store: Store,
         app_id: String,
         estimated: u64,
         per_app_cap: u64,
         user_cap: u64,
     ) -> Result<Self, AiError> {
-        let mut buckets = vec![(app_id.as_str(), per_app_cap)];
-        if user_cap > 0 {
-            buckets.push((user_budget::USER_BUDGET_BUCKET, user_cap));
-        }
-        let snap = store
-            .reserve_buckets(&buckets, estimated)
-            .map_err(map_budget_error)?;
-        drop(buckets);
-        let period = snap.period;
+        Self::reserve_with(store, app_id, estimated, per_app_cap, None, || Ok(user_cap))
+    }
+
+    fn reserve_with(
+        mut store: Store,
+        app_id: String,
+        estimated: u64,
+        per_app_cap: u64,
+        owner: Option<u32>,
+        limit: impl FnOnce() -> Result<u64, String>,
+    ) -> Result<Self, AiError> {
+        let snapshot = match store.reserve_app(&app_id, estimated, per_app_cap, limit) {
+            Ok(snapshot) => snapshot,
+            Err(BudgetError::OwnerLimit { period, cap }) => {
+                if let Some(owner) = owner {
+                    user_budget::notify(owner, &period, Some(cap));
+                }
+                return Err(AiError::UserBudgetExceeded);
+            }
+            Err(BudgetError::Settings(error)) => {
+                tracing::warn!(?owner, %error, "could not read the App AI budget");
+                return Err(AiError::Internal("Could not read Settings > AI Budget".into()));
+            }
+            Err(error) => return Err(error.into()),
+        };
         Ok(Self {
             store,
             app_id,
             estimated,
             per_app_cap,
-            user_cap,
-            period,
+            owner,
+            period: snapshot.period,
             committed: false,
             refund_on_drop: true,
         })
@@ -714,24 +716,24 @@ impl BudgetReservation {
     /// returns the guard no longer holds a debt — `Drop` will not
     /// refund.
     pub(super) fn commit(mut self, actual_units: u64) -> Result<crate::ai::budget::Snapshot, AiError> {
-        let app_id = self.app_id.clone();
-        let mut buckets = vec![(
-            app_id.as_str(),
-            self.estimated,
-            actual_units,
-            self.per_app_cap,
-        )];
-        if self.user_cap > 0 {
-            buckets.push((
-                user_budget::USER_BUDGET_BUCKET,
-                self.estimated,
-                actual_units,
-                self.user_cap,
-            ));
-        }
-        let result = self.store.settle_reservations(&self.period, &buckets);
+        let result = self.settle(actual_units);
+        // A storage failure leaves the pre-dispatch estimate reserved. An
+        // overrun is already charged even when an owner App override denies it.
         self.committed = true;
-        result.map_err(map_budget_error)
+        result.map_err(Into::into)
+    }
+
+    fn settle(&mut self, actual_units: u64) -> Result<crate::ai::budget::Snapshot, BudgetError> {
+        let result = self.store.settle_reservations(&self.period, &[
+            (self.app_id.as_str(), self.estimated, actual_units, self.per_app_cap),
+            (super::budget::OWNER_APP_BUCKET, self.estimated, actual_units, 0),
+        ]);
+        if actual_units > 0 && (result.is_ok() || matches!(result, Err(BudgetError::OverUnitCap { .. }))) {
+            if let Some(owner) = self.owner {
+                user_budget::notify(owner, &self.period, None);
+            }
+        }
+        result
     }
 }
 
@@ -745,30 +747,10 @@ impl Drop for BudgetReservation {
         } else {
             self.estimated
         };
-        let app_cap = if self.refund_on_drop {
-            0
-        } else {
-            self.per_app_cap
-        };
-        let app_id = self.app_id.clone();
-        let mut buckets = vec![(app_id.as_str(), self.estimated, actual_units, app_cap)];
-        if self.user_cap > 0 {
-            let user_cap = if self.refund_on_drop {
-                0
-            } else {
-                self.user_cap
-            };
-            buckets.push((
-                user_budget::USER_BUDGET_BUCKET,
-                self.estimated,
-                actual_units,
-                user_cap,
-            ));
-        }
-        if let Err(e) = self.store.settle_reservations(&self.period, &buckets) {
+        if let Err(e) = self.settle(actual_units) {
             eprintln!(
                 "ai::gate budget reservation drop settlement failed (app={}): {e}",
-                app_id
+                self.app_id
             );
         }
     }
@@ -779,7 +761,7 @@ pub(super) fn app_policy(
     origin: &str,
     verb: crate::caps::Verb,
     authority: Option<&crate::yuosd::authority::Decision>,
-) -> Result<crate::caps::manifest::AiPolicy, AiError> {
+) -> Result<(crate::caps::manifest::AiPolicy, u64), AiError> {
     // 1. Locate the app and its AI policy.
     let app = if authority.is_some() {
         // A long-lived broker must reverify, not keep a stale cached policy
@@ -834,9 +816,6 @@ pub(super) fn app_policy(
     });
     if let Some(authority) = optional_gui {
         let consent_required = || AiError::ModelSettingsRequired { app: app_id.to_owned(), verb };
-        if policy.budget.monthly_units == 0 {
-            return Err(AiError::AppDisabled(app_id.to_owned()));
-        }
         let package = app.require_verified().map_err(bad_consent)?;
         let running = crate::provenance::runtime::package_for(
         authority.owner_uid(), authority.session_id().ok_or_else(consent_required)?,
@@ -871,7 +850,7 @@ pub(super) fn app_policy(
             allowed: policy.origins.iter().map(origin_label).collect(),
         });
     }
-    Ok(policy)
+    Ok((policy, overrides::monthly_limit(user_override.as_ref())))
 }
 
 async fn chat_inner(
@@ -892,7 +871,7 @@ async fn chat_inner(
     let authorization = authority.map(|authority| {
         authority.require(crate::caps::Cap::new(verb, Scope::name(&model)))
     });
-    let policy = app_policy(&req.app_id, &req.origin, verb, authority)?;
+    let (policy, app_cap) = app_policy(&req.app_id, &req.origin, verb, authority)?;
     validate_inputs(req, modality)?;
 
     // 6. Capability check at the kernel boundary.
@@ -962,11 +941,11 @@ async fn chat_inner(
         authority,
         &req.app_id,
         estimated_units,
-        policy.budget.monthly_units,
+        app_cap,
     )?;
 
-    // 9. Invoke the provider. Any provider error drops the guard and
-    // refunds the untouched reservation.
+    // 9. Charge ambiguous provider failures at the conservative estimate.
+    // Only a refusal before dispatch can prove that no provider units were used.
     let llm_resp = if let Some(authority) = authority {
         authority
             .ensure_current()
@@ -974,19 +953,14 @@ async fn chat_inner(
         reservation.record_input(authority, &req.origin, &llm_req)?;
         // Once dispatched, cancellation cannot prove the upstream spent zero.
         reservation.retain_estimate_on_drop();
-        let response = await_authorized(authority, provider.chat(llm_req)).await;
-        if matches!(&response, Err(AiError::Provider(_))) {
-            reservation.refund_on_drop = true;
-        }
-        response?
+        await_authorized(authority, provider.chat(llm_req)).await?
     } else {
+        reservation.retain_estimate_on_drop();
         provider
             .chat(llm_req)
             .await
             .map_err(|error| AiError::Provider(app_provider_error(error)))?
     };
-    reservation.retain_estimate_on_drop();
-
     // 10. Settle the budget against actuals via the reservation
     //     guard. `commit()` consumes the guard, so any subsequent
     //     early return (e.g. response construction) does not double-
@@ -1034,7 +1008,7 @@ async fn chat_inner(
         budget: BudgetReport {
             period: snapshot.period,
             units_used: snapshot.units_used,
-            units_cap: policy.budget.monthly_units,
+            units_cap: app_cap,
         },
         review: ReviewReport {
             safety: safety_label(policy.safety),

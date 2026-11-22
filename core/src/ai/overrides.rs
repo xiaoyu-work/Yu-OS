@@ -2,7 +2,7 @@
 //!
 //! Lives at `$HOME/.config/yuos/apps/<app_id>.json`. The Cosmic
 //! Settings UI (Settings → AI → App permissions) writes this file
-//! when the user adjusts the budget, safety, or origin allowlist for
+//! when the user adjusts safety or the origin allowlist for
 //! an installed App. The kernel reads it on every AI call and uses
 //! the *effective* policy — never the raw manifest.
 //!
@@ -15,8 +15,8 @@
 //!   * `disabled = true` — hard kill switch. Every AI call from this
 //!     App is denied at the gate with `denial_reason = "app_disabled"`.
 //!     Use this to silence a noisy App without uninstalling it.
-//!   * `ai.budget.monthly_units` — `min(manifest, override)`. A user
-//!     can lower the cap but never raise it past what the App declared.
+//!   * Legacy `ai.budget` overrides are read separately from the App
+//!     policy; they are owner settings, not publisher declarations.
 //!   * `ai.safety` — the **stricter** of `(manifest, override)`. A
 //!     user can require Strict on an App that only asked for Standard;
 //!     they cannot weaken a Strict-by-default App to Minimal.
@@ -105,11 +105,6 @@ pub fn apply_to_policy(manifest: &AiPolicy, ovr: Option<&UserOverride>) -> AiPol
     let Some(ovr) = ovr else { return out };
     let Some(ai) = ovr.ai.as_ref() else { return out };
 
-    if let Some(b) = &ai.budget {
-        if let Some(units) = b.monthly_units {
-            out.budget.monthly_units = out.budget.monthly_units.min(units);
-        }
-    }
     if let Some(s) = ai.safety {
         out.safety = stricter(out.safety, s);
     }
@@ -117,6 +112,13 @@ pub fn apply_to_policy(manifest: &AiPolicy, ovr: Option<&UserOverride>) -> AiPol
         out.origins.retain(|m| origins.contains(m));
     }
     out
+}
+
+pub(super) fn monthly_limit(ovr: Option<&UserOverride>) -> u64 {
+    ovr.and_then(|value| value.ai.as_ref())
+        .and_then(|ai| ai.budget)
+        .and_then(|budget| budget.monthly_units)
+        .unwrap_or(0)
 }
 
 /// Promote to the stricter of two safety profiles. Strict > Standard

@@ -251,8 +251,9 @@ SDK's [six model slots](../yuos-sdk/REFERENCE.md#ai-support) when their
 manifests declare the corresponding capabilities. Agent-to-App authorization
 does not grant these App-to-model rights. Yu OS calls the configured provider
 API or local model without running the Agent or including its prompt, memory,
-history, or tools. The broker owns credentials, selection, budgets,
-prompt-origin policy, and model-visible logging. `tools.call` makes a separate
+history, or tools. The broker owns credentials, model selection, the owner-set
+App inference budget, prompt-origin policy, and model-visible logging.
+An App manifest does not set a monthly budget. `tools.call` makes a separate
 capability-checked App operation; it is not part of inference or MCP.
 
 [App-owned functions](../yuos-sdk/REFERENCE.md#app-owned-tools) are schemas

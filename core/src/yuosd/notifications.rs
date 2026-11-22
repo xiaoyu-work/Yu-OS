@@ -323,6 +323,14 @@ pub fn publish_for_owner(owner_uid: u32, draft: NotificationDraft) -> Result<Not
     Ok(notification)
 }
 
+pub(crate) fn publish_once_for_owner(owner_uid: u32, draft: NotificationDraft) -> Result<(), String> {
+    let service = notifications::open_default().map_err(|error| error.to_string())?;
+    if let Some(notification) = service.publish_once(owner_uid, draft).map_err(|e| e.to_string())? {
+        super::system_journal::record_notification_event("notification.published", &notification);
+    }
+    Ok(())
+}
+
 pub fn publish_for_known_owners(draft: NotificationDraft) {
     match known_owner_uids() {
         Ok(owners) => {

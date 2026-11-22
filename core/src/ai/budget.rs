@@ -15,6 +15,9 @@ use std::path::PathBuf;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 
+pub(super) const OWNER_APP_BUCKET: &str = "__owner_apps__";
+const LEGACY_USER_BUCKET: &str = "__user__";
+
 /// Current snapshot for an `(app, period)` row.
 #[derive(Debug, Clone, Serialize)]
 pub struct Snapshot {
@@ -29,6 +32,10 @@ pub enum BudgetError {
     Sqlite(#[from] rusqlite::Error),
     #[error("budget exceeded: app `{app}` used {used} of {cap} units this period")]
     OverUnitCap { app: String, used: u64, cap: u64 },
+    #[error("the owner's AI budget does not have room for this request")]
+    OwnerLimit { period: String, cap: u64 },
+    #[error("owner AI budget settings: {0}")]
+    Settings(String),
     #[error("budget units exceed the SQLite integer storage range")]
     StorageRange,
     #[error(
@@ -119,6 +126,48 @@ fn ensure_reserved_column(conn: &Connection) -> rusqlite::Result<()> {
             return Err(error);
         }
     }
+    Ok(())
+}
+
+fn owner_app_row(conn: &Connection, period: &str) -> Result<(i64, i64), BudgetError> {
+    let get = |key: &str| {
+        conn.query_row(
+            "SELECT units_used, units_reserved FROM ai_budget WHERE app_id = ?1 AND period = ?2",
+            params![key, period],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+        )
+        .optional()
+    };
+    if let Some(row) = get(OWNER_APP_BUCKET)? {
+        return Ok(row);
+    }
+    // The old aggregate tracked only requests made while a limit was set.
+    // App rows include that same spend plus uncapped usage. Do not add the
+    // old aggregate on top; retain it as a floor if an App was reset.
+    let mut stmt = conn.prepare(
+        "SELECT units_used, units_reserved FROM ai_budget
+         WHERE period = ?1 AND app_id NOT GLOB '__*' AND app_id != ?2",
+    )?;
+    let rows = stmt.query_map(params![period, super::gate::SYSTEM_AGENT_BUCKET], |row| {
+        Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?))
+    })?;
+    let (mut used, mut reserved) = (0i64, 0i64);
+    for row in rows {
+        let (app_used, app_reserved) = row?;
+        used = used.checked_add(app_used.max(0)).ok_or(BudgetError::StorageRange)?;
+        reserved = reserved.checked_add(app_reserved.max(0)).ok_or(BudgetError::StorageRange)?;
+    }
+    let (legacy_used, legacy_reserved) = get(LEGACY_USER_BUCKET)?.unwrap_or_default();
+    Ok((used.max(legacy_used), reserved.max(legacy_reserved)))
+}
+
+fn ensure_owner_app_row(conn: &Connection, period: &str) -> Result<(), BudgetError> {
+    let (used, reserved) = owner_app_row(conn, period)?;
+    conn.execute(
+        "INSERT INTO ai_budget(app_id, period, units_used, units_reserved)
+         VALUES (?1, ?2, ?3, ?4) ON CONFLICT(app_id, period) DO NOTHING",
+        params![OWNER_APP_BUCKET, period, used, reserved],
+    )?;
     Ok(())
 }
 
@@ -282,23 +331,39 @@ impl Store {
         })
     }
 
-    /// Atomically reserve the same request estimate across multiple budget
-    /// buckets (for example the per-app and aggregate per-user rows).
-    pub fn reserve_buckets(
+    /// Apply/read the owner limit in the same serialization order as
+    /// reservations. Settings reports settled spend, not pending estimates.
+    pub(super) fn owner_app_status<T>(
         &mut self,
-        buckets: &[(&str, u64)],
-        units: u64,
-    ) -> Result<Snapshot, BudgetError> {
-        if buckets.is_empty() {
-            return Err(BudgetError::StorageRange);
-        }
-        ensure_reserved_column(&self.conn)?;
+        action: impl FnOnce(Snapshot) -> Result<T, String>,
+    ) -> Result<T, BudgetError> {
+        let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let period = current_period_utc();
+        let (used, _) = owner_app_row(&tx, &period)?;
+        let result = action(Snapshot { period, units_used: used.max(0) as u64 })
+            .map_err(BudgetError::Settings)?;
+        tx.commit()?;
+        Ok(result)
+    }
+
+    /// Reserve both rows even when the owner has not set a limit.
+    pub(super) fn reserve_app(
+        &mut self,
+        app: &str,
+        units: u64,
+        app_cap: u64,
+        read_limit: impl FnOnce() -> Result<u64, String>,
+    ) -> Result<Snapshot, BudgetError> {
         let tx = self
             .conn
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-        let mut updates = Vec::with_capacity(buckets.len());
-        for &(app, cap_units) in buckets {
+        let period = current_period_utc();
+        let owner_cap = read_limit().map_err(BudgetError::Settings)?;
+        ensure_owner_app_row(&tx, &period)?;
+        let mut app_total = 0;
+        // Check the App restriction first so it cannot produce a user-budget
+        // notification for a request that was independently barred.
+        for (app, cap_units) in [(app, app_cap), (OWNER_APP_BUCKET, owner_cap)] {
             let row: Option<(i64, i64)> = tx
                 .query_row(
                     "SELECT units_used, units_reserved FROM ai_budget \
@@ -315,6 +380,9 @@ impl Store {
                 .and_then(|value| value.checked_add(units))
                 .unwrap_or(u64::MAX);
             if cap_units > 0 && total > cap_units {
+                if app == OWNER_APP_BUCKET {
+                    return Err(BudgetError::OwnerLimit { period, cap: cap_units });
+                }
                 return Err(BudgetError::OverUnitCap {
                     app: app.to_string(),
                     used: total,
@@ -326,9 +394,6 @@ impl Store {
                 .ok_or(BudgetError::StorageRange)?;
             let stored_reserved =
                 i64::try_from(new_reserved).map_err(|_| BudgetError::StorageRange)?;
-            updates.push((app.to_string(), stored_reserved, total));
-        }
-        for (app, stored_reserved, _) in &updates {
             tx.execute(
                 "INSERT INTO ai_budget(app_id, period, units_used, units_reserved) \
                  VALUES (?1, ?2, 0, ?3) \
@@ -336,12 +401,12 @@ impl Store {
                      units_reserved = excluded.units_reserved",
                 params![app, period, stored_reserved],
             )?;
+            if app != OWNER_APP_BUCKET {
+                app_total = total;
+            }
         }
         tx.commit()?;
-        Ok(Snapshot {
-            period,
-            units_used: updates[0].2,
-        })
+        Ok(Snapshot { period, units_used: app_total })
     }
 
     /// Apply a legacy signed adjustment. Hot-path callers should use
@@ -559,14 +624,27 @@ impl Store {
         self.settle(app, &period, delta_units)
     }
 
-    /// Reset the current period for an app (used by manual rollover
-    /// and tests). Deletes the row; the next `reserve` re-creates it.
-    pub fn reset(&self, app: &str) -> Result<(), BudgetError> {
+    /// Reset App diagnostics without forgiving the owner's aggregate spend
+    /// or deleting capacity reserved by concurrent requests.
+    pub fn reset(&mut self, app: &str) -> Result<(), BudgetError> {
+        if app.starts_with("__") {
+            return Err(BudgetError::Settings("the owner aggregate cannot be reset".into()));
+        }
+        let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let period = current_period_utc();
-        self.conn.execute(
-            "DELETE FROM ai_budget WHERE app_id = ?1 AND period = ?2",
-            params![app, period],
-        )?;
+        if app == super::gate::SYSTEM_AGENT_BUCKET {
+            tx.execute(
+                "DELETE FROM ai_budget WHERE app_id = ?1 AND period = ?2",
+                params![app, period],
+            )?;
+        } else {
+            ensure_owner_app_row(&tx, &period)?;
+            tx.execute(
+                "UPDATE ai_budget SET units_used = 0 WHERE app_id = ?1 AND period = ?2",
+                params![app, period],
+            )?;
+        }
+        tx.commit()?;
         Ok(())
     }
 

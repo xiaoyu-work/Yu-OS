@@ -33,6 +33,8 @@ icon, popup timeout and transient metadata, never caller-provided authority.
 The additive SQLite v1 → v2 upgrade preserves every existing record and
 preference; the wire notification schema remains backwards-compatible v1.
 Owner and source are immutable and jointly partition deduplication.
+System App AI budget alerts use a durable owner/source/threshold key per
+UTC month, independent of dismissal, delivery retry, and inbox retention.
 Acknowledgement/dismissal suppress pending deliveries; a stale receipt cannot
 requeue terminal records. Delivery success never implies user acknowledgement.
 The `Activity` delivery policy is durable-only and never queues Web, desktop,

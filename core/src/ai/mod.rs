@@ -10,16 +10,13 @@
 //!      block; the prompt's declared `origin` must be in its origin
 //!      list. The kernel-owned model is then layered on top.
 //!   3. User override — a per-app file under `$HOME/.config/yuos/apps/`
-//!      may **tighten** (never loosen) the manifest's budget, safety,
-//!      or origin list, or kill-switch the app entirely.
+//!      may tighten manifest safety or origins, or disable an App's AI.
 //!   4. Consent — the user must have approved a snapshot of the
 //!      manifest's AI block (`$HOME/.config/yuos/consents/<id>.json`).
 //!      Missing or drifted snapshots deny with `consent_required` /
 //!      `consent_stale`.
-//!   5. Budget — two axes, both denominated in tokens:
-//!       * per-app cap from the manifest (`AiBudget::monthly_units`)
-//!       * per-user aggregate cap at `$HOME/.config/yuos/ai/budget.json`
-//!         (opt-in: missing file or `monthly_units == 0` ⇒ no cap)
+//!   5. Budget — the owner's aggregate App AI limit in Settings, plus
+//!      any existing owner-configured per-App override. Manifests set no limit.
 //!      A conservative input+maximum-output bound is reserved pre-call;
 //!      settlement atomically releases that reservation and records actual
 //!      usage. Cap checks include every in-flight reservation, and either

@@ -1034,6 +1034,21 @@ OS status** to inspect a retained operation and reconcile an uncertain outcome
 without retrying the mutation.
 Removing a catalog listing does not uninstall it or discard historic releases.
 
+## App AI Budget in Settings
+
+Settings → AI Budget controls the owner's total App inference for the UTC
+month. The limit is in AI usage units, not currency. Zero disables the
+ceiling, not accounting. When the limit is changed mid-month, the same
+ledger retains usage already recorded; reservations admitted before the
+change may still settle. Yu OS warns at 80% and when the limit is reached
+or a request cannot fit, once per threshold per UTC month.
+
+Existing `ai.budget` declarations in signed manifests no longer set limits
+or require renewed consent on their own. Existing owner overrides still
+apply. System Agent and Activity budgets are unchanged. The native Settings
+page requires the matching OS runtime; an older runtime does not write a
+fallback setting.
+
 ## System Updates in Settings
 
 Desktop requires the matching Agent's `yuos-desktop-settings-v1` interface.

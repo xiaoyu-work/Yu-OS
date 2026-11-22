@@ -550,6 +550,13 @@ pub trait NotificationService: Send + Sync {
         draft: NotificationDraft,
     ) -> Result<Notification, NotificationError>;
 
+    /// Publish an internal owner/source/key once, independently of inbox retention.
+    fn publish_once(
+        &self,
+        owner_uid: u32,
+        draft: NotificationDraft,
+    ) -> Result<Option<Notification>, NotificationError>;
+
     fn list(
         &self,
         owner_uid: u32,

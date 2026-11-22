@@ -22,7 +22,6 @@ fn missing_file_is_unlimited() {
     with_tmp_config_dir("missing", || {
         let b = load().unwrap();
         assert_eq!(b.monthly_units, 0);
-        assert!(b.is_unlimited());
     });
 }
 
@@ -32,8 +31,7 @@ fn empty_file_is_unlimited() {
         let path = config_path();
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, "").unwrap();
-        let b = load().unwrap();
-        assert!(b.is_unlimited());
+        assert_eq!(load().unwrap().monthly_units, 0);
     });
 }
 
@@ -43,8 +41,7 @@ fn explicit_zero_is_unlimited() {
         let path = config_path();
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, r#"{"monthly_units": 0}"#).unwrap();
-        let b = load().unwrap();
-        assert!(b.is_unlimited());
+        assert_eq!(load().unwrap().monthly_units, 0);
     });
 }
 
@@ -56,7 +53,6 @@ fn nonzero_cap_loads() {
         fs::write(&path, r#"{"monthly_units": 1234567}"#).unwrap();
         let b = load().unwrap();
         assert_eq!(b.monthly_units, 1234567);
-        assert!(!b.is_unlimited());
     });
 }
 
@@ -86,9 +82,17 @@ fn malformed_file_errors() {
 }
 
 #[test]
-fn user_budget_bucket_is_reserved_id() {
-    // Sentinel must contain a character (underscore) that App ids
-    // cannot. Apps validate to alphanumeric-plus-hyphen.
-    assert!(USER_BUDGET_BUCKET.starts_with("__"));
-    assert!(USER_BUDGET_BUCKET.ends_with("__"));
+fn settings_accepts_sqlite_max_and_does_not_replace_it_on_invalid_apply() {
+    let _lock = crate::test_env::lock_env();
+    with_tmp_config_dir("apply", || {
+        let data = tempfile::tempdir().unwrap();
+        let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", data.path());
+        let mut store = Store::open().unwrap();
+        let max = i64::MAX as u64;
+        let saved = status_with(&mut store, None, Some(max)).unwrap();
+        assert_eq!(saved.monthly_units, max);
+        assert!(status_with(&mut store, None, Some(max + 1)).is_err());
+        assert_eq!(status_with(&mut store, None, None).unwrap(), saved);
+        assert_eq!(status_with(&mut store, None, Some(0)).unwrap().monthly_units, 0);
+    });
 }

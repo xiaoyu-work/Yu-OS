@@ -1,9 +1,8 @@
 use super::*;
-use crate::caps::manifest::AiBudget;
 
-fn policy(units: u64, safety: AiSafety, origins: Vec<PromptOrigin>) -> AiPolicy {
+fn policy(safety: AiSafety, origins: Vec<PromptOrigin>) -> AiPolicy {
     AiPolicy {
-        budget: AiBudget { monthly_units: units },
+        legacy_budget: None,
         safety,
         origins,
         tools: Vec::new(),
@@ -14,29 +13,26 @@ fn policy(units: u64, safety: AiSafety, origins: Vec<PromptOrigin>) -> AiPolicy 
 
 #[test]
 fn freshness_fresh_when_policy_unchanged() {
-    let p = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    let p = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
     let c = Consent::approve(p.clone());
     assert_eq!(freshness(&p, &c), Freshness::Fresh);
 }
 
 #[test]
-fn freshness_stale_when_budget_changed() {
-    let p = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
-    let c = Consent::approve(p.clone());
-    let updated = policy(2000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
-    assert_eq!(
-        freshness(&updated, &c),
-        Freshness::Stale {
-            changed: vec!["budget.monthly_units".to_string()]
-        }
-    );
+fn removing_a_legacy_budget_keeps_consent_fresh() {
+    let legacy = serde_json::from_str(r#"{
+        "safety":"standard", "origins":["trusted"], "budget":{"monthly_units":1000}
+    }"#).unwrap();
+    let c = Consent::approve(legacy);
+    let updated = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    assert_eq!(freshness(&updated, &c), Freshness::Fresh);
 }
 
 #[test]
 fn freshness_stale_when_safety_changed() {
-    let p = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    let p = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
     let c = Consent::approve(p.clone());
-    let updated = policy(1000, AiSafety::Strict, vec![PromptOrigin::Trusted]);
+    let updated = policy(AiSafety::Strict, vec![PromptOrigin::Trusted]);
     match freshness(&updated, &c) {
         Freshness::Stale { changed } => assert_eq!(changed, vec!["safety".to_string()]),
         _ => panic!("expected stale"),
@@ -45,10 +41,9 @@ fn freshness_stale_when_safety_changed() {
 
 #[test]
 fn freshness_stale_when_origin_added() {
-    let p = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    let p = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
     let c = Consent::approve(p.clone());
     let updated = policy(
-        1000,
         AiSafety::Standard,
         vec![PromptOrigin::Trusted, PromptOrigin::ExternalContent],
     );
@@ -61,12 +56,11 @@ fn freshness_stale_when_origin_added() {
 #[test]
 fn freshness_stale_when_origin_removed() {
     let p = policy(
-        1000,
         AiSafety::Standard,
         vec![PromptOrigin::Trusted, PromptOrigin::ExternalContent],
     );
     let c = Consent::approve(p.clone());
-    let updated = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    let updated = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
     match freshness(&updated, &c) {
         Freshness::Stale { changed } => assert_eq!(changed, vec!["origins".to_string()]),
         _ => panic!("expected stale"),
@@ -76,13 +70,11 @@ fn freshness_stale_when_origin_removed() {
 #[test]
 fn freshness_fresh_when_origins_reordered() {
     let p = policy(
-        1000,
         AiSafety::Standard,
         vec![PromptOrigin::Trusted, PromptOrigin::UserInput],
     );
     let c = Consent::approve(p);
     let updated = policy(
-        1000,
         AiSafety::Standard,
         vec![PromptOrigin::UserInput, PromptOrigin::Trusted],
     );
@@ -91,7 +83,7 @@ fn freshness_fresh_when_origins_reordered() {
 
 #[test]
 fn freshness_stale_on_schema_version_mismatch() {
-    let p = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    let p = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
     let mut c = Consent::approve(p.clone());
     c.version = SCHEMA_VERSION + 99;
     match freshness(&p, &c) {
@@ -102,16 +94,14 @@ fn freshness_stale_on_schema_version_mismatch() {
 
 #[test]
 fn freshness_lists_all_changed_fields() {
-    let p = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    let p = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
     let c = Consent::approve(p);
     let updated = policy(
-        2000,
         AiSafety::Strict,
         vec![PromptOrigin::Trusted, PromptOrigin::ExternalContent],
     );
     match freshness(&updated, &c) {
         Freshness::Stale { changed } => {
-            assert!(changed.contains(&"budget.monthly_units".to_string()));
             assert!(changed.contains(&"safety".to_string()));
             assert!(changed.contains(&"origins".to_string()));
         }
@@ -128,7 +118,7 @@ fn freshness_lists_all_changed_fields() {
 /// update could broaden the agent's powers without consent.
 #[test]
 fn consent_drift_on_tools_change() {
-    let mut current = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    let mut current = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
     current.tools = vec!["fs.read".to_string()];
 
     // User approved the original (single-tool) policy.
@@ -149,7 +139,7 @@ fn consent_drift_on_tools_change() {
 
 #[test]
 fn consent_fresh_when_tools_reordered() {
-    let mut current = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    let mut current = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
     current.tools = vec!["fs.read".to_string(), "fs.write".to_string()];
 
     let stored = Consent::approve(current.clone());
@@ -162,7 +152,7 @@ fn consent_fresh_when_tools_reordered() {
 
 #[test]
 fn consent_stale_when_tool_removed() {
-    let mut current = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    let mut current = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
     current.tools = vec!["fs.read".to_string(), "fs.write".to_string()];
 
     let stored = Consent::approve(current.clone());
@@ -181,13 +171,12 @@ fn consent_stale_when_tool_removed() {
 #[test]
 fn format_for_review_shows_every_field() {
     let p = policy(
-        12_345,
         AiSafety::Strict,
         vec![PromptOrigin::Trusted, PromptOrigin::ExternalContent],
     );
     let text = format_for_review("widget", &p);
     assert!(text.contains("App: widget"));
-    assert!(text.contains("12345"));
+    assert!(!text.contains("budget"));
     assert!(text.contains("strict"));
     assert!(text.contains("trusted"));
     assert!(text.contains("external-content"));
@@ -222,7 +211,7 @@ fn load_missing_file_returns_none() {
 #[test]
 fn save_then_load_roundtrip() {
     with_tmp_consent_dir("rt", || {
-        let p = policy(500, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+        let p = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
         let c = Consent::approve(p.clone());
         save("widget", &c).unwrap();
         let loaded = load("widget").unwrap().unwrap();
@@ -235,7 +224,7 @@ fn save_then_load_roundtrip() {
 #[test]
 fn save_creates_parent_directory() {
     with_tmp_consent_dir("mkdir", || {
-        let p = policy(1, AiSafety::Minimal, vec![PromptOrigin::Trusted]);
+        let p = policy(AiSafety::Minimal, vec![PromptOrigin::Trusted]);
         let c = Consent::approve(p);
         assert!(!consent_path("widget").parent().unwrap().exists());
         save("widget", &c).unwrap();
@@ -246,7 +235,7 @@ fn save_creates_parent_directory() {
 #[test]
 fn delete_removes_file_and_reports_outcome() {
     with_tmp_consent_dir("del", || {
-        let p = policy(1, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+        let p = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
         save("widget", &Consent::approve(p)).unwrap();
         assert_eq!(delete("widget").unwrap(), true);
         assert_eq!(delete("widget").unwrap(), false);

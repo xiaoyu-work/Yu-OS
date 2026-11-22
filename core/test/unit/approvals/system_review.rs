@@ -105,10 +105,13 @@ fn install_ai_is_hidden_without_an_optional_request_and_bound_to_verified_delive
     let mcp_only = environment.package_from_manifest(&environment.directory.path().join("only-mcp"), manifest.clone());
     let no_ai_choice = submit(owner, ReviewKind::AppInstall, &mcp_only, "install".into()).unwrap();
     assert!(no_ai_choice.ai_model.is_none());
+    let disclosure = no_ai_choice.permission_review().unwrap();
+    assert!(!serde_json::to_value(&disclosure).unwrap()["ai_policy"].as_object().unwrap().contains_key("budget"));
     assert!(no_ai_choice.permission_review().unwrap().permissions.iter().all(|permission|
         no_ai_choice.ai_choice(permission, &mcp_only.ceiling()).unwrap().is_none()));
     assert!(!has_install_gui_ai(owner, &mcp_only, &model, Verb::AI_CHAT_UNTRUSTED).unwrap());
 
+    manifest["ai"].as_object_mut().unwrap().remove("budget");
     manifest["desktop"] = serde_json::json!({
         "needs": [],
         "optional_needs": [

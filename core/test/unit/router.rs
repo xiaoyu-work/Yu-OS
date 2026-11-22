@@ -902,7 +902,7 @@ fn consent_revoke_missing_file_is_noop() {
 
 #[test]
 fn consent_grant_yes_writes_record_and_show_reads_it_back() {
-    use crate::caps::manifest::{AiBudget, AiPolicy, AiSafety, Manifest, PromptOrigin, Runtime};
+    use crate::caps::manifest::{AiPolicy, AiSafety, Manifest, PromptOrigin, Runtime};
     use crate::i18n::LocalizedText;
     use std::collections::BTreeMap;
 
@@ -923,9 +923,7 @@ fn consent_grant_yes_writes_record_and_show_reads_it_back() {
         operations: BTreeMap::new(),
         objects: BTreeMap::new(),
         ai: Some(AiPolicy {
-            budget: AiBudget {
-                monthly_units: 1000,
-            },
+            legacy_budget: None,
             safety: AiSafety::Standard,
             origins: vec![PromptOrigin::Trusted],
             tools: Vec::new(),

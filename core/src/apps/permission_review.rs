@@ -193,6 +193,11 @@ impl PermissionReview {
         let contract = serde_json::to_vec(&review.contract())
             .map_err(|error| format!("serialize App permission contract: {error}"))?;
         review.contract_digest = format!("sha256:{:x}", Sha256::digest(contract));
+        // Legacy manifests keep their persisted comparison fingerprint;
+        // a publisher's former limit is not part of the permission disclosure.
+        if let Some(policy) = &mut review.ai_policy {
+            policy.legacy_budget = None;
+        }
         Ok(review)
     }
 

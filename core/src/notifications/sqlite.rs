@@ -53,6 +53,13 @@ CREATE INDEX IF NOT EXISTS notifications_owner_updated
 CREATE INDEX IF NOT EXISTS notifications_owner_dedupe
     ON notifications(owner_uid, dedupe_key, updated_at_ms DESC);
 
+CREATE TABLE IF NOT EXISTS notification_once (
+    owner_uid INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    key TEXT NOT NULL,
+    PRIMARY KEY (owner_uid, source, key)
+);
+
 CREATE TABLE IF NOT EXISTS notification_changes (
     cursor          INTEGER PRIMARY KEY AUTOINCREMENT,
     owner_uid       INTEGER NOT NULL,
@@ -150,12 +157,13 @@ fn initialize(conn: &mut Connection) -> Result<(), NotificationError> {
     Ok(())
 }
 
-impl NotificationService for SqliteNotificationService {
-    fn publish(
+impl SqliteNotificationService {
+    fn publish_inner(
         &self,
         owner_uid: u32,
         draft: NotificationDraft,
-    ) -> Result<Notification, NotificationError> {
+        once: bool,
+    ) -> Result<Option<Notification>, NotificationError> {
         draft.validate()?;
         let now = super::now_ms();
         let actions_json = serde_json::to_string(&draft.actions)?;
@@ -166,9 +174,21 @@ impl NotificationService for SqliteNotificationService {
             .transpose()?;
         let mut conn = self.lock()?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if once {
+            let key = draft.dedupe_key.as_deref().ok_or_else(|| {
+                NotificationError::Invalid("single publication requires a dedupe key".into())
+            })?;
+            if tx.execute(
+                "INSERT INTO notification_once(owner_uid, source, key) VALUES (?1, ?2, ?3)
+                 ON CONFLICT(owner_uid, source, key) DO NOTHING",
+                params![owner_uid, draft.source, key],
+            )? == 0 {
+                return Ok(None);
+            }
+        }
         let preferences = preferences_tx(&tx, owner_uid)?;
         preferences.validate()?;
-        let existing = match draft.dedupe_key.as_deref() {
+        let existing = match draft.dedupe_key.as_deref().filter(|_| !once) {
             Some(key) => tx
                 .query_row(
                     "SELECT id FROM notifications
@@ -261,7 +281,26 @@ impl NotificationService for SqliteNotificationService {
         insert_change_tx(&tx, owner_uid, &id, change_kind, now)?;
         prune_tx(&tx, owner_uid, preferences.retention_days, now)?;
         tx.commit()?;
-        load_notification(&conn, owner_uid, &id)
+        load_notification(&conn, owner_uid, &id).map(Some)
+    }
+}
+
+impl NotificationService for SqliteNotificationService {
+    fn publish(
+        &self,
+        owner_uid: u32,
+        draft: NotificationDraft,
+    ) -> Result<Notification, NotificationError> {
+        self.publish_inner(owner_uid, draft, false)?
+            .ok_or(NotificationError::NotFound)
+    }
+
+    fn publish_once(
+        &self,
+        owner_uid: u32,
+        draft: NotificationDraft,
+    ) -> Result<Option<Notification>, NotificationError> {
+        self.publish_inner(owner_uid, draft, true)
     }
 
     fn list(

@@ -9,6 +9,13 @@ system callers that request AI work outside the interactive agent loop.
 
 - Authorize AI verbs/scopes and app identity.
 - Apply consent and budget decisions.
+- Enforce the owner's monthly App inference limit across all six slots.
+  The UTC ledger counts settled usage and in-flight reservations even
+  when unlimited. Settings displays settled usage; provider dispatch
+  uses both. Legacy manifest budgets are not enforcement inputs.
+- Notify the owner at 80% and when the limit is reached or a reservation
+  cannot fit, at most once per threshold and UTC month. Notification
+  delivery does not determine budget enforcement.
 - Call the owner's configured model without Agent prompts, history, memory,
   system tools, or tool execution. The App supplies custom function schemas
   and returns the results; the gate rejects undeclared proposals.
@@ -33,6 +40,7 @@ system callers that request AI work outside the interactive agent loop.
 | Path | Role |
 | --- | --- |
 | `gate.rs` | AI request validation, authorization, provider call |
+| `budget.rs`, `user_budget.rs` | Shared App ledger, atomic owner setting, and threshold alerts |
 | `consent.rs` | Persisted consent decisions |
 | `chat.rs` | AI chat request surface |
 | `app_tools.rs` | Bounded App-owned function schemas, matched result replay, and proposal projection |

@@ -263,7 +263,7 @@ async fn run_inner(
     let target = providers::Target::resolve(verb, &cfg)?;
     model.clone_from(&target.model);
     let authorization = authority.require(Cap::new(verb, Scope::name(&target.model)));
-    let policy = gate::app_policy(app, origin, verb, Some(authority))?;
+    let (policy, app_cap) = gate::app_policy(app, origin, verb, Some(authority))?;
     let _authorized = authorization.map_err(|error| AiError::Denied(json!({"error": error})))?;
     let input = request.input.prepare(policy.safety)?;
     let units = input.units()?;
@@ -277,7 +277,7 @@ async fn run_inner(
         Some(authority),
         app,
         units.into(),
-        policy.budget.monthly_units,
+        app_cap,
     )?;
     reservation.record_input(
         authority,

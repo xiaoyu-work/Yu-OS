@@ -86,6 +86,11 @@ pub async fn control(
             }
             validate_action(&action, identifier.as_deref(), app_id.as_deref(), &uris)?;
         }
+        if is_gui_ai_settings_shortcut(authority, &action, app_id.as_deref(), &uris) {
+            return open_settings(
+                &uris, authority, settings_launch_cap(), uid, gid, home, peer_pid,
+            ).await;
+        }
         if matches!(action.as_str(), "launch" | "restart") {
             // Detached desktop launch must not erase the initiating App or
             // task. Owner menu launches use the separate display-bound route.
@@ -96,7 +101,7 @@ pub async fn control(
                 .await
                 .map_err(|error| error.message)?;
         }
-        match native_launch_target_for_request(authority, &action, app_id.as_deref(), &uris) {
+        match native_launch_target(authority, &action, app_id.as_deref()) {
             Some(NativeLaunchTarget::Terminal) => {
                 return open_terminal(&uris, authority, uid, gid, home, peer_pid).await;
             }
@@ -104,7 +109,10 @@ pub async fn control(
                 return open_store(&uris, authority, uid, gid, home, peer_pid).await;
             }
             Some(NativeLaunchTarget::Settings) => {
-                return open_settings(&uris, authority, uid, gid, home, peer_pid).await;
+                return open_settings(
+                    &uris, authority, NativeLaunchTarget::Settings.spawn_cap(),
+                    uid, gid, home, peer_pid,
+                ).await;
             }
             Some(NativeLaunchTarget::Files) => {
                 return reveal_files(&uris, authority, uid, gid, home, peer_pid).await;
@@ -244,20 +252,18 @@ fn native_launch_target(
     authority.caps().covers(&target.spawn_cap()).then_some(target)
 }
 
-fn native_launch_target_for_request(
+fn is_gui_ai_settings_shortcut(
     authority: &Decision,
     action: &str,
     app_id: Option<&str>,
     uris: &[String],
-) -> Option<NativeLaunchTarget> {
-    if action == "launch" && app_id == Some("com.yuos.Settings")
+) -> bool {
+    action == "launch" && app_id == Some("com.yuos.Settings")
         && uris == ["settings://applications"]
+        && authority.app_id().is_some()
+        && authority.task_id().is_none()
         && authority.is_gui_session()
         && authority.caps().covers(&settings_launch_cap())
-    {
-        return Some(NativeLaunchTarget::Settings);
-    }
-    native_launch_target(authority, action, app_id)
 }
 
 fn settings_launch_cap() -> Cap {
@@ -269,15 +275,7 @@ fn authorize_native_launch(
     target: NativeLaunchTarget,
     local_path: Option<&str>,
 ) -> Result<Authorized, String> {
-    let spawn = target.spawn_cap();
-    let mut caps = vec![if matches!(target, NativeLaunchTarget::Settings)
-        && authority.is_gui_session()
-        && !authority.caps().covers(&spawn)
-    {
-        settings_launch_cap()
-    } else {
-        spawn
-    }];
+    let mut caps = vec![target.spawn_cap()];
     match (target, local_path) {
         (NativeLaunchTarget::Files, Some(path)) => {
             caps.push(Cap::new(Verb::FS_META, Scope::path(path)));
@@ -335,11 +333,11 @@ fn settings_launch_args(uris: &[String]) -> Result<Vec<String>, String> {
 }
 
 async fn open_settings(
-    uris: &[String], authority: &Decision, uid: u32, gid: u32,
+    uris: &[String], authority: &Decision, cap: Cap, uid: u32, gid: u32,
     home: PathBuf, peer_pid: u32,
 ) -> Result<Value, String> {
     let args = settings_launch_args(uris)?;
-    let _authorized = authorize_native_launch(authority, NativeLaunchTarget::Settings, None)?;
+    let _authorized = authority.require(cap)?;
     let environment = DesktopEnvironment::for_user(uid, gid, home, peer_pid)?;
     settings::launch(args, environment).await?;
     Ok(json!({"launched": true, "app_id": "com.yuos.Settings", "launcher": settings::PROGRAM}))

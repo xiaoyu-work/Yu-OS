@@ -4,16 +4,15 @@ use super::{requests_configured_ai, AiPolicy, AiSafety, Manifest, ManifestError,
 use crate::i18n::LocalizedText;
 
 fn supports_optional_ai(verb: Verb, policy: &AiPolicy) -> bool {
-    policy.budget.monthly_units > 0
-        && match verb {
-            Verb::AI_CHAT => policy.origins.iter().any(|origin|
-                matches!(origin, PromptOrigin::Trusted | PromptOrigin::UserInput)),
-            Verb::AI_CHAT_UNTRUSTED => policy.safety != AiSafety::Minimal
-                && policy.origins.contains(&PromptOrigin::ExternalContent),
-            Verb::AI_EMBED | Verb::AI_AUDIO_TTS | Verb::AI_AUDIO_STT
-            | Verb::AI_IMAGE_GENERATE | Verb::AI_DECIDE => !policy.origins.is_empty(),
-            _ => false,
-        }
+    match verb {
+        Verb::AI_CHAT => policy.origins.iter().any(|origin|
+            matches!(origin, PromptOrigin::Trusted | PromptOrigin::UserInput)),
+        Verb::AI_CHAT_UNTRUSTED => policy.safety != AiSafety::Minimal
+            && policy.origins.contains(&PromptOrigin::ExternalContent),
+        Verb::AI_EMBED | Verb::AI_AUDIO_TTS | Verb::AI_AUDIO_STT
+        | Verb::AI_IMAGE_GENERATE | Verb::AI_DECIDE => !policy.origins.is_empty(),
+        _ => false,
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -244,7 +243,7 @@ fn validate_needs(manifest: &Manifest, name: &str, needs: &[Need], optional: boo
             && !(need.when.is_none() && manifest.ai.as_ref().is_some_and(|policy|
                 supports_optional_ai(need.verb, policy)))
         {
-            return Err(context("the configured model requires an unconditional optional GUI AI need and a compatible finite AI policy".into()));
+            return Err(context("the configured model requires an unconditional optional GUI AI need and a compatible AI input policy".into()));
         }
         if let ScopeBinding::OwnerPath { path } = &need.scope {
             super::owner_path::validate(need.verb, path).map_err(context)?;

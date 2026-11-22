@@ -4,8 +4,8 @@ use serde_json::{json, Value};
 /// `yu agent budget` — inspect per-app AI spend.
 ///
 /// Subcommands:
-///   show <app>          Current period: used vs cap.
-///   reset <app>         Roll over to next period (clears used).
+///   show <app>          Current period usage.
+///   reset <app>         Clear per-App committed usage, not the owner total.
 ///   history <app>       List past periods.
 ///
 /// The system agent's usage is rolled up under the pseudo-app id
@@ -31,8 +31,7 @@ pub(super) fn budget_cmd(args: &[String]) -> Result<Value, String> {
             let app = args
                 .get(1)
                 .ok_or_else(|| "usage: yu agent budget reset <app>".to_string())?;
-            let store = budget::Store::open()?;
-            store.reset(app).map_err(|e| e.to_string())?;
+            budget::Store::open()?.reset(app).map_err(|e| e.to_string())?;
             Ok(json!({"app": app, "reset": true}))
         }
         "history" => {
@@ -45,18 +44,14 @@ pub(super) fn budget_cmd(args: &[String]) -> Result<Value, String> {
         }
         "user" => {
             // `yu agent budget user <show|path>` — inspect the per-user
-            // aggregate cap. Writes go through the Cosmic Settings UI,
+            // aggregate cap. Writes go through the system Settings window,
             // not the CLI; this is read-only.
             let user_sub = args.get(1).map(String::as_str).unwrap_or("show");
             match user_sub {
                 "show" | "" => {
-                    let cfg = user_budget::load()?;
-                    let store = budget::Store::open()?;
-                    let snap = store
-                        .current(user_budget::USER_BUDGET_BUCKET)
-                        .map_err(|e| e.to_string())?;
-                    let cap = cfg.monthly_units;
-                    let used = snap.units_used;
+                    let status = user_budget::status()?;
+                    let cap = status.monthly_units;
+                    let used = status.units_used;
                     let available = if cap == 0 {
                         None
                     } else if used >= cap {
@@ -67,7 +62,7 @@ pub(super) fn budget_cmd(args: &[String]) -> Result<Value, String> {
                     Ok(json!({
                         "scope": "user",
                         "path": user_budget::config_path().display().to_string(),
-                        "period": snap.period,
+                        "period": status.period,
                         "units_used": used,
                         "units_cap": cap,
                         "unlimited": cap == 0,

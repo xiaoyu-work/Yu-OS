@@ -1,9 +1,8 @@
 use super::*;
-use crate::caps::manifest::AiBudget;
 
-fn policy(units: u64, safety: AiSafety, origins: Vec<PromptOrigin>) -> AiPolicy {
+fn policy(safety: AiSafety, origins: Vec<PromptOrigin>) -> AiPolicy {
     AiPolicy {
-        budget: AiBudget { monthly_units: units },
+        legacy_budget: None,
         safety,
         origins,
         tools: Vec::new(),
@@ -12,26 +11,23 @@ fn policy(units: u64, safety: AiSafety, origins: Vec<PromptOrigin>) -> AiPolicy 
 
 #[test]
 fn missing_override_yields_manifest_verbatim() {
-    let m = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    let m = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
     let out = apply_to_policy(&m, None);
-    assert_eq!(out.budget.monthly_units, 1000);
     assert_eq!(out.safety, AiSafety::Standard);
     assert_eq!(out.origins, vec![PromptOrigin::Trusted]);
 }
 
 #[test]
 fn empty_override_yields_manifest_verbatim() {
-    let m = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    let m = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
     let ovr = UserOverride::default();
     let out = apply_to_policy(&m, Some(&ovr));
-    assert_eq!(out.budget.monthly_units, 1000);
     assert_eq!(out.safety, AiSafety::Standard);
     assert_eq!(out.origins, vec![PromptOrigin::Trusted]);
 }
 
 #[test]
-fn override_lowers_budget() {
-    let m = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+fn legacy_owner_override_still_sets_an_app_limit() {
     let ovr = UserOverride {
         ai: Some(AiOverride {
             budget: Some(AiBudgetOverride {
@@ -41,29 +37,13 @@ fn override_lowers_budget() {
         }),
         ..Default::default()
     };
-    let out = apply_to_policy(&m, Some(&ovr));
-    assert_eq!(out.budget.monthly_units, 250);
-}
-
-#[test]
-fn override_cannot_raise_budget() {
-    let m = policy(500, AiSafety::Standard, vec![PromptOrigin::Trusted]);
-    let ovr = UserOverride {
-        ai: Some(AiOverride {
-            budget: Some(AiBudgetOverride {
-                monthly_units: Some(10_000),
-            }),
-            ..Default::default()
-        }),
-        ..Default::default()
-    };
-    let out = apply_to_policy(&m, Some(&ovr));
-    assert_eq!(out.budget.monthly_units, 500);
+    assert_eq!(monthly_limit(Some(&ovr)), 250);
+    assert_eq!(monthly_limit(None), 0);
 }
 
 #[test]
 fn override_promotes_safety_to_stricter() {
-    let m = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    let m = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
     let ovr = UserOverride {
         ai: Some(AiOverride {
             safety: Some(AiSafety::Strict),
@@ -77,7 +57,7 @@ fn override_promotes_safety_to_stricter() {
 
 #[test]
 fn override_cannot_weaken_safety() {
-    let m = policy(1000, AiSafety::Strict, vec![PromptOrigin::Trusted]);
+    let m = policy(AiSafety::Strict, vec![PromptOrigin::Trusted]);
     let ovr = UserOverride {
         ai: Some(AiOverride {
             safety: Some(AiSafety::Minimal),
@@ -92,7 +72,6 @@ fn override_cannot_weaken_safety() {
 #[test]
 fn override_shrinks_origins_to_intersection() {
     let m = policy(
-        1000,
         AiSafety::Standard,
         vec![
             PromptOrigin::Trusted,
@@ -116,7 +95,7 @@ fn override_shrinks_origins_to_intersection() {
 
 #[test]
 fn override_cannot_add_unallowed_origin() {
-    let m = policy(1000, AiSafety::Standard, vec![PromptOrigin::Trusted]);
+    let m = policy(AiSafety::Standard, vec![PromptOrigin::Trusted]);
     let ovr = UserOverride {
         ai: Some(AiOverride {
             origins: Some(vec![

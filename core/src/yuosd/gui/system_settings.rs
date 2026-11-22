@@ -15,6 +15,28 @@ pub(super) async fn request(params: Value, owner: u32) -> Result<Value, BrokerEr
     let request: SystemSettings = serde_json::from_value(params)
         .map_err(|_| BrokerError::execution("Invalid system settings action"))?;
     let action = request.action;
+    if matches!(action, SystemSettingsAction::AiBudgetStatus | SystemSettingsAction::AiBudgetApply) {
+        let apply = matches!(action, SystemSettingsAction::AiBudgetApply);
+        if request.account.is_some()
+            || request.decision_model.is_some()
+            || request.monthly_units.is_some() != apply
+            || request.monthly_units.is_some_and(|units| units > i64::MAX as u64)
+        {
+            return Err(BrokerError::execution("Invalid AI budget settings request"));
+        }
+        let state = crate::ai::user_budget::settings(owner, request.monthly_units)
+            .map_err(BrokerError::execution)?;
+        if apply {
+            crate::provenance::audit(
+                "desktop.system_settings",
+                serde_json::json!({"owner_uid": owner, "action": action}),
+            );
+        }
+        return serde_json::to_value(state).map_err(|_| BrokerError::execution("Could not read AI budget settings"));
+    }
+    if request.monthly_units.is_some() {
+        return Err(BrokerError::execution("Invalid system settings request"));
+    }
     if matches!(
         action,
         SystemSettingsAction::DecisionStatus

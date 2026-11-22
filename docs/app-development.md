@@ -714,7 +714,7 @@ The [SDK model table](../yuos-sdk/REFERENCE.md#ai-support) lists the supported
 verbs, including `ai.chat.untrusted` for `external-content`.
 
 The same declaration works in an operation, MCP tool, or GUI entry. Keep the
-`ai` policy in the manifest: consent and budget checks still apply. Older
+`ai` input policy in the manifest: consent and owner budget checks still apply. Older
 manifests that declare an explicit scope remain supported. Other permissions
 still need a scope to say which resource the App wants, such as a file or host.
 
@@ -723,13 +723,14 @@ still need a scope to say which resource the App wants, such as a file or host.
 | An operation, MCP tool, or GUI call declaring AI in required `needs` | The owner grants separate consent to the App's AI policy with `yu app consent grant <id>`. Changes to the policy require renewed consent. |
 | An eligible GUI entry using [optional model permissions](#model-permissions-in-settings) | The owner explicitly allows the App to use that model in Settings → Applications. The Store can also offer optional text AI during installation. Neither path requires a second `consent grant` for the selected GUI entry. |
 
-Both paths still require the matching capability and are subject to budgeting
-and the effective policy. The optional GUI choice does not flow to other
-surfaces. A direct Root directory install is not an ordinary user's Store
-AI opt-in.
+Both paths require the matching capability and enforce the effective input
+policy. Set input origins in `ai`, not a model ID or monthly cap. The owner
+sets the App inference limit in Settings → AI Budget. The optional GUI choice
+does not flow to other surfaces. A direct Root directory install is not an
+ordinary user's Store AI opt-in.
 
-For the full AI integration model — `origin`, safety profiles, tool
-catalog, budget envelope, audit surface — read
+For the full AI integration model — `origin`, safety, App-owned functions,
+usage and auditing — read
 [`app-ai-integration.md`](app-ai-integration.md).
 
 ## 8. Developer commands
@@ -1082,7 +1083,7 @@ require a valid AI policy and remain budget-gated.
 To offer optional system AI at installation, list `{"verb": "ai.chat"}` or
 `{"verb": "ai.chat.untrusted"}` in that GUI's `optional_needs`.
 For document input use `ai.chat.untrusted`, with `external-content` in `ai.origins`,
-strict or standard safety, and a positive `ai.budget.monthly_units`. For input
+and strict or standard safety. For input
 without external content use `ai.chat` with its corresponding origin. Only the
 optional GUI entry uses the Store installation choice, which applies to the
 provider and model the user has configured at installation.
@@ -1103,7 +1104,7 @@ session. The ordinary owner can make a separate choice in Settings.
 #### Model permissions in Settings
 
 Declare a model capability without a condition in the GUI entry's
-`optional_needs` and set a positive App AI budget. For example, to offer
+`optional_needs` and include its input origin in `ai.origins`. For example, to offer
 speech synthesis:
 
 ```json
@@ -1130,7 +1131,7 @@ The button uses the separate `desktop.launch` capability scoped to
 visible. Opening Settings does not authorize or send the prompt. After the
 owner enables the exact App/model choice, reopen the App and let the user
 retry. Changing a choice retires the old App session. A changed package or
-destination requires its own choice. This grants no MCP invoke, filesystem,
+destination requires its own choice. This grants no access to other Apps, filesystem,
 provider credentials, or model-selection authority.
 
 The authenticated review lists required and optional purposes separately and

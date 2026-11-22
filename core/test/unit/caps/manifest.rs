@@ -1172,7 +1172,6 @@ fn ai_block_with_valid_policy_parses() {
               "version": "0.1",
               "name": {"en": "Summarize"},
               "ai": {
-                "budget": {"monthly_units": 100000},
                 "safety": "strict",
                 "origins": ["external-content"]
               },
@@ -1192,7 +1191,7 @@ fn ai_block_with_valid_policy_parses() {
     let policy = m.ai.as_ref().unwrap();
     assert_eq!(policy.safety, AiSafety::Strict);
     assert_eq!(policy.origins, vec![PromptOrigin::ExternalContent]);
-    assert_eq!(policy.budget.monthly_units, 100000);
+    assert!(!serde_json::to_value(policy).unwrap().as_object().unwrap().contains_key("budget"));
 
     for verb in [
         "ai.chat",

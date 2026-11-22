@@ -165,23 +165,13 @@ pub struct Manifest {
 // AI policy
 // ---------------------------------------------------------------------------
 
-/// AI policy block: describes the budget envelope and safety
-/// constraints under which this app may exercise `ai.*` verbs.
-///
-/// All fields are required when the block itself is present, but each
-/// has a sensible default (see field docs). If `ai` is absent from a
-/// manifest, the kernel rejects every `ai.*` need at validation time.
-///
-/// **Apps do not pick the model.** The OS owns the AI provider; the
-/// machine owner configures it once in `/etc/yuos/agent.toml`. Every
-/// app's call runs through that same provider/model. Apps declare
-/// *capability* (which verbs they need), *budget* (how many tokens
-/// they may spend), *safety* profile, and *origin* — never which model
-/// to talk to.
+/// App AI input policy. Model selection and monthly budgets belong to the
+/// owner, not this declaration. Earlier manifests' `budget` field is only
+/// retained for the comparison fingerprint of an existing signed package.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AiPolicy {
-    /// How much the app may spend in a single billing period.
-    pub budget: AiBudget,
+    #[serde(default, rename = "budget", skip_serializing_if = "Option::is_none")]
+    pub(crate) legacy_budget: Option<LegacyAiBudget>,
 
     /// Safety profile applied to every call. `strict` and `standard`
     /// both run prompt-secret redaction (the kernel scrubs obvious
@@ -205,27 +195,22 @@ pub struct AiPolicy {
     #[serde(default = "default_origins")]
     pub origins: Vec<PromptOrigin>,
 
-    /// Allowlist of catalog tool names the app may expose to a model
-    /// via `yu ai chat --tools`. Each entry must be a known tool in
+    /// Allowlist of standalone legacy catalog operations (never model tools).
+    /// Each entry must be a known tool in
     /// `crate::ai::tools::CATALOG`; unknown names are rejected at
     /// install time so a typo can never reach the gate.
     ///
     /// The kernel still gates each actual tool call on the underlying
-    /// `caps.needs[]` (e.g. `fs.read`) — this list only controls
-    /// which tools the model is *told about*. An empty list (the
-    /// default) means the app cannot request any tools.
+    /// `needs` (e.g. `fs.read`). The default empty list exposes no catalog
+    /// operations; App-owned model functions use the chat request instead.
     #[serde(default)]
     pub tools: Vec<String>,
 }
 
-/// Per-period AI token cap. Zero disables enforcement.
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AiBudget {
-    /// Abstract billing units, with the charge defined by the AI operation.
-    /// The kernel hard-denies any
-    /// call whose pre-charge estimate would push usage over the cap.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct LegacyAiBudget {
     #[serde(default)]
-    pub monthly_units: u64,
+    monthly_units: u64,
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]

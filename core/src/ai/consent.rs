@@ -212,7 +212,7 @@ impl InstallModel {
 /// way that requires a re-prompt.
 ///
 /// **Version 2** widens [`freshness`] to compare the `policy.tools`
-/// set in addition to budget / safety / origins. Any consent record
+/// set in addition to safety and origins. Any consent record
 /// stored under version 1 is treated as schema-stale and the user is
 /// re-prompted before the new policy takes effect — necessary
 /// because version-1 records were silently treated as fresh even if
@@ -227,7 +227,7 @@ pub struct Consent {
     pub version: u32,
     /// RFC3339 timestamp of when the user approved the snapshot.
     pub approved_at: String,
-    /// Verbatim copy of the AiPolicy that was approved. Used by
+    /// Copy of the App AI input policy that was approved. Used by
     /// [`freshness`] to detect drift in the manifest.
     pub policy: AiPolicy,
 }
@@ -313,9 +313,6 @@ pub fn freshness(current: &AiPolicy, consent: &Consent) -> Freshness {
     if consent.version != SCHEMA_VERSION {
         changed.push("version".to_string());
     }
-    if current.budget.monthly_units != consent.policy.budget.monthly_units {
-        changed.push("budget.monthly_units".to_string());
-    }
     if current.safety != consent.policy.safety {
         changed.push("safety".to_string());
     }
@@ -373,10 +370,6 @@ pub fn format_for_review(app_id: &str, policy: &AiPolicy) -> String {
     let mut out = String::new();
     out.push_str(&format!("App: {app_id}\n"));
     out.push_str("AI policy declared by the manifest:\n");
-    out.push_str(&format!(
-        "  budget.monthly_units : {}\n",
-        policy.budget.monthly_units
-    ));
     out.push_str(&format!(
         "  safety               : {}\n",
         safety_label(policy.safety)

@@ -332,6 +332,15 @@ fn deduplication_never_reassigns_a_record_to_another_source() {
         service.mutate_source(7, &b.source, &a.id, NotificationMutation::Dismiss),
         Err(NotificationError::NotFound)
     ));
+
+    let input = draft("monthly").dedupe("2026-01:near");
+    let monthly = service.publish_once(7, input.clone()).unwrap().unwrap();
+    service.mutate(7, &monthly.id, NotificationMutation::Dismiss).unwrap();
+    service.lock().unwrap().execute(
+        "DELETE FROM notifications WHERE id = ?1", [&monthly.id],
+    ).unwrap();
+    assert!(service.publish_once(7, input.clone()).unwrap().is_none());
+    assert!(service.publish_once(8, input).unwrap().is_some());
 }
 
 #[test]
