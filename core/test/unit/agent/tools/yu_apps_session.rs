@@ -1649,7 +1649,6 @@ const SHIPPED_NATIVE_MCP_APPS: &[&str] = &[
     "yuos-notifications",
     "panel-calendar",
     "panel-clipboard",
-    "widget-rail",
 ];
 
 /// Shipped manifests resolved from their declared local or immutable product source.

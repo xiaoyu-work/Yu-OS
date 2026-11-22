@@ -144,19 +144,6 @@ pub(super) const STORE: Product = Product {
     interactive_panel: false,
     observation: Some("packages"),
 };
-pub(super) const WIDGETS: Product = Product {
-    name: "desktop-widgets",
-    app: "widget-rail",
-    case: 30,
-    desktop_id: "com.yuos.AppletWidgetRail",
-    entries: &["bin/yuos-applet-widget-rail"],
-    ungranted: &[],
-    home_metadata: false,
-    selector: "open",
-    panel: true,
-    interactive_panel: false,
-    observation: None,
-};
 pub(super) const CLIPBOARD: Product = Product {
     name: "clipboard",
     app: "panel-clipboard",
@@ -215,7 +202,7 @@ impl Product {
         if (34..=39).contains(&case) { return Some(Self { case, ..CAPTURE }); }
         if (42..=43).contains(&case) { return Some(Self { case, ..NOTIFICATIONS }); }
         if (40..=41).contains(&case) { return Some(Self { case, ..MEDIA }); }
-        [EDITOR, FILES, TERMINAL, CALENDAR, STORE, WIDGETS, CLIPBOARD, LAUNCHER, SETTINGS]
+        [EDITOR, FILES, TERMINAL, CALENDAR, STORE, CLIPBOARD, LAUNCHER, SETTINGS]
             .into_iter().find(|product| product.case == case)
     }
 
@@ -250,11 +237,7 @@ impl Product {
         }
         let mut needs = Vec::new();
         if self.panel {
-            if self.name == "desktop-widgets" {
-                needs.push(Cap::new(Verb::SYS_OBSERVE, Scope::name("resources")));
-            } else {
-                needs.push(Cap::new(Verb::DATA_DB_READ, Scope::name("calendar")));
-            }
+            needs.push(Cap::new(Verb::DATA_DB_READ, Scope::name("calendar")));
             needs.push(Cap::unscoped(Verb::UI_PANEL));
         }
         if let Some(domain) = self.observation {
@@ -374,7 +357,7 @@ pub(super) fn install(key: &crate::provenance::sign::SigningKeyFile, product: Pr
             format!("resources/usr/share/applications/{}.desktop", product.desktop_id),
             format!("resources/usr/share/icons/hicolor/scalable/apps/{}.svg", product.desktop_id),
         ]
-    } else if matches!(product.name, "desktop-widgets" | "clipboard") {
+    } else if product.name == "clipboard" {
         vec![format!("resources/usr/share/applications/{}.desktop", product.desktop_id)]
     } else if product.panel && !product.interactive_panel {
         vec![
@@ -517,10 +500,6 @@ fn buffered_window(record: &serde_json::Value, instance: &str) -> bool {
 
 fn buffered_panel(record: &serde_json::Value, instance: &str, namespace: &str) -> bool {
     buffered_panel_size(record, instance, namespace, 16..=512, 16..=128, "None")
-}
-
-fn buffered_widget_panel(record: &serde_json::Value, instance: &str) -> bool {
-    buffered_panel_size(record, instance, WIDGETS.desktop_id, 100..=512, 100..=800, "None")
 }
 
 fn buffered_palette(record: &serde_json::Value, instance: &str) -> bool {
@@ -1001,8 +980,7 @@ pub(super) async fn run(group: &std::fs::File, product: Product) {
     let editor = product.name == "editor";
     let package_owned = Path::new("/run/gui-fixture/native-store-package").exists();
     assert!(!package_owned || product.name == "store");
-    let calendar_fixture = matches!(product.name, "calendar" | "desktop-widgets")
-        .then(calendar_popup::Fixture::prepare);
+    let calendar_fixture = (product.name == "calendar").then(calendar_popup::Fixture::prepare);
     let mut clipboard_fixture = if product.name == "clipboard" {
         Some(clipboard_history::Fixture::prepare().await)
     } else {
@@ -1280,8 +1258,6 @@ pub(super) async fn run(group: &std::fs::File, product: Product) {
                 notifications::buffered(record, &window)
             } else if product.interactive_panel {
                 buffered_palette(record, &window)
-            } else if product.name == "desktop-widgets" {
-                buffered_widget_panel(record, &window)
             } else if product.panel {
                 buffered_panel(record, &window, product.desktop_id)
             } else {
@@ -1405,13 +1381,7 @@ pub(super) async fn run(group: &std::fs::File, product: Product) {
         None
     };
     if let Some(fixture) = &calendar_fixture {
-        if product.name == "desktop-widgets" {
-            if let Err(error) = fixture.consume_widgets(&retained, &process, &session, deadline, &before).await {
-                renderer_failure(&control, &mut pam, &retained, &process, &session, &error).await;
-            }
-        } else {
-            calendar_popup::run(&control, &mut pam, &retained, &process, &session, fixture).await;
-        }
+        calendar_popup::run(&control, &mut pam, &retained, &process, &session, fixture).await;
         assert_eq!(startup_authority(&session, &parent, product), original);
     }
     if let Some(fixture) = &mut clipboard_fixture {
@@ -1556,7 +1526,7 @@ pub(super) async fn run(group: &std::fs::File, product: Product) {
                         && record["role"] == "zwlr_layer_surface_v1"
                         && record["layer_surfaces"] == 0
                         && record["popup"]["open"] == false
-                        && (matches!(product.name, "desktop-widgets" | "notifications") || product.interactive_panel
+                        && (product.name == "notifications" || product.interactive_panel
                             || record["popup"]["closed"] == true)))
         }) {
             break;
@@ -1634,8 +1604,6 @@ pub(super) async fn run(group: &std::fs::File, product: Product) {
             "typed shell command, real PTY/shell/child identities and descendant retirement verified"
         } else if product.interactive_panel {
             "original managed interactive palette pixels verified; catalog/search, typed launch and backend resource admission NOT asserted"
-        } else if product.name == "desktop-widgets" {
-            "real owner-scoped Calendar/task/resource reads under independent exact grants verified; reply decoding and exact painted card text NOT asserted"
         } else if product.name == "clipboard" {
             "real private OS CopyQ history read/delete/confirmed-clear, authenticated Root headless selection Restore with plain-text/HTML transfers and original popup open/close verified; physical display and exact painted history text NOT asserted"
         } else if product.name == "notifications" {
@@ -1737,7 +1705,6 @@ fn private_native_panel() {
         && metadata.mode() & 0o077 == 0 && metadata.len() <= 32);
     let product = match std::fs::read(path).unwrap().as_slice() {
         b"calendar" => CALENDAR,
-        b"desktop-widgets" => WIDGETS,
         b"clipboard" => CLIPBOARD,
         b"launcher" => LAUNCHER,
         _ => panic!("unknown protected native panel fixture selection"),
@@ -1772,18 +1739,10 @@ fn native_calendar_readiness_requires_typed_configured_panel_pixels_not_an_xdg_w
     assert!(buffered_panel(&record, "instance", CALENDAR.desktop_id));
     assert!(!buffered_window(&record, "instance"));
     assert!(!buffered_panel(&record, "foreign", CALENDAR.desktop_id));
-    let mut rail = record.clone();
-    rail["namespace"] = WIDGETS.desktop_id.into();
-    rail["configure_size"] = serde_json::json!([320, 620]);
-    rail["raster"] = serde_json::json!({"width":320,"height":620,"nonuniform_pixels":true});
-    assert!(buffered_widget_panel(&rail, "instance"));
-    assert!(!buffered_widget_panel(&rail, "foreign"));
-    let mut tall_calendar = rail.clone();
-    tall_calendar["namespace"] = CALENDAR.desktop_id.into();
+    let mut tall_calendar = record.clone();
+    tall_calendar["configure_size"] = serde_json::json!([320, 620]);
+    tall_calendar["raster"] = serde_json::json!({"width":320,"height":620,"nonuniform_pixels":true});
     assert!(!buffered_panel(&tall_calendar, "instance", CALENDAR.desktop_id));
-    rail["configure_size"] = serde_json::json!([40, 620]);
-    rail["raster"]["width"] = 40.into();
-    assert!(!buffered_widget_panel(&rail, "instance"));
     let mut palette = record.clone();
     palette["namespace"] = "launcher".into();
     palette["keyboard_interactivity"] = "Exclusive".into();
@@ -1791,7 +1750,6 @@ fn native_calendar_readiness_requires_typed_configured_panel_pixels_not_an_xdg_w
     palette["raster"] = serde_json::json!({"width":840,"height":480,"nonuniform_pixels":true});
     assert!(buffered_palette(&palette, "instance"));
     assert!(!buffered_palette(&palette, "foreign"));
-    assert!(!buffered_widget_panel(&palette, "instance"));
     assert!(!buffered_panel(&palette, "instance", "launcher"));
     palette["keyboard_interactivity"] = "None".into();
     assert!(!buffered_palette(&palette, "instance"));

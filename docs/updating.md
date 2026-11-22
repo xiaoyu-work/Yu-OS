@@ -1061,8 +1061,9 @@ mailbox access.
 
 Apps no longer get a grant to call other Apps. The built-in System Agent
 can call enabled tools in the target App's MCP service. Calendar's own panel
-still shows events; Widget Rail shows OS resources, not private Calendar
-records or System Agent prompts. Ordinary signed owner launches use the
+still shows events. Widget Rail is no longer shipped or selected by the desktop
+package. Upgrading does not purge an independently installed old copy or
+delete its owner data. Ordinary signed owner launches use the
 [public-only TCP proxy](app-development.md#10-what-an-operation-can-reach);
 the [system Open dialog](app-development.md#open-a-user-selected-file) gives
 a signed GUI an exact read, without opening a broader filesystem grant.

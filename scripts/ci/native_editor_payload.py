@@ -27,7 +27,6 @@ PRODUCTS = {
     "terminal": ("yuos-term", "com.yuos.Term", ()),
     "calendar": ("panel-calendar", "com.yuos.PanelCalendarButton", ()),
     "store": ("yuos-store", "com.yuos.Store", ()),
-    "desktop-widgets": ("widget-rail", "com.yuos.AppletWidgetRail", ()),
     "clipboard": ("panel-clipboard", "com.yuos.AppletClipboard", ()),
     "launcher": ("yuos-launcher", "com.yuos.Launcher", ()),
     "settings": ("yuos-settings", "com.yuos.Settings", ()),
@@ -48,9 +47,8 @@ def product_layout(product):
             *(f"resources/usr/share/icons/hicolor/{size}x{size}/apps/{desktop_id}.png"
               for size in (16, 24, 32, 48, 64, 128, 256)),
         )
-    if product in ("desktop-widgets", "clipboard"):
-        program = "yuos-applet-widget-rail" if product == "desktop-widgets" else "yuos-applet-clipboard"
-        return app, [f"bin/{program}"], (
+    if product == "clipboard":
+        return app, ["bin/yuos-applet-clipboard"], (
             f"resources/usr/share/applications/{desktop_id}.desktop",
         )
     if product == "calendar":
@@ -182,7 +180,7 @@ def payload_record(source, payload, lock, product="editor", *, platform=None):
         or manifest.get("mcp", {}).get("entry") != entry
         or manifest.get("desktop", {}).get("entry", entry) != entry
         or manifest.get("desktop", {}).get("exec") != (
-            "open" if product in ("calendar", "desktop-widgets", "clipboard") else "--gui"
+            "open" if product in ("calendar", "clipboard") else "--gui"
         )
     ):
         raise ValueError("Native fixture must use its normal signed GUI/MCP entry")
@@ -194,7 +192,7 @@ def payload_record(source, payload, lock, product="editor", *, platform=None):
     if platform is None:
         platform = published_platform(source)
     licenses = [(payload / "LICENSE", source / "products" / product / "native/LICENSE")]
-    if product not in ("calendar", "desktop-widgets", "clipboard", "notifications"):
+    if product not in ("calendar", "clipboard", "notifications"):
         licenses.append((payload / "licenses/yuos-app-gui-argv/LICENSE", source / "LICENSE"))
     for path, original in licenses:
         if path.read_bytes() != original.read_bytes():

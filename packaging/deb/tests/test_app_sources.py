@@ -1029,15 +1029,15 @@ def _assert_summarize_public_wire(app, python, root):
 def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(tmp_path):
     lock = sources.read_lock()
     assert lock["capabilities"] == ["document-engine", "storage-sdk", "http", "ai-helpers"]
-    assert len(lock["products"]) == 24
-    assert len(lock["apps"]) == 63
+    assert len(lock["products"]) == 23
+    assert len(lock["apps"]) == 62
     source = sources.prepare_sources(lock)
     lock = sources.resolved_lock(lock, source)
     snapshot = tmp_path / "selected-apps.json"
     sources.write_lock(snapshot, lock)
     expected = set(lock["apps"])
     desktop = expected & set(sources.desktop_apps())
-    assert len(desktop) == 12
+    assert len(desktop) == 11
     assert len(expected - desktop) == 51
     assert set(sources.stage_products(tmp_path / "all", lock=lock)) == expected
     assert set(sources.stage_products(tmp_path / "agent", "agent", lock=lock)) == expected - desktop
@@ -1386,7 +1386,6 @@ def test_native_manual_image_and_asset_build_paths_agree():
 
 @pytest.mark.parametrize(("product", "app_id"), [
     ("calendar", "panel-calendar"), ("clipboard", "panel-clipboard"),
-    ("desktop-widgets", "widget-rail"),
     ("launcher", "yuos-launcher"),
     ("editor", "yuos-edit"),
     ("files", "yuos-files"),
@@ -1516,19 +1515,20 @@ def test_native_notifications_keep_private_inputs_and_legacy_state_separate(publ
     status = (ROOT / "docs/app-product-redesign.md").read_text()
     assert "yuos-app/products/notifications" in status
     assert "Source migration covered all original 75 identities" in status
-    assert "**24 business product groups**" in status
+    assert "**23 business product groups**" in status
     assert "**4 shared-capability source groups**: 51 Agent-package identities and" in status
 
 
 def test_notify_is_agent_owned_and_preserves_history_without_an_installer_transition():
     lock = sources.read_lock()
     desktop = set(sources.desktop_apps())
-    assert len(lock["apps"]) == 63
-    assert len(lock["products"]) == 24
+    assert len(lock["apps"]) == 62
+    assert len(lock["products"]) == 23
     assert lock["capabilities"] == ["document-engine", "storage-sdk", "http", "ai-helpers"]
-    assert len(set(lock["apps"]) & desktop) == 12
+    assert len(set(lock["apps"]) & desktop) == 11
     assert len(set(lock["apps"]) - desktop) == 51
     assert "gateway-email" not in lock["apps"]
+    assert "widget-rail" not in lock["apps"] and "widget-rail" not in desktop
     assert "notify" not in desktop
     assert "yuos-notifications" in desktop
     assert not (ROOT / "apps/notify").exists()
@@ -1539,7 +1539,7 @@ def test_notify_is_agent_owned_and_preserves_history_without_an_installer_transi
     assert "not part of the new service list" in contract
     assert "data.inbox.read" in contract
     assert "warning severity" in contract
-    assert "51 Agent identities plus 12 desktop" in (ROOT / "packaging/MODULE.md").read_text()
+    assert "51 Agent identities plus 11 desktop" in (ROOT / "packaging/MODULE.md").read_text()
 
 
 @pytest.mark.parametrize("export", [

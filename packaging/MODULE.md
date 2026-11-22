@@ -168,9 +168,9 @@ subsequent staging reuses that snapshot rather than moving with the branch.
 Product-owned
 staging builds the Mail XPI and Python payload; OS packaging retains the native
 authority launcher and distributes these together in `yuos-agent`.
-External desktop Apps are excluded from Agent staging. `panel-calendar`, `panel-clipboard` and `widget-rail` are
-resolved from the same immutable source pin by desktop package assembly;
-their complete product-owned native UIs are linked into `cosmic-applets`.
+External desktop Apps are excluded from Agent staging. `panel-calendar` and
+`panel-clipboard` have App-owned native payloads. The desktop dependency
+selection no longer includes Widget Rail.
 The complete standalone Launcher source/resources are composed from that pin
 too; `yuos-launcher` remains a desktop-package descriptor and executable.
 The complete native Editor is composed likewise; `yuos-edit`, its localized
@@ -218,8 +218,8 @@ or provider source is packaged. Native history/settings and legacy `notify`
 JSON are not migrated. Binary-only hot-swap is refused.
 The `notify` Python source/descriptor/client comes from the same product pin
 but stays exclusively in Agent. It uses that package's SDK/service, not the
-native App. The retained partition is 51 Agent identities plus 12 desktop
-identities; all 63 belong to 24 business product groups plus four explicitly
+native App. The retained partition is 51 Agent identities plus 11 desktop
+identities; all 62 belong to 23 business product groups plus four explicitly
 shared-capability source groups. Historical JSON is preserved in its
 old namespace and excluded from new service lists, never copied into payloads
 or automatically imported at installation/launch.

@@ -39,7 +39,7 @@ def payload(tmp_path, request, monkeypatch):
     }
     if product == "terminal":
         manifest["desktop"] = {"exec": "--gui"}
-    elif product in ("calendar", "desktop-widgets"):
+    elif product == "calendar":
         manifest["desktop"] = {
             "exec": "open", "panel_applet": True,
             "needs": [
@@ -49,12 +49,6 @@ def payload(tmp_path, request, monkeypatch):
                 {"verb": "ui.panel", "scope": {"kind": "fixed", "scope": {"kind": "wild"}}},
             ],
         }
-        if product == "desktop-widgets":
-            manifest["desktop"]["needs"][1:1] = [
-                {"verb": verb, "scope": {
-                    "kind": "fixed", "scope": {"kind": "name", "value": name},
-                }} for verb, name in (("sys.observe", "resources"), ("agent.observe", "tasks"))
-            ]
     elif product == "store":
         manifest["desktop"] = {
             "exec": "--gui",
@@ -90,7 +84,7 @@ def payload(tmp_path, request, monkeypatch):
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content)
-    if product not in ("calendar", "desktop-widgets", "clipboard", "notifications"):
+    if product not in ("calendar", "clipboard", "notifications"):
         support = prepared / "licenses/yuos-app-gui-argv/LICENSE"
         support.parent.mkdir(parents=True)
         support.write_text("synthetic support license\n")
@@ -161,7 +155,7 @@ def test_header_only_elf_and_missing_installer_resources_cannot_enter_lane(paylo
             editor.payload_record(source, prepared, {}, product)
 
 
-@pytest.mark.parametrize("payload", ["terminal", "calendar", "store", "desktop-widgets", "clipboard", "launcher", "settings", "capture", "notifications", "media-player"], indirect=True)
+@pytest.mark.parametrize("payload", ["terminal", "calendar", "store", "clipboard", "launcher", "settings", "capture", "notifications", "media-player"], indirect=True)
 def test_native_product_refuses_an_unapproved_platform_digest(payload):
     source, prepared, product = payload
     path = source / "platform.lock.json"

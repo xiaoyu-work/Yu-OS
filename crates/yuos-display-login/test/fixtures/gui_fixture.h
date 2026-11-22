@@ -91,8 +91,6 @@ static int gui_entry(int count, char **arguments) {
         && strcmp(arguments[2], "panel-calendar") == 0 && strcmp(arguments[3], "--gui") == 0;
     int store = count == 4 && strcmp(arguments[1], "app") == 0
         && strcmp(arguments[2], "yuos-store") == 0 && strcmp(arguments[3], "--gui") == 0;
-    int widgets = count == 4 && strcmp(arguments[1], "app") == 0
-        && strcmp(arguments[2], "widget-rail") == 0 && strcmp(arguments[3], "--gui") == 0;
     int clipboard = count == 4 && strcmp(arguments[1], "app") == 0
         && strcmp(arguments[2], "panel-clipboard") == 0 && strcmp(arguments[3], "--gui") == 0;
     int launcher = count == 4 && strcmp(arguments[1], "app") == 0
@@ -118,7 +116,7 @@ static int gui_entry(int count, char **arguments) {
                 && strcmp(arguments[5], "--notify=false") == 0 && strcmp(arguments[6], "--save-dir") == 0
                 && strcmp(arguments[7], "/run/display-home/Pictures") == 0));
     if (getuid() != 62050 || geteuid() != 62050 || getgid() != 62050
-        || (count != 7 && !editor && !files && !terminal && !calendar && !store && !widgets && !clipboard && !launcher && !settings && !capture && !notifications && !player)
+        || (count != 7 && !editor && !files && !terminal && !calendar && !store && !clipboard && !launcher && !settings && !capture && !notifications && !player)
         || strcmp(arguments[0], "/usr/local/bin/yu") != 0)
         return 64;
     const char *runtime = getenv("XDG_RUNTIME_DIR");
@@ -181,7 +179,7 @@ static int gui_fixture(void) {
         "panel", "panel-read", "panel-write", "window", "panel-revoke", "panel-revoke", "metadata",
         "selected-read", "selected-write", "package", "metadata-subroot", "selected-create",
         "native-editor", "native-files", "native-terminal", "native-calendar", "native-store",
-        "native-desktop-widgets", "native-clipboard", "native-launcher", "native-settings",
+        NULL, "native-clipboard", "native-launcher", "native-settings",
         "native-capture-file", "native-capture-clipboard", "native-capture-cancel",
         "native-capture-revoke", "native-capture-logout", "native-capture-file-output",
         "native-media-player", "native-media-thumbnail", "native-notifications-deliver", "native-notifications-revoke"
@@ -206,7 +204,7 @@ static int gui_fixture(void) {
                 break;
             unsigned scenario = (unsigned)(selected[0] - '0') * 10u
                 + (unsigned)(selected[1] - '0');
-            if (scenario >= sizeof(modes) / sizeof(modes[0]))
+            if (scenario >= sizeof(modes) / sizeof(modes[0]) || !modes[scenario])
                 break;
             capture_logout = scenario == 38;
             int descriptors[2];
@@ -305,7 +303,6 @@ static int gui_fixture(void) {
                                      scenario == 27 ? "yuos-term" :
                                      scenario == 28 ? "panel-calendar" :
                                      scenario == 29 ? "yuos-store" :
-                                     scenario == 30 ? "widget-rail" :
                                      scenario == 31 ? "panel-clipboard" :
                                      scenario == 32 ? "yuos-launcher" : "yuos-settings",
                               "--gui", (char *)NULL);

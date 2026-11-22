@@ -43,15 +43,15 @@ elif [[ $# == 14 && "${13}" == --native-launcher-only ]]; then
     printf 'actual Launcher requires its compiled OS backend\n' >&2
     exit 64
 fi
-if [[ $# == 15 && ( "${13}" == --native-calendar-only || "${13}" == --native-desktop-widgets-only ) ]]; then
+if [[ $# == 15 && "${13}" == --native-calendar-only ]]; then
     native_calendar_reader=$(realpath -- "${15}")
     [[ -f "$native_calendar_reader" && -x "$native_calendar_reader" && ! -L "$native_calendar_reader" ]] || exit 64
     set -- "${@:1:14}"
-elif [[ $# == 14 && ( "${13}" == --native-calendar-only || "${13}" == --native-desktop-widgets-only ) ]]; then
+elif [[ $# == 14 && "${13}" == --native-calendar-only ]]; then
     printf 'actual Calendar consumers require the existing compiled OS reader\n' >&2
     exit 64
 fi
-if [[ $# == 14 && ( "${13}" == --native-editor-only || "${13}" == --native-files-only || "${13}" == --native-terminal-only || "${13}" == --native-calendar-only || "${13}" == --native-store-only || "${13}" == --native-store-package-only || "${13}" == --native-desktop-widgets-only || "${13}" == --native-clipboard-only || "${13}" == --native-launcher-only || "${13}" == --native-settings-only || "${13}" == --native-capture-only || "${13}" == --native-notifications-only || "${13}" == --native-media-player-only ) ]]; then
+if [[ $# == 14 && ( "${13}" == --native-editor-only || "${13}" == --native-files-only || "${13}" == --native-terminal-only || "${13}" == --native-calendar-only || "${13}" == --native-store-only || "${13}" == --native-store-package-only || "${13}" == --native-clipboard-only || "${13}" == --native-launcher-only || "${13}" == --native-settings-only || "${13}" == --native-capture-only || "${13}" == --native-notifications-only || "${13}" == --native-media-player-only ) ]]; then
     if [[ "${13}" == --native-editor-only ]]; then
         native_product=editor
         native_app=yuos-edit
@@ -64,9 +64,6 @@ if [[ $# == 14 && ( "${13}" == --native-editor-only || "${13}" == --native-files
     elif [[ "${13}" == --native-store-only || "${13}" == --native-store-package-only ]]; then
         native_product=store
         native_app=yuos-store
-    elif [[ "${13}" == --native-desktop-widgets-only ]]; then
-        native_product=desktop-widgets
-        native_app=widget-rail
     elif [[ "${13}" == --native-clipboard-only ]]; then
         native_product=clipboard
         native_app=panel-clipboard
@@ -215,7 +212,7 @@ if [[ "$gui" == 1 ]]; then
         cp -a -- "$native_product_input/$native_app" "/usr/lib/yuos/apps/$native_app"
         chown -hR 0:0 "/usr/lib/yuos/apps/$native_app"
     fi
-    if [[ "$native_product" == calendar || "$native_product" == desktop-widgets ]]; then
+    if [[ "$native_product" == calendar ]]; then
         [[ -n "$native_calendar_reader" ]] || exit 64
         install -m0755 "$native_calendar_reader" /usr/lib/yuos/bin/yuos-calendar-reader
     fi
@@ -300,7 +297,7 @@ if [[ "$gui" == 1 ]]; then
         printf '%s' "$notification_case" >/run/gui-fixture/native-notification-case
         chmod 0600 /run/gui-fixture/native-notification-case
     fi
-    if [[ "$native_product" == calendar || "$native_product" == desktop-widgets || "$native_product" == clipboard || "$native_product" == launcher ]]; then
+    if [[ "$native_product" == calendar || "$native_product" == clipboard || "$native_product" == launcher ]]; then
         printf '%s' "$native_product" >/run/gui-fixture/native-panel-product
         chmod 0600 /run/gui-fixture/native-panel-product
     fi
@@ -368,7 +365,7 @@ BUS
         native-capture) fixture_test=yuosd::server::gui_fixture::native_products::private_native_capture ;;
         native-notifications) fixture_test=yuosd::server::gui_fixture::native_products::private_native_notifications ;;
         native-media-player) fixture_test=yuosd::server::gui_fixture::native_products::private_native_media_player ;;
-        native-calendar|native-desktop-widgets|native-clipboard|native-launcher) fixture_test=yuosd::server::gui_fixture::native_products::private_native_panel ;;
+        native-calendar|native-clipboard|native-launcher) fixture_test=yuosd::server::gui_fixture::native_products::private_native_panel ;;
         native-store|native-store-package) fixture_test=yuosd::server::gui_fixture::native_products::private_native_store ;;
         native-package) fixture_test=yuosd::server::gui_fixture::package::private_native_package_self_handoff ;;
     esac
@@ -407,7 +404,7 @@ BUS
             cp /run/user/62050/native-product-observer/window.json "$private/native-$native_product-window.json"
             chmod 0644 "$private/native-$native_product-window.json"
         fi
-        if [[ ( "$native_product" == calendar || "$native_product" == store || "$native_product" == desktop-widgets || "$native_product" == clipboard ) && -f "/run/gui-fixture/native-$native_product-consumer.json" ]]; then
+        if [[ ( "$native_product" == calendar || "$native_product" == store || "$native_product" == clipboard ) && -f "/run/gui-fixture/native-$native_product-consumer.json" ]]; then
             cp "/run/gui-fixture/native-$native_product-consumer.json" "$private/native-$native_product-consumer.json"
             chmod 0644 "$private/native-$native_product-consumer.json"
             /usr/bin/python3 -I -B - "$private" "$native_product" <<'PY'
@@ -420,12 +417,10 @@ product = sys.argv[2]
 profiles = {
     "calendar": ("native-calendar-agenda.shm", b"YUOSCALSHM1\0", "yuos.private-calendar"),
     "store": ("native-store-window.shm", b"YUOSSTRSHM1\0", "yuos.private-store"),
-    "desktop-widgets": ("native-widget-rail.shm", b"YUOSWIDSHM1\0", "yuos.private-widget-rail"),
     "clipboard": ("native-clipboard-history.shm", b"YUOSCLPSHM1\0", "yuos.private-clipboard"),
 }
 assert product in profiles
 popup = product in ("calendar", "clipboard")
-widgets = product == "desktop-widgets"
 filename, magic, prefix = profiles[product]
 
 def protected(path, uid, limit):
@@ -460,15 +455,13 @@ def checked_snapshot(data, index, window):
         assert frame["role"] == "xdg_popup" and frame["parent_role"] == "zwlr_layer_surface_v1"
         assert frame["geometry"] == window["popup"]["geometry"]
     else:
-        assert frame["role"] == ("zwlr_layer_surface_v1" if widgets else "xdg_toplevel")
+        assert frame["role"] == "xdg_toplevel"
         assert frame["parent_role"] is None and frame["parent_instance"] is None
-        assert frame["geometry"] == ([0, 0, *window["configure_size"]] if widgets else [0, 0, 800, 600])
+        assert frame["geometry"] == [0, 0, 800, 600]
     assert frame["buffer_commit"] == index["snapshot_commit"]
     assert frame["configure_serial"] == index["configure_serial"]
     width, height = frame["geometry"][2:]
     assert 100 <= width <= 4096 and 100 <= height <= 4096
-    if widgets:
-        assert width <= 512 and height <= 800
     assert (frame["raster"]["width"], frame["raster"]["height"]) == (width, height)
     assert frame["source_format"] in ("argb8888", "xrgb8888")
     assert frame["stored_stride"] == width * 4 and frame["stored_offset"] == 0
@@ -490,10 +483,8 @@ if popup:
     latest_commit = window["popup"]["buffer_commits"]
 else:
     assert window["closed"] and window["toplevels"] == 0
-    if widgets:
-        assert window["role"] == "zwlr_layer_surface_v1" and window["layer_surfaces"] == 0
     index = window.get("snapshot") or {}
-    observed = consumer.get("passive_panel_snapshot" if widgets else "passive_window_snapshot") or {}
+    observed = consumer.get("passive_window_snapshot") or {}
     if index.get("status") == "saved":
         assert observed["instance"] == index["instance"] == window["instance"]
         assert observed["snapshot_commit"] <= index["snapshot_commit"]

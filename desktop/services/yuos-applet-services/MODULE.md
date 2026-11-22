@@ -33,14 +33,12 @@ adds a core or UI library dependency.
   bounded `yu sys resources`, preserving the existing Linux fallback and
   process-local delta state. Original telemetry tests remain alongside it.
 
-The OS `cosmic-applets` dispatcher translates events to the product-owned
-Calendar UI's `AgendaProvider` contract and Calendar/task/system records to
-Widget Rail's `Providers` contract. Agent Activity re-exports only the shared
-task-list adapter, retaining its own UI, detail/mutation commands and tests.
-No App invokes another App, and no grant or data partition is broadened or combined.
+Calendar's own panel uses the Calendar product's bounded reader. Agent
+Activity re-exports the task-list adapter, retaining its own UI, detail and
+mutation commands. Apps cannot read Agent tasks through the observation API.
 The Clipboard host also uses this policy client, mapping the product library's
 typed read/write requests only to `Name(history)`. CopyQ implementation belongs
-to the external Clipboard product, not this library or Widget Rail.
+to the external Clipboard product, not this library.
 
 Standalone clients consume only the
 [public SDK contract](../../../yuos-sdk/wire/v1/applet-services.md).

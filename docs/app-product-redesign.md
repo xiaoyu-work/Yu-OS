@@ -31,10 +31,10 @@ explicit contracts and release coupling; see
 [`packaging/README.md`](../packaging/README.md).
 
 Source migration covered all original 75 identities. The current selection
-retains **63 identities** across **24 business product groups** plus
+retains **62 identities** across **23 business product groups** plus
 **4 shared-capability source groups**: 51 Agent-package identities and
-12 desktop identities. Eleven unselected messaging connectors were explicitly
-retired, followed by the legacy `gateway-email` App; their previous credentials
+11 desktop identities. Eleven unselected messaging connectors, the legacy
+`gateway-email` App and Widget Rail were retired; their previous credentials
 and installed data are not deleted or migrated here.
 This count includes native Notifications and `notify`, not their OS service
 or shared libraries. `doc` now belongs to the explicitly declared Document
@@ -60,7 +60,7 @@ and consent cutovers, or visual/installed-image acceptance.
 | `panel-clipboard` | Complete native popup, CopyQ adapter/scripts, resources, manifest, tests and build inputs moved to `yuos-app/products/clipboard`; OS host supplies history-only policy, with desktop package ownership preserved; CopyQ history/Wayland selection integration remains separate |
 | `fs` | Moved to `yuos-app/products/files/apps/fs`; all fourteen MCP tools and snapshot authority preserved |
 | `yuos-files` | Complete native UI/library/companion, resources and original locked build moved to Files; shared filesystem/Recoll/parser and SDK AI replace App calls; identities and existing UI/MCP data remain separate |
-| Previously completed native slices: `widget-rail`, `yuos-launcher`, `yuos-edit`, `yuos-term`, `yuos-store`, `yuos-settings` | Complete sources/resources/builds already moved to Desktop Widgets, Launcher, Editor, Terminal, Store and Settings; source ownership remains distinct from backend/data/visual cutovers |
+| Previously completed native slices: `yuos-launcher`, `yuos-edit`, `yuos-term`, `yuos-store`, `yuos-settings` | Complete sources/resources/builds already moved to Launcher, Editor, Terminal, Store and Settings; source ownership remains distinct from backend/data/visual cutovers |
 | `yuos-screenshot` | Complete native portal client, all 99 original native files, 72 locales, eight icons, descriptor and original locked release build moved to Capture; UI remains in the shared OS portal; non-interactive CLI/MCP share the typed OS service with separate screen/output grants, no worker session bus or App call; IDs and screenshots/configuration stay unchanged |
 | `yuos-player` | All 110 original native files, 72 locales, descriptor, resources and original renderer/optional graph moved to `yuos-app/products/media-player`; UI/MCP share actual native playback through an owner/executable-bound OS adapter with separate exact observe/control grants, no worker bus and no other-player fallback; Stop/status are corrected; identities and user state remain unchanged |
 | `yuos-notifications` | All 40 original native files, nested config/util crates, GPL license, original toolkit/optional graph, descriptor and added native tests/fixture moved to `yuos-app/products/notifications`; isolated MCP submits owner/App-bound durable OS intent under the existing `ui.notify` grant; one OS consumer presents and closes notifications with safe sender-bound handles and real acknowledgement; durable string IDs explicitly replace desktop integers; legacy `notify` JSON and user settings remain unchanged |
@@ -116,14 +116,11 @@ Moving source does not complete a product redesign milestone or merge legacy
 identities. APT remains the installed update path until a separate, complete
 distribution change replaces it.
 
-Native desktop sources must move with their build dependencies and package
-ownership. Calendar now exports its full native presentation library and
-assets from the immutable App source pin. The OS `cosmic-applets` host links
-that library against the forked toolkit and injects a typed agenda callback;
-Widget Rail and the host share an OS-owned read-only provider rather than an
-App dependency. Manual and chroot builds prepare the same inputs under
-ignored build storage. The launcher and native shell stay in
-`yuos-desktop`, not `yuos-agent`; grants and data remain unchanged.
+Native desktop sources move with their build dependencies and package
+ownership. Calendar owns its native panel and assets. The panel reads through
+the verified Calendar product's bounded OS service; unrelated Apps do not
+get access to Calendar's private store. Manual source fixtures use ignored
+build storage rather than a production source fallback.
 
 ## Product contract
 
@@ -169,7 +166,7 @@ contracts.
 ## Complete ownership map
 
 Each retained App ID occurs in exactly one row below. These are ownership
-groups, not a proposal to replace 63 Apps with 28 new App packages.
+groups, not a proposal to merge App identities by source group.
 
 ### Business products
 
@@ -200,14 +197,6 @@ groups, not a proposal to replace 63 Apps with 28 new App packages.
 | Security | `security-center`, `firewall-manager`, `usb-guard` | Shared presentation, separate enforcement for security inspection, firewall and device authorization. |
 | Storage | `storage-manager` | Storage-management service with optional UI, not raw access to all product databases. |
 | Events and audit | `event-center`, `log` | Query surfaces over distinct event/audit authorities; do not merge them into notification storage. |
-| Agent and shell UI | `widget-rail` | Presentation of existing product/task state, not another workflow or state owner. |
-
-Widget Rail's complete native presentation now lives in the external
-`products/desktop-widgets` product. This preserves the Agent/shell role above:
-typed OS providers own Calendar/task/telemetry access and authorization, while
-the product owns the original rail UI/resources/tests. It does not transfer
-Agent execution or introduce a new data store. Visual/full-image acceptance
-remains separate from this native source/build migration.
 
 ### Shared capabilities
 

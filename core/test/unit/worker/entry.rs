@@ -111,7 +111,6 @@ fn package_local_entries_do_not_require_a_product_name_or_vendor_origin() {
         "independent-editor",
         "mail-ai",
         "panel-calendar",
-        "widget-rail",
     ] {
         let fixture = EntryFixture::new(id, true, true);
         assert!(matches!(

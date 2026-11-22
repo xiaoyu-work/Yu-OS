@@ -296,9 +296,9 @@ extensions() {
 
 display() {
     local selection="${1:-display}"
-    if [[ "$selection" == native-editor || "$selection" == native-files || "$selection" == native-terminal || "$selection" == native-calendar || "$selection" == native-store || "$selection" == native-desktop-widgets || "$selection" == native-clipboard || "$selection" == native-launcher || "$selection" == native-settings || "$selection" == native-capture || "$selection" == native-notifications || "$selection" == native-media-player ]]; then
+    if [[ "$selection" == native-editor || "$selection" == native-files || "$selection" == native-terminal || "$selection" == native-calendar || "$selection" == native-store || "$selection" == native-clipboard || "$selection" == native-launcher || "$selection" == native-settings || "$selection" == native-capture || "$selection" == native-notifications || "$selection" == native-media-player ]]; then
         cargo test -p yu --lib --locked native_editor_readiness -- --test-threads=1
-        if [[ "$selection" == native-calendar || "$selection" == native-desktop-widgets ]]; then
+        if [[ "$selection" == native-calendar ]]; then
             cargo test -p yu --lib --locked native_calendar_readiness -- --test-threads=1
             cargo test -p yu --lib --locked native_calendar_popup -- --test-threads=1
             cargo build --manifest-path desktop/services/yuos-applet-services/Cargo.toml \
@@ -372,7 +372,7 @@ display() {
         local selectors=()
         if [[ "$fixture_mode" == native-fs ]]; then
             selectors=(--native-fs-only)
-        elif [[ "$fixture_mode" == native-calendar || "$fixture_mode" == native-desktop-widgets ]]; then
+        elif [[ "$fixture_mode" == native-calendar ]]; then
             selectors=("--$fixture_mode-only" "$GITHUB_WORKSPACE/build/$fixture_mode-input"
                 "$CARGO_TARGET_DIR/native-calendar-service/debug/yuos-calendar-reader")
         elif [[ "$fixture_mode" == native-launcher ]]; then
@@ -515,7 +515,6 @@ case "${1:-}" in
     native-terminal) display native-terminal ;;
     native-calendar) display native-calendar ;;
     native-store) display native-store ;;
-    native-desktop-widgets) display native-desktop-widgets ;;
     native-clipboard) display native-clipboard ;;
     native-launcher) display native-launcher ;;
     native-settings) display native-settings ;;
@@ -524,7 +523,7 @@ case "${1:-}" in
     native-media-player) display native-media-player ;;
     applets) applets ;;
     *)
-        echo "usage: $0 {app-apt|app-bind|capture|nearby|calendar|extensions|display|native-fs|file-manager|native-package|native-editor|native-files|native-terminal|native-calendar|native-store|native-desktop-widgets|native-clipboard|native-launcher|native-settings|native-capture|native-notifications|native-media-player|applets}" >&2
+        echo "usage: $0 {app-apt|app-bind|capture|nearby|calendar|extensions|display|native-fs|file-manager|native-package|native-editor|native-files|native-terminal|native-calendar|native-store|native-clipboard|native-launcher|native-settings|native-capture|native-notifications|native-media-player|applets}" >&2
         exit 2
         ;;
 esac

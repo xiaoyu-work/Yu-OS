@@ -69,17 +69,6 @@ const STORE_SNAPSHOT: SnapshotProfile = SnapshotProfile {
     role: "xdg_toplevel",
     parent_role: None,
 };
-const WIDGET_SNAPSHOT: SnapshotProfile = SnapshotProfile {
-    selector: "/run/gui-public/native-widget-rail-snapshot-enabled",
-    selector_schema: "yuos.private-widget-rail-synthetic-shm/v1",
-    frame_schema: "yuos.private-widget-rail-shm-frame/v1",
-    index_schema: "yuos.private-widget-rail-shm-index/v1",
-    file: "native-widget-rail.shm",
-    next: "widget-snapshot.next",
-    magic: b"YUOSWIDSHM1\0",
-    role: "zwlr_layer_surface_v1",
-    parent_role: None,
-};
 const CLIPBOARD_SNAPSHOT: SnapshotProfile = SnapshotProfile {
     selector: "/run/gui-public/native-clipboard-snapshot-enabled",
     selector_schema: "yuos.private-clipboard-synthetic-shm/v1",
@@ -318,7 +307,6 @@ struct Panel {
     raster: Option<serde_json::Value>,
     closed: bool,
     popup: PanelPopup,
-    snapshot: PassiveSnapshot,
 }
 
 #[derive(Default)]
@@ -522,7 +510,6 @@ impl Window {
             raster: None,
             closed: false,
             popup: PanelPopup::default(),
-            snapshot: PassiveSnapshot::new(&WIDGET_SNAPSHOT),
         });
         self.publish()
     }
@@ -543,10 +530,6 @@ impl Window {
         panel.configures.drain(..=issued);
         panel.acknowledged = Some(serial);
         panel.configured = panel.configures.is_empty() && panel.configure == Some(serial);
-        if let Some(index) = &mut panel.snapshot.index {
-            index["matches_current_configure"] =
-                (panel.configured && index["configure_serial"] == u32::from(serial)).into();
-        }
     }
 
     pub fn close_panel(&mut self, surface: &LayerSurface) -> Result<()> {
@@ -559,7 +542,6 @@ impl Window {
         }
         panel.surface = None;
         panel.closed = true;
-        panel.snapshot.unmap(true);
         self.publish()
     }
 
@@ -900,9 +882,6 @@ impl Window {
                 panel.configures.push(serial);
                 panel.configured = false;
                 panel.raster = None;
-                if let Some(index) = &mut panel.snapshot.index {
-                    index["matches_current_configure"] = false.into();
-                }
             }
         }
         let is_top = self
@@ -970,7 +949,6 @@ impl Window {
                             .ok_or("auxiliary frame count overflow")?;
                         self.output.enter(surface);
                     } else if is_panel {
-                        let instance = self.instance.as_deref().unwrap();
                         let panel = self.panel.as_mut().unwrap();
                         if panel.acknowledged.is_none() {
                             return Err(
@@ -980,24 +958,12 @@ impl Window {
                         }
                         // A resize commit may carry pixels before its new configure is acknowledged.
                         if panel.configured {
-                            let capture = panel.snapshot.enabled(instance)?;
-                            let (observed, pixels) = raster_with_pixels(
-                                &buffer,
-                                if capture { Some(panel.snapshot.allowance()) } else { None },
-                            )?;
+                            let (observed, _) = raster_with_pixels(&buffer, None)?;
                             panel.raster = Some(observed);
                             panel.commits = panel
                                 .commits
                                 .checked_add(1)
                                 .ok_or("panel frame count overflow")?;
-                            if capture {
-                                let (width, height) = panel.size.unwrap();
-                                panel.snapshot.publish(
-                                    instance, panel.commits, (0, 0, width, height),
-                                    panel.configure.expect("real panel configure"),
-                                    panel.raster.as_ref().unwrap(), pixels,
-                                );
-                            }
                         }
                         self.output.enter(surface);
                     } else if is_popup {
@@ -1044,7 +1010,6 @@ impl Window {
                         self.auxiliary.raster = None;
                     } else if is_panel {
                         self.panel.as_mut().unwrap().raster = None;
-                        self.panel.as_mut().unwrap().snapshot.unmap(false);
                     } else if is_popup {
                         self.panel.as_mut().unwrap().popup.raster = None;
                         self.panel.as_mut().unwrap().popup.snapshot.unmap(false);
@@ -1077,7 +1042,6 @@ impl Window {
                 "configure_acked": panel.configured, "configure_size": panel.size,
                 "pending_configures": panel.configures.len(),
                 "buffer_commits": panel.commits, "raster": panel.raster, "closed": panel.closed,
-                "snapshot": panel.snapshot.index,
                 "popup": {
                     "role": "xdg_popup", "parent_role": "zwlr_layer_surface_v1",
                     "parent_instance": instance, "parent_bound": panel.popup.parent_bound,
@@ -1305,7 +1269,6 @@ mod snapshot_tests {
             raster: Some(serde_json::json!({"nonuniform_pixels":true})),
             closed: true,
             popup: PanelPopup::default(),
-            snapshot: PassiveSnapshot::new(&WIDGET_SNAPSHOT),
         });
         assert!(window.can_reopen_panel("instance", Layer::Top, "notifications"));
         assert!(!window.can_reopen_panel("other-instance", Layer::Top, "notifications"));
@@ -1358,7 +1321,7 @@ mod snapshot_tests {
     fn calendar_snapshot_container_is_one_commit_and_budget_is_finite() {
         let metadata =
             serde_json::json!({"instance":"synthetic","buffer_commit":3,"stored_bytes":4});
-        for profile in [&CALENDAR_SNAPSHOT, &STORE_SNAPSHOT, &WIDGET_SNAPSHOT, &CLIPBOARD_SNAPSHOT] {
+        for profile in [&CALENDAR_SNAPSHOT, &STORE_SNAPSHOT, &CLIPBOARD_SNAPSHOT] {
             let bytes = snapshot_container(profile, &metadata, &[1, 2, 3, 4]).unwrap();
             assert_eq!(&bytes[..12], profile.magic);
             let length = u32::from_le_bytes(bytes[12..16].try_into().unwrap()) as usize;
@@ -1382,13 +1345,13 @@ mod snapshot_tests {
 
     #[test]
     fn calendar_snapshot_selector_requires_exact_root_synthetic_instance() {
-        for profile in [&CALENDAR_SNAPSHOT, &STORE_SNAPSHOT, &WIDGET_SNAPSHOT, &CLIPBOARD_SNAPSHOT] {
+        for profile in [&CALENDAR_SNAPSHOT, &STORE_SNAPSHOT, &CLIPBOARD_SNAPSHOT] {
             let mut selector = serde_json::json!({
                 "schema":profile.selector_schema,"instance":"bound-instance",
             });
             assert!(check_snapshot_selector(profile, &selector, "bound-instance").is_ok());
             assert!(check_snapshot_selector(profile, &selector, "foreign-instance").is_err());
-            for other in [&CALENDAR_SNAPSHOT, &STORE_SNAPSHOT, &WIDGET_SNAPSHOT, &CLIPBOARD_SNAPSHOT] {
+            for other in [&CALENDAR_SNAPSHOT, &STORE_SNAPSHOT, &CLIPBOARD_SNAPSHOT] {
                 if other.selector_schema != profile.selector_schema {
                     let mut foreign_profile = selector.clone();
                     foreign_profile["schema"] = other.selector_schema.into();

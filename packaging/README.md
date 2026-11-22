@@ -76,7 +76,7 @@ commit and builds its UI natively on Debian 13. OS-controlled assembly seals
 the Shell with the official App publisher and verifies its signed inventory,
 entrypoint, resources and target architecture without changing the App tree.
 Its launcher, identity and permission checks are unchanged. The remaining
-63 identities and Mail's Thunderbird integration are separately owned packages
+62 identities and Mail's Thunderbird integration are separately owned packages
 required by Desktop, not an installed `yuos-apps-desktop` metapackage.
 The historical immutable metapackage remains in the App archive for retention.
 
@@ -127,7 +127,7 @@ other decisions such as App Store transactions keep their own authorization.
 An independent App update that changes the signed envelope needs a matching
 new OS selection to keep these defaults.
 
-**Desktop source links are cut over:** Calendar, Clipboard and Widget Rail
+**Desktop source links are cut over:** Calendar and Clipboard
 binaries, desktop entries, translations/icons and common-Host launchers are
 App-owned; the OS retains their panel layout IDs without linking product UI
 or installing duplicate aliases. Notifications uses the existing public SDK
@@ -242,9 +242,9 @@ Co-staging never merges conflicting library trees. Agent still owns
 `/usr/lib/yuos/apps/doc`, `/usr/lib/yuos/python/yuos_files`, SDK/runtime and the
 canonical argument module. All six operations, manifest needs/AI declarations,
 outputs, memory identity and user state remain unchanged. The source lock now
-selects 63 retained identities after the original 75-identity source relocation:
-24 business products plus four capability groups, with 51 Agent and 12 desktop
-identities; the retired messaging connectors and Email Gateway are not fallbacks.
+selects 62 retained identities after the original 75-identity source relocation:
+23 business products plus four capability groups, with 51 Agent and 11 desktop
+identities. The retired connectors, Email Gateway and Widget Rail are not fallbacks.
 Native preparation stays product-only.
 
 Storage SDK supplies independent `db` and `kv` clients from

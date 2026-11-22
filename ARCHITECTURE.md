@@ -479,7 +479,7 @@ vendored Helium source. The OS admits both private headless rendering and
 attached tab actions through separate typed providers. Desktop and headless
 rendering use the same installed Helium browser without sharing a profile.
 
-Calendar, Clipboard and Widget Rail own their native UI,
+Calendar and Clipboard own their native UI,
 localization and resources in App packages. The OS `cosmic-applets`
 dispatcher no longer links those libraries, injects product callbacks or
 generates their templates/aliases. Their unchanged panel desktop IDs select
@@ -490,10 +490,9 @@ Shared read-only Calendar,
 task-list and telemetry providers and policy checks live in
 `desktop/services/yuos-applet-services`, not in an App. Agent Activity shares
 only the task-list provider; task mutations and Agent execution remain OS-owned.
-Widget Rail shows shared OS resource telemetry. Calendar's private records
-stay with Calendar and its own panel, and System Agent Jobs stay with OS
-Agent surfaces. No new state store or cross-App call is introduced.
-`panel-calendar`, `panel-clipboard` and `widget-rail` remain independently
+Calendar's private records stay with Calendar and its own panel, and System
+Agent Jobs stay with OS Agent surfaces. The standalone Widget Rail is retired.
+`panel-calendar` and `panel-clipboard` remain independently
 App-owned, with original launcher identities and independent grants
 unchanged; installed updates remain signed APT packages.
 Standalone consumers use the public Rust SDK's versioned
@@ -790,11 +789,11 @@ Doc-only staging and the Agent package. No Files App call or second parser is
 introduced; identical co-staged library payloads are reused and conflicts
 refused. Native preparation stays product-only. Missing or ambiguous declared
 sources never fall back to local OS Apps. Original source relocation covered
-75/75 identities; the current selection retains 63 after retiring eleven
-messaging connectors and the legacy Email Gateway: 24 business product groups plus four capability groups,
-51 Agent and 12 desktop
-identities. Doc's signed schema, six operations, grants, AI budget/safety/origin,
-memory identity and installed state are unchanged.
+75/75 identities; the current selection retains 62 after retiring eleven
+messaging connectors, the legacy Email Gateway, and Widget Rail: 23 business
+product groups plus four capability groups, with 51 Agent and 11 desktop
+identities. Doc retains its six operations, grants, AI safety/origin,
+memory identity and installed state.
 
 Storage SDK owns `db` and `kv` at `capabilities/storage-sdk/apps/`, separate from
 the Storage business product. DB's unchanged manifest, SQLite implementation

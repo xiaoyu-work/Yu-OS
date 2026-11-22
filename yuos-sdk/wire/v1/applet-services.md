@@ -1,8 +1,7 @@
 # App data services, version 1
 
 This public, language-neutral App interface has a Rust binding,
-`applet::Client`. Calendar, Clipboard and Widget Rail are current consumers,
-not an eligibility list. OS providers remain in
+`applet::Client`. Calendar and Clipboard are product consumers. OS providers remain in
 [`yuos-applet-services`](../../../desktop/services/yuos-applet-services/MODULE.md);
 neither the public client nor the App contains provider implementations.
 
@@ -115,8 +114,7 @@ stderr to 16 KiB. Existing system telemetry fallback remains explicit through
 
 ## Lifetime and bounds
 
-One SDK client owns one private process/pipe; clones share it. Widget Rail uses
-independent clients for independent refreshes. The system provider retains
+One SDK client owns one private process/pipe; clones share it. The system provider retains
 CPU/network deltas in process memory, with the original OS-only telemetry
 fallback; no sample data is sent back as caller-controlled input or persisted.
 
