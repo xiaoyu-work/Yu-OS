@@ -17,6 +17,10 @@ The installed private C++ runtime carries the original GCC license and
 runtime exception; its compiler is not included.
 The [Desktop Shell App](https://github.com/xiaoyu-work/yuos-app/tree/main/products/desktop-shell)
 records its own sources and licenses. No Omarchy source is used.
+The source snapshot in [`desktop-shell/`](desktop-shell/) was imported from
+`yuos-app` commit `35262bce654ad3c96ac0cdb602161b72131a621d`, tree
+`f4667b3fc1fec0703fd86db549761722bb091f06`. It is not yet selected by the
+installed Desktop build or login path; the signed App remains authoritative.
 The [Media Player App](https://github.com/xiaoyu-work/yuos-app/tree/main/products/media-player)
 records the provenance of its independently packaged native player.
 
