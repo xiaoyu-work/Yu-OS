@@ -69,45 +69,45 @@ fn picker_requires_retirement_and_projects_only_installed_open_access() {
             "{field}"
         );
     }
+    assert_snapshot_source_checks();
+}
 
-    #[test]
-    fn picker_snapshot_copies_one_owner_file_but_refuses_aliases_and_changed_sources() {
-        use crate::worker::native_fs::picker::fingerprint;
-        use selected_open::{copy_source, pin_source, refuse_private};
-        use std::fs;
-        use std::os::unix::fs::symlink;
+fn assert_snapshot_source_checks() {
+    use crate::worker::native_fs::picker::fingerprint;
+    use selected_open::{copy_source, pin_source, refuse_private};
+    use std::fs;
+    use std::os::unix::fs::symlink;
 
-        let temp = tempfile::tempdir().unwrap();
-        let home = temp.path().canonicalize().unwrap();
-        let relative = Path::new("Récit.txt");
-        let source = home.join(relative);
-        let private = home.join("configured-app-data");
-        fs::create_dir(&private).unwrap();
-        fs::write(&source, b"selected").unwrap();
-        let owner = unsafe { libc::getuid() };
-        let pin = pin_source(owner, &home, relative).unwrap();
-        let stamp = fingerprint(&pin.metadata().unwrap());
-        assert_eq!(
-            copy_source(owner, &home, relative, &pin, stamp, 8).unwrap(),
-            b"selected"
-        );
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path().canonicalize().unwrap();
+    let relative = Path::new("Récit.txt");
+    let source = home.join(relative);
+    let private = home.join("configured-app-data");
+    fs::create_dir(&private).unwrap();
+    fs::write(&source, b"selected").unwrap();
+    let owner = unsafe { libc::getuid() };
+    let pin = pin_source(owner, &home, relative).unwrap();
+    let stamp = fingerprint(&pin.metadata().unwrap());
+    assert_eq!(
+        copy_source(owner, &home, relative, &pin, stamp, 8).unwrap(),
+        b"selected"
+    );
 
-        symlink(&relative, home.join("shortcut")).unwrap();
-        assert!(pin_source(owner, &home, Path::new("shortcut")).is_err());
-        fs::hard_link(&source, home.join("second-link")).unwrap();
-        assert!(pin_source(owner, &home, relative).is_err());
-        fs::remove_file(home.join("second-link")).unwrap();
-        fs::rename(&source, home.join("old")).unwrap();
-        fs::write(&source, b"switched").unwrap();
-        assert!(copy_source(owner, &home, relative, &pin, stamp, 8).is_err());
-        assert!(refuse_private(&private.join("another-app/content"), &home, &private).is_err());
-        assert!(
-            refuse_private(
-                &home.join(".local/share/yuos/apps/another-app/content"),
-                &home,
-                &private
-            )
-            .is_err()
-        );
-    }
+    symlink(&relative, home.join("shortcut")).unwrap();
+    assert!(pin_source(owner, &home, Path::new("shortcut")).is_err());
+    fs::hard_link(&source, home.join("second-link")).unwrap();
+    assert!(pin_source(owner, &home, relative).is_err());
+    fs::remove_file(home.join("second-link")).unwrap();
+    fs::rename(&source, home.join("old")).unwrap();
+    fs::write(&source, b"switched").unwrap();
+    assert!(copy_source(owner, &home, relative, &pin, stamp, 8).is_err());
+    assert!(refuse_private(&private.join("another-app/content"), &home, &private).is_err());
+    assert!(
+        refuse_private(
+            &home.join(".local/share/yuos/apps/another-app/content"),
+            &home,
+            &private
+        )
+        .is_err()
+    );
 }
