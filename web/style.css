@@ -157,7 +157,6 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
 .install-section + .install-section { border-top: 1px solid var(--rule); }
 .install-section h2 { font-size: clamp(43px, 5.1vw, 70px); line-height: .92; letter-spacing: -.035em; }
 .install-section p { max-width: 66ch; color: var(--soft); }
-.install-notice { margin-top: 18px; padding: 12px 16px; border-left: 3px solid var(--blue); background: var(--panel); }
 .install-steps { list-style: none; margin: 26px 0 0; padding: 0; counter-reset: installation; }
 .install-steps > li {
   position: relative;
