@@ -91,7 +91,8 @@ app_apt() {
     parent_pid="$(readlink /proc/self/ns/pid)"
     parent_net="$(readlink /proc/self/ns/net)"
     for fixture in "${fixtures[@]}"; do
-        sudo timeout --kill-after=5 150 unshare --mount --pid --net --fork --mount-proc --kill-child=KILL \
+        sudo --preserve-env=YUOS_APP_SOURCE_LOCK \
+            timeout --kill-after=5 150 unshare --mount --pid --net --fork --mount-proc --kill-child=KILL \
             env YUOS_APP_APT_TEST_HOOK="$CARGO_TARGET_DIR/debug/yuos-app-apt-hook" \
                 YUOS_APP_APT_TEST_YU="$CARGO_TARGET_DIR/debug/yu" \
                 YUOS_APP_APT_TEST_RUNNER="$CARGO_TARGET_DIR/debug/yuos-app-runner" \

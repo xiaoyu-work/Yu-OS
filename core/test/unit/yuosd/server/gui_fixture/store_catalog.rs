@@ -97,14 +97,14 @@ Description: Private controlled Store inventory\n\n".to_vec();
                     && record["params"]["session"] == session
             }).cloned().collect::<Vec<_>>();
             if requests.iter().any(|request| {
-                // This private fixture seeds only local APT catalog data.
-                let unavailable_optional_catalog = request["error"]["code"] == "unavailable"
+                // This private fixture seeds local APT data, not Flatpak installations.
+                let unavailable_external_source = request["error"]["code"] == "unavailable"
                     && matches!(
                         request["params"]["action"].as_str(),
-                        Some("store" | "flatpak-catalog"),
+                        Some("store" | "flatpak-catalog" | "flatpak-installed" | "flatpak-updates"),
                     );
                 request["client"]["uid"] != OWNER
-                    || request["ok"] != true && !unavailable_optional_catalog
+                    || request["ok"] != true && !unavailable_external_source
             }) {
                 return Err("actual Store SDK package observation was refused".into());
             }

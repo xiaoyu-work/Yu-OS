@@ -30,10 +30,11 @@ class NearbyPackaging(unittest.TestCase):
         self.assertIn("service-gate", unit["Service"]["ExecStartPre"])
         self.assertEqual(set(unit["Service"]["CapabilityBoundingSet"].split()),
                          {"CAP_NET_ADMIN", "CAP_NET_RAW"})
-        broker = (ROOT / "rootfs/features/systemd/overlay/usr/lib/systemd/system/yuosd.service").read_text()
-        self.assertIn("RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6", broker)
-        self.assertNotIn("AF_PACKET", broker)
-        self.assertNotIn("AF_NETLINK", broker)
+        broker = configparser.ConfigParser(interpolation=None, strict=False)
+        broker.read(ROOT / "rootfs/features/systemd/overlay/usr/lib/systemd/system/yuosd.service")
+        # Bubblewrap needs Netlink for private loopback before the worker socket filter.
+        self.assertEqual(set(broker["Service"]["RestrictAddressFamilies"].split()),
+                         {"AF_UNIX", "AF_INET", "AF_INET6", "AF_NETLINK"})
 
     def test_backend_has_one_locked_workspace_and_signed_component_inventory(self):
         with (ROOT / "Cargo.toml").open("rb") as handle:
