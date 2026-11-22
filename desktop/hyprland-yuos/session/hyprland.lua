@@ -10,6 +10,24 @@ hl.config({
     },
 })
 
+hl.curve("yuos-ease", { type = "bezier", points = { {0.3, 0}, {0.7, 1} } })
+
+hl.animation({ leaf = "windowsIn",   enabled = true, speed = 1.6, bezier = "yuos-ease", style = "popin 96%" })
+hl.animation({ leaf = "windowsOut",  enabled = true, speed = 1.6, bezier = "yuos-ease", style = "popin 96%" })
+hl.animation({ leaf = "fadeIn",      enabled = true, speed = 1.6, bezier = "yuos-ease" })
+hl.animation({ leaf = "fadeOut",     enabled = true, speed = 1.6, bezier = "yuos-ease" })
+hl.animation({ leaf = "windowsMove", enabled = true, speed = 1.4, bezier = "yuos-ease" })
+
+hl.animation({ leaf = "workspacesIn",  enabled = true, speed = 1.8, bezier = "yuos-ease", style = "slidefade 12%" })
+hl.animation({ leaf = "workspacesOut", enabled = true, speed = 1.8, bezier = "yuos-ease", style = "slidefade 12%" })
+
+-- QuietMenu.qml already fades and slides the menu on open and close.
+hl.layer_rule({
+    name = "yuos-top-menu",
+    match = { namespace = "^caelestia-yuos-top-menu$" },
+    no_anim = true,
+})
+
 hl.window_rule({
     name = "yuos-permission-request",
     match = { class = "^yuos-desktop-reviews$" },
