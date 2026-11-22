@@ -132,6 +132,8 @@ const EXPECTED_USER_COMMANDS: &[&str] = &[
     "system.display.control",
     "system.events.control",
     "system.file.replace",
+    "system.app-file.transfer",
+    "system.app-file.commit",
     "system.firewall.control",
     "system.hardware.inspect",
     "system.location.query",

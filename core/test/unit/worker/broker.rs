@@ -43,17 +43,26 @@ fn identity_and_consent_routes_are_always_refused() {
 #[test]
 fn a_launch_with_no_relay_grant_reaches_no_route_at_all() {
     let authority = authority(vec![Cap::new(Verb::NET_MANAGE, Scope::Wild)]);
-    let command = Command::parse("system.network.control").expect("network route");
-    let error = admit(command, &authority).unwrap_err();
-    assert!(error.contains("no relay authority"), "{error}");
+    for command in [
+        Command::SystemNetworkControl,
+        Command::SystemAppFileTransfer,
+        Command::SystemAppFileCommit,
+    ] {
+        let error = admit(command, &authority).unwrap_err();
+        assert!(error.contains("no relay authority"), "{command:?}: {error}");
+    }
 }
 
 #[test]
 fn a_route_family_the_launch_cannot_justify_is_refused() {
     let authority = relaying_authority(vec![Cap::new(Verb::FS_READ, Scope::path("/tmp/**"))]);
     for command in Command::ALL.iter().copied() {
-        if command == Command::SystemFilesystemRead {
-            admit(command, &authority).expect("fs.read admits only the filesystem read provider");
+        if matches!(
+            command,
+            Command::SystemFilesystemRead | Command::SystemAppFileTransfer | Command::SystemAppFileCommit
+        ) {
+            admit(command, &authority)
+                .expect("ordinary read or independently authorized App-file relay");
             continue;
         }
         assert!(
@@ -80,7 +89,11 @@ fn every_admissible_route_is_explicitly_mapped() {
     let unmapped: Vec<&str> = Command::ALL
         .iter()
         .copied()
-        .filter(|command| !is_forbidden(*command) && required_verbs(*command).is_empty())
+        .filter(|command| {
+            !matches!(command, Command::SystemAppFileTransfer | Command::SystemAppFileCommit)
+                && !is_forbidden(*command)
+                && required_verbs(*command).is_empty()
+        })
         .map(Command::as_str)
         .collect();
     for name in &unmapped {

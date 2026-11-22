@@ -30,7 +30,11 @@ fn session(id: &str, parent: &str, group: &str) -> crate::proc::SessionInfo {
 fn child_proxy_is_an_explicit_session_route_allowlist() {
     for route in crate::yuosd::routes::ROUTES {
         let expected = route.access == Access::User
-            && route.authority.audience != crate::yuosd::authority::Audience::GuiResource
+            && !matches!(
+                route.authority.audience,
+                crate::yuosd::authority::Audience::GuiResource
+                    | crate::yuosd::authority::Audience::AppFile
+            )
             && matches!(
                 route.authority.subject,
                 crate::yuosd::authority::SubjectSource::Session
@@ -71,6 +75,8 @@ fn child_proxy_is_an_explicit_session_route_allowlist() {
     assert!(!child_route(Command::AppSessionRelay.route()));
     assert!(!child_route(Command::GuiFileReadRequest.route()));
     assert!(!child_route(Command::GuiFileReadStatus.route()));
+    assert!(!child_route(Command::SystemAppFileTransfer.route()));
+    assert!(!child_route(Command::SystemAppFileCommit.route()));
     assert!(!child_route(Command::PermissionDecide.route()));
 }
 

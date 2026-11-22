@@ -141,6 +141,7 @@ fn route_audiences_match_their_families() {
             name if name.starts_with("credential.") || name.starts_with("agent.account.") => {
                 Audience::Credential
             }
+            "system.app-file.transfer" | "system.app-file.commit" => Audience::AppFile,
             name if name.starts_with("system.")
                 || name.starts_with("nearby.")
                 || name == "ai.chat" =>

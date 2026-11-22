@@ -3066,13 +3066,20 @@ fn unexercised_relay_withholds_success_and_private_errors_without_downgrading_un
     assert_eq!(unknown.data.unwrap()["request_id"], "retained-root-receipt");
 }
 
+fn expected_relay_audience(command: Command) -> authority::Audience {
+    match command {
+        Command::SystemAppFileTransfer | Command::SystemAppFileCommit => authority::Audience::AppFile,
+        _ => authority::Audience::SystemService,
+    }
+}
+
 #[test]
-fn only_session_scoped_system_service_routes_may_be_relayed() {
+fn only_session_scoped_provider_routes_may_be_relayed() {
     for command in Command::ALL.iter().copied() {
         let route = command.route();
         let allowed = route.access == Access::User
             && route.authority.subject == authority::SubjectSource::Session
-            && route.authority.audience == authority::Audience::SystemService
+            && route.authority.audience == expected_relay_audience(command)
             && command != Command::AppSessionRelay;
         match relayable_route(command) {
             Ok(resolved) => {
@@ -3102,7 +3109,7 @@ fn root_peer_and_handle_routes_are_never_relayable() {
         let route = command.route();
         let refusable = route.access != Access::User
             || route.authority.subject != authority::SubjectSource::Session
-            || route.authority.audience != authority::Audience::SystemService;
+            || route.authority.audience != expected_relay_audience(command);
         if refusable {
             assert!(
                 relayable_route(command).is_err(),
@@ -3401,7 +3408,7 @@ fn a_relay_proof_skips_only_the_cgroup_comparison() {
 #[test]
 fn the_outer_relay_audience_is_distinct_from_the_inner_one() {
     // The relay route is reached with AppRelay; every route it may
-    // forward is decided with SystemService. Collapsing the two would
+    // forward has its own provider audience. Collapsing the two would
     // let a relay grant act directly on a provider.
     let relay_route = Command::AppSessionRelay.route();
     assert_eq!(
@@ -3416,7 +3423,7 @@ fn the_outer_relay_audience_is_distinct_from_the_inner_one() {
         if let Ok(route) = relayable_route(command) {
             assert_eq!(
                 route.authority.audience,
-                authority::Audience::SystemService,
+                expected_relay_audience(command),
                 "{} is relayable in the wrong audience",
                 route.name
             );
