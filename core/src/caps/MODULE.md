@@ -104,3 +104,9 @@ capabilities without opening the extension runtime's protected write lock.
 This does not create authority or skip capability containment. App and MCP
 identities still require their provenance/liveness checks; a forged environment
 session name cannot create a trusted task-local scope.
+
+Non-interactive desktop model setup checks Polkit against its real process
+identity before registering a short-lived local CLI scope for one named
+`secret.write`. It cannot add rights to an existing session, or bootstrap
+from an App, MCP server, or restricted worker. The normal credential gate
+still checks and audits the write.

@@ -62,6 +62,7 @@ pub fn run(args: &[String]) -> Result<Value, String> {
     let mut apply_api_key_env: Option<String> = None;
     let mut apply_base_url: Option<String> = None;
     let mut apply_api_version: Option<String> = None;
+    let mut desktop_setup = false;
     let mut oauth_device_code: Option<String> = None;
     let mut oauth_device_code_stdin = false;
 
@@ -132,6 +133,7 @@ pub fn run(args: &[String]) -> Result<Value, String> {
                 oauth_device_code = Some(args[i].clone());
             }
             "--device-code-stdin" => oauth_device_code_stdin = true,
+            "--desktop-setup" => desktop_setup = true,
             other => {
                 if let Some(m) = Modality::parse(other) {
                     if let Some(existing) = modality {
@@ -180,6 +182,18 @@ pub fn run(args: &[String]) -> Result<Value, String> {
             "--device-code and --device-code-stdin are only valid with `oauth-poll`".into(),
         );
     }
+    if desktop_setup
+        && (explicit_verify
+            || match sub {
+                Some("apply") => {
+                    modality.is_none() || apply_api_key.is_some() || apply_api_key_env.is_some()
+                }
+                Some("oauth-poll") => !oauth_device_code_stdin,
+                _ => true,
+            })
+    {
+        return Err("--desktop-setup applies only to native model and device sign-in input".into());
+    }
     if oauth_device_code_stdin {
         if oauth_device_code.is_some() {
             return Err("specify only one of --device-code or --device-code-stdin".into());
@@ -216,6 +230,7 @@ pub fn run(args: &[String]) -> Result<Value, String> {
                 copilot::oauth_poll_cmd(
                     apply_provider.as_deref(),
                     oauth_device_code.as_deref(),
+                    desktop_setup,
                 )
             }
             Some("models") => copilot::models_cmd(apply_provider.as_deref()),
@@ -250,6 +265,7 @@ pub fn run(args: &[String]) -> Result<Value, String> {
         api_key_env: apply_api_key_env,
         base_url: apply_base_url,
         api_version: apply_api_version,
+        desktop_setup,
     };
     match sub {
         Some("status") => status_cmd(modality),
@@ -259,9 +275,11 @@ pub fn run(args: &[String]) -> Result<Value, String> {
         Some("test") => verify_cmd(modality),
         Some("help") => Ok(help_doc()),
         Some("oauth-start") => copilot::oauth_start_cmd(apply_provider.as_deref()),
-        Some("oauth-poll") => {
-            copilot::oauth_poll_cmd(apply_provider.as_deref(), oauth_device_code.as_deref())
-        }
+        Some("oauth-poll") => copilot::oauth_poll_cmd(
+            apply_provider.as_deref(),
+            oauth_device_code.as_deref(),
+            desktop_setup,
+        ),
         Some("models") => copilot::models_cmd(apply_provider.as_deref()),
         _ => dispatch_wizard(modality, verify_after),
     }
@@ -298,7 +316,11 @@ fn pick_modality_interactively() -> Result<Modality, String> {
             "embed",
             "Text embeddings (semantic memory)",
         ),
-        (Modality::Decision, "decision", "Local decision model (System One)"),
+        (
+            Modality::Decision,
+            "decision",
+            "Local decision model (System One)",
+        ),
         (
             Modality::All,
             "all",
@@ -1385,6 +1407,7 @@ struct ApplyArgs {
     /// Azure REST API version. When set and `base_url` lacks a query
     /// string, gets appended as `?api-version=<value>` at persist time.
     api_version: Option<String>,
+    desktop_setup: bool,
 }
 
 /// Emit a JSON catalogue of providers + sample models for one or all
@@ -1801,7 +1824,7 @@ fn resolve_key_args(
     if key.is_empty() {
         return Err("API key cannot be empty".into());
     }
-    store_credential(credential_hint, &key).map_err(|e| {
+    store_setup_credential(credential_hint, &key, args.desktop_setup).map_err(|e| {
         format!(
             "store credential `{credential_hint}` in namespace `agent`: {e}\nhint: run under a privileged shell, or use --api-key-env ENV_NAME to point at an env var instead"
         )
@@ -2022,6 +2045,15 @@ fn store_credential(name: &str, value: &str) -> Result<(), String> {
         "agent".to_string(),
     ];
     crate::credential::run("store", &args).map(|_| ())
+}
+
+fn store_setup_credential(name: &str, value: &str, desktop: bool) -> Result<(), String> {
+    let _guard = if desktop {
+        crate::caps::bootstrap::desktop_model_credential_session(name)?
+    } else {
+        None
+    };
+    store_credential(name, value)
 }
 
 // ---------------------------------------------------------------------------

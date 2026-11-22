@@ -100,8 +100,16 @@ case "$component" in
             usr/libexec/yuos-greeter
             usr/libexec/yuos-create-local-owner
             usr/libexec/yuos-desktop-locales
+            usr/libexec/yuos-oobe
+            usr/libexec/yuos_oobe_models.py
+            usr/libexec/yuos_oobe_regions.py
+            usr/lib/systemd/system/yuos-driver-online.service
+            usr/lib/NetworkManager/dispatcher.d/70-yuos-driver-setup
             usr/share/yuos/oobe/greeter.qml
             usr/share/yuos/oobe/shell.qml
+            usr/share/yuos/oobe/SetupHardware.qml
+            usr/share/yuos/oobe/SetupModels.qml
+            usr/share/yuos/oobe/WorldDots.js
             usr/share/yuos/oobe/wallpaper-blurred.jpg
             usr/share/backgrounds/yuos/yuos-default.jpg
             usr/share/polkit-1/actions/org.yuos.local-desktop-setup.policy

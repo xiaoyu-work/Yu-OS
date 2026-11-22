@@ -63,6 +63,10 @@ fn bootstrap_is_noop_when_session_already_set() {
 
     let guard = bootstrap_user_cli_session_impl(&["agent".into()], true);
     assert!(guard.is_none(), "should not bootstrap when YUOS_SESSION is set");
+    #[cfg(target_os = "linux")]
+    assert!(desktop_model_credential_session("stt_azure_api_key")
+        .unwrap()
+        .is_none());
     assert_eq!(env::var("YUOS_SESSION").unwrap(), "outer-session-id");
 
     match prev {

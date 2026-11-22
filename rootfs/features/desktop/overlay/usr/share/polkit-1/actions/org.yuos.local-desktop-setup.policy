@@ -13,4 +13,13 @@
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/yuos-create-local-owner</annotate>
   </action>
+  <action id="org.yuos.local-desktop-setup.configure-model">
+    <description>Save an Agent model credential from desktop setup</description>
+    <message>Authorization is required to save this model credential</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>no</allow_active>
+    </defaults>
+  </action>
 </policyconfig>

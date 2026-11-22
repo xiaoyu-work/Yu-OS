@@ -1,6 +1,11 @@
 polkit.addRule(function(action, subject) {
-    if (subject.user !== "_greetd" || !subject.local || !subject.active) return;
+    if (!subject.local || !subject.active) return;
+    if (action.id === "org.yuos.local-desktop-setup.configure-model" &&
+        (subject.isInGroup("yuos-desktop-users") || subject.isInGroup("sudo")) &&
+        subject.user !== "_greetd" && subject.user !== "root") return polkit.Result.YES;
+    if (subject.user !== "_greetd") return;
     if (action.id !== "org.yuos.local-desktop-setup.create-owner" &&
+        action.id !== "org.yuos.local-desktop-setup.configure-model" &&
         action.id !== "org.freedesktop.NetworkManager.network-control" &&
         action.id !== "org.freedesktop.NetworkManager.settings.modify.system") return;
     try {

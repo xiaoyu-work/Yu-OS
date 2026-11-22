@@ -83,6 +83,8 @@ class Models:
             launcher.setenv("YUOS_USER_DATA_DIR", str(profile / "data"), True)
         if credentials is not None:
             launcher.setenv("YUOS_CREDENTIALS_DIR", str(credentials), True)
+        if args[0] in ("apply", "oauth-poll"):
+            args = [*args, "--desktop-setup"]
         try:
             self.child = launcher.spawnv([self.yu, "agent", "setup", modality, *args])
         except self.glib.Error:

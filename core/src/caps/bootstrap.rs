@@ -49,6 +49,9 @@ use crate::caps::scope::Scope;
 use crate::proc::{deregister_session, register_session, SessionInfo};
 use crate::session::{SessionClient, SessionSource};
 
+#[cfg(target_os = "linux")]
+const DESKTOP_MODEL_SETUP_ACTION: &str = "org.yuos.local-desktop-setup.configure-model";
+
 /// RAII guard that removes the bootstrapped session row from the
 /// proc registry on `Drop`. Hold it for the lifetime of `main()` so
 /// the row exists exactly as long as the CLI process does.
@@ -107,21 +110,96 @@ fn bootstrap_user_cli_session_impl(
         return None;
     }
 
+    let caps =
+        Role::Admin.caps_with_scopes(Some(Scope::Wild), Some(Scope::Wild), Some(Scope::Wild));
+    match register_cli_session(
+        std::iter::once(env::args().next().unwrap_or_else(|| "yu".to_string()))
+            .chain(args.iter().cloned())
+            .collect(),
+        caps,
+        Some(Role::Admin.name().to_string()),
+        bootstrap_client(args, interactive_terminal),
+    ) {
+        Ok(guard) => Some(guard),
+        Err(e) => {
+            tracing::error!(
+                target: "yu::caps::bootstrap",
+                error = %e,
+                "failed to register CLI session in proc registry; gated calls will deny in strict mode"
+            );
+            None
+        }
+    }
+}
+
+/// Polkit admits the active local desktop user (or the armed first-run
+/// greeter). The ordinary secret gate still mediates the one named write.
+#[cfg(target_os = "linux")]
+pub(crate) fn desktop_model_credential_session(name: &str) -> Result<Option<SessionGuard>, String> {
+    use std::process::{Command, Stdio};
+
+    use crate::caps::{Cap, CapSet, Verb};
+
+    if env::var_os("YUOS_SESSION").is_some_and(|v| !v.is_empty()) {
+        // A caller which already has capabilities must use those, not mint others.
+        return Ok(None);
+    }
+    let uid = unsafe { libc::getuid() };
+    if uid == 0
+        || uid != unsafe { libc::geteuid() }
+        || env::var_os("YUOS_APP_ID").is_some()
+        || env::var_os("YUOS_MCP_SERVER").is_some()
+        || crate::paths::is_routed_job()
+        || super::enforcement::process_has_no_new_privs()
+    {
+        return Err("desktop model setup requires an active local user".into());
+    }
+    let pid = std::process::id();
+    let start = crate::proc::read_start_time_ticks_pub(pid)
+        .ok_or("cannot identify the desktop model setup process")?;
+    let allowed = Command::new("/usr/bin/pkcheck")
+        .args(["--action-id", DESKTOP_MODEL_SETUP_ACTION, "--process"])
+        .arg(format!("{pid},{start},{uid}"))
+        .env_clear()
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|error| format!("cannot authorize desktop model setup: {error}"))?;
+    if !allowed.success() {
+        return Err("desktop model setup permission denied (no active local authorization)".into());
+    }
+    register_cli_session(
+        vec!["yu".into(), "agent".into(), "setup".into()],
+        CapSet::from_caps([Cap::new(
+            Verb::SECRET_WRITE,
+            Scope::name(format!("agent/{name}")),
+        )]),
+        None,
+        SessionClient::new(SessionSource::System, true, true),
+    )
+    .map(Some)
+}
+
+#[cfg(not(target_os = "linux"))]
+pub(crate) fn desktop_model_credential_session(
+    _name: &str,
+) -> Result<Option<SessionGuard>, String> {
+    Err("native desktop model setup requires Linux".into())
+}
+
+fn register_cli_session(
+    command: Vec<String>,
+    caps: super::CapSet,
+    role: Option<String>,
+    client: SessionClient,
+) -> Result<SessionGuard, String> {
     let pid = std::process::id();
     let session_id = format!("cli-{}-{}", pid, fresh_session_suffix());
-
-    let caps = Role::Admin.caps_with_scopes(
-        Some(Scope::Wild),
-        Some(Scope::Wild),
-        Some(Scope::Wild),
-    );
-
     let info = SessionInfo {
         session_id: session_id.clone(),
         pid,
-        command: std::iter::once(env::args().next().unwrap_or_else(|| "yu".to_string()))
-            .chain(args.iter().cloned())
-            .collect(),
+        command,
         started_at: now_rfc3339(),
         stdout_path: String::new(),
         stderr_path: String::new(),
@@ -137,34 +215,16 @@ fn bootstrap_user_cli_session_impl(
         priority: None,
         caps: Some(caps),
         transient_caps: None,
-        role: Some(Role::Admin.name().to_string()),
+        role,
         app_id: None,
         pending_bind: false,
         start_time_ticks: crate::proc::read_start_time_ticks_pub(pid),
-        client: bootstrap_client(args, interactive_terminal),
+        client,
     };
 
-    match register_session(info) {
-        Ok(()) => {
-            env::set_var("YUOS_SESSION", &session_id);
-            Some(SessionGuard { session_id })
-        }
-        Err(e) => {
-            // Fail closed. We deliberately do **not** demote to
-            // permissive mode here. Surfacing the failure means the
-            // user sees "Permission denied (no active session)" on
-            // gated calls — the *correct* signal that something is
-            // wrong with the kernel state, rather than the silent
-            // open-door we used to have.
-            tracing::error!(
-                target: "yu::caps::bootstrap",
-                error = %e,
-                "failed to register CLI session in proc registry; \
-                 gated calls will deny in strict mode"
-            );
-            None
-        }
-    }
+    register_session(info)?;
+    env::set_var("YUOS_SESSION", &session_id);
+    Ok(SessionGuard { session_id })
 }
 
 fn bootstrap_client(args: &[String], interactive_terminal: bool) -> SessionClient {

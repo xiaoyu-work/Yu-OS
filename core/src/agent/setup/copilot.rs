@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use crate::agent::llm;
 
-use super::{read_line, store_credential};
+use super::{read_line, store_credential, store_setup_credential};
 
 /// Authentication kind exposed to UIs so they render the device-flow branch.
 pub(super) fn auth_kind_for(provider: &str) -> Option<&'static str> {
@@ -326,6 +326,7 @@ pub(super) fn oauth_start_cmd(provider: Option<&str>) -> Result<Value, String> {
 pub(super) fn oauth_poll_cmd(
     provider: Option<&str>,
     device_code: Option<&str>,
+    desktop_setup: bool,
 ) -> Result<Value, String> {
     let provider = require_provider(provider, "oauth-poll")?;
     ensure_oauth_provider(&provider)?;
@@ -353,7 +354,12 @@ pub(super) fn oauth_poll_cmd(
             // + chat traffic can exchange it for short-lived Copilot
             // tokens on demand. We store under a fixed credential name
             // so a re-sign-in cleanly overwrites the prior token.
-            store_credential(COPILOT_GITHUB_TOKEN_CREDENTIAL, &github_token).map_err(|e| {
+            store_setup_credential(
+                COPILOT_GITHUB_TOKEN_CREDENTIAL,
+                &github_token,
+                desktop_setup,
+            )
+            .map_err(|e| {
                 format!(
                     "oauth-poll: stored token rejected by credential store: {e}\n\
                      hint: rerun as a user with write access to the agent credential namespace."

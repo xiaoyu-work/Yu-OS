@@ -1234,6 +1234,12 @@ a worker lease lapses, or a deadline passes.
 `core/src/caps/` remains the vocabulary: verbs, scopes, catalog, manifests and
 the `require` gate. It describes authority; the broker authority decides it.
 
+For native first-run model settings, the direct CLI checks the active local
+process with Polkit and registers a temporary session for one named Agent
+credential write. The ordinary credential gate still enforces the scope;
+the first-owner helper commits staged settings through its existing Polkit
+boundary. Neither operation grants an App or a display session any rights.
+
 ### Activities across terminal and desktop
 
 ```text

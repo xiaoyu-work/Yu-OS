@@ -1097,7 +1097,7 @@ fn oauth_subcommands_reject_non_copilot_provider() {
     // must surface as actionable errors, not crashes.
     let err = copilot::oauth_start_cmd(Some("openai")).expect_err("non-copilot provider rejected");
     assert!(err.contains("does not use OAuth device flow"), "{err}");
-    let err = copilot::oauth_poll_cmd(Some("openai"), Some("xxx"))
+    let err = copilot::oauth_poll_cmd(Some("openai"), Some("xxx"), false)
         .expect_err("non-copilot provider rejected");
     assert!(err.contains("does not use OAuth device flow"), "{err}");
     let err = copilot::models_cmd(Some("openai")).expect_err("models only supports copilot today");
@@ -1106,10 +1106,10 @@ fn oauth_subcommands_reject_non_copilot_provider() {
 
 #[test]
 fn oauth_poll_requires_device_code() {
-    let err =
-        copilot::oauth_poll_cmd(Some("copilot"), None).expect_err("missing device-code rejected");
+    let err = copilot::oauth_poll_cmd(Some("copilot"), None, false)
+        .expect_err("missing device-code rejected");
     assert!(err.contains("--device-code"), "{err}");
-    let err = copilot::oauth_poll_cmd(Some("copilot"), Some("  "))
+    let err = copilot::oauth_poll_cmd(Some("copilot"), Some("  "), false)
         .expect_err("blank device-code rejected");
     assert!(err.contains("--device-code"), "{err}");
 }

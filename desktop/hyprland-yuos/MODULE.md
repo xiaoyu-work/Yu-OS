@@ -108,7 +108,9 @@ for conversation, speech recognition, speech synthesis, image generation,
 embedding, and [local Decision](../../docs/decision-model.md). Continue
 applies completed selections via the same CLI. The local wizard keeps them
 in private staging until account creation. API keys go through stdin; the
-GitHub Copilot device flow polls in the backend. Decision saves the selected
+GitHub Copilot device flow polls in the backend. Saving either credential
+requires Polkit authorization for the active local setup, then the ordinary
+credential gate checks the one scoped write. Decision saves the selected
 alias without downloading or starting a model. Account names that need a
 different POSIX login retain their display name in the system account.
 The welcome plays over the wallpaper mark while the existing greetd flow

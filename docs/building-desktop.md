@@ -77,16 +77,19 @@ inputs above and follow [Build an Installable ISO](../CONTRIBUTING.md#build-an-i
 ## Login
 
 The local desktop VM opens the graphical setup wizard without asking you to
-sign in. Create your account, optionally choose an avatar, and select
-**Finish** to enter the desktop.
-After logout or reboot, sign in with that account and password. Sign-in and
-lock show the Yu OS wallpaper full-screen, with the time above and the
-password field at the bottom. First-run setup keeps its frosted-glass panels.
+sign in. Choose a language and a keyboard layout, connect if needed, and
+select your models or choose **Set up later**. Create your account and pick
+your time zone and appearance. If matching driver packages are still pending,
+**Hardware** shows their status without requiring you to wait. Select
+**Finish setup** to sign in and see the welcome animation before the desktop
+opens. There is no separate review step.
 
-Setup, sign-in, lock, and the signed Desktop Shell share the default wallpaper at
-`/usr/share/backgrounds/yuos/yuos-default.jpg`: the centered Yu OS mark on a
-light-gray background. A wallpaper chosen by the user takes precedence on
-the desktop.
+After logout or reboot, sign in with that account and password. Sign-in,
+lock, and the signed Desktop Shell share the default wallpaper at
+`/usr/share/backgrounds/yuos/yuos-default.jpg`: the centered Yu OS mark on
+a light-gray background. Sign-in and lock place the time above and the
+password field at the bottom. A wallpaper chosen by the user takes
+precedence on the desktop.
 
 The signed system shell starts with its built-in desktop permissions.
 Other App permission requests still appear in the graphical OS review
