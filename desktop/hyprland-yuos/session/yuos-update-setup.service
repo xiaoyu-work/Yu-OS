@@ -1,0 +1,9 @@
+[Unit]
+Description=Check drivers and signed system updates for first-run setup
+After=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/yuos-updates setup
+ExecStopPost=/usr/libexec/yuos-updates setup-stop
+TimeoutStartSec=65min

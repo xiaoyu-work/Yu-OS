@@ -119,8 +119,8 @@ The following workarounds are adapted from [Omarchy's hardware setup and udev ru
 
 A fresh local desktop VM has no human account. Before sign-in, the Quickshell
 wizard runs in Cage. It skips network setup when NetworkManager confirms a
-connection, then presents language, keyboard, Agent, account creation, time zone
-and appearance. The language picker shows names for the installed Debian
+connection, then presents language, keyboard, Agent, account creation, time zone,
+appearance and system update. The language picker shows names for the installed Debian
 UTF-8 locales. The display and taskbar use the system defaults.
 **Finish** creates the local owner from the username and password and signs in
 once through greetd/PAM with that password. Logout and later boots use the
@@ -129,8 +129,8 @@ unprovisioned local image. Account and model secrets are passed through stdin
 to the provisioning helper.
 
 The amd64 installer keeps Calamares and its account provisioning. Only an
-authenticated account runs its follow-up network, Agent and optional hardware
-configuration. Neither wizard needs to launch the OS Desktop Shell
+authenticated account runs its follow-up network, Agent and system update.
+Neither wizard needs to launch the OS Desktop Shell
 or use its private runtime.
 
 The Qualcomm desktop installer uses the same Calamares and first-run flow.
@@ -139,7 +139,12 @@ The installer caches model-specific packages when building the ISO. Calamares re
 
 On Surface Laptop 7, the USB starts the bundled touchpad daemon offline and waits for the built-in keyboard and touchpad before opening Calamares. It retries if the pad goes quiet during a HID rebind. If either device never appears, the installer still opens and accepts external input. Other PCs do not wait. The live input layer is not copied to disk; Calamares installs the matching driver packages separately. Linux input drivers do not affect the earlier UEFI or GRUB menus.
 
-If matching Debian packages or indexed OEM firmware is missing, the target leaves a pending job. NetworkManager starts it when it has internet access; the wizard displays the job only after the Network page. An explicit offline or skip choice lets the user finish, and a later connection can retry without restarting setup. Debian packages come from the signed APT repositories, locally built drivers come from the installer cache, and OEM firmware comes from the verified archives described below.
+If matching Debian packages or indexed OEM firmware are missing, the target
+leaves a pending driver job. NetworkManager retries it on reconnect.
+[System update](updating.md#first-run-system-update) shows the driver result
+before checking for new Yu OS software. Debian packages come from signed APT
+repositories, locally built drivers come from the installer cache, and OEM
+firmware comes from the verified archives described below.
 
 On the stock Debian 7.2 amd64 kernel, the installer also matches `OVTI08F4` cameras with Intel IPU7 or IPU7.5. It installs the hardware ISP modules, unmodified Intel firmware and camera libraries, and the GStreamer relay offline. Applications see the processed **Hardware ISP Camera**; direct access to the ISP processing node and its raw capture nodes is restricted to root. The pack uses Debian's native sensor bridge, does not disable libcamera for other devices, and does not apply to IPU8. Secure Boot enforcement requires a locally enrolled DKMS signing key.
 

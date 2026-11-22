@@ -96,11 +96,15 @@ install -Dm0644 "$session/yuos-desktop.pam" "$stage/etc/pam.d/yuos-desktop"
 install -Dm0644 "$session/desktop-session.env" "$stage/usr/share/yuos/desktop-session.env"
 install -Dm0755 "$session/yuos-greeter" "$stage/usr/libexec/yuos-greeter"
 install -Dm0755 "$session/yuos-desktop-login" "$stage/usr/libexec/yuos-desktop-login"
-for name in yuos-system-settings yuos-updates; do
+for name in yuos-system-settings yuos-updates yuos-setup-update; do
     install -Dm0755 "$session/$name" "$stage/usr/libexec/$name"
 done
 install -Dm0644 "$session/org.yuos.desktop.settings.policy" \
     "$stage/usr/share/polkit-1/actions/org.yuos.desktop.settings.policy"
+install -Dm0644 "$session/org.yuos.setup-update.policy" \
+    "$stage/usr/share/polkit-1/actions/org.yuos.setup-update.policy"
+install -Dm0644 "$session/yuos-setup-update.rules" \
+    "$stage/usr/share/polkit-1/rules.d/yuos-setup-update.rules"
 units="$stage/usr/lib/systemd/system"
 for file in "$session"/yuos-update-*.service "$session"/yuos-update-*.timer; do
     install -Dm0644 "$file" "$units/${file##*/}"
@@ -118,8 +122,9 @@ install -Dm0644 "$session/yuos-desktop-accounts.conf" \
 install -Dm0644 "$session/yuos-desktop-users.conf" "$stage/usr/lib/sysusers.d/yuos-desktop-users.conf"
 install -Dm0644 "$session/hyprland-portals.conf" "$stage/usr/share/xdg-desktop-portal/hyprland-portals.conf"
 install -Dm0755 "$session/yuos-oobe" "$stage/usr/libexec/yuos-oobe"
-install -Dm0644 "$session/yuos_oobe_models.py" "$stage/usr/libexec/yuos_oobe_models.py"
-install -Dm0644 "$session/yuos_oobe_regions.py" "$stage/usr/libexec/yuos_oobe_regions.py"
+for module in models regions updates; do
+    install -Dm0644 "$session/yuos_oobe_${module}.py" "$stage/usr/libexec/yuos_oobe_${module}.py"
+done
 for file in "$session"/oobe/*; do
     install -Dm0644 "$file" "$stage/usr/share/yuos/oobe/${file##*/}"
 done

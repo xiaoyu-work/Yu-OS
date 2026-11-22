@@ -14,6 +14,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 
 
 PACKAGES = ("yuos-agent", "yuos-base", "yuos-desktop")
@@ -25,8 +26,15 @@ OFFLINE_STARTED = Path("/run/yuos-offline-updating")
 SOURCE = Path("/etc/apt/sources.list.d/yuos.list")
 KEY = "/usr/share/keyrings/yuos-archive-keyring.gpg"
 ENV = {"PATH": "/usr/sbin:/usr/bin", "LANG": "C", "DEBIAN_FRONTEND": "noninteractive"}
+SETUP = ROOT / "setup.json"
+SETUP_DONE = ROOT / "setup-complete"
+BOOT_ID = Path("/proc/sys/kernel/random/boot_id")
+DRIVER_DIR = Path("/var/lib/yuos/driver-setup")
+DRIVER_UNIT = "yuos-driver-online.service"
+SETUP_UNIT = "yuos-update-setup.service"
+FINISH_PHASES = {"current", "installed", "offline", "failed", "restart-failed"}
 JOBS = ("yuos-update-check.service", "yuos-update-prepare.service",
-        "yuos-update-automatic.service", "yuos-update-offline.service")
+        "yuos-update-automatic.service", "yuos-update-offline.service", SETUP_UNIT)
 VERSION = re.compile(r"[0-9][a-zA-Z0-9.+:~\-]*")
 
 
@@ -43,12 +51,13 @@ def read(path, default):
         return default
 
 
-def write(path, data):
+def write(path, data, mode=0o600):
     with tempfile.NamedTemporaryFile(mode="w", dir=ROOT, delete=False) as file:
         staged = Path(file.name)
         try:
             json.dump(data, file)
             file.flush()
+            os.fchmod(file.fileno(), mode)
             os.fsync(file.fileno())
             staged.replace(path)
         finally:
@@ -63,16 +72,20 @@ def policy():
     return read(POLICY, {"automatic_updates": False, "automatic_restart": False})
 
 
-def status():
-    state = read(STATE, {"phase": "unchecked"})
-    # A queued or in-flight operation is not a successful check or install.
-    units = run("/usr/bin/systemctl", "show", *JOBS, "-p", "ActiveState", "-p", "Job",
+def jobs_busy(*jobs):
+    units = run("/usr/bin/systemctl", "show", *jobs, "-p", "ActiveState", "-p", "Job",
                 capture=True, timeout=4).splitlines()
-    busy = any(
+    return any(
         line in {"ActiveState=active", "ActiveState=activating", "ActiveState=deactivating"}
         or line.startswith("Job=") and line not in {"Job=", "Job=0"}
         for line in units
     )
+
+
+def status():
+    state = read(STATE, {"phase": "unchecked"})
+    # A queued or in-flight operation is not a successful check or install.
+    busy = jobs_busy(*JOBS)
     if state["phase"] in {"checking", "downloading", "installing"} and not busy:
         state["phase"] = "interrupted"
     print(json.dumps({"updates": {**state, **policy(), "ready": ours(), "busy": busy}}))
@@ -120,7 +133,8 @@ def installed():
 
 def check(state, options):
     state.update(phase="checking", packages=[])
-    state.pop("error", None)
+    for key in ("error", "setup_update", "setup_boot", "setup_mutating"):
+        state.pop(key, None)
     write(STATE, state)
     run("/usr/bin/apt-get", *options, "-o", "Acquire::Retries=1",
         "-o", "APT::Update::Error-Mode=any", "update", timeout=180)
@@ -229,7 +243,7 @@ def download(options, expected):
                 verify_archive(archive, name, size, digest)
 
 
-def prepare(state, options):
+def prepare(state, options, *, schedule=True):
     if os.path.lexists(OFFLINE):
         raise ValueError("An offline update is already scheduled")
     _, expected = plan(state, options)
@@ -240,7 +254,8 @@ def prepare(state, options):
     plan(state, options)
     state["phase"] = "ready"
     write(STATE, state)
-    OFFLINE.symlink_to(ROOT)
+    if schedule:
+        OFFLINE.symlink_to(ROOT)
 
 
 def other_sessions(allowed):
@@ -277,12 +292,14 @@ def automatic_restart(settings):
 def offline(state, options):
     if state.get("phase") != "ready":
         raise ValueError("The prepared update has no confirmed download")
-    state["phase"] = "installing"
-    write(STATE, state)
     args, expected = plan(state, options)
     for name, (size, digest) in archive_hashes(options, expected).items():
         with (ROOT / "archives" / name).open("rb") as archive:
             verify_archive(archive, name, size, digest)
+    state["phase"] = "installing"
+    if state.get("setup_update"):
+        state["setup_mutating"] = True
+    write(STATE, state)
     environment = {**ENV, "SYSTEMD_OFFLINE": "1"}
     subprocess.run(
         ["/usr/bin/apt-get", *options, "--no-download", "-y",
@@ -293,7 +310,158 @@ def offline(state, options):
     if any(after.get(name) != (version, False) for name, version in expected.items()):
         raise ValueError("APT did not confirm the intended installed versions")
     state.update(phase="installed", packages=[])
+    state.pop("setup_mutating", None)
     write(STATE, state)
+
+
+def setup_status(drivers, software):
+    # Only presentation phases leave Root custody, never APT configuration or logs.
+    write(SETUP, {"drivers": drivers, "software": software}, mode=0o644)
+
+
+def coherent_packages(state):
+    if state.get("phase") in {"installing", "install-failed"} and (
+        not state.get("setup_update") or state.get("setup_mutating")
+    ):
+        return False
+    return (set(installed()) == set(PACKAGES)
+            and not run("/usr/bin/dpkg", "--audit", capture=True, timeout=15).strip())
+
+
+def online():
+    try:
+        return run("/usr/bin/nmcli", "-g", "CONNECTIVITY", "general",
+                   capture=True, timeout=5).strip() == "full"
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def setup_drivers():
+    setup_status("checking", "waiting")
+    pending = DRIVER_DIR / "pending"
+    started = pending.is_file() or jobs_busy(DRIVER_UNIT)
+    if started:
+        setup_status("installing", "waiting")
+        try:
+            run("/usr/bin/systemctl", "start", DRIVER_UNIT, timeout=10)
+            while jobs_busy(DRIVER_UNIT):
+                time.sleep(1)
+        except subprocess.CalledProcessError:
+            print("See the Yu OS driver setup service journal for details", file=sys.stderr)
+    info = read(DRIVER_DIR / "status.json", {})
+    if info.get("state") == "ready" or not info and not started:
+        return "ready"
+    # Optional packs (the supported media already include startup drivers) do
+    # not become required just because a board has pending audio/GPU features.
+    unavailable = not online()
+    if info.get("desktop_required") is True:
+        return "required-offline" if unavailable else "required-failed"
+    return "offline" if unavailable else "failed"
+
+
+def setup_update(state):
+    if SETUP_DONE.is_file():
+        return
+    previous = read(SETUP, {})
+    if previous.get("software") == "restarting":
+        if state.get("setup_boot") == BOOT_ID.read_text().strip() and ours():
+            return
+        # Never start another transaction or reboot after an unconfirmed one.
+        software = "installed" if state.get("setup_update") and state.get("phase") == "installed" else "failed"
+        if not coherent_packages(state):
+            software = "repair"
+        setup_status(previous["drivers"], software)
+        return
+
+    drivers = setup_drivers()
+    if drivers.startswith("required-"):
+        setup_status(drivers, "waiting")
+        return
+    if not coherent_packages(state):
+        setup_status(drivers, "repair")
+        return
+    if os.path.lexists(OFFLINE):
+        # Settings or another updater already owns the next boot.
+        setup_status(drivers, "failed")
+        return
+    local_channel = False
+    try:
+        options = apt_options()
+        local_channel = " file:/" in (ROOT / "channel.list").read_text()
+        if not local_channel and not online():
+            setup_status(drivers, "offline")
+            return
+        setup_status(drivers, "checking")
+        check(state, options)
+        if state["phase"] == "up-to-date":
+            setup_status(drivers, "current")
+            return
+        setup_status(drivers, "downloading")
+        state["setup_update"] = True
+        prepare(state, options, schedule=False)
+        setup_status(drivers, "restart")
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        print(f"First-run software update: {error}", file=sys.stderr)
+        state.update(phase="failed", error="See the Yu OS first-run update service journal")
+        write(STATE, state)
+        software = "failed" if local_channel or online() else "offline"
+        setup_status(drivers, software if coherent_packages(state) else "repair")
+
+
+def setup_admit(state, action):
+    view = read(SETUP, {})
+    if (view.get("drivers") not in {"ready", "offline", "failed"}
+            or jobs_busy(SETUP_UNIT, DRIVER_UNIT) or not coherent_packages(state)):
+        raise ValueError("First-run updates have not settled")
+    software = view.get("software")
+    if action == "finish" and software in FINISH_PHASES:
+        return view
+    if (action == "restart" and software == "restart" and state.get("phase") == "ready"
+            and state.get("setup_update") is True and not os.path.lexists(OFFLINE)):
+        return view
+    raise ValueError("The first-run update does not allow this action")
+
+
+def setup_restart(state, argument):
+    uid, _, session = (argument or "").partition(":")
+    if not re.fullmatch(r"[0-9]{4,5}", uid) or not 1000 <= int(uid) < 60000:
+        raise ValueError("Invalid first-run account")
+    if SETUP_DONE.is_file():
+        raise ValueError("System setup is already complete")
+    view = setup_admit(state, "restart")
+    try:
+        # Account settings are already committed. This flag contains no secrets
+        # and only makes the same account reopen the update page after login.
+        (ROOT / f"resume-{uid}").touch(mode=0o644)
+        state["setup_boot"] = BOOT_ID.read_text().strip()
+        write(STATE, state)
+        setup_status(view["drivers"], "restarting")
+        OFFLINE.symlink_to(ROOT)
+        reboot(session or None)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        if ours():
+            OFFLINE.unlink()
+        state["phase"] = "available"
+        state.pop("setup_boot", None)
+        state.pop("setup_update", None)
+        write(STATE, state)
+        setup_status(view["drivers"], "restart-failed")
+        raise
+
+
+def setup_stopped(state):
+    view = read(SETUP, {})
+    if view.get("software") == "restarting":
+        return
+    drivers = view.get("drivers", "failed")
+    if drivers in {"checking", "installing"}:
+        drivers = setup_drivers_after_error()
+    setup_status(drivers, "failed" if coherent_packages(state) else "repair")
+
+
+def setup_drivers_after_error():
+    info = read(DRIVER_DIR / "status.json", {})
+    return "required-failed" if info.get("desktop_required") is True else "failed"
 
 
 def main(action, argument=None):
@@ -310,12 +478,25 @@ def main(action, argument=None):
     if action == "status":
         status()
         return
+    if action == "setup-stop" and os.environ.get("SERVICE_RESULT") == "success":
+        return
     ROOT.mkdir(mode=0o755, exist_ok=True)
     with (ROOT / "transaction.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         state = read(STATE, {"phase": "unchecked"})
         settings = policy()
-        if action in {"automatic-on", "automatic-off", "restart-on", "restart-off"}:
+        if action == "setup":
+            setup_update(state)
+        elif action == "setup-stop":
+            setup_stopped(state)
+        elif action == "setup-admit":
+            setup_admit(state, argument)
+        elif action == "setup-complete":
+            setup_admit(state, "finish")
+            SETUP_DONE.touch(mode=0o644)
+        elif action == "setup-restart":
+            setup_restart(state, argument)
+        elif action in {"automatic-on", "automatic-off", "restart-on", "restart-off"}:
             if action.startswith("automatic-"):
                 settings["automatic_updates"] = action == "automatic-on"
                 if not settings["automatic_updates"]:
@@ -335,6 +516,8 @@ def main(action, argument=None):
             reboot(argument)
         elif action in {"check", "prepare", "automatic", "offline"}:
             if action == "automatic" and not settings["automatic_updates"]:
+                return
+            if action == "automatic" and state.get("phase") == "ready" and state.get("setup_update"):
                 return
             if action == "offline":
                 if not ours():

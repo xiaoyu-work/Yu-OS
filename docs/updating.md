@@ -1161,6 +1161,28 @@ channel; see [recovering from a bad release](#recovering-from-a-bad-release).
 Check `sudo dpkg --audit` again before rebooting normally. This procedure
 does not reset the system, erase `/home`, or relax the release security floor.
 
+### First-run system update
+
+The last setup page processes drivers first and then checks the same signed
+Yu OS APT channel as Settings. Drivers satisfied by the installer do not need
+another download. **Finish setup** is unavailable while either step is active.
+Without internet, or if only optional updates fail, you can finish on the
+working system and update later. If a driver is known to be required to start
+the desktop, setup requires it before continuing; it does not treat every
+pending download as required. The supported installers carry their startup
+drivers on the media; their online driver packs are optional. The page can
+reopen Network and retry. Once machine setup is complete, updates use the
+normal Settings permissions.
+
+New Yu OS packages download during setup but install only on **Restart and
+update**, before the next sign-in. Your settings are saved before restarting.
+After signing in, setup returns to the update page and reports the verified
+result. It does not repeat an interrupted installation. If the package
+transaction was interrupted after installation started, follow
+[the recovery steps](#recovering-without-the-desktop), then run
+`sudo /usr/libexec/yuos-updates check` before retrying setup.
+Independent App updates are not part of this step.
+
 ### Native notification presentation
 
 The matching Agent/Desktop source uses the existing notification interface for

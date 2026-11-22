@@ -78,7 +78,7 @@ editing additional surfaces.
 | OS preinstalled App defaults | `scripts/app_packages.py`, `core/src/yuosd/preinstalled.rs` | Exact signed release selection, separate owner denials, scoped App grants; never infer permission from a publisher or App ID |
 | OS permission review UI or decision | `core/src/yuosd/system_review.rs`, `crates/yuosd-client/MODULE.md` | Shared App/capability DTO, protected display revisions, terminal and native renderers, bounded polkit helper, owner-only cancellation and existing approval authority |
 | Authenticated display login or GUI App lifetime | `core/src/display_session/MODULE.md`, `core/src/yuosd/gui/MODULE.md` | `crates/yuos-display-{control,login}/`, `core/src/worker/gui_transport/`, compositor/session/PAM startup, checked permission retirement and `docs/updating.md` |
-| Desktop sign-in or system updates | `desktop/hyprland-yuos/MODULE.md`, `docs/updating.md` | OS-started Settings GUI in `yuos-app`, private GUI broker, greetd/PAM and the offline APT unit |
+| Desktop sign-in or system updates | `desktop/hyprland-yuos/MODULE.md`, `docs/updating.md` | Quickshell first-run setup, OS-started Settings GUI in `yuos-app`, greetd/PAM and the shared offline APT unit |
 | Bundled App product boundary or source fork | `docs/app-product-redesign.md`, external `yuos-app` guides, `packaging/MODULE.md` | Product UI/backend, App-owned common support, manifests, provenance/licenses, native launchers, account/state migration, compatibility packaging |
 | Adapter | `adapters/<id>/app.json`, `adapters/<id>/main.py` | adapter tests and external binary dependency |
 | App/SDK wire contract | `yuos-sdk/wire/`, language SDK package | generated bindings, conformance tests, `publish-sdk-release.yml` |

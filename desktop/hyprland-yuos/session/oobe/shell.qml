@@ -11,10 +11,12 @@ import Quickshell.Services.Greetd
 ShellRoot {
     id: setup
     readonly property bool local: Quickshell.env("YUOS_LOCAL_DESKTOP_SETUP") === "1"
+    readonly property bool managedUpdates: local || Quickshell.env("YUOS_SETUP_MODELS_ONLY") !== "1"
+    readonly property bool resumed: managedUpdates && !local && Quickshell.env("YUOS_SETUP_RESUME") === "1"
     readonly property bool reduced: !!state.reduceMotion
     property string current: local ? "language" : ""
     property string networkPage: "undecided"
-    property bool hardwareSeen: false
+    property bool returnToUpdates: false
     property string phase: "setup"
     property bool passwordSubmitted: false
     property bool retryAccount: false
@@ -30,7 +32,7 @@ ShellRoot {
     property bool light: true
     property var state: ({
         networkState: "checking", wifiState: "idle", wifiName: "", hasWifi: false, networks: [],
-        driverState: "checking", packages: [],
+        driverPhase: "checking", softwarePhase: "waiting", updateRequest: false, updateError: "",
         catalogue: {}, agentState: "idle", savedModels: {}, modelError: "", modelErrorModality: "",
         oauthState: "idle", userCode: "", signedIn: false, copilotModels: [],
         languages: [], keyboards: {}, inputMethods: [], zones: [], zoneClock: {},
@@ -38,33 +40,43 @@ ShellRoot {
     })
     readonly property bool connected: ["online", "wired"].includes(state.networkState)
     readonly property bool showsNetwork: networkPage === "shown" || (networkPage === "undecided" && !connected)
-    readonly property bool showsHardware: hardwareSeen || (state.packages.length > 0
-        && ["pending", "installing", "failed"].includes(state.driverState))
-    readonly property var steps: [
+    readonly property var steps: resumed ? [...(networkPage === "shown" ? ["network"] : []), "updates"] : [
         ...(local ? ["language", "keyboard"] : []),
         ...(showsNetwork ? ["network"] : []),
         "models",
         ...(local ? ["account", "location", "appearance"] : []),
-        ...(showsHardware ? ["drivers"] : [])
+        ...(managedUpdates ? ["updates"] : [])
     ]
     readonly property int index: steps.indexOf(current)
     readonly property bool last: index === steps.length - 1
     readonly property bool handingOff: ["working", "authenticating", "launching", "welcomed"].includes(phase)
-    readonly property bool busy: handingOff || state.agentState === "saving"
+    readonly property bool busy: handingOff || ["requestingRestart", "rebooting"].includes(phase)
+        || state.agentState === "saving"
     readonly property bool nameRejected: rejectedName !== "" && username.trim().toLowerCase() === rejectedName
     readonly property bool validAccount: username.trim() !== "" && !nameRejected && password !== "" && password === confirmation
     readonly property bool accountFieldError: ["invalidUsername", "usernameTaken", "invalidPassword",
         "passwordRejected", "invalidAvatar"].includes(state.finishError)
     readonly property bool finishHere: last || (current === "account" && retryAccount)
+    readonly property bool updateSettled: !state.updateRequest && !state.updateError
+        && ["ready", "offline", "failed"].includes(state.driverPhase)
+    readonly property bool canFinish: updateSettled
+        && ["current", "installed", "offline", "failed", "restart-failed"].includes(state.softwarePhase)
+    readonly property bool canRestart: updateSettled && state.softwarePhase === "restart"
+    readonly property bool restartStep: state.softwarePhase === "restart"
+    readonly property bool networkIssue: ["offline", "required-offline"].includes(state.driverPhase)
+        || state.softwarePhase === "offline"
+    readonly property bool retryUpdate: !!state.updateError || state.finishError === "updateRestart"
+        || ["failed", "offline", "required-failed", "required-offline"].includes(state.driverPhase)
+        || ["offline", "failed", "restart-failed", "repair"].includes(state.softwarePhase)
     readonly property bool oauthBusy: ["starting", "authorizing", "loadingModels"].includes(state.oauthState)
     readonly property var titles: ({
         language: qsTr("Language"), keyboard: qsTr("Keyboard"), network: qsTr("Network"),
         models: qsTr("Models"), account: qsTr("Account"), location: qsTr("Time zone"),
-        appearance: qsTr("Appearance"), drivers: qsTr("Hardware")
+        appearance: qsTr("Appearance"), updates: qsTr("System update")
     })
     readonly property var components: ({
         language: languagePage, keyboard: keyboardPage, network: wifiPage, models: modelPage,
-        account: accountPage, location: locationPage, appearance: appearancePage, drivers: driverPage
+        account: accountPage, location: locationPage, appearance: appearancePage, updates: updatePage
     })
     readonly property var languageChoices: {
         const names = {
@@ -139,8 +151,8 @@ ShellRoot {
             return;
         if (next === "network")
             networkPage = "shown";
-        if (next === "drivers")
-            hardwareSeen = true;
+        if (next === "updates")
+            returnToUpdates = false;
         current = next;
         scroll.contentY = 0;
         scroll.pinnedTop = -1;
@@ -150,12 +162,16 @@ ShellRoot {
             send("models");
         else if (next === "location")
             send("zone", {zone: zone});
+        else if (next === "updates")
+            send("openUpdates");
     }
     function advance() {
         if (current === "keyboard" && networkPage === "undecided" && connected)
             networkPage = "omitted";
-        if (finishHere)
-            finish();
+        if (current === "network" && returnToUpdates)
+            change("updates");
+        else if (finishHere)
+            finish(restartStep);
         else
             change(steps[index + 1]);
     }
@@ -168,8 +184,7 @@ ShellRoot {
     }
     function receive(message) {
         const previousWifi = state.wifiState;
-        if ((current === "drivers" && message.driverState)
-                || (current === "models" && message.agentState === "saveFailed"))
+        if (current === "models" && message.agentState === "saveFailed")
             scroll.pinWork();
         const saved = Object.assign({}, state.savedModels, message.savedModels ?? {}, message.appliedModels ?? {});
         state = Object.assign({}, state, message, {savedModels: saved});
@@ -185,7 +200,7 @@ ShellRoot {
         if (!local && current === "" && message.networkState) {
             if (connected)
                 networkPage = "omitted";
-            change(steps[0]);
+            change(resumed ? "updates" : steps[0]);
         }
         if (current === "network" && previousWifi === "connecting" && message.wifiState === "idle")
             page.item.password = "";
@@ -204,10 +219,17 @@ ShellRoot {
                     rejectedName = username.trim().toLowerCase();
                 change("account");
             }
-        } else if (message.finished && phase === "working") {
+        } else if (message.restarting && phase === "requestingRestart") {
+            password = "";
+            confirmation = "";
+            phase = "rebooting";
+        } else if (message.finished && ["working", "requestingRestart"].includes(phase)) {
             confirmation = "";
             if (!local) {
                 Qt.quit();
+            } else if (message.restartFailed) {
+                phase = "signIn";
+                password = "";
             } else if (Greetd.available && message.login) {
                 phase = "authenticating";
                 authWindow.restart();
@@ -217,17 +239,18 @@ ShellRoot {
             }
         }
     }
-    function finish() {
-        if (busy || (local && !validAccount))
+    function finish(restart) {
+        if (busy || (local && !validAccount) || (managedUpdates && !(restart ? canRestart : canFinish)))
             return;
         state = Object.assign({}, state, {finishError: ""});
-        phase = "working";
+        phase = restart ? "requestingRestart" : "working";
+        const action = restart ? "restartToUpdate" : "finish";
         if (!local) {
-            send("finish");
+            send(action);
             return;
         }
         const ime = state.inputMethods.includes(keyboard);
-        send("finish", {
+        send(action, {
             username: username, password: password, avatar: avatar, locale: language,
             keyboard: ime ? "us" : keyboard, inputMethod: ime ? keyboard : "", zone: zone, light: light
         });
@@ -318,7 +341,7 @@ ShellRoot {
         command: ["/usr/bin/env", "-u", "GREETD_SOCK", "/usr/libexec/yuos-oobe", "--backend"]
         stdout: SplitParser { onRead: line => setup.receive(JSON.parse(line)) }
         onExited: () => {
-            if (setup.phase === "setup" || setup.phase === "working") {
+            if (["setup", "working", "requestingRestart"].includes(setup.phase)) {
                 setup.password = "";
                 setup.confirmation = "";
                 setup.phase = "setup";
@@ -454,8 +477,10 @@ ShellRoot {
                             wrapMode: Text.Wrap
                             color: "#c0321f"
                             text: {
-                                if (setup.phase === "signIn")
-                                    return qsTr("Your account is ready, but automatic sign-in didn't finish. Sign in with your password.");
+                                                if (setup.phase === "signIn")
+                                                    return setup.state.restartFailed
+                                                        ? qsTr("Couldn't restart. Sign in to continue setup.")
+                                                        : qsTr("Your account is ready, but automatic sign-in didn't finish. Sign in with your password.");
                                 if (setup.state.backendUnavailable)
                                     return qsTr("Setup is unavailable. Restart this computer to try again.");
                                 return "";
@@ -474,7 +499,7 @@ ShellRoot {
 
                 SetupButton {
                     Layout.leftMargin: -6
-                    visible: setup.index > 0 && setup.phase !== "signIn"
+                    visible: (setup.index > 0 && !setup.resumed || setup.returnToUpdates) && setup.phase !== "signIn"
                     enabled: !setup.busy
                     kind: "back"
                     symbol: "left"
@@ -483,7 +508,8 @@ ShellRoot {
                         if (setup.current === "models")
                             setup.send("discardModels");
                         setup.clearError();
-                        setup.change(setup.steps[setup.index - 1]);
+                        setup.change(setup.current === "network" && setup.returnToUpdates
+                                     ? "updates" : setup.steps[setup.index - 1]);
                     }
                 }
                 Item { Layout.fillWidth: true }
@@ -491,8 +517,17 @@ ShellRoot {
                     Layout.maximumWidth: Math.max(0, footer.width - 235)
                     Layout.rightMargin: 12
                     error: true
-                    text: setup.state.finishError && !setup.accountFieldError
-                        ? qsTr("Couldn't create your account. Try again.") : ""
+                    text: {
+                        const error = setup.state.finishError;
+                        if (!error || setup.accountFieldError)
+                            return "";
+                        if (error === "updatesPending")
+                            return qsTr("Updates aren't ready. Check System update.");
+                        if (error === "updateRestart")
+                            return qsTr("Couldn't restart. Try again.");
+                        return setup.local ? qsTr("Couldn't create your account. Try again.")
+                                           : qsTr("Couldn't finish setup. Try again.");
+                    }
                 }
                 SetupButton {
                     visible: setup.current === "models" && setup.phase !== "signIn"
@@ -515,11 +550,14 @@ ShellRoot {
                         && (setup.current !== "keyboard" || (!!setup.keyboard && setup.state.networkState !== "checking"))
                         && (setup.current !== "models" || (!setup.oauthBusy && setup.state.agentState !== "loading"))
                         && (setup.current !== "account" || setup.validAccount)
-                        && (setup.current !== "location" || !!setup.zone))
+                        && (setup.current !== "location" || !!setup.zone)
+                        && (!setup.finishHere || !setup.managedUpdates
+                            || (setup.canFinish || setup.canRestart) && (!setup.local || setup.validAccount)))
                     text: setup.phase === "signIn" ? qsTr("Go to sign-in")
                         : setup.state.agentState === "saving" ? qsTr("Saving…")
                         : setup.current === "network" && !setup.connected ? qsTr("Continue offline")
-                        : setup.finishHere && setup.current !== "models" ? qsTr("Finish setup") : qsTr("Continue")
+                        : setup.finishHere && setup.current !== "models" ? (setup.restartStep ? qsTr("Restart and update") : qsTr("Finish setup"))
+                        : qsTr("Continue")
                     onClicked: setup.phase === "signIn" ? Qt.quit() : setup.continueSetup()
                 }
             }
@@ -626,10 +664,22 @@ ShellRoot {
         }
     }
     Component {
-        id: driverPage
-        SetupHardware {
-            status: setup.state.driverState
+        id: updatePage
+        SetupSystemUpdate {
+            driverPhase: setup.state.driverPhase
+            softwarePhase: setup.phase === "rebooting" ? "restarting" : setup.state.softwarePhase
+            unavailable: !!setup.state.updateError
+            canConnect: setup.networkIssue && setup.state.networkState !== "online" && !setup.state.updateRequest
+            canRetry: setup.retryUpdate && !setup.state.updateRequest && setup.phase === "setup"
             reduceMotion: setup.reduced
+            onConnectRequested: {
+                setup.returnToUpdates = true;
+                setup.change("network");
+            }
+            onRetryRequested: {
+                setup.clearError();
+                setup.send("retryUpdates");
+            }
         }
     }
 }

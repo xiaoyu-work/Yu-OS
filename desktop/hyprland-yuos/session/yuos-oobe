@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 """Yu OS first-run setup and local sign-in account list."""
 
+import grp
 import json
 import os
 from pathlib import Path
@@ -14,12 +15,17 @@ import time
 
 from yuos_oobe_models import Models
 from yuos_oobe_regions import regional_choices, zone_clock
+from yuos_oobe_updates import COMPLETED, RESUME, Updates
 
 
 SHELL = "/usr/bin/quickshell"
 CONFIG = "/usr/share/yuos/oobe/shell.qml"
 YU = "/usr/local/bin/yu"
-DRIVERS = Path("/var/lib/yuos/driver-setup/status.json")
+FIRST_RUN = Path("/etc/yuos/first-run")
+
+
+def manages_updates(local):
+    return local or (not COMPLETED.is_file() and grp.getgrnam("sudo").gr_gid in os.getgroups())
 
 
 def backend(completed, staging, local):
@@ -27,6 +33,7 @@ def backend(completed, staging, local):
 
     gi.require_version("NM", "1.0")
     from gi.repository import Gio, GLib, NM
+    managed = manages_updates(local)
 
     def send(**state):
         print(json.dumps(state), flush=True)
@@ -43,10 +50,10 @@ def backend(completed, staging, local):
             self.connection = None
             self.child = None
             self.models = Models(Gio, GLib, send, YU, staging, local)
+            self.updates = Updates(Gio, GLib, send)
 
         def run(self):
             GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, self.stop)
-            self.watch_drivers()
             NM.Client.new_async(None, self.network_ready)
             schemas = Gio.SettingsSchemaSource.get_default()
             motion = schemas.lookup("org.gnome.desktop.interface", True) if schemas else None
@@ -97,25 +104,45 @@ def backend(completed, staging, local):
                 self.models.apply(message.get("entries"))
             elif action == "zone":
                 send(zoneClock=zone_clock(message.get("zone")))
-            elif action == "finish":
-                self.finish(message)
+            elif action == "openUpdates" and managed:
+                self.updates.enter()
+            elif action == "retryUpdates":
+                if self.updates.selected:
+                    self.updates.start()
+            elif action in ("finish", "restartToUpdate"):
+                self.finish(message, action == "restartToUpdate")
 
-        def finish(self, message):
+        def finish(self, message, restart):
             if self.child is not None:
                 send(finishError="busy")
                 return
+            if (managed and not self.updates.allows(restart)) or (restart and not managed):
+                send(finishError="updatesPending")
+                return
             if not local:
-                try:
-                    completed.parent.mkdir(parents=True, exist_ok=True)
-                    completed.touch(mode=0o600)
-                except OSError:
-                    send(finishError="home")
+                def checked(success):
+                    if not success:
+                        send(finishError="updateRestart" if restart else "updatesPending")
+                    elif restart:
+                        send(restarting=True)
+                    else:
+                        try:
+                            completed.parent.mkdir(parents=True, exist_ok=True)
+                            completed.touch(mode=0o600)
+                        except OSError:
+                            send(finishError="home")
+                        else:
+                            send(finished=True)
+
+                if managed:
+                    self.updates.request("restart" if restart else "finish", checked)
                 else:
-                    send(finished=True)
+                    checked(True)
                 return
 
             try:
                 message["agent"] = self.models.selection()
+                message["restart"] = restart
                 flags = Gio.SubprocessFlags
                 launcher = Gio.SubprocessLauncher.new(flags.STDIN_PIPE | flags.STDOUT_PIPE)
                 # The greeter is a service account, not an interactive shell.
@@ -136,39 +163,12 @@ def backend(completed, staging, local):
                     response = {}
                 login = response.get("login", "")
                 if response.get("finished") is True and re.fullmatch(r"[a-z][a-z0-9_-]{0,30}", login):
-                    send(finished=True, login=login)
+                    send(finished=True, login=login, restarting=response.get("restarting") is True,
+                         restartFailed=response.get("restartFailed") is True)
                 else:
                     send(finishError=response.get("error", "setupFailed"))
 
             self.child.communicate_utf8_async(json.dumps(message), None, finish_result)
-
-        def watch_drivers(self):
-            self.driver_monitor = None
-            self.driver_snapshot = None
-            if DRIVERS.parent.is_dir():
-                self.driver_monitor = Gio.File.new_for_path(str(DRIVERS.parent)).monitor_directory(
-                    Gio.FileMonitorFlags.WATCH_MOVES, None
-                )
-                self.driver_monitor.connect("changed", lambda *_: self.update_drivers())
-            self.update_drivers()
-
-        def update_drivers(self):
-            try:
-                status = json.loads(DRIVERS.read_text())
-            except FileNotFoundError:
-                status = {"state": "ready", "packages": []}
-            except (OSError, ValueError):
-                print("Yu OS: could not read driver setup status", file=sys.stderr)
-                return
-            if (not isinstance(status, dict) or status.get("state") not in ("pending", "installing", "ready", "failed")
-                    or not isinstance(status.get("packages"), list)
-                    or any(not isinstance(package, str) for package in status["packages"])):
-                print("Yu OS: invalid driver setup status", file=sys.stderr)
-                return
-            snapshot = (status["state"], status["packages"])
-            if self.driver_snapshot != snapshot:
-                self.driver_snapshot = snapshot
-                send(driverState=snapshot[0], packages=snapshot[1])
 
         def network_ready(self, _source, result):
             try:
@@ -197,6 +197,7 @@ def backend(completed, staging, local):
             ):
                 state = "wired"
             send(networkState=state)
+            self.updates.connectivity(state == "online")
 
         def wifi_devices(self):
             devices = self.nm.get_devices() if self.nm is not None else []
@@ -377,6 +378,12 @@ def main():
     if args == ["--accounts"]:
         print(json.dumps(sign_in_accounts()))
         return 0
+    try:
+        scoped = re.fullmatch(r"owner=([0-9]+)", FIRST_RUN.read_text().strip())
+    except FileNotFoundError:
+        scoped = None
+    if scoped and int(scoped[1]) != os.getuid() and args != ["--local"]:
+        return 0
     if args == ["--check-complete"]:
         return int(not completed.is_file())
     if args == ["--backend"]:
@@ -390,6 +397,10 @@ def main():
     elif args:
         return 2
     elif not completed.is_file():
+        if not manages_updates(False):
+            os.environ["YUOS_SETUP_MODELS_ONLY"] = "1"
+        elif scoped or RESUME.is_file():
+            os.environ["YUOS_SETUP_RESUME"] = "1"
         os.environ["QS_NO_RELOAD_POPUP"] = "1"
         os.execv(SHELL, [SHELL, "--path", CONFIG])
     return 0

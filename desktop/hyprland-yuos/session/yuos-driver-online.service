@@ -5,7 +5,9 @@ ConditionPathExists=/var/lib/yuos/driver-setup/pending
 
 [Service]
 Type=simple
+RuntimeDirectory=yuos-driver-online
 ExecStart=/usr/lib/yuos/hw/yuos-driver-setup --online
+RuntimeMaxSec=45min
 
 [Install]
 WantedBy=multi-user.target

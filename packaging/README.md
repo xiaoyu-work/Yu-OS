@@ -43,7 +43,8 @@ packaging/
 Keep the [hardware workarounds](../docs/image-architecture.md#hardware-enablement) in `deb/yuos-base/hardware/`. Base stages the system udev and libinput data; Desktop stages the same libinput quirk source into Hyprland's private libinput database. Both packages use the existing signed release path.
 
 Desktop also stages the [System Updates controller](../docs/updating.md#system-updates-in-settings)
-and its offline boot service. Source pushes alone do not supply packages to it.
+and its offline boot service. [First-run setup](../docs/updating.md#first-run-system-update)
+uses the same signed OS channel. Source pushes alone do not supply packages to it.
 
 ### Coordinated 0.2.1 source ownership cutover
 

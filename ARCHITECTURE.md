@@ -2511,6 +2511,9 @@ an administrator-authorized update through its private GUI broker. The
 Root-owned updater prepares the OS package set independently of `yuosd`,
 then `system-update.target` applies it before the next login. Neither
 the App nor the running desktop is the package transaction owner.
+First-run setup uses the same updater after the driver job. Its closed
+setup-only helper and read-only stage projection do not expose APT or the
+Settings broker to the greeter. See [first-run updates](docs/updating.md#first-run-system-update).
 
 ## Entry Points
 

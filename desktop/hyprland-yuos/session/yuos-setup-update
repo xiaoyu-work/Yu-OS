@@ -1,0 +1,70 @@
+#!/usr/bin/python3 -I
+"""Authorize only the installed first-run update operations."""
+
+import grp
+import os
+from pathlib import Path
+import pwd
+import re
+import subprocess
+import sys
+
+
+UPDATES = "/usr/libexec/yuos-updates"
+ROOT = Path("/var/lib/yuos-updates")
+ENV = {"PATH": "/usr/sbin:/usr/bin", "LANG": "C"}
+
+
+def run(*command, capture=False):
+    return subprocess.run(command, stdin=subprocess.DEVNULL, text=True, env=ENV,
+                          stdout=subprocess.PIPE if capture else None,
+                          check=True, timeout=18).stdout
+
+
+def active_desktop(uid):
+    loginctl = "/usr/bin/loginctl"
+    session = run(loginctl, "show-seat", "seat0", "-p", "ActiveSession", "--value", capture=True).strip()
+    if not re.fullmatch(r"[a-zA-Z0-9]+", session):
+        raise PermissionError("No active local desktop session")
+    fields = run(loginctl, "show-session", session, "-p", "User", "-p", "Active", "-p", "Remote",
+                 "-p", "Service", "-p", "LockedHint", capture=True).splitlines()
+    if set(fields) != {f"User={uid}", "Active=yes", "Remote=no", "Service=yuos-desktop", "LockedHint=no"}:
+        raise PermissionError("An authenticated local desktop session is required")
+    return session
+
+
+def main(action):
+    if os.getuid() != 0 or action not in {"start", "finish", "restart"}:
+        raise PermissionError("Invalid first-run update action")
+    uid = int(os.environ["PKEXEC_UID"])
+    if (ROOT / "setup-complete").is_file() and action != "finish":
+        raise PermissionError("System setup is already complete")
+    user = pwd.getpwuid(uid)
+    if user.pw_name == "_greetd":
+        if action != "start" or not Path("/etc/yuos/local-desktop-setup").is_file():
+            raise PermissionError("The local account setup is not active")
+        session = None
+    else:
+        try:
+            marker = Path("/etc/yuos/first-run").read_text().strip()
+        except FileNotFoundError:
+            marker = None
+        if (not 1000 <= uid < 60000
+                or grp.getgrnam("sudo").gr_gid not in os.getgrouplist(user.pw_name, user.pw_gid)
+                or not (marker in {"", f"owner={uid}"} or (ROOT / f"resume-{uid}").is_file())):
+            raise PermissionError("First-run updates require the local setup owner")
+        session = active_desktop(uid)
+    if action == "start":
+        systemctl = "/usr/bin/systemctl"
+        os.execve(systemctl, [systemctl, "start", "yuos-update-setup.service"], ENV)
+    elif action == "finish":
+        run(UPDATES, "setup-complete")
+    else:
+        run(UPDATES, "setup-restart", f"{uid}:{session}")
+
+
+if __name__ == "__main__":
+    try:
+        main(*sys.argv[1:])
+    except (KeyError, OSError, TypeError, ValueError, subprocess.SubprocessError) as error:
+        sys.exit(str(error))

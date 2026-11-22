@@ -95,12 +95,13 @@ Before greetd starts, the OS hides the text cursor on its configured graphics
 VT only. Mode changes can still briefly blank the display; the login PAM path
 and the ordinary text consoles keep their normal behavior.
 The local flow is Language, Keyboard, Network, Models, Account, Time zone,
-and Appearance. It omits Network if already connected on entry. If the
-NetworkManager-triggered driver service still reports packages after
-Appearance, Hardware is the final step. Network and Hardware don't disappear
-once entered. Hardware shows the real driver setup status without listing
-package names. The dispatcher retries on reconnect, and installation never
-blocks finishing.
+Appearance, and System update. It omits Network if already connected on
+entry; System update can still open it. A fixed setup-only Polkit helper
+starts the Root-owned `yuos-update-setup.service`. That service waits for
+matching drivers, then checks the signed OS channel. Quickshell reads only
+the stage result, not package names or the private update state. See
+[first-run updates](../../docs/updating.md#first-run-system-update) for
+completion, restart, and failure handling.
 `yuos-desktop-locales` generates the wizard's twelve bundled locales. The regional
 controls preview installed XKB layouts, offer bundled Fcitx5 methods when present,
 and show the country and local time for search results using installed tzdata.

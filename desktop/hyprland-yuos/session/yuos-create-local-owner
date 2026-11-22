@@ -16,6 +16,8 @@ from zoneinfo import available_timezones
 
 
 MARKER = Path("/etc/yuos/local-desktop-setup")
+FIRST_RUN = MARKER.with_name("first-run")
+UPDATES = "/usr/libexec/yuos-updates"
 AVATARS = Path("/usr/share/yuos/avatars")
 MAX_REQUEST = 256 * 1024
 ENV = {"PATH": "/usr/sbin:/usr/bin", "LANG": "C.UTF-8"}
@@ -57,7 +59,7 @@ def request():
         raise ValueError("invalidInput")
     data = json.loads(raw)
     if not isinstance(data, dict) or set(data) != {
-        "username", "password", "avatar", "locale", "keyboard", "inputMethod", "zone", "light", "agent",
+        "username", "password", "avatar", "locale", "keyboard", "inputMethod", "zone", "light", "agent", "restart",
     }:
         raise ValueError("invalidInput")
     for key in ("username", "password", "locale", "keyboard", "inputMethod", "zone"):
@@ -72,7 +74,7 @@ def request():
         not re.fullmatch(r"[a-z]{1,24}", avatar) or not (AVATARS / f"{avatar}.png").is_file()
     ):
         raise ValueError("invalidAvatar")
-    if type(data["light"]) is not bool:
+    if type(data["light"]) is not bool or type(data["restart"]) is not bool:
         raise ValueError("invalidInput")
     layouts = {"us", "gb", "de", "fr", "es", "it", "br", "jp", "ru"}
     locales = system("locale", "-a").stdout.decode().splitlines()
@@ -163,6 +165,11 @@ def create_owner():
         if any(1000 <= row.pw_uid < 60000 for row in pwd.getpwall()):
             raise ValueError("notAvailable")
         data = request()
+        try:
+            system(UPDATES, "setup-admit", "restart" if data["restart"] else "finish")
+        except subprocess.CalledProcessError as error:
+            print(error.stderr.decode(errors="replace").strip(), file=sys.stderr)
+            raise ValueError("updatesPending") from None
         name = data["login"]
         home = Path("/home") / name
         if os.path.lexists(home) or any(row.pw_name == name for row in pwd.getpwall()):
@@ -184,6 +191,13 @@ def create_owner():
             except subprocess.CalledProcessError:
                 raise ValueError("passwordRejected") from None
             set_avatar(account.pw_uid, data["avatar"])
+            if data["restart"] and not FIRST_RUN.is_file():
+                # Reopen only the update page for this owner after normal PAM login.
+                with FIRST_RUN.open("x") as first_run:
+                    os.fchmod(first_run.fileno(), 0o644)
+                    first_run.write(f"owner={account.pw_uid}\n")
+                    first_run.flush()
+                    os.fsync(first_run.fileno())
         except (OSError, ValueError, subprocess.SubprocessError):
             system("userdel", "--remove", "--", name)
             raise
@@ -192,17 +206,28 @@ def create_owner():
         system("systemctl", "restart", "yuos-home-setup.service")
     except subprocess.SubprocessError:
         print("Yu OS: first owner created, but checkpoint home setup did not restart", file=sys.stderr)
-    return name
+    response = {"finished": True, "login": name}
+    if data["restart"]:
+        try:
+            system(UPDATES, "setup-restart", str(account.pw_uid))
+        except (OSError, subprocess.CalledProcessError) as error:
+            print(f"Yu OS: first owner created, but the update restart was refused: {error}",
+                  file=sys.stderr)
+            response["restartFailed"] = True
+        else:
+            response["restarting"] = True
+    return response
 
 
 if __name__ == "__main__":
     try:
-        login = create_owner()
+        response = create_owner()
     except ValueError as error:
         code = str(error)
         print(json.dumps({"error": code if code in {
             "notAvailable", "usernameTaken", "invalidInput", "invalidUsername",
             "invalidPassword", "passwordRejected", "invalidAvatar", "invalidRegionalSettings", "invalidAgentSettings",
+            "updatesPending",
         } else "invalidInput"}))
     except subprocess.CalledProcessError as error:
         print(f"Yu OS: {error.cmd[0]} failed during local owner setup ({error.returncode})", file=sys.stderr)
@@ -211,4 +236,4 @@ if __name__ == "__main__":
         print("Yu OS: local owner setup did not complete", file=sys.stderr)
         print('{"error":"setupFailed"}')
     else:
-        print(json.dumps({"finished": True, "login": login}))
+        print(json.dumps(response))

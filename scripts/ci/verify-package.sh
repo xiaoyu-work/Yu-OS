@@ -116,11 +116,14 @@ case "$component" in
             usr/libexec/yuos-oobe
             usr/libexec/yuos_oobe_models.py
             usr/libexec/yuos_oobe_regions.py
+            usr/libexec/yuos_oobe_updates.py
+            usr/libexec/yuos-setup-update
+            usr/lib/systemd/system/yuos-update-setup.service
             usr/lib/systemd/system/yuos-driver-online.service
             usr/lib/NetworkManager/dispatcher.d/70-yuos-driver-setup
             usr/share/yuos/oobe/greeter.qml
             usr/share/yuos/oobe/shell.qml
-            usr/share/yuos/oobe/SetupHardware.qml
+            usr/share/yuos/oobe/SetupSystemUpdate.qml
             usr/share/yuos/oobe/SetupHint.qml
             usr/share/yuos/oobe/SetupModels.qml
             usr/share/yuos/oobe/SetupWelcome.qml
@@ -131,6 +134,8 @@ case "$component" in
             usr/share/backgrounds/yuos/yuos-default.jpg
             usr/share/polkit-1/actions/org.yuos.local-desktop-setup.policy
             usr/share/polkit-1/rules.d/yuos-local-desktop-setup.rules
+            usr/share/polkit-1/actions/org.yuos.setup-update.policy
+            usr/share/polkit-1/rules.d/yuos-setup-update.rules
             etc/xdg/hypr/hyprland.lua
             usr/share/wayland-sessions/yuos.desktop
             etc/pam.d/yuos-desktop
