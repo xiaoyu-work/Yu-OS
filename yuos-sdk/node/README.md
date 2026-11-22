@@ -10,10 +10,14 @@ those declared names.
 
 ## Install
 
+From your App's Node.js project (Node.js 18 or later):
+
 ```sh
 npm install \
-  https://github.com/xiaoyu-work/Yu-OS/releases/download/sdk-v0.1.0/yuos-sdk-node-0.1.0.tgz
+  https://github.com/xiaoyu-work/Yu-OS/releases/download/yuos-sdk-v0.1.0/yuos-sdk-node-0.1.0.tgz
 ```
+
+Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
 
 ## Modules
 
@@ -24,28 +28,36 @@ npm install \
 | `tools`      | Call catalog tools the model proposes (`call`, `catalog`)      | `yu ai tool <name> --app <id>`      |
 | `gui`        | Desktop GUI bootstrap (kernel context, agent overlay)          | launched via `yu app <id> --gui`    |
 | `objects`    | Pure canonical App object identifiers                        | No transport or dispatch           |
+| `manifest`   | Pure manifest path validation and preview                        | No transport or grants             |
+| `events`, `channels` | Report App events and control authorized App-owned channels | —                               |
 | `transport`  | The subprocess transport + error types (advanced)              | —                                    |
 | (root)       | Typed structs generated from `wire/v1/*.schema.json`           | —                                    |
 
 ## MCP App service
 
-```ts
-import { mcp } from "@yuos/sdk";
+Use the [MCP example manifest](../../docs/app-development.md#quickstart-an-mcp-only-app) with `"runtime": "node"` and
+`mcp.entry` set to `server.cjs`. Include the entrypoint and its runtime
+dependencies in the App before signing.
 
+```js
+const { mcp } = require("@yuos/sdk");
 const app = mcp.App.fromManifest();
 
-app.tool("notes.get", async ({ id }, call) => {
+app.tool("hello-mcp.say", ({ message }, call) => {
   call.throwIfCancelled();
-  await call.reportProgress(1, { total: 2, message: "Loading note" });
-  return { id, body: await notes.load(String(id)) };
+  return mcp.ToolResult.text(message);
 });
 
-await app.serve();
+app.serve().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
 ```
 
 `App.fromManifest(path?)` reads one immutable manifest snapshot. An explicit
 path wins, followed by `YUOS_APP_MANIFEST`, then `./app.json` for direct
-development. Every name in `app.json.mcp.tools` must be bound before serving.
+development. A local manifest does not supply an authenticated call context.
+Every name in `app.json.mcp.tools` must be bound before serving.
 Descriptions, argument schemas, defaults, choices, and conditional requirements
 remain manifest-owned.
 
@@ -103,18 +115,9 @@ spelling, byte limits, and the optional manifest `objects` resolver declaration.
 
 `ai.chat` requires explicit `origin`. `external-content` selects
 `ai.chat.untrusted`, not a safety profile. See the
-[shared AI contract](../README.md#ai-support).
-
-### What you never do
-
-- **Name a verb or pick a model.** You describe what you want; the gate
-  picks the caps verb, and the machine owner configures the one
-  provider/model in `/etc/yuos/agent.toml`.
-- **Import a provider SDK** (`openai`, `@anthropic-ai/sdk`, …). `yu app
-  lint` refuses apps that do; this module is the only sanctioned route
-  to a model.
-- **Call `yu agent`.** That is the kernel's own Agent product. Apps use
-  `yu ai` (the App-facing primitive) — which is what this SDK wraps.
+[shared AI contract](../REFERENCE.md#ai-support) and [App consent requirements](../../docs/app-development.md#7-ai-features).
+Use the SDK rather than a provider SDK or `yu agent`. The owner configures
+the provider and model.
 
 ## Errors
 

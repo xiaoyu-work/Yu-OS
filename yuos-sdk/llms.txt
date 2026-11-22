@@ -1,0 +1,27 @@
+# Yu OS SDK
+
+> Build Yu OS Apps in Python, Node.js, Go, or Rust. Call the user's configured AI model through Yu OS, or expose App tools to the system Agent via MCP.
+
+Pick the guide for the direction you need: **App → system AI** or **system Agent → App tool**. Installing the SDK alone does not provide the Yu OS runtime or authorize calls.
+
+- For system AI, see Quickstart. In Python, `ai.chat(text, origin="user-input").text` returns the model response. The user configures the provider and model (`yu agent setup text`); Apps do not pass provider credentials or select a model. Declare the AI capability on the calling surface, an `ai` policy, and obtain owner consent.
+- Use a signed `app.json` with `schema_version: 2` and `mcp.tools` for Agent-facing tools. Bind handlers to the declared names. An MCP-only App needs no `operations` or `main.py`. Name a tool `<app-id>.<command>` to expose `yu app <app-id> <command>`.
+- Use the Gateway's call context, not tool arguments or environment variables, for caller identity. Keep MCP stdout for protocol messages; log to stderr.
+- Use SDK chat with an explicit origin: `trusted` for developer-authored text, `user-input` for typed input, and `external-content` for outside data. Declare the corresponding AI capability and follow the owner consent path. Do not call model providers directly.
+- The fixed AI tool catalog is not App MCP. Apps cannot invoke other Apps; the system Agent coordinates them. A manifest request, signature, or install confirmation alone is not a runtime grant.
+
+## Start
+
+- [System AI Quickstart](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/QUICKSTART.md): call `ai.chat` in a two-file App, declare permission, and run it.
+- [MCP example](https://github.com/xiaoyu-work/Yu-OS/blob/main/docs/app-development.md#quickstart-an-mcp-only-app): expose a tool to the CLI and system Agent without calling a model.
+- [Python](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/python/README.md): `App.from_manifest()`, `@app.tool`, `ai.chat`.
+- [Node.js](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/node/README.md): `mcp.App.fromManifest()`, `app.tool`, `await ai.chat`; pass the MCP `signal`.
+- [Go](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/go/README.md): `LoadMCPApp`, `Bind`, `ServeStdio`; pass `MCPCall` to `ChatContext`.
+- [Rust](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/rust/README.md): `mcp::App::from_environment`, `Tool`, `serve_stdio`, `ai::chat`.
+
+## Reference
+
+- [App guide](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/docs/app-development.md): manifest arguments, permissions, AI consent, and installation.
+- [Manifest schema](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/wire/v1/manifest.schema.json): supported fields and types.
+- [SDK reference](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/REFERENCE.md): compatibility, binding coverage, and releases.
+- [Wire v1](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/wire/v1/README.md): CLI envelopes, call context, and errors.

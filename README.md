@@ -44,7 +44,7 @@ that means:
   yourself. It's your memory; you can review it and forget any of it, down to a
   single app.
 - **Every app can use the system's models.** Apps call the built-in model layer
-  through the Yu OS SDK, whether the model runs locally or through a configured
+  through the [Yu OS SDK](yuos-sdk/README.md), whether the model runs locally or through a configured
   cloud provider. Developers can build AI-powered apps without embedding a
   model or rebuilding provider integration, credentials, consent, budgets,
   safety, and logging.

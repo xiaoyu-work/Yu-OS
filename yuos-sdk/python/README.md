@@ -7,23 +7,26 @@ repository rather than an OS-local `apps/` tree.
 ## Install
 
 ```sh
-pip install \
-  https://github.com/xiaoyu-work/Yu-OS/releases/download/sdk-v0.1.0/yuos_sdk-0.1.0-py3-none-any.whl
+python3 -m pip install \
+  https://github.com/xiaoyu-work/Yu-OS/releases/download/yuos-sdk-v0.1.0/yuos_sdk-0.1.0-py3-none-any.whl
 ```
 
-On a Yu OS system this is pre-installed (sources are baked into
-the rootfs at `/usr/lib/yuos/python/yuos_sdk/`).
+Requires Python 3.10 or later. The Yu OS Agent package already supplies
+`yuos_sdk` at `/usr/lib/yuos/python/`. Live calls require the
+[Yu OS runtime](../REFERENCE.md#compatibility).
 
 ## Use
 
+From an authenticated App with the [matching AI capability and consent](../../docs/app-development.md#7-ai-features):
+
 ```python
+from dataclasses import asdict
+
 from yuos_sdk import ai
 
-def handle_summarize(args):
-    with open(args["path"]) as fh:
-        body = fh.read()
+def summarize(body: str) -> dict:
     result = ai.chat(prompt=body, origin="external-content", max_units=2000)
-    return {"summary": result.text, "usage": result.usage}
+    return {"summary": result.text, "usage": asdict(result.usage)}
 ```
 
 ## What's in it
@@ -36,6 +39,8 @@ def handle_summarize(args):
 | `yuos_sdk.mcp`       | Manifest-bound App MCP server, call context, progress, and cancellation. |
 | `yuos_sdk.kernel`    | Explicit installed-CLI stdin transport with shared wire errors and cancellation. |
 | `yuos_sdk.objects`   | Pure canonical App object identifiers, without discovery or dispatch. |
+| `yuos_sdk.manifest`  | Validate or preview manifest path requests without granting access. |
+| `yuos_sdk.events`, `yuos_sdk.channels` | Report App events and control authorized App-owned channels. |
 | `yuos_sdk.yuos_session` | Read / observe `YUOS_SESSION` from inside an app.                 |
 | `yuos_sdk.generated` | TypedDicts generated from `wire/v1/*.schema.json`.                     |
 
@@ -47,7 +52,7 @@ when public SDK operations run.
 
 ## Expose App tools
 
-See the [two-file MCP App quickstart](../../docs/app-development.md#quickstart-an-mcp-only-app)
+See the [two-file MCP example](../../docs/app-development.md#quickstart-an-mcp-only-app)
 for a complete manifest, handler, and install/run commands.
 
 Declare MCP tools once in `app.json`, then bind only their handlers:
@@ -67,8 +72,9 @@ def search(query: str) -> dict:
 app.serve()
 ```
 
-`App.from_manifest()` reads the immutable manifest snapshot selected by the
-App Host through `YUOS_APP_MANIFEST`. MCP-first calls require the Gateway's
+The App Host sets `YUOS_APP_MANIFEST` to its verified manifest snapshot.
+`App.from_manifest()` falls back to `./app.json` in direct development, which
+does not authenticate an App or caller. MCP-first calls require the Gateway's
 versioned call context; caller identity never comes from tool arguments.
 The runtime validates arguments and applies manifest defaults before calling
 the handler. `report_progress()` is a no-op when the caller did not request
@@ -119,8 +125,8 @@ the optional App manifest `objects` resolver declaration.
 
 `ai.chat` requires an explicit `origin`. Use `external-content` for outside
 content; it selects `ai.chat.untrusted`, not a safety profile. See the
-[shared AI contract](../README.md#ai-support). `ai.budget()` reports current
-usage (App, period, and units used) without an unknown cap.
+[shared AI contract](../REFERENCE.md#ai-support). `ai.budget()` reports current
+usage (App, period, and units used), without a cap.
 
 ## Configuration
 

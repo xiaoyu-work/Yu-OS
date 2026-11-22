@@ -46,46 +46,35 @@ see [`docs/app-ai-integration.md`](./app-ai-integration.md).
 from yuos_sdk import ai, tools
 
 proposal = ai.chat(
-    prompt="Summarise the file at /etc/hostname.",
+    prompt="Propose reading the file at /etc/hostname.",
     origin="trusted",  # This instruction is developer-authored.
     tools=tools.for_chat("fs.read_text"),
 )
 
-for call in proposal.tool_calls:
-    try:
-        result = tools.call(call.name, call.input)
-    except tools.ToolDenied as e:
-        # caps refused / unknown tool / bad args — already audited
-        print("denied:", e.payload)
-        continue
-    # Treat any file contents used in a later prompt as external-content.
+# Inspect proposal.tool_calls before executing a proposal.
+# For an accepted call: result = tools.call(call.name, call.input)
 ```
 
-The App's `app.json` must declare every tool name in `ai.tools[]`:
+Treat a model proposal as input, not authorization. Check the requested tool
+and target against what the App is meant to do before calling `tools.call`.
+The [matching capabilities and AI consent](app-development.md#7-ai-features)
+must already apply to the calling entry. Declare allowed proposal names in
+the App manifest's `ai` block:
 
 ```jsonc
 {
-  "id": "summarize",
   "ai": {
     "budget":  { "monthly_units": 5000 },
     "safety":  "strict",
     "origins": ["trusted"],
     "tools":   ["fs.read_text"]
-  },
-  "operations": {
-    "summarize": {
-      "needs": [
-        { "verb": "ai.chat",
-          "scope": { "kind": "fixed", "scope": { "kind": "name", "value": "*" } },
-          "why":  "Summarise text the user pastes in." },
-        { "verb": "fs.read",
-          "scope": { "kind": "from-arg", "arg": "path" },
-          "why":  "Read the file the model decides to summarise." }
-      ]
-    }
   }
 }
 ```
+
+For this example the entry also needs `ai.chat` and `fs.read` for the requested
+file. Listing a tool in `ai.tools[]` does not grant either capability.
+Treat file contents used in a later prompt as `external-content`.
 
 Unknown names in `ai.tools[]` are rejected at install/launch time
 (see `Manifest::validate_tools_against_catalog`); duplicates are

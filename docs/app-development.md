@@ -1,14 +1,68 @@
 # Writing Your First Yu OS App
 
-Start with an MCP-only App if the same command should work from the CLI
-and the system Agent. The Python SDK ships with the Yu OS Agent package.
-See the [SDK support and compatibility table](../yuos-sdk/README.md#language-support)
-for other runtimes and OS requirements.
+Start with the [system AI Quickstart](../yuos-sdk/QUICKSTART.md) to call the
+user's configured model from your App. To let the CLI and the system Agent
+call your App, use the MCP-only example below.
 
 For the architectural background see
 [`app-ai-integration.md`](app-ai-integration.md) (AI gate, manifest,
-audit) and [`app-ai-tool-catalog.md`](app-ai-tool-catalog.md) (catalog
-of agent-callable tools). This document is the **how to** counterpart.
+audit) and [`app-ai-tool-catalog.md`](app-ai-tool-catalog.md) (the fixed
+tool catalog available to Apps).
+
+## Quickstart: an MCP-only App
+
+This example exposes `hello-mcp.say` to the CLI and the system Agent. It
+echoes text without calling a model. Save these two files in `hello-mcp/`.
+
+**`app.json`**
+
+```json
+{
+  "id": "hello-mcp",
+  "version": "0.1.0",
+  "schema_version": 2,
+  "name": {"en": "Hello MCP"},
+  "mcp": {
+    "entry": "server.py",
+    "tools": [{
+      "name": "hello-mcp.say",
+      "summary": {"en": "Echo a message."},
+      "args": [{"name": "message", "kind": "text", "required": true}]
+    }]
+  }
+}
+```
+
+**`server.py`**
+
+```python
+from yuos_sdk.mcp import App, ToolResult
+
+app = App.from_manifest()
+
+@app.tool("hello-mcp.say")
+def say(message: str) -> ToolResult:
+    return ToolResult.text(message)
+
+if __name__ == "__main__":
+    app.serve()
+```
+
+From the parent directory, [sign and install](#11-ship-it) the App:
+
+```sh
+yu provenance sign --kind app --id hello-mcp --version 0.1.0 \
+    --path ./hello-mcp --key "$HOME/.secrets/my-publisher.json" --entrypoint server.py
+sudo yu app install ./hello-mcp
+yu app hello-mcp say "Hello from MCP"
+```
+
+Run the last command as your normal user and complete any invoke approval.
+It prints `Hello from MCP`. No `main.py`, `operations`, or target capabilities
+are needed. A local `python3 server.py` starts the stdio loop but does not
+provide an authenticated Gateway call context.
+
+## App integration
 
 Agent-to-App integration uses `schema_version: 2` and one
 top-level `mcp` service containing lifecycle, caller access, tools, and exact
@@ -57,7 +111,7 @@ AI Helpers owns the Summarize client, not the OS AI gate. It takes explicit
 text and calls SDK AI under `summarize` consent/budget, then requests bounded
 summary memory through the bundled `yuos_runtime.memory.remember` export under
 `self:summarize`. Other products use SDK AI directly, not this App or its
-consent. All 75 original App sources and their common support are external.
+consent. App sources and their common support are external.
 App `shared/python` owns `_shared`, `gateway._shared` and `canonical_argv`;
 `tests/shared` owns helper tests/vectors. There is no OS `apps/` source tree.
 The pinned common staging CLI installs these libraries in
@@ -123,75 +177,11 @@ Input is at most 1008 KiB of serialized JSON (including escapes and base64), or
 a lower `YUOS_APP_STDIN_MAX_BYTES`. This leaves 16 KiB for the unchanged 1 MiB
 broker request envelope. Canonical arguments must also fit this budget.
 
-## Quickstart: an MCP-only App
-
-Save these two files under `~/my-apps/hello-mcp/`. The directory and App ID
-must match. No `main.py`, `operations` block, or target capabilities are
-needed for this example.
-
-`app.json`:
-
-```json
-{
-  "id": "hello-mcp",
-  "version": "0.1.0",
-  "schema_version": 2,
-  "name": {"en": "Hello"},
-  "mcp": {
-    "entry": "server.py",
-    "tools": [{
-      "name": "hello-mcp.say",
-      "summary": {"en": "Return a message."},
-      "args": [{"name": "message", "kind": "text", "required": true}]
-    }]
-  }
-}
-```
-
-`server.py`:
-
-```python
-from yuos_sdk.mcp import App, ToolResult, current_context
-
-app = App.from_manifest()
-
-@app.tool("hello-mcp.say")
-def say(message: str) -> ToolResult:
-    current_context().raise_if_cancelled()
-    return ToolResult.text(message)
-
-app.serve()
-```
-
-On Yu OS, use a publisher key trusted by the OS (see
-[signing and trust](extension-provenance.md)) and a running broker:
-
-```sh
-yu provenance sign --kind app --id hello-mcp --version 0.1.0 \
-    --path "$HOME/my-apps/hello-mcp" --key "$HOME/.secrets/my-publisher.json" \
-    --entrypoint server.py
-yu app install "$HOME/my-apps/hello-mcp"
-yu app hello-mcp say "Hello from MCP"
-```
-
-Complete the normal installation review and any required invoke authorization.
-The CLI returns `Hello from MCP` as the tool's text result. The Agent uses
-the same handler through `hello-mcp.say`, subject to its own invoke authority.
-
-The App Host points `YUOS_APP_MANIFEST` at the verified package snapshot.
-`current_context()` exposes Gateway-authenticated identity and call lineage;
-Apps must never accept caller identity through tool arguments. The runtime
-validates arguments and applies defaults from the manifest before invoking
-the handler. Manifest arguments support `path`, `host`, `name`, `text`,
-`number`, `integer`, and `bool`, with repeatable values for non-booleans.
-They are not arbitrary nested JSON Schema inputs.
-
 ## 1. What is a Yu OS app?
 
-A Yu OS app is a directory whose minimum contents are a manifest and an
-entry point. An Agent-callable App also includes an MCP service entry; a
-strictly human-only App may omit it. Apps may include a desktop surface,
-dependencies, tests, and arbitrary assets:
+A Yu OS App ships `app.json` and the entrypoints for its declared surfaces.
+An MCP-only App needs just its service entrypoint; a human-only one-shot
+App does not need an MCP service. An App with both could look like this:
 
 ```
 my-app/
@@ -223,30 +213,18 @@ The id itself has to match `[a-z][a-z0-9_-]*`
 ([`manifest.rs:935`](../core/src/caps/manifest.rs)) — start with a
 lowercase letter, then lowercase letters, digits, `_`, or `-`.
 
-## 2. The SDK is already there
+## 2. Developing against the SDK
 
-On either a Debian/Ubuntu Agent install or a complete Yu OS target, the
-`yuos-agent.deb` package puts both Python helper packages on the system at
-`/usr/lib/yuos/python/`:
+The Yu OS Agent package supplies the Python SDK at `/usr/lib/yuos/python/`.
+On a development machine, install the [Python wheel](../yuos-sdk/python/README.md#install),
+or use `python3 -m pip install -e yuos-sdk/python/` from the root of a Yu OS
+source checkout in your Python environment. You do not need the first-party
+`yuos_runtime` package. Use the SDK's pure helpers and test business logic
+locally; run live App calls on a system with the matching Yu OS runtime.
 
-* `yuos_sdk` — public SDK for AI calls
-  ([`yuos-sdk/python/src/yuos_sdk/`](../yuos-sdk/python/src/yuos_sdk/))
-* `yuos_runtime` — internal runtime, used by bundled apps for capability
-  gating ([`yuos-runtime/python/src/yuos_runtime/`](../yuos-runtime/python/src/yuos_runtime/))
-
-The bridge prepends those directories to `sys.path` before exec'ing
-your `main.py`
-([`core/src/bridge.rs:31-60`](../core/src/bridge.rs)), so plain
-`import` statements just work — no `pip install` necessary.
-
-Off-system (writing code on a non-Yu OS-OS machine) you can either:
-
-* set `YUOS_SDK_PYTHON_DIR=/path/to/dir` and arrange both
-  `yuos_sdk/` and `yuos_runtime/` as subdirectories of that
-  dir, or
-* `pip install -e yuos-sdk/python/` (the public SDK does ship a
-  `pyproject.toml`). `yuos_runtime` is internal and not pip-publishable;
-  use the env var path for it.
+For Node, Go, and Rust, use the [language SDK guides](../yuos-sdk/REFERENCE.md#language-support).
+Ship the dependencies or compiled binaries needed by your declared entries
+before signing the payload.
 
 ## 3. The minimum viable app
 
@@ -301,11 +279,11 @@ The bridge calls `mod.run(command, args)` exactly once per invocation
   [`canonical_argv`](https://github.com/xiaoyu-work/yuos-app/blob/main/shared/python/canonical_argv.py),
   preserving inline flag values and the `--` delimiter.
 
-Each argument declares a value `kind`: `path`, `host`, `name`, `text`,
-`number`, `integer`, or `bool`. `number` accepts decimal values while
-`integer` rejects fractional input. `binding` is either `positional` or
-`flag`. When omitted, booleans retain the historical `flag` behavior and every
-other kind remains positional:
+Both operation and MCP tool arguments use a manifest `kind`: `path`, `host`,
+`name`, `text`, `number`, `integer`, or `bool`. They do not accept arbitrary
+nested JSON Schema. `number` accepts decimals and `integer` rejects
+fractional input. For CLI calls, `binding` is either `positional` or `flag`;
+by default booleans use flags and other kinds are positional:
 
 ```jsonc
 {
@@ -696,21 +674,23 @@ rejected because capability matching does not expand them.
 
 ## 7. AI features
 
-Any AI call must route through the kernel's AI gate — the linter
-(§8) will refuse an app that imports `openai`, `anthropic`, or
-`google.generativeai` directly. Use `yuos_sdk.ai` instead:
+Use the SDK's AI gate rather than a model-provider SDK. From an App with
+approved access to the supplied file and `ai.chat.untrusted`:
 
 ```python
+from dataclasses import asdict
+from pathlib import Path
+
 from yuos_sdk import ai
 
 def run(command, args):
-    body = open(args[0]).read()
+    body = Path(args[0]).read_text(encoding="utf-8")
     resp = ai.chat(
         prompt=f"Summarise:\n{body}",
         origin="external-content",
         max_units=2000,
     )
-    return {"summary": resp.text, "usage": resp.usage.__dict__}
+    return {"summary": resp.text, "usage": asdict(resp.usage)}
 ```
 
 Always pass `origin` to chat: `trusted` for developer-authored text only,
@@ -720,17 +700,20 @@ declare the outside content rather than labeling the whole prompt `trusted`.
 `external-content` selects `ai.chat.untrusted`; the effective policy
 determines redaction. The label does not prove the input is safe.
 
-Three conditions apply:
+Declare an `ai` policy in the manifest and the matching capability on the
+calling surface: `ai.chat.untrusted` for `external-content`, or `ai.chat`
+for `trusted` and `user-input`. The owner configures the model. A declaration
+does not authorize a call.
 
-1. The manifest **must** carry an `ai` block declaring budget,
-   safety profile, origins, and tool allowlist
-   ([`manifest.rs:142-193`](../core/src/caps/manifest.rs)).
-2. Each operation or MCP tool that calls AI must include the matching `ai.*` verb in
-   `needs[]`.
-3. The user must grant consent for the app's current AI-policy snapshot before
-   any call is allowed: `yu app consent grant <id>`. Changing the app's
-   budget, safety profile, origins, or tool allowlist makes the saved consent
-   stale and requires a new grant.
+| Calling surface | Owner consent |
+|---|---|
+| An operation, MCP tool, or GUI call not using the configured-model opt-in | The owner grants separate consent to the App's AI policy with `yu app consent grant <id>`. Changes to the policy require renewed consent. |
+| An eligible GUI entry using [optional system AI](#optional-system-ai-at-installation) | The owner explicitly allows it in the protected Store installation review for the exact package and configured model. That GUI call does not require a second `consent grant`. |
+
+Both paths still require the matching capability and are subject to budgeting
+and the effective policy. The optional GUI choice does not flow to other
+surfaces. A direct Root directory install is not an ordinary user's Store
+AI opt-in.
 
 For the full AI integration model — `origin`, safety profiles, tool
 catalog, budget envelope, audit surface — read
@@ -749,10 +732,10 @@ and ship an app
 | `yu app <id> <op> [args…]` | Run an op. |
 | `yu app <id> --schema` | Full manifest-derived schema for the app. |
 | `yu app <id> <op> --schema` | Schema for one op. |
-| `yu app lint [<id>]` | Refuse apps that import provider SDKs directly. Run on every app if no id given. |
+| `yu app lint [<id>]` | Check declared MCP entrypoints and look for blocked model-provider imports in Python files. Run on every discovered App if no ID is given. |
 | `yu app tool list [<id>]` | Show the manifest-declared MCP tools this App exposes through the private Gateway. |
 | `yu app install <dir> --review` | Verify the package and return its requested permissions, scopes, conditions, AI policy and execution surfaces as JSON, without installing or granting anything. |
-| `yu app install <dir> [--force] [--no-consent] [--yes] [--dev-trust]` | Authenticate and disclose the App's permission requests before publishing into `$YUOS_APPS_DIR/<id>/`. Ordinary installs require an OS review decision; `--yes` can use existing OS confirmation but cannot replace first review or grant capabilities/AI consent. `--no-consent` only defers AI consent. Copying is skipped only when source and destination are the same directory. `--dev-trust` retains its separate interactive, digest-bound development-trust workflow. |
+| `sudo yu app install <dir> [--force] [--no-consent] [--yes]` | Ask Root to publish a signed App into its configured App root after protected review. `--yes` cannot replace first review. `--no-consent` defers the separate legacy AI prompt. Installing an unsigned directory with `--dev-trust` is not supported. |
 | `yu review pending` | List and present the current user's App reviews and existing capability requests using the shared OS review contract. |
 | `yu review show <id>` | Display one owner-scoped review and its authenticated permission disclosure. |
 | `yu review approve <id>` | Confirm an App package and choose any newly requested, supported GUI permissions, or decide a separate capability request through the interactive OS helper. |
@@ -907,9 +890,9 @@ Set explicitly only when overriding defaults
 | `YUOS_DATA_DIR` | Where the current process persists Yu OS data. Inside a sandboxed operation this is the app's own partition, `<data-root>/apps/<app-id>` — never the owner's data root. | `$XDG_DATA_HOME/yuos`, normally `~/.local/share/yuos`; yuosd overrides this to `/var/lib/yuos` |
 | `YUOS_OWNER_HOME` | Verified home path of the user the App service represents. Use it only to resolve a manifest-approved `~/...` resource; the path grants no access by itself, and `$HOME` remains private App state. | (auto) |
 | `YUOS_APPLICATIONS_DIR` | Where `yu app install` writes generated desktop launchers. | `/usr/share/applications` |
-| `YUOS_SDK_PYTHON_DIR` | Force the SDK lookup to a specific dir. Must contain both `yuos_sdk/` and `yuos_runtime/` as subdirs. | unset → kernel probes `/usr/lib/yuos/python` + sibling dev paths |
+| `YUOS_SDK_PYTHON_DIR` | SDK import search directory for the one-shot Python bridge. It must contain the package the entrypoint imports; third-party Apps only need `yuos_sdk/`. | unset → bridge checks its installed and development paths |
 | `YUOS_APP_ID` | The id of the calling app. **Auto-set by the bridge** from `app.json`; do not override. | (auto) |
-| `YUOS_BIN` | Path to the `yu` binary the SDK shells back to. | `yu` (from `$PATH`) |
+| `YUOS_KERNEL_BIN` | Override the public SDK's default CLI executable for development. Does not select caller identity; explicit installed-binary clients do not use it. | `yu` (from `$PATH`) |
 | `YUOS_SESSION` | Session id for grouped multi-call audit. | unset |
 | `YUOS_WORKER_SANDBOX` | Set to `1` inside every sandboxed operation. Read it to detect the sandbox; do not rely on it for security. | (auto) |
 | `YUOS_EGRESS_SOCKET` | HTTP `CONNECT` proxy socket, present only when the operation was granted exact `net.dial` hosts. | unset |
@@ -1219,31 +1202,29 @@ yu provenance sign --kind app --id hello --version 0.1.0 \
     --path ~/my-apps/hello --key ~/.secrets/my-publisher.json \
     --entrypoint main.py             # bind the whole tree to your key
 yu app install ~/my-apps/hello --review  # inspect verified requests without installing
-yu app install ~/my-apps/hello      # review permissions, confirm, then publish
-# Installation does not grant capabilities. AI consent is a separate prompt.
-# --no-consent defers that AI prompt; --yes never grants AI consent.
-yu app hello say                    # now lives under /usr/lib/yuos/apps/hello/
+sudo yu app install ~/my-apps/hello # confirm the signed directory install as Root
+yu app hello say "Hello from CLI"  # run as your normal user
 ```
 
-An App is authenticated before its manifest can influence capability grants or
-App identity. Global directory publication requires Root, the running broker
-and a signed package. This unsigned developer-install command is currently
-explicitly blocked:
+The [MCP example](#quickstart-an-mcp-only-app) uses `server.py` instead of `main.py`
+for an MCP-only App. Sign every declared entrypoint. A signature authenticates
+the package; it does not grant capabilities or AI consent. Directory installation
+requires system publisher trust, Root and a running broker. Signing does not
+enroll a publisher, and a per-user trust entry does not authorize a Root install.
+Re-sign after changing package contents. For distribution, pack the signed
+directory and give the administrator the public publisher entry separately.
+Never distribute the private key. See [package provenance](extension-provenance.md)
+for trust, revocation, and rollback.
 
-```sh
-yu app install ~/my-apps/hello --dev-trust
-```
+### Troubleshooting
 
-It does not publish an unsigned tree or record trust. Sign the development
-package and use checked installation instead. Existing developer grants remain
-path/content-bound with their restricted capability ceiling; this change does
-not migrate or revoke them, and signatures never grant capabilities.
-
-For a clean distributable, sign the directory and package it as a
-tarball: any machine that trusts your publisher key can
-`yu app install <untarred-dir>` it. See
-[`extension-provenance.md`](extension-provenance.md) for the envelope
-format, trust roots, revocation and rollback.
+| Symptom | What to check |
+|---|---|
+| Publisher unknown or package no longer verifies | Check the [system trust store](extension-provenance.md#trust-roots) and verify that the signed directory has not changed. |
+| App or tool not found | Run `yu app` and `yu app tool list <id>`. Check the declared entrypoint and use the `<app-id>.<command>` tool name for CLI resolution. |
+| Missing MCP call context | Run the installed App through `yu app <id> <command>` or the Gateway, not by sending a bare `tools/call` request to its executable. |
+| Permission denied | Check the caller's invoke approval and the tool's signed `needs` separately. For AI, also check the [consent path for the calling surface](#7-ai-features). |
+| Install outcome is unknown | Follow the [directory-install recovery procedure](#installation-permission-review), not another install attempt. |
 
 ## See also
 

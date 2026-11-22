@@ -34,6 +34,7 @@ Rust, Python, Node, and Go bindings.
 
 | Path | Role |
 | --- | --- |
+| `README.md`, `QUICKSTART.md`, `llms.txt`, `REFERENCE.md` | SDK entry points for developers and coding agents, runnable example, and shared reference |
 | `wire/` | Versioned contract and code generation |
 | `wire/v1/contract.json` | Generated decoder set, stable validation errors, and JSON-RPC codes |
 | `wire/v1/object_ref.schema.json`, `wire/v1/object-references.md` | Object reference shape and normative identity/URI semantics |

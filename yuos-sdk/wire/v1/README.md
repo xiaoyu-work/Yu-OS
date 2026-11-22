@@ -22,11 +22,10 @@ success envelope; non-zero accompanies an error envelope. SDKs reject flat
 command output, JSON on stderr, malformed envelopes, unsupported versions, and
 an exit-status/`ok` mismatch.
 
-Reasoning:
-- Identity and audit-trail come from process ancestry. The `yu`
-  binary verifies that its parent is an app the kernel itself launched.
-- Subprocess transport works on every OS without setting up sockets,
-  named pipes, or daemons.
+The OS authenticates the workload using its registered session and process
+ancestry. CLI arguments and environment variables do not establish that
+identity. The subprocess adapter is not a standalone runtime: live calls
+still need the installed Yu OS services.
 
 ## Envelope
 
@@ -36,8 +35,7 @@ Successful reply:
 ```json
 {
   "ok": true,
-  "data": { /* request-specific shape, see {perms,ai,tool,app}.schema.json */ },
-  "audit_id": "01J…",
+  "data": {"value": 1},
   "wire_version": 1
 }
 ```
@@ -48,14 +46,13 @@ Error reply:
   "ok": false,
   "error": "permission denied",
   "code": "PERMISSION_DENIED",
-  "detail": { /* request-specific shape */ },
-  "audit_id": "01J…",
   "wire_version": 1
 }
 ```
 
-`code` is a stable string drawn from `error_codes.md`. New codes may
-be added in v1; existing codes keep their meaning.
+`data` has a request-specific schema. `audit_id` is optional, as is the
+error envelope's `detail` object. See [error codes](error_codes.md);
+new codes may be added in v1 without changing existing meanings.
 
 ## Request families
 
@@ -64,6 +61,8 @@ be added in v1; existing codes keep their meaning.
 | `policy` | OS-internal capability check; no public SDK API | `perms.schema.json` |
 | `ai`     | `yu ai chat --app <id> [...] `         | `ai.schema.json`        |
 | `tool`   | `yu ai tool <name> --app <id> --args <json>` | `tool.schema.json` |
+| catalog  | `yu ai tools`                         | `tool_catalog.schema.json` |
+| AI usage | `yu agent budget show <app>`          | `budget_show.schema.json` |
 | `app`    | `yu app <id> <verb> [...]`             | `app.schema.json`       |
 
 The `policy` wire family is consumed only by the OS-internal
@@ -130,18 +129,8 @@ OS-confirmed mutation.
 
 ## Error codes
 
-See `error_codes.md` for the canonical list. The minimum:
-
-| Code                  | Meaning                                                    |
-|-----------------------|------------------------------------------------------------|
-| `PERMISSION_DENIED`   | Caps gate refused the call.                                |
-| `BUDGET_EXCEEDED`     | App's AI budget is exhausted for the current period.       |
-| `SAFETY_VIOLATION`    | Safety pipeline blocked the request (prompt injection etc.). |
-| `UNKNOWN_APP`         | App id not installed.                                      |
-| `UNKNOWN_VERB`        | App doesn't expose this verb / catalog tool not found.     |
-| `INVALID_ARGS`        | Args failed schema validation.                             |
-| `KERNEL_UNAVAILABLE`  | `yu` binary couldn't reach a required subsystem.          |
-| `INTERNAL_ERROR`      | Anything else; details in `detail.message`.                |
+See the [shared error codes](error_codes.md). A failure to start `yu` or
+decode its reply is a client transport failure, not a wire error envelope.
 
 ## Versioning
 

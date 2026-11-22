@@ -3,6 +3,17 @@
 The official Rust SDK for Yu OS. Use this crate to talk to the
 `yu` kernel CLI from a Rust app — typed, documented, audited.
 
+## Install
+
+In your App's `Cargo.toml`:
+
+```toml
+[dependencies]
+yuos-sdk = { git = "https://github.com/xiaoyu-work/Yu-OS.git", tag = "yuos-sdk-v0.1.0" }
+```
+
+Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
+
 ## What's in it
 
 | Module      | Purpose                                                                         |
@@ -13,7 +24,8 @@ The official Rust SDK for Yu OS. Use this crate to talk to the
 | `tools`     | `yu ai tool <name>` — fulfil catalog tools the model proposed.                 |
 | `gui`       | Desktop GUI bootstrap and kernel-provided launch context.                       |
 | `objects`   | Pure, canonical references to App-owned objects; no discovery or dispatch.      |
-| `envelope`  | Wire-v1 envelope adapter; SDKs handle the migration to native v1 transparently. |
+| `manifest`, `events`, `channels` | Manifest path validation, App events, and authorized App-owned channel controls. |
+| `envelope`  | Strict CLI wire-v1 envelope decoder. |
 | `generated` | Typed structs generated from `wire/v1/*.schema.json`.                          |
 
 The crate does not export `policy`, `fs`, `exec`, `pkg`, `notify`, or
@@ -57,26 +69,11 @@ owner decision.
 
 ## Expose manifest-declared MCP tools
 
-The App manifest is the only source of identity, summaries, and input schemas:
-
-```json
-{
-  "schema_version": 2,
-  "id": "echo_app",
-  "version": "1.0.0",
-  "name": {"en": "Echo"},
-  "mcp": {
-    "transport": "stdio",
-    "tools": [{
-      "name": "echo",
-      "summary": {"en": "Echo text"},
-      "args": [{"name": "text", "kind": "text", "required": true}]
-    }]
-  }
-}
-```
-
-Rust binds only the implementation:
+Use the [MCP example manifest](../../docs/app-development.md#quickstart-an-mcp-only-app) with `"runtime": "binary"`
+and `mcp.entry` set to `server`. Include the compiled Linux executable before
+signing. This example also depends on `async-trait`, `serde_json`, and `tokio`
+with the `macros` and `rt` features. The manifest declares the tool; Rust binds
+its implementation:
 
 ```rust,no_run
 use std::sync::Arc;
@@ -85,31 +82,32 @@ use async_trait::async_trait;
 use yuos_sdk::mcp::{App, CallContext, Tool, ToolResult};
 use serde_json::Value;
 
-struct Echo;
+struct Say;
 
 #[async_trait]
-impl Tool for Echo {
+impl Tool for Say {
     fn name(&self) -> &str {
-        "echo"
+        "hello-mcp.say"
     }
 
     async fn handle(&self, args: Value, context: CallContext) -> ToolResult {
         if let Err(cancelled) = context.check_cancelled() {
             return ToolResult::error(cancelled.to_string());
         }
-        match args["text"].as_str() {
+        match args["message"].as_str() {
             Some(text) => ToolResult::text(text),
             None => ToolResult::error("validated text argument was unavailable"),
         }
     }
 }
 
-# async fn run() -> Result<(), Box<dyn std::error::Error>> {
-let mut app = App::from_environment()?;
-app.bind(Arc::new(Echo))?;
-app.serve_stdio().await?;
-# Ok(())
-# }
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut app = App::from_environment()?;
+    app.bind(Arc::new(Say))?;
+    app.serve_stdio().await?;
+    Ok(())
+}
 ```
 
 `App::from_environment()` reads `YUOS_APP_MANIFEST` and falls back to
@@ -120,16 +118,6 @@ optional progress reporting. `CallContext::deadline_unix_ms()` exposes the
 authenticated deadline exactly as the wire `u64`; `cancelled()` and
 `check_cancelled()` enforce it without converting it to a platform system-time
 range.
-
-## Add it
-
-```toml
-[dependencies]
-yuos-sdk = {
-    git = "https://github.com/xiaoyu-work/Yu-OS.git",
-    tag = "sdk-v0.1.0",
-}
-```
 
 ## Use it
 
@@ -180,7 +168,7 @@ optional App manifest `objects` resolver declaration.
 
 `ai::chat` requires explicit `.origin(...)`. `external-content` selects
 `ai.chat.untrusted`, not a safety profile. See the
-[shared AI contract](../README.md#ai-support).
+[shared AI contract](../REFERENCE.md#ai-support).
 
 ## Configuration
 

@@ -13,6 +13,8 @@ runs.
 
 ## Install
 
+From your App's Go module (Go 1.21 or later):
+
 ```sh
 go get github.com/xiaoyu-work/Yu-OS/yuos-sdk/go@v0.1.0
 ```
@@ -20,6 +22,8 @@ go get github.com/xiaoyu-work/Yu-OS/yuos-sdk/go@v0.1.0
 ```go
 import yuossdk "github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
 ```
+
+Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
 
 ## Surface
 
@@ -30,6 +34,7 @@ import yuossdk "github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
 | MCP service   | `LoadMCPApp`, `(*MCPApp).Bind`, `Serve`, `ServeStdio`               | App Host private stdio transport  |
 | GUI           | `IsGUILaunch`, `Context`, `(*GuiContext).OpenAgentOverlay`         | launched via `yu app <id> --gui` |
 | Objects       | `FormatReference`, `ParseReference`                               | Pure identifiers; no transport |
+| Manifest, events, and channels | Manifest path helpers, `PublishEvent`, and channel controls | —                   |
 | Transport     | `YuBinary`, error types (advanced)                                | —                                 |
 | (generated)   | Typed structs from `wire/v1/*.schema.json` (`generated.go`)        | —                                 |
 
@@ -38,81 +43,60 @@ import yuossdk "github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
 ```go
 package main
 
-import yuossdk "github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
+import (
+	"context"
 
-// A single entry serves both the one-shot operation and the GUI window.
-func run(command string, args map[string]any) (any, error) {
-	if yuossdk.IsGUILaunch() {
-		ctx, err := yuossdk.Context(nil)
-		if err != nil {
-			return nil, err
-		}
-		startMyWindow(ctx)            // your toolkit, your event loop
-		return nil, nil
-	}
+	yuossdk "github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
+)
 
-	// Headless operation: summarise some untrusted text.
-	res, err := yuossdk.Chat(args["body"].(string), yuossdk.ChatOptions{
+func summarize(ctx context.Context, body string) (string, error) {
+	res, err := yuossdk.ChatContext(ctx, body, yuossdk.ChatOptions{
 		Origin:   "external-content",
 		MaxUnits: 2000,
-		Tools:    yuossdk.ForChat("fs.read_text"),
 	})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-
-	for _, proposed := range res.ToolCalls {
-		out, err := yuossdk.CallTool(proposed.Name, proposed.Input, "")
-		if err != nil {
-			return nil, err
-		}
-		_ = out.Value // feed into the next Chat turn however you like
-	}
-
-	return map[string]any{"summary": res.Text, "usage": res.Usage}, nil
+	return res.Text, nil
 }
 ```
 
 ## MCP App service
 
-Go Apps expose Agent-facing tools only through the authoritative
-`app.json.mcp.tools` declaration. `LoadMCPApp("")` loads
+Use the [MCP example manifest](../../docs/app-development.md#quickstart-an-mcp-only-app) with `"runtime": "binary"`
+and `mcp.entry` set to `server`. Build and include the Linux executable
+before signing. `LoadMCPApp("")` loads
 `$YUOS_APP_MANIFEST`, or `./app.json` during direct development.
 `Bind` only accepts declared names, and `Serve` refuses to start until every
 declared tool has exactly one handler.
 
 ```go
-app, err := yuossdk.LoadMCPApp("")
-if err != nil {
-	return err
-}
+package main
 
-err = app.Bind("notes.get", func(
-	args map[string]any,
-	call *yuossdk.MCPCall,
-) (any, error) {
-	authenticated := call.Authenticated()
-	if err := call.CheckCancelled(); err != nil {
-		return nil, err
+import (
+	"log"
+
+	yuossdk "github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
+)
+
+func main() {
+	app, err := yuossdk.LoadMCPApp("")
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	if call.ProgressRequested() {
-		if err := call.ReportProgress(1, yuossdk.MCPProgress{
-			Message: "Loading note",
-		}); err != nil {
+	err = app.Bind("hello-mcp.say", func(args map[string]any, call *yuossdk.MCPCall) (any, error) {
+		if err := call.CheckCancelled(); err != nil {
 			return nil, err
 		}
+		return args["message"], nil
+	})
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	return yuossdk.StructuredMCPResult(map[string]any{
-		"id":     args["id"],
-		"caller": authenticated.Caller.Id,
-	}, "Note loaded")
-})
-if err != nil {
-	return err
+	if err := app.ServeStdio(); err != nil {
+		log.Fatal(err)
+	}
 }
-return app.ServeStdio()
 ```
 
 `MCPCall` implements `context.Context`, so handlers can select on
@@ -162,27 +146,19 @@ and the optional App manifest `objects` resolver declaration.
 
 `Chat` and `ChatContext` require explicit `Origin`. `external-content` selects
 `ai.chat.untrusted`, not a safety profile. See the
-[shared AI contract](../README.md#ai-support). `Budget` and `BudgetContext`
+[shared AI contract](../REFERENCE.md#ai-support). `Budget` and `BudgetContext`
 report usage without a cap; the chat reply still contains the actual cap.
 
-### What you never do
-
-- **Name a verb or pick a model.** You describe what you want; the gate
-  picks the caps verb, and the machine owner configures the one
-  provider/model in `/etc/yuos/agent.toml`.
-- **Import a provider SDK** (`openai`, `anthropic`, …). `yu app lint`
-  refuses apps that do; this module is the only sanctioned route to a
-  model.
-- **Call `yu agent`.** That is the kernel's own Agent product. Apps use
-  `yu ai` (the App-facing primitive) — which is what this SDK wraps.
+Use the SDK rather than a provider SDK or `yu agent`. The owner configures
+the provider and model; see [App consent requirements](../../docs/app-development.md#7-ai-features).
 
 ## Errors
 
 Each domain returns typed errors you can switch on:
 
 - `*AiDeniedError` / `*AiBudgetExceededError` / `*AiSafetyViolationError`
-  — a gate refused the call; `.Payload` carries the structured kernel
-  envelope.
+  — a gate refused the call. `AiDeniedError.Payload` carries the structured
+  kernel envelope.
 - `*AiUnavailableError` / `*ToolUnavailableError` — transport failure
   (binary missing, timeout, non-JSON output).
 - `*ToolDeniedError` — capability / unknown-tool / arg-shape refusal.
