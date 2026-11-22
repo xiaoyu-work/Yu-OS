@@ -63,7 +63,7 @@ fn automatic_receipts_require_a_task_and_do_not_double_record_human_cli_calls() 
             content_digest: format!("sha256:{}", "a".repeat(64)),
             publisher_key_id: None,
             tier: "vendor".into(),
-            developer_path: None,
+            developer_path: None, system_desktop: None,
         },
         caps: CapSet::new(),
         brokered_file: None,

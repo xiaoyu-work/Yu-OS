@@ -67,6 +67,30 @@ fn age(resolved: &mut approvals_store::Resolved, legacy: bool) {
 }
 
 #[test]
+fn migrated_desktop_denial_remains_restorable_and_never_rearms() {
+    let _lock = crate::test_env::lock_env();
+    let _fixture = fixture();
+    let owner = 1000;
+    let cap = Cap::new(Verb::SYS_OBSERVE, Scope::name("audio"));
+    let caps = CapSet::from_caps([cap.clone()]);
+    let old = revoke(owner, "desktop-shell", cap.clone()).unwrap();
+    restore(&old, owner, "desktop-shell");
+    assert!(require(owner, "desktop-shell", &caps).is_ok());
+    super::super::generations::ensure_legacy_desktop_blocks(owner, vec![cap.clone()]).unwrap();
+    assert!(require(owner, "desktop-shell", &caps).is_err());
+    assert!(blocks(owner + 1, "desktop-shell").unwrap().is_empty());
+
+    let block = blocks(owner, "desktop-shell").unwrap().remove(0);
+    restore(&block, owner, "desktop-shell");
+    super::super::generations::ensure_legacy_desktop_blocks(owner, vec![cap.clone()]).unwrap();
+    assert!(require(owner, "desktop-shell", &caps).is_ok());
+
+    revoke(owner, "desktop-shell", cap.clone()).unwrap();
+    super::super::generations::ensure_legacy_desktop_blocks(owner, vec![cap]).unwrap();
+    assert!(require(owner, "desktop-shell", &caps).is_err());
+}
+
+#[test]
 fn restoration_survives_process_restart_beyond_execution_ttl_including_existing_receipts() {
     let cap = Cap::new(Verb::SYS_OBSERVE, crate::caps::Scope::name("audio"));
     let caps = CapSet::from_caps([cap.clone()]);

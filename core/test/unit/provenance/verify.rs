@@ -46,6 +46,62 @@ fn write_file(path: &Path, body: &str) {
     }
 }
 
+#[cfg(unix)]
+#[test]
+fn system_tree_scan_includes_provenance_named_files_and_empty_directories() {
+    let root = tmpdir("system-tree");
+    write_file(&root.join(".provenance.json"), "not an envelope");
+    write_file(&root.join("bin/shell"), "shell");
+    fs::create_dir(root.join("empty")).unwrap();
+    let handle = DirHandle::open(&root).unwrap();
+    let files = scan_tree(&root, &handle, MAX_PACKAGE_BYTES, false, false).unwrap();
+    assert!(files.iter().any(|entry| entry.path == ".provenance.json"));
+    assert!(files.iter().any(|entry| entry.path == "empty"));
+    write_file(&root.join("extra"), "unexpected");
+    assert_ne!(
+        files,
+        scan_tree(&root, &handle, MAX_PACKAGE_BYTES, false, false).unwrap()
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn system_tree_scan_detects_mutation_and_rejects_unsafe_nodes() {
+    use std::os::unix::fs::{symlink, PermissionsExt};
+
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    fs::create_dir(root.join("empty")).unwrap();
+    fs::write(root.join("payload"), b"original").unwrap();
+    fs::set_permissions(root.join("payload"), fs::Permissions::from_mode(0o644)).unwrap();
+    let handle = DirHandle::open(root).unwrap();
+    let scan = || scan_tree(root, &handle, MAX_PACKAGE_BYTES, false, false);
+    let expected = scan().unwrap();
+
+    fs::write(root.join("payload"), b"modified").unwrap();
+    assert_ne!(scan().unwrap(), expected);
+    fs::write(root.join("payload"), b"original").unwrap();
+    assert_eq!(scan().unwrap(), expected);
+    fs::set_permissions(root.join("payload"), fs::Permissions::from_mode(0o600)).unwrap();
+    assert_ne!(scan().unwrap(), expected);
+    fs::set_permissions(root.join("payload"), fs::Permissions::from_mode(0o644)).unwrap();
+    fs::remove_dir(root.join("empty")).unwrap();
+    assert_ne!(scan().unwrap(), expected);
+    fs::create_dir(root.join("empty")).unwrap();
+    assert_eq!(scan().unwrap(), expected);
+    fs::write(root.join("extra"), b"extra").unwrap();
+    assert_ne!(scan().unwrap(), expected);
+    fs::remove_file(root.join("extra")).unwrap();
+    symlink("payload", root.join("redirect")).unwrap();
+    assert!(scan().is_err());
+    fs::remove_file(root.join("redirect")).unwrap();
+    fs::hard_link(root.join("payload"), root.join("linked")).unwrap();
+    assert!(scan().is_err());
+    fs::remove_file(root.join("linked")).unwrap();
+    fs::set_permissions(root.join("payload"), fs::Permissions::from_mode(0o666)).unwrap();
+    assert!(scan().is_err());
+}
+
 /// Build a signed App package with `app.json` + `main.py`.
 fn signed_app(root: &Path, id: &str, main_body: &str) -> (PathBuf, SigningKeyFile) {
     let dir = root.join(id);

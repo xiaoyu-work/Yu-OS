@@ -97,6 +97,9 @@ case "$component" in
     desktop)
         required=(
             usr/libexec/yuos-hyprland/Hyprland
+            usr/lib/yuos/system-desktop/bin/yuos-desktop-shell
+            usr/lib/yuos/system-desktop/app.json
+            usr/lib/yuos/release-security/yuos-desktop/system-desktop-tree.json
             usr/libexec/yuos-greeter
             usr/libexec/yuos-create-local-owner
             usr/libexec/yuos-desktop-locales
@@ -139,7 +142,11 @@ done
 if [ "$component" != base ]; then
     if [ "$component" = desktop ]; then
         dpkg-deb -x "$deb" "$extract/payload"
-        python3 scripts/desktop_shell.py check --architecture "$arch" --stage "$extract/payload" >/dev/null
+        python3 scripts/system_desktop_tree.py --stage "$extract/payload" --check
+        if [ -e "$extract/payload/usr/lib/yuos/apps/desktop-shell" ]; then
+            echo "error: Desktop still packages the old App shell" >&2
+            exit 1
+        fi
     fi
     python3 scripts/app_packages.py check --variant "$component" \
         --architecture "$arch" --stage "$extract/payload" --preinstall-policy verify >/dev/null

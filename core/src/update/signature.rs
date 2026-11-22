@@ -159,6 +159,89 @@ pub fn verify_detached(
     }
 }
 
+/// Verify pinned release files without reopening their installed names.
+#[cfg(target_os = "linux")]
+pub(crate) struct PinnedKeyring {
+    pub(crate) path: PathBuf,
+    pub(crate) file: crate::provenance::fsec::VerifiedFd,
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn verify_detached_fds(
+    document: &crate::provenance::fsec::VerifiedFd,
+    signature: &crate::provenance::fsec::VerifiedFd,
+    keyrings: &[PinnedKeyring],
+) -> Signature {
+    use std::os::unix::process::CommandExt;
+
+    if keyrings.is_empty() {
+        return Signature::Unverifiable {
+            reason: "no Yu OS release keyring is installed".to_string(),
+        };
+    }
+    let Ok(gpgv) = which("gpgv") else {
+        return Signature::Unverifiable {
+            reason: "gpgv is not installed".to_string(),
+        };
+    };
+    let Ok(meta) = crate::provenance::fsec::require_secure_location(&gpgv, &[0]) else {
+        return Signature::Unverifiable {
+            reason: "gpgv is not installed in a protected location".to_string(),
+        };
+    };
+    if !meta.is_file || meta.nlink != 1 || meta.mode & 0o111 == 0 {
+        return Signature::Unverifiable {
+            reason: "gpgv is not a protected regular executable".to_string(),
+        };
+    }
+    let document_fd = document.as_raw_fd();
+    let signature_fd = signature.as_raw_fd();
+    let mut last_reason = "signature did not verify against any installed keyring".to_string();
+    for keyring in keyrings {
+        let keyring_fd = keyring.file.as_raw_fd();
+        let mut command = Command::new(&gpgv);
+        command
+            .env_clear()
+            .env("LC_ALL", "C")
+            .arg("--status-fd")
+            .arg("1")
+            .arg("--keyring")
+            .arg(format!("/proc/self/fd/{keyring_fd}"))
+            .arg(format!("/proc/self/fd/{signature_fd}"))
+            .arg(format!("/proc/self/fd/{document_fd}"));
+        unsafe {
+            command.pre_exec(move || {
+                for fd in [document_fd, signature_fd, keyring_fd] {
+                    if libc::fcntl(fd, libc::F_SETFD, 0) < 0 {
+                        return Err(std::io::Error::last_os_error());
+                    }
+                }
+                Ok(())
+            });
+        }
+        let output = match command.output() {
+            Ok(output) => output,
+            Err(error) => {
+                last_reason = format!("cannot execute gpgv: {error}");
+                continue;
+            }
+        };
+        if output.status.success() {
+            let status = String::from_utf8_lossy(&output.stdout);
+            if let Some(key_id) = good_signature_key(&status) {
+                return Signature::Verified {
+                    key_id,
+                    keyring: keyring.path.clone(),
+                };
+            }
+            last_reason = "gpgv reported success without a good signature".to_string();
+        }
+    }
+    Signature::Unverifiable {
+        reason: last_reason,
+    }
+}
+
 /// Pull the signing key out of `gpgv --status-fd` output. `VALIDSIG`
 /// carries the full fingerprint and is preferred; `GOODSIG` carries
 /// the long key id.

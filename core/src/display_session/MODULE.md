@@ -71,6 +71,12 @@ reserved Yu OS AI menu entry instead opens the protected `yuos-agent-ui` with no
 arguments in that display as the same owner. It does not record audio or send
 an Agent request. Submission does not prove a window appeared.
 
+The fixed Shell launch uses a separate OS release identity, not an App
+publisher. Root verifies the installed Desktop package, private release floor,
+authorized signature and complete fixed Shell tree, and holds dpkg admission
+locks through startup or checked failed-start retirement. The locks do not
+remain held for the desktop session.
+
 Lock requests carry no executable, password or owner selector. The supervisor
 links the fixed native locker to its compositor by a Root-held Wayland
 descriptor and reports lock only after compositor admission and native ready.

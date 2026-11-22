@@ -90,6 +90,12 @@
       "name": "yuos-ask-launcher",
       "package": "yuos-desktop",
       "path": "/usr/local/bin/yuos-ask-launcher"
+    },
+    {
+      "critical": false,
+      "name": "yuos-system-desktop-tree",
+      "package": "yuos-desktop",
+      "path": "/usr/lib/yuos/release-security/yuos-desktop/system-desktop-tree.json"
     }
   ],
   "format": "yuos.release-security-policy/v1",

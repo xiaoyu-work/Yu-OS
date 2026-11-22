@@ -56,6 +56,8 @@ impl Provenance {
             TrustSource::Vendor => Self::Vendor,
             TrustSource::Publisher { .. } => Self::Hub,
             TrustSource::Developer => Self::Local,
+            #[cfg(target_os = "linux")]
+            TrustSource::SystemDesktop => Self::Unknown,
         }
     }
 

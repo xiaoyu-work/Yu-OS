@@ -130,7 +130,7 @@ to the provisioning helper.
 
 The amd64 installer keeps Calamares and its account provisioning. Only an
 authenticated account runs its follow-up network, Agent and optional hardware
-configuration. Neither wizard needs to launch the signed Desktop Shell App
+configuration. Neither wizard needs to launch the OS Desktop Shell
 or use its private runtime.
 
 The Qualcomm desktop installer uses the same Calamares and first-run flow.

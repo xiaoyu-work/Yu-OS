@@ -137,7 +137,7 @@ fn private_withdrawal_policy_only_denies_and_invalid_generations_stay_unknown() 
         kind: PackageKind::App, id: "synthetic".into(),
         content_digest: format!("sha256:{}", "b".repeat(64)),
         publisher_key_id: Some(format!("sha256:{}", "c".repeat(64))),
-        tier: "user".into(), developer_path: None,
+        tier: "user".into(), developer_path: None, system_desktop: None,
     };
     assert!(policy.check_denials(&package).is_ok(), "an absent consumer key is not a grant or a denial");
     package.publisher_key_id = Some(key.key_id.clone());

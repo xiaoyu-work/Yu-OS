@@ -66,6 +66,30 @@ struct BoundDelegation {
     inherited_ceiling: CapSet,
 }
 
+pub(super) fn system_launcher(
+    client: &ClientIdentity,
+    launcher_authority: &super::LauncherAuthority,
+) -> Result<bool, String> {
+    if launcher_authority.parent.is_some()
+        || launcher_authority.activity.is_some()
+        || launcher_authority.workspace.is_some()
+        || client.extension_host.is_some()
+    {
+        return Ok(false);
+    }
+    let launcher = kernel_peer(client)?;
+    let display = Registry::get()
+        .map_err(|error| error.to_string())?
+        .for_process(&launcher)
+        .map_err(|error| error.to_string())?;
+    let result = display
+        .lock()
+        .map_err(|_| "display registry lock poisoned")?
+        .starts_gui_launcher(&launcher)
+        .map_err(|error| error.to_string())?;
+    Ok(result)
+}
+
 impl Draft {
     pub(super) fn new(
         package: Arc<crate::provenance::VerifiedPackage>,
@@ -103,10 +127,10 @@ impl Draft {
         if desktop_shell {
             if entry != "bin/yuos-desktop-shell" || selector != "--gui"
                 || launch.manifest().gui_entry(None)?.legacy_needs
+                || !launch.package().source().is_system_desktop()
             {
                 return Err("system desktop shell has an invalid default entry".into());
             }
-            verify_system_gui(&launch)?;
         }
         let system_menu_app = system_launcher
             && matches!(launch.app_id(), "yuos-launcher" | "yuos-settings")

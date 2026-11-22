@@ -1,5 +1,30 @@
 use super::*;
 
+#[cfg(target_os = "linux")]
+#[test]
+fn system_desktop_request_is_fixed_and_cannot_supply_a_package() {
+    let request = serde_json::json!({"operation": "--gui"});
+    let valid = |params: &Value, id, kind, entry| {
+        validate_system_desktop_request(params, id, kind, entry).is_ok()
+    };
+    assert!(valid(&request, "desktop-shell", LaunchKind::Gui, None));
+    assert!(!valid(&request, "other", LaunchKind::Gui, None));
+    assert!(!valid(&request, "desktop-shell", LaunchKind::Mcp, None));
+    assert!(!valid(&request, "desktop-shell", LaunchKind::Gui, Some("other")));
+    assert!(!valid(
+        &serde_json::json!({"operation": "--gui", "package": null}),
+        "desktop-shell", LaunchKind::Gui, None,
+    ));
+    assert!(!valid(
+        &serde_json::json!({"operation": "--gui", "args": ["extra"]}),
+        "desktop-shell", LaunchKind::Gui, None,
+    ));
+    assert!(!valid(
+        &serde_json::json!({"operation": "--other"}),
+        "desktop-shell", LaunchKind::Gui, None,
+    ));
+}
+
 mod app_sources {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),

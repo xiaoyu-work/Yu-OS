@@ -502,6 +502,28 @@ impl AppSessionControl {
 }
 
 impl AppIdentitySession {
+    #[cfg(target_os = "linux")]
+    fn for_system_desktop() -> Result<Self, String> {
+        let result = yuosd_request(
+            YuosdCommand::AppSessionRegister,
+            serde_json::json!({
+                "app_id": "desktop-shell",
+                "kind": "gui",
+                "operation": "--gui",
+                "system_desktop": true,
+            }),
+        )
+        .map_err(String::from)?;
+        let package: crate::provenance::runtime::PackageRef = serde_json::from_value(
+            result.get("package").cloned().ok_or("Root omitted the system desktop identity")?,
+        )
+        .map_err(|error| format!("invalid system desktop identity: {error}"))?;
+        if package.id != "desktop-shell" || package.tier != "system-desktop" {
+            return Err("Root returned another system desktop identity".into());
+        }
+        Self::from_yuosd_registration("desktop-shell", result, None, None, &package, false)
+    }
+
     pub fn for_native_host(app_id: &str) -> Result<Self, String> {
         let result = yuosd_request(
             YuosdCommand::AppSessionRegisterNative,

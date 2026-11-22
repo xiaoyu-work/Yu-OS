@@ -134,17 +134,67 @@ install -Dm0644 "$project/LICENSE" "$license/wallpaper.LICENSE"
 install -Dm0644 "$session/yuos-driver-online.service" "$stage/usr/lib/systemd/system/yuos-driver-online.service"
 install -Dm0755 "$session/70-yuos-driver-setup" "$stage/usr/lib/NetworkManager/dispatcher.d/70-yuos-driver-setup"
 
+shell_build="$work/system-desktop-build"
+shell_install="$work/system-desktop-install"
+shell_root="$stage/usr/lib/yuos/system-desktop"
+(
+    unset CMAKE_PREFIX_PATH PKG_CONFIG_PATH
+    export CC=/usr/bin/cc CXX=/usr/bin/c++ INSTALL_DIR=/usr/share
+    export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+    cmake --fresh -S "$project/desktop/desktop-shell/native" -B "$shell_build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release "-DGIT_REVISION=${YUOS_VERSION:?package version required}" \
+        -DBUILD_TESTING=OFF "-DYUOS_QT_CACHE=$work/system-desktop-qt" "-DYUOS_QT_JOBS=$jobs"
+    cmake --build "$shell_build" --parallel "$jobs"
+    install -d "$shell_install"
+    DESTDIR="$shell_install" cmake --install "$shell_build" --prefix /usr
+)
+install -Dm0755 "$shell_install/usr/bin/yuos-desktop-shell" "$shell_root/bin/yuos-desktop-shell"
+install -Dm0644 "$project/desktop/desktop-shell/apps/desktop-shell/app.json" "$shell_root/app.json"
+install -d "$shell_root/resources/usr/share"
+cp -a "$shell_install/usr/share/yuos-desktop-shell" "$shell_root/resources/usr/share/"
+install -Dm0644 "$project/desktop/desktop-shell/native/LICENSE" \
+    "$shell_root/resources/usr/share/yuos-desktop-shell/licenses/yuos-desktop-shell.LICENSE"
+install -Dm0644 "$project/desktop/desktop-shell/PROVENANCE.md" \
+    "$shell_root/resources/usr/share/yuos-desktop-shell/licenses/PROVENANCE.md"
+install -Dm0644 "$project/desktop/desktop-shell/upstream.lock.json" \
+    "$shell_root/resources/usr/share/yuos-desktop-shell/licenses/upstream.lock.json"
+python3 "$project/scripts/system_desktop_tree.py" --stage "$stage"
+
 # Query the target distro's shlibs database, not that of the image builder.
 cd "$work"
 mkdir -p debian
 printf 'Source: yuos\n\nPackage: yuos-desktop\nArchitecture: any\nDescription: Yu OS Desktop\n' >debian/control
 mapfile -d '' libraries < <(find "$native/lib" -type f -name '*.so.*' -print0)
-for library in "${libraries[@]}"; do
+mapfile -d '' shell_elfs < <(python3 - "$shell_root" <<'PY'
+import os
+from pathlib import Path
+import sys
+
+for path in sorted(Path(sys.argv[1]).rglob("*")):
+    if path.is_file() and not path.is_symlink():
+        with path.open("rb") as source:
+            if source.read(4) == b"\x7fELF":
+                sys.stdout.buffer.write(os.fsencode(path) + b"\0")
+PY
+)
+shell_libargs=()
+declare -A shell_libdirs=()
+for file in "${shell_elfs[@]}"; do
+    directory="${file%/*}"
+    if [[ ! ${shell_libdirs[$directory]+present} ]]; then
+        shell_libdirs["$directory"]=1
+        shell_libargs+=("-l$directory")
+    fi
+done
+for library in "${libraries[@]}" "${shell_elfs[@]}"; do
     objdump -p "$library" | sed -nE 's/^[[:space:]]+SONAME[[:space:]]+(.+)\.so\.(.+)$/\1 \2 yuos-desktop/p'
-done >debian/shlibs.local
-dpkg-shlibdeps -O -l"$native/lib" -xyuos-desktop "$native/Hyprland" "${libraries[@]}" \
+done | LC_ALL=C sort -u >debian/shlibs.local
+mkdir "$stage/DEBIAN"
+dpkg-shlibdeps -O -l"$native/lib" "${shell_libargs[@]}" -xyuos-desktop "$native/Hyprland" "${libraries[@]}" \
+    "${shell_elfs[@]}" \
     "$native/yuos-lockscreen" \
     "$stage/usr/local/bin/yuos-agent-ui" "$stage/usr/local/bin/yuos-agent-bridge" \
     "$stage/usr/local/bin/yuos-ask-launcher" "$stage/usr/libexec/yuos-applet-provider" \
     | sed -n 's/^shlibs:Depends=//p' >"$work/runtime-depends"
+rmdir "$stage/DEBIAN"
 test -s "$work/runtime-depends"

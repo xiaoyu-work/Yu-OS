@@ -853,7 +853,7 @@ fn spawn_desktop_process(
                 .env(MENU_LAUNCH_PUBLISHER, target.publisher);
         }
         DesktopProcess::Shell => {
-            command.args(["app", SHELL_APP, "--gui"])
+            command.args(["app", "--system-desktop"])
                 .stdout(std::io::stderr().as_fd().try_clone_to_owned()?);
         }
         DesktopProcess::Native(desktop_id) => {

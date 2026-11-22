@@ -22,6 +22,7 @@ APP_NAME = re.compile(r"(?!yuos-app-(?:runtime|permissions)-v1\Z)yuos-(?:app-|ap
 APP_INTERFACE = re.compile(r"yuos-app-(?:support|python-[a-z0-9][a-z0-9-]*)-v1\Z")
 RETIRED_DESKTOP = {"yuos-apps-desktop", "yuos-app-desktop-shell"}
 DESKTOP_SHELL_ROOT = "usr/lib/yuos/apps/desktop-shell"
+SYSTEM_DESKTOP_ROOT = "usr/lib/yuos/system-desktop"
 PREINSTALLED_DIR = "usr/lib/yuos/preinstalled-apps"
 APP_ENVELOPE = ".provenance.json"
 
@@ -375,7 +376,7 @@ def verify_packages(directory, selected, preinstalled=None):
                 raise ValueError(f"Multiple dpkg owners for {name}")
             if any(name == root or name.startswith(root + "/") for root in (
                 "usr/lib/yuos/python/yuos_sdk", "usr/lib/yuos/python/yuos_runtime",
-                DESKTOP_SHELL_ROOT, PREINSTALLED_DIR,
+                DESKTOP_SHELL_ROOT, SYSTEM_DESKTOP_ROOT, PREINSTALLED_DIR,
             )):
                 raise ValueError("App package contains OS-owned SDK/runtime or Desktop Shell")
             owners[name] = record["Package"]
@@ -423,7 +424,7 @@ def check(variant, architecture, directory, stage=None, preinstall_policy=None):
     preinstalled = {} if preinstall_policy else None
     owners = verify_packages(directory, selected, preinstalled)
     if stage is not None:
-        check_stage(stage, owners, desktop=variant == "desktop")
+        check_stage(stage, owners)
     if preinstalled is not None:
         # Desktop includes the headless closure for installation, but Agent owns that policy.
         ids = desktop_app_ids() if variant == "desktop" else preinstalled
@@ -438,15 +439,12 @@ def check(variant, architecture, directory, stage=None, preinstall_policy=None):
     return selected
 
 
-def check_stage(stage, owners, *, desktop=False):
+def check_stage(stage, owners):
     for path in stage.rglob("*"):
         name = path.relative_to(stage).as_posix()
         if name not in owners and path.is_dir() and not path.is_symlink():
             continue
-        if name in owners or (
-            name.startswith("usr/lib/yuos/apps/")
-            and not (desktop and name.startswith(DESKTOP_SHELL_ROOT + "/"))
-        ) or (
+        if name in owners or name.startswith("usr/lib/yuos/apps/") or (
             name.startswith("usr/lib/yuos/python/")
             and name.split("/")[4] not in ("yuos_sdk", "yuos_runtime")
         ):

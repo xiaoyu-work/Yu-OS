@@ -24,7 +24,7 @@ fn launch(app: &str) -> HostLaunchSpec {
             content_digest: "b".repeat(64),
             publisher_key_id: None,
             tier: "vendor".into(),
-            developer_path: None,
+            developer_path: None, system_desktop: None,
         }),
     }
 }

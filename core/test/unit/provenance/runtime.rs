@@ -14,7 +14,7 @@ fn reference(digest: &str, key_id: Option<&str>) -> PackageRef {
         content_digest: digest.to_string(),
         publisher_key_id: key_id.map(str::to_string),
         tier: "user".to_string(),
-        developer_path: None,
+        developer_path: None, system_desktop: None,
     }
 }
 
@@ -88,6 +88,78 @@ fn a_revoked_digest_stops_a_running_instance() {
     let revoked = store_with(&[digest.clone()], &[], None);
     let err = reference(&digest, None).is_live(&revoked).unwrap_err();
     assert!(err.contains("revoked by content digest"), "{err}");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn system_desktop_liveness_rejects_forged_and_revoked_identities() {
+    let identity = SystemDesktopIdentity {
+        version: "1:1.0".into(),
+        security_epoch: 1,
+        abi: 1,
+        manifest_sha256: "a".repeat(64),
+        inventory_sha256: "b".repeat(64),
+        signer: "A".repeat(40),
+    };
+    let package = PackageRef {
+        kind: PackageKind::App,
+        id: "desktop-shell".into(),
+        content_digest: identity.fingerprint().unwrap(),
+        publisher_key_id: None,
+        tier: "system-desktop".into(),
+        developer_path: None,
+        system_desktop: Some(identity),
+    };
+    let clean = TrustStore::default();
+
+    let mut forged = package.clone();
+    forged.kind = PackageKind::Mcp;
+    assert_eq!(
+        forged.is_live(&clean).unwrap_err(),
+        "invalid or revoked system desktop identity"
+    );
+    forged = package.clone();
+    forged.id = "other".into();
+    assert_eq!(
+        forged.is_live(&clean).unwrap_err(),
+        "invalid or revoked system desktop identity"
+    );
+    forged = package.clone();
+    forged.publisher_key_id = Some("publisher".into());
+    assert_eq!(
+        forged.is_live(&clean).unwrap_err(),
+        "invalid or revoked system desktop identity"
+    );
+    forged = package.clone();
+    forged.developer_path = Some("/tmp/desktop".into());
+    assert_eq!(
+        forged.is_live(&clean).unwrap_err(),
+        "invalid or revoked system desktop identity"
+    );
+    forged = package.clone();
+    forged.system_desktop = None;
+    assert_eq!(
+        forged.is_live(&clean).unwrap_err(),
+        "system desktop release identity is missing"
+    );
+    forged = package.clone();
+    forged.system_desktop.as_mut().unwrap().inventory_sha256 = "c".repeat(64);
+    assert_eq!(
+        forged.is_live(&clean).unwrap_err(),
+        "system desktop release identity does not match its digest"
+    );
+    forged = package.clone();
+    forged.tier = "user".into();
+    assert_eq!(
+        forged.is_live(&clean).unwrap_err(),
+        "ordinary package has a system desktop identity"
+    );
+
+    let revoked = store_with(std::slice::from_ref(&package.content_digest), &[], None);
+    assert_eq!(
+        package.is_live(&revoked).unwrap_err(),
+        "invalid or revoked system desktop identity"
+    );
 }
 
 #[cfg(unix)]

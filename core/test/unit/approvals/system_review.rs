@@ -237,6 +237,51 @@ fn system_review_confirmation_is_consumed_once_without_execution_authority() {
 }
 
 #[test]
+fn system_desktop_preserves_only_legacy_owner_denials() {
+    let environment = Environment::new();
+    let package = environment.package("1.0.0", false);
+    let mut record = submit(1000, ReviewKind::AppInstall, &package, "terminal".into()).unwrap();
+    record.package.id = "desktop-shell".into();
+    record.package.tier = TrustTier::Vendor.as_str().into();
+    record.package.publisher_key_id = Some("old-publisher".into());
+    record.manifest.id = "desktop-shell".into();
+    record.contract_digest = record.permission_review().unwrap().contract_digest;
+    record.state = ReviewState::Consumed;
+    record.decided_by = Some(1000);
+    record.decided_at = Some(record.requested_at);
+    record.permission_choices.insert("review-denied".into(), false);
+    record.permission_choices.insert("review-restored".into(), false);
+    record.permission_choices.insert("review-allowed".into(), true);
+    save(&record).unwrap();
+
+    let cap = crate::caps::Cap::new(
+        crate::caps::Verb::SYS_OBSERVE,
+        crate::caps::Scope::name("audio"),
+    );
+    super::super::app_policy::set_choice(
+        1000, &record.package, "review-restored".into(), cap.clone(), true,
+    ).unwrap();
+    let mut preinstalled = record.package.clone();
+    preinstalled.publisher_key_id = Some("preinstalled-publisher".into());
+    super::super::app_policy::set_choice(
+        1000, &preinstalled, "settings-denied".into(), cap.clone(), false,
+    ).unwrap();
+    super::super::app_policy::set_choice(
+        1001, &preinstalled, "other-owner".into(), cap, false,
+    ).unwrap();
+
+    let mut system = record.package.clone();
+    system.tier = "system-desktop".into();
+    system.publisher_key_id = None;
+    let choices = permission_choices(1000, &system).unwrap();
+    assert_eq!(choices.get("review-denied"), Some(&false));
+    assert_eq!(choices.get("settings-denied"), Some(&false));
+    assert!(!choices.contains_key("review-restored"));
+    assert!(!choices.contains_key("review-allowed"));
+    assert!(!choices.contains_key("other-owner"));
+}
+
+#[test]
 fn delivery_confirmation_is_plan_bound_and_cannot_inherit_app_permission_acceptance() {
     let environment = Environment::new();
     let package = environment.package("1.0.0", false);

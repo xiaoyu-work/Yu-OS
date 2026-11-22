@@ -52,7 +52,7 @@ Debian packages and a signed multi-architecture APT repository.
 | `deb/tests/test-agentd-packaging.sh` | Worker/extension-host binary, identity, service, and isolation contract |
 | `deb/yuos-agent/nearby/`, `deb/tests/test_nearby.py` | D-Bus-only Root radio activation, network/link policies and isolated nearby transport package contract |
 | `../core/src/bin/yuos-file-manager.rs`, `../core/src/display_session/client.rs` | Agent-owned unprivileged FileManager1 transport started only by the authenticated desktop subscriber |
-| `../desktop/hyprland-yuos/stage-desktop.sh` | Target-native compositor, shared desktop helpers and greetd/PAM staging; the signed App delivers the shell |
+| `../desktop/hyprland-yuos/stage-desktop.sh`, `../scripts/system_desktop_tree.py` | Target-native compositor and OS Shell staging, complete Shell inventory and greetd/PAM integration |
 | `../crates/yuos-display-login/MODULE.md`, `../core/src/display_session/MODULE.md` | Native GNU PAM/display helpers, OS-only Agent-to-Desktop interface, private installation fixture and logout boundary |
 | `../rootfs/overlay/usr/lib/yuos/init/remove-home-overlay.sh` | Safe managed-home flattening before Base removal |
 | `deb/tests/test-remove-home-overlay.sh` | Merged-tree, metadata, whiteout, and opaque-directory removal regression tests |
@@ -70,9 +70,9 @@ install the resulting packages. Package dependencies express runtime layering
 without binding every installed package to an exact sibling version.
 
 One release run freezes a package version and authenticated App APT inputs.
-Each run also resolves App main once, builds the Shell natively on Debian
-13, and sign and verify its tree on OS-controlled runners. The App remains
-launched by the common Host. The shared tests receive an immutable source
+Each run builds the OS Shell natively on Debian 13 and binds its complete tree
+inventory to the signed Desktop release. Root admits it through the common GUI
+Host only after independently checking the installed release and tree. The shared tests receive an immutable source
 fixture locked to the same App revision. Desktop's other
 product UI/private-library links are removed: original product binaries and
 resources come from App packages; OS notification presentation uses the public

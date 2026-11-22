@@ -336,6 +336,31 @@ fn records(owner: u32) -> Result<Vec<ReviewRecord>, String> {
 
 pub(crate) fn permission_choices(owner: u32, package: &PackageRef) -> Result<super::app_policy::Choices, String> {
     let mut choices = super::app_policy::Choices::new();
+    if package.tier == "system-desktop" && package.id == "desktop-shell" {
+        choices.extend(super::generations::legacy_desktop_denials(owner)?);
+        let mut previous = Vec::new();
+        for record in records(owner)? {
+            if record.state == ReviewState::Consumed
+                && record.package.id == package.id
+                && record.package.tier == TrustTier::Vendor.as_str()
+                && record.package.publisher_key_id.is_some()
+                && !previous.iter().any(|entry: &PackageRef| {
+                    entry.publisher_key_id == record.package.publisher_key_id
+                        && entry.tier == record.package.tier
+                })
+            {
+                previous.push(record.package);
+            }
+        }
+        for previous in previous {
+            for (permission, allowed) in permission_choices(owner, &previous)? {
+                if !allowed {
+                    choices.insert(permission, false);
+                }
+            }
+        }
+        return Ok(choices);
+    }
     if package.publisher_key_id.is_none() {
         return Ok(choices);
     }

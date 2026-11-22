@@ -16,9 +16,6 @@ pub(crate) fn launch(
     args: &[String],
     data_dir: &str,
 ) -> Result<(), String> {
-    use crate::yuosd::gui::inputs::{LaunchReply, PresentationKey, StopReply, WaitReply};
-    use std::io::Write;
-
     let selected = launch.manifest().gui_entry(gui_entry)?;
     if selected.exec != selector {
         return Err("GUI selector differs from the verified desktop declaration".into());
@@ -27,6 +24,24 @@ pub(crate) fn launch(
     if !super::use_yuosd_app_session_backend()? {
         return Err("GUI launch requires an authenticated login and Root GUI custody; local execution is unavailable".to_string());
     }
+    let presentation = read_presentation()?;
+    let session =
+        super::AppIdentitySession::for_gui_entry(launch, launch.app_id(), gui_entry, selector)?;
+    run_session(session, args, presentation, launch.app_id(), Some(data_dir))
+}
+
+pub(crate) fn launch_system_desktop() -> Result<(), String> {
+    if !super::use_yuosd_app_session_backend()? {
+        return Err("system desktop requires Root GUI custody".into());
+    }
+    let presentation = read_presentation()?;
+    let session = super::AppIdentitySession::for_system_desktop()?;
+    run_session(session, &[], presentation, "desktop-shell", None)
+}
+
+fn read_presentation() -> Result<Presentation, String> {
+    use crate::yuosd::gui::inputs::PresentationKey;
+
     let mut presentation = Presentation::new();
     for key in PresentationKey::ALL {
         match std::env::var(key.as_str()) {
@@ -43,14 +58,25 @@ pub(crate) fn launch(
             }
         }
     }
-    let mut session =
-        super::AppIdentitySession::for_gui_entry(launch, launch.app_id(), gui_entry, selector)?;
+    Ok(presentation)
+}
+
+fn run_session(
+    mut session: super::AppIdentitySession,
+    args: &[String],
+    presentation: Presentation,
+    app_id: &str,
+    data_dir: Option<&str>,
+) -> Result<(), String> {
+    use crate::yuosd::gui::inputs::{LaunchReply, StopReply, WaitReply};
+    use std::io::Write;
+
     let result = (|| {
         let expected = session
             .gui_data_dir
             .as_ref()
             .ok_or("OS broker did not bind a GUI data directory")?;
-        if Path::new(data_dir) != expected {
+        if data_dir.is_some_and(|data_dir| Path::new(data_dir) != expected) {
             return Err("GUI data directory differs from the OS owner binding; caller-owned path overrides are not supported".to_string());
         }
         let super::AppSessionBackend::Yuosd { handle, .. } = &session.backend else {
@@ -59,7 +85,7 @@ pub(crate) fn launch(
         let parameters = serde_json::json!({
             "session_id": session.id(), "handle": handle, "args": args, "presentation": presentation,
         });
-        let deadline = std::time::Instant::now() + super::gui_approval_wait(launch.app_id());
+        let deadline = std::time::Instant::now() + super::gui_approval_wait(app_id);
         let mut waited = std::collections::BTreeSet::new();
         let started = loop {
             match super::yuosd_request(super::YuosdCommand::AppGuiLaunch, parameters.clone()) {
@@ -107,7 +133,7 @@ pub(crate) fn launch(
                 if outcome.exit_code != Some(0) {
                     return Err(format!(
                         "GUI `{}` exited without success ({:?})",
-                        launch.app_id(),
+                        app_id,
                         outcome.exit_code
                     ));
                 }

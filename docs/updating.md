@@ -19,9 +19,9 @@ This update path applies to:
 ### Yu OS command cutover
 
 The Yu OS source builds install `/usr/local/bin/yu`; they do not install a
-`yu` executable or alias. The Apps and signed Desktop Shell for that build
+`yu` executable or alias. The Apps and Desktop Shell for that build
 must also target `yu`. The package consumer rejects Apps targeting the old
-runtime and Shell artifacts from the previous build format. Use a fresh Yu
+runtime. Use a fresh Yu
 OS install once a complete signed release is available; the earlier download
 artifacts do not contain the new command.
 
@@ -29,7 +29,7 @@ artifacts do not contain the new command.
 
 The initial independent App packaging boundary is `1:0.2.1`, not `1:0.3.0`.
 Agent and Desktop do not stage the independently packaged Apps or App-owned
-common/named Python libraries. Desktop embeds only the signed Desktop Shell.
+common/named Python libraries. Desktop owns its release-authenticated Shell.
 Separate App APT packages replace
 former owners only `(<< 1:0.2.1)`; no new OS package may be overwritten.
 SDK/runtime Python and OS toolkit/services, PAM, initial setup, keyboard and
@@ -45,9 +45,9 @@ Desktop. `apt install yuos-desktop` installs all Yu OS Apps, including the
 headless set and the individually packaged graphical Apps and Thunderbird
 integration. It replaces the separately named Shell package and removes the
 obsolete `yuos-apps-desktop` metapackage if present. Configure both signed
-channels for the normal transaction. Desktop releases build and seal the
-Shell at one locked App main revision and separately verify the signed App APT
-closure before package assembly.
+channels for the normal transaction. Desktop releases build the OS Shell and
+bind its complete tree inventory to the signed release, while separately
+verifying the signed App APT closure before package assembly.
 
 The matching Agent and Desktop packages carry the OS release's
 [preapproved App selection](../packaging/README.md#preinstalled-app-defaults).
@@ -55,6 +55,11 @@ Eligible signed builds use their declared local permissions without a first-use
 prompt. Updates that do not match the OS selection use the ordinary review;
 publisher trust alone does not carry these defaults forward. Existing owner
 denials and independent confirmation for protected actions are unchanged.
+The OS Shell appears in the brokered permission list under `desktop-shell`;
+legacy owner denials remain effective, but earlier publisher grants are not
+transferred. Supported legacy denials become ordinary owner/App deny gates,
+which can be restored through the existing trusted approval flow. A failed
+Shell verification is reported as quarantined.
 
 Shell App UI/private-library source links are removed without deleting native
 UX: matching App packages retain the three panel binaries/resources and
@@ -939,12 +944,16 @@ not approval to deploy it or a completed installed-system acceptance result.
 Agent supplies the internal `yuos-display-session-v2` interface and native
 PAM/display helpers; Desktop supplies the matching protected Hyprland
 executable and greetd/PAM startup configuration. The Agent and Desktop upgrade
-must be coordinated with the signed Desktop Shell App. Direct menu launches
+must be coordinated with the OS-owned Desktop Shell. Root refuses Shell launch
+unless the installed package, private floor, release signature and complete
+tree agree; an active dpkg transaction prevents a new Shell startup. The
+startup guard is released after successful launch, not held for the session.
+Desktop stack replacement still requires logout and re-login. Direct menu launches
 and power actions require the matching Agent build's private broker routes;
 launches also use its protected display supervisor. There is no raw fallback
 or change to the public App ABI. The new package removes the superseded
 session; it does not migrate or erase owner configuration.
-The event-driven Dock requires the matching Agent, compositor and signed
+The event-driven Dock requires the matching Agent, compositor and
 Shell. Install them together and sign in again; it does not fall back to
 window polling. Files needs its matching App build to remain running after
 its last window closes and reopen from the Dock. An App that exits or does

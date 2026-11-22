@@ -784,7 +784,7 @@ mod tests {
             content_digest: format!("sha256:{}", "a".repeat(64)),
             publisher_key_id: None,
             tier: "developer".into(),
-            developer_path: Some(PathBuf::from("/synthetic/retained/tree")),
+            developer_path: Some(PathBuf::from("/synthetic/retained/tree")), system_desktop: None,
         }
     }
 

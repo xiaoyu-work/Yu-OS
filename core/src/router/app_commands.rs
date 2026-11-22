@@ -25,6 +25,11 @@ pub(super) fn dispatch_app(
     stdin_data: Option<Vec<u8>>,
 ) -> Result<Option<String>, String> {
     require_owner_frontend()?;
+    #[cfg(target_os = "linux")]
+    if args == ["--system-desktop"] {
+        crate::bridge::gui::launch_system_desktop()?;
+        return Ok(None);
+    }
     if args.first().map(String::as_str) == Some("stdio") {
         return stdio_schema(&args[1..]);
     }

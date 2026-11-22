@@ -1,11 +1,10 @@
 # Building the Yu OS Desktop Image
 
 The desktop profile builds Hyprland and the graphical Agent against Debian 13.
-`yuos-desktop` embeds the signed Desktop Shell (Quickshell, Caelestia and private
-Qt). The OS release workflow resolves `yuos-app/main` once, builds that exact
-revision natively on Debian 13 for amd64 and arm64, and seals the payload with
-the official Yu OS App publisher. There is no separate Shell release, version
-to enter, or package to install. Every other Yu OS App still comes from its
+`yuos-desktop` builds and embeds the OS-owned Desktop Shell (Quickshell,
+Caelestia and private Qt). Its complete tree inventory is bound to the signed
+OS release. There is no separate Shell release, version to enter, or package
+to install. Every ordinary Yu OS App still comes from its
 own signed APT package. Missing or invalid inputs stop the build.
 
 ## Local build prerequisites
@@ -26,36 +25,12 @@ rustup target add --toolchain stable "$rust_target"
 On arm64, use `arch=arm64`, `rust_target=aarch64-unknown-linux-musl`, and
 `grub-efi-arm64-bin` instead of the amd64 GRUB packages.
 
-From the OS checkout, record the exact App commit before starting the build:
-
-```bash
-app_url=https://github.com/xiaoyu-work/yuos-app.git
-app_revision="$(git ls-remote --exit-code "$app_url" refs/heads/main | cut -f1)"
-```
-
-In a disposable **Debian 13** builder of the same architecture, with no signing
-keys or persisted Git credentials, check out that saved commit of `yuos-app`.
-With `git`, `ca-certificates` and `python3` installed, run from that checkout:
-
-```bash
-test "$(git rev-parse HEAD)" = "$app_revision"
-GITHUB_ACTIONS=true python3 tools/release_ci.py build --desktop-shell --architecture "$arch"
-python3 tools/build_desktop_shell.py --architecture "$arch"
-```
-
-The CI provisioning command changes the builder's packages; do not run it
-on the signing host. Transfer only `build/desktop-shell/unsigned-$arch.tar.gz`.
-On the trusted OS checkout, seal that archive with the approved App Ed25519
-key JSON (`APP_PUBLISHER_KEY_FILE` points to an authorized local key file).
-Keep the archive and the pinned App revision from the preceding steps.
+From the OS checkout, prepare the signed independent App inputs:
 
 ```bash
 cargo +stable build --release --locked -p yu --bin yu --target "$rust_target"
 install -D -m 0755 "target/$rust_target/release/yu" \
   "build/app-packages/yu-provenance-linux-$arch"
-YUOS_APPS_PROVENANCE_SIGNING_PRIVATE_KEY="$(cat "$APP_PUBLISHER_KEY_FILE")" \
-  python3 scripts/desktop_shell.py seal --architecture "$arch" \
-    --source-revision "$app_revision" --unsigned-archive "/path/to/unsigned-$arch.tar.gz"
 python3 scripts/app_packages.py prepare --variant agent --architecture "$arch"
 python3 scripts/app_packages.py prepare --variant desktop --architecture "$arch"
 ```
@@ -63,16 +38,18 @@ python3 scripts/app_packages.py prepare --variant desktop --architecture "$arch"
 Build with `sudo ./presets/desktop.sh` after configuring the
 [OS package signer](../packaging/README.md#update-downgrade-protection)
 and [archive keyring](../packaging/README.md#apt-repo-url).
-The App signature check uses Bubblewrap and only the packaged publisher; it
-does not read or modify the build host's trust store. The default output is
+The Shell is built inside the target Debian 13 staging environment and signed
+with the OS release, not an App publisher key. The App signature check uses
+Bubblewrap and only the packaged publisher; it does not read or modify the
+build host's trust store. The default output is
 `build/yuos-vm-amd64.vmdk`; import it into VMware.
 See [the Azure build](building-azure.md) for a generalized Gen2 VHD.
 
 ## Installer
 
 The release workflow publishes updates to APT, not installer downloads.
-For local Calamares testing, use the same signed App and Desktop Shell
-inputs above and follow [Build an Installable ISO](../CONTRIBUTING.md#build-an-installable-iso).
+For local Calamares testing, prepare the same signed App inputs above and follow
+[Build an Installable ISO](../CONTRIBUTING.md#build-an-installable-iso).
 
 ## Login
 
@@ -85,13 +62,13 @@ your time zone and appearance. If matching driver packages are still pending,
 opens. There is no separate review step.
 
 After logout or reboot, sign in with that account and password. Sign-in,
-lock, and the signed Desktop Shell share the default wallpaper at
+lock, and the Desktop Shell share the default wallpaper at
 `/usr/share/backgrounds/yuos/yuos-default.jpg`: the centered Yu OS mark on
 a light-gray background. Sign-in and lock place the time above and the
 password field at the bottom. A wallpaper chosen by the user takes
 precedence on the desktop.
 
-The signed system shell starts with its built-in desktop permissions.
+The release-verified system shell starts with its built-in desktop permissions.
 Other App permission requests still appear in the graphical OS review
 window. The headless VM still sets up its `yu` account on the serial console.
 

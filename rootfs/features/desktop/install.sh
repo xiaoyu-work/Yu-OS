@@ -25,7 +25,6 @@ if [[ "${YUOS_PREBUILT_SYSTEM_PACKAGES:-0}" == 1 ]]; then
     fi
 else
     install -d "$work/source" "$stage"
-    python3 "$PROJECT_DIR/scripts/desktop_shell.py" stage --architecture "$DEB_ARCH" --stage "$stage"
     mount --bind "$PROJECT_DIR" "$work/source"
     mount --make-private "$work/source"
     mount -o remount,bind,ro "$work/source"
@@ -60,9 +59,9 @@ test -x "$ROOTFS/usr/libexec/yuos-create-local-owner"
 test -x "$ROOTFS/usr/libexec/yuos-desktop-reviews"
 test -s "$ROOTFS/usr/share/backgrounds/yuos/yuos-default.jpg"
 test -f "$ROOTFS/etc/pam.d/yuos-desktop-lock"
-shell_manifest=/usr/lib/yuos/apps/desktop-shell/app.json
+shell_manifest=/usr/lib/yuos/system-desktop/app.json
 test "$(chroot "$ROOTFS" dpkg-query -S "$shell_manifest")" = "yuos-desktop: $shell_manifest"
-python3 "$PROJECT_DIR/scripts/desktop_shell.py" check --architecture "$DEB_ARCH" --stage "$ROOTFS" >/dev/null
+python3 "$PROJECT_DIR/scripts/system_desktop_tree.py" --stage "$ROOTFS" --check
 test -f "$ROOTFS/usr/share/wayland-sessions/yuos.desktop"
 test "$(readlink "$ROOTFS/etc/systemd/system/display-manager.service")" = /usr/lib/systemd/system/greetd.service
-echo "  :: installed the authenticated Hyprland desktop and signed Desktop Shell"
+echo "  :: installed the authenticated Hyprland desktop and OS Desktop Shell"

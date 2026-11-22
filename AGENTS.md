@@ -88,8 +88,8 @@ editing additional surfaces.
 | Debian/APT package | `packaging/deb/`, `packaging/apt-repo/` | `release.yml` publishes Agent/Base/Desktop together, `scripts/ci/`, rootfs package-install features |
 | Update downgrade protection | `core/src/update/`, `packaging/release-security/policy.json` | `packaging/deb/common/`, maintainer scripts, `packaging/apt-repo/verify-release-security.sh`, `docs/updating.md` |
 | Website | `web/index.html`, `web/install/index.html`, `web/MODULE.md` | `web/stage.sh`, `assets/brand/`, `.github/workflows/publish-website.yml`, `scripts/ci/pages_files.py` |
-| Desktop component | `desktop/README.md`, `desktop/PROVENANCE.md`, component README | `desktop/hyprland-yuos/` native staging and login; Desktop Shell and standalone native Apps are built in `yuos-app` |
-| Hyprland/Quickshell desktop replacement | `desktop/hyprland-yuos/MODULE.md`, `core/src/display_session/MODULE.md` | Full native compositor source, existing Root display/GUI authority, `core/src/yuosd/desktop/windows.rs`, other desktop providers and signed external Caelestia frontend; source presence never authorizes activation |
+| Desktop component | `desktop/README.md`, `desktop/PROVENANCE.md`, component README | `desktop/hyprland-yuos/` native staging and login; OS-owned `desktop/desktop-shell/`; standalone native Apps are built in `yuos-app` |
+| Hyprland/Quickshell desktop replacement | `desktop/hyprland-yuos/MODULE.md`, `core/src/display_session/MODULE.md` | Full native compositor and OS Shell source, existing Root display/GUI authority, `core/src/update/system_desktop.rs`, `core/src/yuosd/desktop/windows.rs`; source presence never authorizes activation |
 | Migrated App / shared-capability source | [`yuos-app`](https://github.com/xiaoyu-work/yuos-app), `packaging/apps.lock.json` | Product UI/business/MCP/native source and explicitly kinded capability clients live there; `scripts/app_sources.py` resolves main and stages one immutable build snapshot |
 | CI workflow | `.github/workflows/` | scripts invoked by the workflow; only `test.yml` runs on pull requests, while publication workflows are manually dispatched or reusable |
 

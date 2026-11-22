@@ -316,6 +316,25 @@ fn require_expected_package(
     Ok(package)
 }
 
+#[cfg(target_os = "linux")]
+fn validate_system_desktop_request(
+    params: &Value,
+    app_id: &str,
+    kind: LaunchKind,
+    gui_entry: Option<&str>,
+) -> Result<(), String> {
+    if app_id != crate::display_session::SHELL_APP
+        || kind != LaunchKind::Gui
+        || gui_entry.is_some()
+        || params.get("package").is_some()
+        || required_string(params, "operation")? != "--gui"
+        || !string_array(params, "args")?.is_empty()
+    {
+        return Err("invalid system desktop launch request".into());
+    }
+    Ok(())
+}
+
 async fn remove_session_row(owner: u32, home: std::path::PathBuf, session_id: &str) {
     let remove_id = session_id.to_string();
     crate::paths::with_user_override(owner, home, async move {
@@ -408,10 +427,30 @@ pub async fn register(params: Value, client: &ClientIdentity) -> Result<Value, B
     }
     let _admission =
         super::app_mutation::admit_for_owner(&app_id, uid).map_err(BrokerError::unavailable)?;
-    let expected_package = required_package_ref(&params)?;
     let delegation = Delegation::new(&launcher, uid, &home, &params)?;
+    #[cfg(target_os = "linux")]
+    let system_desktop = params.get("system_desktop") == Some(&Value::Bool(true));
+    #[cfg(not(target_os = "linux"))]
+    let system_desktop = false;
+    #[cfg(target_os = "linux")]
+    let (app, _system_package_lock) = if system_desktop {
+        validate_system_desktop_request(&params, &app_id, kind, gui_entry.as_deref())
+            .map_err(BrokerError::authorization)?;
+        if !gui::system_launcher(client, &launcher).map_err(BrokerError::authorization)? {
+            return Err(BrokerError::authorization("system desktop launch requires the authenticated display supervisor"));
+        }
+        let (app, lock) = installed_system_desktop().map_err(BrokerError::authorization)?;
+        (app, Some(lock))
+    } else {
+        (installed_app(&app_id)?, None)
+    };
+    #[cfg(not(target_os = "linux"))]
     let app = installed_app(&app_id)?;
-    let package = require_expected_package(&app, &expected_package)?;
+    let package = if system_desktop {
+        Arc::clone(app.require_verified()?)
+    } else {
+        require_expected_package(&app, &required_package_ref(&params)?)?
+    };
     super::trust_withdrawal::check_package(uid, &package).map_err(BrokerError::authorization)?;
     let package_ref = crate::provenance::runtime::PackageRef::of(&package);
     // Resolved before any plan is built: the ceiling decides whether
@@ -2016,6 +2055,20 @@ pub(super) fn installed_app(app_id: &str) -> Result<App, String> {
     Ok(app)
 }
 
+#[cfg(target_os = "linux")]
+pub(super) fn installed_system_desktop() -> Result<(App, crate::update::system_desktop::PackageManagerLock), String> {
+    let lock = crate::update::system_desktop::lock_package_manager()?;
+    let snapshot = crate::update::system_desktop::verify(lock)?;
+    let (package, lock) = crate::provenance::VerifiedPackage::from_system_desktop(snapshot)?;
+    let package = Arc::new(package);
+    let launch = crate::bridge::AppLaunch::new(Arc::clone(&package))?;
+    Ok((App {
+        manifest: launch.manifest().clone(),
+        dir: package.dir().to_path_buf(),
+        provenance: Ok(package),
+    }, lock))
+}
+
 fn installed_app_for_session(
     owner: u32,
     session_id: &str,
@@ -2023,6 +2076,17 @@ fn installed_app_for_session(
 ) -> Result<(App, Ceiling), String> {
     let expected = crate::provenance::runtime::package_for(owner, session_id)?
         .ok_or_else(|| "App session has no bound package identity".to_string())?;
+    #[cfg(target_os = "linux")]
+    let (app, _system_package_lock) = if expected.tier == "system-desktop" {
+        if app_id != crate::display_session::SHELL_APP {
+            return Err("system desktop identity has the wrong App id".into());
+        }
+        let (app, lock) = installed_system_desktop()?;
+        (app, Some(lock))
+    } else {
+        (installed_app(app_id)?, None)
+    };
+    #[cfg(not(target_os = "linux"))]
     let app = installed_app(app_id)?;
     let current = crate::provenance::runtime::PackageRef::of(app.require_verified()?);
     if current != expected {

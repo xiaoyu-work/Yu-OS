@@ -18,6 +18,11 @@ schemas or model-visible metadata are trusted.
   content-addressed artifacts for verified rollback.
 - Expose the operator/developer CLI (`yu provenance …`).
 
+The OS-owned desktop Shell is not a publisher-signed extension. Its distinct
+`SystemDesktop` source retains the Root-verified OS release identity and fixed
+tree snapshot; it cannot produce an extension-host publisher receipt. See the
+[update contract](../../../docs/updating.md).
+
 ## Key Files
 
 | Path | Role |

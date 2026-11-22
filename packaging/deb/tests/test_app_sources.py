@@ -633,6 +633,19 @@ def test_os_package_refuses_app_support_library_and_native_resource_ownership(tm
     assert payload.read_text() == "App-owned bytes\n"
 
 
+def test_desktop_shell_uses_system_tree_not_app_payload(tmp_path):
+    stage = tmp_path / "stage"
+    system_shell = stage / "usr/lib/yuos/system-desktop/app.json"
+    system_shell.parent.mkdir(parents=True)
+    system_shell.write_text("OS-owned shell\n")
+    packages.check_stage(stage, {})
+    old_shell = stage / "usr/lib/yuos/apps/desktop-shell/app.json"
+    old_shell.parent.mkdir(parents=True)
+    old_shell.write_text("retired App shell\n")
+    with pytest.raises(ValueError, match="still owns"):
+        packages.check_stage(stage, {})
+
+
 @pytest.fixture
 def apt_selection(tmp_path, monkeypatch):
     root = tmp_path / "os"
@@ -801,6 +814,9 @@ def test_official_package_bytes_have_one_dpkg_owner_and_never_own_the_os_sdk(tmp
     sdk = build("yuos-app-bad-sdk", "usr/lib/yuos/python/yuos_sdk/__init__.py")
     with pytest.raises(ValueError, match="OS-owned SDK"):
         packages.verify_packages(tmp_path, [sdk])
+    shell = build("yuos-app-bad-shell", "usr/lib/yuos/system-desktop/app.json")
+    with pytest.raises(ValueError, match="OS-owned SDK"):
+        packages.verify_packages(tmp_path, [shell])
     authority = build("yuos-app-bad-abi", "usr/share/yuos-fixture/not-an-authority",
                       "yuos-app-runtime-v1 (= 0.2.1)")
     with pytest.raises(ValueError, match="cannot provide"):

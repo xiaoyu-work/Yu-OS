@@ -26,14 +26,21 @@ pub(super) fn reverify(
     // verification, including content, modes and unsigned additions, on every use.
     #[cfg(test)]
     let _verify_package = Span::new(Step::VerifyPackage);
-    let current = verify_package(
-        retained.dir(),
-        &VerifyOptions::new(PackageKind::App).expect_id(retained.id()),
-        trust,
-    )
-    .map_err(|error| {
-        crate::provenance::quarantine_reason(PackageKind::App, retained.id(), &error)
-    })?;
+    let current = if retained.source().is_system_desktop() {
+        let lock = crate::update::system_desktop::lock_package_manager()?;
+        let snapshot = crate::update::system_desktop::verify(lock)?;
+        let (package, _lock) = VerifiedPackage::from_system_desktop(snapshot)?;
+        package
+    } else {
+        verify_package(
+            retained.dir(),
+            &VerifyOptions::new(PackageKind::App).expect_id(retained.id()),
+            trust,
+        )
+        .map_err(|error| {
+            crate::provenance::quarantine_reason(PackageKind::App, retained.id(), &error)
+        })?
+    };
     #[cfg(test)]
     drop(_verify_package);
     #[cfg(test)]

@@ -24,7 +24,7 @@ pub(super) async fn owner_settings(
         let fence = if show { None } else {
             Some(std::sync::Arc::new(super::app_mutation::fence_owner(&app_id, uid).await?))
         };
-        let app = super::app_sessions::installed_app(&app_id)?;
+        let (app, _package_lock) = permission_app(&app_id)?;
         let package = app.require_verified()?;
         let binding = crate::provenance::runtime::PackageRef::of(package);
         let decisions = approvals::system_review::permission_choices(uid, &binding)?;
@@ -135,24 +135,58 @@ pub async fn control(
         super::app_sessions::require_non_app_caller(client).await?;
     }
     let home = client.require_home_dir()?;
-    crate::paths::with_user_override(uid, home, async move {
+    crate::paths::with_user_override(uid, home.clone(), async move {
         if action == "list" {
             let root = std::path::PathBuf::from(std::env::var("YUOS_APPS_DIR")
                 .unwrap_or_else(|_| "/usr/lib/yuos/apps".into()));
             let discovered = crate::apps::discover_all(&root);
+            #[cfg(target_os = "linux")]
+            let shell_id = crate::display_session::SHELL_APP;
+            #[cfg(not(target_os = "linux"))]
+            let shell_id = "desktop-shell";
+            #[cfg(target_os = "linux")]
+            let system_desktop = match system_desktop_present(&[
+                std::path::Path::new("/usr/lib/yuos/system-desktop"),
+                std::path::Path::new("/usr/lib/yuos/release-security/yuos-desktop/manifest.json"),
+            ]) {
+                Ok(true) => Some(super::app_sessions::installed_system_desktop().map(|(app, _lock)| {
+                    json!({"app_id": shell_id, "name": app.manifest.name,
+                        "trust": app.trust_label(), "version": app.manifest.version})
+                })),
+                Ok(false) => None,
+                Err(error) => Some(Err(error)),
+            };
+            #[cfg(not(target_os = "linux"))]
+            let system_desktop: Option<Result<Value, String>> = None;
+            let replace_shell = system_desktop.is_some();
             let mut apps = Vec::new();
-            for id in discovered.verified.keys().take(256) {
+            for id in discovered.verified.keys()
+                .filter(|id| !replace_shell || id.as_str() != shell_id)
+                .take(256)
+            {
                 let app = super::app_sessions::installed_app(id)?;
                 apps.push(json!({"app_id": id, "name": app.manifest.name,
                     "trust": app.trust_label(), "version": app.manifest.version}));
             }
-            let quarantined: Vec<_> = discovered.quarantined.iter().take(256)
+            let mut quarantined: Vec<_> = discovered.quarantined.iter()
+                .filter(|(id, _)| !replace_shell || id.as_str() != shell_id)
+                .take(256)
                 .map(|(id, app)| json!({"app_id":id, "error":app.quarantine_reason()})).collect();
+            let mut truncated = discovered.verified.keys()
+                .filter(|id| !replace_shell || id.as_str() != shell_id).count() > 256
+                || discovered.quarantined.keys()
+                    .filter(|id| !replace_shell || id.as_str() != shell_id).count() > 256;
+            if let Some(desktop) = system_desktop {
+                include_system_desktop(&mut apps, &mut quarantined, &mut truncated, shell_id, desktop);
+            }
             return Ok(json!({"apps": apps, "quarantined": quarantined,
-                "truncated": discovered.verified.len() > 256 || discovered.quarantined.len() > 256}));
+                "truncated": truncated}));
         }
         let app_id = super::permissions::required_string(&params, "app_id")?;
-        let app = super::app_sessions::installed_app(&app_id)?;
+        let (app, _package_lock) = permission_app(&app_id)?;
+        if app.require_verified()?.source().is_system_desktop() {
+            app_policy::InstalledPolicy::from_app(uid, &app, &home)?;
+        }
         let ceiling = app.require_verified()?.ceiling();
         let needs: Vec<&Need> = declared_needs(&app.manifest).collect();
         let blocks = app_policy::blocks(uid, &app_id)?;
@@ -236,6 +270,36 @@ pub async fn control(
     }).await
 }
 
+#[cfg(target_os = "linux")]
+fn system_desktop_present(paths: &[&std::path::Path]) -> Result<bool, String> {
+    for path in paths {
+        match std::fs::symlink_metadata(path) {
+            Ok(_) => return Ok(true),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(format!("cannot inspect system desktop: {error}")),
+        }
+    }
+    Ok(false)
+}
+
+fn include_system_desktop(
+    apps: &mut Vec<Value>,
+    quarantined: &mut Vec<Value>,
+    truncated: &mut bool,
+    shell_id: &str,
+    desktop: Result<Value, String>,
+) {
+    let (entries, value) = match desktop {
+        Ok(app) => (apps, app),
+        Err(error) => (quarantined, json!({"app_id": shell_id, "error": error})),
+    };
+    entries.insert(0, value);
+    if entries.len() > 256 {
+        entries.pop();
+        *truncated = true;
+    }
+}
+
 fn validate_app_id(app: &str) -> Result<(), String> {
     if app.len() > 128 || !app.starts_with(|c: char| c.is_ascii_lowercase())
         || !app.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, b'-' | b'_'))
@@ -277,7 +341,7 @@ pub(crate) fn validate_approval(request: &approvals::Request) -> Result<(), Stri
 
 pub(crate) fn approval_app(request: &approvals::Request) -> Result<crate::apps::App, String> {
     let (_, app_id) = app_policy::validate_request(request)?;
-    let app = super::app_sessions::installed_app(&app_id)?;
+    let (app, _package_lock) = permission_app(&app_id)?;
     let cap = Cap::new(
         Verb::parse(&request.verb).ok_or("unknown permission verb")?,
         request.scope.clone(),
@@ -297,6 +361,23 @@ pub(crate) fn approval_app(request: &approvals::Request) -> Result<crate::apps::
         return Err("permission exceeds the current verified package ceiling".into());
     }
     Ok(app)
+}
+
+#[cfg(target_os = "linux")]
+fn permission_app(
+    app_id: &str,
+) -> Result<(crate::apps::App, Option<crate::update::system_desktop::PackageManagerLock>), String> {
+    if app_id == crate::display_session::SHELL_APP {
+        let (app, lock) = super::app_sessions::installed_system_desktop()?;
+        Ok((app, Some(lock)))
+    } else {
+        Ok((super::app_sessions::installed_app(app_id)?, None))
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn permission_app(app_id: &str) -> Result<(crate::apps::App, Option<()>), String> {
+    Ok((super::app_sessions::installed_app(app_id)?, None))
 }
 
 fn permission_id(need: &Need) -> String {

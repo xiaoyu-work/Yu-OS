@@ -55,6 +55,42 @@ fn manage_cap() -> Cap {
     Cap::new(Verb::SYS_PERMISSIONS, Scope::name("manage"))
 }
 
+#[test]
+fn system_desktop_listing_preserves_bounds_and_reports_verification_failure() {
+    let mut apps = vec![json!({"app_id": "ordinary"}); 256];
+    let mut quarantined = Vec::new();
+    let mut truncated = false;
+    include_system_desktop(
+        &mut apps, &mut quarantined, &mut truncated, "desktop-shell",
+        Ok(json!({"app_id": "desktop-shell", "trust": "system-desktop"})),
+    );
+    assert_eq!(apps.len(), 256);
+    assert_eq!(apps[0]["trust"], "system-desktop");
+    assert!(truncated);
+
+    apps.clear();
+    truncated = false;
+    include_system_desktop(
+        &mut apps, &mut quarantined, &mut truncated, "desktop-shell",
+        Err("release signature rejected".into()),
+    );
+    assert!(apps.is_empty());
+    assert_eq!(quarantined[0]["app_id"], "desktop-shell");
+    assert_eq!(quarantined[0]["error"], "release signature rejected");
+    assert!(!truncated);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn desktop_release_is_detected_even_if_its_tree_is_missing() {
+    let root = tempfile::tempdir().unwrap();
+    let tree = root.path().join("tree");
+    let manifest = root.path().join("manifest");
+    assert!(!system_desktop_present(&[&tree, &manifest]).unwrap());
+    std::fs::write(&manifest, b"release").unwrap();
+    assert!(system_desktop_present(&[&tree, &manifest]).unwrap());
+}
+
 #[tokio::test]
 async fn gui_only_permissions_share_the_existing_owner_deny_and_restore_gate() {
     let _lock = crate::test_env::lock_env();
