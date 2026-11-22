@@ -316,20 +316,6 @@ if [ -f "$SITE_DIR/index.html" ]; then
     echo ":: copying staged website from $SITE_DIR"
     find "$SITE_DIR" -mindepth 1 -maxdepth 1 \
         -exec cp -R {} "$REPO_DIR/" \;
-
-    GIT_SHA="$(git_readonly -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-    # `sed -i` differs between BSD (macOS) and GNU. `-i.bak` is portable.
-    for f in \
-        "$REPO_DIR/index.html" \
-        "$REPO_DIR/style.css" \
-        "$REPO_DIR/app.js"; do
-        [ -f "$f" ] || continue
-        sed -i.bak \
-            -e "s|@@GIT_SHA@@|$GIT_SHA|g" \
-            -e "s|@@SUITE@@|$SUITE|g" \
-            "$f"
-        rm -f "$f.bak"
-    done
 else
     echo "error: staged website not found at $SITE_DIR; run web/stage.sh build/web-dist" >&2
     exit 1

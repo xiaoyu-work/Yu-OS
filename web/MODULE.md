@@ -13,9 +13,9 @@ root beside the signed APT repository.
 | `style.css` | Page styles |
 | `app.js` | Auto-rotating Yu Agent captions with a pause control |
 | `fonts/` | Self-hosted Barlow Condensed and Space Grotesk with their SIL Open Font License texts |
-| `stage.sh` | Copies the page, its fonts and `../assets/brand/` into one Pages input |
+| `stage.sh` | Copies the page, its fonts and `../assets/brand/` into one Pages input, stamping `@@GIT_SHA@@` so each release fetches fresh CSS and JavaScript |
 | `gen-og.py` | Generates `../assets/brand/og.png` |
-| `../packaging/apt-repo/build-repo.sh` | Copies the staged site into the Pages/APT artifact and replaces `@@GIT_SHA@@` and `@@SUITE@@` |
+| `../packaging/apt-repo/build-repo.sh` | Copies the staged site into the Pages/APT artifact |
 
 ## Publication
 
