@@ -7,7 +7,7 @@ use std::path::PathBuf;
 const CATALOG: &str = "/var/lib/swcatalog/xml/private-store.xml";
 const STATUS: &str = "/var/lib/dpkg/status";
 const REPORT: &str = "/run/gui-fixture/native-store-consumer.json";
-const PACKAGE: &str = "yuos-app-acceptance-bundle";
+const PACKAGE: &str = "yuos-native-store-fixture";
 
 pub(super) struct Fixture {
     catalog: Vec<u8>,
@@ -61,7 +61,7 @@ Description: Private controlled Store inventory\n\n".to_vec();
         let packages = if package_owned {
             [PACKAGE, "yuos-package-acceptance-side-effect"]
         } else {
-            ["yuos-native-store-fixture", "yuos-native-store-available"]
+            [PACKAGE, "yuos-native-store-available"]
         };
         let components = packages
             .iter().enumerate().map(|(index, package)| format!(

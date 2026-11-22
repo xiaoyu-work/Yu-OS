@@ -159,6 +159,8 @@ def run(*arguments, cwd=BASE, input=None):
 
 def repository(*, native_package=False, native_store=False):
     require_private_mounts()
+    # The Linux Apps view excludes names reserved for the official App channel.
+    bundle = "yuos-native-store-fixture" if native_store else BUNDLE
     if native_store:
         for payload in ("bundle", "support"):
             for name in ("usr", "usr/lib", "usr/lib/yuos", "usr/lib/yuos/apps"):
@@ -201,7 +203,7 @@ def repository(*, native_package=False, native_store=False):
     marker.write_text("A normal, successful private package install\n")
     architecture = run("/usr/bin/dpkg", "--print-architecture").decode().strip()
     for payload, package, dependency in (
-        ("bundle", BUNDLE, f"Depends: {SUPPORT} (= {VERSION})\n"),
+        ("bundle", bundle, f"Depends: {SUPPORT} (= {VERSION})\n"),
         ("support", SUPPORT, ""),
         ("effects", SIDE_EFFECT, ""),
     ):
@@ -209,7 +211,7 @@ def repository(*, native_package=False, native_store=False):
         control = root / "DEBIAN"
         control.mkdir(mode=0o755)
         control.chmod(0o755)
-        payload_arch = architecture if native_store and package == BUNDLE else "all"
+        payload_arch = architecture if native_store and package == bundle else "all"
         (control / "control").write_text(
             f"Package: {package}\nVersion: {VERSION}\nArchitecture: {payload_arch}\n"
             "Section: misc\nPriority: optional\n"
@@ -286,13 +288,13 @@ def repository(*, native_package=False, native_store=False):
         run(
             "/usr/bin/dpkg", "--install",
             str(pool / f"{SUPPORT}_{VERSION}_all.deb"),
-            str(pool / f"{BUNDLE}_{VERSION}_{architecture}.deb"),
+            str(pool / f"{bundle}_{VERSION}_{architecture}.deb"),
         )
         owner = run(
             "/usr/bin/dpkg-query", "--search",
             "/usr/lib/yuos/apps/yuos-store/bin/yuos-store",
         ).decode().strip()
-        if owner != f"{BUNDLE}: /usr/lib/yuos/apps/yuos-store/bin/yuos-store":
+        if owner != f"{bundle}: /usr/lib/yuos/apps/yuos-store/bin/yuos-store":
             raise RuntimeError("actual Store payload has no exact private dpkg owner")
 
 
