@@ -148,18 +148,17 @@ installed targets.
 
 Run **Release Yu OS** (`release.yml`) manually on `main`. Every new run
 automatically assigns a date-based version, runs the shared tests and publishes
-Agent, Base and Desktop together to the signed APT source. The website is
-staged alongside the update repository in one Pages deployment. No release
-target or version needs to be selected. The image commands above are for local
-builds, not CI publication.
+Agent, Base and Desktop together to the signed APT source. No release target
+or version needs to be selected. The image commands above are for local
+builds, not CI publication. To update the public website without releasing
+system packages, run [Publish Website](web/MODULE.md#publication).
 
 Release runs queue without cancellation. The publisher verifies compatibility
 with the authenticated previous release, and non-expiring indexes require no
 weekly refresh. See [the publication contract](packaging/README.md#independent-publication).
 
-Only four workflows remain: `test.yml` (PR/manual/reusable validation),
-`release.yml` (manual OS publication), `publish-sdk-release.yml`, and
-`publish-app-platform.yml` (independent versioned developer releases).
+See [the workflow module](.github/workflows/MODULE.md) for the separate
+website, system, SDK and App platform publication entry points.
 
 Run manual validation with `gh workflow run test.yml --ref main`. Do not push
 a temporary branch to dispatch it. GitHub blocks creating branches under `ci/`.

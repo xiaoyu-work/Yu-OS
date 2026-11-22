@@ -14,8 +14,8 @@ Debian packages and a signed multi-architecture APT repository.
   system can refuse a superseded — but still validly signed — release.
 - Build and sign non-expiring Debian repository indexes for amd64 and arm64;
   preserve package release-security validity and downgrade protection.
-- Compose an independently built web artifact into the final Pages directory
-  alongside `dists/` and `pool/`.
+- Publish signed OS archive files under `/apt` without changing the live
+  marketing website.
 
 ## Key Files
 
@@ -57,7 +57,7 @@ Debian packages and a signed multi-architecture APT repository.
 | `../rootfs/overlay/usr/lib/yuos/init/remove-home-overlay.sh` | Safe managed-home flattening before Base removal |
 | `deb/tests/test-remove-home-overlay.sh` | Merged-tree, metadata, whiteout, and opaque-directory removal regression tests |
 | `apt-repo/build-repo.sh` | Multi-arch non-expiring Release, by-hash indexes, and GPG signatures |
-| [`../web/`](../web/) | Independent web source; `dist/` is consumed during Pages composition |
+| [`../web/`](../web/) | Static marketing website with its own Pages publication workflow |
 | [`README.md`](README.md) | Package contract and manual commands |
 | `../.github/workflows/release.yml` | One signed Agent/Base/Desktop APT release |
 | `../scripts/ci/verify-package.sh` | Shared pre-upload payload, snapshot and signed manifest checks |

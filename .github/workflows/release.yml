@@ -345,9 +345,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Stage the static website
-        run: bash web/stage.sh build/web-dist
-
       - name: Download new Agent packages
         uses: actions/download-artifact@v4
         with:
@@ -379,20 +376,26 @@ jobs:
       - name: Merge and sign the repository once
         env:
           GPG_PASSPHRASE: ${{ secrets.YUOS_APT_SIGNING_PASSPHRASE }}
-          YUOS_WEB_DIST_DIR: ${{ github.workspace }}/build/web-dist
           YUOS_RELEASE_SECURITY_BOOTSTRAP: ${{ inputs.release_security_bootstrap && '1' || '0' }}
         run: |
           EXISTING_APT_REPO_URL="https://xiaoyu-work.github.io/Yu-OS/apt" \
             APT_PUBLIC_KEYRING="$YUOS_RELEASE_SECURITY_KEYRING" \
             bash packaging/apt-repo/sync-existing-packages.sh
           bash packaging/apt-repo/build-repo.sh
-          mkdir build/apt-repo/apt
-          mv build/apt-repo/{dists,pool,yuos-archive-keyring.gpg,yuos-archive-keyring.asc} build/apt-repo/apt/
+          mkdir -p build/pages
+          mv build/apt-repo build/pages/apt
+          python3 scripts/ci/pages_files.py record apt build/pages/apt
+          source packaging/release-security/gpg-sign.sh
+          yuos_gpg_sign_detached "$GPG_KEY_ID" \
+            build/pages/apt/pages-files.sha256 build/pages/apt/pages-files.sha256.asc
+
+      - name: Retain the published website
+        run: python3 scripts/ci/pages_files.py restore website build/pages
 
       - uses: actions/upload-pages-artifact@v3
         with:
           name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
-          path: build/apt-repo
+          path: build/pages
 
       - name: Deploy GitHub Pages once
         id: deployment

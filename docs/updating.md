@@ -1581,6 +1581,8 @@ The [release workflow](../packaging/README.md#independent-publication) runs the
 shared tests, requires authenticated App inputs and verifies package
 compatibility before one Pages deployment. Releases queue without
 cancellation; non-expiring APT indexes need no scheduled re-signing.
+Website-only changes use [Publish Website](../web/MODULE.md#publication)
+without changing the signed APT files.
 
 ### Recovering a partially configured Agent/Base pair
 

@@ -55,7 +55,8 @@ dispatched and reusable test/publication pipelines.
   D-Bus lease/failed-retirement cases and Root-only temporary-file/sandbox
   boundaries without acquiring wireless hardware; see `scripts/ci/test-boundaries.sh nearby`.
 - Build and verify Agent, Base and Desktop packages for one signed APT release.
-- Stage the static marketing website beside the APT repository on GitHub Pages.
+- Publish marketing website changes independently while preserving the signed
+  OS APT files on the shared Pages site.
 
 ## Key Files
 
@@ -63,12 +64,13 @@ dispatched and reusable test/publication pipelines.
 | --- | --- |
 | `test.yml` | Pull-request, manual, and reusable test/clippy workflow |
 | `release.yml` | Manual OS release on `main`; publishes the signed Agent, Base and Desktop updates together |
+| `publish-website.yml` | Manual static website publication on `main`, independent of App and OS builds |
 | `publish-sdk-release.yml` | GitHub SDK artifacts and synchronized language tags |
 | `publish-app-platform.yml` | Manually published versioned SDK/runtime/toolkit development artifact for independent App builds |
 | `../actionlint.yaml` | Compatibility with GitHub's queued concurrency |
 | `../../scripts/ci/` | Release planning, signing-key import, package checks and installed Agent/privileged test scripts |
 
-There are four workflow entry points. `release.yml` freezes one
+`release.yml` freezes one
 [date-based package version](../../packaging/README.md#independent-publication)
 and one App-main snapshot for the whole run. It calls `test.yml` with that
 snapshot before building the packages. Desktop retains its dedicated rootfs
@@ -88,9 +90,13 @@ The publisher compares every package's declared protocols with both the new
 pool and authenticated previous manifests before Pages deployment.
 
 Release runs queue without cancelling one another. All packages are merged
-with the authenticated existing pool, signed and deployed alongside the staged
-website. Non-expiring indexes need no scheduled refresh. This workflow does
-not build installer, Docker or WSL images.
+with the authenticated existing pool and signed. Both workflows share the
+`yuos-apt-pages` deployment lock, and each preserves the other publisher's
+live files from its inventory. Website-only publication verifies the signed
+APT inventory with the OS archive key and does not renew or sign any files.
+See [Website publication](../../web/MODULE.md#publication) for first use.
+Non-expiring indexes need no scheduled refresh. The OS release does not
+build installer, Docker or WSL images.
 
 SDK publication also builds tested portable `yu` signing executables for amd64
 and arm64 from that same commit, after its full Root validation succeeds.

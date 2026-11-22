@@ -1,0 +1,53 @@
+name: Publish Website
+
+on:
+  workflow_dispatch:
+    inputs:
+      allow_no_apt:
+        description: "Publish the website alone only if no OS APT archive is live"
+        type: boolean
+        default: false
+
+jobs:
+  publish-pages:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: yuos-apt-pages
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Stage the website and retain the live signed OS archive
+        env:
+          ALLOW_NO_APT: ${{ inputs.allow_no_apt && '1' || '0' }}
+        run: |
+          bash web/stage.sh build/pages
+          python3 scripts/ci/pages_files.py record website build/pages
+          restore_args=()
+          if [[ "$ALLOW_NO_APT" == 1 ]]; then
+            restore_args+=(--allow-no-apt)
+          fi
+          python3 scripts/ci/pages_files.py restore apt build/pages/apt "${restore_args[@]}"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/pages
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}

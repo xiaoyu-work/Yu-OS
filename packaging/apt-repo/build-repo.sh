@@ -28,11 +28,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-source "$PROJECT_DIR/scripts/lib/git-readonly.sh"
 
 DEBS_DIR="${YUOS_DEBS_DIR:-$PROJECT_DIR/build/debs}"
 REPO_DIR="${YUOS_APT_REPO_DIR:-$PROJECT_DIR/build/apt-repo}"
-BRAND_ASSETS_DIR="$PROJECT_DIR/assets/brand"
 SUITE="${SUITE:-trixie}"
 COMPONENT="main"
 GPG_KEY_ID="${GPG_KEY_ID:-}"
@@ -90,15 +88,6 @@ for a in "${binary_arches[@]}"; do
     mkdir -p "$REPO_DIR/dists/$SUITE/$COMPONENT/binary-$a"
 done
 mkdir -p "$REPO_DIR/dists/$SUITE/$COMPONENT/binary-all"
-mkdir -p "$REPO_DIR/assets/brand"
-cp "$BRAND_ASSETS_DIR/yuos-wordmark.svg" \
-   "$BRAND_ASSETS_DIR/yuos-symbol.png" \
-   "$BRAND_ASSETS_DIR/yuos-favicon-64.png" \
-   "$BRAND_ASSETS_DIR/yuos-icon-192.png" \
-   "$REPO_DIR/assets/brand/"
-if [ -f "$BRAND_ASSETS_DIR/og.png" ]; then
-    cp "$BRAND_ASSETS_DIR/og.png" "$REPO_DIR/assets/brand/"
-fi
 
 # Move each .deb into pool/main/c/<package-name>/.
 for deb in "$DEBS_DIR"/*.deb; do
@@ -305,25 +294,6 @@ test -s "dists/$SUITE/InRelease"
 test -s "dists/$SUITE/Release.gpg"
 test -s "$REPO_DIR/yuos-archive-keyring.gpg"
 echo "  :: signed; public key at $REPO_DIR/yuos-archive-keyring.gpg"
-
-# GitHub Pages homepage. Keep this at the repo root so the APT paths remain
-# stable: /dists/... and /pool/... are still served beside the marketing page.
-#
-# The static marketing site lives under web/. web/stage.sh copies it with the
-# shared brand assets before repository assembly.
-SITE_DIR="${YUOS_WEB_DIST_DIR:-$PROJECT_DIR/build/web-dist}"
-if [ -f "$SITE_DIR/index.html" ]; then
-    echo ":: copying staged website from $SITE_DIR"
-    find "$SITE_DIR" -mindepth 1 -maxdepth 1 \
-        -exec cp -R {} "$REPO_DIR/" \;
-else
-    echo "error: staged website not found at $SITE_DIR; run web/stage.sh build/web-dist" >&2
-    exit 1
-fi
-
-# GitHub Pages should publish the APT repository verbatim, without Jekyll
-# filtering paths that begin with underscores or rewriting generated files.
-: > "$REPO_DIR/.nojekyll"
 
 echo ""
 echo ":: apt repo ready at $REPO_DIR"

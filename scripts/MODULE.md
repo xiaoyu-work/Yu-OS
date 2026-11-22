@@ -26,6 +26,7 @@ shared build helpers.
 | `ci/native_editor_payload.py` | Private native product acceptance inputs, including Settings: resolve one immutable App snapshot and invoke its public-pin, original-installer native build; no local platform, signing, installation or publication |
 | `ci/prepare-release.sh` | Freeze the release's UTC day and daily sequence from Actions run metadata and prepare authenticated App inputs |
 | `ci/import-signing-key.sh` | Require the configured signing identity and export its exact verification keyring through `GITHUB_ENV` |
+| `ci/pages_files.py` | Record and preserve exact published website and APT files; require the archive key's signature before restoring APT |
 | `ci/verify-package.sh` | Check package identity, payload-free OS ownership, authenticated App APT inputs and signed release manifest before upload or images |
 | `ci/test-agent-package.sh` | Agent TUI and Ubuntu install/reinstall, terminal/Web polkit/PAM, broker and cgroup checks; `installed-core` validates the exact Agent/Base pair in one transaction |
 | `ci/verify_official_app_store.py` | Disposable hosted-CI-only actual public signed Store/APT installation, protected exact-revision review, installed product Web/browser and Root MCP, using the newly installed Agent and a synthetic owner |

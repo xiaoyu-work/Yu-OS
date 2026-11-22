@@ -587,10 +587,7 @@ python3 scripts/app_packages.py prepare --variant agent --architecture amd64
 # The desktop rootfs feature builds Desktop independently:
 # -> build/debs/yuos-desktop_<version>_amd64.deb
 
-# Stage the independent website artifact
-bash web/stage.sh build/web-dist
-
-# Compose it beside the signed apt repo
+# Assemble the signed APT repository
 GPG_KEY_ID=<signing-key-fingerprint> ./packaging/apt-repo/build-repo.sh
 # -> build/apt-repo/dists/trixie/main/binary-amd64/Packages.gz
 # -> build/apt-repo/dists/trixie/main/binary-arm64/Packages.gz
@@ -621,6 +618,10 @@ Run **Release Yu OS** (`release.yml`) on `main` to publish `yuos-agent`,
 and Desktop for amd64 and arm64 and one architecture-independent Base package.
 It publishes those updates to the signed APT source, not a GitHub Release or
 an installer, Docker or WSL download.
+
+Website changes use [Publish Website](../web/MODULE.md#publication) instead.
+Both workflows keep the other publisher's live files on the shared Pages
+site, so neither one updates the other by accident.
 
 Each run freezes one version for all OS packages and architectures,
 for example `1:0.1.0+r20261121.01`. The date is the UTC dispatch date. Each new

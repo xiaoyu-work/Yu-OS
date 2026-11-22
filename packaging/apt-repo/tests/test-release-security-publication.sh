@@ -677,9 +677,6 @@ ok "the published Release has no expiry and advertises by-hash indexes"
 # ---------------------------------------------------------------------------
 CYCLE="$WORK/cycle"
 mkdir -p "$CYCLE"
-export YUOS_WEB_DIST_DIR="$CYCLE/web"
-mkdir -p "$YUOS_WEB_DIST_DIR"
-echo "<html></html>" > "$YUOS_WEB_DIST_DIR/index.html"
 
 # Serve a built repository so `sync-existing-packages.sh` reads it the
 # way the publication workflow does. This reuses the same origin the

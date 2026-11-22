@@ -97,7 +97,7 @@ route.
 | Migrated App products | Product UI, business implementation, MCP and upstream source live in a separate repository; Mail native build and product cutover remain in progress | [`yuos-app`](https://github.com/xiaoyu-work/yuos-app), `packaging/apps.lock.json` |
 | Shared-capability clients | Legacy facades are explicitly separate from business products; Document Engine owns `doc` and Storage SDK owns `db`, while privileged providers and SDK stay in the OS | External `yuos-app/capabilities/`, `packaging/apps.lock.json` |
 | Image composition | Reusable rootfs features and profile definitions | `rootfs/`, `scripts/lib/image-profiles.sh` |
-| Website | Static marketing site staged with shared brand assets beside the signed APT repository | `web/`, `.github/workflows/release.yml` |
+| Website | Independently published static marketing site beside the signed APT repository | `web/`, `.github/workflows/publish-website.yml` |
 | Distribution | WSL/Docker/VM/ISO/Azure packaging, Debian packages, signed APT repo, releases | `targets/`, `packaging/`, `.github/workflows/` |
 
 ## Dependency Rules
@@ -2491,9 +2491,10 @@ one OS commit + date-based Debian package version + immutable App snapshot
   -> one Base package and Agent/Desktop packages for amd64 and arm64
   -> verified .debs from this run
 
-verified .debs + authenticated existing pool + staged static website
-  -> one signed APT/Pages composition
-  -> GitHub Pages
+verified .debs + authenticated existing pool -> signed APT archive
+
+new signed APT archive + live website -> GitHub Pages
+new static website + live signed APT archive -> GitHub Pages
 ```
 
 `test.yml` runs on pull requests and remains manually dispatchable/reusable.
@@ -2505,6 +2506,10 @@ and checks protocol compatibility against both the new pool and authenticated
 previous manifests before signing. APT indexes intentionally have no expiry or
 scheduled refresh; signatures, manifest validity and downgrade checks remain
 enforced.
+
+The two Pages publishers share a deployment lock. Each restores the other
+publisher's live files by checksum; the APT inventory is signed by the OS
+archive key. See [Website publication](web/MODULE.md#publication).
 
 On Desktop, the authenticated Settings App requests a signed channel check or
 an administrator-authorized update through its private GUI broker. The
@@ -2534,7 +2539,7 @@ the App nor the running desktop is the package transaction owner.
 | Debian package build | `packaging/deb/build-debs.sh` | Installed package artifacts |
 | APT repository build | `packaging/apt-repo/build-repo.sh` | Signed repository assembly |
 | Website | `web/index.html` | Static marketing site |
-| Website publication | `.github/workflows/release.yml` | Static website staged beside the signed APT repository |
+| Website publication | `.github/workflows/publish-website.yml` | Static website deployment without package builds |
 | CI test workflow | `.github/workflows/test.yml` | Pull-request/manual/reusable test workflow |
 | OS release workflow | `.github/workflows/release.yml` | One manual signed APT publication |
 
