@@ -298,6 +298,8 @@ Description: Private controlled Store inventory\n\n".to_vec();
         let (sequence, kind, value) = input;
         let instance = yuos_display_control::Epoch(retained.instance.0).label();
         let baseline = before["buffer_commits"].as_u64().unwrap();
+        let previous_pixels = &before["raster"]["pixel_checksum"];
+        let mut settled = None;
         let captured = loop {
             check_native_process(retained, native)?;
             if let Some(record) = observe().filter(|record| {
@@ -310,7 +312,17 @@ Description: Private controlled Store inventory\n\n".to_vec();
                     && record["snapshot"]["latest_buffer_commit"] == record["buffer_commits"]
                     && record["snapshot"]["matches_current_configure"] == true
             }) {
-                break record;
+                let pixels = &record["raster"]["pixel_checksum"];
+                // Ignore transitional hover frames before clicking the next control.
+                match &settled {
+                    _ if pixels == previous_pixels => settled = None,
+                    Some((earlier, since)) if earlier == pixels => {
+                        if Instant::now().duration_since(*since) >= Duration::from_millis(500) {
+                            break record;
+                        }
+                    }
+                    _ => settled = Some((pixels.clone(), Instant::now())),
+                }
             }
             if Instant::now() >= deadline {
                 return Err(format!("actual Store ordinary input {sequence}/passive frame observation deadline"));

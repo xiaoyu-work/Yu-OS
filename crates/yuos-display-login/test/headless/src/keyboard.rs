@@ -228,7 +228,7 @@ fn decode(value: &serde_json::Value, previous: u64, now: u64) -> Result<Request>
     })
 }
 
-fn pointer_click(state: &mut State, instance: &str, action: PointerAction, now: u64) -> Result<()> {
+fn pointer_click(state: &mut State, instance: &str, action: PointerAction, now: u64) -> Result<bool> {
     let window = state
         .native_window
         .as_ref()
@@ -252,8 +252,11 @@ fn pointer_click(state: &mut State, instance: &str, action: PointerAction, now: 
             primary_click_steps(x, y)?.to_vec(),
         ),
         PointerAction::Popup(x, y) => {
-            let (surface, size) = window.popup_pointer_target(instance)
-                .ok_or("pointer target is not this live configured buffered Layer child popup")?;
+            let Some((surface, size)) = window.popup_pointer_target(instance) else {
+                // A popup can receive another configure between observation and delivery.
+                // Keep the command pending until the same authenticated surface is ready.
+                return Ok(false);
+            };
             (surface, popup_click_steps(x, y, size)?.to_vec())
         }
     };
@@ -314,7 +317,7 @@ fn pointer_click(state: &mut State, instance: &str, action: PointerAction, now: 
         }
     }
     pointer.frame(state);
-    Ok(())
+    Ok(true)
 }
 
 fn acknowledge(state: &State, directory: &Path, request: &Request) -> Result<()> {
@@ -399,9 +402,10 @@ impl Control {
             return Err("keyboard command expired before delivery".into());
         }
         if let Some(action) = request.pointer {
-            pointer_click(state, &request.instance, action, now)?;
-            acknowledge(state, directory, request)?;
-            self.active = None;
+            if pointer_click(state, &request.instance, action, now)? {
+                acknowledge(state, directory, request)?;
+                self.active = None;
+            }
             return Ok(());
         }
         let surface = state
