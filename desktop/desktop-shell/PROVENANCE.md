@@ -18,7 +18,7 @@ dependency.
 `MaterialSymbolsRounded.ttf` is the unmodified
 `variablefont/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf` asset
 (`sha256:7e74e36533ccee12c2b81e75bfcf3ccf123d3bb7e7e46d65d94445f23db0c97c`).
-The App ships and loads it with the original license, without a system font
+The Shell ships and loads it with the original license, without a system font
 installation.
 
 The shell dependency revisions are selected by Caelestia's imported `flake.lock`.
@@ -32,8 +32,8 @@ Existing whitespace in imported upstream files is retained through file-scoped
 `.gitattributes` exceptions rather than rewriting the imported source or
 license text. Yu OS-owned files retain the normal repository checks.
 
-The complete 590-file Quickshell source is bundled with the Desktop Shell
-product, not supplied by an OS-private runtime. Its narrow entry adapter consumes
+The complete 590-file Quickshell source is bundled with the Desktop Shell,
+not supplied by a shared OS runtime. Its narrow entry adapter consumes
 the common Host's GUI selector and selects only the package resource directory;
 ordinary upstream CLI mode remains available for source development. The
 cpptrace build dependency is pinned to the exact 1.0.4 commit. Rendering and AI

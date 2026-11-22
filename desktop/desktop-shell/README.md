@@ -1,31 +1,23 @@
 # Yu OS desktop shell
 
-The editable source baseline for Yu OS's Quickshell-based desktop interface.
-It contains the complete Caelestia shell, matching CLI and Material shape
-library, not an Omarchy distribution or a replacement Agent.
+The source of Yu OS's Quickshell-based desktop interface. It contains the
+Caelestia shell, matching CLI, Material shape library and pinned Quickshell
+engine, not an Omarchy distribution or a replacement Agent.
 
 | Directory | Source |
 | --- | --- |
 | `native/caelestia/` | Complete QML shell, native C++ plugin, resources and upstream build files |
 | `native/caelestia-cli/` | Matching Caelestia command-line implementation |
 | `native/m3shapes/` | Matching Qt Quick Material shape library |
+| `native/quickshell/` | Complete, pinned Quickshell engine |
 
 [`upstream.lock.json`](upstream.lock.json) records the immutable source
 revisions and Git trees. The CLI, shape library and Quickshell revision match
 the shell's original `flake.lock`. Original licenses and notices remain in
 each source tree; see [provenance](PROVENANCE.md).
 
-This commit establishes source ownership only. The product is not yet a
-registered App, release input or installed session, and does not change the
-existing App count. Native build, managed GUI admission and OS service
-integration must be completed before activation.
-
-Quickshell is a pinned runtime dependency, not an engine fork here.
-Caelestia's native plugin requires Qt 6.9 or newer. Its upstream CMake build
-also requires explicit `VERSION` and `GIT_REVISION` values when built outside
-the original Git history; it must not infer them from this repository's tags.
-
-Display login, compositor authorization, capabilities, notifications and
-other authoritative services remain in `yuos`. The frontend must use the
-same signed App Host and versioned OS interfaces as other native Apps.
-Source availability, UI identity and installation confer no authority.
+`yuos-desktop` builds the Shell and its private Qt runtime from this
+directory. Root verifies the installed tree against the signed OS release
+before launching the Shell in the common GUI Host. There is no App package
+or separately signed Shell release. See the [component guide](MODULE.md)
+and [desktop build instructions](../../docs/building-desktop.md).

@@ -631,13 +631,14 @@ suffix sorts after the former `+git` versions at the same base version and
 Debian epoch. Standalone App versions are independent.
 
 The workflow freezes the authenticated App APT package closure for both
-architectures and one App main commit for the native Debian 13 Shell build
-and separate test fixture. It seals the Shell for `yuos-desktop`, not for a
-standalone release. Package checks reverify official APT evidence and refuse
-ordinary App/support/library ownership before upload.
+architectures and one App main commit for the shared test fixtures. The
+Desktop package builds its Shell from [`desktop/desktop-shell/`](../desktop/desktop-shell/)
+on Debian 13 and binds its complete inventory to the signed OS release
+manifest. Package checks reverify official App APT evidence and reject
+ordinary App payloads or libraries inside the OS packages before upload.
 
-One publisher gathers the packages from this run, stages the website, and
-compares each package and architecture against the authenticated current
+One publisher gathers the packages from this run, preserves the published
+website, and compares each package and architecture against the authenticated current
 repository. Only a strictly newer package version replaces
 the existing candidate; equal or older artifacts are discarded before the
 indexes are regenerated, signed, and deployed to Pages. A build that carries a

@@ -18,9 +18,9 @@ runtime exception; its compiler is not included.
 No Omarchy source is used. The Shell source snapshot in
 [`desktop-shell/`](desktop-shell/) was imported from
 `yuos-app` commit `35262bce654ad3c96ac0cdb602161b72131a621d`, tree
-`f4667b3fc1fec0703fd86db549761722bb091f06`. Its original notices and
-documentation are retained as imported; OS build and login integration is
-described in [`hyprland-yuos/MODULE.md`](hyprland-yuos/MODULE.md).
+`f4667b3fc1fec0703fd86db549761722bb091f06`. The original native sources,
+notices and upstream documentation are retained. For OS build and login
+integration, see [`hyprland-yuos/MODULE.md`](hyprland-yuos/MODULE.md).
 The [Media Player App](https://github.com/xiaoyu-work/yuos-app/tree/main/products/media-player)
 records the provenance of its independently packaged native player.
 

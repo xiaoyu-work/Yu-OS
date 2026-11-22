@@ -7,16 +7,15 @@ source-level CLI and Material shape dependencies. Keep QML layout, visuals,
 native UI extensions, its bundled Quickshell engine and presentation resources
 together. The engine is not an OS shared runtime.
 
-The product declares the GUI-only `desktop-shell` App and its CMake native
-payload. The OS admits it as the shell of an authenticated login.
-`release: false` excludes it from independent App Debian and Store releases.
-OS release CI builds the unsigned payload from the pinned App source commit,
-then validates and seals it for `yuos-desktop` without a separate Shell release.
+The OS builds the native payload into `yuos-desktop` and binds its complete
+inventory to the signed OS release. The authenticated display supervisor
+starts it through the common GUI Host. Its GUI declaration describes the
+entrypoint and capabilities, not an independently installable App.
 `native/qt.lock.json` pins Qt 6.12.0 and
 its published corrections. The unified CMake build compiles those sources
 against the build host's ABI and uses them for every native child. Release
 payloads must be built on Debian 13, not the Ubuntu preview environment.
-The pinned Qt runtime is App-owned; Debian backports supply the Wayland
+The pinned Qt runtime is private to the Shell; Debian backports supply the Wayland
 scanner and protocol XML needed to build Quickshell's background effects.
 Do not treat an upstream installer or direct executable launch as completed
 Yu OS runtime integration.
@@ -29,8 +28,8 @@ Yu OS runtime integration.
 | `PROVENANCE.md` | Origins, revisions and license obligations |
 | `native/caelestia/CMakeLists.txt` | Original shell and native-plugin build |
 | `native/CMakeLists.txt` | Single staged ELF/resource assembly from all three native builds |
-| `native/build-qt.py`, `native/qt.lock.json` | Verified Qt source build and App-private runtime staging |
-| `package.json`, `apps/desktop-shell/app.json` | GUI-only App, normal capability needs and private native resources |
+| `native/build-qt.py`, `native/qt.lock.json` | Verified Qt source build and private runtime staging |
+| `apps/desktop-shell/app.json` | Fixed GUI entry and its machine-checked capability declaration |
 | `native/caelestia/services/Hypr.qml` | Broker-backed window, workspace and output presentation |
 | `native/caelestia/services/Quiet.qml` | Shared light/dark palette, Dock window projection and private presentation preferences |
 | `native/caelestia/modules/drawers/{TopBar,QuietMenu}.qml` | Per-output reserved top edge, Dock and locally anchored Quiet panels |
@@ -39,7 +38,7 @@ Yu OS runtime integration.
 | `native/caelestia/plugin/3rdparty/libcava/` | Complete MIT libcava 1.0.0 source and notices |
 | `native/caelestia-cli/` | Complete upstream CLI source |
 | `native/m3shapes/` | Complete upstream Material shape source |
-| `native/quickshell/` | Complete LGPL engine source, bundled with this App |
+| `native/quickshell/` | Complete LGPL engine source bundled with the Shell |
 | `native/quickshell/src/main.cpp` | Common-Host GUI selector and read-only resource adapter |
 | `native/caelestia/utils/scripts/desktop_control.py` | Closed desktop state and actions through the published SDK/kernel transport |
 | `native/caelestia/utils/scripts/desktop_review.py` | One reviewed menu selection or power action through the private GUI broker |
@@ -137,7 +136,7 @@ live authorization for every request.
 Confirming exits this shell and returns to the account picker; it does not
 keep a second active desktop. The authenticated OS
 session subscriber observes that exit and lets PAM retire the exact display
-session. The App does not need authority to terminate a Linux user.
+session. The Shell does not need authority to terminate a Linux user.
 
 The Lock button and idle lock request use `ipc.invoke:desktop.session.lock`
 through the private broker. The Shell no longer contains a lock renderer,
@@ -153,17 +152,16 @@ reports failure, not completed shutdown or sleep.
 The lock screen offers no power actions, and the battery monitor warns
 without sending automatic hibernation requests.
 
-Any later launch/payload integration must use the repository's existing
-native App packaging and public SDK/runtime contracts. The original source
-licenses, notices, file modes and resources must remain available.
+The Shell retains the common GUI Host and versioned OS interfaces. Its own
+release authentication does not change the packaging or signature checks
+for ordinary Apps. Keep original source licenses, notices and resources.
 
 ## Validation
 
-The initial source import is checked against the Git tree IDs recorded in
-`upstream.lock.json`, including executable modes and every tracked file.
-Those are baseline identities, not hashes that should be rewritten when
-making intentional Yu OS modifications. Native compilation and actual
-managed-GUI acceptance are separate required checks before activation.
+The native source baseline is recorded in
+[`upstream.lock.json`](upstream.lock.json). Keep those import identifiers
+when intentionally changing Yu OS code. Native compilation and authenticated
+login acceptance are separate checks.
 
 The native plugin requires Qt 6.9 or newer, libqalculate, PipeWire, Aubio,
 FFTW and lm-sensors development files. The pinned libcava DSP core is built
@@ -174,52 +172,26 @@ The pinned Qt stage includes the SQLite, Wayland platform, JPEG, and WebP
 plugins and upstream notices. The JPEG plugin decodes the OS wallpaper; WebP
 uses Debian's `libwebp`. The ELF search paths are package-relative: Caelestia's
 QML plugins find their backing libraries in `Caelestia/lib` and share the
-App's private Qt. Qt's installed test modules and static object files are
+Shell's private Qt. Qt's installed test modules and static object files are
 excluded. No distribution Qt package or ambient plugin directory supplies
 the managed runtime. The Material Symbols font is a signed private resource,
 not a system font dependency.
 
-Run from a Linux-filesystem checkout of this repository:
+For a native build without assembling the rest of the OS, run from a
+Linux-filesystem checkout on Debian 13 with the desktop build dependencies.
+Use a fresh staging destination:
 
 ```sh
-cmake -S products/desktop-shell/native/caelestia -B build/caelestia -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release -DVERSION=1.0.0 \
-  -DGIT_REVISION="$(git rev-parse HEAD)" -DDISTRIBUTOR=Yu OS \
-  '-DENABLE_MODULES=plugin;shell'
-cmake --build build/caelestia --parallel 4
-cmake -S products/desktop-shell/native/m3shapes -B build/m3shapes -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release -DM3SHAPES_BUILD_EXAMPLES=OFF
-cmake --build build/m3shapes --parallel 4
-```
-
-Both native build graphs compile with Qt 6.10.2. This does not establish a
-running Quickshell frontend, managed GUI hosting or an installed desktop.
-The bundled engine also builds with its original rendering code. Actual ELF
-checks cover upstream CLI compatibility, GUI argument/resource refusals and
-selection of a private synthetic QML resource independently of cwd and ambient
-config. This is entry-adapter coverage, not authenticated desktop acceptance.
-
-The unified build assembles one real engine ELF and the original private QML
-libraries/resources without installing an OS runtime or upstream system hooks:
-use a fresh staging destination, as the package producer does.
-
-```sh
-cmake -S products/desktop-shell/native -B build/desktop-shell -G Ninja \
+cmake -S desktop/desktop-shell/native -B build/desktop-shell -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DGIT_REVISION="$(git rev-parse HEAD)"
 cmake --build build/desktop-shell --parallel 3
 DESTDIR="$PWD/build/desktop-shell-installer" \
   cmake --install build/desktop-shell --prefix /usr
 ```
 
-The standard producer also supports this CMake product:
-
-```sh
-python3 tools/native_build.py desktop-shell build --release \
-  --app-root build/desktop-shell-app
-```
-
-This prepares the ordinary unsigned App payload for the existing signer; it
-does not install the App, grant its needs or activate the desktop session.
+This stages the native ELF, private QML and resources. It does not install
+the OS package or activate the session. For the full packaging and login
+flow, see [building Yu OS Desktop](../../docs/building-desktop.md).
 
 Engine dependencies follow the vendored Quickshell CMake files, including Qt
 Wayland/private headers, Wayland 1.25+, protocols 1.47+, CLI11, jemalloc, libunwind
@@ -227,7 +199,7 @@ and zstd. The source-pinned crash libraries build inside the engine.
 The Debian 13 build with private Qt 6.12.0 produces the native installer tree.
 An earlier Ubuntu preview loaded Caelestia and Material Shapes without global
 resource activation; that preview used the Ubuntu ABI and is not the Debian
-artifact. In a separate Debian 13 KVM guest, a locally signed App rendered
+artifact. Before the move into Yu OS, a locally signed Shell App rendered
 inside the ordinary GUI Host after actual greetd/PAM login and owner review.
 The guest rendered the bundled icons, ran a separately signed Editor via an
 owner shortcut, and confirmed checked Logout with both Apps open. With no
