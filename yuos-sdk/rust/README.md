@@ -21,7 +21,7 @@ Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
 | `ai`        | Six configured model slots through `chat` and `infer`.                         |
 | `mcp`       | Manifest-bound App MCP runtime, call context, and stdio transport.                |
 | `applet`    | Versioned OS Calendar/task/telemetry client and separate history-permission preflight. |
-| `tools`     | `yu ai tool <name>` — fulfil catalog tools the model proposed.                 |
+| `tools`     | `yu ai tool <name>` — explicitly call a catalog operation.                   |
 | `gui`       | Desktop GUI bootstrap and kernel-provided launch context.                       |
 | `objects`   | Pure, canonical references to App-owned objects; no discovery or dispatch.      |
 | `manifest`, `events`, `channels` | Manifest path validation, App events, and authorized App-owned channel controls. |

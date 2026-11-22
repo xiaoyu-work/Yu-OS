@@ -80,9 +80,7 @@ export interface Review {
   promptRedacted: boolean;
 }
 
-/** A tool call the model proposed but the gate did NOT execute. Apps
- * decide whether to fulfil any by calling `tools.call` with the same
- * name + input; `id` echoes back to the provider on the next turn. */
+/** Compatibility shape for older runtimes. Model-only chat returns no proposals. */
 export interface ProposedToolCall {
   id: string;
   name: string;
@@ -105,11 +103,11 @@ export interface ChatOptions {
   /** Declare where the prompt came from; `trusted` is developer-authored text only. */
   origin: "trusted" | "user-input" | "external-content";
   maxUnits?: number;
+  /** Optional App instruction, not the system Agent's prompt. */
   system?: string;
   /** App identity. Defaults to `YUOS_APP_ID`. */
   appId?: string;
-  /** Catalog tool names the model may *propose*; never executed by the
-   * gate — proposals return in `AiResponse.toolCalls`. */
+  /** @deprecated Omit this option. Model-only chat rejects nonempty lists. */
   tools?: string[];
   /** In an MCP handler, pass the call's signal to inherit its deadline and cancellation. */
   signal?: AbortSignal;

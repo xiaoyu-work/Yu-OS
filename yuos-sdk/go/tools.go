@@ -1,11 +1,7 @@
-// Tool helper for Yu OS Go apps.
+// Explicit catalog operations, separate from model calls and MCP.
 //
-// Apps that want to fulfil a model-proposed tool call (returned in
-// AiResponse.ToolCalls after Chat(..., ChatOptions{Tools: ...})) shell
-// out through this file to `yu ai tool <name> --app <id> --args
-// <json>`. The kernel resolves the name against the catalog, derives
-// the caps verb + scope, runs caps::require under the app's own grants,
-// executes the implementation, and writes an audit row.
+// The kernel runs `yu ai tool` under the App's own capabilities and audits it.
+// This catalog is not exposed to the model by Chat.
 
 package yuossdk
 
@@ -142,9 +138,9 @@ func CatalogContext(ctx context.Context) ([]CatalogEntry, error) {
 	return entries, nil
 }
 
-// ForChat normalises tool names for ChatOptions.Tools: trims whitespace
-// and drops empties, so ForChat("fs.read_text", " kv.get ", "") yields
-// two clean entries.
+// ForChat normalises legacy tool names.
+//
+// Deprecated: Do not use for model-only Chat.
 func ForChat(names ...string) []string {
 	out := make([]string, 0, len(names))
 	for _, n := range names {

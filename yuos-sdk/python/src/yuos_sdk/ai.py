@@ -141,13 +141,7 @@ class Review:
 
 @dataclass
 class ProposedToolCall:
-    """A tool call the model proposed but the gate did **not** execute.
-
-    The kernel surfaces these in ``AiResponse.tool_calls``. Apps
-    decide whether to fulfil any of them by calling
-    :func:`yuos_sdk.tools.call` with the same ``name`` and ``input``.
-    The ``id`` echoes back to the provider on the next turn.
-    """
+    """Compatibility shape for older runtimes. Model-only chat returns no proposals."""
 
     id: str
     name: str
@@ -188,12 +182,9 @@ def chat(
     such as emails, files, web pages, or another agent's output. The effective
     App and owner policy determines redaction; the label is not a safety guarantee.
 
-    ``tools`` is a list of catalog tool names (e.g.
-    ``["fs.read_text", "kv.get"]``) the model may *propose* calling.
-    The gate **never** executes them — proposed calls come back in
-    :attr:`AiResponse.tool_calls`. Apps inspect them and re-call the
-    kernel via :func:`yuos_sdk.tools.call` for whichever they choose.
-    Use :mod:`yuos_sdk.tools` to look up the catalog at runtime.
+    ``system`` is an optional instruction supplied by the App, not the
+    system Agent's prompt. Omit the legacy ``tools`` option; model-only
+    chat rejects nonempty tool lists.
 
     Returns an :class:`AiResponse`. Raises :class:`AiBudgetExceeded`,
     :class:`AiSafetyViolation`, :class:`AiDenied`, or

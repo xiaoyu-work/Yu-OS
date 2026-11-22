@@ -674,8 +674,12 @@ rejected because capability matching does not expand them.
 
 ## 7. AI features
 
-Use the SDK's AI gate rather than a model-provider SDK. From an App with
-approved access to the supplied file and `ai.chat.untrusted`:
+Use the SDK to call the model configured in Yu OS Settings. Yu OS holds the
+credentials and sends the App's input directly to that model API, or runs the
+configured local model. Neither route starts the system Agent, includes its
+memory or conversation, or attaches system tools. The App can supply its own
+instruction, but cannot enable tools on the request. From an App with approved
+access to the supplied file and `ai.chat.untrusted`:
 
 ```python
 from dataclasses import asdict

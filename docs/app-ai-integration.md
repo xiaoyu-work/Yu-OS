@@ -263,18 +263,18 @@ App-origin system Agent task and proactive-job admission.
 Apps may use controlled system services, shared libraries, and the public
 SDK's [six model slots](../yuos-sdk/REFERENCE.md#ai-support) when their
 manifests declare the corresponding capabilities. Agent-to-App authorization
-does not grant these App-to-model rights.
-`tools.call` addresses the fixed `yu ai tool` primitive catalog, not arbitrary
-App tools. Provider credentials,
-model selection, budgets, prompt-origin policy, and model-visible logging stay
-inside the core Agent.
+does not grant these App-to-model rights. Yu OS calls the configured provider
+API or local model without running the Agent or including its prompt, memory,
+history, or tools. The broker owns credentials, selection, budgets,
+prompt-origin policy, and model-visible logging. `tools.call` makes a separate
+capability-checked App operation; it is not part of inference or MCP.
 
 SDK chat calls require explicit prompt origin. `external-content` selects
 the separate `ai.chat.untrusted` capability, not a safety profile. The
 effective App and owner policy selects the profile: `strict` and `standard`
 currently apply the same prompt-secret redaction, and `minimal` does not
 redact. Do not rely on an origin label or profile to detect prompt injection
-or to make model output or proposed tool arguments trustworthy.
+or to make model output trustworthy.
 
 In Node MCP handlers, pass the call's `signal` to `ai.chat` and subsequent
 catalog calls. In Go, pass the `*MCPCall` as the context to `ChatContext`

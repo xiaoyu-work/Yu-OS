@@ -25,7 +25,7 @@ Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
 |--------------|---------------------------------------------------------------|--------------------------------------|
 | `mcp`        | Manifest-bound MCP App service runtime over private stdio      | launched by the Yu OS App Host        |
 | `ai`         | Six configured model slots through `chat` and `infer`         | `yu ai chat` / `yu ai infer`        |
-| `tools`      | Call catalog tools the model proposes (`call`, `catalog`)      | `yu ai tool <name> --app <id>`      |
+| `tools`      | Explicit catalog operations (`call`, `catalog`)               | `yu ai tool <name> --app <id>`      |
 | `gui`        | Desktop GUI bootstrap (kernel context, agent overlay)          | launched via `yu app <id> --gui`    |
 | `objects`    | Pure canonical App object identifiers                        | No transport or dispatch           |
 | `manifest`   | Pure manifest path validation and preview                        | No transport or grants             |

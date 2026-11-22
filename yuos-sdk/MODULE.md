@@ -13,9 +13,10 @@ Rust, Python, Node, and Go bindings.
 - Admit System Agent, permitted external Agent, and authenticated CLI callers,
   never Apps or App-owned agents. Cross-App orchestration is system-Agent-owned.
 - Provide public SDK calls without exposing internal broker details.
-- AI chat retains its public options and error envelope while `yu ai chat`
-  transports bounded prompt/system/tool/budget data to the authenticated broker.
-  Hosted Apps neither resolve local session registries nor own provider access.
+- `yu ai chat` transports bounded text, an optional App instruction and a
+  per-call budget to the authenticated broker. It uses the owner's model
+  without Agent context or system tools. Legacy tool options remain decodable
+  but nonempty lists are rejected. Hosted Apps do not own provider access.
 - Use `ai.infer` for the other five model slots. Its versioned request/reply
   carry only model inputs and results, never a provider selection, file path,
   or grant. Optional GUI permission failures carry a Settings recovery reason.

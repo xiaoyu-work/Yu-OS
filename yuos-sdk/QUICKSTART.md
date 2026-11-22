@@ -1,9 +1,8 @@
-# Quickstart: Use system AI in your App
+# Quickstart: Call a model from your App
 
-This App takes a sentence from the terminal and asks Yu OS to summarize it.
-The user configures the text model with `yu agent setup text`. Yu OS owns the
-provider credentials and checks permission, consent, and budget before calling
-the model. The App just calls `ai.chat`.
+This App summarizes text. The App calls `ai.chat`; Yu OS sends the request to
+the model API the user configured in Settings. The App gets no API key or
+access to the system Agent, its memory, or its tools.
 
 On Yu OS or Ubuntu with the Yu OS Agent package and `yuosd` running, save these
 two files in `hello-ai/`. The Python SDK is included.
@@ -37,7 +36,7 @@ def run(command, args):
 ```
 
 `app.json` asks for permission to use AI chat. `main.py` sends the text to summarize.
-Yu OS uses the user's configured model; the App does not specify a model.
+Yu OS checks permission, consent, and budget. The App does not specify a model.
 
 From the parent directory, sign with your
 [system-trusted App key](../docs/extension-provenance.md#trust-roots).

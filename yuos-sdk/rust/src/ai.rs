@@ -51,8 +51,7 @@ pub struct Review {
     pub prompt_redacted: bool,
 }
 
-/// A tool call the model proposed but the kernel did **not** execute.
-/// Apps decide whether to fulfil it by re-calling [`crate::tools::call`].
+/// Compatibility shape for older runtimes. Model-only chat returns no proposals.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProposedToolCall {
     pub id: String,
@@ -131,6 +130,7 @@ impl ChatOpts {
         self.max_units = Some(n);
         self
     }
+    /// Optional App instruction, not the system Agent's prompt.
     pub fn system(mut self, s: impl Into<String>) -> Self {
         self.system = Some(s.into());
         self
@@ -139,6 +139,7 @@ impl ChatOpts {
         self.app_id = Some(id.into());
         self
     }
+    /// Legacy option. Omit it: model-only chat rejects nonempty lists.
     pub fn tools<I, S>(mut self, tools: I) -> Self
     where
         I: IntoIterator<Item = S>,

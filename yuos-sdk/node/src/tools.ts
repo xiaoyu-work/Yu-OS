@@ -1,20 +1,7 @@
-// Tool helper for Yu OS Node apps.
+// Explicit catalog operations, separate from model calls and MCP.
 //
-// Apps that want to fulfil a model-proposed tool call (returned in
-// `ai.AiResponse.toolCalls` after `ai.chat(..., { tools: [...] })`)
-// shell out through this module to `yu ai tool <name> --app <id>
-// --args <json>`. The kernel resolves the name against the catalog,
-// derives the caps verb + scope, runs caps::require under the app's own
-// grants, executes the implementation, and writes an audit row.
-//
-//   import { ai, tools } from "@yuos/sdk";
-//   const proposal = await ai.chat("Summarise /etc/hostname", {
-//     origin: "trusted",
-//     tools: tools.forChat("fs.read_text"),
-//   });
-//   for (const c of proposal.toolCalls) {
-//     const r = await tools.call(c.name, c.input);
-//   }
+// The kernel runs `yu ai tool` under the App's own capabilities and audits it.
+// This catalog is not exposed to the model by `ai.chat`.
 
 import { BridgeError, Denied, Unavailable, yuCallJsonAsync } from "./transport";
 import {
@@ -149,9 +136,7 @@ export async function catalog(
 }
 
 /**
- * Normalise tool names for `ai.chat`'s `tools` option: trim whitespace
- * and drop empties, so `forChat("fs.read_text", " kv.get ", "")`
- * collapses to two clean entries.
+ * @deprecated Legacy name normalization helper. Do not use for model-only chat.
  */
 export function forChat(...names: string[]): string[] {
   const out: string[] = [];

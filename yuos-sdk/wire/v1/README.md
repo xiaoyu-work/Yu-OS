@@ -14,6 +14,10 @@ returns [`ai_inference.schema.json`](ai_inference.schema.json) in the same
 wire-v1 envelope. It uses the owner's embedding, TTS, STT, image generation,
 or local decision slot. It does not enable the reserved vision/video chat flags.
 
+These routes are model-only, not system Agent calls. Legacy nonempty
+`--tools` lists return `INVALID_ARGS`; no `tool_calls` are returned by
+model-only chat. Wire-v1 clients still decode that field for older runtimes.
+
 SDK callers must declare prompt origin; `origin=external-content` selects
 `ai.chat.untrusted` for chat. The effective policy determines redaction of
 cloud text prompts. Raw audio and owner-local structured decision requests

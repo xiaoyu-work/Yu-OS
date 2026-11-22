@@ -887,15 +887,17 @@ This keeps local, sandboxed, and remote implementations interchangeable.
 
 ### AI ownership
 
-Apps use the Yu OS SDK/agent gate rather than provider SDKs. Provider choice,
-credentials, consent, budgets, model-visible logging, and fallback behavior
-remain owned by the core agent.
+Apps use the Yu OS SDK rather than provider SDKs. The broker calls the
+authenticated owner's configured model API or local model without starting
+the system Agent. It does not include Agent prompts, memory, conversation
+history, or system tools. Model responses cannot dispatch tools.
 
 SDK `ai::chat` calls `yu ai chat`, which always sends a bounded `ai.chat`
 broker request. The worker relay rederives the registered App session and live
 transient capabilities; the daemon runs the existing single-shot AI gate, not
-the system Agent loop. App workers need no local session registry, credentials
-or provider network. The gate applies verified manifest policy, owner consent,
+the system Agent loop. It rejects legacy requests for tools before calling
+the provider. App workers need no local session registry, credentials or
+provider network. The gate applies verified manifest policy, owner consent,
 safety and budgets and persists exact safety-filtered model inputs in the
 owner-partitioned AI ledger. Revoked/replaced grants cancel in-flight calls;
 dispatched reservations are conservatively charged on cancellation.

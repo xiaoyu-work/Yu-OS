@@ -1,26 +1,15 @@
-//! `yu ai tool` — App-facing Tool catalog and executor.
+//! `yu ai tool` — explicitly invoked App operations, separate from inference.
 //!
 //! A **Tool** is a single, narrowly-scoped, capability-guarded action
-//! that the kernel exposes to App-level AI workflows. Tools are the
-//! *primitives* an App's own LLM is allowed to call — they let the OS
-//! audit every effect the AI has on the user's machine.
-//!
-//! Separation of concerns
-//! ----------------------
-//!
-//! - Regular Apps use the kernel's capability system directly (their
-//!   own UI shells out to `yu fs ls`, opens files, etc).
-//! - When an App routes *AI-driven* actions to the system, every such
-//!   action goes through one of these Tools. The App declares which
-//!   Tools it wants in its manifest (`ai.tools = ["fs.read_text", ...]`);
-//!   the user grants them at install time via `yu app consent grant`.
+//! an App can explicitly request under its own authority. It is not
+//! exposed to models and grants no access to the system Agent.
 //!
 //! Why a Tool registry rather than re-using the verb registry directly?
 //! -------------------------------------------------------------------
 //!
 //! - Tools are *higher-level* than verbs. `fs.read_text` is a Tool;
 //!   it requires `fs.read` (a verb). A Tool also pins a stable JSON
-//!   argument schema (for prompt-time function-calling) and a stable
+//!   argument schema and a stable
 //!   JSON return shape. Verbs do not.
 //! - Tools have a **stability tier** (`stable` / `experimental`) so
 //!   we can evolve them without breaking installed Apps.
@@ -59,16 +48,14 @@ use crate::caps::{require, Scope, Verb};
 
 /// One entry in the Tool catalog.
 ///
-/// `name` is the stable identifier Apps put in their manifest and in
-/// LLM function-calling specs. `verb` + `derive_scope` describe the
-/// capability check the kernel performs before running the Tool.
+/// `name` is the stable identifier Apps put in their manifest and use to call
+/// the primitive. `verb` and the derived scope determine the capability check.
 #[derive(Debug, Clone, Serialize)]
 pub struct ToolDef {
     pub name: &'static str,
     pub summary: &'static str,
     pub verb: Verb,
-    /// JSON Schema (draft-07 subset) of arguments. Used for both
-    /// manifest validation and LLM function-call specs.
+    /// JSON Schema (draft-07 subset) of the primitive's arguments.
     pub args_schema: &'static str,
     /// JSON Schema of the return envelope. Stable across versions
     /// within a `stability = "stable"` tier.

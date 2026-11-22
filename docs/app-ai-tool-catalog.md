@@ -1,8 +1,8 @@
 # App AI Tool Catalog
 
-The Tool catalog is the **single source of truth** for what computer
-operations a Yu OS App may ask an LLM to invoke through the kernel
-AI gate. Every entry below is:
+The catalog lists explicit `yu ai tool` operations an App can call with its
+own authority. These operations are not attached to model requests. Every
+entry below is:
 
 * **Verb-bound** — each Tool maps to exactly one capability verb
   (e.g. `fs.read`, `data.kv.read`). The kernel runs `caps::require`
@@ -20,61 +20,25 @@ AI gate. Every entry below is:
   derived caps verb. Operators can grep one file for everything an
   App did under the AI surface.
 
-> **The gate never executes a tool call the model proposed.**
-> `yu ai chat --tools <list>` only *exposes* tools to the model.
-> Proposed calls come back in `ChatResult.tool_calls[]`; the App
-> decides whether to fulfil any of them by shelling to
-> `yu ai tool <name>` (or `tools.call(...)` from the Python SDK).
-> Each fulfilment is its own kernel-mediated, audited call.
+> `yu ai chat` is model-only and rejects nonempty `--tools` lists. It
+> does not expose this catalog or return or execute tool proposals.
 
 For the higher-level architecture and the line between `yu ai`
 (App-facing primitive) and `yu agent` (kernel's own Agent product),
 see [`docs/app-ai-integration.md`](./app-ai-integration.md).
 
-> **App-defined tools are Agent-facing services.** The catalog below is the
-> *kernel-provided* Tool set an App may expose to its own model request.
-> Agent-to-App tools are App-owned, declared in signed
+> **App-defined tools are separate Agent-facing services.** They are declared in signed
 > `app.json.mcp.tools[]`, and called through the authenticated Gateway.
 > Apps cannot call these services; the system Agent orchestrates cross-App work.
 > See [App, Agent, and AI Integration](./app-ai-integration.md).
 
 ---
 
-## How an App uses the catalog
+## Calling a catalog operation from App code
 
-```python
-from yuos_sdk import ai, tools
-
-proposal = ai.chat(
-    prompt="Propose reading the file at /etc/hostname.",
-    origin="trusted",  # This instruction is developer-authored.
-    tools=tools.for_chat("fs.read_text"),
-)
-
-# Inspect proposal.tool_calls before executing a proposal.
-# For an accepted call: result = tools.call(call.name, call.input)
-```
-
-Treat a model proposal as input, not authorization. Check the requested tool
-and target against what the App is meant to do before calling `tools.call`.
-The [matching capabilities and AI consent](app-development.md#7-ai-features)
-must already apply to the calling entry. Declare allowed proposal names in
-the App manifest's `ai` block:
-
-```jsonc
-{
-  "ai": {
-    "budget":  { "monthly_units": 5000 },
-    "safety":  "strict",
-    "origins": ["trusted"],
-    "tools":   ["fs.read_text"]
-  }
-}
-```
-
-For this example the entry also needs `ai.chat` and `fs.read` for the requested
-file. Listing a tool in `ai.tools[]` does not grant either capability.
-Treat file contents used in a later prompt as `external-content`.
+The App explicitly calls `yu ai tool <name>` or the SDK's `tools.call`. Its
+manifest must list the name in `ai.tools[]`, and the call needs the matching
+capability and scope. No model or Agent is invoked.
 
 Unknown names in `ai.tools[]` are rejected at install/launch time
 (see `Manifest::validate_tools_against_catalog`); duplicates are
@@ -99,7 +63,7 @@ Read a UTF-8 text file. Returns the file body.
 
 * **Verb** `fs.read`
 * **Scope binding** `from-arg path` — the `path` argument is the
-  scope the gate enforces. Listing this tool does not let the model
+  scope the gate enforces. Listing this tool does not let the App
   read files outside the App's granted `fs.read` scope. The kernel opens
   the file without following a final symlink, authorizes the opened
   descriptor's resolved target, and reads from that same descriptor.
@@ -232,9 +196,7 @@ catalog can never drift from the implementation:
 After landing the change:
 
 * `yu ai tools` will start reporting the new entry.
-* Apps must add the tool name to their `app.json`'s `ai.tools[]`
-  before they can pass it to `yu ai chat --tools` — the kernel
-  catalog check in `bridge.rs` will otherwise reject the App at
-  launch.
+* Apps must list the name in `app.json`'s `ai.tools[]` before using
+  `yu ai tool <name>`. This does not attach it to inference.
 * The audit stream will record `model="tool:<your_name>"` rows; no
   dashboard changes are needed.

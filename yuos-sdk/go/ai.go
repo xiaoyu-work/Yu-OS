@@ -63,9 +63,7 @@ func (e *AiSafetyViolationError) Error() string {
 	return "AI safety violation"
 }
 
-// ProposedToolCall is a tool call the model proposed but the gate did
-// NOT execute. Apps decide whether to fulfil any by calling Tool with
-// the same Name + Input; ID echoes back to the provider next turn.
+// ProposedToolCall decodes older runtimes' replies. Model-only chat returns no proposals.
 type ProposedToolCall struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
@@ -93,12 +91,11 @@ type ChatOptions struct {
 	Origin string
 	// MaxUnits caps the spend for this call (0 = let the gate decide).
 	MaxUnits int
-	// System is an optional system prompt for chat.
+	// System is an optional App instruction, not the system Agent's prompt.
 	System string
 	// AppID is the app identity; defaults to $YUOS_APP_ID.
 	AppID string
-	// Tools lists catalog tool names the model may *propose*; the gate
-	// never executes them — proposals return in AiResponse.ToolCalls.
+	// Deprecated: Omit Tools. Model-only chat rejects nonempty lists.
 	Tools []string
 }
 

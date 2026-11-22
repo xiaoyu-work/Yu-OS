@@ -9,7 +9,8 @@ system callers that request AI work outside the interactive agent loop.
 
 - Authorize AI verbs/scopes and app identity.
 - Apply consent and budget decisions.
-- Build provider-neutral requests through the configured agent provider.
+- Call the owner's configured model without Agent prompts, history, memory,
+  or tool execution. Text chat rejects tool lists and unsolicited tool replies.
 - Record usage and deny direct provider ownership by apps.
 - Serve SDK `yu ai chat` through the authenticated `yuosd` `ai.chat` route.
   Workers receive neither the session registry, provider credentials nor network

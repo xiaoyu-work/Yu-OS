@@ -1,10 +1,7 @@
-//! Catalog-tool helper — apps that want to fulfil a model-proposed
-//! tool call (returned in [`crate::ai::AiResponse::tool_calls`]) shell
-//! out through this module to `yu ai tool <name> --app <id> --args <json>`.
-//! Mirrors the Python [`yuos_sdk.tools`] module.
+//! Explicit catalog operations, separate from model calls and MCP.
 //!
-//! The kernel runs the catalog implementation under the app's own
-//! capabilities, audits the call, and returns a structured result.
+//! The kernel runs `yu ai tool` under the App's own capabilities and audits it.
+//! This catalog is not exposed to the model by [`crate::ai::chat`].
 
 #![allow(clippy::result_large_err)]
 
@@ -126,8 +123,7 @@ pub fn catalog_names() -> Result<Vec<String>, ToolError> {
     catalog().map(|entries| entries.into_iter().map(|entry| entry.name).collect())
 }
 
-/// Convenience: turn a list of tool names into the `tools=…` argument
-/// shape expected by [`crate::ai::ChatOpts::tools`].
+/// Legacy name normalization helper. Do not use for model-only chat.
 pub fn for_chat<I, S>(names: I) -> Vec<String>
 where
     I: IntoIterator<Item = S>,

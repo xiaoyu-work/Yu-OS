@@ -34,7 +34,7 @@ def summarize(body: str) -> dict:
 | Module                  | Purpose                                                                |
 |-------------------------|------------------------------------------------------------------------|
 | `yuos_sdk.ai`        | The six configured model slots through `chat` and `infer`.          |
-| `yuos_sdk.tools`     | `yu ai tool <name>` — fulfil catalog tools the model proposed.        |
+| `yuos_sdk.tools`     | `yu ai tool <name>` — explicitly call a catalog operation.           |
 | `yuos_sdk.gui`       | Desktop GUI bootstrap and kernel-provided launch context.              |
 | `yuos_sdk.mcp`       | Manifest-bound App MCP server, call context, progress, and cancellation. |
 | `yuos_sdk.kernel`    | Explicit installed-CLI stdin transport with shared wire errors and cancellation. |

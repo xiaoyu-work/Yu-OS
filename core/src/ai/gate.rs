@@ -79,7 +79,7 @@ use crate::agent::llm::{
     run_log::{self, LlmRunRecord},
     types::{
         ChatRequest as LlmChatRequest, ChatResponse as LlmChatResponse, ContentBlock, EngineInfo,
-        FinishReason, Message, Role, StreamEvent,
+        FinishReason, Message, Role, StreamEvent, ToolChoice,
     },
     Provider as LlmProvider, Result as LlmResult,
 };
@@ -132,14 +132,7 @@ pub struct ChatRequest {
     pub video_input: Option<PathBuf>,
     pub video_output: Option<PathBuf>,
 
-    /// Names of App-facing Tools (from `crate::ai::tools::CATALOG`)
-    /// that the App wants exposed to the model on this single call.
-    /// Each name MUST appear in the App's manifest `ai.tools[]`
-    /// allowlist; the gate hard-denies any name that isn't, then
-    /// rewrites the survivors as provider-format tool specs. The
-    /// model **proposes** calls; the gate returns them as
-    /// `tool_calls[]` and never executes them in-line. Empty by
-    /// default — most modalities don't need tools.
+    /// Legacy input carried by older clients. The gate rejects nonempty lists.
     pub tools: Vec<String>,
 }
 
@@ -167,21 +160,15 @@ pub struct ChatResult {
     pub budget: BudgetReport,
     pub review: ReviewReport,
 
-    /// Tool calls the model proposed. Empty when no tools were
-    /// requested or when the model produced no tool calls. The gate
-    /// **never** executes these — Apps inspect them and re-call the
-    /// kernel via `yu ai tool <name>` for whichever they choose.
+    /// Legacy wire field. Model-only calls never return tool proposals.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_calls: Vec<ProposedToolCall>,
 }
 
-/// Provider-agnostic shape of a model-proposed tool call. Mirrors
-/// `crate::agent::llm::types::ToolCall` but lives in the public gate
-/// API so App authors don't have to import internal LLM types.
+/// Legacy wire shape, retained for decoding earlier chat replies.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProposedToolCall {
-    /// Provider-issued unique id. Echo it back when the App later
-    /// fulfils the call so the model can correlate the result.
+    /// Provider-issued unique id.
     pub id: String,
     /// Tool name from the App-facing catalog (e.g. `"fs.read_text"`).
     pub name: String,
@@ -424,19 +411,8 @@ pub enum AiError {
     #[error("modality `{0}` is not yet wired to a provider — gate is ready, but no installed model supports it")]
     ModalityNotSupported(&'static str),
 
-    #[error(
-        "tool `{tool}` is not in app `{app}`'s manifest `ai.tools[]` \
-         allowlist (declared: {allowed:?}). Add it to the manifest and \
-         re-install, or drop it from the `--tools` flag."
-    )]
-    ToolNotInPolicy {
-        app: String,
-        tool: String,
-        allowed: Vec<String>,
-    },
-
-    #[error("unknown tool requested: {0}")]
-    UnknownTool(String),
+    #[error("App model calls do not support tools; remove the tools option")]
+    ToolsNotSupported,
 
     #[error("missing required input for `{modality}`: {field}")]
     MissingInput {
@@ -479,23 +455,21 @@ impl AiError {
             AiError::UnknownApp(_) => "UNKNOWN_APP",
             AiError::BadOrigin(_)
             | AiError::ModalityConflict(_)
+            | AiError::ToolsNotSupported
             | AiError::MissingInput { .. }
-            | AiError::InvalidInference(_) => {
-                "INVALID_ARGS"
-            }
+            | AiError::InvalidInference(_) => "INVALID_ARGS",
             AiError::NoAiPolicy { .. }
             | AiError::AppDisabled(_)
             | AiError::ConsentRequired { .. }
             | AiError::ModelSettingsRequired { .. }
             | AiError::ConsentStale { .. }
             | AiError::OriginNotAllowed { .. }
-            | AiError::ToolNotInPolicy { .. }
             | AiError::Denied(_) => "PERMISSION_DENIED",
             AiError::Budget(BudgetError::OverUnitCap { .. })
             | AiError::UserBudgetExceeded { .. }
             | AiError::RequestBudgetExceeded { .. } => "BUDGET_EXCEEDED",
             AiError::Safety(_) => "SAFETY_VIOLATION",
-            AiError::ModalityNotSupported(_) | AiError::UnknownTool(_) => "UNKNOWN_VERB",
+            AiError::ModalityNotSupported(_) => "UNKNOWN_VERB",
             AiError::Provider(_) => "KERNEL_UNAVAILABLE",
             AiError::BadOverride { .. }
             | AiError::BadConsent { .. }
@@ -612,8 +586,7 @@ pub(crate) fn denial_reason_token(err: &AiError) -> &'static str {
         AiError::OriginNotAllowed { .. } => "origin_not_allowed",
         AiError::ModalityConflict(_) => "modality_conflict",
         AiError::ModalityNotSupported(_) => "modality_not_supported",
-        AiError::ToolNotInPolicy { .. } => "tool_not_in_policy",
-        AiError::UnknownTool(_) => "unknown_tool",
+        AiError::ToolsNotSupported => "tools_not_supported",
         AiError::MissingInput { .. } => "missing_input",
         AiError::InvalidInference(_) => "invalid_args",
         AiError::Denied(_) => "caps_denied",
@@ -936,41 +909,7 @@ async fn chat_inner(
         field: "prompt",
     })?;
 
-    // 8. Resolve any requested Tools against (1) the App's manifest
-    // `ai.tools[]` allowlist and (2) the kernel catalog. The
-    // manifest allowlist is the App's declared intent; the catalog
-    // check guards against typos and model hallucinations. Both
-    // must pass before a Tool is exposed to the model.
-    let resolved_tools: Vec<crate::agent::llm::types::Tool> = if req.tools.is_empty() {
-        Vec::new()
-    } else {
-        let mut out = Vec::with_capacity(req.tools.len());
-        for name in &req.tools {
-            if !policy.tools.iter().any(|t| t == name) {
-                return Err(AiError::ToolNotInPolicy {
-                    app: req.app_id.clone(),
-                    tool: name.clone(),
-                    allowed: policy.tools.clone(),
-                });
-            }
-            let def =
-                crate::ai::tools::lookup(name).ok_or_else(|| AiError::UnknownTool(name.clone()))?;
-            let schema: serde_json::Value =
-                serde_json::from_str(def.args_schema).map_err(|error| {
-                    AiError::Internal(format!(
-                        "catalog schema for tool `{name}` is invalid: {error}"
-                    ))
-                })?;
-            out.push(crate::agent::llm::types::Tool {
-                name: def.name.to_string(),
-                description: def.summary.to_string(),
-                input_schema: schema,
-            });
-        }
-        out
-    };
-
-    // 9. Build the exact provider request, then reserve its conservative
+    // 8. Build the exact provider request, then reserve its conservative
     // maximum (serialized input bytes + provider output limit). Reserving
     // the maximum rather than a 4-chars/token guess prevents concurrent
     // calls from collectively overselling the monthly cap.
@@ -978,7 +917,6 @@ async fn chat_inner(
         &model,
         &prompt,
         req.system.as_deref(),
-        resolved_tools,
         DEFAULT_APP_MAX_OUTPUT_TOKENS,
     );
     let input_units = estimate_input_units(&llm_req);
@@ -1005,7 +943,7 @@ async fn chat_inner(
     }
 
     let provider = llm::registry::build(&cfg.provider, &model, cfg)
-        .map_err(|e| AiError::Provider(e.to_string()))?;
+        .map_err(|error| AiError::Provider(app_provider_error(error)))?;
     let mut reservation = BudgetReservation::for_app(
         authority,
         &req.app_id,
@@ -1013,7 +951,7 @@ async fn chat_inner(
         policy.budget.monthly_units,
     )?;
 
-    // 10. Invoke the provider. Any provider error drops the guard and
+    // 9. Invoke the provider. Any provider error drops the guard and
     // refunds the untouched reservation.
     let llm_resp = if let Some(authority) = authority {
         authority
@@ -1031,22 +969,11 @@ async fn chat_inner(
         provider
             .chat(llm_req)
             .await
-            .map_err(|e| AiError::Provider(e.to_string()))?
+            .map_err(|error| AiError::Provider(app_provider_error(error)))?
     };
     reservation.retain_estimate_on_drop();
 
-    // 11. Extract the text body.
-    let text = llm_resp
-        .content
-        .iter()
-        .filter_map(|b| match b {
-            ContentBlock::Text { text } => Some(text.as_str()),
-            _ => None,
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    // 12. Settle the budget against actuals via the reservation
+    // 10. Settle the budget against actuals via the reservation
     //     guard. `commit()` consumes the guard, so any subsequent
     //     early return (e.g. response construction) does not double-
     //     refund — there is nothing left to roll back.
@@ -1064,6 +991,27 @@ async fn chat_inner(
             });
         }
     }
+
+    if llm_resp.finish_reason == FinishReason::ToolUse
+        || !llm_resp.tool_calls.is_empty()
+        || llm_resp
+            .content
+            .iter()
+            .any(|block| matches!(block, ContentBlock::ToolUse { .. }))
+    {
+        return Err(AiError::Provider(
+            "text model returned an unexpected tool call".into(),
+        ));
+    }
+    let text = llm_resp
+        .content
+        .iter()
+        .filter_map(|block| match block {
+            ContentBlock::Text { text } => Some(text.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
 
     Ok(ChatResult {
         text,
@@ -1086,16 +1034,23 @@ async fn chat_inner(
             safety: safety_label(policy.safety),
             prompt_redacted,
         },
-        tool_calls: llm_resp
-            .tool_calls
-            .into_iter()
-            .map(|tc| ProposedToolCall {
-                id: tc.id,
-                name: tc.name,
-                input: tc.input,
-            })
-            .collect(),
+        tool_calls: Vec::new(),
     })
+}
+
+fn app_provider_error(error: llm::LlmError) -> String {
+    // Raw upstream errors can echo the private endpoint or credentials.
+    match error {
+        llm::LlmError::NotConfigured(_) => "configure a text model in Yu OS settings".into(),
+        llm::LlmError::Auth | llm::LlmError::CredentialStore { .. } => {
+            "text model authentication failed; check Yu OS settings".into()
+        }
+        llm::LlmError::Provider { status, .. } => format!("text model API returned HTTP {status}"),
+        llm::LlmError::RateLimited { retry_after_ms } => {
+            format!("text model API rate limited the request; retry after {retry_after_ms}ms")
+        }
+        _ => "configured text model request failed; check Yu OS settings".into(),
+    }
 }
 
 /// Observe live transient authority while awaiting a potentially slow provider.
@@ -1104,7 +1059,7 @@ pub(crate) async fn await_authorized(
     authority: &crate::yuosd::authority::Decision,
     pending: impl std::future::Future<Output = LlmResult<LlmChatResponse>>,
 ) -> Result<LlmChatResponse, AiError> {
-    await_live(authority, pending).await
+    await_live(authority, async { pending.await.map_err(app_provider_error) }).await
 }
 
 pub(super) async fn await_live<T, E: std::fmt::Display>(
@@ -1131,6 +1086,9 @@ pub(super) async fn await_live<T, E: std::fmt::Display>(
 /// Per-modality required-input check. Runs after origin validation so
 /// the "missing prompt" error doesn't mask an earlier policy denial.
 fn validate_inputs(req: &ChatRequest, m: Modality) -> Result<(), AiError> {
+    if !req.tools.is_empty() {
+        return Err(AiError::ToolsNotSupported);
+    }
     use Modality::*;
     let label = m.label();
     let need_prompt = matches!(
@@ -1277,7 +1235,6 @@ fn build_chat_request(
     model: &str,
     user: &str,
     system: Option<&str>,
-    tools: Vec<crate::agent::llm::types::Tool>,
     max_tokens: u32,
 ) -> LlmChatRequest {
     LlmChatRequest {
@@ -1289,8 +1246,8 @@ fn build_chat_request(
             }],
         }],
         system: system.map(|s| s.to_string()),
-        tools,
-        tool_choice: Default::default(),
+        tools: Vec::new(),
+        tool_choice: ToolChoice::None,
         max_tokens: Some(max_tokens),
         temperature: None,
         top_p: None,

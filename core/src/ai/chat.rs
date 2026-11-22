@@ -1,11 +1,7 @@
-//! `yu ai chat` — App-facing single-shot LLM call.
+//! `yu ai chat` — App-facing single-shot text-model call.
 //!
-//! This is the **only** sanctioned entry point for an installed
-//! third-party App to reach a model. The App-gated path lives under
-//! its own `yu ai …` namespace deliberately: it shares no CLI
-//! surface with `yu agent` (the kernel's own Agent product, with
-//! loop / memory / skills / hooks / recall). Apps get raw LLM
-//! access plus the App–AI Gate; they do not get the Agent.
+//! The App–AI gate sends only the App's input to the configured model.
+//! It does not enter `yu agent` or attach Agent context or system tools.
 //!
 //! The gate ([`crate::ai::gate`]) enforces, in order: request
 //! classification, capability check, manifest model glob + prompt origin
@@ -26,22 +22,13 @@
 //!   --system-file <p>    Read the optional system prompt from a file.
 //!   --origin <kind>      trusted | user-input | external-content (default: trusted).
 //!   --max-units <N>      Cap units for this call.
-//!   --system <text>      Optional system prompt.
+//!   --system <text>      Optional App-authored instruction for the model.
 //!   --embed / --*-input / --*-output
 //!                        Experimental selectors; currently unsupported.
-//!   --tools <list>       Comma-separated catalog tool names to expose
-//!                        to the model (e.g. `fs.read_text,kv.get`).
-//!                        Each name is resolved against
-//!                        `yu ai tools`; unknown names hard-deny.
-//!                        The model may *propose* calls; the gate
-//!                        returns them in `tool_calls[]` and never
-//!                        executes them. Apps shell back via
-//!                        `yu ai tool <name>` to fulfil whichever
-//!                        they choose.
 //!
-//! Apps do **not** pick the model — the OS owner configures one
-//! provider/model in `/etc/yuos/agent.toml` and the gate uses it for
-//! every App call.
+//! Apps do not pick the model or receive its credentials. The broker uses
+//! the authenticated owner's settings. Legacy `--tools` lists are
+//! transported for compatibility and rejected by the gate when nonempty.
 //!
 //! Identity
 //! --------
@@ -333,9 +320,7 @@ pub fn enforce_identity_for(arg_app: &str) -> Result<(), String> {
     .map_err(|denial| format!("App identity ancestry check failed: {}", denial.summary()))
 }
 
-/// Parse `--tools` value (e.g. `"fs.read_text,kv.get"`) into a clean
-/// list. Whitespace around items is trimmed and empty segments are
-/// dropped, so `"fs.read_text, , kv.get"` collapses to two entries.
+/// Normalize the legacy flag; the gate rejects nonempty lists.
 fn parse_tools_flag(raw: &str) -> Vec<String> {
     raw.split(',')
         .map(|s| s.trim().to_string())

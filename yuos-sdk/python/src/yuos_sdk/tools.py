@@ -1,56 +1,7 @@
-"""Tool helper for Yu OS Python apps.
+"""Explicit catalog operations, separate from model calls and MCP.
 
-Apps that want to fulfil a model-proposed tool call (returned in
-``ai.AiResponse.tool_calls`` after ``ai.chat(..., tools=[...])``) shell
-out through this helper to ``yu ai tool <name> --app <id> --args
-<json>``. The kernel runs the catalog implementation under the App's
-own capabilities, audits the call, and returns a structured result.
-
-Why separate from :mod:`yuos_sdk.ai`?
----------------------------------
-
-``ai.chat`` is the **only** path to a language model. Tools are the
-**only** path to *computer operations* the AI is allowed to request.
-Keeping them in distinct modules makes that distinction visible at
-the call site:
-
-    proposal = ai.chat(
-        prompt=..., origin="trusted", tools=tools.for_chat("fs.read_text")
-    )
-    for call in proposal.tool_calls:
-        result = tools.call(call.name, call.input)
-        # ... feed result back into the next ai.chat turn ...
-
-Apps **never** name a verb. The kernel derives the underlying caps
-verb (``fs.read``, ``fs.list``, ``data.kv.read``, ...) from the tool
-name and runs ``caps::require`` against the App's grant before any
-side effect.
-
-Apps also **never** call ``yu agent`` for tools. ``yu agent`` is
-the kernel's own Agent product; ``yu ai tool`` is the App-facing
-primitive. See ``docs/app-ai-integration.md`` §10.
-
-Typical usage
--------------
-
-::
-
-    from yuos_sdk import ai, tools
-
-    proposal = ai.chat(
-        prompt="Summarise the file at /etc/hostname",
-        origin="trusted",
-        tools=tools.for_chat("fs.read_text"),
-    )
-
-    for call in proposal.tool_calls:
-        try:
-            result = tools.call(call.name, call.input)
-        except tools.ToolDenied as e:
-            # caps / unknown / args-shape failure — the gate audited it
-            print("denied:", e.payload)
-            continue
-        # Treat file contents used in any later prompt as external-content.
+The kernel resolves ``yu ai tool`` under the App's own capabilities and audits
+the operation. The catalog is not exposed to the model by ``ai.chat``.
 """
 
 from __future__ import annotations
@@ -244,13 +195,7 @@ def catalog() -> List[CatalogEntry]:
 
 
 def for_chat(*names: str) -> List[str]:
-    """Return tool names ready for :func:`yuos_sdk.ai.chat`'s ``tools=`` kwarg.
-
-    Whitespace is trimmed and empty entries are dropped so
-    ``tools.for_chat("fs.read_text", " kv.get ", "")`` collapses to
-    two clean entries. The returned list contains *only* names — the
-    kernel resolves them against the catalog at call time.
-    """
+    """Legacy name normalization helper. Do not pass names to model-only chat."""
     out: List[str] = []
     for n in names:
         if not isinstance(n, str):

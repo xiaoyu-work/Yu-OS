@@ -72,11 +72,16 @@ generated binding compatibility. No new SDK execution API is introduced.
 
 ## AI support
 
-Apps call the owner's configured model through the SDK. This is separate
-from exposing MCP tools for the system Agent to call. In `app.json`, add the
-capability you need, for example `{"verb": "ai.chat"}`. Use the SDK to send
-the actual text or audio. Do not specify a model ID; Yu OS uses the user's
-settings.
+Yu OS calls the user's configured model API (or runs the configured local
+model). It does not start the system Agent or attach its prompts, memory,
+history, or tools. Yu OS keeps provider credentials; the App sends input
+and receives the model result. Chat rejects nonempty tool lists, even if an
+older manifest declares them. The optional `system` text is the App's own
+instruction to the model.
+
+In `app.json`, add the capability you need, for example `{"verb": "ai.chat"}`.
+Send the actual input in the SDK call, without a model ID. Exposing App tools
+for the system Agent to call via MCP is a separate path.
 
 | Settings slot | SDK call or `infer` input | App capability | Result |
 |---|---|---|---|

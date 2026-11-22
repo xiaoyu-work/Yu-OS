@@ -207,27 +207,12 @@ fn apply_safety_strict_redacts() {
 }
 
 #[test]
-fn tool_not_in_policy_has_stable_denial_token() {
-    let err = AiError::ToolNotInPolicy {
-        app: "demo".into(),
-        tool: "fs.read_text".into(),
-        allowed: vec!["kv.get".into()],
+fn app_provider_error_does_not_forward_upstream_body() {
+    let error = llm::LlmError::Provider {
+        status: 401,
+        message: "do not disclose this provider credential diagnostic".into(),
     };
-    assert_eq!(denial_reason_token(&err), "tool_not_in_policy");
-}
-
-#[test]
-fn tool_not_in_policy_display_mentions_app_tool_and_allowed() {
-    let err = AiError::ToolNotInPolicy {
-        app: "demo".into(),
-        tool: "fs.read_text".into(),
-        allowed: vec!["kv.get".into()],
-    };
-    let msg = err.to_string();
-    assert!(msg.contains("demo"), "{msg}");
-    assert!(msg.contains("fs.read_text"), "{msg}");
-    assert!(msg.contains("kv.get"), "{msg}");
-    assert!(msg.contains("ai.tools[]"), "{msg}");
+    assert_eq!(app_provider_error(error), "text model API returned HTTP 401");
 }
 
 // ---------- BudgetReservation Drop guard (audit fix) ----------
