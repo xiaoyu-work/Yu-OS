@@ -118,6 +118,8 @@ install -Dm0644 "$session/yuos-desktop-accounts.conf" \
 install -Dm0644 "$session/yuos-desktop-users.conf" "$stage/usr/lib/sysusers.d/yuos-desktop-users.conf"
 install -Dm0644 "$session/hyprland-portals.conf" "$stage/usr/share/xdg-desktop-portal/hyprland-portals.conf"
 install -Dm0755 "$session/yuos-oobe" "$stage/usr/libexec/yuos-oobe"
+install -Dm0644 "$session/yuos_oobe_models.py" "$stage/usr/libexec/yuos_oobe_models.py"
+install -Dm0644 "$session/yuos_oobe_regions.py" "$stage/usr/libexec/yuos_oobe_regions.py"
 for file in "$session"/oobe/*; do
     install -Dm0644 "$file" "$stage/usr/share/yuos/oobe/${file##*/}"
 done

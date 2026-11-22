@@ -2,6 +2,7 @@
 """Commit the local image's one-time account setup, never change an existing user."""
 
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,7 @@ import re
 import stat
 import subprocess
 import sys
+import unicodedata
 from zoneinfo import available_timezones
 
 
@@ -18,6 +20,8 @@ AVATARS = Path("/usr/share/yuos/avatars")
 MAX_REQUEST = 256 * 1024
 ENV = {"PATH": "/usr/sbin:/usr/bin", "LANG": "C.UTF-8"}
 ACCOUNT = re.compile(r"[a-z][a-z0-9_-]{0,30}")
+RESERVED = {"root", "daemon", "bin", "sys", "sync", "nobody", "greeter", "_greetd"}
+INPUT_METHODS = {"pinyin", "mozc", "hangul"}
 FIELD = re.compile(r"[a-zA-Z0-9_-]{1,80}\.json")
 
 
@@ -26,20 +30,40 @@ def system(*command, data=None):
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=ENV, check=True)
 
 
+def account_names(value):
+    display = unicodedata.normalize("NFC", value.strip())
+    if (not display or len(display.encode()) > 256 or any(
+        c in ",:" or unicodedata.category(c).startswith("C") for c in value
+    )):
+        raise ValueError("invalidUsername")
+    if ACCOUNT.fullmatch(display):
+        login = display
+    else:
+        ascii_name = unicodedata.normalize("NFKD", display.casefold()).encode("ascii", "ignore").decode()
+        login = re.sub(r"[^a-z0-9_-]+", "-", ascii_name).strip("-_")
+        if not login:
+            login = "yu-" + hashlib.sha256(display.encode()).hexdigest()[:12]
+        elif not login[0].isalpha():
+            login = "yu-" + login
+        login = login[:31]
+    if display.casefold() in RESERVED or login in RESERVED:
+        raise ValueError("usernameTaken")
+    return display, login
+
+
 def request():
     raw = sys.stdin.buffer.read(MAX_REQUEST + 1)
     if len(raw) > MAX_REQUEST:
         raise ValueError("invalidInput")
     data = json.loads(raw)
     if not isinstance(data, dict) or set(data) != {
-        "username", "password", "avatar", "locale", "keyboard", "zone", "light", "agent",
+        "username", "password", "avatar", "locale", "keyboard", "inputMethod", "zone", "light", "agent",
     }:
         raise ValueError("invalidInput")
-    for key in ("username", "password", "locale", "keyboard", "zone"):
+    for key in ("username", "password", "locale", "keyboard", "inputMethod", "zone"):
         if not isinstance(data[key], str):
             raise ValueError("invalidInput")
-    if not ACCOUNT.fullmatch(data["username"]):
-        raise ValueError("invalidUsername")
+    data["display"], data["login"] = account_names(data["username"])
     password = data["password"]
     if not 0 < len(password.encode()) <= 256 or any(c in password for c in "\x00\r\n"):
         raise ValueError("invalidPassword")
@@ -53,8 +77,11 @@ def request():
     layouts = {"us", "gb", "de", "fr", "es", "it", "br", "jp", "ru"}
     locales = system("locale", "-a").stdout.decode().splitlines()
     locale = data["locale"]
+    method = data["inputMethod"]
     if (data["keyboard"] not in layouts or "_" not in locale
             or not locale.endswith(".utf8") or locale not in locales
+            or method and (method not in INPUT_METHODS or data["keyboard"] != "us"
+                           or not Path(f"/usr/share/fcitx5/inputmethod/{method}.conf").is_file())
             or data["zone"] not in available_timezones()):
         raise ValueError("invalidRegionalSettings")
     agent = data["agent"]
@@ -92,6 +119,13 @@ def initialize_home(account, data):
             write(config / "hypr/hyprland.lua",
                   'dofile("/etc/xdg/hypr/hyprland.lua")\n'
                   f'hl.config({{input = {{kb_layout = "{data["keyboard"]}"}}}})\n')
+        if data["inputMethod"]:
+            write(config / "fcitx5/profile",
+                  "[Groups/0]\nName=Default\nDefault Layout=us\n"
+                  f'DefaultIM={data["inputMethod"]}\n\n'
+                  "[Groups/0/Items/0]\nName=keyboard-us\nLayout=\n\n"
+                  f'[Groups/0/Items/1]\nName={data["inputMethod"]}\nLayout=\n\n'
+                  "[GroupOrder]\n0=Default\n")
         # Set the application theme.
         for gtk in ("gtk-3.0", "gtk-4.0"):
             write(config / gtk / "settings.ini",
@@ -129,11 +163,12 @@ def create_owner():
         if any(1000 <= row.pw_uid < 60000 for row in pwd.getpwall()):
             raise ValueError("notAvailable")
         data = request()
-        name = data["username"]
+        name = data["login"]
         home = Path("/home") / name
         if os.path.lexists(home) or any(row.pw_name == name for row in pwd.getpwall()):
             raise ValueError("usernameTaken")
         system("useradd", "--create-home", "--home-dir", str(home), "--shell", "/bin/bash",
+               "--comment", data["display"],
                "--groups", "sudo", "--", name)
         try:
             account = pwd.getpwnam(name)
@@ -144,9 +179,12 @@ def create_owner():
             system("/usr/sbin/update-locale", "LANG=" + locale)
             system("timedatectl", "set-timezone", data["zone"])
             # chpasswd uses the OS password stack; the secret never goes in argv.
-            system("chpasswd", data=(name + ":" + data["password"] + "\n").encode())
+            try:
+                system("chpasswd", data=(name + ":" + data["password"] + "\n").encode())
+            except subprocess.CalledProcessError:
+                raise ValueError("passwordRejected") from None
             set_avatar(account.pw_uid, data["avatar"])
-        except (OSError, subprocess.SubprocessError):
+        except (OSError, ValueError, subprocess.SubprocessError):
             system("userdel", "--remove", "--", name)
             raise
         MARKER.unlink()
@@ -154,16 +192,17 @@ def create_owner():
         system("systemctl", "restart", "yuos-home-setup.service")
     except subprocess.SubprocessError:
         print("Yu OS: first owner created, but checkpoint home setup did not restart", file=sys.stderr)
+    return name
 
 
 if __name__ == "__main__":
     try:
-        create_owner()
+        login = create_owner()
     except ValueError as error:
         code = str(error)
         print(json.dumps({"error": code if code in {
             "notAvailable", "usernameTaken", "invalidInput", "invalidUsername",
-            "invalidPassword", "invalidAvatar", "invalidRegionalSettings", "invalidAgentSettings",
+            "invalidPassword", "passwordRejected", "invalidAvatar", "invalidRegionalSettings", "invalidAgentSettings",
         } else "invalidInput"}))
     except subprocess.CalledProcessError as error:
         print(f"Yu OS: {error.cmd[0]} failed during local owner setup ({error.returncode})", file=sys.stderr)
@@ -172,4 +211,4 @@ if __name__ == "__main__":
         print("Yu OS: local owner setup did not complete", file=sys.stderr)
         print('{"error":"setupFailed"}')
     else:
-        print('{"finished":true}')
+        print(json.dumps({"finished": True, "login": login}))

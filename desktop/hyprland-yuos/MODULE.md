@@ -86,20 +86,35 @@ OS-started Settings instance and a separate administrator decision.
 Settings Users can create a standard or administrator account with a
 password, or reset the password of a selected local account. The OS keeps
 that input out of the App credential store and process arguments.
-The wizard keeps its glass panels. The greeter and the in-session locker use
-the light Yu OS wallpaper full-screen, with dark clock and account captions
-and the password field at the bottom. Cage and Qt Quick render the pre-login UI
+The first-run wizard uses a flat two-column layout. The greeter and the
+in-session locker use the light Yu OS wallpaper full-screen, with dark clock
+and account captions and the password field at the bottom. Cage and Qt Quick render the pre-login UI
 in software; the authenticated desktop retains its normal graphics backend.
 Before greetd starts, the OS hides the text cursor on its configured graphics
 VT only. Mode changes can still briefly blank the display; the login PAM path
 and the ordinary text consoles keep their normal behavior.
-The wizard skips network setup when already connected and leaves display
-mode, scaling and taskbar layout to the defaults. The first owner chooses an
-installed language and a real time zone; the setup helper validates and saves
-both. `yuos-desktop-locales` generates the Debian locales used by the picker.
-The wizard offers conversation and [local Decision](../../docs/decision-model.md)
-configuration as separate optional steps. Before owner creation it stages
-the selection; it does not download or run a model as the greeter.
+The local flow is Language, Keyboard, Network, Models, Account, Time zone,
+and Appearance. It omits Network if already connected on entry. If the
+NetworkManager-triggered driver service still reports packages after
+Appearance, Hardware is the final step. Network and Hardware don't disappear
+once entered. Hardware reads the real driver status; a reconnection lets the
+existing dispatcher retry and installation never blocks finishing.
+`yuos-desktop-locales` generates the installed locales. The regional controls
+preview installed XKB layouts, offer bundled Fcitx5 methods when present, and
+use tzdata for time zone names, locations, and current UTC offsets.
+
+Models is optional and reads the `yu agent setup all providers` catalogue
+for conversation, speech recognition, speech synthesis, image generation,
+embedding, and [local Decision](../../docs/decision-model.md). Continue
+applies completed selections via the same CLI. The local wizard keeps them
+in private staging until account creation. API keys go through stdin; the
+GitHub Copilot device flow polls in the backend. Decision saves the selected
+alias without downloading or starting a model. Account names that need a
+different POSIX login retain their display name in the system account.
+The welcome plays over the wallpaper mark while the existing greetd flow
+runs. It only greets the owner after greetd acknowledges the launch, then
+exits promptly to hand off to the real session. Login failures return to
+normal sign-in. Preconfigured users keep their current account and theme.
 
 The subscriber's `--desktop` mode attaches to the Root login binding. It runs
 post-login configuration only on installed profiles that request it, starts

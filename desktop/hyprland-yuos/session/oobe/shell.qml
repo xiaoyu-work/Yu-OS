@@ -10,140 +10,290 @@ import Quickshell.Services.Greetd
 
 ShellRoot {
     id: setup
-
-    property string current: "network"
-    property string network: ""
-    property bool skipNetwork: false
-    property bool finishing: false
-    property bool signInFailed: false
     readonly property bool local: Quickshell.env("YUOS_LOCAL_DESKTOP_SETUP") === "1"
+    readonly property bool reduced: !!state.reduceMotion
+    property string current: local ? "language" : ""
+    property string networkPage: "undecided"
+    property bool hardwareSeen: false
+    property var hardwarePackages: []
+    property string phase: "setup"
+    property bool passwordSubmitted: false
     property string username: ""
-    property string newPassword: ""
+    property string password: ""
     property string confirmation: ""
-    property string avatar: ""
+    property string avatar: "fox"
     property string language: ""
-    property string keyboard: "us"
+    property string keyboard: ""
     property string zone: ""
-    property bool light: false
-    readonly property bool matchingPassword: newPassword !== "" && newPassword === confirmation
-    readonly property bool validAccount: /^[a-z][a-z0-9_-]{0,30}$/.test(username) && matchingPassword
+    property bool light: true
     property var state: ({
         networkState: "checking", wifiState: "idle", wifiName: "", hasWifi: false, networks: [],
-        driverState: "checking", packages: [], agentState: "idle", providers: [],
-        savedModel: "", userCode: "", signedIn: false, copilotModels: [], finished: false,
-        decisionState: "idle", savedDecision: "",
-        languages: [], zones: [], finishError: ""
+        driverState: "checking", packages: [],
+        catalogue: {}, agentState: "idle", savedModels: {}, modelError: "", modelErrorModality: "",
+        oauthState: "idle", userCode: "", signedIn: false, copilotModels: [],
+        languages: [], keyboards: {}, inputMethods: [], zones: [], zoneClock: {},
+        finishError: "", reduceMotion: false, backendUnavailable: false
     })
-    readonly property var pages: ({
-        network: [qsTr("Get connected"), state.hasWifi ? qsTr("Connect to Wi-Fi or plug in an Ethernet cable.")
-            : qsTr("Plug in an Ethernet cable or continue offline."), networkPage],
-        language: [qsTr("Select a language"), qsTr("Choose the language your system will use."), languagePage],
-        keyboard: [qsTr("Select keyboard layout"), qsTr("This layout takes effect in your desktop session. Setup and sign-in use the current system keyboard."), keyboardPage],
-        agent: [qsTr("Configure a conversation model"), qsTr("Connect a model provider now, or set it up later."), modelPage],
-        decision: [qsTr("Configure a Decision model"), qsTr("Optional local model for choosing, classifying, and scoring. It is separate from the conversation model."), decisionPage],
-        account: [qsTr("Create your account"), qsTr("You'll use this account and password to sign in to Yu OS."), accountPage],
-        location: [qsTr("Select a time zone"), qsTr("Choose the time zone where you use this computer."), locationPage],
-        appearance: [qsTr("Personalize appearance"), qsTr("Preview a light or dark look and set the preference for your apps."), appearancePage],
-        drivers: [qsTr("Set up graphics and hardware"), qsTr("Yu OS installs only the additional packages that match this computer."), driverPage],
-        finish: [qsTr("You're ready"), qsTr("Finish setup to open your Yu OS desktop."), finishPage]
+    readonly property bool connected: ["online", "wired"].includes(state.networkState)
+    readonly property bool showsNetwork: networkPage === "shown" || (networkPage === "undecided" && !connected)
+    readonly property bool showsHardware: hardwareSeen || (state.packages.length > 0
+        && ["pending", "installing", "failed"].includes(state.driverState))
+    readonly property var steps: [
+        ...(local ? ["language", "keyboard"] : []),
+        ...(showsNetwork ? ["network"] : []),
+        "models",
+        ...(local ? ["account", "location", "appearance"] : []),
+        ...(showsHardware ? ["drivers"] : [])
+    ]
+    readonly property int index: steps.indexOf(current)
+    readonly property bool last: index === steps.length - 1
+    readonly property bool handingOff: ["working", "authenticating", "launching", "welcomed"].includes(phase)
+    readonly property bool busy: handingOff || state.agentState === "saving"
+    readonly property bool validAccount: username.trim() !== "" && password !== "" && password === confirmation
+    readonly property bool oauthBusy: ["starting", "authorizing", "loadingModels"].includes(state.oauthState)
+    readonly property var titles: ({
+        language: qsTr("Language"), keyboard: qsTr("Keyboard"), network: qsTr("Network"),
+        models: qsTr("Models"), account: qsTr("Account"), location: qsTr("Time zone"),
+        appearance: qsTr("Appearance"), drivers: qsTr("Hardware")
     })
-    readonly property var steps: {
-        const order = local
-            ? ["language", "keyboard", "agent", "decision", "account", "location", "appearance"]
-            : ["agent", "decision"];
-        if (!skipNetwork)
-            order.unshift("network");
-        if (state.packages.length > 0)
-            order.push("drivers");
-        order.push("finish");
-        return order;
-    }
-    readonly property int step: steps.indexOf(current)
-    readonly property var pageInfo: pages[current]
-
-    function send(action: string, values: var): void {
-        backend.write(JSON.stringify(Object.assign({ action: action }, values ?? {})) + "\n");
-    }
-
-    function go(next: int): void {
-        current = steps[Math.max(0, Math.min(steps.length - 1, next))];
-        scroll.contentItem.contentY = 0;
-        if (current === "network")
-            send("scan");
-        if (current === "agent")
-            send("models");
-        if (current === "decision")
-            send("decisionStatus");
-    }
-
-    function receive(message: var): void {
-        state = Object.assign({}, state, message);
-        if (message.finishError) {
-            finishing = false;
-            if (["invalidUsername", "invalidPassword", "invalidAvatar", "usernameTaken"].includes(message.finishError))
-                go(steps.indexOf("account"));
-        }
-        if (message.finished) {
-            confirmation = "";
-            if (!local)
-                Qt.quit();
-            else if (Greetd.available)
-                Greetd.createSession(username);
-            else
-                cannotSignIn();
-        } else if (!skipNetwork && ["online", "wired"].includes(message.networkState)) {
-            skipNetwork = true;
-            if (current === "network")
-                go(0);
-        } else if (current === "agent" && message.agentState === "saved") {
-            go(step + 1);
-        } else if (current === "decision" && message.decisionState === "saved") {
-            go(step + 1);
-        }
-    }
-
-    function cannotSignIn(): void {
-        newPassword = "";
-        signInFailed = true;
-    }
-
-    function finish(): void {
-        finishing = true;
-        state = Object.assign({}, state, {finishError: ""});
-        if (local) {
-            send("finish", {
-                username: username, password: newPassword, avatar: avatar, locale: language,
-                keyboard: keyboard, zone: zone, light: light
+    readonly property var components: ({
+        language: languagePage, keyboard: keyboardPage, network: wifiPage, models: modelPage,
+        account: accountPage, location: locationPage, appearance: appearancePage, drivers: driverPage
+    })
+    readonly property var languageChoices: {
+        const names = {
+            en_US: ["English (United States)", ""], en_GB: ["English (United Kingdom)", ""],
+            zh_CN: ["简体中文", qsTr("Chinese, Simplified")], zh_TW: ["繁體中文", qsTr("Chinese, Traditional")],
+            ja_JP: ["日本語", qsTr("Japanese")], ko_KR: ["한국어", qsTr("Korean")], de_DE: ["Deutsch", qsTr("German")],
+            fr_FR: ["Français", qsTr("French")], es_ES: ["Español", qsTr("Spanish")], it_IT: ["Italiano", qsTr("Italian")],
+            pt_BR: ["Português (Brasil)", qsTr("Portuguese, Brazil")], ru_RU: ["Русский", qsTr("Russian")]
+        };
+        const ordered = Object.keys(names).map(id => id + ".utf8");
+        return [...ordered.filter(id => state.languages.includes(id)), ...state.languages.filter(id => !ordered.includes(id))]
+            .map(id => {
+                const code = id.split(".")[0];
+                const name = names[code];
+                return {id: id, title: name?.[0] ?? Qt.locale(code).nativeLanguageName ?? code, meta: name?.[1] ?? code};
             });
-        } else {
+    }
+    readonly property var keyboardChoices: {
+        const labels = {
+            us: [qsTr("English (US)"), "QWERTY"], gb: [qsTr("English (UK)"), "QWERTY"],
+            de: [qsTr("German"), "QWERTZ"], fr: [qsTr("French"), "AZERTY"],
+            es: [qsTr("Spanish"), "QWERTY"], it: [qsTr("Italian"), "QWERTY"],
+            br: [qsTr("Portuguese (Brazil)"), "QWERTY"], jp: [qsTr("Japanese"), "JIS"],
+            ru: [qsTr("Russian"), "ЙЦУКЕН"]
+        };
+        const input = {
+            pinyin: qsTr("Chinese (Pinyin)"), mozc: qsTr("Japanese (Mozc)"), hangul: qsTr("Korean (Hangul)")
+        };
+        return Object.keys(labels).filter(id => !!state.keyboards[id])
+            .map(id => ({id: id, title: labels[id][0], meta: labels[id][1], keys: state.keyboards[id]}))
+            .concat(state.keyboards.us ? state.inputMethods.map(id => ({
+                id: id, title: input[id], meta: qsTr("US keyboard · Fcitx5"), keys: state.keyboards.us
+            })) : []);
+    }
+    readonly property var zoneChoices: state.zones.map(row => {
+        const parts = row.id.split("/");
+        return {id: row.id, title: parts[parts.length - 1].replace(/_/g, " "),
+            meta: parts.slice(0, -1).join(" / "), point: row.point};
+    }).sort((a, b) => a.title.localeCompare(b.title))
+    readonly property string localTime: {
+        if (state.zoneClock.id !== zone)
+            return Qt.formatTime(clock.date, Qt.DefaultLocaleShortDate);
+        const shifted = new Date(clock.date.getTime() + state.zoneClock.offsetMinutes * 60000);
+        const hour = shifted.getUTCHours();
+        const minute = String(shifted.getUTCMinutes()).padStart(2, "0");
+        if (language === "en_US.utf8")
+            return qsTr("%1:%2 %3").arg(hour % 12 || 12).arg(minute).arg(hour >= 12 ? qsTr("PM") : qsTr("AM"));
+        return String(hour).padStart(2, "0") + ":" + minute;
+    }
+    readonly property string greeting: {
+        const messages = {
+            zh_CN: "欢迎，%1", zh_TW: "歡迎，%1", ja_JP: "ようこそ、%1", ko_KR: "%1님, 환영합니다",
+            de_DE: "Willkommen, %1", fr_FR: "Bienvenue, %1", es_ES: "Te damos la bienvenida, %1",
+            it_IT: "Ti diamo il benvenuto, %1", pt_BR: "Boas-vindas, %1", ru_RU: "Добро пожаловать, %1"
+        };
+        return (messages[language.split(".")[0]] ?? qsTr("Welcome, %1")).arg(username.trim());
+    }
+
+    function send(action, values) {
+        backend.write(JSON.stringify(Object.assign({action: action}, values ?? {})) + "\n");
+    }
+    function change(next) {
+        if (!next)
+            return;
+        if (next === "network")
+            networkPage = "shown";
+        if (next === "drivers")
+            hardwareSeen = true;
+        current = next;
+        scroll.contentY = 0;
+        if (next === "network")
+            send("scan");
+        else if (next === "models" && !Object.keys(state.catalogue).length)
+            send("models");
+        else if (next === "location")
+            send("zone", {zone: zone});
+    }
+    function advance() {
+        if (current === "keyboard" && networkPage === "undecided" && connected)
+            networkPage = "omitted";
+        if (last)
+            finish();
+        else
+            change(steps[index + 1]);
+    }
+    function pickLanguage(value) {
+        language = value;
+        const preferred = {
+            en_US: "us", en_GB: "gb", zh_CN: "pinyin", zh_TW: "us", ja_JP: "mozc", ko_KR: "hangul",
+            de_DE: "de", fr_FR: "fr", es_ES: "es", it_IT: "it", pt_BR: "br", ru_RU: "ru"
+        }[language.split(".")[0]];
+        if (keyboardChoices.some(row => row.id === preferred))
+            keyboard = preferred;
+        else if (!keyboard)
+            keyboard = keyboardChoices[0]?.id ?? "";
+    }
+    function receive(message) {
+        const previousWifi = state.wifiState;
+        const saved = Object.assign({}, state.savedModels, message.savedModels ?? {}, message.appliedModels ?? {});
+        state = Object.assign({}, state, message, {savedModels: saved});
+        if (message.packages?.length)
+            hardwarePackages = message.packages;
+        if (message.languages && !language) {
+            const preferred = (Quickshell.env("LANG") ?? "").replace(/\.(utf-8)$/i, ".utf8");
+            pickLanguage(state.languages.includes(preferred) ? preferred
+                : state.languages.includes("en_US.utf8") ? "en_US.utf8" : state.languages[0] ?? "");
+        }
+        if (message.localZone && !zone) {
+            zone = state.zones.some(row => row.id === message.localZone) ? message.localZone : "UTC";
+            send("zone", {zone: zone});
+        }
+        if (!local && current === "" && message.networkState) {
+            if (connected)
+                networkPage = "omitted";
+            change(steps[0]);
+        }
+        if (current === "network" && previousWifi === "connecting" && message.wifiState === "idle")
+            page.item.password = "";
+        if (current === "models" && message.agentState === "saveFailed") {
+            page.item.settle(message.appliedModels ?? {});
+            page.item.openError(message.modelErrorModality);
+        } else if (current === "models" && message.agentState === "saved") {
+            send("discardModels");
+            advance();
+        }
+        if (message.finishError) {
+            phase = "setup";
+            if (["invalidUsername", "usernameTaken", "invalidPassword", "passwordRejected", "invalidAvatar"].includes(message.finishError))
+                change("account");
+        } else if (message.finished && phase === "working") {
+            confirmation = "";
+            if (!local) {
+                Qt.quit();
+            } else if (Greetd.available && message.login) {
+                phase = "authenticating";
+                authWindow.restart();
+                Greetd.createSession(message.login);
+            } else {
+                failedSignIn();
+            }
+        }
+    }
+    function finish() {
+        if (busy || (local && !validAccount))
+            return;
+        state = Object.assign({}, state, {finishError: ""});
+        phase = "working";
+        if (!local) {
             send("finish");
+            return;
+        }
+        const ime = state.inputMethods.includes(keyboard);
+        send("finish", {
+            username: username, password: password, avatar: avatar, locale: language,
+            keyboard: ime ? "us" : keyboard, inputMethod: ime ? keyboard : "", zone: zone, light: light
+        });
+    }
+    function clearError() {
+        if (state.finishError)
+            state = Object.assign({}, state, {finishError: ""});
+    }
+    function failedSignIn() {
+        password = "";
+        confirmation = "";
+        phase = "signIn";
+        authWindow.stop();
+    }
+    function continueSetup() {
+        if (current === "models") {
+            state = Object.assign({}, state, {agentState: "saving", modelError: "", modelErrorModality: ""});
+            send("saveModels", {entries: page.item.entries()});
+        } else {
+            advance();
         }
     }
 
     Component.onCompleted: Quickshell.watchFiles = false
 
+    SystemClock { id: clock; precision: SystemClock.Minutes }
+    Timer {
+        interval: 30000
+        repeat: true
+        running: setup.current === "network" && !setup.busy && setup.state.wifiState !== "connecting"
+        onTriggered: setup.send("scan")
+    }
+    Connections {
+        target: clock
+        enabled: setup.local && setup.zone !== ""
+        function onDateChanged() { setup.send("zone", {zone: setup.zone}); }
+    }
+    Timer {
+        id: authWindow
+        interval: 30000
+        onTriggered: {
+            const wasAuthenticating = setup.phase === "authenticating";
+            setup.failedSignIn();
+            if (wasAuthenticating && Greetd.state !== GreetdState.Inactive)
+                Greetd.cancelSession();
+        }
+    }
+    Timer { id: handoff; interval: setup.reduced ? 250 : 620; onTriggered: Qt.quit() }
     Connections {
         target: setup.local ? Greetd : null
-        enabled: setup.state.finished && !setup.signInFailed
+        enabled: setup.phase === "authenticating" || setup.phase === "launching"
 
         function onAuthMessage(message, error, responseRequired, echoResponse) {
             if (!responseRequired)
                 return;
-            if (echoResponse || setup.newPassword === "") {
-                setup.cannotSignIn();
+            if (echoResponse || setup.password === "" || setup.passwordSubmitted) {
+                setup.failedSignIn();
                 Greetd.cancelSession();
                 return;
             }
-            const password = setup.newPassword;
-            setup.newPassword = "";
-            Greetd.respond(password);
+            const answer = setup.password;
+            setup.password = "";
+            setup.passwordSubmitted = true;
+            Greetd.respond(answer);
         }
-        function onAuthFailure(message) { setup.cannotSignIn(); }
-        function onError(message) { setup.cannotSignIn(); }
+        function onAuthFailure(message) { setup.failedSignIn(); }
+        function onError(message) { setup.failedSignIn(); }
         function onReadyToLaunch() {
-            setup.newPassword = "";
+            if (!setup.passwordSubmitted) {
+                setup.failedSignIn();
+                Greetd.cancelSession();
+                return;
+            }
+            setup.phase = "launching";
             Greetd.launch(["/usr/bin/systemd-cat", "--identifier=yuos-desktop",
-                           "/usr/local/bin/yuos-display-session", "--desktop"], ["XDG_SESSION_TYPE=wayland"]);
+                           "/usr/local/bin/yuos-display-session", "--desktop"], ["XDG_SESSION_TYPE=wayland"], false);
+        }
+        function onLaunched() {
+            authWindow.stop();
+            setup.phase = "welcomed";
+            // greetd starts the desktop when the greeter exits. Keep this final hold short.
+            handoff.start();
         }
     }
 
@@ -152,30 +302,15 @@ ShellRoot {
         running: true
         stdinEnabled: true
         command: ["/usr/bin/env", "-u", "GREETD_SOCK", "/usr/libexec/yuos-oobe", "--backend"]
-        stdout: SplitParser {
-            onRead: line => setup.receive(JSON.parse(line))
-        }
+        stdout: SplitParser { onRead: line => setup.receive(JSON.parse(line)) }
         onExited: () => {
-            if (!setup.state.finished)
-                Qt.exit(1);
+            if (setup.phase === "setup" || setup.phase === "working") {
+                setup.password = "";
+                setup.confirmation = "";
+                setup.phase = "setup";
+                setup.state = Object.assign({}, setup.state, {backendUnavailable: true});
+            }
         }
-    }
-
-    QtObject {
-        id: theme
-        readonly property color panel: setup.light ? "#dcf2f6fe" : "#c9182132"
-        readonly property color rail: setup.light ? "#edf3fe" : "#232d42"
-        readonly property color card: setup.light ? "#a4ffffff" : "#a32e3b52"
-        readonly property color hover: setup.light ? "#f8fbff" : "#3c4d69"
-        readonly property color outline: setup.light ? "#9baec9" : "#58718f"
-        readonly property color text: setup.light ? "#172842" : "#f1f5ff"
-        readonly property color muted: setup.light ? "#3d526e" : "#ccd8ec"
-        readonly property color accent: setup.light ? "#315eac" : "#b3d1ff"
-        readonly property color accentInk: setup.light ? "#ffffff" : "#14253f"
-        readonly property color selected: setup.light ? "#cfdef8" : "#486387"
-        readonly property color good: setup.light ? "#235d47" : "#aee6c9"
-        readonly property color error: setup.light ? "#942e2a" : "#ffc5bb"
-        readonly property string font: "Inter"
     }
 
     Controls.ApplicationWindow {
@@ -183,849 +318,283 @@ ShellRoot {
         title: qsTr("Set up Yu OS")
         flags: Qt.FramelessWindowHint
         visibility: Window.FullScreen
-        width: 1100
-        height: 700
-        color: "#161d2c"
-        onClosing: event => event.accepted = setup.state.finished
-        GlassBackdrop {
-            id: background
+        width: 1280
+        height: 800
+        color: "#f3f5f7"
+        font.family: "Inter"
+        font.pixelSize: 15
+        onClosing: event => event.accepted = !setup.local || setup.phase === "signIn"
+
+        readonly property real edge: Math.max(24, Math.min(80, width * 0.0625))
+        readonly property real vEdge: Math.max(18, Math.min(48, height * 0.06))
+        readonly property bool compact: width < 800
+
+        Rectangle {
             anchors.fill: parent
+            color: setup.light ? "#f3f5f7" : "#15181c"
+            opacity: setup.handingOff ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: setup.reduced ? 0 : 280 } }
         }
+        Item {
+            id: surface
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: Math.min(1120, parent.width - 2 * window.edge)
+            height: parent.height
+            opacity: setup.handingOff ? 0 : 1
+            visible: opacity > 0
+            enabled: !setup.handingOff
+            Behavior on opacity { NumberAnimation { duration: setup.reduced ? 0 : 240 } }
 
-        GlassCard {
-            id: mainPanel
-            anchors.centerIn: parent
-            width: Math.min(698, window.width - 30)
-            height: Math.min(590, window.height - 30)
-            wallpaper: background.wallpaper
-            tint: theme.panel
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: window.width < 640 ? 20 : 32
-                spacing: 18
-
-                RowLayout {
-                    spacing: 11
-                    BrandMark {}
-                    ColumnLayout {
-                        spacing: 1
-                        Label { text: "Yu OS"; font.pixelSize: 19; font.weight: Font.DemiBold }
-                        Label { text: qsTr("First-run setup"); color: theme.muted; font.pixelSize: 12 }
-                    }
-                    Item { Layout.fillWidth: true }
-                    Label {
-                        text: qsTr("%1 of %2").arg(setup.step + 1).arg(setup.steps.length)
-                        color: theme.muted
-                        font.pixelSize: 12
-                    }
-                }
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 3
-                    radius: 2
-                    color: theme.outline
-                    Rectangle {
-                        width: parent.width * (setup.step + 1) / setup.steps.length
-                        height: parent.height
-                        radius: 2
-                        color: theme.accent
-                        Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-                    }
-                }
-
-                Controls.ScrollView {
-                    id: scroll
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    contentWidth: availableWidth
-                    clip: true
-                    Controls.ScrollBar.horizontal.policy: Controls.ScrollBar.AlwaysOff
-
-                    ColumnLayout {
-                        width: scroll.availableWidth
-                        spacing: 13
-
-                        Label {
-                            Layout.fillWidth: true
-                            text: setup.pageInfo[0]
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: window.width >= 680 ? 28 : 23
-                            font.weight: Font.DemiBold
-                        }
-                        Label {
-                            Layout.fillWidth: true
-                            Layout.bottomMargin: 5
-                            text: setup.pageInfo[1]
-                            color: theme.muted
-                            wrapMode: Text.Wrap
-                        }
-                        Loader {
-                            id: page
-                            Layout.fillWidth: true
-                            sourceComponent: setup.pageInfo[2]
-                        }
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 1
-                    color: theme.outline
-                }
-                RowLayout {
-                    spacing: 8
-                    ActionButton {
-                        text: qsTr("Back")
-                        visible: setup.step > 0
-                        enabled: !setup.finishing && setup.state.agentState !== "saving" && setup.state.decisionState !== "saving"
-                        onClicked: {
-                            if (setup.current === "agent")
-                                setup.send("cancelSignIn");
-                            setup.go(setup.step - 1);
-                        }
-                    }
-                    Item { Layout.fillWidth: true }
-                    ActionButton {
-                        visible: setup.current === "network" || setup.current === "agent" || setup.current === "decision"
-                        enabled: setup.state.agentState !== "saving" && setup.state.decisionState !== "saving"
-                        text: setup.current === "network" ? qsTr("Continue offline") : qsTr("Set up later")
-                        onClicked: {
-                            if (setup.current === "agent")
-                                setup.send("cancelSignIn");
-                            setup.go(setup.step + 1);
-                        }
-                    }
-                    ActionButton {
-                        primary: true
-                        visible: setup.current !== "network"
-                        enabled: setup.signInFailed || (!setup.finishing
-                            && (setup.current !== "language" || setup.language !== "")
-                            && (setup.current !== "account" || setup.validAccount)
-                            && (setup.current !== "location" || setup.zone !== "")
-                            && (!["agent", "decision"].includes(setup.current) || !!page.item?.canContinue))
-                        text: setup.signInFailed ? qsTr("Go to sign-in")
-                            : setup.state.finished && setup.local ? qsTr("Signing in…")
-                            : setup.current === "finish" ? (setup.finishing ? qsTr("Saving…") : qsTr("Finish"))
-                            : setup.current === "decision" || (setup.current === "agent" && !setup.state.savedModel)
-                                ? qsTr("Save and continue") : qsTr("Next")
-                        onClicked: {
-                            if (setup.signInFailed)
-                                Qt.quit();
-                            else if (setup.current === "agent" || setup.current === "decision")
-                                page.item.advance();
-                            else if (setup.current === "finish")
-                                setup.finish();
-                            else
-                                setup.go(setup.step + 1);
+            Item {
+                id: header
+                anchors.top: parent.top
+                anchors.topMargin: window.vEdge
+                width: parent.width
+                height: 32
+                Row {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 4
+                    visible: setup.index >= 0
+                    Accessible.role: Accessible.ProgressBar
+                    Accessible.name: qsTr("Step %1 of %2").arg(setup.index + 1).arg(setup.steps.length)
+                    Repeater {
+                        model: setup.steps.length
+                        Rectangle {
+                            required property int index
+                            width: index === setup.index ? 24 : 16
+                            height: 4
+                            radius: 2
+                            color: index === setup.index ? "#005cfe" : index < setup.index ? "#0f1520" : "#d5dbe2"
                         }
                     }
                 }
             }
+            Item {
+                id: body
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: header.bottom
+                anchors.bottom: footer.top
+                anchors.topMargin: Math.min(60, window.height * 0.075)
+                anchors.bottomMargin: anchors.topMargin
+                readonly property real gap: Math.min(80, width / 14)
+
+                Controls.Label {
+                    id: title
+                    width: window.compact ? parent.width : Math.round(parent.width * 400 / 1120)
+                    y: window.compact ? 0 : (parent.height - height) / 2
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.Wrap
+                    color: "#0f1520"
+                    font.pixelSize: window.compact ? 30 : 40
+                    font.weight: Font.DemiBold
+                    text: setup.titles[setup.current] ?? qsTr("Set up Yu OS")
+                }
+                Flickable {
+                    id: scroll
+                    x: window.compact ? 0 : title.width + body.gap
+                    width: parent.width - x
+                    y: window.compact ? title.height + 16 : 0
+                    height: Math.max(0, parent.height - y)
+                    contentWidth: width
+                    contentHeight: Math.max(height, work.implicitHeight)
+                    boundsBehavior: Flickable.StopAtBounds
+                    clip: true
+                    Controls.ScrollBar.vertical: Controls.ScrollBar {}
+
+                    Column {
+                        id: work
+                        y: Math.max(0, (scroll.height - implicitHeight) / 2)
+                        width: scroll.width
+                        spacing: 8
+                        Loader {
+                            id: page
+                            width: work.width
+                            sourceComponent: setup.components[setup.current] ?? null
+                            enabled: !setup.busy && setup.phase !== "signIn"
+                        }
+                        Controls.Label {
+                            width: work.width
+                            visible: text !== ""
+                            wrapMode: Text.Wrap
+                            color: "#c0321f"
+                            text: {
+                                if (setup.phase === "signIn")
+                                    return qsTr("Your account is ready, but automatic sign-in didn't finish. Sign in with your password.");
+                                if (setup.state.backendUnavailable)
+                                    return qsTr("Setup is unavailable. Restart this computer to try again.");
+                                const error = setup.state.finishError;
+                                if (!error || (setup.current === "account" && [
+                                    "invalidUsername", "usernameTaken", "invalidPassword", "passwordRejected", "invalidAvatar"
+                                ].includes(error)))
+                                    return "";
+                                return qsTr("Setup couldn't finish. Try again.");
+                            }
+                        }
+                    }
+                }
+            }
+            RowLayout {
+                id: footer
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: window.vEdge
+                width: parent.width
+                height: 44
+                spacing: 8
+
+                SetupButton {
+                    visible: setup.index > 0 && setup.phase !== "signIn"
+                    enabled: !setup.busy
+                    kind: "back"
+                    symbol: "left"
+                    text: qsTr("Back")
+                    onClicked: {
+                        if (setup.current === "models")
+                            setup.send("discardModels");
+                        setup.clearError();
+                        setup.change(setup.steps[setup.index - 1]);
+                    }
+                }
+                Item { Layout.fillWidth: true }
+                SetupButton {
+                    visible: setup.current === "models" && setup.phase !== "signIn"
+                    enabled: !setup.busy && !setup.state.backendUnavailable
+                    text: qsTr("Set up later")
+                    onClicked: {
+                        setup.send("discardModels");
+                        setup.advance();
+                    }
+                }
+                SetupButton {
+                    id: next
+                    objectName: "setupContinue"
+                    visible: setup.index >= 0
+                    kind: setup.current === "network" && !setup.connected ? "secondary" : "primary"
+                    enabled: setup.phase === "signIn" || (!setup.busy && !setup.state.backendUnavailable
+                        && (setup.current !== "language" || !!setup.language)
+                        && (setup.current !== "keyboard" || (!!setup.keyboard && setup.state.networkState !== "checking"))
+                        && (setup.current !== "models" || (!setup.oauthBusy && setup.state.agentState !== "loading"))
+                        && (setup.current !== "account" || setup.validAccount)
+                        && (setup.current !== "location" || !!setup.zone))
+                    text: setup.phase === "signIn" ? qsTr("Go to sign-in")
+                        : setup.state.agentState === "saving" ? qsTr("Saving…")
+                        : setup.current === "network" && !setup.connected ? qsTr("Continue offline")
+                        : setup.last && setup.current !== "models" ? qsTr("Finish setup") : qsTr("Continue")
+                    onClicked: setup.phase === "signIn" ? Qt.quit() : setup.continueSetup()
+                }
+            }
+        }
+
+        SetupMark {
+            id: mark
+            readonly property real wallpaperUnit: 0.72 * Math.max(window.width / 3840, window.height / 2160)
+            x: setup.handingOff ? (window.width - width) / 2 : surface.x
+            y: setup.handingOff ? (window.height - height) / 2 : window.vEdge + 4
+            width: setup.handingOff ? 563 * wallpaperUnit : 26
+            height: width * 524 / 563
+            ink: setup.handingOff && !setup.light ? "#eef2f7" : "#1e1e1e"
+            working: setup.handingOff && setup.phase !== "welcomed" && !setup.reduced
+            Behavior on x { NumberAnimation { duration: setup.reduced ? 0 : 400; easing.type: Easing.InOutCubic } }
+            Behavior on y { NumberAnimation { duration: setup.reduced ? 0 : 400; easing.type: Easing.InOutCubic } }
+            Behavior on width { NumberAnimation { duration: setup.reduced ? 0 : 400; easing.type: Easing.InOutCubic } }
+        }
+        Controls.Label {
+            objectName: "welcomeName"
+            anchors.top: mark.bottom
+            anchors.topMargin: Math.min(40, window.height * 0.05)
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: surface.width
+            horizontalAlignment: Text.AlignHCenter
+            color: setup.light ? "#0f1520" : "#eef2f7"
+            font.weight: Font.DemiBold
+            font.pixelSize: window.compact ? 30 : 40
+            textFormat: Text.PlainText
+            text: setup.phase === "welcomed" ? setup.greeting : ""
+            opacity: setup.phase === "welcomed" ? 1 : 0
+            visible: opacity > 0
+            elide: Text.ElideRight
+            Behavior on opacity { NumberAnimation { duration: setup.reduced ? 0 : 140 } }
         }
     }
 
     Component {
         id: languagePage
-        Picker {
-            function languageName(code: string): string {
-                const locale = Qt.locale(code.split(".")[0]);
-                return qsTr("%1 (%2)").arg(locale.nativeLanguageName).arg(locale.nativeTerritoryName);
-            }
-            label: qsTr("Choose a language")
-            model: setup.state.languages.map(code => languageName(code))
-            selection: setup.language ? languageName(setup.language) : ""
-            onActivated: index => setup.language = setup.state.languages[index]
+        SetupLanguage {
+            installed: setup.languageChoices
+            selected: setup.language
+            availableHeight: scroll.height
+            onChoose: value => setup.pickLanguage(value)
         }
     }
-
     Component {
         id: keyboardPage
-        Picker {
-            readonly property var layouts: ["us", "gb", "de", "fr", "es", "it", "br", "jp", "ru"]
-            label: qsTr("Keyboard layout")
-            model: [qsTr("English (US)"), qsTr("English (UK)"), qsTr("German"), qsTr("French"),
-                    qsTr("Spanish"), qsTr("Italian"), qsTr("Portuguese (Brazil)"), qsTr("Japanese"), qsTr("Russian")]
-            selection: model[layouts.indexOf(setup.keyboard)]
-            onActivated: index => setup.keyboard = layouts[index]
+        SetupKeyboard {
+            layouts: setup.keyboardChoices
+            selected: setup.keyboard
+            onChoose: value => setup.keyboard = value
         }
     }
-
     Component {
-        id: accountPage
-
-        GridLayout {
-            id: account
-            readonly property bool wide: width >= 550
-            readonly property var avatars: [
-                { id: "fox", name: qsTr("Fox") },
-                { id: "penguin", name: qsTr("Penguin") },
-                { id: "rabbit", name: qsTr("Rabbit") },
-                { id: "frog", name: qsTr("Frog") },
-                { id: "robot", name: qsTr("Robot") },
-                { id: "star", name: qsTr("Star") }
-            ]
-            columns: wide ? 2 : 1
-            columnSpacing: 22
-            rowSpacing: 16
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignTop
-                spacing: 8
-
-                Field {
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("Username")
-                    maximumLength: 31
-                    text: setup.username
-                    onTextEdited: setup.username = text
-                }
-                Label {
-                    Layout.fillWidth: true
-                    Layout.bottomMargin: 4
-                    text: qsTr("Start with a lowercase letter. You can also use digits, hyphens or underscores.")
-                    color: theme.muted
-                    font.pixelSize: 12
-                    wrapMode: Text.Wrap
-                }
-                Field {
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("Password")
-                    maximumLength: 256
-                    echoMode: TextInput.Password
-                    text: setup.newPassword
-                    onTextEdited: setup.newPassword = text
-                }
-                Field {
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("Confirm password")
-                    maximumLength: 256
-                    echoMode: TextInput.Password
-                    text: setup.confirmation
-                    onTextEdited: setup.confirmation = text
-                }
-                Label {
-                    Layout.fillWidth: true
-                    visible: (setup.confirmation !== "" && !setup.matchingPassword) || setup.state.finishError !== ""
-                    color: theme.error
-                    text: setup.confirmation !== "" && !setup.matchingPassword ? qsTr("Passwords don't match.")
-                        : setup.state.finishError === "usernameTaken" ? qsTr("That username is already in use.")
-                        : setup.state.finishError === "invalidAvatar" ? qsTr("Choose an available avatar or use the Yu OS logo.")
-                        : qsTr("Check the account and setup fields, then try again.")
-                    wrapMode: Text.Wrap
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: !account.wide
-                Layout.preferredWidth: 276
-                Layout.alignment: Qt.AlignTop
-                implicitHeight: gallery.implicitHeight + 24
-                radius: 16
-                color: theme.card
-                border.color: theme.outline
-
-                Controls.ButtonGroup { id: avatarGroup }
-
-                ColumnLayout {
-                    id: gallery
-
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 8
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 10
-                        AccountAvatar {
-                            Layout.preferredWidth: 40
-                            Layout.preferredHeight: 40
-                            avatarId: setup.avatar
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 2
-                            Label {
-                                Layout.fillWidth: true
-                                text: qsTr("Choose an avatar")
-                                font.pixelSize: 14
-                                font.weight: Font.DemiBold
-                                wrapMode: Text.Wrap
-                            }
-                            Label {
-                                Layout.fillWidth: true
-                                text: account.avatars.find(item => item.id === setup.avatar)?.name ?? qsTr("Yu OS logo")
-                                color: theme.muted
-                                font.pixelSize: 12
-                                elide: Text.ElideRight
-                            }
-                        }
-                        ActionButton {
-                            text: qsTr("Reset")
-                            Accessible.name: qsTr("Use the Yu OS logo")
-                            enabled: setup.avatar !== ""
-                            implicitHeight: 30
-                            leftPadding: 8
-                            rightPadding: 8
-                            font.pixelSize: 12
-                            onClicked: setup.avatar = ""
-                        }
-                    }
-
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: width < 200 ? 2 : width >= 435 ? 6 : 3
-                        columnSpacing: 4
-                        rowSpacing: 3
-
-                        Repeater {
-                            model: account.avatars
-
-                            delegate: Controls.RadioButton {
-                                id: option
-                                required property var modelData
-                                Layout.fillWidth: true
-                                Layout.preferredWidth: 72
-                                implicitHeight: 68
-                                padding: 3
-                                hoverEnabled: true
-                                text: modelData.name
-                                checked: setup.avatar === modelData.id
-                                Controls.ButtonGroup.group: avatarGroup
-                                Accessible.name: text
-                                onClicked: setup.avatar = modelData.id
-                                indicator: null
-                                background: Rectangle {
-                                    radius: 12
-                                    color: option.checked ? theme.selected : option.hovered ? theme.hover : "transparent"
-                                    border.color: option.visualFocus ? theme.accent : "transparent"
-                                }
-                                contentItem: Column {
-                                    spacing: 3
-                                    Item {
-                                        anchors.horizontalCenter: parent.horizontalCenter
-                                        width: 44
-                                        height: 44
-                                        AccountAvatar {
-                                            anchors.fill: parent
-                                            avatarId: option.modelData.id
-                                        }
-                                        Rectangle {
-                                            anchors.fill: parent
-                                            anchors.margins: -2
-                                            radius: width / 2
-                                            color: "transparent"
-                                            border.color: theme.accent
-                                            border.width: 2
-                                            visible: option.checked
-                                        }
-                                    }
-                                    Label {
-                                        width: parent.width
-                                        text: option.text
-                                        font.pixelSize: 11
-                                        horizontalAlignment: Text.AlignHCenter
-                                        elide: Text.ElideRight
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("Shown on sign-in and lock screens.")
-                        color: theme.muted
-                        font.pixelSize: 12
-                        wrapMode: Text.Wrap
-                    }
-                }
+        id: wifiPage
+        SetupNetwork {
+            snapshot: setup.state
+            onConnectTo: (name, password) => {
+                setup.state = Object.assign({}, setup.state, {wifiState: "connecting", wifiName: name});
+                setup.send("wifi", {network: name, password: password});
             }
         }
     }
-
-    Component {
-        id: locationPage
-        ColumnLayout {
-            id: timeZonePage
-            readonly property var matches: setup.state.zones.filter(zone =>
-                zone.toLowerCase().replace(/_/g, " ").includes(filterZone.text.trim().toLowerCase()))
-
-            function zoneName(zone: string): string {
-                return zone.replace(/_/g, " ");
-            }
-
-            Field {
-                id: filterZone
-                Layout.fillWidth: true
-                placeholderText: qsTr("Search by city or time zone")
-            }
-            Picker {
-                Layout.fillWidth: true
-                label: qsTr("Choose a time zone")
-                model: timeZonePage.matches.map(zone => timeZonePage.zoneName(zone))
-                selection: timeZonePage.zoneName(setup.zone)
-                onActivated: index => setup.zone = timeZonePage.matches[index]
-            }
-        }
-    }
-
-    Component {
-        id: appearancePage
-        RowLayout {
-            spacing: 12
-            ActionButton {
-                Layout.fillWidth: true
-                primary: !setup.light
-                text: qsTr("Dark")
-                onClicked: setup.light = false
-            }
-            ActionButton {
-                Layout.fillWidth: true
-                primary: setup.light
-                text: qsTr("Light")
-                onClicked: setup.light = true
-            }
-        }
-    }
-
-    Component {
-        id: networkPage
-        ColumnLayout {
-            id: networks
-            spacing: 10
-            readonly property var selected: setup.state.networks.find(row => row.name === setup.network)
-            function connectWifi(): void {
-                setup.send("wifi", { network: setup.network, password: password.text });
-                password.clear();
-            }
-            Status {
-                Layout.fillWidth: true
-                tint: setup.state.networkState === "online" ? theme.good : theme.muted
-                text: {
-                    if (setup.state.wifiState === "connecting")
-                        return qsTr("Connecting to %1…").arg(setup.state.wifiName);
-                    if (setup.state.networkState === "online")
-                        return qsTr("Connected to the internet");
-                    if (setup.state.networkState === "wired")
-                        return qsTr("Connected by Ethernet");
-                    if (setup.state.wifiState === "failed")
-                        return qsTr("Couldn't connect. Check the Wi-Fi password and try again.");
-                    if (setup.state.wifiState === "passwordRequired")
-                        return qsTr("Enter a WPA password or select a saved or open network.");
-                    if (setup.state.networkState === "portal")
-                        return qsTr("This network requires a sign-in. Try another network or continue offline.");
-                    if (setup.state.networkState === "unavailable")
-                        return qsTr("NetworkManager is unavailable. You can continue offline.");
-                    return setup.state.networkState === "checking" ? qsTr("Checking connection…") : qsTr("Not connected");
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                visible: setup.state.hasWifi
-                Label { Layout.fillWidth: true; text: qsTr("Wi-Fi networks"); font.weight: Font.DemiBold }
-                ActionButton { text: qsTr("Rescan"); onClicked: setup.send("scan") }
-            }
-            ListView {
-                Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(setup.state.networks.length, 3) * 44
-                clip: true
-                model: setup.state.networks
-                visible: count > 0
-                Controls.ScrollBar.vertical: Controls.ScrollBar {}
-                delegate: Controls.ItemDelegate {
-                    id: accessPoint
-                    required property var modelData
-                    width: ListView.view.width
-                    height: 43
-                    highlighted: modelData.name === setup.network
-                    enabled: setup.state.wifiState !== "connecting"
-                    Accessible.name: modelData.name
-                    background: Rectangle {
-                        radius: 12
-                        color: accessPoint.highlighted ? theme.selected : (accessPoint.hovered ? theme.hover : theme.card)
-                        border.color: accessPoint.visualFocus ? theme.accent : "transparent"
-                    }
-                    contentItem: RowLayout {
-                        Label { Layout.fillWidth: true; text: accessPoint.modelData.name; elide: Text.ElideRight }
-                        Label { text: accessPoint.modelData.secure ? qsTr("Secured") : qsTr("Open"); color: theme.muted; font.pixelSize: 12 }
-                    }
-                    onClicked: {
-                        if (setup.network !== modelData.name)
-                            password.clear();
-                        setup.network = modelData.name;
-                    }
-                }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                visible: !!networks.selected
-                enabled: setup.state.wifiState !== "connecting"
-                Field {
-                    id: password
-                    Layout.fillWidth: true
-                    visible: !!networks.selected?.secure
-                    placeholderText: qsTr("Wi-Fi password")
-                    echoMode: TextInput.Password
-                    onAccepted: networks.connectWifi()
-                }
-                ActionButton { primary: true; text: qsTr("Connect"); onClicked: networks.connectWifi() }
-            }
-        }
-    }
-
-    Component {
-        id: driverPage
-        ColumnLayout {
-            spacing: 12
-            Status {
-                Layout.fillWidth: true
-                text: {
-                    if (setup.state.driverState === "installing")
-                        return qsTr("Downloading and installing the matched packages…");
-                    if (setup.state.driverState === "failed")
-                        return qsTr("Installation didn't finish. Yu OS will retry on a new connection.");
-                    return qsTr("Waiting for the driver installer…");
-                }
-            }
-            Label {
-                Layout.fillWidth: true
-                text: setup.state.packages.join(", ")
-                color: theme.muted
-                wrapMode: Text.Wrap
-            }
-        }
-    }
-
     Component {
         id: modelPage
-        ColumnLayout {
-            id: model
-            spacing: 10
-            property var provider: null
-            readonly property bool oauth: provider?.auth_kind === "oauth_device"
-            readonly property bool busy: ["loading", "saving", "signingIn", "authorizing", "loadingModels"].includes(setup.state.agentState)
-            readonly property bool needsKey: !!provider?.needs_credential && !oauth
-            readonly property bool needsEndpoint: provider?.extra_fields?.some(field => field.key === "base_url" && field.required) ?? false
-            readonly property bool canContinue: !busy && (!!setup.state.savedModel || !!(
-                provider && modelName.text.trim() && (!needsEndpoint || endpoint.text.trim())
-                && (!needsKey || secret.text.trim()) && (!oauth || setup.state.signedIn)))
-            readonly property var suggestions: oauth ? setup.state.copilotModels : (provider?.models ?? []).map(item => item.name)
-
-            function advance(): void {
-                if (setup.state.savedModel) {
-                    setup.go(setup.step + 1);
-                    return;
-                }
-                setup.send("saveModel", {
-                    provider: provider.name, model: modelName.text, apiKey: secret.text,
-                    endpoint: endpoint.visible ? endpoint.text : "", apiVersion: apiVersion.visible ? apiVersion.text : ""
-                });
-                secret.clear();
-            }
-
-            Status {
-                Layout.fillWidth: true
-                visible: setup.state.savedModel !== "" || model.busy || ["saveFailed", "signInFailed", "unavailable"].includes(setup.state.agentState)
-                tint: setup.state.savedModel ? theme.good
-                    : ["saveFailed", "signInFailed", "unavailable"].includes(setup.state.agentState) ? theme.error : theme.muted
-                text: {
-                    if (setup.state.savedModel)
-                        return qsTr("Model configured: %1").arg(setup.state.savedModel);
-                    const messages = {
-                        loading: qsTr("Loading providers…"), saving: qsTr("Saving model configuration…"),
-                        signingIn: qsTr("Requesting a sign-in code…"), authorizing: qsTr("Waiting for GitHub sign-in…"),
-                        loadingModels: qsTr("Loading Copilot models…"),
-                        unavailable: qsTr("Couldn't load the provider list. You can configure your Agent later."),
-                        saveFailed: qsTr("Couldn't save the model. Check the fields and try again."),
-                        signInFailed: qsTr("GitHub sign-in didn't finish. Try again.")
-                    };
-                    return messages[setup.state.agentState] ?? "";
-                }
-            }
-            Picker {
-                Layout.fillWidth: true
-                visible: !setup.state.savedModel && setup.state.providers.length > 0
-                enabled: !model.busy
-                label: qsTr("Choose a provider")
-                selection: model.provider ? (model.oauth ? "GitHub Copilot" : model.provider.label) : ""
-                model: setup.state.providers.map(provider => provider.name === "copilot" ? "GitHub Copilot" : provider.label)
-                onActivated: index => {
-                    model.provider = setup.state.providers[index];
-                    secret.clear();
-                    endpoint.clear();
-                    apiVersion.clear();
-                    modelName.text = model.oauth ? "" : (model.provider.default_model ?? "");
-                }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                visible: model.oauth && !setup.state.signedIn
-                ActionButton {
-                    text: qsTr("Sign in with GitHub")
-                    enabled: !model.busy
-                    onClicked: setup.send("signIn")
-                }
-                ActionButton {
-                    visible: setup.state.userCode !== ""
-                    text: qsTr("Cancel sign-in")
-                    onClicked: setup.send("cancelSignIn")
-                }
-            }
-            Label {
-                Layout.fillWidth: true
-                visible: model.oauth && setup.state.userCode !== ""
-                text: qsTr("Enter code %1 at github.com/login/device.").arg(setup.state.userCode)
-                color: theme.accent
-                wrapMode: Text.Wrap
-            }
-            ActionButton {
-                visible: model.oauth && setup.state.userCode !== ""
-                text: qsTr("Open GitHub")
-                onClicked: Qt.openUrlExternally("https://github.com/login/device")
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                visible: !!model.provider && !setup.state.savedModel && (!model.oauth || setup.state.signedIn)
-                enabled: !model.busy
-                Field {
-                    id: modelName
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("Model name")
-                }
-                Picker {
-                    visible: model.suggestions.length > 0
-                    Layout.preferredWidth: 152
-                    label: qsTr("Browse models")
-                    model: model.suggestions
-                    onActivated: index => modelName.text = model.suggestions[index]
-                }
-            }
-            Field {
-                id: secret
-                Layout.fillWidth: true
-                visible: model.needsKey && !setup.state.savedModel
-                enabled: !model.busy
-                placeholderText: qsTr("API key")
-                echoMode: TextInput.Password
-            }
-            Field {
-                id: endpoint
-                Layout.fillWidth: true
-                visible: !setup.state.savedModel && ["azure", "ollama", "openai_compat", "openai", "xai", "deepseek", "openrouter"].includes(model.provider?.name)
-                enabled: !model.busy
-                placeholderText: model.needsEndpoint ? qsTr("Provider endpoint (required)") : qsTr("Custom endpoint (optional)")
-            }
-            Field {
-                id: apiVersion
-                Layout.fillWidth: true
-                visible: !setup.state.savedModel && model.provider?.name === "azure"
-                enabled: !model.busy
-                placeholderText: qsTr("Azure API version (optional)")
+        SetupModels {
+            snapshot: setup.state
+            onRequest: action => setup.send(action)
+            onReveal: item => {
+                const y = item.mapToItem(scroll.contentItem, 0, 0).y;
+                scroll.contentY = Math.max(0, Math.min(y, scroll.contentHeight - scroll.height));
             }
         }
     }
-
     Component {
-        id: decisionPage
-        ColumnLayout {
-            id: decision
-            spacing: 10
-            readonly property bool canContinue: /^[a-zA-Z0-9._:/-]{1,128}$/.test(decisionName.text.trim())
-                && !["loading", "saving", "unavailable"].includes(setup.state.decisionState)
-
-            function advance(): void {
-                const model = decisionName.text.trim();
-                if (model === setup.state.savedDecision)
-                    setup.go(setup.step + 1);
-                else
-                    setup.send("saveDecision", {model: model});
-            }
-
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("Enter the alias of a local System One model. This saves the selection only; it does not download a model or start its service.")
-                wrapMode: Text.WordWrap
-                color: theme.muted
-            }
-            Field {
-                id: decisionName
-                Layout.fillWidth: true
-                text: setup.state.savedDecision
-                maximumLength: 128
-                enabled: !["loading", "saving", "unavailable"].includes(setup.state.decisionState)
-                placeholderText: qsTr("Local model alias")
-            }
-            Status {
-                Layout.fillWidth: true
-                visible: text !== ""
-                tint: ["unavailable", "saveFailed"].includes(setup.state.decisionState) ? theme.error : theme.muted
-                text: {
-                    const messages = {
-                        loading: qsTr("Loading Decision configuration…"),
-                        saving: qsTr("Saving Decision configuration…"),
-                        unavailable: qsTr("Couldn't load Decision setup. You can set it up later in Settings."),
-                        saveFailed: qsTr("Couldn't save the Decision model. Check the alias and try again.")
-                    };
-                    return messages[setup.state.decisionState] ?? "";
-                }
-            }
+        id: accountPage
+        SetupAccount {
+            avatar: setup.avatar
+            username: setup.username
+            password: setup.password
+            confirmation: setup.confirmation
+            error: setup.state.finishError
+            onChooseAvatar: value => { setup.avatar = value; setup.clearError(); }
+            onEditName: value => { setup.username = value; setup.clearError(); }
+            onEditPassword: value => { setup.password = value; setup.clearError(); }
+            onEditConfirmation: value => setup.confirmation = value
+            onSubmit: if (next.enabled) setup.advance()
         }
     }
-
     Component {
-        id: finishPage
-        ColumnLayout {
-            Status {
-                Layout.fillWidth: true
-                tint: setup.signInFailed || setup.state.finishError ? theme.error : theme.muted
-                text: {
-                    if (setup.signInFailed)
-                        return qsTr("Your account is ready, but automatic sign-in didn't complete. Sign in with the password you just set.");
-                    if (setup.state.finishError === "busy")
-                        return qsTr("Wait for the current setup operation, then try again.");
-                    if (setup.state.finishError === "invalidRegionalSettings")
-                        return qsTr("Go back and choose a language, keyboard layout, and time zone.");
-                    if (setup.state.finishError)
-                        return setup.local ? qsTr("Couldn't finish creating the account. Your desktop hasn't been opened. Try again.")
-                            : qsTr("Couldn't save setup completion. Check that your home folder is writable.");
-                    if (setup.local)
-                        return qsTr("Account: %1").arg(setup.username);
-                    return setup.state.savedModel ? qsTr("Your Agent model is set to %1.").arg(setup.state.savedModel)
-                        : qsTr("You can still configure your Agent from Settings.");
-                }
-            }
-            Label {
-                Layout.fillWidth: true
-                visible: setup.state.savedDecision !== ""
-                text: qsTr("Decision model selection: %1").arg(setup.state.savedDecision)
-                wrapMode: Text.WordWrap
-                color: theme.muted
-            }
+        id: locationPage
+        SetupLocation {
+            choices: setup.zoneChoices
+            selected: setup.zone
+            clock: setup.state.zoneClock
+            localTime: setup.localTime
+            onChoose: value => { setup.zone = value; setup.send("zone", {zone: value}); }
         }
     }
-
-    component Label: Text {
-        color: theme.text
-        font.family: theme.font
-        font.pixelSize: 15
-        textFormat: Text.PlainText
-    }
-
-    component Status: Rectangle {
-        id: box
-        property alias text: caption.text
-        property color tint: theme.muted
-        color: theme.card
-        radius: 14
-        implicitHeight: caption.implicitHeight + 24
-        Label {
-            id: caption
-            anchors.fill: parent
-            anchors.margins: 12
-            color: box.tint
-            wrapMode: Text.Wrap
+    Component {
+        id: appearancePage
+        SetupAppearance {
+            light: setup.light
+            currentTime: setup.localTime
+            onChoose: value => setup.light = value
         }
     }
-
-    component ActionButton: Controls.Button {
-        id: button
-        property bool primary: false
-        implicitHeight: 42
-        leftPadding: 16
-        rightPadding: 16
-        hoverEnabled: true
-        font.family: theme.font
-        font.pixelSize: 14
-        font.weight: Font.DemiBold
-        background: Rectangle {
-            radius: 21
-            color: button.primary && button.enabled
-                ? (button.down ? Qt.darker(theme.accent, 1.14) : button.hovered ? Qt.lighter(theme.accent, 1.09) : theme.accent)
-                : button.hovered && button.enabled ? theme.hover : theme.card
-            border.color: button.visualFocus ? theme.accent : "transparent"
-            border.width: 2
-        }
-        contentItem: Label {
-            text: button.text
-            font: button.font
-            color: !button.enabled ? theme.muted : button.primary ? theme.accentInk : theme.text
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
-    }
-
-    component Field: Controls.TextField {
-        id: input
-        implicitHeight: 42
-        leftPadding: 12
-        rightPadding: 12
-        color: theme.text
-        placeholderTextColor: theme.muted
-        selectionColor: theme.selected
-        selectedTextColor: theme.text
-        font.family: theme.font
-        font.pixelSize: 14
-        inputMethodHints: echoMode === TextInput.Password ? Qt.ImhSensitiveData | Qt.ImhNoPredictiveText : Qt.ImhNone
-        Accessible.name: placeholderText
-        background: Rectangle {
-            radius: 12
-            color: theme.card
-            border.color: input.activeFocus ? theme.accent : theme.outline
-        }
-    }
-
-    component Picker: Controls.ComboBox {
-        id: picker
-        property string label
-        property string selection
-        implicitHeight: 42
-        currentIndex: -1
-        hoverEnabled: true
-        leftPadding: 12
-        rightPadding: 34
-        displayText: selection || label
-        Accessible.name: label
-        palette.dark: theme.accent
-        background: Rectangle {
-            radius: 12
-            color: picker.hovered ? theme.hover : theme.card
-            border.color: picker.visualFocus ? theme.accent : theme.outline
-        }
-        contentItem: Label {
-            text: picker.displayText
-            font.pixelSize: 14
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
-        }
-        delegate: Controls.ItemDelegate {
-            id: choice
-            required property string modelData
-            required property int index
-            width: picker.width - 10
-            highlighted: picker.highlightedIndex === index
-            Accessible.name: modelData
-            contentItem: Label { text: choice.modelData; elide: Text.ElideRight }
-            background: Rectangle {
-                radius: 9
-                color: choice.highlighted || choice.hovered ? theme.selected : "transparent"
-            }
-        }
-        popup: Controls.Popup {
-            y: picker.height + 4
-            width: picker.width
-            padding: 5
-            implicitHeight: Math.min(224, contentItem.implicitHeight + 10)
-            background: Rectangle { radius: 12; color: theme.rail; border.color: theme.outline }
-            contentItem: ListView {
-                clip: true
-                implicitHeight: contentHeight
-                model: picker.popup.visible ? picker.delegateModel : null
-                currentIndex: picker.highlightedIndex
-                Controls.ScrollBar.vertical: Controls.ScrollBar {}
-            }
+    Component {
+        id: driverPage
+        SetupHardware {
+            status: setup.state.driverState
+            packages: setup.hardwarePackages
+            reduceMotion: setup.reduced
         }
     }
 }

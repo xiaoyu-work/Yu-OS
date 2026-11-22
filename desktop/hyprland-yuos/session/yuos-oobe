@@ -11,7 +11,9 @@ import subprocess
 import sys
 import tempfile
 import time
-from zoneinfo import available_timezones
+
+from yuos_oobe_models import Models
+from yuos_oobe_regions import regional_choices, zone_clock
 
 
 SHELL = "/usr/bin/quickshell"
@@ -20,7 +22,7 @@ YU = "/usr/local/bin/yu"
 DRIVERS = Path("/var/lib/yuos/driver-setup/status.json")
 
 
-def backend(completed, staging=None):
+def backend(completed, staging, local):
     import gi
 
     gi.require_version("NM", "1.0")
@@ -36,28 +38,30 @@ def backend(completed, staging=None):
             self.nm = None
             self.wifi_signals = []
             self.networks = {}
+            self.last_scan = 0
             self.connecting = None
             self.connection = None
             self.child = None
-            self.providers = {}
-            self.oauth = None
-            self.oauth_timer = 0
-            self.signed_in = False
+            self.models = Models(Gio, GLib, send, YU, staging, local)
 
         def run(self):
             GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, self.stop)
             self.watch_drivers()
             NM.Client.new_async(None, self.network_ready)
-            if staging is not None:
-                locales = subprocess.check_output(["/usr/bin/locale", "-a"], text=True).splitlines()
-                send(languages=[item for item in locales if "_" in item and item.endswith(".utf8")],
-                     zones=sorted(available_timezones()))
+            schemas = Gio.SettingsSchemaSource.get_default()
+            motion = schemas.lookup("org.gnome.desktop.interface", True) if schemas else None
+            send(reduceMotion=os.environ.get("YUOS_REDUCE_MOTION") == "1"
+                 or bool(motion and not Gio.Settings.new_full(motion, None, None).get_boolean("enable-animations")))
+            if local:
+                send(**regional_choices())
             self.read_request()
             try:
                 self.loop.run()
             finally:
                 if self.child is not None:
                     self.child.force_exit()
+                if self.models.child is not None:
+                    self.models.child.force_exit()
 
         def stop(self):
             self.loop.quit()
@@ -80,19 +84,19 @@ def backend(completed, staging=None):
             if action == "scan":
                 self.scan()
             elif action == "wifi":
-                self.connect_wifi(message["network"], message["password"])
+                self.connect_wifi(message.get("network"), message.get("password"))
             elif action == "models":
-                self.load_models()
+                self.models.load()
             elif action == "signIn":
-                self.sign_in()
+                self.models.sign_in()
             elif action == "cancelSignIn":
-                self.end_sign_in()
-            elif action == "saveModel":
-                self.save_model(message)
-            elif action == "decisionStatus":
-                self.decision_status()
-            elif action == "saveDecision":
-                self.save_decision(message.get("model"))
+                self.models.cancel_sign_in()
+            elif action == "discardModels":
+                self.models.discard()
+            elif action == "saveModels":
+                self.models.apply(message.get("entries"))
+            elif action == "zone":
+                send(zoneClock=zone_clock(message.get("zone")))
             elif action == "finish":
                 self.finish(message)
 
@@ -100,7 +104,7 @@ def backend(completed, staging=None):
             if self.child is not None:
                 send(finishError="busy")
                 return
-            if staging is None:
+            if not local:
                 try:
                     completed.parent.mkdir(parents=True, exist_ok=True)
                     completed.touch(mode=0o600)
@@ -111,15 +115,7 @@ def backend(completed, staging=None):
                 return
 
             try:
-                profile = staging / "config/config.json"
-                if profile.is_file():
-                    records = (staging / "data/credentials/agent").glob("*.json")
-                    message["agent"] = {
-                        "config": json.loads(profile.read_bytes()),
-                        "credentials": {file.name: json.loads(file.read_bytes()) for file in records},
-                    }
-                else:
-                    message["agent"] = None
+                message["agent"] = self.models.selection()
                 flags = Gio.SubprocessFlags
                 launcher = Gio.SubprocessLauncher.new(flags.STDIN_PIPE | flags.STDOUT_PIPE)
                 # The greeter is a service account, not an interactive shell.
@@ -131,16 +127,24 @@ def backend(completed, staging=None):
                 send(finishError="setupFailed")
                 return
 
-            def finish_result(response):
-                if response.get("finished") is True:
-                    send(finished=True)
+            def finish_result(child, result):
+                self.child = None
+                try:
+                    _, stdout, _ = child.communicate_utf8_finish(result)
+                    response = json.loads(stdout) if child.get_successful() else {}
+                except (GLib.Error, ValueError):
+                    response = {}
+                login = response.get("login", "")
+                if response.get("finished") is True and re.fullmatch(r"[a-z][a-z0-9_-]{0,30}", login):
+                    send(finished=True, login=login)
                 else:
                     send(finishError=response.get("error", "setupFailed"))
 
-            self.child.communicate_utf8_async(json.dumps(message), None, self.yu_result, finish_result)
+            self.child.communicate_utf8_async(json.dumps(message), None, finish_result)
 
         def watch_drivers(self):
             self.driver_monitor = None
+            self.driver_snapshot = None
             if DRIVERS.parent.is_dir():
                 self.driver_monitor = Gio.File.new_for_path(str(DRIVERS.parent)).monitor_directory(
                     Gio.FileMonitorFlags.WATCH_MOVES, None
@@ -151,9 +155,20 @@ def backend(completed, staging=None):
         def update_drivers(self):
             try:
                 status = json.loads(DRIVERS.read_text())
+            except FileNotFoundError:
+                status = {"state": "ready", "packages": []}
             except (OSError, ValueError):
-                status = {}
-            send(driverState=status.get("state", "ready"), packages=status.get("packages", []))
+                print("Yu OS: could not read driver setup status", file=sys.stderr)
+                return
+            if (not isinstance(status, dict) or status.get("state") not in ("pending", "installing", "ready", "failed")
+                    or not isinstance(status.get("packages"), list)
+                    or any(not isinstance(package, str) for package in status["packages"])):
+                print("Yu OS: invalid driver setup status", file=sys.stderr)
+                return
+            snapshot = (status["state"], status["packages"])
+            if self.driver_snapshot != snapshot:
+                self.driver_snapshot = snapshot
+                send(driverState=snapshot[0], packages=snapshot[1])
 
         def network_ready(self, _source, result):
             try:
@@ -190,13 +205,18 @@ def backend(completed, staging=None):
         def watch_wifi(self):
             for device, handler in self.wifi_signals:
                 device.disconnect(handler)
-            self.wifi_signals = [
-                (device, device.connect("notify::last-scan", lambda *_: self.update_wifi()))
-                for device in self.wifi_devices()
-            ]
-            self.scan()
+            self.wifi_signals = []
+            for device in self.wifi_devices():
+                for event in ("notify::last-scan", "notify::active-access-point",
+                              "access-point-added", "access-point-removed"):
+                    self.wifi_signals.append((device, device.connect(event, lambda *_: self.update_wifi())))
+            self.update_wifi()
 
         def scan(self):
+            now = time.monotonic()
+            if now - self.last_scan < 10:
+                return
+            self.last_scan = now
             for device in self.wifi_devices():
                 device.request_scan_async(None, self.scan_done)
             self.update_wifi()
@@ -212,24 +232,33 @@ def backend(completed, staging=None):
             rows = {}
             devices = self.wifi_devices()
             for device in devices:
+                active = device.get_active_access_point()
                 for access_point in device.get_access_points():
                     ssid = access_point.get_ssid()
                     if ssid is None:
                         continue
                     name = NM.utils_ssid_to_utf8(ssid.get_data())
                     strength = access_point.get_strength()
-                    if not name or (name in rows and rows[name]["strength"] >= strength):
+                    connected = active is not None and active.get_path() == access_point.get_path()
+                    if not name or (not connected and name in rows and (
+                        rows[name]["connected"] or rows[name]["strength"] >= strength
+                    )):
                         continue
                     rows[name] = {
-                        "name": name, "strength": strength,
+                        "name": name, "strength": strength, "connected": connected,
                         "secure": "privacy" in access_point.get_flags().value_nicks,
                     }
                     self.networks[name] = (device, access_point)
             self.networks = {name: self.networks[name] for name in rows}
-            send(hasWifi=bool(devices), networks=sorted(rows.values(), key=lambda row: -row["strength"]))
+            send(hasWifi=bool(devices), networks=sorted(
+                rows.values(), key=lambda row: (not row["connected"], -row["strength"], row["name"])
+            ))
 
         def connect_wifi(self, name, password):
-            if self.connecting is not None or name not in self.networks:
+            if self.connecting is not None:
+                return
+            if not isinstance(name, str) or name not in self.networks or not isinstance(password, str):
+                send(wifiState="failed", wifiName=name)
                 return
             device, access_point = self.networks[name]
             profile = next((profile for profile in device.get_available_connections()
@@ -245,7 +274,7 @@ def backend(completed, staging=None):
             identity.props.id = name
             identity.props.uuid = GLib.uuid_string_random()
             identity.props.type = "802-11-wireless"
-            if staging is None:
+            if not local:
                 identity.add_permission("user", GLib.get_user_name(), None)
             connection.add_setting(identity)
             wireless = NM.SettingWireless.new()
@@ -254,8 +283,11 @@ def backend(completed, staging=None):
             if "privacy" in access_point.get_flags().value_nicks:
                 methods = set(access_point.get_rsn_flags().value_nicks + access_point.get_wpa_flags().value_nicks)
                 mode = "wpa-psk" if "key-mgmt-psk" in methods else "sae" if "key-mgmt-sae" in methods else None
-                if not mode or not password:
-                    send(wifiState="passwordRequired")
+                if not mode:
+                    send(wifiState="unsupported", wifiName=name)
+                    return
+                if not password:
+                    send(wifiState="passwordRequired", wifiName=name)
                     return
                 security = NM.SettingWirelessSecurity.new()
                 security.props.key_mgmt = mode
@@ -264,7 +296,7 @@ def backend(completed, staging=None):
             try:
                 connection.verify()
             except GLib.Error:
-                send(wifiState="failed")
+                send(wifiState="failed", wifiName=name)
                 return
             self.connecting = (name, identity.props.uuid)
             send(wifiState="connecting", wifiName=name)
@@ -276,8 +308,9 @@ def backend(completed, staging=None):
                 active = (client.add_and_activate_connection_finish(result) if new_profile
                           else client.activate_connection_finish(result))
             except GLib.Error:
+                name, _ = self.connecting
                 self.connecting = None
-                send(wifiState="failed")
+                send(wifiState="failed", wifiName=name)
                 return
             handler = active.connect("notify::state", self.connection_changed)
             self.connection = (active, handler)
@@ -287,7 +320,7 @@ def backend(completed, staging=None):
             state = active.get_state()
             if state not in (NM.ActiveConnectionState.ACTIVATED, NM.ActiveConnectionState.DEACTIVATED):
                 return
-            _, new_uuid = self.connecting
+            name, new_uuid = self.connecting
             _, handler = self.connection
             active.disconnect(handler)
             self.connection = None
@@ -296,167 +329,8 @@ def backend(completed, staging=None):
                 failed_profile = self.nm.get_connection_by_uuid(new_uuid)
                 if failed_profile is not None:
                     failed_profile.delete_async(None, None)
-            send(wifiState="idle" if state == NM.ActiveConnectionState.ACTIVATED else "failed")
-
-        def run_yu(self, args, callback, stdin="", *, modality="text"):
-            flags = Gio.SubprocessFlags
-            try:
-                launcher = Gio.SubprocessLauncher.new(
-                    flags.STDIN_PIPE | flags.STDOUT_PIPE | flags.STDERR_SILENCE
-                )
-                if staging is not None:
-                    launcher.setenv("YUOS_USER_CONFIG_DIR", str(staging / "config"), True)
-                    launcher.setenv("YUOS_USER_DATA_DIR", str(staging / "data"), True)
-                self.child = launcher.spawnv([YU, "agent", "setup", modality, *args])
-            except GLib.Error:
-                callback({})
-                return
-            self.child.communicate_utf8_async(stdin, None, self.yu_result, callback)
-
-        def yu_result(self, child, result, callback):
-            self.child = None
-            try:
-                _, stdout, _ = child.communicate_utf8_finish(result)
-                response = json.loads(stdout) if child.get_successful() else {}
-            except (GLib.Error, ValueError):
-                response = {}
-            callback(response)
-
-        def load_models(self):
-            if self.child is not None or self.providers:
-                return
-            send(agentState="loading")
-
-            def catalogue(response):
-                if response.get("ready"):
-                    send(savedModel=response["model"])
-                self.run_yu(["providers"], providers)
-
-            def providers(response):
-                entries = response.get("providers", [])
-                self.providers = {entry["name"]: entry for entry in entries}
-                send(providers=entries, agentState="idle" if entries else "unavailable")
-
-            self.run_yu(["--status"], catalogue)
-
-        def sign_in(self):
-            if self.child is not None or self.oauth is not None:
-                return
-            flow = {}
-            self.oauth = flow
-            send(agentState="signingIn")
-
-            def started(response):
-                if self.oauth is not flow:
-                    return
-                if (not response.get("device_code") or not response.get("user_code")
-                        or response.get("verification_uri") != "https://github.com/login/device"):
-                    self.end_sign_in("signInFailed")
-                    return
-                flow.update(code=response["device_code"], expires=time.monotonic() + response["expires_in"],
-                            interval=max(5, response["interval"]))
-                send(userCode=response["user_code"], agentState="authorizing")
-                self.schedule_poll()
-
-            self.run_yu(["oauth-start", "--provider", "copilot"], started)
-
-        def schedule_poll(self):
-            self.oauth_timer = GLib.timeout_add_seconds(self.oauth["interval"], self.poll_sign_in)
-
-        def poll_sign_in(self):
-            self.oauth_timer = 0
-            flow = self.oauth
-            if time.monotonic() >= flow["expires"]:
-                self.end_sign_in("signInFailed")
-                return GLib.SOURCE_REMOVE
-
-            def polled(response):
-                if self.oauth is not flow:
-                    return
-                status = response.get("status")
-                if status in ("pending", "slow_down"):
-                    if status == "slow_down":
-                        flow["interval"] = max(flow["interval"] + 5, response.get("interval") or 0)
-                    self.schedule_poll()
-                elif status == "ok":
-                    self.signed_in = True
-                    self.end_sign_in("loadingModels")
-                    self.run_yu(["models", "--provider", "copilot"], self.copilot_models)
-                else:
-                    self.end_sign_in("signInFailed")
-
-            self.run_yu(["oauth-poll", "--provider", "copilot", "--device-code-stdin"],
-                        polled, flow["code"] + "\n")
-            return GLib.SOURCE_REMOVE
-
-        def end_sign_in(self, state="idle"):
-            if self.oauth_timer:
-                GLib.source_remove(self.oauth_timer)
-                self.oauth_timer = 0
-            if self.oauth is not None and self.child is not None:
-                self.child.force_exit()
-            self.oauth = None
-            send(userCode="", agentState=state)
-
-        def copilot_models(self, response):
-            send(copilotModels=[model["name"] for model in response.get("models", [])],
-                 signedIn=True, agentState="idle")
-
-        def save_model(self, message):
-            if self.child is not None or self.oauth is not None:
-                return
-            provider = self.providers.get(message["provider"])
-            model = message["model"].strip()
-            if provider is None or not model:
-                return
-            if provider.get("auth_kind") == "oauth_device" and not self.signed_in:
-                return
-            args = ["apply", "--provider", provider["name"], "--model", model]
-            if message["endpoint"].strip():
-                args += ["--base-url", message["endpoint"].strip()]
-            if message["apiVersion"].strip():
-                args += ["--api-version", message["apiVersion"].strip()]
-            secret = message["apiKey"]
-            if secret:
-                args += ["--api-key-stdin"]
-            send(agentState="saving")
-
-            def saved(response):
-                if response.get("ok"):
-                    send(savedModel=response["model"], agentState="saved")
-                else:
-                    send(agentState="saveFailed")
-
-            self.run_yu(args, saved, secret)
-
-        def decision_status(self):
-            if self.child is not None:
-                send(decisionState="unavailable")
-                return
-            send(decisionState="loading")
-
-            def loaded(response):
-                if response.get("modality") == "decision":
-                    send(savedDecision=response["model"], decisionState="idle")
-                else:
-                    send(decisionState="unavailable")
-
-            self.run_yu(["--status"], loaded, modality="decision")
-
-        def save_decision(self, alias):
-            if self.child is not None or not isinstance(alias, str) or not 0 < len(alias) <= 128:
-                send(decisionState="saveFailed")
-                return
-            send(decisionState="saving")
-
-            def saved(response):
-                if response.get("ok") and response.get("modality") == "decision":
-                    send(savedDecision=response["model"], decisionState="saved")
-                else:
-                    send(decisionState="saveFailed")
-
-            self.run_yu(["apply", "--provider", "system-one-local", "--model", alias],
-                     saved, modality="decision")
+            send(wifiState="idle" if state == NM.ActiveConnectionState.ACTIVATED else "failed", wifiName=name)
+            self.update_wifi()
 
     Setup().run()
 
@@ -506,11 +380,9 @@ def main():
     if args == ["--check-complete"]:
         return int(not completed.is_file())
     if args == ["--backend"]:
-        if os.environ.get("YUOS_LOCAL_DESKTOP_SETUP") == "1":
-            with tempfile.TemporaryDirectory(prefix="yuos-oobe-", dir=os.environ["XDG_RUNTIME_DIR"]) as stage:
-                backend(completed, Path(stage))
-        else:
-            backend(completed)
+        local = os.environ.get("YUOS_LOCAL_DESKTOP_SETUP") == "1"
+        with tempfile.TemporaryDirectory(prefix="yuos-oobe-", dir=os.environ["XDG_RUNTIME_DIR"]) as stage:
+            backend(completed, Path(stage), local)
     elif args == ["--local"]:
         os.environ["YUOS_LOCAL_DESKTOP_SETUP"] = "1"
         os.environ["QS_NO_RELOAD_POPUP"] = "1"
