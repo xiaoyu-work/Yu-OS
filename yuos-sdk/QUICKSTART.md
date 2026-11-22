@@ -7,12 +7,17 @@ configured in Settings. Save these two files in `hello-ai/`:
 
 **`main.py`**
 
+`summarize(text)` calls the SDK. `run` passes the CLI argument to it.
+
 ```python
 from yuos_sdk.ai import chat
 
-def run(command, args):
-    reply = chat(args[0], system="Summarize in one short sentence.")
-    return {"summary": reply.output.text}
+def summarize(text):
+    reply = chat(text, system="Summarize in one short sentence.")
+    return reply.output.text
+
+def run(_command, args):
+    return {"summary": summarize(args[0])}
 ```
 
 **`app.json`**
