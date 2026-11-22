@@ -587,9 +587,8 @@ python3 scripts/app_packages.py prepare --variant agent --architecture amd64
 # The desktop rootfs feature builds Desktop independently:
 # -> build/debs/yuos-desktop_<version>_amd64.deb
 
-# Build the independent website artifact
-npm ci --prefix web --replace-registry-host=always
-npm run build --prefix web
+# Stage the independent website artifact
+bash web/stage.sh build/web-dist
 
 # Compose it beside the signed apt repo
 GPG_KEY_ID=<signing-key-fingerprint> ./packaging/apt-repo/build-repo.sh

@@ -309,20 +309,20 @@ echo "  :: signed; public key at $REPO_DIR/yuos-archive-keyring.gpg"
 # GitHub Pages homepage. Keep this at the repo root so the APT paths remain
 # stable: /dists/... and /pool/... are still served beside the marketing page.
 #
-# The React/Vite desktop lives under web/. CI builds it before repository
-# assembly; its dist/ output includes the desktop and the embedded site.
-SITE_DIR="${YUOS_WEB_DIST_DIR:-$PROJECT_DIR/web/dist}"
+# The static marketing site lives under web/. web/stage.sh copies it with the
+# shared brand assets before repository assembly.
+SITE_DIR="${YUOS_WEB_DIST_DIR:-$PROJECT_DIR/build/web-dist}"
 if [ -f "$SITE_DIR/index.html" ]; then
-    echo ":: copying built website from web/dist/"
+    echo ":: copying staged website from $SITE_DIR"
     find "$SITE_DIR" -mindepth 1 -maxdepth 1 \
         -exec cp -R {} "$REPO_DIR/" \;
 
     GIT_SHA="$(git_readonly -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
     # `sed -i` differs between BSD (macOS) and GNU. `-i.bak` is portable.
     for f in \
-        "$REPO_DIR/site/index.html" \
-        "$REPO_DIR/site/style.css" \
-        "$REPO_DIR/site/app.js"; do
+        "$REPO_DIR/index.html" \
+        "$REPO_DIR/style.css" \
+        "$REPO_DIR/app.js"; do
         [ -f "$f" ] || continue
         sed -i.bak \
             -e "s|@@GIT_SHA@@|$GIT_SHA|g" \
@@ -331,7 +331,7 @@ if [ -f "$SITE_DIR/index.html" ]; then
         rm -f "$f.bak"
     done
 else
-    echo "error: built website not found at $SITE_DIR; run npm ci and npm run build in web/" >&2
+    echo "error: staged website not found at $SITE_DIR; run web/stage.sh build/web-dist" >&2
     exit 1
 fi
 

@@ -87,7 +87,7 @@ editing additional surfaces.
 | WSL or Docker image | `.github/workflows/release.yml` (`images` target), `targets/wsl/`, `targets/docker/` | shared rootfs profile and same-run signed Agent/Base packages |
 | Debian/APT package | `packaging/deb/`, `packaging/apt-repo/` | `release.yml` package targets (`core` coordinates Agent/Base), `scripts/ci/`, rootfs package-install features |
 | Update downgrade protection | `core/src/update/`, `packaging/release-security/policy.json` | `packaging/deb/common/`, maintainer scripts, `packaging/apt-repo/verify-release-security.sh`, `docs/updating.md` |
-| Web desktop or website | `web/src/App.tsx`, `web/MODULE.md` | `web/src/components/`, `web/public/site/`, Pages composition workflow |
+| Website | `web/index.html`, `web/MODULE.md` | `web/stage.sh`, `assets/brand/`, Pages composition workflow |
 | Desktop component | `desktop/README.md`, `desktop/PROVENANCE.md`, component README | `desktop/hyprland-yuos/` native staging and login; Desktop Shell and standalone native Apps are built in `yuos-app` |
 | Hyprland/Quickshell desktop replacement | `desktop/hyprland-yuos/MODULE.md`, `core/src/display_session/MODULE.md` | Full native compositor source, existing Root display/GUI authority, `core/src/yuosd/desktop/windows.rs`, other desktop providers and signed external Caelestia frontend; source presence never authorizes activation |
 | Migrated App / shared-capability source | [`yuos-app`](https://github.com/xiaoyu-work/yuos-app), `packaging/apps.lock.json` | Product UI/business/MCP/native source and explicitly kinded capability clients live there; `scripts/app_sources.py` resolves main and stages one immutable build snapshot |

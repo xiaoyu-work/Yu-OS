@@ -56,7 +56,7 @@ dispatched and reusable test/publication pipelines.
   boundaries without acquiring wireless hardware; see `scripts/ci/test-boundaries.sh nearby`.
 - Build shared Docker/WSL images per architecture.
 - Build and sign independent multi-architecture APT packages/repository.
-- Build the React/Vite web desktop as an independent Pages input.
+- Stage the static marketing website as an independent Pages input.
 - Publish GHCR manifests, WSL releases, and GitHub Pages.
 
 ## Key Files

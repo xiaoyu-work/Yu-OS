@@ -276,7 +276,7 @@ yuos/
 ├── rootfs/            Linux rootfs build scripts + overlay
 ├── targets/           Per-distribution build scripts (docker, wsl, iso, vm)
 │   └── docker/          Dockerfiles + build.sh for the docker target
-├── web/               React/Vite Linux desktop + embedded marketing website
+├── web/               Static marketing website
 ├── build.sh           Top-level dispatcher (./build.sh <target>)
 ├── cli/               yuos-ctl management tool
 ├── clients/           Bridge (LLM ↔ Yu OS)

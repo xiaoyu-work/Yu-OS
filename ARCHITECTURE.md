@@ -96,7 +96,7 @@ route.
 | Migrated App products | Product UI, business implementation, MCP and upstream source live in a separate repository; Mail native build and product cutover remain in progress | [`yuos-app`](https://github.com/xiaoyu-work/yuos-app), `packaging/apps.lock.json` |
 | Shared-capability clients | Legacy facades are explicitly separate from business products; Document Engine owns `doc` and Storage SDK owns `db`, while privileged providers and SDK stay in the OS | External `yuos-app/capabilities/`, `packaging/apps.lock.json` |
 | Image composition | Reusable rootfs features and profile definitions | `rootfs/`, `scripts/lib/image-profiles.sh` |
-| Web desktop | React/Vite Linux desktop whose browser opens the embedded marketing site; independently built before Pages composition | `web/`, `.github/workflows/release.yml` (`website` target) |
+| Website | Static marketing site staged with shared brand assets before Pages composition | `web/`, `.github/workflows/release.yml` (`website` target) |
 | Distribution | WSL/Docker/VM/ISO/Azure packaging, Debian packages, signed APT repo, releases | `targets/`, `packaging/`, `.github/workflows/` |
 
 ## Dependency Rules
@@ -2535,8 +2535,8 @@ sibling below the shared protocol floor enforced on installed machines.
 | Top-level target build | `build.sh` | WSL/Docker/VM/ISO/Azure dispatcher |
 | Debian package build | `packaging/deb/build-debs.sh` | Installed package artifacts |
 | APT repository build | `packaging/apt-repo/build-repo.sh` | Signed repository assembly |
-| Web desktop | `web/src/App.tsx` | Browser-based Linux desktop composition |
-| Website publication | `.github/workflows/release.yml` (`website` target) | Independent web build and Pages composition |
+| Website | `web/index.html` | Static marketing site |
+| Website publication | `.github/workflows/release.yml` (`website` target) | Independent website staging and Pages composition |
 | CI test workflow | `.github/workflows/test.yml` | Pull-request/manual/reusable test workflow |
 | OS release workflow | `.github/workflows/release.yml` | Manual component selection or full publication |
 

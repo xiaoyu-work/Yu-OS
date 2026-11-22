@@ -390,23 +390,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-
-      - name: Build website once
-        run: |
-          npm ci --prefix web --no-audit --no-fund \
-            --registry=https://registry.npmjs.org \
-            --replace-registry-host=always
-          npm run build --prefix web
+      - name: Stage the static website
+        run: bash web/stage.sh build/web-dist
 
       - uses: actions/upload-artifact@v4
         with:
           name: yuos-website
-          path: web/dist
+          path: build/web-dist
           if-no-files-found: error
           overwrite: true
 
