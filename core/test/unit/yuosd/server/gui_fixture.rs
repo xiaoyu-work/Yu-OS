@@ -674,7 +674,7 @@ fn activation_cases(root: &Path) {
         (
             "authenticate-only",
             "compositor-mode",
-            Some(("/usr/bin/cosmic-comp", 0o644)),
+            Some(("/usr/libexec/yuos-hyprland/Hyprland", 0o644)),
             1,
         ),
         ("duplicate-open", "duplicate", None, 0),

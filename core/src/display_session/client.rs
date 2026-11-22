@@ -70,6 +70,7 @@ fn session_command(subscription: &Subscription, executable: impl AsRef<OsStr>) -
         .env_remove("WAYLAND_SOCKET")
         .env_remove("DISPLAY")
         .env_remove("XAUTHORITY")
+        .env_remove("COSMIC_SESSION_SOCK")
         .env_remove("X_PRIVILEGED_WAYLAND_SOCKET")
         .env_remove("YUOS_DISPLAY_CONTROL_FD");
     command
