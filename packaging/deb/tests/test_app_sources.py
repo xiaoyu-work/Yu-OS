@@ -654,7 +654,7 @@ def apt_selection(tmp_path, monkeypatch):
         {"Package": "yuos-cap-beta", "Version": "0.2.1", "X-YuOS-App-Ids": "beta",
          "Depends": runtime + ", yuos-app-support-v1", "Provides": "yuos-app-python-beta-v1"},
         {"Package": "yuos-app-native-desktop", "Version": "0.2.1", "X-YuOS-App-Ids": "native",
-         "Depends": runtime + ", yuos-app-support-v1"},
+         "Depends": runtime + ", yuos-app-permissions-v1, yuos-app-support-v1"},
         {"Package": "yuos-app-desktop-shell", "Version": "0.2.1", "X-YuOS-App-Ids": "desktop-shell",
          "Depends": runtime},
         {"Package": "yuos-app-mail-desktop", "Version": "0.2.1", "Depends": runtime},

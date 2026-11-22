@@ -17,8 +17,8 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_ROOT_ENV = "YUOS_APP_PACKAGE_ROOT"
-# The Agent package, not the App channel, provides the SDK/runtime ABI.
-APP_NAME = re.compile(r"(?!yuos-app-runtime-v1\Z)yuos-(?:app-|apps-|cap-)[a-z0-9][a-z0-9+.-]*\Z")
+# The Agent package provides the runtime and permission service interfaces.
+APP_NAME = re.compile(r"(?!yuos-app-(?:runtime|permissions)-v1\Z)yuos-(?:app-|apps-|cap-)[a-z0-9][a-z0-9+.-]*\Z")
 APP_INTERFACE = re.compile(r"yuos-app-(?:support|python-[a-z0-9][a-z0-9-]*)-v1\Z")
 RETIRED_DESKTOP = {"yuos-apps-desktop", "yuos-app-desktop-shell"}
 DESKTOP_SHELL_ROOT = "usr/lib/yuos/apps/desktop-shell"
