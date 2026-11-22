@@ -321,40 +321,6 @@ fn deny_before_spawn(control: &OwnedFd, pam: &Child, helper: &Process) {
     trace.detach();
 }
 
-fn owner_directory(path: &Path) {
-    std::fs::create_dir_all(path).unwrap();
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
-    let name = std::ffi::CString::new(path.as_os_str().as_encoded_bytes()).unwrap();
-    assert_eq!(unsafe { libc::chown(name.as_ptr(), OWNER, OWNER) }, 0);
-}
-
-fn configure() {
-    assert_eq!(vectors()["app_id"], APP);
-    let source = std::fs::read_to_string("/etc/xdg/autostart/yuos-file-manager.desktop").unwrap();
-    assert!(source.lines().any(|line| line == "OnlyShowIn=COSMIC;"));
-    assert!(source.lines().any(|line| line == "X-systemd-skip=true"));
-    let exec = "Exec=/usr/lib/yuos/bin/yuos-file-manager --app yuos-files";
-    assert_eq!(source.lines().filter(|line| *line == exec).count(), 1);
-    let config = Path::new("/run/display-home/.config");
-    owner_directory(config);
-    owner_directory(&config.join("autostart"));
-    std::fs::write(
-        config.join("autostart/yuos-file-manager.desktop"),
-        source.replace(
-            exec,
-            &format!("Exec=/usr/lib/yuos/bin/yuos-file-manager --app {APP}"),
-        ),
-    )
-    .unwrap();
-    std::fs::set_permissions(
-        config.join("autostart/yuos-file-manager.desktop"),
-        std::fs::Permissions::from_mode(0o644),
-    )
-    .unwrap();
-    // Exercise the session-child path even when COSMIC detects systemd.
-    std::fs::create_dir_all("/run/systemd/system").unwrap();
-}
-
 async fn bound_processes(pam: &mut Child, wrapper: &ProcessIdentity) -> Process {
     let connection = zbus::connection::Builder::address(BUS)
         .unwrap()
@@ -547,7 +513,7 @@ fn private_logs(directory: &Path, bytes: &mut usize) {
 }
 
 pub(super) async fn run(root: &Path) {
-    configure();
+    assert_eq!(vectors()["app_id"], APP);
     let group = session_group(root, "file-manager");
     let (control, child_control) = bootstrap::pair().unwrap();
     let mut pam = spawn_pam(
@@ -586,7 +552,7 @@ pub(super) async fn run(root: &Path) {
         yuos_display_control::KernelLogin::of(&ProcessIdentity::child(&pam).unwrap()).unwrap()
     );
     let helper = bound_processes(&mut pam, &wrapper_identity).await;
-    println!("private FileManager1 actual COSMIC child retains authenticated PAM/kernel ancestry");
+    println!("private FileManager1 session child retains authenticated PAM/kernel ancestry");
     for (index, (tag, name)) in [
         (b"FLDR", "folders"),
         (b"ITEM", "items"),
@@ -678,6 +644,5 @@ pub(super) async fn run(root: &Path) {
     ] {
         private_logs(Path::new(root), &mut bytes);
     }
-    std::fs::remove_dir("/run/systemd/system").unwrap();
     println!("private FileManager1 actual protected yu/signed GUI outcomes, cross-UID no-spawn, private logs and checked session/PAM teardown: passed");
 }

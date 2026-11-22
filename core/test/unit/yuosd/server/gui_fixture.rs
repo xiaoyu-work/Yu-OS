@@ -117,7 +117,12 @@ fn install_packages(package_only: bool, native: Option<native_products::Product>
         std::fs::Permissions::from_mode(0o644),
     )
     .unwrap();
-    std::fs::create_dir_all(SYSTEM_TRUST_ROOT).unwrap();
+    let system = Path::new(SYSTEM_TRUST_ROOT);
+    std::fs::create_dir_all(system).unwrap();
+    // Like the installed package, expose public trust to the unprivileged CLI.
+    for directory in [system.parent().unwrap(), system] {
+        std::fs::set_permissions(directory, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
     crate::provenance::cli::run("trust", &["record-system".into()]).unwrap();
     let roots = TrustStore::default_roots();
     let trust = TrustStore::load_roots(&roots);

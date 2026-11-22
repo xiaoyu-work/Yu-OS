@@ -581,7 +581,8 @@ static int file_manager_session(void) {
     if (chmod("/run/gui-public/file-manager-bus/bus", 0666) != 0)
         goto cleanup;
     char *const arguments[] = {
-        "/usr/local/bin/yuos-display-session", "--exec", "/usr/lib/yuos/bin/yuos-file-manager", NULL
+        "/usr/local/bin/yuos-display-session", "--exec", "/usr/lib/yuos/bin/yuos-file-manager",
+        "--app", "gui-file-manager-test", NULL
     };
     session = session_user_child(arguments, -1, 62050, "/run/gui-session-components", NULL);
     if (session <= 0)

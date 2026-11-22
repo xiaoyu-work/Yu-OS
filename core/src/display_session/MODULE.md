@@ -182,8 +182,8 @@ attachment, the session-child facade and protected yu through
 ordinary signed zero-needs GUI hosting. Literal URIs, successful and failed
 checked outcomes, exact kernel login ancestry, no borrowed parent grants,
 cross-UID facade refusal before fork/vfork, raw App bus denial, private logs
-and live-GUI/descendant/session/PAM teardown are asserted. An owner-local
-default-handler preference selects the signed test App. This uses authenticated
+and live-GUI/descendant/session/PAM teardown are asserted. The disposable
+session starts the facade with the exact signed test App. This uses authenticated
 attachment, not a complete signed desktop or Files product acceptance.
 
 The separate ignored

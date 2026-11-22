@@ -21,10 +21,17 @@ fn valid_name(value: &str) -> bool {
 /// Resolve test inputs by declared source ownership, never by filesystem fallback.
 pub fn app_dir(relative: &str) -> PathBuf {
     let repository = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    app_dir_in(repository, relative)
+    let resolved = resolved_repository_lock(repository);
+    app_dir_with_lock(repository, relative, &resolved)
 }
 
-fn read_lock(repository: &Path) -> SourceLock {
+fn resolved_repository_lock(repository: &Path) -> PathBuf {
+    std::env::var_os("YUOS_APP_SOURCE_LOCK")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| repository.join("build/app-sources/resolved.json"))
+}
+
+fn read_lock(repository: &Path, resolved_path: &Path) -> SourceLock {
     let selection: serde_json::Value = serde_json::from_str(
         &std::fs::read_to_string(repository.join("packaging/apps.lock.json"))
             .expect("App source selection"),
@@ -42,11 +49,8 @@ fn read_lock(repository: &Path) -> SourceLock {
                 .is_some_and(|value| !value.is_empty()),
             "App source repository is required"
         );
-        let path = std::env::var_os("YUOS_APP_SOURCE_LOCK")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| repository.join("build/app-sources/resolved.json"));
         let resolved: serde_json::Value = serde_json::from_str(
-            &std::fs::read_to_string(path)
+            &std::fs::read_to_string(resolved_path)
                 .expect("Run `python3 scripts/app_sources.py` to resolve App main before testing"),
         )
         .expect("valid prepared App source snapshot");
@@ -95,7 +99,7 @@ fn read_lock(repository: &Path) -> SourceLock {
 #[allow(dead_code)]
 pub fn source_revision() -> String {
     let repository = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    read_lock(repository).revision
+    read_lock(repository, &resolved_repository_lock(repository)).revision
 }
 
 fn source_cache(repository: &Path, lock: &SourceLock) -> PathBuf {
@@ -110,15 +114,24 @@ fn source_cache(repository: &Path, lock: &SourceLock) -> PathBuf {
 #[allow(dead_code)]
 pub fn source_root() -> PathBuf {
     let repository = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    source_cache(repository, &read_lock(repository))
+    source_cache(repository, &read_lock(repository, &resolved_repository_lock(repository)))
 }
 
+#[allow(dead_code)] // Used by the isolated fixture integration tests.
 pub fn app_dir_in(repository: &Path, relative: &str) -> PathBuf {
+    app_dir_with_lock(
+        repository,
+        relative,
+        &repository.join("build/app-sources/resolved.json"),
+    )
+}
+
+fn app_dir_with_lock(repository: &Path, relative: &str, resolved_path: &Path) -> PathBuf {
     assert!(
         relative.split('/').all(valid_name),
         "invalid App fixture path"
     );
-    let lock = read_lock(repository);
+    let lock = read_lock(repository, resolved_path);
     let id = relative.replace('/', "-");
     assert!(
         lock.apps.contains(&id),
