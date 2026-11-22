@@ -629,7 +629,6 @@ ShellRoot {
         id: driverPage
         SetupHardware {
             status: setup.state.driverState
-            packages: setup.state.packages
             reduceMotion: setup.reduced
         }
     }

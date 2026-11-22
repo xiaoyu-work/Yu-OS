@@ -99,8 +99,9 @@ The local flow is Language, Keyboard, Network, Models, Account, Time zone,
 and Appearance. It omits Network if already connected on entry. If the
 NetworkManager-triggered driver service still reports packages after
 Appearance, Hardware is the final step. Network and Hardware don't disappear
-once entered. Hardware reads the real driver status; a reconnection lets the
-existing dispatcher retry and installation never blocks finishing.
+once entered. Hardware shows the real driver setup status without listing
+package names. The dispatcher retries on reconnect, and installation never
+blocks finishing.
 `yuos-desktop-locales` generates the wizard's twelve bundled locales. The regional
 controls preview installed XKB layouts, offer bundled Fcitx5 methods when present,
 and show the country and local time for search results using installed tzdata.
