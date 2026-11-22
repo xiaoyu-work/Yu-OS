@@ -3632,12 +3632,12 @@ fn configured_model_needs_resolve_for_each_owner_on_every_app_surface() {
         "id":"model-demo","version":"0.1.0","schema_version":2,"name":{"en":"Model Demo"},
         "ai":{"budget":{"monthly_units":5000},"origins":["user-input"]},
         "operations":{"summarize":{"label":{"en":"Summarize"},"needs":[
-            {"verb":"ai.chat","scope":{"kind":"fixed","scope":{"kind":"name","value":"$configured-ai-model"}}}
+            {"verb":"ai.chat"}
         ]}},
         "mcp":{"tools":[{"name":"model-demo.summarize","summary":{"en":"Summarize"},"needs":[
-            {"verb":"ai.chat","scope":{"kind":"fixed","scope":{"kind":"name","value":"$configured-ai-model"}}}
+            {"verb":"ai.chat"}
         ]}]},
-        "desktop":{}
+        "desktop":{"needs":[{"verb":"ai.chat"}]}
     }"#);
     let old_cap = Cap::new(Verb::AI_CHAT, Scope::name("first-model"));
     let delegation = delegation(CapSet::from_caps([old_cap.clone()]));

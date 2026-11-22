@@ -30,16 +30,14 @@ def run(command, args):
     "summarize": {
       "label": {"en": "Summarize text"},
       "args": [{"name": "text", "kind": "text", "required": true}],
-      "needs": [{
-        "verb": "ai.chat",
-        "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}}
-      }]
+      "needs": [{"verb": "ai.chat"}]
     }
   }
 }
 ```
 
-`$configured-ai-model` means "use the model the user configured." Keep it as written.
+`app.json` asks for permission to use AI chat. `main.py` sends the text to summarize.
+Yu OS uses the user's configured model; the App does not specify a model.
 
 From the parent directory, sign with your
 [system-trusted App key](../docs/extension-provenance.md#trust-roots).

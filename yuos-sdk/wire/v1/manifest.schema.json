@@ -226,8 +226,8 @@
     },
     "need": {
       "type": "object",
-      "description": "A single capability request: verb and scope, with a reason required for non-AI requests.",
-      "required": ["verb", "scope"],
+      "description": "A capability request. Supported App AI verbs use the user's configured model when scope is omitted. Other requests require an explicit scope.",
+      "required": ["verb"],
       "additionalProperties": true,
       "not": {
         "properties": { "verb": { "const": "ai.bypass" } },
@@ -244,18 +244,24 @@
         "then": {"required": ["why"]}
       }, {
         "if": {
-          "properties": {
-            "scope": {
+          "anyOf": [
+            {"not": {"required": ["scope"]}},
+            {
               "properties": {
-                "kind": {"const": "fixed"},
                 "scope": {
-                  "properties": {"kind": {"const": "name"}, "value": {"const": "$configured-ai-model"}},
-                  "required": ["kind", "value"]
+                  "properties": {
+                    "kind": {"const": "fixed"},
+                    "scope": {
+                      "properties": {"kind": {"const": "name"}, "value": {"const": "$configured-ai-model"}},
+                      "required": ["kind", "value"]
+                    }
+                  },
+                  "required": ["kind", "scope"]
                 }
               },
-              "required": ["kind", "scope"]
+              "required": ["scope"]
             }
-          }
+          ]
         },
         "then": {
           "properties": {
@@ -288,7 +294,7 @@
             "mail.accounts", "mail.read", "mail.draft", "mail.send"
           ]
         },
-        "scope": { "$ref": "#/$defs/scopeBinding", "description": "Use the reserved fixed name $configured-ai-model on supported App AI capabilities to request the corresponding model slot from the owner configuration. It is not a literal grant or model selector." },
+        "scope": { "$ref": "#/$defs/scopeBinding", "description": "Omit for supported App AI verbs to use the user's configured model. The explicit $configured-ai-model scope is still accepted." },
         "when": { "$ref": "#/$defs/needCondition", "description": "Explicit condition under which this capability is required." },
         "why": { "$ref": "#/$defs/localizedText", "description": "Optional for AI needs. The system always supplies the capability description." }
       }

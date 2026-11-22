@@ -160,7 +160,8 @@
           "tools": [{
             "name": "notes.get",
             "summary": {"en": "Read a note"},
-            "args": [{"name": "note_id", "kind": "name", "binding": "flag", "required": true}]
+            "args": [{"name": "note_id", "kind": "name", "binding": "flag", "required": true}],
+            "needs": [{"verb": "ai.chat.untrusted"}]
           }]
         },
         "desktop": {

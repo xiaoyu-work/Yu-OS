@@ -466,11 +466,11 @@ type Defaultedpositional struct {
 }
 
 // Need — need.
-// A single capability request: verb and scope, with a reason required for non-AI
-// requests.
+// A capability request. Supported App AI verbs use the user's configured model
+// when scope is omitted. Other requests require an explicit scope.
 type Need struct {
 	Verb string `json:"verb"`
-	Scope Scopebinding `json:"scope"`
+	Scope *Scopebinding `json:"scope,omitempty"`
 	When *Needcondition `json:"when,omitempty"`
 	Why *Localizedtext `json:"why,omitempty"`
 }

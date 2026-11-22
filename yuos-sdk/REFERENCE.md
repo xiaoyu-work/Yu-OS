@@ -73,10 +73,10 @@ generated binding compatibility. No new SDK execution API is introduced.
 ## AI support
 
 Apps call the owner's configured model through the SDK. This is separate
-from exposing MCP tools for the system Agent to call.
-For CLI, MCP, and GUI entries, use the
-[`$configured-ai-model` scope](../docs/app-development.md#7-ai-features);
-keep this literal name rather than substituting a model ID.
+from exposing MCP tools for the system Agent to call. In `app.json`, add the
+capability you need, for example `{"verb": "ai.chat"}`. Use the SDK to send
+the actual text or audio. Do not specify a model ID; Yu OS uses the user's
+settings.
 
 | Settings slot | SDK call or `infer` input | App capability | Result |
 |---|---|---|---|
@@ -108,8 +108,8 @@ policy controls redaction; `strict` and `standard` currently do the same
 prompt-secret redaction, and `minimal` does not redact. No profile promises
 prompt-injection detection.
 
-For an optional GUI feature, declare
-[`$configured-ai-model` in the App manifest](../docs/app-development.md#model-permissions-in-settings).
+For an optional GUI feature, put the verb in
+[`optional_needs`](../docs/app-development.md#model-permissions-in-settings).
 On a model permission error the App can show its own message and link to
 Settings → Applications. The App cannot approve its own request.
 

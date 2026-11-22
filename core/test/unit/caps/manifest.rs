@@ -1193,6 +1193,30 @@ fn ai_block_with_valid_policy_parses() {
     assert_eq!(policy.safety, AiSafety::Strict);
     assert_eq!(policy.origins, vec![PromptOrigin::ExternalContent]);
     assert_eq!(policy.budget.monthly_units, 100000);
+
+    for verb in [
+        "ai.chat",
+        "ai.chat.untrusted",
+        "ai.embed",
+        "ai.audio.tts",
+        "ai.audio.stt",
+        "ai.image.generate",
+        "ai.decide",
+    ] {
+        let short: Need = serde_json::from_value(serde_json::json!({"verb": verb})).unwrap();
+        let explicit = serde_json::json!({
+            "verb": verb,
+            "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}},
+        });
+        assert_eq!(serde_json::to_value(short).unwrap(), explicit);
+    }
+    for invalid in [
+        serde_json::json!({"verb": "fs.read", "why": {"en": "Read a file"}}),
+        serde_json::json!({"verb": "ai.video.generate"}),
+        serde_json::json!({"verb": "ai.chat", "scope": null}),
+    ] {
+        assert!(serde_json::from_value::<Need>(invalid).is_err());
+    }
 }
 
 #[test]
@@ -1206,9 +1230,7 @@ fn ai_need_without_ai_block_rejected() {
                 "run": {
                   "label": {"en": "Run"},
                   "needs": [
-                    {"verb": "ai.chat",
-                     "scope": {"kind":"fixed","scope":{"kind":"name","value":"*"}},
-                     "why": {"en": "Talk to a model without declaring a policy."}}
+                    {"verb": "ai.chat"}
                   ]
                 }
               }

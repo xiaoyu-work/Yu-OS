@@ -781,30 +781,49 @@ fn default_desktop_exec() -> String {
 // Capability needs
 // ---------------------------------------------------------------------------
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Need {
     pub verb: Verb,
     pub scope: ScopeBinding,
     /// Explicit condition controlling whether this need applies.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub when: Option<NeedCondition>,
     /// Reason shown to the user in the approval dialog. Authors are
     /// expected to write this in plain language ("Read the file you
     /// asked me to summarise"), not jargon.
-    #[serde(default, skip_serializing_if = "LocalizedText::is_empty")]
+    #[serde(skip_serializing_if = "LocalizedText::is_empty")]
     pub why: LocalizedText,
+}
+
+impl<'de> Deserialize<'de> for Need {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Declaration {
+            verb: Verb,
+            #[serde(default, deserialize_with = "desktop::deserialize_present")]
+            scope: Option<ScopeBinding>,
+            when: Option<NeedCondition>,
+            #[serde(default)]
+            why: LocalizedText,
+        }
+
+        let Declaration { verb, scope, when, why } = Declaration::deserialize(deserializer)?;
+        // Normalize the shorthand to the existing owner-resolved scope.
+        // This keeps signed review and permission comparison data unchanged.
+        let scope = match scope {
+            Some(scope) => scope,
+            None if supports_configured_ai(verb) => ScopeBinding::Fixed {
+                scope: Scope::name(CONFIGURED_AI_MODEL),
+            },
+            None => return Err(serde::de::Error::missing_field("scope")),
+        };
+        Ok(Self { verb, scope, when, why })
+    }
 }
 
 impl Need {
     fn validate_configured_model(&self) -> Result<(), String> {
-        if requests_configured_ai(&self.scope)
-            && !matches!(
-                self.verb,
-                Verb::AI_CHAT | Verb::AI_CHAT_UNTRUSTED | Verb::AI_EMBED
-                    | Verb::AI_AUDIO_TTS | Verb::AI_AUDIO_STT | Verb::AI_IMAGE_GENERATE
-                    | Verb::AI_DECIDE
-            )
-        {
+        if requests_configured_ai(&self.scope) && !supports_configured_ai(self.verb) {
             return Err("$configured-ai-model requires a supported App AI capability".into());
         }
         Ok(())
@@ -819,6 +838,19 @@ impl Need {
 }
 
 pub(crate) const CONFIGURED_AI_MODEL: &str = "$configured-ai-model";
+
+fn supports_configured_ai(verb: Verb) -> bool {
+    matches!(
+        verb,
+        Verb::AI_CHAT
+            | Verb::AI_CHAT_UNTRUSTED
+            | Verb::AI_EMBED
+            | Verb::AI_AUDIO_TTS
+            | Verb::AI_AUDIO_STT
+            | Verb::AI_IMAGE_GENERATE
+            | Verb::AI_DECIDE
+    )
+}
 
 pub(crate) fn requests_configured_ai(scope: &ScopeBinding) -> bool {
     matches!(scope, ScopeBinding::Fixed { scope: Scope::Name(name) } if name == CONFIGURED_AI_MODEL)

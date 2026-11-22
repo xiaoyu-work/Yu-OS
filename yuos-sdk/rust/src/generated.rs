@@ -571,12 +571,13 @@ pub struct Defaultedpositional {
 }
 
 /// need
-/// A single capability request: verb and scope, with a reason required for non-AI
-/// requests.
+/// A capability request. Supported App AI verbs use the user's configured model
+/// when scope is omitted. Other requests require an explicit scope.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Need {
     pub verb: String,
-    pub scope: Scopebinding,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<Scopebinding>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub when: Option<Needcondition>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

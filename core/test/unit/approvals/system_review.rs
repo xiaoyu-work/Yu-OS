@@ -112,8 +112,8 @@ fn install_ai_is_hidden_without_an_optional_request_and_bound_to_verified_delive
     manifest["desktop"] = serde_json::json!({
         "needs": [],
         "optional_needs": [
-            {"verb": "ai.chat.untrusted", "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}}},
-            {"verb": "ai.decide", "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}}}
+            {"verb": "ai.chat.untrusted"},
+            {"verb": "ai.decide"}
         ]
     });
     let package = environment.package_from_manifest(&environment.directory.path().join("optional-ai"), manifest);

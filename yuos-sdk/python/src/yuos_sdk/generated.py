@@ -525,14 +525,14 @@ class Defaultedpositional(TypedDict, total=False):
 
 class _NeedRequired(TypedDict):
     verb: str
-    scope: "Scopebinding"
 
 class Need(_NeedRequired, total=False):
     """need.
 
-    A single capability request: verb and scope, with a reason required for non-
-    AI requests.
+    A capability request. Supported App AI verbs use the user's configured model
+    when scope is omitted. Other requests require an explicit scope.
     """
+    scope: "Scopebinding"
     when: "Needcondition"
     why: "Localizedtext"
 

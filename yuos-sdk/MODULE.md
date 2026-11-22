@@ -19,9 +19,9 @@ Rust, Python, Node, and Go bindings.
 - Use `ai.infer` for the other five model slots. Its versioned request/reply
   carry only model inputs and results, never a provider selection, file path,
   or grant. Optional GUI permission failures carry a Settings recovery reason.
-- App operations, MCP tools, and GUI entries use the same
-  `$configured-ai-model` declaration. Root resolves the owner's exact model
-  scope; no SDK or App supplies the user's model ID.
+- App operations, MCP tools, and GUI entries can declare a supported AI verb
+  without a scope. Root resolves the owner's exact model; the SDK and App do
+  not supply a model ID.
 - Keep language bindings behaviorally compatible.
 - Publish bounded App-owned events through the same live session and named IPC
   capability. Root derives identity/source; reported events never delegate work.

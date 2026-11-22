@@ -700,18 +700,17 @@ declare the outside content rather than labeling the whole prompt `trusted`.
 `external-content` selects `ai.chat.untrusted`; the effective policy
 determines redaction. The label does not prove the input is safe.
 
-Declare an `ai` policy in the manifest and the matching capability on the
-calling surface: `ai.chat.untrusted` for `external-content`, or `ai.chat`
-for `trusted` and `user-input`. See the [SDK model table](../yuos-sdk/REFERENCE.md#ai-support)
-for non-chat capabilities. Use
-`"scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}}`
-in an operation's, MCP tool's, or GUI entry's `needs` to request the owner's
-configured model. The verb selects the model slot. Yu OS resolves the scope
-to the configured model when authorizing the entry; no model ID is needed
-in the manifest or SDK call. An unconfigured slot can't grant access to
-another model. Changing the model does not require editing the App.
-The usual capability, consent, and budget checks still apply. `why` is
-optional on AI needs; the system supplies its own permission description.
+In `app.json`, list what your App needs to do, for example
+`"needs": [{"verb": "ai.chat"}]`. That line requests chat permission.
+In code, call `ai.chat` with the actual text. The user picks the model in
+Yu OS settings, so the App does not need `scope`, `value`, or a model ID.
+The [SDK model table](../yuos-sdk/REFERENCE.md#ai-support) lists the supported
+verbs, including `ai.chat.untrusted` for `external-content`.
+
+The same declaration works in an operation, MCP tool, or GUI entry. Keep the
+`ai` policy in the manifest: consent and budget checks still apply. Older
+manifests that declare an explicit scope remain supported. Other permissions
+still need a scope to say which resource the App wants, such as a file or host.
 
 | Calling surface | Owner consent |
 |---|---|
@@ -1074,15 +1073,13 @@ require a valid AI policy and remain budget-gated.
 
 #### Optional system AI at installation
 
-To offer optional system AI at installation, declare one of the chat verbs in
-that GUI's `optional_needs` with
-`"scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}}`.
+To offer optional system AI at installation, list `{"verb": "ai.chat"}` or
+`{"verb": "ai.chat.untrusted"}` in that GUI's `optional_needs`.
 For document input use `ai.chat.untrusted`, with `external-content` in `ai.origins`,
 strict or standard safety, and a positive `ai.budget.monthly_units`. For input
-without external content use `ai.chat` with its corresponding origin. This
-reserved name is the same declaration used by required AI needs. Only the
-optional GUI entry uses the Store installation choice, which binds to the
-installing owner's exact configured provider and model.
+without external content use `ai.chat` with its corresponding origin. Only the
+optional GUI entry uses the Store installation choice, which applies to the
+provider and model the user has configured at installation.
 
 Only verified publisher-signed Apps requesting this optional feature get this
 choice, and only when a model is configured. The protected Store reviews show
@@ -1099,15 +1096,12 @@ session. The ordinary owner can make a separate choice in Settings.
 
 #### Model permissions in Settings
 
-Declare a model capability in the relevant GUI entry's `optional_needs`.
-Use an unconditional fixed name of `$configured-ai-model` and a positive
-App AI budget. For example, to offer speech synthesis:
+Declare a model capability without a condition in the GUI entry's
+`optional_needs` and set a positive App AI budget. For example, to offer
+speech synthesis:
 
 ```json
-{
-  "verb": "ai.audio.tts",
-  "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}}
-}
+{"verb": "ai.audio.tts"}
 ```
 
 An eligible signed App starts without the right. When the user requests the
