@@ -1,65 +1,47 @@
-// Yu OS website — minimal, framework-free interactions.
-
-(function () {
-  "use strict";
-
-  // ---------- Sticky nav shadow ----------
-  const nav = document.getElementById("nav");
-  if (nav) {
-    const onScroll = () => nav.classList.toggle("is-scrolled", window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-  }
-
-  // ---------- Mobile nav ----------
-  const burger = document.getElementById("navBurger");
-  if (burger && nav) {
-    burger.addEventListener("click", () => {
-      const open = nav.classList.toggle("is-mobile-open");
-      burger.setAttribute("aria-expanded", open ? "true" : "false");
-    });
-    nav.querySelectorAll(".nav-links a").forEach((link) =>
-      link.addEventListener("click", () => {
-        nav.classList.remove("is-mobile-open");
-        burger.setAttribute("aria-expanded", "false");
-      })
-    );
-  }
-
-  // ---------- Copy-to-clipboard ----------
-  const flashCopied = (button) => {
-    const previousText = button.textContent;
-    button.textContent = "copied";
-    button.classList.add("is-copied");
-    setTimeout(() => {
-      button.textContent = previousText;
-      button.classList.remove("is-copied");
-    }, 1400);
+(() => {
+  const root = document.querySelector('.agent');
+  const typed = root.querySelector('.typed');
+  const picks = [...root.querySelectorAll('.pick')];
+  const toggle = root.querySelector('.toggle');
+  const sentences = [...root.querySelectorAll('.sr li')].map((li) => li.textContent);
+  let index = 0;
+  let shown = 0;
+  let timer = 0;
+  let paused = false;
+  const type = () => {
+    const sentence = sentences[index];
+    if (shown <= sentence.length) {
+      typed.textContent = sentence.slice(0, shown);
+      shown += 1;
+      root.classList.add('speaking');
+      timer = setTimeout(type, 32);
+      return;
+    }
+    root.classList.remove('speaking');
+    timer = setTimeout(() => select((index + 1) % sentences.length), 2800);
   };
-
-  document.querySelectorAll(".copy-btn").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const selector = button.getAttribute("data-copy");
-      const target = selector ? document.querySelector(selector) : null;
-      if (!target) return;
-      const text = target.innerText.replace(/\u00A0/g, " ").trim();
-      try {
-        await navigator.clipboard.writeText(text);
-        flashCopied(button);
-      } catch (_) {
-        const range = document.createRange();
-        range.selectNodeContents(target);
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
-        try {
-          document.execCommand("copy");
-          flashCopied(button);
-        } catch (_) {
-          // The browser does not expose a clipboard fallback.
-        }
-        selection.removeAllRanges();
-      }
-    });
+  const select = (next) => {
+    clearTimeout(timer);
+    root.classList.remove('speaking');
+    index = next;
+    picks.forEach((pick, i) => pick.setAttribute('aria-pressed', String(i === next)));
+    if (paused) {
+      typed.textContent = sentences[index];
+      return;
+    }
+    shown = 0;
+    type();
+  };
+  picks.forEach((pick, i) => pick.addEventListener('click', () => select(i)));
+  toggle.addEventListener('click', () => {
+    paused = !paused;
+    root.classList.toggle('paused', paused);
+    toggle.setAttribute('aria-label', paused ? 'Play' : 'Pause');
+    select(index);
   });
+  new IntersectionObserver((entries, observer) => {
+    if (!entries.some((entry) => entry.intersectionRatio >= 0.5)) return;
+    observer.disconnect();
+    select(0);
+  }, { threshold: 0.5 }).observe(root.querySelector('.caption'));
 })();

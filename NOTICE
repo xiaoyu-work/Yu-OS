@@ -4,6 +4,10 @@ Copyright (c) 2026 Yu OS Contributors
 Original project components are licensed under the Apache License, Version 2.0;
 see LICENSE. Vendored components retain their upstream licenses.
 
+The website under web/ includes the Barlow Condensed and Space Grotesk fonts,
+licensed under the SIL Open Font License, Version 1.1. Their copyright notices
+and license texts are in web/fonts/.
+
 This product also includes a vendored fork of the COSMIC Desktop
 Environment by System76, located under desktop/. Each vendored
 component retains its upstream LICENSE file verbatim (a mix of
