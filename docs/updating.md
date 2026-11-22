@@ -183,9 +183,11 @@ An [experimental Snapdragon X install](image-architecture.md#experimental-snapdr
 
 The [vendor kernel profiles](image-architecture.md#experimental-vendor-kernels) install a pinned kernel alongside Debian's default. Yu OS's regular APT upgrades do not replace the pinned platform kernel, NVIDIA driver or Apple stage-two bundle. To update a profile, build it with reviewed newer pins, update the matching packages together and verify the new boot image before discarding the old one.
 
-Each published package version is generated from the Git commit count and SHA,
-for example `0.1.0+git1226.g876f3ad810ca`. A later repository build therefore
-sorts as a newer Debian package and is selected by APT.
+Published Yu OS packages use the release's UTC date and daily sequence,
+for example `1:0.1.0+r20261121.01`. The next dispatch on the same day uses
+`.02`; the next UTC day starts at `.01`. At the same base version and security
+epoch, dated releases sort after the old `+git` packages and upgrade normally
+through APT. See [release numbering](../packaging/README.md#independent-publication).
 
 The Mail Native Messaging launcher and MCP service now use the same Python
 package at `/usr/lib/yuos/apps/mail-ai`. The Thunderbird XPI is also owned by
@@ -1204,7 +1206,7 @@ can verify its release manifest offline, without fetching anything.
 The **security epoch** is also the package's Debian epoch. That is deliberate:
 an epoch that only Yu OS could see would not change which candidate APT
 selects, so an emergency release whose upstream version sorts *lower* than the
-installed one would simply never be offered. Publishing `1:0.2.0+git…` makes
+installed one would simply never be offered. Publishing `1:0.2.0+r20261121.01` makes
 APT's own ordering prefer any higher security epoch, and the floor then refuses
 to go back down. The package build, the embedded manifest and the publication
 job each reject a release whose Debian epoch and security epoch disagree.

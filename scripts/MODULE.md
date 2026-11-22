@@ -18,13 +18,13 @@ shared build helpers.
 | --- | --- |
 | `lib/image-profiles.sh` | Target feature-set source of truth |
 | `lib/arch.sh` | Architecture/target mapping |
-| `lib/package-version.sh` | Monotonic Debian package version |
+| `lib/package-version.sh` | Debian security epoch and dated release version formatting, plus standalone build versions |
 | `lib/image-identity.sh` | Image user/identity assertions |
 | `lib/git-readonly.sh` | Read-only Git wrapper for privileged builds |
 | `ci/check-provisioning.sh` | Shell syntax and LF checks shared with the test workflow |
 | `ci/test-boundaries.sh` | App bind, Calendar, capture portal, extension/owner-memory isolation, authenticated display and Applet kernel checks; invoked as separate visible CI steps |
 | `ci/native_editor_payload.py` | Private native product acceptance inputs, including Settings: resolve one immutable App snapshot and invoke its public-pin, original-installer native build; no local platform, signing, installation or publication |
-| `ci/prepare-release.sh` | Freeze package version and authenticated App APT inputs; only `all` separately freezes an immutable test-only source fixture |
+| `ci/prepare-release.sh` | Freeze the release's UTC day and daily sequence from Actions run metadata and prepare authenticated App inputs |
 | `ci/import-signing-key.sh` | Require the configured signing identity and export its exact verification keyring through `GITHUB_ENV` |
 | `ci/verify-package.sh` | Check package identity, payload-free OS ownership, authenticated App APT inputs and signed release manifest before upload or images |
 | `ci/test-agent-package.sh` | Agent TUI and Ubuntu install/reinstall, terminal/Web polkit/PAM, broker and cgroup checks; `installed-core` validates the exact Agent/Base pair in one transaction |

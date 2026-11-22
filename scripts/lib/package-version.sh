@@ -33,18 +33,28 @@ PY
 
 package_version() {
     local project_dir="${1:?project root required}"
+    local release_stamp="${2:-}"
     local version="${YUOS_PACKAGE_VERSION:-}"
-    local epoch
+    local epoch base
     epoch="$(release_security_epoch "$project_dir")" || return 1
 
-    if [ -z "$version" ]; then
-        local base count sha
+    if [ -n "$release_stamp" ] || [ -z "$version" ]; then
         base="$(sed -n 's/^version = "\(.*\)"/\1/p' \
             "$project_dir/core/Cargo.toml" | head -1)"
         if [ -z "$base" ]; then
             echo "error: cannot read base version from core/Cargo.toml" >&2
             return 1
         fi
+    fi
+    if [ -n "$release_stamp" ]; then
+        if ! [[ "$release_stamp" =~ ^[0-9]{8}\.(0[1-9]|[1-9][0-9]+)$ ]]; then
+            echo "error: expected a dated release stamp (YYYYMMDD.NN)" >&2
+            return 1
+        fi
+        # +r sorts above the former +git releases at the same Debian epoch.
+        version="${epoch}:${base}+r${release_stamp}"
+    elif [ -z "$version" ]; then
+        local count sha
         if ! git_readonly -C "$project_dir" rev-parse --git-dir >/dev/null 2>&1; then
             echo "error: package version requires a git checkout" >&2
             return 1
@@ -97,5 +107,5 @@ package_version() {
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
     PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-    package_version "$PROJECT_DIR"
+    package_version "$PROJECT_DIR" "$@"
 fi

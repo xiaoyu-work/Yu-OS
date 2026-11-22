@@ -563,10 +563,10 @@ just assembles staging trees. CI builds `yu` and the separate native
 helpers first. Helium comes from its signed upstream APT channel; the OS
 and Browser App do not redistribute the upstream binary.
 
-Each package version is generated independently as
-`<semver>+git<commit-count>.g<sha>`. Pull-request artifacts use a lower-sorting
-`~pr...` suffix. Local dirty trees must set `YUOS_PACKAGE_VERSION` explicitly
-to avoid reusing a stale commit-derived package filename.
+Standalone builds without a frozen release version still use
+`<epoch>:<semver>+git<commit-count>.g<sha>`. Pull-request artifacts use a
+lower-sorting `~pr...` suffix. Local dirty trees must set
+`YUOS_PACKAGE_VERSION` explicitly to avoid reusing a stale package filename.
 
 ```bash
 # Build binaries for the host architecture (amd64 shown here).
@@ -630,17 +630,22 @@ The **Release Yu OS** workflow (`release.yml`) has one target selector:
 | `website` | Website and Pages composition; preserves every existing package |
 | `all` | Shared tests, all packages, Docker/WSL and one Pages publication |
 
-Each run freezes one commit-derived package version and the authenticated
-App APT package closure for selected architectures. `desktop`, `installer`
-and `all` lock App main for the Shell build; `all` uses that same commit for
-the separate test fixture. The OS run retains only intermediate build and
-verification artifacts for the Shell, not a standalone release. A change in
-the App revision does not bump the OS package version; publishing different
-Desktop bytes still requires a newer OS version. Package checks reverify
-official APT evidence and refuse ordinary App/support/library ownership
-before upload. Images download the
-signed Agent/Base packages instead of rebuilding the common binaries; Docker
-and WSL share one stamped rootfs per architecture.
+Each run freezes one version for every selected OS package and architecture,
+for example `1:0.1.0+r20261121.01`. The date is the UTC dispatch date. Each new
+dispatch reserves the next daily number (`.01`, `.02`, …), even if it does not
+publish packages; rerunning the same workflow run reuses its number. The `+r`
+suffix sorts after the former `+git` versions at the same base version and
+Debian epoch. Standalone App versions are independent.
+
+The workflow also freezes the authenticated App APT package closure for
+selected architectures. `desktop`, `installer` and `all` lock App main for
+the Shell build; `all` uses that same commit for the separate test fixture.
+The OS run retains only intermediate build and verification artifacts for the
+Shell, not a standalone release. Start a new run to build a later App revision
+and publish it as a newer OS package. Package checks reverify official APT
+evidence and refuse ordinary App/support/library ownership before upload.
+Images download the signed Agent/Base packages instead of rebuilding the common
+binaries; Docker and WSL share one stamped rootfs per architecture.
 
 One publisher gathers every selected package and one website artifact. It
 reads the current signed repository, restores the latest packages not rebuilt

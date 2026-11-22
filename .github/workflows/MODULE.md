@@ -70,9 +70,10 @@ dispatched and reusable test/publication pipelines.
 | `../actionlint.yaml` | Compatibility with GitHub's queued concurrency |
 | `../../scripts/ci/` | Release planning, signing-key import, package checks and installed Agent/privileged test scripts |
 
-There are four workflow entry points. `release.yml` freezes one commit-derived
-package version and, when Apps are needed, one App-main snapshot for the whole
-run. `all` calls `test.yml` with that snapshot before building. Targeted releases
+There are four workflow entry points. `release.yml` freezes one
+[date-based package version](../../packaging/README.md#independent-publication)
+and, when Apps are needed, one App-main snapshot for the whole run. `all`
+calls `test.yml` with that snapshot before building. Targeted releases
 retain their component checks without rerunning the full shared suite.
 Agent/Base packages are built once and downloaded by the image matrix; image
 jobs never compile the shared Rust binaries. Docker and WSL consume the same

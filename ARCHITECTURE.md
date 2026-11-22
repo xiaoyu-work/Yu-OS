@@ -2470,7 +2470,7 @@ assigned by trusted code paths; remote text never selects an audit action.
 ### Image and package publication
 
 ```text
-one OS commit + package version + immutable App snapshot
+one OS commit + date-based Debian package version + immutable App snapshot
   -> shared tests for a full release
   -> one Agent build per architecture + one Base package
   -> packaging/deb/build-debs.sh
