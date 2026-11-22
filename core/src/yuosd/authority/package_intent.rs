@@ -22,9 +22,29 @@ pub(crate) fn authorize(
     approved: &crate::yuosd::packages::gui::ApprovedIntent,
     client: &crate::yuosd::client_identity::ClientIdentity,
 ) -> Result<PackageDecision, String> {
-    let crate::yuosd::packages::gui::IntentBinding {
+    let binding = approved.validate()?;
+    let decision = issue(binding, client, Issuer::Approval)?;
+    approved.validate()?;
+    Ok(decision)
+}
+
+pub(crate) fn authorize_official(
+    click: &crate::yuosd::packages::gui::OfficialReleaseClick<'_>,
+    client: &crate::yuosd::client_identity::ClientIdentity,
+) -> Result<PackageDecision, String> {
+    let binding = click.validate()?;
+    let decision = issue(binding, client, Issuer::OfficialStore)?;
+    click.validate()?;
+    Ok(decision)
+}
+
+fn issue(
+    crate::yuosd::packages::gui::IntentBinding {
         registration, process, gui, required, deadline, generation,
-    } = approved.validate()?;
+    }: crate::yuosd::packages::gui::IntentBinding<'_>,
+    client: &crate::yuosd::client_identity::ClientIdentity,
+    issuer: Issuer,
+) -> Result<PackageDecision, String> {
     let owner = registration.owner();
     let pid = client.pid.ok_or("package intent peer PID is unavailable")?;
     if client.require_uid()? != owner || client.execution_uid.is_some()
@@ -51,7 +71,7 @@ pub(crate) fn authorize(
     let lifetime = deadline.saturating_duration_since(std::time::Instant::now());
     if lifetime.is_zero() { return Err("package intent GUI authority expired".into()); }
     let (_, view) = authority().issue_with_generation_until(Issuance {
-        issuer: Issuer::Approval,
+        issuer,
         principal,
         binding: Binding::ProcessTree,
         subject: gui.subject,
@@ -62,10 +82,6 @@ pub(crate) fn authorize(
         index_session: false,
     }, u64::from(generation), Some(deadline)).map_err(|error| error.to_string())?;
     super::audit::record_issued(&view, None);
-    if let Err(error) = approved.validate() {
-        authority().revoke(view.id);
-        return Err(error);
-    }
     let grant = view.id;
     let decision = Decision::new(
         view, "system.package.control", Audience::SystemService,

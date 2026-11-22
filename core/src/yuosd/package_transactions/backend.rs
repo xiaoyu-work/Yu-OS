@@ -9,6 +9,7 @@ use serde_json::{json, Value};
 
 use crate::approvals::system_review::{self as reviews, ReviewState};
 use crate::apps::{debian, store};
+use crate::update::debver::Version;
 use crate::yuosd::app_store::{self, apt};
 use crate::yuosd::authority::Authorized;
 use crate::provenance::runtime::PackageRef;
@@ -40,6 +41,8 @@ pub(super) struct RemovedApp {
 #[serde(deny_unknown_fields)]
 pub(super) struct Plan {
     pub(super) delivery: apt::Plan,
+    #[serde(default)]
+    pub(super) official_store: bool,
     pub(super) actions: Vec<Action>,
     pub(super) removed_apps: Vec<RemovedApp>,
     baseline: Option<AppBaseline>,
@@ -353,7 +356,9 @@ async fn removed_apps(actions: &[Action]) -> Result<Vec<RemovedApp>, String> {
     Ok(result)
 }
 
-pub(super) async fn prepare(owner: u32, id: &str, operation: &Operation) -> Result<Plan, String> {
+pub(super) async fn prepare(
+    owner: u32, id: &str, operation: &Operation, official_store: bool,
+) -> Result<Plan, String> {
     let _transaction = apt::TRANSACTION.lock().await;
     app_store::initialize()?;
     let directory = apt::directory(id)?;
@@ -371,7 +376,6 @@ pub(super) async fn prepare(owner: u32, id: &str, operation: &Operation) -> Resu
     if let Operation::InstallRelease { package, version } = operation {
         let current = crate::yuosd::packages::query_package_state(package).await?;
         if let Some(installed) = current.version.as_deref() {
-            use crate::update::debver::Version;
             if Version::parse(installed)? >= Version::parse(version)? {
                 return Err("That Yu OS App release is not newer than the installed version".into());
             }
@@ -408,6 +412,18 @@ pub(super) async fn prepare(owner: u32, id: &str, operation: &Operation) -> Resu
         )
         .await?
     };
+    if official_store {
+        for action in &actions {
+            let Some(version) = &action.version else {
+                return Err("An official Store install cannot remove packages".into());
+            };
+            if let Some(installed) = &action.old_version {
+                if Version::parse(version)? < Version::parse(installed)? {
+                    return Err("An official Store install cannot downgrade packages".into());
+                }
+            }
+        }
+    }
     let controller = std::env::current_exe()
         .map_err(|error| format!("The active package controller cannot be identified: {error}"))?;
     let controller_packages = crate::yuosd::packages::query_package_owners(&controller).await?;
@@ -459,6 +475,23 @@ pub(super) async fn prepare(owner: u32, id: &str, operation: &Operation) -> Resu
         });
         payloads.push(contains_app_payload(file).await?);
     }
+    let installs: BTreeSet<_> = actions
+        .iter()
+        .filter_map(|action| {
+            action.version.as_ref().map(|version| {
+                (&action.package, version, action.architecture.as_ref().unwrap())
+            })
+        })
+        .collect();
+    let downloaded: BTreeSet<_> = packages
+        .iter()
+        .map(|package| {
+            (&package.identity.package, &package.identity.version, &package.identity.architecture)
+        })
+        .collect();
+    if installs != downloaded || downloaded.len() != packages.len() {
+        return Err("APT archives differ from the complete concrete resolver plan".into());
+    }
     let os_sources = if packages.is_empty() {
         Vec::new()
     } else {
@@ -469,8 +502,8 @@ pub(super) async fn prepare(owner: u32, id: &str, operation: &Operation) -> Resu
     } else {
         empty_os_catalog()
     };
-    if let Operation::InstallRelease { package, version } = operation {
-        if !catalog.apps.iter().any(|record| {
+    let selected = if let Operation::InstallRelease { package, version } = operation {
+        Some(catalog.apps.iter().find(|record| {
             record.desktop_available()
                 && catalog.apt_package(record).is_ok_and(|entry| {
                     entry.package == *package && entry.version == *version
@@ -478,9 +511,12 @@ pub(super) async fn prepare(owner: u32, id: &str, operation: &Operation) -> Resu
                             download.identity.package == *package && download.sha256 == entry.sha256
                         })
                 })
-        }) {
-            return Err("The requested release is not in the current signed Yu OS Apps catalog".into());
-        }
+        }).ok_or("The requested release is not in the current signed Yu OS Apps catalog")?)
+    } else {
+        None
+    };
+    if official_store && selected.is_none() {
+        return Err("An official Store install requires an exact signed release".into());
     }
     for (package, app_payload) in packages.iter().zip(&payloads) {
         if *app_payload
@@ -499,36 +535,14 @@ pub(super) async fn prepare(owner: u32, id: &str, operation: &Operation) -> Resu
     }
     let context = serde_json::to_value(&actions).map_err(|error| error.to_string())?;
     let delivery =
-        apt::prepare_packages(owner, id, None, &catalog, before, files, Some(&context)).await?;
-    let installs: BTreeSet<_> = actions
-        .iter()
-        .filter_map(|action| {
-            action.version.as_ref().map(|version| {
-                (
-                    action.package.clone(),
-                    version.clone(),
-                    action.architecture.clone().unwrap(),
-                )
-            })
-        })
-        .collect();
-    let downloaded: BTreeSet<_> = delivery
-        .packages
-        .iter()
-        .map(|package| {
-            (
-                package.identity.package.clone(),
-                package.identity.version.clone(),
-                package.identity.architecture.clone(),
-            )
-        })
-        .collect();
-    if installs != downloaded || downloaded.len() != delivery.packages.len() {
-        return Err("APT archives differ from the complete concrete resolver plan".into());
-    }
+        apt::prepare_packages(
+            owner, id, if official_store { selected } else { None }, &catalog, before, files,
+            apt::DeliveryContext::Transaction { actions: &context, official_store },
+        ).await?;
     let removed_apps = removed_apps(&actions).await?;
     Ok(Plan {
         delivery,
+        official_store,
         actions,
         removed_apps,
         baseline: None,

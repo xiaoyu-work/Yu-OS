@@ -176,7 +176,7 @@ pub(super) const LAUNCHER: Product = Product {
     case: 32,
     desktop_id: "com.yuos.Launcher",
     entries: &["bin/yuos-launcher"],
-    ungranted: &[],
+    ungranted: &[0],
     home_metadata: false,
     selector: "--gui",
     panel: true,

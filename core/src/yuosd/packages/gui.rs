@@ -17,7 +17,7 @@ use crate::yuosd::package_transactions::Operation;
 use crate::yuosd::protocol::BrokerError;
 use crate::yuosd::state::DaemonState;
 
-use super::intent::{Mode, Request};
+use super::intent::{Action, Mode, Request};
 
 static RECOVERY_JOBS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
 const MAX_INTENTS: usize = 32;
@@ -384,6 +384,42 @@ pub(crate) struct IntentBinding<'a> {
     pub generation: u32,
 }
 
+pub(crate) struct OfficialReleaseClick<'a> {
+    window: &'a WindowIntents,
+    process: &'a ProcessIdentity,
+    invocation: &'a str,
+    operation: &'a Operation,
+    required: &'a [Cap],
+}
+
+impl OfficialReleaseClick<'_> {
+    pub(crate) fn validate(&self) -> Result<IntentBinding<'_>, String> {
+        let registration = &self.window.registration;
+        registration.require_official_store_window()?;
+        eligible(registration, self.required)?;
+        let mut ledger = self.window.lock()?;
+        let (gui, deadline) = self.window.snapshot_locked(&mut ledger, self.process)?;
+        let entry = ledger.entries.get(self.invocation).ok_or("Official install intent is not retained")?;
+        let [target] = entry.targets.as_slice() else {
+            return Err("An official install requires one exact release".into());
+        };
+        let Operation::InstallRelease { package, .. } = &entry.operation else {
+            return Err("This Store click cannot authorize other package operations".into());
+        };
+        if &entry.operation != self.operation || target.retired
+            || target.capability != Cap::new(Verb::SYS_PACKAGE, Scope::name(package))
+            || self.required != std::slice::from_ref(&target.capability)
+        {
+            return Err("The official Store package binding changed".into());
+        }
+        let generation = crate::approvals::generations::current(Some(registration.owner()), &entry.session)?;
+        Ok(IntentBinding {
+            registration, process: self.process, gui, required: self.required,
+            deadline: deadline.min(Instant::now() + Duration::from_secs(5)), generation,
+        })
+    }
+}
+
 impl ApprovedIntent {
     pub(crate) fn validate(&self) -> Result<IntentBinding<'_>, String> {
         let (current, gui_deadline) = {
@@ -537,6 +573,20 @@ pub(crate) async fn request(
     let _admission = crate::yuosd::app_mutation::admit_for_owner(
         registration.launch.app_id(), registration.owner()).map_err(BrokerError::authorization)?;
     window.open().map_err(BrokerError::authorization)?;
+    if request.action == Action::InstallRelease && registration.require_official_store_window().is_ok() {
+        let click = OfficialReleaseClick {
+            window: &window, process, invocation: request.invocation_id.as_str(),
+            operation: &operation, required: &required,
+        };
+        let authority = authority::package_intent::authorize_official(&click, client)
+            .map_err(BrokerError::authorization)?;
+        let receipt = crate::yuosd::package_transactions::accept_gui(
+            daemon, client, authority.decision(), operation, request.invocation_id.as_str(), None,
+        ).await.map_err(BrokerError::authorization)?;
+        let mut result = reply(&request, "accepted");
+        result["receipt"] = receipt;
+        return Ok(result);
+    }
     let entry = window.entry(request.invocation_id.as_str()).map_err(BrokerError::authorization)?;
     if entry.targets.iter().any(|target| !matches!(target.identity, ReviewIdentity::Tracked(_))) {
         return window.pending(process, &request, true).map_err(BrokerError::authorization);

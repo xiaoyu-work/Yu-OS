@@ -284,6 +284,8 @@ pub enum Issuer {
     TrustedSession,
     /// Minted when the owner approved an exact capability.
     Approval,
+    /// Minted for one exact official release selected in the trusted Store.
+    OfficialStore,
     /// Minted for an exact GUI file covered by the OS's approved App defaults.
     PreinstalledApp,
     /// Minted for a `yuosd`-run scheduler command.
@@ -297,6 +299,7 @@ impl Issuer {
             Issuer::AppGateway => "app-gateway",
             Issuer::TrustedSession => "trusted-session",
             Issuer::Approval => "approval",
+            Issuer::OfficialStore => "official-store",
             Issuer::PreinstalledApp => "preinstalled-app",
             Issuer::Scheduler => "scheduler",
         }

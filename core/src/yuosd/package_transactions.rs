@@ -11,7 +11,7 @@ use crate::caps::{Cap, Scope, Verb};
 use crate::proc::SessionInfo;
 
 use super::app_store;
-use super::authority::{Authorized, Decision};
+use super::authority::{Authorized, Decision, Issuer};
 use super::client_identity::ClientIdentity;
 use super::protocol::BrokerError;
 use super::state::DaemonState;
@@ -510,9 +510,9 @@ fn projection(record: &Record) -> Value {
         .plan
         .as_ref()
         .map(|plan| {
-            plan.delivery
-                .reviews
+            plan.delivery.reviews
                 .iter()
+                .filter(|_| !plan.official_store)
                 .map(|review| json!({"app_id": review.app_id, "review_id": review.review_id}))
                 .collect::<Vec<_>>()
         })
@@ -607,6 +607,12 @@ fn accept_locked(
         return Err("Package authority belongs to another owner".into());
     }
     let session = authority.session()?.clone();
+    let official_store = authority.issuer() == Issuer::OfficialStore;
+    if official_store && (authority.app_id() != Some("yuos-store")
+        || !matches!(&operation, Operation::InstallRelease { .. }))
+    {
+        return Err("The Store click can install only an exact official release".into());
+    }
     let invocation = invocation
         .ok_or("Payload requests require an invocation id from the retained package client")?;
     if !valid_id(invocation) {
@@ -618,6 +624,17 @@ fn accept_locked(
             .map_err(|error| error.to_string())?,
     );
     let retained = records()?;
+    if let Some(record) = retained.iter().find(|record| {
+        official_store && record.owner_uid == owner
+            && record.app_id.as_deref() == Some("yuos-store")
+            && record.invocation_id == invocation
+    }) {
+        if record.operation != operation || record.session_id != session.session_id {
+            return Err("The Store invocation already belongs to a different request".into());
+        }
+        let _authorized = authority.require_all(&operation.required_caps())?;
+        return Ok(receipt(record));
+    }
     if let Some(record) = retained
         .iter()
         .find(|record| record.invocation_binding == binding)
@@ -712,7 +729,7 @@ fn accept_locked(
     tokio::spawn(async move {
         let _controller = Controller(id);
         let mut record = record;
-        if let Err(error) = execute(&state, &client, &session, authorized, &mut record).await {
+        if let Err(error) = execute(&state, &client, &session, authorized, &mut record, official_store).await {
             record = match read(&record.request_id) {
                 Ok(current) => current,
                 Err(state_error) => {
@@ -741,9 +758,12 @@ fn accept_locked(
 }
 
 async fn confirmations(record: &mut Record) -> Result<(), String> {
-    record.phase = Phase::AwaitingAppConfirmation;
-    save(record)?;
-    backend::wait_for_reviews(record.owner_uid, record.plan.as_ref().unwrap()).await?;
+    let plan = record.plan.as_ref().ok_or("Missing protected package plan")?;
+    if !plan.official_store {
+        record.phase = Phase::AwaitingAppConfirmation;
+        save(record)?;
+    }
+    backend::wait_for_reviews(record.owner_uid, plan).await?;
     let impact = record
         .impact
         .as_ref()
@@ -773,6 +793,7 @@ async fn execute(
     session: &SessionInfo,
     authorized: Authorized,
     record: &mut Record,
+    official_store: bool,
 ) -> Result<(), String> {
     if let Operation::Flatpak { target, .. } = record.operation.clone() {
         let home = client.require_home_dir()?;
@@ -794,7 +815,7 @@ async fn execute(
     record.phase = Phase::Planning;
     save(record)?;
     let prepared =
-        backend::prepare(record.owner_uid, &record.request_id, &record.operation).await?;
+        backend::prepare(record.owner_uid, &record.request_id, &record.operation, official_store).await?;
     record.plan = Some(prepared);
     record.impact =
         Some(impact::inspect(state, record.plan.as_ref().unwrap(), &record.request_id).await?);

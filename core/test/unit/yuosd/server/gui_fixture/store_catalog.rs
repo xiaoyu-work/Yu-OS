@@ -96,8 +96,12 @@ Description: Private controlled Store inventory\n\n".to_vec();
                 record["event"] == "yuosd.request" && record["command"] == "system.package.query"
                     && record["params"]["session"] == session
             }).cloned().collect::<Vec<_>>();
-            if requests.iter().any(|request| request["ok"] != true
-                || request["client"]["uid"] != OWNER) {
+            if requests.iter().any(|request| {
+                let unavailable_official_catalog = request["params"]["action"] == "store"
+                    && request["error"]["code"] == "unavailable";
+                request["client"]["uid"] != OWNER
+                    || request["ok"] != true && !unavailable_official_catalog
+            }) {
                 return Err("actual Store SDK package observation was refused".into());
             }
             if audit.iter().any(|record| {

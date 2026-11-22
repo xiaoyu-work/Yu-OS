@@ -264,6 +264,16 @@ impl Registration {
         self.control.owner_uid
     }
 
+    pub(crate) fn require_official_store_window(&self) -> Result<(), String> {
+        if !self.owner_launch || self.gui_entry.is_some()
+            || self.launch.app_id() != "yuos-store"
+            || self.entry != "bin/yuos-store" || self.selector != "--gui"
+        {
+            return Err("Official installation requires the owner's signed Yu OS Store window".into());
+        }
+        verify_system_gui(&self.launch)
+    }
+
     pub(crate) fn default_permission(&self, cap: &Cap) -> bool {
         self.caps.covers(cap) && self.defaults.as_ref().is_some_and(|defaults| {
             defaults.allows(cap, &self.home)

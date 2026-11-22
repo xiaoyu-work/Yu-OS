@@ -45,8 +45,8 @@ enters the Debian dispatch path.
   serializer/publication/APT lock-order inversion.
 - A concrete resolver plan binds versions, architectures, archives and
   removals. Official App-channel bytes require the existing signed inventory
-  and every contained App's separate protected delivery confirmation.
-  Critical package permission never substitutes for those confirmations.
+  and every contained App's protected delivery record. General package
+  permission never substitutes for App delivery confirmation.
 - Plans changing the package that owns the active controller executable are
   refused before payload dispatch. Stopping `yuosd` would kill its APT child;
   self-controller mutation needs an independently retained OS updater, not
@@ -130,6 +130,13 @@ all decisions carry the exact operation digest. After-death retirement fences
 creation, retires decisions outside the proposal lock and retains custody on
 unconfirmed cleanup. Exact install/remove/purge/only-upgrade batches reuse the
 existing APT plan, signature, quarantine, impact, child and outcome gates.
+
+In an authorized owner's authenticated Yu OS Store window, **Install** or
+**Update** of an exact official release is the install confirmation. Root
+accepts it for that operation only. It checks the complete resolver plan, signed
+catalog, archives and publishers before recording delivery confirmations.
+The click permits no removals or downgrades and creates no standing permissions.
+Any required separate all-App stop confirmation still applies.
 
 The common retained-binding inventory, protected system-review decision
 channel and initialized custody managers are mandatory. Package impact consent

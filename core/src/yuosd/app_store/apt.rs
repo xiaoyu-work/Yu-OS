@@ -53,6 +53,11 @@ pub(crate) struct AppReview {
     pub(crate) package: PackageRef,
 }
 
+pub(crate) enum DeliveryContext<'a> {
+    WebStore,
+    Transaction { actions: &'a Value, official_store: bool },
+}
+
 #[derive(Clone)]
 pub(crate) struct HookContext {
     pid: u32,
@@ -445,7 +450,7 @@ pub(super) async fn prepare(
     if files.is_empty() || files.len() > 512 {
         return Err("APT did not prepare a bounded concrete package transaction".into());
     }
-    prepare_packages(owner, id, Some(record), catalog, before, files, None).await
+    prepare_packages(owner, id, Some(record), catalog, before, files, DeliveryContext::WebStore).await
 }
 
 pub(crate) async fn prepare_packages(
@@ -455,11 +460,12 @@ pub(crate) async fn prepare_packages(
     catalog: &store::Catalog,
     before: String,
     files: Vec<PathBuf>,
-    context: Option<&Value>,
+    context: DeliveryContext<'_>,
 ) -> Result<Plan, String> {
     if files.len() > 512 || record.is_some() && files.is_empty() {
         return Err("APT did not prepare a bounded concrete package transaction".into());
     }
+    let official_store = matches!(&context, DeliveryContext::Transaction { official_store: true, .. });
     let root = directory(id)?;
     let selected = record.map(|record| catalog.apt_package(record)).transpose()?;
     let mut packages = Vec::new();
@@ -500,16 +506,16 @@ pub(crate) async fn prepare_packages(
         if !identities.insert((identity.package.clone(), identity.architecture.clone())) {
             return Err("APT prepared duplicate package identities".into());
         }
-        if record.is_some() && identity.package.starts_with("yuos-") {
-            return Err(
-                "Update the OS Agent/services separately before installing this App".into(),
-            );
-        }
         let official = catalog.packages.iter().find(|candidate| {
             candidate.package == identity.package
                 && candidate.version == identity.version
                 && candidate.architecture == identity.architecture
         });
+        if record.is_some() && official.is_none() && identity.package.starts_with("yuos-") {
+            return Err(
+                "Update the OS Agent/services separately before installing this App".into(),
+            );
+        }
         if official.is_none()
             && catalog
                 .packages
@@ -577,9 +583,10 @@ pub(crate) async fn prepare_packages(
     if !found {
         return Err("APT did not download the authenticated selected App package".into());
     }
-    let digest = store::sha256(&match context {
-        Some(context) => serde_json::to_vec(&(&before, &packages, context)),
-        None => serde_json::to_vec(&(&before, &packages)),
+    let digest = store::sha256(&match &context {
+        DeliveryContext::Transaction { actions, official_store } =>
+            serde_json::to_vec(&(&before, &packages, actions, official_store)),
+        DeliveryContext::WebStore => serde_json::to_vec(&(&before, &packages)),
     }.map_err(|error| error.to_string())?);
     let delivery = DeliveryReview {
         digest: digest.clone(),
@@ -596,14 +603,17 @@ pub(crate) async fn prepare_packages(
             &crate::provenance::trust_store(),
         )
         .map_err(|error| error.to_string())?;
-        let review = reviews::submit_delivery(
-            owner,
-            &package,
-            format!("{} {id}", if context.is_some() {
-                "Root system package transaction"
-            } else { "Official APT Store install" }),
-            delivery.clone(),
-        )?;
+        let review = if official_store {
+            reviews::submit_confirmed_official_install(
+                owner, &package, format!("Official Store selection {id}"), delivery.clone(),
+            )?
+        } else {
+            let requester = match &context {
+                DeliveryContext::Transaction { .. } => "Root system package transaction",
+                DeliveryContext::WebStore => "Official APT Store install",
+            };
+            reviews::submit_delivery(owner, &package, format!("{requester} {id}"), delivery.clone())?
+        };
         reviews.push(AppReview {
             app_id,
             review_id: review.id,

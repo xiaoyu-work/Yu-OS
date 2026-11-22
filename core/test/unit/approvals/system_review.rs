@@ -204,10 +204,19 @@ fn official_apt_confirmation_needs_no_permission_choices_and_binds_exact_install
             architecture: "all".into(),
         }],
     };
-    let review = submit_delivery(1000, &package, "App Store".into(), plan.clone()).unwrap();
-    decide(1000, &review.id, true, Some(&package)).unwrap();
+    let unconfirmed = submit_delivery(1000, &package, "App Store".into(), plan.clone()).unwrap();
+    assert_eq!(unconfirmed.state, ReviewState::Pending);
+    decide(1000, &unconfirmed.id, true, Some(&package)).unwrap();
+    let plan = DeliveryReview { digest: "c".repeat(64), ..plan };
+    let review = submit_confirmed_official_install(
+        1000, &package, "Official Store selection".into(), plan.clone(),
+    ).unwrap();
+    assert_eq!(review.state, ReviewState::Approved);
     assert!(official_installation(1000, &package).unwrap().is_none());
+    assert!(consume_delivery(1000, &review.id, &package, &"b".repeat(64)).is_err());
+    assert!(consume_delivery(1001, &review.id, &package, &plan.digest).is_err());
     consume_delivery(1000, &review.id, &package, &plan.digest).unwrap();
+    assert!(consume_delivery(1000, &review.id, &package, &plan.digest).is_err());
     assert_eq!(official_installation(1000, &package).unwrap(), Some(review.id));
     assert!(official_installation(1001, &package).unwrap().is_none());
     assert!(permission_choices(1000, &PackageRef::of(&package)).unwrap().is_empty());

@@ -337,7 +337,7 @@ pub fn submit(
     package: &VerifiedPackage,
     requester: String,
 ) -> Result<ReviewRecord, String> {
-    submit_with_delivery(owner, kind, package, requester, None)
+    submit_record(owner, kind, package, requester, None, false)
 }
 
 pub fn submit_delivery(
@@ -347,15 +347,29 @@ pub fn submit_delivery(
     delivery: DeliveryReview,
 ) -> Result<ReviewRecord, String> {
     delivery.validate()?;
-    submit_with_delivery(owner, ReviewKind::AppInstall, package, requester, Some(delivery))
+    submit_record(owner, ReviewKind::AppInstall, package, requester, Some(delivery), false)
 }
 
-fn submit_with_delivery(
+pub(crate) fn submit_confirmed_official_install(
+    owner: u32,
+    package: &VerifiedPackage,
+    requester: String,
+    delivery: DeliveryReview,
+) -> Result<ReviewRecord, String> {
+    delivery.validate()?;
+    if package.tier() != TrustTier::Vendor || PackageRef::of(package).publisher_key_id.is_none() {
+        return Err("The selected release is not signed by a vendor App publisher".into());
+    }
+    submit_record(owner, ReviewKind::AppInstall, package, requester, Some(delivery), true)
+}
+
+fn submit_record(
     owner: u32,
     kind: ReviewKind,
     package: &VerifiedPackage,
     requester: String,
     delivery: Option<DeliveryReview>,
+    store_confirmed: bool,
 ) -> Result<ReviewRecord, String> {
     let (manifest, review) = snapshot(package)?;
     let package_ref = PackageRef::of(package);
@@ -379,6 +393,9 @@ fn submit_with_delivery(
                 && record.source_dir == package.dir()
                 && record.delivery == delivery
             {
+                if store_confirmed && state == ReviewState::Pending {
+                    return Err("An existing protected review cannot be changed by a Store click".into());
+                }
                 return Ok(record.clone());
             }
         }
@@ -392,7 +409,7 @@ fn submit_with_delivery(
                 && record.package.tier == package_ref.tier
                 && record.contract_digest == review.contract_digest
         });
-        if accepted.is_none() && open >= MAX_PENDING_PER_OWNER {
+        if !store_confirmed && accepted.is_none() && open >= MAX_PENDING_PER_OWNER {
             return Err("too many pending system reviews for this user".into());
         }
         let record = ReviewRecord {
@@ -408,13 +425,13 @@ fn submit_with_delivery(
             requested_at: submitted_at,
             expires_at,
             owner_generation,
-            state: if accepted.is_some() {
+            state: if store_confirmed || accepted.is_some() {
                 ReviewState::Approved
             } else {
                 ReviewState::Pending
             },
-            decided_at: accepted.map(|_| submitted_at),
-            decided_by: accepted.and_then(|record| record.decided_by),
+            decided_at: (store_confirmed || accepted.is_some()).then_some(submitted_at),
+            decided_by: if store_confirmed { Some(owner) } else { accepted.and_then(|record| record.decided_by) },
             inherited_from: accepted.map(|record| record.id.clone()),
             delivery,
             permission_choices: Default::default(),
