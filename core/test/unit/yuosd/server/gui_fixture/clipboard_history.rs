@@ -70,6 +70,11 @@ fn open_snapshot(window: &serde_json::Value) -> Option<Vec<u8>> {
     Some(bytes)
 }
 
+fn history_list_rendered(popup: &serde_json::Value) -> bool {
+    // The nonempty history has a 440-pixel list. A loading frame does not.
+    popup["geometry"][3].as_i64().is_some_and(|height| height > 440)
+}
+
 impl Fixture {
     pub(super) async fn prepare() -> Self {
         assert_eq!(std::fs::read("/run/gui-fixture/isolated").unwrap(), b"private-v1");
@@ -145,6 +150,8 @@ impl Fixture {
                 if let (Some(use_record), Some(frame)) = (
                     uses.first(),
                     observe().filter(|frame| calendar_popup::buffered_popup_for(frame, &instance, CLIPBOARD.desktop_id)
+                        && frame["popup"]["pending_configures"] == 0
+                        && history_list_rendered(&frame["popup"])
                         && frame["popup"]["snapshot"]["status"] == "saved"
                         && frame["popup"]["snapshot"]["snapshot_commit"] == frame["popup"]["buffer_commits"]),
                 ) {
@@ -233,6 +240,7 @@ impl Fixture {
                     calendar_popup::buffered_popup_for(window, instance, CLIPBOARD.desktop_id)
                         && popup["pending_configures"] == 0
                         && popup["buffer_commits"].as_u64().is_some_and(|value| value > floor)
+                        && (count == actions.len() || history_list_rendered(popup))
                 }) {
                     return serde_json::json!({"window":window,"requests":requests,"exact_scope_uses":uses});
                 }
