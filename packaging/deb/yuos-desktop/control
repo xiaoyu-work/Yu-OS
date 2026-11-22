@@ -47,6 +47,6 @@ Depends: yuos-base (>= __MIN_BASE__), yuos-abi-__ABI__, yuos-app-runtime-v1 (>= 
 Conflicts: yuos-apps-desktop, yuos-app-desktop-shell
 Description: Yu OS — graphical desktop environment
  Installs the Root-managed Hyprland compositor, authenticated greetd login
- and graphical Agent. Includes the signed Desktop Shell with Quickshell,
+ and graphical Agent. Includes the OS-owned Desktop Shell with Quickshell,
  Caelestia and their private runtime. All other Yu OS Apps are installed
  as independently maintained packages.
