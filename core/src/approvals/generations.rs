@@ -107,7 +107,7 @@ use serde::{Deserialize, Serialize};
 /// On-disk shape. One file per install, rewritten atomically.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 struct Generations {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "read_app_permissions")]
     app_permissions: BTreeMap<String, Vec<super::app_policy::Block>>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     installed_choices: BTreeMap<String, BTreeMap<String, bool>>,
@@ -118,6 +118,40 @@ struct Generations {
     /// `owner/session -> generation`.
     #[serde(default)]
     sessions: BTreeMap<String, u32>,
+}
+
+fn read_app_permissions<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<BTreeMap<String, Vec<super::app_policy::Block>>, D::Error> {
+    use crate::caps::cap::StoredCap;
+
+    #[derive(Deserialize)]
+    struct StoredBlock {
+        cap: StoredCap,
+        generation: u32,
+        #[serde(default)]
+        restored_in_settings: bool,
+    }
+
+    BTreeMap::<String, Vec<StoredBlock>>::deserialize(deserializer).map(|by_app| {
+        by_app
+            .into_iter()
+            .filter_map(|(app, blocks)| {
+                let blocks: Vec<_> = blocks
+                    .into_iter()
+                    .filter_map(|block| match block.cap {
+                        StoredCap::Live(cap) => Some(super::app_policy::Block {
+                            cap,
+                            generation: block.generation,
+                            restored_in_settings: block.restored_in_settings,
+                        }),
+                        StoredCap::Retired { .. } => None,
+                    })
+                    .collect();
+                (!blocks.is_empty()).then_some((app, blocks))
+            })
+            .collect()
+    })
 }
 
 pub(super) fn app_choices(key: &str) -> Result<BTreeMap<String, bool>, String> {

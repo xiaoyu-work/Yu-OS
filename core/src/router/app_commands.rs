@@ -120,8 +120,9 @@ pub(super) fn dispatch_app(
     }
 
     // Select by declaration before execution. Ordinary operations retain
-    // precedence; an independent MCP command never falls back to main.py.
-    if apps::command_uses_mcp_cli(&app.manifest, command) {
+    // precedence, except the installed Mail product's mailbox commands, which
+    // must execute in its Root App service Host.
+    if command_uses_service(app, command) {
         // Reject an ambiguous or non-matching command before launch.
         apps::mcp_tool_for_command(&app.manifest, command)?;
         require_runnable(app)?;
@@ -138,6 +139,11 @@ pub(super) fn dispatch_app(
 
     require_runnable(app)?;
     run_app_command(app_name, command, &cmd_args, app, stdin_data)
+}
+
+pub(super) fn command_uses_service(app: &apps::App, command: &str) -> bool {
+    apps::command_uses_mcp_cli(&app.manifest, command)
+        || crate::yuosd::mail::cli_uses_service(app, command)
 }
 
 pub(super) fn stdio_uses_process_streams(args: &[String]) -> bool {

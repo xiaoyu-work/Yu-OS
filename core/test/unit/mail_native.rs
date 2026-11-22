@@ -76,11 +76,33 @@ fn root_private_native_gateway_preserves_ai_and_mailbox_lanes() {
     .unwrap();
     let request = read_frame(&mut ai, MAX_AI_FRAME).unwrap().unwrap();
     assert_eq!(request["id"], "ui-request");
+    let mut old = UnixStream::connect(&path).unwrap();
+    write_frame(
+        &mut old,
+        &json!({"id":"old","version":2,"verb":"accounts","args":{}}),
+        MAX_HOST_FRAME,
+    )
+    .unwrap();
+    assert_eq!(read_frame(&mut old, MAX_MAIL_FRAME).unwrap().unwrap()["dispatched"], false);
+    write_frame(
+        &mut native,
+        &json!({"type":"mailbox.ready","version":2}),
+        MAX_HOST_FRAME,
+    )
+    .unwrap();
+    let mut unversioned = UnixStream::connect(&path).unwrap();
+    write_frame(
+        &mut unversioned,
+        &json!({"id":"old-broker","verb":"accounts","args":{}}),
+        MAX_HOST_FRAME,
+    )
+    .unwrap();
+    assert_eq!(read_frame(&mut unversioned, MAX_MAIL_FRAME).unwrap().unwrap()["dispatched"], false);
     let mut broker = UnixStream::connect(&path).unwrap();
     write_frame(
         &mut broker,
         &json!({
-            "id":"mail-request","verb":"accounts","args":{},
+            "version":2,"id":"mail-request","verb":"accounts","args":{},
         }),
         MAX_HOST_FRAME,
     )
@@ -88,6 +110,7 @@ fn root_private_native_gateway_preserves_ai_and_mailbox_lanes() {
     let request = read_frame(&mut native, MAX_HOST_FRAME).unwrap().unwrap();
     assert_eq!(request["type"], "mailbox.request");
     assert_eq!(request["id"], "mail-request");
+    assert!(request.get("version").is_none());
     write_frame(
         &mut native,
         &json!({
@@ -98,6 +121,7 @@ fn root_private_native_gateway_preserves_ai_and_mailbox_lanes() {
     )
     .unwrap();
     let response = read_frame(&mut broker, MAX_MAIL_FRAME).unwrap().unwrap();
+    assert_eq!(response["version"], 2);
     assert_eq!(response["dispatched"], true);
     assert_eq!(response["result"]["backend"], "thunderbird");
     write_frame(

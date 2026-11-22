@@ -1356,8 +1356,8 @@ pub struct AppSessionRelay {
     pub handle: Token,
     /// Wire name of the inner route. Resolved against the one typed
     /// route registry; anything the registry does not name, or names as
-    /// something other than a `Session`-subject system-service route,
-    /// is refused before its body is decoded.
+    /// something other than a relayable route, is refused before its
+    /// body is decoded. Private product routes authenticate separately.
     pub command: Text<COMMAND_BYTES>,
     /// Bounded business data, including full filesystem text. The inner
     /// route's typed decoder reapplies its field-specific limits before
@@ -1709,8 +1709,7 @@ pub enum BrowserRenderOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct MailControl {
-    pub session: Token,
+pub struct MailExchange {
     pub action: Token,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<Name>,

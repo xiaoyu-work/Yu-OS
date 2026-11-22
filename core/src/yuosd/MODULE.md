@@ -91,7 +91,7 @@ and agent tasks.
 | `app_notifications.rs` | Capability-gated App post/close/send and own-source list, sealed App/owner attribution, no business-name entitlement or user-bus access |
 | `notifications/gui.rs` | Exact signed-GUI presentation resource, single owner desktop consumer, publication/attempt-bound receipts and private shell descriptor projection; never an App inbox or name entitlement |
 | `browser.rs` | Attached-browser provider: exact action capabilities, expected-origin injection, owner socket validation, and bounded Native Messaging frames |
-| `mail.rs`, `../mail_native.rs` | Account-scoped Thunderbird mail service and OS-owned Native Messaging multiplexer; independent read/draft/sender grants, owner service startup, stable message references and no mailbox authority for AI App stdout |
+| `mail.rs`, `../mail_native.rs` | Private Mail App backend and root-peer-only Native Messaging multiplexer; owner Thunderbird startup, stable message references and no mailbox authority for AI App stdout |
 | `network_diagnostics.rs` | Host-network diagnostic provider: interface/route inspection, bounded DNS resolution, and DNS-pinned TCP probes for the `netdiag` App |
 | `filesystem.rs` | Exact-scope bounded text reads and atomic writes/replacements for App workers; pinned paths, task-owned inverse snapshots, no App dispatch |
 | `capture.rs`, `capture/` | Exact-output non-interactive screenshots and Root-held per-GUI interactive portal custody; authenticated OS helpers, live screen spend, metadata-only GUI results and checked portal/helper retirement; no App program or raw App bus |
@@ -133,15 +133,17 @@ review and normal capability/AI decisions remain mandatory. The root-owned
 launcher/interpreter/Thunderbird-parent checks still admit the OS transport,
 not an App privilege tier. The legacy native-registration route is retired.
 
-`system.mail.control` uses the normal authenticated SystemService route and
-requires named `mail.read`, `mail.draft`, or `mail.send` rights, or unscoped
-`mail.accounts` for discovery. No caller App name confers access. Profile-
-qualified accounts bind to the owner's authenticated Thunderbird bridge.
-Closed action inputs cannot choose an owner, socket, executable or profile
-path. The OS-owned gateway alone forwards root broker mailbox requests; it
-filters AI child stdout to correlated AI replies. The App child has no raw
-desktop transport or host network. This Host cutover does not establish
-unrelated native resource or full installed-system publication acceptance.
+Mail has no public mailbox or inter-App permission. A `private.mail.exchange`
+frame is refused on all daemon listeners; only the exact Root-created Mail
+App service Host can relay it for its live, bound MCP call. Root verifies the
+official publisher, the active tree at `/usr/lib/yuos/apps/email`, and its
+signed `mail-private-protocol.json` (version 2). A matching native protocol is
+required before dispatch; skew leaves the mailbox lane unavailable. Owner CLI
+mailbox commands and the authenticated Mail Web view use the same App Host.
+Profile-qualified accounts and references still address the owner's native
+Thunderbird, and saving an attachment requires exact `fs.write`. No request
+selects the owner, session, native socket, executable, or profile path. The
+AI-only native App still receives only its correlated AI traffic.
 
 An install review can record a separate lasting Allow or Don't allow choice
 for supported, exact GUI needs. Root applies the choice only after consuming

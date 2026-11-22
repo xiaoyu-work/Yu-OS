@@ -508,6 +508,11 @@ fn admit(command: Command, authority: &BrokerAuthority) -> Result<(), String> {
             command.as_str()
         ));
     }
+    if command == Command::PrivateMailExchange {
+        // The Root private proxy and Mail provider authenticate the
+        // Host and active signed child. This only forwards the frame.
+        return Ok(());
+    }
     if matches!(command, Command::SystemAppFileTransfer | Command::SystemAppFileCommit) {
         // These capabilities deliberately do not live in the worker's
         // advisory caps. Only the authenticated App Host relay can spend them.

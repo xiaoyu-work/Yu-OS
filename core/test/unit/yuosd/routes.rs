@@ -40,7 +40,6 @@ const EXPECTED_USER_COMMANDS: &[&str] = &[
     "channel.manage",
     "system.channel.control",
     "system.app-event.publish",
-    "system.mail.control",
     "activity.create",
     "activity.list",
     "activity.get",
@@ -107,7 +106,6 @@ const EXPECTED_USER_COMMANDS: &[&str] = &[
     "nearby.status",
     "system.app-event.publish",
     "system.channel.control",
-    "system.mail.control",
     "system.audio.control",
     "system.desktop-preferences.control",
     "system.app-permissions",
@@ -291,6 +289,7 @@ fn every_route_owns_its_audit_metadata() {
     let payload_free: std::collections::BTreeSet<_> = [
         "daemon.health",
         "daemon.status",
+        "private.mail.exchange",
         "agent.account.get",
         "agent.hooks.get",
         "app_store.list",

@@ -1254,7 +1254,7 @@ pub async fn set_transient(
     // Derive and authorize the requested capabilities *before* anything
     // is written. A launch that cannot settle its approvals leaves both
     // the registry and the authority untouched.
-    let (caps, call_context, activity, brokered_file) = match authorization {
+    let (caps, call, activity, brokered_file) = match authorization {
         None => (None, None, None, None),
         Some(token) => {
             let supplied_action_digest =
@@ -1295,7 +1295,7 @@ pub async fn set_transient(
             }
             (
                 Some(pending.caps),
-                Some(pending.context),
+                Some((pending.tool, pending.context)),
                 pending.activity,
                 pending.brokered_file,
             )
@@ -1337,14 +1337,14 @@ pub async fn set_transient(
             return Err(error);
         }
     }
-    let grant = match call_context.as_ref() {
-        Some(context) => issue_gateway_target_grant(
+    let grant = match call {
+        Some((tool, context)) => issue_gateway_target_grant(
             &session_id,
             &app_id,
             uid,
             child_pid,
             &effective,
-            context,
+            (tool, context),
             ceiling,
             activity.as_ref(),
             brokered_file,
@@ -2842,7 +2842,13 @@ pub async fn relay(
     let command = required_string(&params, "command")?;
     let inner =
         Command::parse(&command).ok_or_else(|| format!("unknown relay route `{command}`"))?;
-    let route = relayable_route(inner)?;
+    let private_mail = inner == Command::PrivateMailExchange;
+    let route = if private_mail {
+        super::mail::require_service_host(client, relay_grant)?;
+        inner.route()
+    } else {
+        relayable_route(inner)?
+    };
     let _file_transition = if route.authority.audience == authority::Audience::AppFile {
         use crate::extension_host::protocol::HostPurpose;
         if !client.extension_host.as_ref().is_some_and(|host| {
@@ -2861,10 +2867,8 @@ pub async fn relay(
         None
     };
 
-    // The session id is not taken from the worker: it is overwritten
-    // with the one the relay grant names, before the inner body is
-    // decoded, so the typed decode validates the value that will
-    // actually be authorized.
+    // Mail accepts no caller identity fields. For the other routes, replace
+    // the child's claimed session with the one the relay grant names.
     let mut inner_params = params
         .get("params")
         .cloned()
@@ -2874,7 +2878,9 @@ pub async fn relay(
             "relayed parameters must be an object",
         ));
     };
-    object.insert("session".to_string(), Value::String(session_id.clone()));
+    if !private_mail {
+        object.insert("session".to_string(), Value::String(session_id.clone()));
+    }
     let inner_params = (route.decode)(inner_params)
         .map_err(|_| format!("relayed route `{}` refused its parameters", route.name))?;
 
@@ -3030,11 +3036,12 @@ fn issue_gateway_target_grant(
     uid: u32,
     child_pid: u32,
     caps: &CapSet,
-    context: &crate::agent::tools::app_gateway::McpCallContext,
+    call: (String, crate::agent::tools::app_gateway::McpCallContext),
     ceiling: Option<&Ceiling>,
     activity: Option<&crate::caps::activity_boundary::PolicyBinding>,
     brokered_file: Option<super::brokered_file::Access>,
 ) -> Result<(), String> {
+    let (tool, context) = call;
     if let Some(activity) = activity {
         if activity.owner_uid != uid {
             return Err("App target grant has a different Activity owner".to_string());
@@ -3049,6 +3056,7 @@ fn issue_gateway_target_grant(
         .with_app(Some(app_id.to_string()))
         .with_task(context.task_id.clone())
         .with_activity(activity.cloned());
+    subject.app_tool = Some(tool);
     let mut audiences = vec![
         authority::Audience::SystemService,
         authority::Audience::Credential,

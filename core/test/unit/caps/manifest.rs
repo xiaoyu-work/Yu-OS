@@ -131,6 +131,21 @@ fn unknown_verb_rejected_at_parse_time() {
 }
 
 #[test]
+fn retired_mail_verbs_do_not_load_as_manifest_needs_or_authority() {
+    for verb in ["mail.accounts", "mail.read", "mail.draft", "mail.send"] {
+        assert!(Verb::parse(verb).is_none());
+        assert!(serde_json::from_value::<Need>(serde_json::json!({
+            "verb": verb, "scope": {"kind":"fixed","scope":{"kind":"wild"}}, "why":{"en":"Mail"},
+        })).is_err());
+        let stored: crate::caps::CapSet = serde_json::from_value(serde_json::json!([
+            {"verb":verb,"scope":{"kind":"wild"}},
+            {"verb":"fs.write","scope":{"kind":"path","value":"/tmp/a"}}
+        ])).unwrap();
+        assert_eq!(stored.iter().map(|cap| cap.verb).collect::<Vec<_>>(), [Verb::FS_WRITE]);
+    }
+}
+
+#[test]
 fn need_referencing_undeclared_arg_rejected() {
     let err = Manifest::from_json(
         r#"{

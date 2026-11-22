@@ -144,7 +144,11 @@ fn peer_authentication_includes_registration_without_changing_legacy_native_rout
     assert!(requires_root_peer(Command::SystemReviewDecide));
     assert!(requires_root_peer(Command::SystemReviewConsume));
     assert!(requires_root_peer(Command::SystemReviewCancel));
-    assert!(requires_root_peer(Command::SystemMailControl));
+    assert!(!requires_root_peer(Command::PrivateMailExchange));
+    assert!(requires_root_exchange(&Request::build(
+        Command::AppSessionRelay,
+        serde_json::json!({"command":Command::PrivateMailExchange.as_str()}),
+    )));
     assert!(requires_root_peer(Command::SystemRegionalSettingsControl));
     assert!(!requires_root_peer(Command::SystemClipboardControl));
     assert!(!requires_root_peer(Command::DaemonHealth));

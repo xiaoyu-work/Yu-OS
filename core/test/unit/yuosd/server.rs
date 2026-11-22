@@ -638,7 +638,7 @@ fn every_route_is_reachable_by_name_and_declares_an_access_class() {
         assert_eq!(Command::parse(route.name), Some(route.command));
         assert!(matches!(
             route.access,
-            Access::User | Access::Root | Access::PrivateTaskHost
+            Access::User | Access::Root | Access::PrivateTaskHost | Access::AppRelayOnly
         ));
         assert!(matches!(route.kind, Kind::Query | Kind::Mutation));
     }

@@ -51,24 +51,25 @@ yu app email draft_save --account SENDER_ACCOUNT_ID \
 There is no Gmail/Outlook API, SMTP or credential-detection fallback. The OS
 starts the owner's Thunderbird through the user-session service manager when
 needed; no Agent UI or model request is required. Unavailable session/backend
-services fail explicitly. Mailbox read/draft and sender rights are separately
-account-scoped, not borrowed from OAuth grants or a product name.
+services fail explicitly. The installed Mail App uses its own Thunderbird
+backend through a private, verified Host. No mailbox permission is available
+to other Apps.
 
 Message and draft results carry `thunderbird-message` / `thunderbird-draft`
 references. Copy returned IDs: they include profile/account/folder/RFC
 Message-ID, not Thunderbird's numeric IDs that change on restart.
-`native_message` / `native_draft` resolve them using existing bounded mailbox
-rights. Historical Gmail/Outlook objects are not remapped to native messages.
+`native_message` / `native_draft` resolve them within the selected account.
+Historical Gmail/Outlook objects are not remapped to native messages.
 
 `attachment_download` requires an explicit mailbox account/message/MIME-part ID and a
-canonical new output path whose parent already exists. Provider filenames never
-select destinations; downloads are private, bounded and non-overwriting.
+canonical new output path with an existing parent and exact `fs.write`.
+Provider filenames never select destinations; downloads are bounded and non-overwriting.
 `draft_save` persists a native draft without sending. Replacing requires its
 explicit `source-account`. `native_draft --id ...` returns a complete review,
 including Bcc and attachment byte fingerprints. `draft_send` requires the
 draft's mailbox `account`, an explicit `sender-account`, its current `review`
-and `confirm=true`. These accounts can differ for Local Folders; their grants
-remain independent. It sends the captured reviewed contents and removes only
+and `confirm=true`. These accounts can differ for Local Folders within the
+same Thunderbird profile. It sends the captured reviewed contents and removes only
 an unchanged source draft; it does not prove recipient delivery.
 `email.draft` is still an AI text helper only.
 

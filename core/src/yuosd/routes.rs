@@ -63,6 +63,9 @@ pub enum Access {
     Root,
     /// A task Host identity injected only by its verified private broker.
     PrivateTaskHost,
+    /// Not admitted on any daemon listener. Only an explicitly authenticated
+    /// App relay may dispatch this command.
+    AppRelayOnly,
 }
 
 /// Whether a route changes privileged state.
@@ -323,7 +326,7 @@ impl Route {
             {
                 Ok(())
             }
-            Access::PrivateTaskHost => Err(Fault::NotAuthorized),
+            Access::PrivateTaskHost | Access::AppRelayOnly => Err(Fault::NotAuthorized),
         }
     }
 }
@@ -2644,21 +2647,23 @@ routes! {
             browser::render(c.params, authority, c.state).await
         },
     }
-    SystemMailControl {
-        name: "system.mail.control",
-        access: Access::User,
+    PrivateMailExchange {
+        name: "private.mail.exchange",
+        access: Access::AppRelayOnly,
         kind: Kind::Mutation,
-        budget: Budget { max_in_flight: 2, deadline: Deadline::Uninterruptible },
-        authority: session(Audience::SystemService),
-        body: body::MailControl,
-        audit: &[
-            ("session", FieldRule::Token),
-            ("action", FieldRule::Token),
-            ("account", FieldRule::Token),
-        ],
+        budget: Budget::mutation(),
+        // Resolve the active call for workload identity and, only for
+        // attachments, exact fs.write. There is no mailbox capability.
+        authority: RouteAuthority {
+            requirement: authority::no_requirement,
+            approval: Approval::Ineligible,
+            ..session(Audience::SystemService)
+        },
+        body: body::MailExchange,
+        audit: &[],
         run: |c| {
             let authority = c.authority()?;
-            mail::control(c.params, c.client, authority).await
+            mail::exchange(c.params, c.client, authority).await
         },
     }
     SystemDisplayControl {

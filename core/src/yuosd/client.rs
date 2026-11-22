@@ -117,7 +117,6 @@ fn requires_root_peer(command: super::routes::Command) -> bool {
             | super::routes::Command::GuiSystemSettings
             | super::routes::Command::NotificationPresentationControl)
         || command == super::routes::Command::SystemRegionalSettingsControl
-        || command == super::routes::Command::SystemMailControl
         || command.as_str().starts_with("system.review.")
 }
 
@@ -133,6 +132,9 @@ fn requires_root_exchange(request: &Request) -> bool {
                 Some("system.package.install" | "system.package.control" | "system.package.restore"
                     | "system.desktop-preferences.control")
             ))
+        || (request.command == Command::AppSessionRelay
+            && request.params["command"].as_str().map(str::trim)
+                == Some(Command::PrivateMailExchange.as_str()))
 }
 
 #[cfg(unix)]

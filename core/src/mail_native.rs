@@ -13,6 +13,7 @@ use std::process::Child;
 use std::time::{Duration, Instant};
 
 pub(crate) const SOCKET_NAME: &str = "yuos-thunderbird.sock";
+pub(crate) const MAIL_PROTOCOL_VERSION: u32 = 2;
 pub(crate) const MAX_MAIL_FRAME: usize = 32 * 1024 * 1024;
 const MAX_AI_FRAME: usize = 8 * 1024 * 1024;
 const MAX_HOST_FRAME: usize = 1024 * 1024;
@@ -175,6 +176,15 @@ fn validate_request(value: &Value) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_mail_request(value: &mut Value) -> Result<(), String> {
+    if value.as_object_mut().and_then(|object| object.remove("version"))
+        != Some(json!(MAIL_PROTOCOL_VERSION))
+    {
+        return Err("Thunderbird Mail bridge protocol does not match Yu OS".into());
+    }
+    validate_request(value)
+}
+
 fn validate_ai_response(value: &Value, pending: &mut HashSet<String>) -> Result<(), String> {
     let id = request_id(value)?;
     let object = value.as_object().ok_or("AI response must be an object")?;
@@ -217,7 +227,8 @@ fn reject(stream: &mut UnixStream, id: &str, error: &str, dispatched: bool) -> R
     write_frame(
         stream,
         &json!({
-            "id": id, "ok": false, "error": error, "dispatched": dispatched,
+            "version": MAIL_PROTOCOL_VERSION, "id": id, "ok": false,
+            "error": error, "dispatched": dispatched,
         }),
         MAX_MAIL_FRAME,
     )
@@ -287,11 +298,12 @@ fn serve_on<N: Read + AsRawFd, O: Write, A: Write, B: Read + AsRawFd>(
             match message["type"].as_str() {
                 Some("mailbox.ready") => {
                     if message.as_object().is_none_or(|object| object.len() != 2)
-                        || message["version"] != 1
+                        || message["version"].as_u64().is_none()
                     {
                         return Err("invalid Thunderbird mailbox readiness".into());
                     }
-                    ready = true;
+                    // Version skew disables the mailbox lane, not AI requests.
+                    ready = message["version"] == MAIL_PROTOCOL_VERSION;
                 }
                 Some("mailbox.response") => {
                     let id = request_id(&message)?.to_string();
@@ -308,8 +320,10 @@ fn serve_on<N: Read + AsRawFd, O: Write, A: Write, B: Read + AsRawFd>(
                     }
                     let object = message.as_object_mut().unwrap();
                     object.remove("type");
+                    object.insert("version".into(), json!(MAIL_PROTOCOL_VERSION));
                     object.insert("dispatched".into(), Value::Bool(true));
-                    write_frame(&mut pending.stream, &message, MAX_MAIL_FRAME)?;
+                    // A cancelled broker waiter must not kill the AI pipe.
+                    let _ = write_frame(&mut pending.stream, &message, MAX_MAIL_FRAME);
                 }
                 Some(_) => return Err("unsupported Thunderbird native frame type".into()),
                 None => {
@@ -337,13 +351,18 @@ fn serve_on<N: Read + AsRawFd, O: Write, A: Write, B: Read + AsRawFd>(
             stream
                 .set_write_timeout(Some(FRAME_TIMEOUT))
                 .map_err(|e| e.to_string())?;
-            let Some(mut message) = read_frame(&mut stream, MAX_HOST_FRAME)? else {
+            let Ok(Some(mut message)) = read_frame(&mut stream, MAX_HOST_FRAME) else {
                 continue;
             };
-            validate_request(&message)?;
-            let id = request_id(&message)?.to_string();
+            let Ok(id) = request_id(&message).map(str::to_owned) else {
+                continue;
+            };
+            if let Err(error) = validate_mail_request(&mut message) {
+                let _ = reject(&mut stream, &id, &error, false);
+                continue;
+            }
             if !ready || mail_pending.is_some() {
-                reject(
+                let _ = reject(
                     &mut stream,
                     &id,
                     if !ready {
@@ -352,7 +371,7 @@ fn serve_on<N: Read + AsRawFd, O: Write, A: Write, B: Read + AsRawFd>(
                         "Thunderbird mailbox bridge is busy"
                     },
                     false,
-                )?;
+                );
                 continue;
             }
             message

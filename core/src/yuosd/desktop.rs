@@ -30,7 +30,9 @@ pub(super) use portal::{owner_file_chooser_request, owner_portal_request, Portal
 
 pub(super) async fn start_thunderbird(client: &ClientIdentity) -> Result<(), String> {
     let uid = client.require_uid()?;
-    let gid = client.gid.ok_or("Mail owner gid is unavailable")?;
+    // The authenticated relay executes under a reserved App Host uid/gid;
+    // Thunderbird itself must launch under the desktop owner's account.
+    let (gid, _) = super::client_identity::owner_groups(uid)?;
     let home = client.require_home_dir()?;
     let pid = client.pid.ok_or("Mail caller pid is unavailable")?;
     let environment = DesktopEnvironment::for_user(uid, gid, home, pid)?;

@@ -372,6 +372,45 @@ fn lease(purpose: super::super::protocol::HostPurpose) -> ExtensionLease {
 }
 
 #[test]
+fn private_mail_is_relayed_only_by_its_bound_service_host() {
+    use crate::extension_host::protocol::HostPurpose;
+    use crate::provenance::runtime::PackageRef;
+
+    let peer = peer::PeerProcess {
+        pid: std::process::id(),
+        uid: unsafe { libc::geteuid() },
+        gid: unsafe { libc::getegid() },
+        start_time_ticks: crate::proc::read_start_time_ticks_pub(std::process::id()).unwrap(),
+    };
+    // This is the verified lease's prefilter; the provider independently
+    // re-verifies the installed bytes and active child on the relayed call.
+    let package: PackageRef = serde_json::from_value(serde_json::json!({
+        "kind":"app", "id":"email", "tier":"publisher", "content_digest":format!("sha256:{}", "b".repeat(64)),
+        "publisher_key_id":"sha256:446530c9189e8aff4a5db3871f3ac8ed82b2f06e1c0423c4bfb28babd81f5ed1"
+    })).unwrap();
+    let relay = Request::build(Command::AppSessionRelay, serde_json::json!({
+        "session_id":"mail-child","handle":"relay","command":Command::PrivateMailExchange.as_str(),
+    }));
+    let bound = lease(HostPurpose::AppService).with_app_service_package(package.clone());
+    assert!(request_allowed(&relay, peer, &bound));
+    let direct = Request::build(Command::PrivateMailExchange, serde_json::json!({}));
+    assert!(!request_allowed(&direct, peer, &bound));
+    assert!(!child_route(Command::PrivateMailExchange.route()));
+    assert!(!request_allowed(
+        &relay, peer, &lease(HostPurpose::Task).with_app_service_package(package.clone())
+    ));
+    for invalid in [
+        PackageRef { id: "mail-ai".into(), ..package.clone() },
+        PackageRef { publisher_key_id: Some("another-publisher".into()), ..package.clone() },
+        PackageRef { publisher_key_id: None, ..package },
+    ] {
+        assert!(!request_allowed(
+            &relay, peer, &lease(HostPurpose::AppService).with_app_service_package(invalid)
+        ));
+    }
+}
+
+#[test]
 fn only_a_task_host_can_reach_the_app_service_dispatch_route() {
     let process = peer::PeerProcess {
         pid: std::process::id(),

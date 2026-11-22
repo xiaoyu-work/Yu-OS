@@ -1,4 +1,4 @@
-//! Account-scoped mail access through the authenticated owner's Thunderbird.
+//! Private exchange between the verified Mail App service and its native backend.
 
 use base64::Engine;
 use serde::Deserialize;
@@ -11,19 +11,28 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 
-use super::authority::Decision;
+use super::authority::{Audience, Decision, Issuer};
 use super::client_identity::{ClientIdentity, FsIdentityGuard};
 use super::protocol::BrokerError;
-use super::wire::requests::MailControl;
+use super::wire::requests::MailExchange;
 use crate::caps::{Cap, Scope, Verb};
-use crate::mail_native::{MAX_MAIL_FRAME, SOCKET_NAME};
+use crate::extension_host::protocol::HostPurpose;
+use crate::mail_native::{MAIL_PROTOCOL_VERSION, MAX_MAIL_FRAME, SOCKET_NAME};
+use crate::provenance::runtime::{self, InstanceClass, PackageRef};
+use crate::provenance::{verify, PackageKind, VerifiedPackage};
 
+const MAIL_APP: &str = "email";
+const MAIL_ROOT: &str = "/usr/lib/yuos/apps/email";
+// Canonical provenance key ID of the official App signing key.
+const MAIL_PUBLISHER: &str = "sha256:446530c9189e8aff4a5db3871f3ac8ed82b2f06e1c0423c4bfb28babd81f5ed1";
+const PROTOCOL_MARKER: &str = "mail-private-protocol.json";
 const MAX_ATTACHMENT: u64 = 16 * 1024 * 1024;
 const BODY_BYTES: usize = 256 * 1024;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct BridgeResponse {
+    version: u32,
     id: String,
     ok: bool,
     dispatched: bool,
@@ -31,6 +40,167 @@ struct BridgeResponse {
     result: Option<Value>,
     #[serde(default)]
     error: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProtocolMarker {
+    version: u32,
+}
+
+// A prefilter for the Root-owned Host lease, not proof of installed provenance.
+pub(crate) fn is_mail_package(package: &PackageRef) -> bool {
+    package.kind == PackageKind::App
+        && package.id == MAIL_APP
+        && package.publisher_key_id.as_deref() == Some(MAIL_PUBLISHER)
+        && package.developer_path.is_none()
+}
+
+pub(super) fn require_service_host(
+    client: &ClientIdentity,
+    relay: &Decision,
+) -> Result<(), BrokerError> {
+    relay.require_app(MAIL_APP).map_err(BrokerError::authorization)?;
+    if relay.issuer() != Issuer::AppSessionAuthority
+        || relay.audience() != Audience::AppRelay
+        || client.pid != Some(relay.bound_pid())
+        || relay.owner_uid() != client.require_uid().map_err(BrokerError::authorization)?
+        || exact_service_host(client).is_none()
+    {
+        return Err(BrokerError::authorization(
+            "Mail requires its authenticated App service Host relay",
+        ));
+    }
+    Ok(())
+}
+
+fn exact_service_host(client: &ClientIdentity) -> Option<&str> {
+    let host = client.extension_host.as_ref()?;
+    let start = host.host_start_time_ticks?;
+    let session = host.host_session_id.as_deref()?;
+    (host.purpose == HostPurpose::AppService
+        && host.owner_uid != 0
+        && client.uid == Some(host.owner_uid)
+        && client.execution_uid == Some(host.extension_uid)
+        && client.pid == Some(host.host_pid)
+        && client.start_time_ticks == Some(start)
+        && crate::proc::read_start_time_ticks_pub(host.host_pid) == Some(start)
+        && host.authority_session_id.as_deref() == Some(session))
+        .then_some(session)
+}
+
+fn verify_installed(expected: &PackageRef) -> Result<VerifiedPackage, BrokerError> {
+    if !is_mail_package(expected) {
+        return Err(BrokerError::authorization(
+            "Mail requires the official Mail publisher and package",
+        ));
+    }
+    let root = Path::new(MAIL_ROOT);
+    crate::provenance::fsec::require_secure_location(root, &[0])
+        .map_err(|_| BrokerError::authorization("Mail installation is not at its protected root"))?;
+    let trust = crate::provenance::trust_store();
+    let package = verify::verify_package(
+        root,
+        &verify::VerifyOptions::new(PackageKind::App).expect_id(MAIL_APP).signature_only(),
+        &trust,
+    )
+    .map_err(|_| BrokerError::authorization("Mail installation failed signature or tree verification"))?;
+    if PackageRef::of(&package) != *expected || package.manifest_path() != "app.json" {
+        return Err(BrokerError::authorization(
+            "Mail is not running the current verified installation",
+        ));
+    }
+    for entry in package.files() {
+        let node = crate::provenance::fsec::lstat(&root.join(&entry.path))
+            .map_err(|_| BrokerError::authorization("Mail package tree changed"))?;
+        if node.uid != 0 || node.is_symlink || node.is_group_or_world_writable() {
+            return Err(BrokerError::authorization("Mail package files must be protected by Root"));
+        }
+    }
+    let marker = package.read_verified(PROTOCOL_MARKER).map_err(|_| {
+        BrokerError::unavailable("Mail requires an updated, signed Mail App package")
+    })?;
+    check_protocol_marker(&marker)?;
+    Ok(package)
+}
+
+fn check_protocol_marker(marker: &[u8]) -> Result<(), BrokerError> {
+    if marker.len() > 128 || !serde_json::from_slice::<ProtocolMarker>(marker)
+        .is_ok_and(|marker| marker.version == MAIL_PROTOCOL_VERSION)
+    {
+        return Err(BrokerError::unavailable("Mail App private protocol version does not match Yu OS"));
+    }
+    Ok(())
+}
+
+fn mailbox_command(command: &str) -> Option<&str> {
+    match command {
+        "native_message" => Some("read"),
+        "accounts" | "folders" | "list" | "search" | "read"
+            | "native_draft" | "send" | "draft_save" | "draft_send" | "attachment_download" | "sync"
+            => Some(command),
+        _ => None,
+    }
+}
+
+pub(crate) fn cli_uses_service(app: &crate::apps::App, command: &str) -> bool {
+    mailbox_command(command).is_some() && app.require_verified().is_ok_and(|package| {
+        package.dir() == Path::new(MAIL_ROOT) && is_mail_package(&PackageRef::of(package))
+    })
+}
+
+fn active_mail_package(
+    client: &ClientIdentity,
+    authority: &Decision,
+    action: &str,
+) -> Result<PackageRef, BrokerError> {
+    let denied = || BrokerError::authorization("Mail requires a live, bound Mail App call");
+    let host_session = exact_service_host(client).ok_or_else(denied)?;
+    authority.require_app(MAIL_APP).map_err(BrokerError::authorization)?;
+    let session = authority.session().map_err(BrokerError::authorization)?;
+    if authority.issuer() != Issuer::AppGateway
+        || authority.app_tool().and_then(|tool| tool.strip_prefix("email.")).and_then(mailbox_command)
+            != Some(action)
+        || client.uid != Some(authority.owner_uid())
+        || authority.session_id() != Some(session.session_id.as_str())
+        || session.group.as_deref() != Some("app-mcp")
+        || session.app_id.as_deref() != Some(MAIL_APP)
+        || session.workdir.as_deref() != Some(MAIL_ROOT)
+        || session.parent.as_deref() != Some(host_session)
+        || session.pending_bind
+        || session.ended_at.is_some()
+        || session.pid == client.pid.unwrap_or_default()
+        || session.pid != authority.bound_pid()
+        || !crate::proc::process_descends_from(session.pid, client.pid.unwrap_or_default())
+    {
+        return Err(denied());
+    }
+    let instance = runtime::instance_for(authority.owner_uid(), &session.session_id)
+        .map_err(BrokerError::authorization)?
+        .ok_or_else(denied)?;
+    let process = instance.process.ok_or_else(denied)?;
+    if instance.class != InstanceClass::App
+        || instance.trust_context_uid != Some(0)
+        || process.uid != authority.owner_uid()
+        || process.pid != session.pid
+        || process.start_time_ticks.is_none()
+        || process.start_time_ticks != session.start_time_ticks
+        || process.start_time_ticks != crate::proc::read_start_time_ticks_pub(process.pid)
+    {
+        return Err(denied());
+    }
+    instance.package.ok_or_else(denied)
+}
+
+fn check_current(authority: &Decision, package: &VerifiedPackage) -> Result<(), BrokerError> {
+    authority.ensure_current().map_err(BrokerError::authorization)?;
+    let owner = authority.owner_uid();
+    let session = authority.session_id().ok_or_else(|| BrokerError::authorization("Mail call lost its session"))?;
+    super::trust_withdrawal::check_session(owner, session).map_err(BrokerError::authorization)?;
+    runtime::assert_live_instance_now(owner, session).map_err(BrokerError::authorization)?;
+    package
+        .assert_current(&crate::provenance::trust_store())
+        .map_err(|_| BrokerError::authorization("Mail installation or publisher trust changed"))
 }
 
 fn account(raw: &str) -> Result<(), String> {
@@ -74,7 +244,7 @@ fn message_account(id: &str) -> Result<String, String> {
     Ok(parts[0].clone())
 }
 
-fn prepare(request: &MailControl) -> Result<Vec<Cap>, String> {
+fn prepare(request: &MailExchange) -> Result<Option<Cap>, String> {
     let args = &request.args;
     let action = request.action.as_str();
     let allowed: &[&str] = match action {
@@ -99,7 +269,7 @@ fn prepare(request: &MailControl) -> Result<Vec<Cap>, String> {
         if request.account.is_some() {
             return Err("account enumeration cannot select an account".into());
         }
-        return Ok(vec![Cap::new(Verb::MAIL_ACCOUNTS, Scope::Wild)]);
+        return Ok(None);
     }
     let selected = request
         .account
@@ -107,12 +277,6 @@ fn prepare(request: &MailControl) -> Result<Vec<Cap>, String> {
         .ok_or("Mail requires an explicit account")?
         .as_str();
     account(selected)?;
-    let verb = match action {
-        "send" => Verb::MAIL_SEND,
-        "draft_save" => Verb::MAIL_DRAFT,
-        _ => Verb::MAIL_READ,
-    };
-    let mut caps = vec![Cap::new(verb, Scope::name(selected))];
     if let Some(value) = args.get("max_results") {
         if !value
             .as_u64()
@@ -162,6 +326,9 @@ fn prepare(request: &MailControl) -> Result<Vec<Cap>, String> {
             }
         }
     }
+    if action == "draft_save" && args.contains_key("source_account") && !args.contains_key("id") {
+        return Err("A draft source account requires the stored draft id".into());
+    }
     if matches!(
         action,
         "read" | "native_draft" | "draft_send" | "attachment_download"
@@ -177,14 +344,8 @@ fn prepare(request: &MailControl) -> Result<Vec<Cap>, String> {
             if declared.split_once(':').unwrap().0 != selected.split_once(':').unwrap().0 {
                 return Err("Draft and sender must use the same Thunderbird profile".into());
             }
-            caps.push(Cap::new(Verb::MAIL_READ, Scope::name(&source)));
-            caps.push(Cap::new(Verb::MAIL_DRAFT, Scope::name(source)));
         } else if source != selected {
             return Err("Mail message reference belongs to a different account".into());
-        }
-        if action == "draft_save" && args.contains_key("source_account") && !args.contains_key("id")
-        {
-            return Err("A draft source account requires the stored draft id".into());
         }
     }
     if action == "draft_send" {
@@ -203,8 +364,6 @@ fn prepare(request: &MailControl) -> Result<Vec<Cap>, String> {
         {
             return Err("draft send requires a SHA-256 review fingerprint".into());
         }
-        caps.push(Cap::new(Verb::MAIL_DRAFT, Scope::name(selected)));
-        caps.push(Cap::new(Verb::MAIL_SEND, Scope::name(sender)));
     }
     if action == "attachment_download" {
         let attachment = text(args, "attachment", 128)?;
@@ -225,23 +384,17 @@ fn prepare(request: &MailControl) -> Result<Vec<Cap>, String> {
         {
             return Err("Mail attachment limit must be between 1 and 16777216".into());
         }
-        caps.push(Cap::new(Verb::FS_WRITE, Scope::path(output)));
+        return Ok(Some(Cap::new(Verb::FS_WRITE, Scope::path(output))));
     }
-    Ok(caps)
+    Ok(None)
 }
 
-fn authorize(
-    request: &MailControl,
-    authority: &Decision,
-    owner: u32,
-) -> Result<super::authority::Authorized, BrokerError> {
-    let caps = prepare(request).map_err(BrokerError::execution)?;
-    if owner != authority.owner_uid() {
-        return Err(BrokerError::authorization("Mail request owner mismatch"));
+fn authorize_attachment(cap: &Cap, authority: &Decision) -> Result<(), BrokerError> {
+    if !authority.caps().iter().any(|held| held == cap) {
+        return Err(BrokerError::authorization("Mail attachment needs an exact fs.write grant"));
     }
-    authority
-        .require_all(&caps)
-        .map_err(BrokerError::authorization)
+    let _authorized = authority.require(cap.clone()).map_err(BrokerError::authorization)?;
+    Ok(())
 }
 
 fn now_ms() -> Result<u64, BrokerError> {
@@ -312,14 +465,14 @@ async fn connect(path: &Path, owner: u32) -> Result<Option<UnixStream>, BrokerEr
     Ok(Some(stream))
 }
 
-pub async fn control(
+pub(super) async fn exchange(
     params: Value,
     client: &ClientIdentity,
     authority: &Decision,
 ) -> Result<Value, BrokerError> {
-    let request: MailControl = serde_json::from_value(params)
+    let request: MailExchange = serde_json::from_value(params)
         .map_err(|error| BrokerError::execution(format!("invalid Mail request: {error}")))?;
-    prepare(&request).map_err(BrokerError::execution)?;
+    let attachment = prepare(&request).map_err(BrokerError::execution)?;
     let deadline = request
         .deadline_unix_ms
         .min(now_ms()?.saturating_add(55_000));
@@ -328,24 +481,32 @@ pub async fn control(
             "Mail request deadline has expired",
         ));
     }
-    if unsafe { libc::geteuid() } != 0
-        || client.require_uid().map_err(BrokerError::authorization)? != authority.owner_uid()
-    {
-        return Err(BrokerError::authorization(
-            "Mail requires the authenticated owner and root yuosd",
-        ));
+    if unsafe { libc::geteuid() } != 0 {
+        return Err(BrokerError::authorization("Mail requires Root yuosd"));
     }
-    let _authorized = authorize(
-        &request,
-        authority,
-        client.require_uid().map_err(BrokerError::authorization)?,
-    )?;
-    let path = socket_path(authority.owner_uid())?;
-    let mut stream = match connect(&path, authority.owner_uid()).await? {
+    let owner = authority.owner_uid();
+    let bound = active_mail_package(client, authority, request.action.as_str())?;
+    let _admission = super::app_mutation::admit_for_owner(MAIL_APP, owner)
+        .map_err(BrokerError::authorization)?;
+    // Package verification hashes the active installed tree. Keep it off
+    // the async executor and do not trust an alternate App search root.
+    let package = tokio::task::spawn_blocking(move || verify_installed(&bound))
+        .await.map_err(|_| BrokerError::unavailable("Mail package verification did not complete"))??;
+    check_current(authority, &package)?;
+    if let Some(cap) = &attachment {
+        authorize_attachment(cap, authority)?;
+    }
+    let path = socket_path(owner)?;
+    let mut stream = match connect(&path, owner).await? {
         Some(stream) => stream,
         None => {
-            super::desktop::start_thunderbird(client)
+            let remaining = Duration::from_millis(deadline.saturating_sub(now_ms()?));
+            if remaining.is_zero() {
+                return Err(BrokerError::unavailable("Mail request expired before startup"));
+            }
+            tokio::time::timeout(remaining, super::desktop::start_thunderbird(client))
                 .await
+                .map_err(|_| BrokerError::unavailable("Thunderbird mailbox startup deadline elapsed"))?
                 .map_err(BrokerError::unavailable)?;
             loop {
                 if now_ms()? >= deadline {
@@ -353,7 +514,8 @@ pub async fn control(
                         "Thunderbird mailbox startup deadline elapsed",
                     ));
                 }
-                if let Some(stream) = connect(&path, authority.owner_uid()).await? {
+                authority.ensure_current().map_err(BrokerError::authorization)?;
+                if let Some(stream) = connect(&path, owner).await? {
                     break stream;
                 }
                 tokio::time::sleep(Duration::from_millis(100)).await;
@@ -366,13 +528,16 @@ pub async fn control(
         args.insert("account".into(), json!(account.as_str()));
     }
     let id = uuid::Uuid::new_v4().to_string();
-    let payload = serde_json::to_vec(&json!({"id":id,"verb":request.action.as_str(),"args":args}))
+    let payload = serde_json::to_vec(&json!({
+        "version": MAIL_PROTOCOL_VERSION, "id": id, "verb": request.action.as_str(), "args": args,
+    }))
         .map_err(|error| BrokerError::execution(error.to_string()))?;
     if payload.len() > 1024 * 1024 {
         return Err(BrokerError::execution(
             "Mail request exceeds its frame limit",
         ));
     }
+    check_current(authority, &package)?;
     let duration = Duration::from_millis(deadline.saturating_sub(now_ms()?).min(35_000));
     if duration.is_zero() {
         return Err(BrokerError::unavailable(
@@ -403,7 +568,7 @@ pub async fn control(
     })?;
     let response: BridgeResponse = serde_json::from_slice(&body)
         .map_err(|_| BrokerError::indeterminate("Thunderbird Mail returned an invalid envelope"))?;
-    if response.id != id {
+    if response.version != MAIL_PROTOCOL_VERSION || response.id != id {
         return Err(BrokerError::indeterminate(
             "Thunderbird Mail response did not correlate",
         ));
@@ -423,6 +588,9 @@ pub async fn control(
             ))
         }
     };
+    check_current(authority, &package).map_err(|_| {
+        BrokerError::indeterminate("Mail call ended after dispatch to Thunderbird")
+    })?;
     if request
         .account
         .as_ref()

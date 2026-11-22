@@ -1,5 +1,24 @@
 use super::*;
 
+#[test]
+fn retired_mail_denials_do_not_hide_live_denials_or_revocation_floors() {
+    let mut data = serde_json::json!({
+        "app_permissions": {"1000/email":[
+            {"cap":{"verb":"mail.send","scope":{"kind":"name","value":"old-account"}}, "generation":3},
+            {"cap":{"verb":"fs.write","scope":{"kind":"path","value":"/tmp/a"}}, "generation":4}
+        ]},
+        "owners": {"1000": 5}
+    });
+    let state: Generations = serde_json::from_value(data.clone()).unwrap();
+    let blocks = &state.app_permissions["1000/email"];
+    assert_eq!(blocks.len(), 1);
+    assert_eq!(blocks[0].cap.verb, crate::caps::Verb::FS_WRITE);
+    assert_eq!(blocks[0].generation, 4);
+    assert_eq!(state.owners["1000"], 5);
+    data["app_permissions"]["1000/email"][1]["cap"]["verb"] = serde_json::json!("unknown.write");
+    assert!(serde_json::from_value::<Generations>(data).is_err());
+}
+
 use std::ffi::OsString;
 
 /// Every test drives the real generation state, so they share one

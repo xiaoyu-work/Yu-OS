@@ -237,6 +237,8 @@ pub struct Subject {
     pub session_id: Option<String>,
     pub app_id: Option<String>,
     pub task_id: Option<String>,
+    /// The tool admitted by the Root App gateway, not supplied by a provider request.
+    pub(crate) app_tool: Option<String>,
     pub(crate) activity: Option<crate::caps::activity_boundary::PolicyBinding>,
     pub(crate) workspace: Option<crate::workspaces::boundary::WorkspaceBinding>,
     pub(crate) brokered_file: Option<std::sync::Arc<crate::yuosd::brokered_file::Lease>>,

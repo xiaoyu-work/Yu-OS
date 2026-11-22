@@ -353,10 +353,6 @@ const AUTOMATOR_VERBS: &[Verb] = &[
     Verb::BROWSER_NAV,
     Verb::BROWSER_DOM_READ,
     Verb::BROWSER_DOM_WRITE,
-    Verb::MAIL_ACCOUNTS,
-    Verb::MAIL_READ,
-    Verb::MAIL_DRAFT,
-    Verb::MAIL_SEND,
 ];
 
 const AGENT_HOST_VERBS: &[Verb] = &[
@@ -411,10 +407,6 @@ const AGENT_HOST_VERBS: &[Verb] = &[
     Verb::BROWSER_NAV,
     Verb::BROWSER_DOM_READ,
     Verb::BROWSER_DOM_WRITE,
-    Verb::MAIL_ACCOUNTS,
-    Verb::MAIL_READ,
-    Verb::MAIL_DRAFT,
-    Verb::MAIL_SEND,
 ];
 
 const ADMIN_VERBS: &[Verb] = &[
@@ -514,10 +506,6 @@ const ADMIN_VERBS: &[Verb] = &[
     Verb::BROWSER_DOM_WRITE,
     Verb::BROWSER_INPUT_SECRET,
     Verb::BROWSER_EVAL,
-    Verb::MAIL_ACCOUNTS,
-    Verb::MAIL_READ,
-    Verb::MAIL_DRAFT,
-    Verb::MAIL_SEND,
 ];
 
 /// `kernel` is the OS process itself: every verb in `ALL_VERBS`.

@@ -52,7 +52,6 @@ const CHILD_PROVIDER_ROUTES: &[Command] = &[
     Command::SystemCrashInspect,
     Command::SystemBrowserControl,
     Command::SystemBrowserRender,
-    Command::SystemMailControl,
     Command::SystemDesktopControl,
     Command::SystemDesktopPreferencesControl,
     Command::SystemFilesystemRead,
@@ -558,6 +557,13 @@ fn request_allowed(request: &Request, process: peer::PeerProcess, lease: &Extens
     {
         if request.command == Command::AppServiceCall {
             return lease.purpose == crate::extension_host::protocol::HostPurpose::Task;
+        }
+        if request.command == Command::AppSessionRelay
+            && request.params["command"].as_str().map(str::trim)
+                == Some(Command::PrivateMailExchange.as_str())
+        {
+            return lease.purpose == crate::extension_host::protocol::HostPurpose::AppService
+                && lease.app_service_package.as_ref().is_some_and(crate::yuosd::mail::is_mail_package);
         }
         if request.command == Command::AppSessionRegister {
             return lease.app_service_package.as_ref().is_some_and(|package| {

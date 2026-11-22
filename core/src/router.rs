@@ -160,7 +160,7 @@ fn app_operation_accepts_stdin_in(args: &[String], root: &Path) -> bool {
     // gated by `require_runnable`.
     apps::find(root, app_id)
         .and_then(|app| {
-            if apps::command_uses_mcp_cli(&app.manifest, &args[2]) {
+            if app_commands::command_uses_service(&app, &args[2]) {
                 return Some(
                     args[3..] == ["--args-stdin"]
                         && apps::mcp_tool_for_command(&app.manifest, &args[2]).is_ok(),
@@ -1435,13 +1435,17 @@ fn dispatch_with_stdin_impl(
         if args.len() != 3 || args[1] != "request" || args[2] != "--request-stdin" {
             return Err("internal Mail bridge requires `request --request-stdin`".to_string());
         }
-        let mut request = parse_internal_bridge_request(
+        let request = parse_internal_bridge_request(
             stdin_data.as_deref(), 1024 * 1024, "Mail",
         )?;
-        let session = env::var("YUOS_SESSION")
-            .map_err(|_| "internal Mail command requires YUOS_SESSION".to_string())?;
-        request.insert("session".to_string(), Value::String(session));
-        let value = request_wire_yuosd(Command::SystemMailControl, Value::Object(request))?;
+        let command = Command::PrivateMailExchange;
+        let value = wire_yuosd_response(
+            command,
+            crate::yuosd::client::request_blocking(
+                crate::worker::linux::SANDBOX_BROKER_SOCKET,
+                crate::yuosd::protocol::Request::build(command, Value::Object(request)),
+            ),
+        )?;
         return Ok(Some(value.to_string()));
     }
 
@@ -2427,7 +2431,8 @@ fn run_app_command(
 }
 
 /// Dispatch a human `yu app <id> <command>` that names an MCP tool rather
-/// than an explicitly declared ordinary operation.
+/// than an explicitly declared ordinary operation, or a Mail mailbox
+/// command whose exact MCP twin must run through its Root-owned Host.
 ///
 /// The command names one MCP tool by the fixed `<app_id>.<command>`
 /// convention. The exact tool, the CLI-bound arguments and the caller's

@@ -51,33 +51,43 @@ pub struct CapSet {
     caps: Vec<Cap>,
 }
 
+/// Retired entries are inert in stored grants and deny records. They
+/// remain invalid in manifests, requests for grants, and the catalog.
+#[derive(serde::Deserialize)]
+pub(crate) enum RetiredVerb {
+    #[serde(rename = "agent.invoke")]
+    AgentInvoke,
+    #[serde(rename = "mail.accounts")]
+    MailAccounts,
+    #[serde(rename = "mail.read")]
+    MailRead,
+    #[serde(rename = "mail.draft")]
+    MailDraft,
+    #[serde(rename = "mail.send")]
+    MailSend,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+pub(crate) enum StoredCap {
+    Live(Cap),
+    Retired {
+        #[serde(rename = "verb")]
+        _verb: RetiredVerb,
+        #[serde(rename = "scope")]
+        _scope: Scope,
+    },
+}
+
 impl<'de> serde::Deserialize<'de> for CapSet {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        // Existing proc/session snapshots include this former role member.
-        // Drop it at read time without making it a Verb or accepting it in needs.
-        #[derive(serde::Deserialize)]
-        enum RetiredVerb {
-            #[serde(rename = "agent.invoke")]
-            AgentInvoke,
-        }
-        #[derive(serde::Deserialize)]
-        #[serde(untagged)]
-        enum Entry {
-            Live(Cap),
-            Retired {
-                #[serde(rename = "verb")]
-                _verb: RetiredVerb,
-                #[serde(rename = "scope")]
-                _scope: Scope,
-            },
-        }
-        let entries = Vec::<Entry>::deserialize(deserializer)?;
+        let entries = Vec::<StoredCap>::deserialize(deserializer)?;
         Ok(Self {
             caps: entries
                 .into_iter()
                 .filter_map(|entry| match entry {
-                    Entry::Live(cap) => Some(cap),
-                    Entry::Retired { .. } => None,
+                    StoredCap::Live(cap) => Some(cap),
+                    StoredCap::Retired { .. } => None,
                 })
                 .collect(),
         })

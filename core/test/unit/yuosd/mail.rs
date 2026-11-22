@@ -13,15 +13,16 @@ fn reference(account: &str) -> String {
     )
 }
 
-fn request(action: &str, account: Option<&str>, args: Value) -> MailControl {
+fn request(action: &str, account: Option<&str>, args: Value) -> MailExchange {
     serde_json::from_value(json!({
-        "session":"mail-fixture", "action":action, "account":account,
+        "action":action, "account":account,
         "args":args, "deadline_unix_ms":123456,
     }))
     .unwrap()
 }
 
-fn decision(app: Option<&str>, caps: Vec<Cap>) -> Decision {
+fn decision(caps: Vec<Cap>) -> Decision {
+    let route = crate::yuosd::routes::Command::PrivateMailExchange.as_str();
     let uid = unsafe { libc::geteuid() };
     let session = format!("mail-{}", uuid::Uuid::new_v4().simple());
     let (_, view) = authority()
@@ -29,7 +30,7 @@ fn decision(app: Option<&str>, caps: Vec<Cap>) -> Decision {
             issuer: Issuer::AppSessionAuthority,
             principal: Principal::of_process(uid, std::process::id()).unwrap(),
             binding: Binding::ProcessTree,
-            subject: Subject::session(session.clone()).with_app(app.map(str::to_string)),
+            subject: Subject::session(session.clone()),
             audience: AudienceSet::one(Audience::SystemService),
             caps: crate::caps::CapSet::from_caps(caps),
             lifetime: Duration::from_secs(60),
@@ -39,14 +40,14 @@ fn decision(app: Option<&str>, caps: Vec<Cap>) -> Decision {
         .unwrap();
     Decision::for_test(
         view,
-        "system.mail.control",
+        route,
         Audience::SystemService,
         Presentation {
             uid,
             pid: std::process::id(),
             start_time_ticks: crate::proc::read_start_time_ticks_pub(std::process::id()),
             audience: Audience::SystemService,
-            route: "system.mail.control",
+            route,
             session_id: Some(session),
         },
         None,
@@ -55,32 +56,50 @@ fn decision(app: Option<&str>, caps: Vec<Cap>) -> Decision {
 }
 
 #[test]
-fn mail_authorization_is_owner_and_account_bound_not_app_name_bound() {
+fn mail_attachment_spends_only_an_exact_write() {
     let _lock = crate::test_env::lock_env();
     let root = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
     let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", root.path().join("data"));
-    let request = request("read", Some(ACCOUNT), json!({"id":reference(ACCOUNT)}));
-    let cap = Cap::new(Verb::MAIL_READ, Scope::name(ACCOUNT));
-    let uid = unsafe { libc::geteuid() };
-    for app in [
-        Some("email"),
-        Some("independent-mail-client"),
-        Some("mail-ai"),
-        None,
-    ] {
-        let allowed = decision(app, vec![cap.clone()]);
-        assert!(authorize(&request, &allowed, uid + 1).is_err());
-        assert!(!crate::yuosd::authority::obligation_met(Some(&allowed)));
-        assert_eq!(
-            authorize(&request, &allowed, uid).unwrap().spent(),
-            &[cap.clone()]
-        );
-        assert!(authorize(&request, &allowed, uid).is_err());
-        let wrong = decision(app, vec![Cap::new(Verb::MAIL_READ, Scope::name(OTHER))]);
-        assert!(authorize(&request, &wrong, uid).is_err());
-        let ai_only = decision(app, vec![Cap::new(Verb::AI_CHAT_UNTRUSTED, Scope::Wild)]);
-        assert!(authorize(&request, &ai_only, uid).is_err());
+    let cap = Cap::new(Verb::FS_WRITE, Scope::path("/tmp/mail-fixture.pdf"));
+    let wide = decision(vec![Cap::new(Verb::FS_WRITE, Scope::path("/tmp/**"))]);
+    assert!(authorize_attachment(&cap, &wide).is_err());
+    let allowed = decision(vec![cap.clone()]);
+    authorize_attachment(&cap, &allowed).unwrap();
+    assert!(authorize_attachment(&cap, &allowed).is_err());
+}
+
+#[test]
+fn mail_routes_reject_direct_peers_and_caller_identity_fields() {
+    use crate::yuosd::{routes::Command, wire::Fault};
+    assert!(Command::parse("system.mail.control").is_none());
+    let route = Command::PrivateMailExchange.route();
+    for uid in [0, 1000] {
+        let mut client = ClientIdentity::unknown();
+        client.uid = Some(uid);
+        assert_eq!(route.authorize(&client), Err(Fault::NotAuthorized));
     }
+    let body = json!({"action":"accounts", "args":{}, "deadline_unix_ms":123456});
+    assert!((route.decode)(body.clone()).is_ok());
+    for field in ["app_id", "session", "owner_uid", "tool", "socket", "profile"] {
+        let mut body = body.clone();
+        body[field] = json!("claimed");
+        assert!((route.decode)(body).is_err(), "{field}");
+    }
+}
+
+#[test]
+fn mail_package_marker_requires_the_exact_private_protocol() {
+    assert!(check_protocol_marker(br#"{"version":2}"#).is_ok());
+    for marker in [
+        br#"{"version":1}"#.as_slice(),
+        br#"{"version":2,"mailbox":true}"#.as_slice(),
+        br#"{"version":"2"}"#.as_slice(),
+    ] {
+        assert!(check_protocol_marker(marker).is_err());
+    }
+    assert_eq!(mailbox_command("native_message"), Some("read"));
+    assert_eq!(mailbox_command("attachment_file"), None);
+    assert_eq!(mailbox_command("draft"), None);
 }
 
 #[test]
@@ -99,14 +118,7 @@ fn native_mail_references_and_draft_confirmation_cannot_cross_accounts() {
             "review":format!("sha256:{}", "a".repeat(64)), "confirm":true,
         }),
     );
-    assert_eq!(
-        prepare(&valid).unwrap(),
-        vec![
-            Cap::new(Verb::MAIL_READ, Scope::name(ACCOUNT)),
-            Cap::new(Verb::MAIL_DRAFT, Scope::name(ACCOUNT)),
-            Cap::new(Verb::MAIL_SEND, Scope::name(OTHER)),
-        ]
-    );
+    assert_eq!(prepare(&valid).unwrap(), None);
     let mut false_confirmation = valid.clone();
     false_confirmation
         .args
@@ -140,8 +152,8 @@ fn mailbox_payloads_reject_provider_credentials_and_unbounded_attachment_request
         }),
     );
     assert_eq!(
-        prepare(&valid).unwrap().last(),
-        Some(&Cap::new(
+        prepare(&valid).unwrap(),
+        Some(Cap::new(
             Verb::FS_WRITE,
             Scope::path("/tmp/mail-fixture.pdf")
         ))

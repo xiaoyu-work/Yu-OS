@@ -1562,8 +1562,8 @@ elif args == ["--wire=1", "__mail", "request", "--request-stdin"]:
     payload = json.loads(sys.stdin.read(1024 * 1024 + 1))
     assert payload["action"] == "send"
     account = payload["account"]
-    policy.require("mail.send", name=account)
-    record({"command": "mail.send", "account": account, "args": payload["args"]})
+    assert set(payload) == {"action", "args", "account", "deadline_unix_ms"}
+    record({"command": "private-mail.send", "account": account, "args": payload["args"]})
     print(json.dumps({"ok": True, "wire_version": 1, "data": {
         "account": account, "sent": True, "id": None, "delivery_confirmed": False
     }}))
@@ -2037,7 +2037,6 @@ async fn native_mail_send_uses_account_service_without_app_egress_or_credentials
         json!({"account": account, "to": "recipient@example.test", "subject": "Brokered message", "body": "Actual public Email"}),
         Fixture::Mailbox,
         CapSet::from_caps([
-            Cap::new(Verb::MAIL_SEND, Scope::name(account)),
             Cap::new(Verb::IPC_PUBLISH, Scope::name("app:email")),
             Cap::new(Verb::MEMORY_WRITE, Scope::self_ref("email")),
         ]),
@@ -2053,7 +2052,7 @@ async fn native_mail_send_uses_account_service_without_app_egress_or_credentials
     assert!(call.egress.targets.is_empty());
     assert!(call.egress.exchanges.is_empty());
     assert_eq!(call.services.len(), 3);
-    assert_eq!(call.services[0]["command"], "mail.send");
+    assert_eq!(call.services[0]["command"], "private-mail.send");
     assert_eq!(call.services[0]["account"], account);
     assert_eq!(call.services[0]["args"]["body"], "Actual public Email");
     assert_eq!(call.services[1]["command"], "memory.remember");
