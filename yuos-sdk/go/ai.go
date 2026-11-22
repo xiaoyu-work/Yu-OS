@@ -18,6 +18,7 @@
 package yuossdk
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -85,9 +86,8 @@ type AiResponse struct {
 
 // ChatOptions are the optional parameters for Chat.
 type ChatOptions struct {
-	// Origin is the prompt provenance. Pass "external-content" for any
-	// third-party text so the strict safety pipeline runs and the gate
-	// picks ai.chat.untrusted. Defaults to "trusted".
+	// Origin is required: "trusted" for developer-authored text,
+	// "user-input" for text from the user, or "external-content" for outside content.
 	Origin string
 	// MaxUnits caps the spend for this call (0 = let the gate decide).
 	MaxUnits int
@@ -100,25 +100,34 @@ type ChatOptions struct {
 	Tools []string
 }
 
-type dispatchArgs struct {
-	modality string
-	prompt   *string
-	opts     ChatOptions
-}
-
-func strptr(s string) *string { return &s }
-
 // Chat sends a single-shot chat completion through the kernel's AI gate.
 func Chat(prompt string, opts ChatOptions) (*AiResponse, error) {
+	return ChatContext(context.Background(), prompt, opts)
+}
+
+// ChatContext inherits cancellation and deadlines from ctx. An MCP handler
+// can pass its *MCPCall directly.
+func ChatContext(ctx context.Context, prompt string, opts ChatOptions) (*AiResponse, error) {
 	if strings.TrimSpace(prompt) == "" {
 		return nil, &AiUnavailableError{Msg: "Chat: prompt must be non-empty"}
 	}
-	return dispatch(dispatchArgs{modality: "chat", prompt: strptr(prompt), opts: opts})
+	if strings.TrimSpace(opts.Origin) == "" {
+		return nil, &AiUnavailableError{Msg: "Chat: prompt origin is required"}
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return dispatch(ctx, prompt, opts)
 }
 
-// Budget returns the current-period budget snapshot for an app. appID
-// defaults to $YUOS_APP_ID when empty.
-func Budget(appID string) (*AiBudget, error) {
+// Budget returns current-period usage for an app; the CLI does not report
+// a cap. appID defaults to $YUOS_APP_ID when empty.
+func Budget(appID string) (*BudgetShow, error) {
+	return BudgetContext(context.Background(), appID)
+}
+
+// BudgetContext is Budget with caller cancellation and deadlines.
+func BudgetContext(ctx context.Context, appID string) (*BudgetShow, error) {
 	app := appID
 	if app == "" {
 		app = os.Getenv("YUOS_APP_ID")
@@ -126,7 +135,7 @@ func Budget(appID string) (*AiBudget, error) {
 	if app == "" {
 		return nil, &AiUnavailableError{Msg: "Budget: app_id is required"}
 	}
-	out, err := yuCallJSON("yu agent budget show", []string{"agent", "budget", "show", app})
+	out, err := yuCallJSONContext(ctx, "yu agent budget show", []string{"agent", "budget", "show", app})
 	if err != nil {
 		if denied, ok := err.(*DeniedError); ok {
 			return nil, &AiUnavailableError{Msg: denied.Error()}
@@ -140,10 +149,10 @@ func Budget(appID string) (*AiBudget, error) {
 		return nil, &AiUnavailableError{Msg: "budget response decode failed: " + err.Error()}
 	}
 	env := asMap(out.Data)
-	return &AiBudget{
+	return &BudgetShow{
+		App:       asString(env["app"]),
 		Period:    asString(env["period"]),
 		UnitsUsed: asUint64(env["units_used"]),
-		UnitsCap:  0,
 	}, nil
 }
 
@@ -187,47 +196,34 @@ func writePrivateInput(name, value string) (string, func(), error) {
 	return path, cleanup, nil
 }
 
-func dispatch(a dispatchArgs) (*AiResponse, error) {
-	origin := a.opts.Origin
-	if origin == "" {
-		origin = "trusted"
-	}
-	app, err := resolveApp(a.modality, a.opts.AppID)
+func dispatch(ctx context.Context, prompt string, opts ChatOptions) (*AiResponse, error) {
+	app, err := resolveApp("chat", opts.AppID)
 	if err != nil {
 		return nil, err
 	}
 
-	argv := []string{"ai", "chat", "--app", app, "--origin", origin}
-	cleanups := make([]func(), 0, 2)
-	defer func() {
-		for i := len(cleanups) - 1; i >= 0; i-- {
-			cleanups[i]()
-		}
-	}()
-	if a.prompt != nil {
-		path, cleanup, err := writePrivateInput("prompt", *a.prompt)
-		if err != nil {
-			return nil, &AiUnavailableError{Msg: fmt.Sprintf("write private prompt: %v", err)}
-		}
-		cleanups = append(cleanups, cleanup)
-		argv = append(argv, "--prompt-file", path)
+	path, cleanup, err := writePrivateInput("prompt", prompt)
+	if err != nil {
+		return nil, &AiUnavailableError{Msg: fmt.Sprintf("write private prompt: %v", err)}
 	}
-	if a.opts.MaxUnits != 0 {
-		argv = append(argv, "--max-units", strconv.Itoa(a.opts.MaxUnits))
+	defer cleanup()
+	argv := []string{"ai", "chat", "--app", app, "--origin", opts.Origin, "--prompt-file", path}
+	if opts.MaxUnits != 0 {
+		argv = append(argv, "--max-units", strconv.Itoa(opts.MaxUnits))
 	}
-	if a.opts.System != "" {
-		path, cleanup, err := writePrivateInput("system", a.opts.System)
+	if opts.System != "" {
+		path, cleanup, err := writePrivateInput("system", opts.System)
 		if err != nil {
 			return nil, &AiUnavailableError{Msg: fmt.Sprintf("write private system prompt: %v", err)}
 		}
-		cleanups = append(cleanups, cleanup)
+		defer cleanup()
 		argv = append(argv, "--system-file", path)
 	}
-	if len(a.opts.Tools) > 0 {
-		argv = append(argv, "--tools", strings.Join(a.opts.Tools, ","))
+	if len(opts.Tools) > 0 {
+		argv = append(argv, "--tools", strings.Join(opts.Tools, ","))
 	}
 
-	out, err := yuCallJSON("yu ai "+a.modality, argv)
+	out, err := yuCallJSONContext(ctx, "yu ai chat", argv)
 	if err != nil {
 		if denied, ok := err.(*DeniedError); ok {
 			return nil, classifyError(denied.Payload)

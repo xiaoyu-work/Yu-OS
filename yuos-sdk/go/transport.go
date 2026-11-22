@@ -69,11 +69,16 @@ type yuOutcome struct {
 // Returns an *UnavailableError for transport/protocol problems and a
 // *DeniedError for a valid kernel error envelope.
 func yuCallJSON(label string, args []string, input ...[]byte) (*yuOutcome, error) {
+	return yuCallJSONContext(context.Background(), label, args, input...)
+}
+
+func yuCallJSONContext(parent context.Context, label string, args []string, input ...[]byte) (*yuOutcome, error) {
 	bin := YuBinary()
-	ctx, cancel := context.WithTimeout(context.Background(), DefaultTimeout)
+	ctx, cancel := context.WithTimeout(parent, DefaultTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, bin, append([]string{"--wire=1"}, args...)...)
+	cmd.WaitDelay = time.Second
 	if len(input) > 1 {
 		return nil, &UnavailableError{Msg: "only one controlled stdin payload is allowed"}
 	}
@@ -86,6 +91,9 @@ func yuCallJSON(label string, args []string, input ...[]byte) (*yuOutcome, error
 
 	status := 0
 	runErr := cmd.Run()
+	if err := parent.Err(); err != nil {
+		return nil, err
+	}
 	if runErr != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return nil, &UnavailableError{Msg: fmt.Sprintf("%s timed out after %s", label, DefaultTimeout)}

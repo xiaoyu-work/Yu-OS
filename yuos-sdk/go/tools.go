@@ -10,6 +10,7 @@
 package yuossdk
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"strings"
@@ -58,6 +59,11 @@ type CatalogEntry struct {
 // $YUOS_APP_ID. Returns a *ToolDeniedError for anything the
 // gate refused, or *ToolUnavailableError for transport problems.
 func CallTool(name string, args any, appID string) (*ToolResult, error) {
+	return CallToolContext(context.Background(), name, args, appID)
+}
+
+// CallToolContext is CallTool with caller cancellation and deadlines.
+func CallToolContext(ctx context.Context, name string, args any, appID string) (*ToolResult, error) {
 	if strings.TrimSpace(name) == "" {
 		return nil, &ToolUnavailableError{Msg: "CallTool: name must be non-empty"}
 	}
@@ -73,7 +79,7 @@ func CallTool(name string, args any, appID string) (*ToolResult, error) {
 		return nil, &ToolUnavailableError{Msg: "Tool: could not encode args: " + err.Error()}
 	}
 
-	out, err := yuCallJSON("yu ai tool "+name, []string{"ai", "tool", name, "--app", app, "--args", string(payload)})
+	out, err := yuCallJSONContext(ctx, "yu ai tool "+name, []string{"ai", "tool", name, "--app", app, "--args", string(payload)})
 	if err != nil {
 		if denied, ok := err.(*DeniedError); ok {
 			return nil, &ToolDeniedError{Payload: denied.Payload}
@@ -100,7 +106,12 @@ func CallTool(name string, args any, appID string) (*ToolResult, error) {
 // Apps shouldn't hard-code tool names without consulting this list; the
 // catalog evolves and a tool can be deprecated or renamed.
 func Catalog() ([]CatalogEntry, error) {
-	out, err := yuCallJSON("yu ai tools", []string{"ai", "tools"})
+	return CatalogContext(context.Background())
+}
+
+// CatalogContext is Catalog with caller cancellation and deadlines.
+func CatalogContext(ctx context.Context) ([]CatalogEntry, error) {
+	out, err := yuCallJSONContext(ctx, "yu ai tools", []string{"ai", "tools"})
 	if err != nil {
 		if denied, ok := err.(*DeniedError); ok {
 			return nil, &ToolDeniedError{Payload: denied.Payload}

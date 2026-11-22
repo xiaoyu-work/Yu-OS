@@ -54,12 +54,6 @@
 //! can use [`yu_call_json_with_binary`] to select their fixed executable
 //! without changing process-wide environment or duplicating the wire decoder.
 //!
-//! ## Performance
-//!
-//! The first cut is subprocess-per-call (~50 ms per call). A wire v2
-//! socket transport will replace this without changing the surface
-//! you see here. See `wire/v2-design.md` for the plan.
-
 use std::ffi::OsStr;
 use std::io::{IsTerminal, Write};
 use std::process::{Command, Stdio};

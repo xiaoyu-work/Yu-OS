@@ -14,7 +14,9 @@ Why separate from :mod:`yuos_sdk.ai`?
 Keeping them in distinct modules makes that distinction visible at
 the call site:
 
-    proposal = ai.chat(prompt=..., tools=tools.for_chat("fs.read_text"))
+    proposal = ai.chat(
+        prompt=..., origin="trusted", tools=tools.for_chat("fs.read_text")
+    )
     for call in proposal.tool_calls:
         result = tools.call(call.name, call.input)
         # ... feed result back into the next ai.chat turn ...
@@ -37,6 +39,7 @@ Typical usage
 
     proposal = ai.chat(
         prompt="Summarise the file at /etc/hostname",
+        origin="trusted",
         tools=tools.for_chat("fs.read_text"),
     )
 
@@ -47,7 +50,7 @@ Typical usage
             # caps / unknown / args-shape failure — the gate audited it
             print("denied:", e.payload)
             continue
-        # feed result.value back into the next turn however the app prefers
+        # Treat file contents used in any later prompt as external-content.
 """
 
 from __future__ import annotations

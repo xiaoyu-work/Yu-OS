@@ -1,9 +1,9 @@
 # Writing Your First Yu OS App
 
-End-to-end walkthrough for app authors: scaffold → run → install. The
-SDK is pre-installed on every Yu OS system, the `yu` CLI discovers
-your code automatically, and every invocation re-reads your source from
-disk — so the dev loop is `$EDITOR` ➜ `yu app …` and nothing more.
+Start with an MCP-only App if the same command should work from the CLI
+and the system Agent. The Python SDK ships with the Yu OS Agent package.
+See the [SDK support and compatibility table](../yuos-sdk/README.md#language-support)
+for other runtimes and OS requirements.
 
 For the architectural background see
 [`app-ai-integration.md`](app-ai-integration.md) (AI gate, manifest,
@@ -123,26 +123,68 @@ Input is at most 1008 KiB of serialized JSON (including escapes and base64), or
 a lower `YUOS_APP_STDIN_MAX_BYTES`. This leaves 16 KiB for the unchanged 1 MiB
 broker request envelope. Canonical arguments must also fit this budget.
 
-For Python, bind the manifest's tool names without duplicating their schemas:
+## Quickstart: an MCP-only App
+
+Save these two files under `~/my-apps/hello-mcp/`. The directory and App ID
+must match. No `main.py`, `operations` block, or target capabilities are
+needed for this example.
+
+`app.json`:
+
+```json
+{
+  "id": "hello-mcp",
+  "version": "0.1.0",
+  "schema_version": 2,
+  "name": {"en": "Hello"},
+  "mcp": {
+    "entry": "server.py",
+    "tools": [{
+      "name": "hello-mcp.say",
+      "summary": {"en": "Return a message."},
+      "args": [{"name": "message", "kind": "text", "required": true}]
+    }]
+  }
+}
+```
+
+`server.py`:
 
 ```python
-from yuos_sdk.mcp import App, current_context
+from yuos_sdk.mcp import App, ToolResult, current_context
 
 app = App.from_manifest()
 
-@app.tool("hello.say")
-def say(message: str) -> dict:
+@app.tool("hello-mcp.say")
+def say(message: str) -> ToolResult:
     current_context().raise_if_cancelled()
-    return {"message": message}
+    return ToolResult.text(message)
 
 app.serve()
 ```
+
+On Yu OS, use a publisher key trusted by the OS (see
+[signing and trust](extension-provenance.md)) and a running broker:
+
+```sh
+yu provenance sign --kind app --id hello-mcp --version 0.1.0 \
+    --path "$HOME/my-apps/hello-mcp" --key "$HOME/.secrets/my-publisher.json" \
+    --entrypoint server.py
+yu app install "$HOME/my-apps/hello-mcp"
+yu app hello-mcp say "Hello from MCP"
+```
+
+Complete the normal installation review and any required invoke authorization.
+The CLI returns `Hello from MCP` as the tool's text result. The Agent uses
+the same handler through `hello-mcp.say`, subject to its own invoke authority.
 
 The App Host points `YUOS_APP_MANIFEST` at the verified package snapshot.
 `current_context()` exposes Gateway-authenticated identity and call lineage;
 Apps must never accept caller identity through tool arguments. The runtime
 validates arguments and applies defaults from the manifest before invoking
-the handler.
+the handler. Manifest arguments support `path`, `host`, `name`, `text`,
+`number`, `integer`, and `bool`, with repeatable values for non-booleans.
+They are not arbitrary nested JSON Schema inputs.
 
 ## 1. What is a Yu OS app?
 
@@ -208,13 +250,14 @@ Off-system (writing code on a non-Yu OS-OS machine) you can either:
 
 ## 3. The minimum viable app
 
-Manifest for an Agent-callable App (`runtime` defaults to `python`):
+Manifest for a human-only one-shot App (`runtime` defaults to `python`).
+For Agent-callable tools, use the [MCP-only quickstart](#quickstart-an-mcp-only-app)
+above instead of duplicating a command:
 
 ```jsonc
 {
   "id": "hello",
   "version": "0.1.0",
-  "schema_version": 2,
   "name": { "en": "Hello" },
   "runtime": "python",
   "operations": {
@@ -228,24 +271,6 @@ Manifest for an Agent-callable App (`runtime` defaults to `python`):
         }
       ]
     }
-  },
-  "mcp": {
-    "entry": "server.py",
-    "transport": "stdio",
-    "lifecycle": "lazy",
-    "tools": [
-      {
-        "name": "hello.say",
-        "summary": { "en": "Say something." },
-        "args": [
-          {
-            "name": "message",
-            "kind": "text",
-            "required": true
-          }
-        ]
-      }
-    ]
   }
 }
 ```
@@ -478,28 +503,27 @@ without executing the App, reading object data, or granting permissions.
 Missing metadata remains unknown. See [operation previews](operation-previews.md)
 for the declaration vocabulary and its limits.
 
-## 4. The dev loop — no rebuild, no restart
+## 4. The one-shot dev loop
 
 Every one-shot `yu app <id> <op>` invocation launches the app entry point
 through the runtime selected by its manifest. Python apps run in a fresh
 subprocess and are imported from disk for every call, so there is no module
-cache or daemon to restart. **Save the file, re-run the command, see the
-change.** This is true on-system too — edits under
-`/usr/lib/yuos/apps/<id>/` are picked up immediately.
+cache to restart. Do not edit a signed installed App in place. Sign and
+install an updated package when changing its contents.
 
-The simplest workflow is to point the kernel at a directory you own:
+Use an App source directory for metadata discovery and static validation:
 
 ```sh
 mkdir -p ~/my-apps/hello
 $EDITOR ~/my-apps/hello/app.json    # paste the manifest from §3
 $EDITOR ~/my-apps/hello/main.py     # paste the run() from §3
 
-export YUOS_APPS_DIR=~/my-apps
-yu app                              # shows hello in the list
-yu app hello say --foo bar          # runs it
-$EDITOR ~/my-apps/hello/main.py      # change the return value
-yu app hello say                    # new behaviour, no reinstall
+YUOS_APPS_DIR="$HOME/my-apps" yu app
+YUOS_APPS_DIR="$HOME/my-apps" yu app lint hello
 ```
+
+Discovery does not authorize execution. See [Ship it](#11-ship-it) for
+the checked signing and installation flow.
 
 Or work from a copy of a bundled app as a starting point:
 
@@ -683,18 +707,25 @@ def run(command, args):
     body = open(args[0]).read()
     resp = ai.chat(
         prompt=f"Summarise:\n{body}",
-        origin="external-content",   # third-party text → strict pipeline
+        origin="external-content",
         max_units=2000,
     )
     return {"summary": resp.text, "usage": resp.usage.__dict__}
 ```
 
-Three things this triggers:
+Always pass `origin` to chat: `trusted` for developer-authored text only,
+`user-input` for text typed by the user, and `external-content` for files,
+email, web pages, or output from another agent. If inputs mix sources,
+declare the outside content rather than labeling the whole prompt `trusted`.
+`external-content` selects `ai.chat.untrusted`; the effective policy
+determines redaction. The label does not prove the input is safe.
+
+Three conditions apply:
 
 1. The manifest **must** carry an `ai` block declaring budget,
    safety profile, origins, and tool allowlist
    ([`manifest.rs:142-193`](../core/src/caps/manifest.rs)).
-2. Each op that calls AI must include the matching `ai.*` verb in
+2. Each operation or MCP tool that calls AI must include the matching `ai.*` verb in
    `needs[]`.
 3. The user must grant consent for the app's current AI-policy snapshot before
    any call is allowed: `yu app consent grant <id>`. Changing the app's
@@ -1154,8 +1185,8 @@ receipt recording never repeats an App call.
 Once the app does what you want:
 
 ```sh
-yu app lint ~/my-apps/hello         # static check
-yu provenance sign --kind app --id hello --version 1.0.0 \
+YUOS_APPS_DIR="$HOME/my-apps" yu app lint hello  # static check
+yu provenance sign --kind app --id hello --version 0.1.0 \
     --path ~/my-apps/hello --key ~/.secrets/my-publisher.json \
     --entrypoint main.py             # bind the whole tree to your key
 yu app install ~/my-apps/hello --review  # inspect verified requests without installing

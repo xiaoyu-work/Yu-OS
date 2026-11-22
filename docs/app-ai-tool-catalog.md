@@ -47,6 +47,7 @@ from yuos_sdk import ai, tools
 
 proposal = ai.chat(
     prompt="Summarise the file at /etc/hostname.",
+    origin="trusted",  # This instruction is developer-authored.
     tools=tools.for_chat("fs.read_text"),
 )
 
@@ -57,7 +58,7 @@ for call in proposal.tool_calls:
         # caps refused / unknown tool / bad args — already audited
         print("denied:", e.payload)
         continue
-    # feed result.value into the next ai.chat turn however the App prefers
+    # Treat any file contents used in a later prompt as external-content.
 ```
 
 The App's `app.json` must declare every tool name in `ai.tools[]`:

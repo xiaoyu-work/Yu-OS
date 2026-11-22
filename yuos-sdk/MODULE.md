@@ -66,7 +66,7 @@ Rust, Python, Node, and Go bindings.
 `yuos-runtime/` is a separate internal package for bundled apps; public apps
 must not depend on its policy/runtime internals.
 
-SDK 0.2.0 adds the public `mail.accounts`, `mail.read`, `mail.draft` and
+The public manifest vocabulary includes `mail.accounts`, `mail.read`, `mail.draft` and
 `mail.send` manifest vocabulary. Mailbox read/draft and sender rights remain
 independent, profile-qualified named resources; metadata does not grant them.
 Clients use the existing explicit-binary stdin transport, while OS Mail
@@ -136,6 +136,13 @@ Creation grants neither owner-content read nor subsequent overwrite. Generated
 across the four clients; no lossy name/parent conversion is permitted.
 
 ## Dependencies
+
+All four chat bindings require explicit prompt origin. Origin selects the
+capability route, not a safety tier. Node's async AI/catalog calls share the
+same decoder as synchronous control primitives and accept the MCP call's
+abort signal. Go's context-aware AI/catalog calls preserve the MCP caller's
+deadline and cancellation. The standalone budget query reports usage, not a
+fabricated cap. These facade changes do not change wire v1 or App authority.
 
 Wire schemas and `wire/v1/contract.json` are the source of truth. Core, MCP,
 and every language SDK consume them.

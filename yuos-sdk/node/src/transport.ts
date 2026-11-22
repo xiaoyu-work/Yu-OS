@@ -9,7 +9,7 @@
 // app process → yu child). A pure in-process binding could not prove
 // "App X is making this call".
 
-import { spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import { WireDecodeError, decodeWireJson, validateEnvelope } from "./generated";
 
 /** Default per-call timeout. Bounded so a wedged child never blocks
@@ -90,9 +90,52 @@ export function yuCallJson(
     throw new Unavailable(`could not spawn ${bin}: ${res.error.message}`);
   }
 
-  const text = (res.stdout || "").trim();
+  return decodeResponse(label, res.stdout || "", res.status ?? -1);
+}
+
+/** Run a wire-v1 call without blocking the event loop. */
+export async function yuCallJsonAsync(
+  label: string,
+  args: string[],
+  signal?: AbortSignal,
+): Promise<unknown> {
+  signal?.throwIfAborted();
+  const bin = yuBinary();
+  return new Promise((resolve, reject) => {
+    const child = execFile(bin, [WIRE_ARG, ...args], {
+      encoding: "utf8",
+      timeout: DEFAULT_TIMEOUT_MS,
+      maxBuffer: MAX_BUFFER,
+      killSignal: "SIGKILL",
+      signal,
+    }, (error, stdout) => {
+      if (signal?.aborted) {
+        reject(signal.reason);
+        return;
+      }
+
+      const status = error ? error.code : 0;
+      if (typeof status !== "number") {
+        const message = error?.killed
+          ? `${label} timed out after ${DEFAULT_TIMEOUT_MS}ms`
+          : `${label} subprocess failed (${status ?? error?.signal ?? "no exit code"})`;
+        reject(new Unavailable(message));
+        return;
+      }
+      try {
+        resolve(decodeResponse(label, stdout, status));
+      } catch (error) {
+        reject(error);
+      }
+    });
+    child.stdin?.end();
+  });
+}
+
+function decodeResponse(label: string, stdout: string, status: number): unknown {
+  const text = stdout.trim();
   if (!text) {
-    throw new Unavailable(`${label} returned no wire response (exit ${res.status})`);
+    throw new Unavailable(`${label} returned no wire response (exit ${status})`);
   }
 
   let envelope: unknown;
@@ -110,7 +153,6 @@ export function yuCallJson(
     throw error;
   }
 
-  const status = res.status ?? -1;
   if (envelope.ok) {
     if (status !== 0) {
       throw new Unavailable(`${label} returned a success envelope with exit ${status}`);

@@ -61,6 +61,20 @@ token.
 which enforces capabilities, prompt-origin allowlists, monthly budget, safety,
 and audit before model or computer operations run.
 
+AI and catalog calls return promises. In an MCP handler, pass `call.signal`
+to propagate cancellation and the deadline:
+
+```ts
+const reply = await ai.chat(body, {
+  origin: "external-content",
+  signal: call.signal,
+});
+```
+
+`tools.call`, `tools.catalog`, and `ai.budget` also accept `{ signal }`
+in their options. `ai.budget()` returns usage, not a cap. Cancellation
+does not undo accepted effects.
+
 ## App object references
 
 ```ts
@@ -87,9 +101,9 @@ spelling, byte limits, and the optional manifest `objects` resolver declaration.
 
 ## AI support
 
-`ai.chat` is the public model API. Setting `origin: "external-content"`
-automatically selects `ai.chat.untrusted`. Unsupported modalities are not
-published as placeholder APIs.
+`ai.chat` requires explicit `origin`. `external-content` selects
+`ai.chat.untrusted`, not a safety profile. See the
+[shared AI contract](../README.md#ai-support).
 
 ### What you never do
 

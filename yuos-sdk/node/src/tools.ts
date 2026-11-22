@@ -8,14 +8,15 @@
 // grants, executes the implementation, and writes an audit row.
 //
 //   import { ai, tools } from "@yuos/sdk";
-//   const proposal = ai.chat("Summarise /etc/hostname", {
+//   const proposal = await ai.chat("Summarise /etc/hostname", {
+//     origin: "trusted",
 //     tools: tools.forChat("fs.read_text"),
 //   });
 //   for (const c of proposal.toolCalls) {
-//     const r = tools.call(c.name, c.input);
+//     const r = await tools.call(c.name, c.input);
 //   }
 
-import { BridgeError, Denied, Unavailable, yuCallJson } from "./transport";
+import { BridgeError, Denied, Unavailable, yuCallJsonAsync } from "./transport";
 import {
   WireDecodeError,
   materializeWireValue,
@@ -69,11 +70,11 @@ export interface CatalogEntry {
  * tool, missing capability, malformed args) and {@link ToolUnavailable}
  * for transport problems.
  */
-export function call(
+export async function call(
   name: string,
   args: WireJsonValue = {},
-  opts: { appId?: string } = {},
-): ToolResult {
+  opts: { appId?: string; signal?: AbortSignal } = {},
+): Promise<ToolResult> {
   if (!name || typeof name !== "string") {
     throw new ToolError("call: name must be a non-empty string");
   }
@@ -85,7 +86,7 @@ export function call(
   const argv = ["ai", "tool", name, "--app", app, "--args", stringifyWireJson(args)];
   let data: unknown;
   try {
-    data = yuCallJson(`yu ai tool ${name}`, argv);
+    data = await yuCallJsonAsync(`yu ai tool ${name}`, argv, opts.signal);
   } catch (e) {
     if (e instanceof Denied) throw new ToolDenied(e.payload);
     if (e instanceof Unavailable) throw new ToolUnavailable(e.message);
@@ -116,10 +117,12 @@ export function call(
  * catalog evolves and a tool can be deprecated or renamed between
  * releases.
  */
-export function catalog(): CatalogEntry[] {
+export async function catalog(
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<CatalogEntry[]> {
   let data: unknown;
   try {
-    data = yuCallJson("yu ai tools", ["ai", "tools"]);
+    data = await yuCallJsonAsync("yu ai tools", ["ai", "tools"], signal);
   } catch (e) {
     if (e instanceof Denied) throw new ToolDenied(e.payload);
     if (e instanceof Unavailable) throw new ToolUnavailable(e.message);

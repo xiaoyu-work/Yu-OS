@@ -47,6 +47,9 @@ when public SDK operations run.
 
 ## Expose App tools
 
+See the [two-file MCP App quickstart](../../docs/app-development.md#quickstart-an-mcp-only-app)
+for a complete manifest, handler, and install/run commands.
+
 Declare MCP tools once in `app.json`, then bind only their handlers:
 
 ```python
@@ -114,9 +117,10 @@ the optional App manifest `objects` resolver declaration.
 
 ## AI support
 
-`ai.chat` is the public model API. Passing `origin="external-content"`
-automatically selects `ai.chat.untrusted`. Unsupported modalities are not
-published as placeholder APIs.
+`ai.chat` requires an explicit `origin`. Use `external-content` for outside
+content; it selects `ai.chat.untrusted`, not a safety profile. See the
+[shared AI contract](../README.md#ai-support). `ai.budget()` reports current
+usage (App, period, and units used) without an unknown cap.
 
 ## Configuration
 

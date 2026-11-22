@@ -227,9 +227,7 @@ class WireValidationTests(unittest.TestCase):
             ),
         ) as run:
             budget = ai.budget("notes")
-        self.assertEqual(budget.period, "2026-08")
-        self.assertEqual(budget.units_used, 7)
-        self.assertEqual(budget.units_cap, 0)
+        self.assertEqual(vars(budget), {"app": "notes", "period": "2026-08", "units_used": 7})
         self.assertEqual(run.call_args.args[0][:2], ["yu", "--wire=1"])
 
     def test_mcp_call_context_is_closed(self) -> None:

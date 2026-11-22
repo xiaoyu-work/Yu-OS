@@ -178,9 +178,9 @@ optional App manifest `objects` resolver declaration.
 
 ## AI support
 
-`ai::chat` is the public model API. Setting origin to
-`"external-content"` automatically selects `ai.chat.untrusted`. Unsupported
-modalities are not published as placeholder APIs.
+`ai::chat` requires explicit `.origin(...)`. `external-content` selects
+`ai.chat.untrusted`, not a safety profile. See the
+[shared AI contract](../README.md#ai-support).
 
 ## Configuration
 

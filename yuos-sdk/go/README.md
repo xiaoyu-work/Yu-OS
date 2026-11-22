@@ -25,8 +25,8 @@ import yuossdk "github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
 
 | Area          | Functions                                                          | Equivalent CLI                    |
 |---------------|--------------------------------------------------------------------|-----------------------------------|
-| AI            | `Chat` / chat-untrusted access; `Budget`                         | `yu ai chat --app <id>`          |
-| Tools         | `CallTool`, `Catalog`, `ForChat`                                   | `yu ai tool <name> --app <id>`   |
+| AI            | `Chat`, `ChatContext`; `Budget`, `BudgetContext` (usage only)      | `yu ai chat --app <id>`          |
+| Tools         | `CallTool`, `Catalog`, their `Context` variants, and `ForChat`     | `yu ai tool <name> --app <id>`   |
 | MCP service   | `LoadMCPApp`, `(*MCPApp).Bind`, `Serve`, `ServeStdio`               | App Host private stdio transport  |
 | GUI           | `IsGUILaunch`, `Context`, `(*GuiContext).OpenAgentOverlay`         | launched via `yu app <id> --gui` |
 | Objects       | `FormatReference`, `ParseReference`                               | Pure identifiers; no transport |
@@ -53,7 +53,7 @@ func run(command string, args map[string]any) (any, error) {
 
 	// Headless operation: summarise some untrusted text.
 	res, err := yuossdk.Chat(args["body"].(string), yuossdk.ChatOptions{
-		Origin:   "external-content", // strict safety pipeline for 3rd-party text
+		Origin:   "external-content",
 		MaxUnits: 2000,
 		Tools:    yuossdk.ForChat("fs.read_text"),
 	})
@@ -116,7 +116,9 @@ return app.ServeStdio()
 ```
 
 `MCPCall` implements `context.Context`, so handlers can select on
-`call.Done()`, inspect deadlines, and pass the call to context-aware APIs.
+`call.Done()`, inspect deadlines, and pass the call directly to
+`ChatContext(call, prompt, opts)` or `CallToolContext(call, name, args, appID)`.
+The SDK propagates cancellation and deadlines without undoing accepted effects.
 Authenticated caller and lineage data comes only from the Gateway-injected
 `McpCallContext`; never derive identity from tool arguments.
 
@@ -158,9 +160,10 @@ and the optional App manifest `objects` resolver declaration.
 
 ## AI support
 
-`Chat` is the public model API. Setting `Origin: "external-content"`
-automatically selects `ai.chat.untrusted`. Unsupported modalities are not
-published as placeholder APIs.
+`Chat` and `ChatContext` require explicit `Origin`. `external-content` selects
+`ai.chat.untrusted`, not a safety profile. See the
+[shared AI contract](../README.md#ai-support). `Budget` and `BudgetContext`
+report usage without a cap; the chat reply still contains the actual cap.
 
 ### What you never do
 

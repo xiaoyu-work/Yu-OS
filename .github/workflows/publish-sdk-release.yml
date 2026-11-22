@@ -151,14 +151,16 @@ jobs:
           import json
           import os
           import pathlib
+          import sys
           import tomllib
 
           root = pathlib.Path("yuos-sdk")
           expected = os.environ["SDK_VERSION"]
+          sys.path.insert(0, str(root / "python" / "src"))
+          from yuos_sdk import __version__ as python_version
+
           versions = {
-              "python": tomllib.loads(
-                  (root / "python" / "pyproject.toml").read_text(encoding="utf-8")
-              )["project"]["version"],
+              "python": python_version,
               "node": json.loads(
                   (root / "node" / "package.json").read_text(encoding="utf-8")
               )["version"],

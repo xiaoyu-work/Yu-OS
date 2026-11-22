@@ -28,8 +28,7 @@ export function wireError(error: string, code: string): string {
 /**
  * Write a fake `yu` executable that prints `stdout` and exits with
  * `exitCode`, recording the argv it received to a sidecar file. The
- * script is a Node program with a shebang so spawnSync can exec it
- * directly on Linux.
+ * script is a Node program with a shebang so it can run directly on Linux.
  */
 export function installFakeYu(stdout: string, exitCode = 0): FakeYu {
   const dir = mkdtempSync(join(tmpdir(), "yuos-fakecos-"));
@@ -48,11 +47,11 @@ process.exit(${exitCode});
 
 /** Run `fn` with YUOS_KERNEL_BIN (and optionally YUOS_APP_ID) set, then
  * restore the previous environment. */
-export function withCos<T>(
+export async function withCos<T>(
   fake: FakeYu,
   env: Record<string, string | undefined>,
-  fn: () => T,
-): T {
+  fn: () => T | Promise<T>,
+): Promise<T> {
   const saved: Record<string, string | undefined> = {
     YUOS_KERNEL_BIN: process.env.YUOS_KERNEL_BIN,
     YUOS_APP_ID: process.env.YUOS_APP_ID,
@@ -63,7 +62,7 @@ export function withCos<T>(
     else process.env[k] = v;
   }
   try {
-    return fn();
+    return await fn();
   } finally {
     for (const [k, v] of Object.entries(saved)) {
       if (v === undefined) delete process.env[k];

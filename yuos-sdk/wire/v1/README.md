@@ -7,8 +7,10 @@ language-idiomatic wrapper over this protocol.
 
 ## Stable AI surface
 
-Wire v1 exposes text chat only: `ai.chat` and the hardened
-`ai.chat.untrusted` variant selected by `origin=external-content`.
+Wire v1 exposes text chat only: `ai.chat` and `ai.chat.untrusted`.
+SDK callers must declare prompt origin; `origin=external-content` selects
+the latter capability. The effective App and owner policy independently
+determines redaction. The origin label does not guarantee a safety tier.
 Unsupported modalities are not published as placeholder SDK APIs.
 
 ## Transport
@@ -25,8 +27,6 @@ Reasoning:
   binary verifies that its parent is an app the kernel itself launched.
 - Subprocess transport works on every OS without setting up sockets,
   named pipes, or daemons.
-- The same envelopes will flow over v2 (Unix socket + length-prefixed
-  framing). Switching transports is an SDK-internal change.
 
 ## Envelope
 
@@ -149,7 +149,9 @@ The protocol version is announced in three places:
 
 1. The SDK requests a version explicitly with `yu --wire=1`.
 2. `wire_version` in every reply must equal the requested version.
-3. `yu --wire=1 --version` provides a transport-level compatibility probe.
+3. `yu --wire=1 --version` can manually verify the envelope; SDKs do not
+   spawn a startup handshake, and the probe does not establish feature availability.
 
-Breaking changes bump the wire version. Bug fixes in the kernel that
-don't change the envelope shape do not.
+Breaking changes to the envelope or another wire contract require an
+explicitly versioned interface. Bug fixes preserving existing wire semantics
+do not. The closed envelope and closed payload schemas reject unfamiliar fields.

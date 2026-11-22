@@ -57,7 +57,7 @@ func TestChatBuildsArgvAndParses(t *testing.T) {
 }
 
 func TestChatEmptyPrompt(t *testing.T) {
-	if _, err := Chat("   ", ChatOptions{AppID: "x"}); err == nil {
+	if _, err := Chat("   ", ChatOptions{AppID: "x", Origin: "trusted"}); err == nil {
 		t.Fatal("expected error for empty prompt")
 	}
 }
@@ -66,7 +66,7 @@ func TestChatRequiresAppID(t *testing.T) {
 	bin, _ := fakeYu(t, wireSuccess(okChat), 0)
 	var err error
 	withCos(t, bin, map[string]string{"YUOS_APP_ID": ""}, func() {
-		_, err = Chat("hi", ChatOptions{})
+		_, err = Chat("hi", ChatOptions{Origin: "trusted"})
 	})
 	if _, ok := err.(*AiUnavailableError); !ok {
 		t.Fatalf("expected AiUnavailableError, got %T %v", err, err)
@@ -86,7 +86,7 @@ func TestChatErrorClassification(t *testing.T) {
 		bin, _ := fakeYu(t, c.body, 1)
 		var err error
 		withCos(t, bin, map[string]string{"YUOS_APP_ID": "notes"}, func() {
-			_, err = Chat("hi", ChatOptions{})
+			_, err = Chat("hi", ChatOptions{Origin: "trusted"})
 		})
 		switch c.want {
 		case "budget":
@@ -116,7 +116,7 @@ func TestChatRejectsMalformedToolCall(t *testing.T) {
 	bin, _ := fakeYu(t, wireSuccess(body), 0)
 	var err error
 	withCos(t, bin, map[string]string{"YUOS_APP_ID": "notes"}, func() {
-		_, err = Chat("hi", ChatOptions{})
+		_, err = Chat("hi", ChatOptions{Origin: "trusted"})
 	})
 	unavailable, ok := err.(*AiUnavailableError)
 	if !ok || !strings.Contains(unavailable.Msg, "WIRE_REQUIRED") ||
@@ -137,7 +137,7 @@ func TestChatAcceptsMathematicalIntegersAndUnrestrictedToolInput(t *testing.T) {
 	var response *AiResponse
 	var err error
 	withCos(t, bin, map[string]string{"YUOS_APP_ID": "notes"}, func() {
-		response, err = Chat("hi", ChatOptions{})
+		response, err = Chat("hi", ChatOptions{Origin: "trusted"})
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -154,7 +154,7 @@ func TestChatRejectsScalarRootWithStableWireError(t *testing.T) {
 	bin, _ := fakeYu(t, `null`, 0)
 	var err error
 	withCos(t, bin, map[string]string{"YUOS_APP_ID": "notes"}, func() {
-		_, err = Chat("hi", ChatOptions{})
+		_, err = Chat("hi", ChatOptions{Origin: "trusted"})
 	})
 	unavailable, ok := err.(*AiUnavailableError)
 	if !ok || !strings.Contains(unavailable.Msg, "WIRE_ONE_OF") ||
@@ -165,7 +165,7 @@ func TestChatRejectsScalarRootWithStableWireError(t *testing.T) {
 
 func TestBudgetAcceptsProducerShape(t *testing.T) {
 	bin, _ := fakeYu(t, wireSuccess(`{"app":"notes","period":"2026-08","units_used":7}`), 0)
-	var budget *AiBudget
+	var budget *BudgetShow
 	var err error
 	withCos(t, bin, nil, func() {
 		budget, err = Budget("notes")
@@ -173,7 +173,7 @@ func TestBudgetAcceptsProducerShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if budget.Period != "2026-08" || budget.UnitsUsed != 7 || budget.UnitsCap != 0 {
+	if *budget != (BudgetShow{App: "notes", Period: "2026-08", UnitsUsed: 7}) {
 		t.Fatalf("budget = %+v", budget)
 	}
 }

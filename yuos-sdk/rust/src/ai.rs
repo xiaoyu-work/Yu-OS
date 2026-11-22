@@ -121,6 +121,7 @@ pub struct ChatOpts {
 }
 
 impl ChatOpts {
+    /// Declare `trusted`, `user-input`, or `external-content`. Required for chat.
     pub fn origin(mut self, o: impl Into<String>) -> Self {
         self.origin = Some(o.into());
         self
@@ -151,12 +152,17 @@ impl ChatOpts {
 // Public helpers
 // ---------------------------------------------------------------------------
 
-/// Single-shot chat completion. Maps to wire-family `ai.chat`.
+/// Single-shot chat completion. Requires an explicit [`ChatOpts::origin`].
 pub fn chat(prompt: &str, opts: ChatOpts) -> Result<AiResponse, AiError> {
     if prompt.trim().is_empty() {
         return Err(AiError::InvalidArg("chat: prompt must be non-empty".into()));
     }
-    dispatch(prompt, opts)
+    let origin = opts
+        .origin
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| AiError::InvalidArg("chat: prompt origin is required".into()))?;
+    dispatch(prompt, origin, &opts)
 }
 
 // ---------------------------------------------------------------------------
@@ -215,7 +221,7 @@ impl Drop for PrivateInputFile {
     }
 }
 
-fn dispatch(prompt: &str, opts: ChatOpts) -> Result<AiResponse, AiError> {
+fn dispatch(prompt: &str, origin: &str, opts: &ChatOpts) -> Result<AiResponse, AiError> {
     let app = opts
         .app_id
         .clone()
@@ -225,8 +231,6 @@ fn dispatch(prompt: &str, opts: ChatOpts) -> Result<AiResponse, AiError> {
                 "chat: app id is required (pass .app(...) or set YUOS_APP_ID)".into(),
             )
         })?;
-
-    let origin = opts.origin.clone().unwrap_or_else(|| "trusted".into());
 
     let mut argv: Vec<OsString> = vec![
         "ai".into(),

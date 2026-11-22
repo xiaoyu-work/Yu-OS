@@ -12,10 +12,10 @@
 // `yu app lint` — this module is the only sanctioned route to a model.
 //
 //   import { ai } from "@yuos/sdk";
-//   const res = ai.chat("Summarise this", { origin: "external-content" });
+//   const res = await ai.chat("Summarise this", { origin: "trusted" });
 //   console.log(res.text, res.usage.units);
 
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -23,7 +23,7 @@ import {
   BridgeError,
   Denied,
   Unavailable,
-  yuCallJson,
+  yuCallJsonAsync,
 } from "./transport";
 import {
   WireDecodeError,
@@ -64,6 +64,12 @@ export interface Budget {
   unitsCap: number | bigint;
 }
 
+export interface BudgetUsage {
+  app: string;
+  period: string;
+  unitsUsed: number | bigint;
+}
+
 export interface Review {
   safety: string;
   promptRedacted: boolean;
@@ -91,10 +97,8 @@ export interface AiResponse {
 }
 
 export interface ChatOptions {
-  /** Prompt provenance. Pass `"external-content"` for any third-party
-   * text (emails, web pages, file contents) so the strict safety
-   * pipeline runs and the gate picks `ai.chat.untrusted`. */
-  origin?: string;
+  /** Declare where the prompt came from; `trusted` is developer-authored text only. */
+  origin: "trusted" | "user-input" | "external-content";
   maxUnits?: number;
   system?: string;
   /** App identity. Defaults to `YUOS_APP_ID`. */
@@ -102,39 +106,60 @@ export interface ChatOptions {
   /** Catalog tool names the model may *propose*; never executed by the
    * gate — proposals return in `AiResponse.toolCalls`. */
   tools?: string[];
-}
-
-interface DispatchArgs {
-  modality: string;
-  prompt?: string | null;
-  origin: string;
-  maxUnits?: number;
-  system?: string;
-  appId?: string;
-  tools?: string[];
+  /** In an MCP handler, pass the call's signal to inherit its deadline and cancellation. */
+  signal?: AbortSignal;
 }
 
 /** Single-shot chat completion through the kernel's AI gate. */
-export function chat(prompt: string, opts: ChatOptions = {}): AiResponse {
+export async function chat(prompt: string, opts: ChatOptions): Promise<AiResponse> {
   if (!prompt || !prompt.trim()) throw new AiError("chat: prompt must be non-empty");
-  return dispatch({
-    modality: "chat",
-    prompt,
-    origin: opts.origin ?? "trusted",
-    maxUnits: opts.maxUnits,
-    system: opts.system,
-    appId: opts.appId,
-    tools: opts.tools,
-  });
+  if (typeof opts?.origin !== "string" || !opts.origin.trim()) {
+    throw new AiError("chat: prompt origin is required");
+  }
+  const app = opts.appId || process.env.YUOS_APP_ID;
+  if (!app) {
+    throw new AiError("chat: app_id is required (pass appId or set YUOS_APP_ID)");
+  }
+  const { origin, maxUnits, system, tools, signal } = opts;
+  signal?.throwIfAborted();
+  const argv = ["ai", "chat", "--app", app, "--origin", origin];
+  const privateDir = await mkdtemp(join(tmpdir(), "yuos-ai-"));
+  try {
+    const promptPath = join(privateDir, "prompt");
+    await writeFile(promptPath, prompt, { encoding: "utf8", mode: 0o600, flag: "wx" });
+    argv.push("--prompt-file", promptPath);
+    if (maxUnits != null) argv.push("--max-units", String(maxUnits));
+    if (system != null) {
+      const systemPath = join(privateDir, "system");
+      await writeFile(systemPath, system, { encoding: "utf8", mode: 0o600, flag: "wx" });
+      argv.push("--system-file", systemPath);
+    }
+    if (tools?.length) argv.push("--tools", tools.join(","));
+
+    let data: unknown;
+    try {
+      data = await yuCallJsonAsync("yu ai chat", argv, signal);
+    } catch (e) {
+      if (e instanceof Denied) raiseForError(e.payload);
+      if (e instanceof Unavailable) throw new AiUnavailable(e.message);
+      throw e;
+    }
+    return parseResponse(data);
+  } finally {
+    await rm(privateDir, { recursive: true, force: true });
+  }
 }
 
-/** Current-period budget snapshot for an app. */
-export function budget(appId?: string): Budget {
+/** Current-period usage for an app; the CLI does not report a cap. */
+export async function budget(
+  appId?: string,
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<BudgetUsage> {
   const app = appId || process.env.YUOS_APP_ID;
   if (!app) throw new AiError("budget: app_id is required");
   let data: unknown;
   try {
-    data = yuCallJson("yu agent budget show", ["agent", "budget", "show", app]);
+    data = await yuCallJsonAsync("yu agent budget show", ["agent", "budget", "show", app], signal);
   } catch (error) {
     if (error instanceof Denied || error instanceof Unavailable) {
       throw new AiUnavailable(error.message);
@@ -149,53 +174,7 @@ export function budget(appId?: string): Budget {
     }
     throw error;
   }
-  return {
-    period: data.period,
-    unitsUsed: data.units_used,
-    unitsCap: 0,
-  };
-}
-
-function resolveApp(modality: string, appId?: string): string {
-  const app = appId || process.env.YUOS_APP_ID;
-  if (!app) {
-    throw new AiError(
-      `${modality}: app_id is required (pass appId or set YUOS_APP_ID)`,
-    );
-  }
-  return app;
-}
-
-function dispatch(a: DispatchArgs): AiResponse {
-  const app = resolveApp(a.modality, a.appId);
-  const argv = ["ai", "chat", "--app", app, "--origin", a.origin];
-  const privateDir = mkdtempSync(join(tmpdir(), "yuos-ai-"));
-  try {
-    if (a.prompt != null) {
-      const promptPath = join(privateDir, "prompt");
-      writeFileSync(promptPath, a.prompt, { encoding: "utf8", mode: 0o600, flag: "wx" });
-      argv.push("--prompt-file", promptPath);
-    }
-    if (a.maxUnits != null) argv.push("--max-units", String(a.maxUnits));
-    if (a.system != null) {
-      const systemPath = join(privateDir, "system");
-      writeFileSync(systemPath, a.system, { encoding: "utf8", mode: 0o600, flag: "wx" });
-      argv.push("--system-file", systemPath);
-    }
-    if (a.tools && a.tools.length) argv.push("--tools", a.tools.join(","));
-
-    let data: unknown;
-    try {
-      data = yuCallJson(`yu ai ${a.modality}`, argv);
-    } catch (e) {
-      if (e instanceof Denied) raiseForError(e.payload);
-      if (e instanceof Unavailable) throw new AiUnavailable(e.message);
-      throw e;
-    }
-    return parseResponse(data);
-  } finally {
-    rmSync(privateDir, { recursive: true, force: true });
-  }
+  return { app: data.app, period: data.period, unitsUsed: data.units_used };
 }
 
 function raiseForError(env: Record<string, unknown>): never {

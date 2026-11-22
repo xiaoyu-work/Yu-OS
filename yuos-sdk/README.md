@@ -13,6 +13,8 @@ or through App-owned AI agents. Cross-App orchestration belongs to the built-in
 system Agent. Apps may use gated AI, controlled system services, and shared
 libraries; `tools.call` addresses the fixed AI primitive catalog, not App MCP.
 
+Start with the [two-file MCP App quickstart](../docs/app-development.md#quickstart-an-mcp-only-app).
+
 An App may declare separate signed GUI executables in optional
 `desktop.entries`, without another installed identity or renderer unification.
 `yu app <id> --gui:<name> [literal args...]` selects one declared entry;
@@ -122,7 +124,7 @@ arguments.
 ┌──────────────────────┐
 │  your app (any lang) │
 └──────────┬───────────┘
-           │ language-native call: ai.chat("…")
+           │ language-native chat call (explicit prompt origin)
            ▼
 ┌──────────────────────────────────────────────────────────┐
 │  yuos-sdk (rust / python / node / go)                 │
@@ -188,12 +190,26 @@ generated binding compatibility. No new SDK execution API is introduced.
 ## AI support
 
 Across Rust, Python, Node, and Go, the hand-written AI surface is `chat` /
-`chat-untrusted`. Supplying origin `external-content` automatically selects
-`ai.chat.untrusted`. Unsupported modality helpers are not published.
+`chat-untrusted`. Chat requires an explicit origin: `trusted` for
+developer-authored text, `user-input` for text typed by the user, and
+`external-content` for files, web pages, email, or other outside content.
+`external-content` selects the `ai.chat.untrusted` capability. It does not
+force a safety profile or prove provenance. The effective App and owner
+policy controls redaction; `strict` and `standard` currently do the same
+prompt-secret redaction, and `minimal` does not redact. No profile promises
+prompt-injection detection. Unsupported modality helpers are not published.
 
-A v2 socket transport is planned (see `wire/v2-design.md`) to bring
-per-call latency down from ~50 ms to µs-class, but the same envelopes
-flow over either transport.
+Node AI and catalog calls return promises. Pass the MCP call's `signal` to
+carry its cancellation and deadline through to `yu`. In Go, pass the
+`*MCPCall` to `ChatContext`, `CallToolContext`, `BudgetContext`, or
+`CatalogContext`. Cancellation stops the SDK's wait and its CLI child; it
+cannot undo a request the OS already accepted. Do not retry an indeterminate
+mutation automatically.
+
+The standalone budget query in Python, Node, and Go reports the App, period,
+and units used. The CLI does not return a cap, so the query result has no
+cap field. The chat reply's separate budget snapshot still returns its
+actual cap.
 
 ## What to generate vs hand-write
 
@@ -202,7 +218,7 @@ Codegen handles the **boring** part:
 | Generated         | Hand-written                                |
 |-------------------|---------------------------------------------|
 | Request / reply struct types | The transport (how to spawn `yu`) |
-| Error code enum   | The high-level wrappers (`ai.chat("…")`)    |
+| Error code enum   | The high-level wrappers (`ai.chat`, `tools.call`) |
 | Manifest schema bindings | Examples, docs, language-idiomatic helpers |
 | `ObjectRef` and structural validators | Pure canonical URI helpers and semantic bounds |
 
@@ -220,19 +236,28 @@ four language bindings and the Rust SDK's MCP constants.
 
 ## Versioning
 
-- **Wire protocol** has its own version (`v1`, `v2`, …) bumped only on
-  envelope-breaking changes.
-- **SDK bindings** share one SemVer and are released together so Python, Node,
-  Rust, and Go always target the same generated wire contract.
-- All SDKs handshake on start-up: each library calls `yu --version` and
-  refuses to operate against a `yu` binary that's older than the
-  minimum wire-version it requires.
+- **Wire protocol:** subprocess calls request `--wire=1` and check the version
+  and shape of each response. They do not spawn a separate startup probe.
+- **SDK packages:** Python, Node, Rust, and Go share the `sdk-v<version>`
+  release and target the same generated CLI/MCP contract. Python derives its
+  package metadata from the source `yuos_sdk.__version__`.
+- **App runtime ABI:** the separate [App development platform](../docs/app-platform.md)
+  records its ABI, export inventory, and version. SDK version, manifest
+  `schema_version`, wire version, and installed runtime ABI are not interchangeable.
 
 ## Compatibility
 
-yuos is pre-1.0. Breaking changes in the wire protocol are allowed
-and announced in `wire/CHANGELOG.md`. SDKs may pin to a specific wire
-version and refuse to run against incompatible kernels.
+Use SDK `0.1.0` with the matching Yu OS runtime and `yu` build from the same
+source revision as a known baseline. `yu --wire=1 --version` is an optional
+envelope check, not an installed-service or feature probe. A different OS
+build must implement both wire v1 and the specific operations or providers the
+App uses. A matching envelope version by itself does not guarantee newer
+features. Released artifacts and pins are immutable; a source change does
+not publish or replace an artifact.
+
+Wire v1 stays backward compatible: add operations or fields in shapes that
+already allow them, without changing the existing behavior. A breaking change
+to a closed shape or its meaning needs a versioned contract.
 
 Generated decoders follow JSON Schema's mathematical-integer semantics:
 finite `1`, `1.0`, and `1e0` values are equivalent integers. Bounds are
@@ -274,15 +299,17 @@ language test suite, and creates:
 
 Install from an immutable release artifact or tag, never from `main`.
 
-## Status (2026-05-15)
+## Language support
 
-| Component | Status |
-|-----------|--------|
-| `wire/v1` schemas | Initial draft |
-| `wire/codegen.py` | Emits deterministic Rust, Python, Node, Go, and MCP validation bindings |
-| `rust/` | Public `ai`, `tools`, and native App `mcp` modules. The `policy / fs / exec / pkg / notify / net` modules live in `yuos-runtime/`. |
-| `python/` | Moved from `apps/_lib`; packaged as `yuos-sdk`. The internal `policy` / `snapshot` helpers moved on into `yuos-runtime/python/`. |
-| `node/` | Built out — `ai`, `tools`, `gui` over wire v1, with tests |
-| `go/`   | Built out — `ai`, `tools`, `gui` over wire v1, with tests |
+| SDK surface | [Rust](rust/README.md) | [Python](python/README.md) | [Node](node/README.md) | [Go](go/README.md) |
+|---|---|---|---|---|
+| Gated AI chat and fixed catalog tools | Yes | Yes | Yes | Yes |
+| Standalone AI usage query | — | Yes | Yes | Yes |
+| Manifest-bound MCP services, progress, and cancellation | Yes | Yes | Yes | Yes |
+| GUI bootstrap, object references, manifest helpers, events, and channels | Yes | Yes | Yes | Yes |
+| App data services: Calendar, tasks, telemetry, and history preflight | Yes | — | — | — |
 
-See each language's `README.md` for usage.
+MCP App inputs use the [manifest argument model](../docs/app-development.md#quickstart-an-mcp-only-app),
+not arbitrary nested JSON Schema. The separate [App data services protocol](wire/v1/applet-services.md)
+is language-neutral, but only Rust has an SDK binding and it requires the
+installed OS provider. A supported binding is not itself a capability grant.

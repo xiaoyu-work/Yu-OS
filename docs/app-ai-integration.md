@@ -267,6 +267,19 @@ App tools. Provider credentials,
 model selection, budgets, prompt-origin policy, and model-visible logging stay
 inside the core Agent.
 
+SDK chat calls require explicit prompt origin. `external-content` selects
+the separate `ai.chat.untrusted` capability, not a safety profile. The
+effective App and owner policy selects the profile: `strict` and `standard`
+currently apply the same prompt-secret redaction, and `minimal` does not
+redact. Do not rely on an origin label or profile to detect prompt injection
+or to make model output or proposed tool arguments trustworthy.
+
+In Node MCP handlers, pass the call's `signal` to `ai.chat` and subsequent
+catalog calls. In Go, pass the `*MCPCall` as the context to `ChatContext`
+and `CallToolContext`. These carry cancellation and deadlines to the client
+subprocess; they do not carry authority, undo accepted effects, or make
+automatic retries of mutations safe.
+
 ## 7. Audit and failure semantics
 
 The audit trail binds:

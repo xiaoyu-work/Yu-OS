@@ -28,7 +28,7 @@ Typical usage::
 
     def cmd_summarise(args):
         text = open(args["path"]).read()
-        return ai.chat(f"Summarise: {text}")
+        return ai.chat(f"Summarise: {text}", origin="external-content")
 
 Capability gating (``policy.require``) and the COW snapshot helper
 live in the **internal** ``yuos_runtime`` package — they are
@@ -39,4 +39,4 @@ public SDK surface.
 from . import ai, channels, events, gui, kernel, manifest, mcp, objects, tools
 
 __all__ = ["ai", "channels", "events", "gui", "kernel", "manifest", "mcp", "objects", "tools"]
-__version__ = "0.2.1"
+__version__ = "0.1.0"

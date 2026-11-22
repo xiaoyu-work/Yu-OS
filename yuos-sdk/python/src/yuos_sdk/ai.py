@@ -50,7 +50,7 @@ import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Literal, Mapping, Optional
 
 from ._transport import WIRE_ARG, WireDenied, WireUnavailable, decode_response
 from .generated import (
@@ -122,6 +122,13 @@ class Budget:
 
 
 @dataclass
+class BudgetUsage:
+    app: str
+    period: str
+    units_used: int
+
+
+@dataclass
 class Review:
     safety: str = "strict"
     prompt_redacted: bool = False
@@ -163,7 +170,7 @@ class AiResponse:
 def chat(
     prompt: str,
     *,
-    origin: str = "trusted",
+    origin: Literal["trusted", "user-input", "external-content"],
     max_units: Optional[int] = None,
     system: Optional[str] = None,
     app_id: Optional[str] = None,
@@ -171,10 +178,10 @@ def chat(
 ) -> AiResponse:
     """Send a single-shot chat completion through the kernel's AI gate.
 
-    The gate derives the verb (``ai.chat`` or ``ai.chat.untrusted``)
-    from ``origin``: pass ``"external-content"`` for any third-party
-    text (emails, web pages, file contents, another agent's output)
-    so the strict safety pipeline kicks in.
+    Declare where the prompt came from. ``"trusted"`` is for developer-authored
+    text only. ``"external-content"`` selects ``ai.chat.untrusted`` for content
+    such as emails, files, web pages, or another agent's output. The effective
+    App and owner policy determines redaction; the label is not a safety guarantee.
 
     ``tools`` is a list of catalog tool names (e.g.
     ``["fs.read_text", "kv.get"]``) the model may *propose* calling.
@@ -189,6 +196,8 @@ def chat(
     """
     if not prompt or not prompt.strip():
         raise AiError("chat: prompt must be non-empty")
+    if not isinstance(origin, str) or not origin.strip():
+        raise AiError("chat: prompt origin is required")
     return _dispatch(
         modality="chat",
         prompt=prompt,
@@ -200,8 +209,8 @@ def chat(
     )
 
 
-def budget(app_id: Optional[str] = None) -> Budget:
-    """Return the current-period budget snapshot for an app."""
+def budget(app_id: Optional[str] = None) -> BudgetUsage:
+    """Return usage for the current period; the CLI does not report a cap."""
     app = app_id or os.environ.get("YUOS_APP_ID")
     if not app:
         raise AiError("budget: app_id is required")
@@ -227,10 +236,10 @@ def budget(app_id: Optional[str] = None) -> Budget:
         validate_budget_show(env)
     except WireDecodeError as exc:
         raise AiUnavailable(f"budget response decode failed: {exc}") from exc
-    return Budget(
+    return BudgetUsage(
+        app=env["app"],
         period=env["period"],
         units_used=wire_integer_to_int(env["units_used"]),
-        units_cap=0,
     )
 
 
