@@ -10,7 +10,7 @@ root beside the signed APT repository.
 | Path | Role |
 | --- | --- |
 | `index.html` | Marketing page |
-| `install/index.html`, `install/install.js` | Public `/install/` guide based on the [README Quick Start](../README.md#quick-start), with copyable commands and a signed package index availability notice |
+| `install/index.html`, `install/install.js` | Public `/install/` guide based on the [README Quick Start](../README.md#quick-start), with copyable commands |
 | `style.css` | Page styles |
 | `app.js` | Yu Agent captions rotate automatically until a dot is selected |
 | `fonts/` | Self-hosted Barlow Condensed and Space Grotesk with their SIL Open Font License texts |
@@ -19,6 +19,10 @@ root beside the signed APT repository.
 | [`../.github/workflows/publish-website.yml`](../.github/workflows/publish-website.yml) | Publishes the static site without building OS packages |
 
 ## Publication
+
+The Windows / WSL installation section describes the prebuilt image separately
+from local source builds. Add a download link only once the matching `.wsl`
+artifact is published.
 
 Run **Publish Website** on `main` to publish `web/`. It does not build Yu OS,
 contact the upstream App APT repository, or use signing secrets.

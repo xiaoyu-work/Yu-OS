@@ -1,19 +1,3 @@
-async function checkPackageSource() {
-  const notice = document.querySelector("[data-source-status]");
-  try {
-    const response = await fetch("../apt/dists/trixie/InRelease", {
-      method: "HEAD",
-      cache: "no-store",
-      signal: AbortSignal.timeout(6000),
-    });
-    if (response.ok) return;
-    notice.textContent = "The signed Yu OS package source is currently unavailable. Try the Ubuntu installation again later.";
-  } catch {
-    notice.textContent = "Could not check the Yu OS package source. Stop if the package key or index cannot be verified.";
-  }
-  notice.hidden = false;
-}
-
 if (navigator.clipboard) {
   const status = document.querySelector("[data-copy-status]");
   for (const figure of document.querySelectorAll(".command")) {
@@ -38,5 +22,3 @@ if (navigator.clipboard) {
     figure.append(button);
   }
 }
-
-void checkPackageSource();
