@@ -1508,6 +1508,15 @@ fn mcp_json_arguments_use_canonical_validation_and_roundtrip_large_content() {
         json!({"path": "file", "content": "small"})
     );
 
+    let mail = caps::Manifest::from_json(
+        &std::fs::read_to_string(app_sources::app_dir("email").join("app.json")).unwrap(),
+    ).unwrap();
+    assert_eq!(
+        bind_mcp_command_arguments(&mail, "folders", &["--account".into(), "test:account".into()], None).unwrap(),
+        json!({"account": "test:account"}),
+    );
+    assert!(bind_mcp_command_arguments(&mail, "folders", &["test:account".into()], None).is_err());
+
     for invalid in [
         b"".as_slice(),
         b"not json",

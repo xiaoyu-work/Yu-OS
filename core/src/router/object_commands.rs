@@ -11,8 +11,7 @@ pub(super) fn run(command: &str, args: &[String]) -> Result<Value, String> {
         args,
         |app, invocation| {
             super::app_commands::require_runnable(app)?;
-            let execute = if crate::apps::command_uses_mcp_cli(&app.manifest, &invocation.operation)
-            {
+            let execute = if super::app_commands::command_uses_service(app, &invocation.operation) {
                 super::run_app_mcp_command
             } else {
                 super::run_app_command

@@ -2544,7 +2544,11 @@ fn bind_mcp_command_arguments(
         if stdin_data.is_some() || mcp_stdin_requested(args) {
             return Err("MCP tools reject raw --stdin; use --args-stdin with a JSON object".into());
         }
-        caps::args::bind_supplied_cli_args(&tool.args, args)?
+        // A CLI operation backed by an MCP twin keeps the operation's flag
+        // syntax. The resulting values still pass the MCP tool's validation.
+        let declarations = manifest.operations.get(command)
+            .map_or(tool.args.as_slice(), |operation| operation.args.as_slice());
+        caps::args::bind_supplied_cli_args(declarations, args)?
     };
     // Same defaults, required/conditional fields and choices as daemon MCP
     // preparation. Paths and all authority are still derived by the daemon.

@@ -15,7 +15,7 @@ pub(super) fn run(command: &str, args: &[String]) -> Result<Value, String> {
     }
     execute_with(args, request, |app, operation, argv| {
         super::app_commands::require_runnable(app)?;
-        if crate::apps::command_uses_mcp_cli(&app.manifest, operation) {
+        if super::app_commands::command_uses_service(app, operation) {
             super::run_app_mcp_command(&app.manifest.id, operation, argv, app, None)
         } else {
             super::run_app_command(&app.manifest.id, operation, argv, app, None)
@@ -48,7 +48,7 @@ fn execute_with(
     }
     let app = crate::apps::find_verified(&super::apps_dir(), &app_id)?;
     let preview = crate::operations::preview(&app, &operation, &argv)?;
-    let report_operation = if crate::apps::command_uses_mcp_cli(&app.manifest, &operation) {
+    let report_operation = if super::app_commands::command_uses_service(&app, &operation) {
         crate::activities::ReceiptReport::session_operation(
             &app.manifest.mcp_tool_for_command(&operation)?.name,
         )
