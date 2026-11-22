@@ -189,7 +189,7 @@ calendar() {
     cargo test -p yu --lib --locked --no-run --message-format=json-render-diagnostics \
         > "$RUNNER_TEMP/calendar-tests.jsonl"
     test_binary="$(yu_test_binary "$RUNNER_TEMP/calendar-tests.jsonl")"
-    sudo timeout 120 unshare --mount --net --fork \
+    sudo --preserve-env=YUOS_APP_SOURCE_LOCK timeout 120 unshare --mount --net --fork \
         env YUOS_CALENDAR_YU="$CARGO_TARGET_DIR/debug/yu" \
             YUOS_CALENDAR_READER="$RUNNER_TEMP/calendar-target/debug/yuos-calendar-reader" \
             YUOS_CALENDAR_PROVIDER="$RUNNER_TEMP/calendar-target/debug/yuos-applet-provider" \
