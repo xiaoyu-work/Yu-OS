@@ -15,8 +15,6 @@ pub struct AuthenticatedExtensionHost {
     pub host_pid: u32,
     pub host_start_time_ticks: Option<u64>,
     pub(crate) task_session: Option<std::sync::Arc<crate::proc::SessionInfo>>,
-    #[cfg(unix)]
-    pub(crate) task_app_data: Option<std::sync::Arc<crate::extension_host::spawn::TaskAppData>>,
 }
 
 /// The peer a request came from.

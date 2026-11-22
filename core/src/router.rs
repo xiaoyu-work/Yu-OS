@@ -2331,8 +2331,9 @@ fn dispatch_with_stdin_impl(
             // "Did you mean `yu app <name>`?" — a diagnostic, not a
             // dispatch. Quarantined installs should still produce the
             // helpful hint rather than a bare "unknown command".
-            let discovered = apps::discover(&apps_dir);
-            if discovered.contains_key(name.as_str()) {
+            if apps::direct_owner_frontend()
+                && apps::discover(&apps_dir).contains_key(name.as_str())
+            {
                 Err(format!(
                     "'{name}' is an app, not an OS primitive. Use: yu app {name} <command>"
                 ))
@@ -2357,18 +2358,6 @@ fn run_app_command(
     let audit = audit_path();
     let data = data_dir();
     let apps = apps_dir().to_string_lossy().to_string();
-
-    // Root settles exact invoke and target authority together, as for MCP.
-    // Keep reference narrowing here without spending consent or opening writable
-    // Root provenance locks. The bridge validates the parent process/session;
-    // Root rederives caller liveness, trust and the plan before any execution.
-    if command != "__schema__" {
-        if let Err(denial) = caps::enforcement::require_capability_reference(
-            caps::Verb::AGENT_INVOKE, &caps::Scope::name(app_name),
-        ) {
-            return Err(denial.summary());
-        }
-    }
 
     // One verified snapshot drives both the capability decision and
     // the bytes that execute. `require_runnable` already re-asserted it
@@ -2461,21 +2450,9 @@ fn run_app_mcp_command(
 
     let tool = apps::mcp_tool_for_command(&app.manifest, command)?;
     let tool_name = tool.name.clone();
-    let invoke_target = format!("{app_name}/{tool_name}");
 
     let arguments = bind_mcp_command_arguments(&app.manifest, command, args, stdin_data.as_deref())
         .map_err(|error| format!("yu app {app_name} {command}: {error}"))?;
-
-    // Root settles invoke and target consent together. Local extension
-    // attenuation still applies, but must not spend the same consent first.
-    if command != "__schema__" {
-        if let Err(denial) = caps::enforcement::require_capability_reference(
-            caps::Verb::AGENT_INVOKE,
-            &caps::Scope::name(&invoke_target),
-        ) {
-            return Err(denial.summary());
-        }
-    }
 
     let request = crate::yuosd::protocol::Request::build(
         Command::AppServiceCliCall,

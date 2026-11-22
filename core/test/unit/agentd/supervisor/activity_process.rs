@@ -141,10 +141,7 @@ async fn activity_task_and_service_hosts_preserve_real_effects_receipts_and_limi
             TestEnvVarGuard::set("YUOS_EXTENSION_HOST_BIN", &fixture.extension_host_binary);
         let _cos = TestEnvVarGuard::set("YUOS_BIN", &fixture.yu_binary);
         let _runner = TestEnvVarGuard::set("YUOS_APP_RUNNER_BIN", &fixture.app_runner_binary);
-        let verified =
-            crate::apps::find_verified_fresh(&fixture.apps_root, &fixture.app_id).unwrap();
-        let package =
-            crate::provenance::runtime::PackageRef::of(verified.require_verified().unwrap());
+        crate::apps::find_verified_fresh(&fixture.apps_root, &fixture.app_id).unwrap();
         let identity = spawn::resolve_identity(fixture.owner_uid).unwrap();
         let primary = runtime.path().join("yuosd.sock");
         let listener = std::os::unix::net::UnixListener::bind(&primary).unwrap();
@@ -233,7 +230,7 @@ async fn activity_task_and_service_hosts_preserve_real_effects_receipts_and_limi
             serde_json::to_vec(&json!({
                 "owner_uid":fixture.owner_uid,"execution_gid":broker.isolated_execution_gid,
                 "owner_home":fixture.owner_home,"app_id":fixture.app_id,
-                "package_digest":package.content_digest,"case":child_case
+                "case":child_case
             }))
             .unwrap(),
         )
@@ -373,7 +370,7 @@ async fn activity_task_and_service_hosts_preserve_real_effects_receipts_and_limi
                     "{case}: {:?}",
                     finished.error
                 );
-                let calls = if case == "one_shot" { 1 } else { 2 };
+                let calls = if case == "one_shot" { 0 } else { 2 };
                 assert_eq!(counter(&fixture.counter_file), before + calls);
                 assert_eq!(receipts.len(), calls as usize);
                 assert!(receipts

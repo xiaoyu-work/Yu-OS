@@ -965,13 +965,7 @@ impl ProbeFixture {
             crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_MODE", "permissive"),
             crate::test_env::TestEnvVarGuard::set("YUOS_TEST_LOCAL_APP_SESSIONS", "1"),
         ];
-        let session = crate::test_env::TestSessionGuard::admin_with_caps(
-            &data,
-            [crate::caps::Cap::new(
-                crate::caps::Verb::AGENT_INVOKE,
-                crate::caps::Scope::name(format!("{id}/*")),
-            )],
-        );
+        let session = crate::test_env::TestSessionGuard::admin_with_caps(&data, []);
         Self {
             root,
             apps,

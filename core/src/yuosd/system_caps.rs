@@ -171,7 +171,6 @@ const BASELINE: &[(Verb, Baseline)] = &[
     // never saw; invoking an installed App does not, because the App's
     // capabilities are derived by intersecting this very set.
     (Verb::AGENT_SPAWN, Baseline::Denied),
-    (Verb::AGENT_INVOKE, Baseline::AnyName),
     (Verb::AGENT_OBSERVE, Baseline::AnyName),
     (Verb::AGENT_DELEGATE, Baseline::Denied),
     // -- Built-in data stores ----------------------------------------

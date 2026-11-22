@@ -67,23 +67,9 @@ fn ordinary_task_app_actor() {
     let apps = PathBuf::from(std::env::var_os("YUOS_APPS_DIR").unwrap());
     let app = crate::apps::find_verified(&apps, APP).unwrap();
     let launch = crate::bridge::AppLaunch::new(app.require_verified().unwrap().clone()).unwrap();
-    let start: i64 = std::env::var("YUOS_TASK_DATA_EXPECTED")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let refused = crate::bridge::run_task_app(&launch, "bump", &[], apps.to_str().unwrap())
-        .unwrap_err();
-    assert!(refused.contains("fixture binding refused"), "{refused}");
-    for expected in [start, start + 1] {
-        let output = crate::bridge::run_task_app(&launch, "bump", &[], apps.to_str().unwrap())
-            .unwrap()
-            .unwrap();
-        let value: serde_json::Value = serde_json::from_str(&output).unwrap();
-        assert_eq!(value["value"], expected);
-        let root = PathBuf::from(value["root"].as_str().unwrap());
-        assert!(root.ends_with(format!("app-data/apps/{APP}")));
-        assert!(!root.starts_with(std::env::var_os("HOME").unwrap()));
-    }
+    let refused = crate::bridge::run_app(&launch, "bump", &[], "/unused", apps.to_str().unwrap())
+        .expect_err("a task host cannot run a CLI-only operation");
+    assert!(refused.contains("require a direct owner launch"), "{refused}");
 }
 
 fn binding(
@@ -139,10 +125,9 @@ fn task_client(data: &Arc<TaskAppData>) -> ClientIdentity {
                 data.binding.session_id.as_deref().unwrap(),
                 data.binding.controller_pid,
                 crate::caps::CapSet::from_caps([crate::caps::Cap::new(
-                    crate::caps::Verb::AGENT_INVOKE, crate::caps::Scope::name(APP),
+                    crate::caps::Verb::DATA_KV_WRITE, crate::caps::Scope::name(APP),
                 )]),
             ))),
-            task_app_data: Some(data.clone()),
         },
     )
 }
@@ -180,7 +165,7 @@ fn session(id: &str, pid: u32, caps: crate::caps::CapSet) -> crate::proc::Sessio
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "requires Root in private mount/network namespaces and YUOS_APP_DATA_TEST_YU/RUNNER"]
 async fn task_app_registration_binds_persistent_data_after_authorization() {
-    use crate::caps::{Cap, CapSet, Scope, Verb};
+    use crate::caps::CapSet;
     use crate::yuosd::transport::{frame::PeerStream, peer, ReadOutcome};
     use crate::yuosd::wire::Request;
 
@@ -303,7 +288,7 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
     .unwrap();
     crate::approvals::system_review::decide(owner.uid, &review.id, true, Some(package)).unwrap();
     crate::approvals::system_review::consume(owner.uid, &review.id, package).unwrap();
-    let caps = CapSet::from_caps([Cap::new(Verb::AGENT_INVOKE, Scope::name(APP))]);
+    let caps = CapSet::new();
     let group = Path::new("/sys/fs/cgroup")
         .join(format!("yuos-task-data-fixture-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir(&group).unwrap();
@@ -319,7 +304,7 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
     let root = crate::agentd::supervisor::BrokerContext::new(
         state.clone(), admission.clone(), primary,
     ).unwrap().initialize_app_custody().unwrap();
-    for (execution_uid, expected) in [(61010, 1), (61011, 3)] {
+    for execution_uid in [61010, 61011] {
         let execution = ExtensionIdentity {
             uid: execution_uid,
             gid: 65534,
@@ -351,7 +336,6 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
             .env("YUOS_EXTENSION_BROKER_SOCKET", &paths.broker_socket)
             .env("XDG_RUNTIME_DIR", "/tmp")
             .env("YUOS_TASK_DATA_ACTOR", "1")
-            .env("YUOS_TASK_DATA_EXPECTED", expected.to_string())
             .current_dir(&paths.control_dir)
             .stdin(Stdio::piped())
             .stdout(Stdio::inherit())
@@ -413,7 +397,7 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
         transport.command[1] = data.binding.task_id.clone();
         crate::proc::register_session_for_owner(transport, owner.uid).unwrap();
         crate::storage::install_routed_extension_reader(owner.uid, execution.uid).unwrap();
-        for operation in ["absent", "denied"] {
+        for operation in ["absent", "denied", "bump"] {
             let request = serde_json::json!({
                 "app_id": APP, "kind": "operation", "operation": operation, "args": [],
                 "package": PackageRef::of(package),
@@ -438,7 +422,6 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
         let admission = admission.clone();
         let (stop, mut stopped) = tokio::sync::oneshot::channel();
         let broker = tokio::spawn(async move {
-            let mut refuse_bind = true;
             loop {
                 let accepted = tokio::select! { _ = &mut stopped => break, accepted = listener.accept() => accepted };
                 let mut stream = PeerStream::new(accepted.unwrap().0).unwrap();
@@ -454,28 +437,16 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
                 assert_eq!(process.uid, client.execution_uid.unwrap());
                 assert_eq!(process.start_time_ticks, client.start_time_ticks.unwrap());
                 let request: Request = serde_json::from_slice(&frame.body).unwrap();
-                let response = if refuse_bind
-                    && request.command == crate::yuosd::routes::Command::AppSessionBind
-                {
-                    refuse_bind = false;
-                    tokio::time::sleep(Duration::from_millis(150)).await;
-                    crate::yuosd::protocol::Response::error(
-                        request.id,
-                        crate::yuosd::protocol::BrokerErrorKind::Unauthorized.code(),
-                        "fixture binding refused",
-                    )
-                } else {
-                    crate::yuosd::server::dispatch_verified_request(
-                        request, &client, &state, &admission,
-                    )
-                    .await
-                };
+                assert_ne!(request.command, crate::yuosd::routes::Command::AppSessionBind);
+                let response = crate::yuosd::server::dispatch_verified_request(
+                    request, &client, &state, &admission,
+                )
+                .await;
                 stream
                     .write_response(&crate::yuosd::protocol::encode_response(&response).unwrap())
                     .await
                     .unwrap();
             }
-            assert!(!refuse_bind, "the actor never reached process binding");
         });
         child.stdin.take().unwrap().write_all(b"1").unwrap();
         let deadline = Instant::now() + Duration::from_secs(30);
@@ -510,18 +481,9 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
         );
         served.unwrap();
         assert!(status.success(), "ordinary App task failed: {status}");
-        assert_eq!(count, 1, "same-App registrations share one held view");
+        assert_eq!(count, 0, "the task host did not mount App data");
         assert!(data.views.lock().unwrap().is_empty());
         let db_path = backing.path().join("apps").join(APP).join("state.db");
-        let metadata = std::fs::metadata(&db_path).unwrap();
-        assert_eq!((metadata.uid(), metadata.gid()), (owner.uid, owner.gid));
-        let value: i64 = {
-            let _owner = crate::yuosd::client_identity::FsIdentityGuard::enter(owner.uid).unwrap();
-            rusqlite::Connection::open(db_path)
-                .unwrap()
-                .query_row("SELECT value FROM counter", [], |row| row.get(0))
-                .unwrap()
-        };
-        assert_eq!(value, expected + 1);
+        assert!(!db_path.exists());
     }
 }

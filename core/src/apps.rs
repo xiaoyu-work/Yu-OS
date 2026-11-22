@@ -123,6 +123,12 @@ pub fn discover_verified(apps_dir: &Path) -> BTreeMap<String, App> {
     discover_all(apps_dir).verified
 }
 
+pub(crate) fn direct_owner_frontend() -> bool {
+    !crate::caps::enforcement::process_has_no_new_privs()
+        && crate::agent::tools::exposure::current().is_none()
+        && crate::proc::current_trusted_session_for_caps().is_none()
+}
+
 pub fn discover_all(apps_dir: &Path) -> Discovery {
     discover_all_with_cache(apps_dir, true)
 }

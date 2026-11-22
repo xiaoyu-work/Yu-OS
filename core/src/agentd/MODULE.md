@@ -131,11 +131,9 @@ acknowledgement closes the worker instead of retaining stale authority. The
 private broker checks its own renewed lease on every relay, so the worker-side
 deadline is an early refusal rather than the source of authority.
 
-The supervisor also retains task App-data custody in the private broker lease.
-An ordinary App receives its existing owner/App partition only after Root
-registration authorization; the worker's `RunApp` request supplies no data
-path. Task closure stops new mount admission before checked Host/process/mount
-cleanup. Persistent backing files are never part of the disposable task tree.
+Task Hosts do not register ordinary App operations or mount App data. Only the
+built-in System Agent uses the typed App MCP relay, and Root authorizes each
+call in a separate package-bound service Host.
 See the [Host data contract](../extension_host/MODULE.md).
 
 Assignment is a durable two-phase gate. `yuosd` sends PREPARE with distinct

@@ -1867,8 +1867,6 @@ pub struct AppSessionTool {
     app_id: String,
     /// The manifest's tool name (e.g. `kv.get`) — what we send over the wire.
     manifest_tool_name: String,
-    /// Exact caller-side authority for this App/tool pair.
-    invoke_scope: crate::caps::Scope,
     /// Cached manifest used for cap resolution. Kept here so every call
     /// avoids re-parsing the JSON file.
     manifest: Arc<Manifest>,
@@ -1892,9 +1890,7 @@ impl AppSessionTool {
         let tool = &service.tools[tool_idx];
         let app_id = manifest.id.clone();
         let manifest_tool_name = tool.name.clone();
-        let invoke_scope = super::app_gateway::invoke_cap(&app_id, &manifest_tool_name)
-            .map_err(|error| format!("invalid MCP invocation target: {error}"))?
-            .scope;
+        super::app_gateway::invoke_target(&app_id, &manifest_tool_name)?;
         let name = registry_name_for(&app_id, &manifest_tool_name);
         let description = format!(
             "App `{app_id}` mcp tool `{manifest_tool_name}`. {}",
@@ -1907,7 +1903,6 @@ impl AppSessionTool {
             schema,
             app_id,
             manifest_tool_name,
-            invoke_scope,
             manifest,
             app_dir,
             apps_root,
@@ -1922,6 +1917,9 @@ impl AppSessionTool {
         tool_name: &str,
     ) -> Option<Arc<Self>> {
         let app = apps.iter().find(|app| app.manifest.id == app_id)?;
+        if !super::app_gateway::system_agent_mcp_enabled(&app.manifest) {
+            return None;
+        }
         let idx = app.manifest.mcp.as_ref()?.tools.iter().position(|tool| tool.name == tool_name)?;
         Self::from_manifest_tool(
             Arc::clone(&app.manifest),
@@ -2254,11 +2252,7 @@ impl Tool for AppSessionTool {
 
     fn exposure(&self) -> ToolExposure {
         ToolExposure::always()
-            .requiring_app_service_caller()
-            .requiring_caps([crate::caps::Cap::new(
-                crate::caps::Verb::AGENT_INVOKE,
-                self.invoke_scope.clone(),
-            )])
+            .requiring_system_agent_app_caller()
             .requiring_transport(ToolTransport::AppSession)
     }
 
@@ -2318,29 +2312,12 @@ impl AppSessionTool {
 
         let args_map = effective.values;
 
-        if let Err(denial) = crate::caps::enforcement::require_capability_reference(
-            crate::caps::Verb::AGENT_INVOKE,
-            &self.invoke_scope,
-        ) {
-            let message = denial.to_string();
-            emit_audit(
-                &self.app_id,
-                &self.manifest_tool_name,
-                crate::caps::Verb::AGENT_INVOKE.as_str(),
-                "denied",
-                Some(&message),
-                Some(&message),
-                started.elapsed(),
-            );
-            return Err(message);
-        }
-
         let Some(host) = crate::extension_host::client::current() else {
             let error = "App MCP calls require the authenticated task App Host".to_string();
             emit_audit(
                 &self.app_id,
                 &self.manifest_tool_name,
-                crate::caps::Verb::AGENT_INVOKE.as_str(),
+                "",
                 "denied",
                 Some(&error),
                 Some(&error),
@@ -2359,7 +2336,7 @@ impl AppSessionTool {
                 emit_audit(
                     &self.app_id,
                     &self.manifest_tool_name,
-                    crate::caps::Verb::AGENT_INVOKE.as_str(),
+                    "",
                     "denied",
                     Some(&error),
                     Some(&error),
@@ -2373,7 +2350,7 @@ impl AppSessionTool {
             emit_audit(
                 &self.app_id,
                 &self.manifest_tool_name,
-                crate::caps::Verb::AGENT_INVOKE.as_str(),
+                "",
                 "denied",
                 Some(&error),
                 Some(&error),
@@ -2382,8 +2359,7 @@ impl AppSessionTool {
             return Err(error);
         }
 
-        // Root settles invoke and target needs together for this exact call.
-        // Spending Activity confirmation in this preflight would consume it twice.
+        // Root settles the target needs and any Activity confirmation for this exact call.
         host.call_app(
             self.app_id.clone(),
             self.manifest_tool_name.clone(),
@@ -2669,6 +2645,9 @@ pub(crate) fn register_manifests(
 ) {
     for app in apps {
         let manifest = &app.manifest;
+        if !super::app_gateway::system_agent_mcp_enabled(manifest) {
+            continue;
+        }
         let Some(service) = &manifest.mcp else {
             continue;
         };

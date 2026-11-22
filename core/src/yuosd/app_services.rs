@@ -632,17 +632,7 @@ impl AppServiceManager {
                 "App service requires its desktop App to be running",
             ));
         }
-        let service =
-            app.manifest.mcp.as_ref().ok_or_else(|| {
-                RuntimeStartError::admission("App no longer exposes an MCP service")
-            })?;
-        let invoke_caps = service
-            .tools
-            .iter()
-            .map(|tool| crate::agent::tools::app_gateway::invoke_cap(&spec.app_id, &tool.name))
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(RuntimeStartError::admission)?;
-        let standing_caps = CapSet::from_caps(invoke_caps);
+        let standing_caps = CapSet::new();
         let service_generation =
             crate::agent::tools::exposure::capability_generation(&standing_caps);
         let owner = crate::agentd::spawn::resolve_identity(spec.owner_uid)
@@ -810,7 +800,7 @@ impl AppServiceManager {
             host.pid,
             host.start_time_ticks,
             expires_at_ms,
-        ));
+        ).with_app_service_package(package.clone()));
         slot.runtime = Some(ServiceRuntime {
             host,
             identity,

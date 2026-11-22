@@ -136,7 +136,6 @@ fn home_reader_ceiling() -> CapSet {
     CapSet::from_caps([
         Cap::new(Verb::FS_READ, Scope::path("/home/u/**")),
         Cap::new(Verb::FS_META, Scope::path("/home/u/**")),
-        Cap::new(Verb::AGENT_INVOKE, Scope::name("fs")),
     ])
 }
 
@@ -156,16 +155,16 @@ fn delegation(ceiling: CapSet) -> Delegation {
 }
 
 #[test]
-fn ordinary_root_plan_still_requires_exact_caller_invoke() {
+fn ordinary_root_plan_still_requires_exact_target_resource() {
     let _sandbox = approval_sandbox();
-    let invoke = Cap::new(Verb::AGENT_INVOKE, Scope::name("ordinary-root-test"));
+    let target = Cap::new(Verb::DATA_KV_WRITE, Scope::name("ordinary-root-test"));
     let absent = delegation(CapSet::from_caps([
-        Cap::new(Verb::AGENT_INVOKE, Scope::name("another-app")),
+        Cap::new(Verb::DATA_KV_WRITE, Scope::name("another-app")),
     ]));
     let ceiling = Ceiling::for_tier(crate::provenance::TrustTier::System);
     let plan = |who: &Delegation| {
         let mut plan = LaunchPlan::default();
-        plan.require(invoke.clone(), who);
+        plan.require(target.clone(), who);
         plan
     };
     let error = authorize_plan(&absent, plan(&absent), &ceiling, "ordinary-root-test").unwrap_err();
@@ -173,13 +172,11 @@ fn ordinary_root_plan_still_requires_exact_caller_invoke() {
     assert_eq!(ids.len(), 1);
     let request = crate::approvals::lookup_pending(&ids[0]).unwrap();
     assert_eq!(request.owner_uid, Some(absent.uid));
-    assert_eq!(request.verb, "agent.invoke");
-    assert_eq!(request.scope, invoke.scope);
-    let exact = delegation(CapSet::from_caps([invoke.clone()]));
+    assert_eq!(request.verb, "data.kv.write");
+    assert_eq!(request.scope, target.scope);
+    let exact = delegation(CapSet::from_caps([target.clone()]));
     let granted = authorize_plan(&exact, plan(&exact), &ceiling, "ordinary-root-test").unwrap();
-    assert!(granted.covers(&invoke));
-    assert!(target_session_caps(granted, &invoke).is_empty(),
-        "caller invoke authority must not enter the target App");
+    assert_eq!(granted, CapSet::from_caps([target]));
 }
 
 #[cfg(unix)]
@@ -196,7 +193,7 @@ fn root_launcher_authentication_keeps_requester_shutdown_denial() {
     let session = "ordinary-root-requester";
     crate::proc::register_session(session_row(
         session, pid, None,
-        CapSet::from_caps([Cap::new(Verb::AGENT_INVOKE, Scope::name("ordinary-root-test"))]),
+        CapSet::new(),
     )).unwrap();
     let client = ClientIdentity {
         uid: Some(uid), pid: Some(pid), gid: Some(unsafe { libc::getegid() }),
@@ -402,20 +399,6 @@ fn gui_caps(app: &App, exec: &str, delegation: &Delegation) -> Result<CapSet, Br
     authorize_plan(delegation, plan, &publisher_ceiling(), &app.manifest.id)
 }
 
-fn with_invoke_cap(
-    caps: CapSet,
-    app_id: &str,
-    delegation: &Delegation,
-) -> Result<CapSet, BrokerError> {
-    let mut plan = LaunchPlan::default();
-    plan.inherit(caps.iter().cloned());
-    plan.require(
-        Cap::new(Verb::AGENT_INVOKE, Scope::name(app_id)),
-        delegation,
-    );
-    authorize_plan(delegation, plan, &publisher_ceiling(), app_id)
-}
-
 /// The ceiling a normally signed package runs under: unrestricted, so
 /// these tests exercise the delegation rules rather than the tier. The
 /// developer tier has its own dedicated coverage below.
@@ -479,6 +462,7 @@ fn authority_for(
         pid,
         start_time_ticks,
         parent: parent.map(ToOwned::to_owned),
+        direct_owner: parent.is_none(),
         caps: unregistered_ceiling(),
         tier: None,
         scope: None,
@@ -603,9 +587,7 @@ fn unregistered_launcher_falls_back_to_daemon_policy_not_a_claimed_authority() {
     let authority = launcher_authority(&[], pid, ticks, &home()).expect("policy ceiling");
     assert!(authority.parent.is_none());
     assert_eq!(authority.role.as_deref(), Some(Role::Worker.name()));
-    assert!(authority
-        .caps
-        .covers(&Cap::new(Verb::AGENT_INVOKE, Scope::name("fs"))));
+    assert_eq!(authority.caps, unregistered_ceiling());
 }
 
 #[test]
@@ -1178,7 +1160,6 @@ fn leased_task_host() -> (Vec<SessionInfo>, ClientIdentity) {
             host_pid: pid,
             host_start_time_ticks: ticks,
             task_session: Some(Arc::new(task)),
-            task_app_data: None,
         }),
     };
     (vec![host], client)
@@ -1214,9 +1195,6 @@ async fn leased_task_host_mcp_resolves_a_durable_caller_absent_from_proc() {
     assert!(!launcher
         .caps
         .covers(&Cap::new(Verb::FS_READ, Scope::path("/home/u/other.csv"),)));
-    assert!(!launcher
-        .caps
-        .covers(&Cap::new(Verb::AGENT_INVOKE, Scope::name("fs"))));
     let context = leased_task_call_context();
     context.validate().unwrap();
     validate_mcp_caller_session(&context, &launcher, rows[0].clone(), 1000, &home())
@@ -1303,7 +1281,7 @@ async fn leased_task_mcp_context_cannot_select_another_task_or_caller() {
             }
             2 => {
                 context.caller.kind =
-                    crate::agent::tools::app_gateway::McpPrincipalKind::ExternalAgent
+                    crate::agent::tools::app_gateway::McpPrincipalKind::Cli
             }
             _ => unreachable!(),
         }
@@ -1989,14 +1967,12 @@ fn gui_wildcard_need_never_inherits_unbounded_authority() {
 }
 
 #[test]
-fn invoke_capability_requires_launcher_authority() {
-    let _sandbox = approval_sandbox();
-    let allowed = delegation(home_reader_ceiling());
-    let caps = with_invoke_cap(CapSet::new(), "fs", &allowed).expect("invoke");
-    assert!(caps.covers(&Cap::new(Verb::AGENT_INVOKE, Scope::name("fs"))));
-
-    let denied = delegation(CapSet::new());
-    assert!(with_invoke_cap(CapSet::new(), "pkg", &denied).is_err());
+fn a_registered_workload_cannot_select_the_direct_owner_frontend() {
+    let mut launcher = test_authority();
+    launcher.parent = Some("workload".into());
+    launcher.direct_owner = false;
+    assert!(require_owner_app_launcher(&test_client(), &launcher).is_err());
+    assert!(require_owner_app_launcher(&test_client(), &test_authority()).is_ok());
 }
 
 #[test]
@@ -2022,6 +1998,7 @@ fn test_authority() -> LauncherAuthority {
         pid,
         start_time_ticks,
         parent: None,
+        direct_owner: true,
         caps: home_reader_ceiling(),
         tier: None,
         scope: None,
@@ -2279,7 +2256,6 @@ fn native_stdio_operation_does_not_inherit_mailbox_or_cross_product_tools() {
         (Verb::SECRET_READ, Scope::name("default/SMTP_PASSWORD")),
         (Verb::MEMORY_WRITE, Scope::self_ref("email")),
         (Verb::MEMORY_WRITE, Scope::Wild),
-        (Verb::AGENT_INVOKE, Scope::name("calendar/create")),
     ] {
         let requested = Cap::new(verb, scope.clone());
         let mut app = test_app();
@@ -2421,7 +2397,6 @@ fn transient_harness() -> TransientHarness {
 fn e2e_app_caps() -> CapSet {
     CapSet::from_caps([
         Cap::new(Verb::FS_READ, Scope::path("/root/**")),
-        Cap::new(Verb::AGENT_INVOKE, Scope::name("fs")),
     ])
 }
 
@@ -2522,6 +2497,7 @@ fn e2e_install_grants_with_ceiling(
         pid,
         start_time_ticks: ticks,
         parent: None,
+        direct_owner: true,
         caps: launch_caps.clone(),
         tier: None,
         scope: None,
@@ -3504,7 +3480,7 @@ fn dev_app() -> App {
 }
 
 fn developer_ceiling() -> Ceiling {
-    Ceiling::for_package(crate::provenance::TrustTier::Developer, "scratch")
+    Ceiling::for_tier(crate::provenance::TrustTier::Developer)
 }
 
 fn vendor_ceiling() -> Ceiling {
@@ -4138,11 +4114,6 @@ fn e2e_install_dev_app(manifest: &str) -> (std::path::PathBuf, std::path::PathBu
 fn e2e_install_parent_session(session_id: &str) {
     let (pid, ticks) = this_process();
     let mut caps = omnipotent_delegation().ceiling;
-    caps.insert(Cap::new(Verb::AGENT_INVOKE, Scope::name("scratch")));
-    caps.insert(Cap::new(
-        Verb::AGENT_INVOKE,
-        Scope::name("scratch/escalate"),
-    ));
     caps.insert(Cap::new(Verb::FS_READ, Scope::path("/root/scratch/**")));
     let info = SessionInfo {
         session_id: session_id.to_string(),
@@ -4165,7 +4136,7 @@ fn e2e_install_parent_session(session_id: &str) {
         app_id: None,
         pending_bind: false,
         start_time_ticks: ticks,
-        client: crate::session::SessionClient::default(),
+        client: crate::session::SessionClient::new(crate::session::SessionSource::LocalCli, false, true),
     };
     e2e_install_row(info);
 }
@@ -4222,10 +4193,6 @@ fn a_dev_trusted_app_keeps_its_ceiling_and_cannot_bypass_root_bind_custody() {
     assert_eq!(result["trust_tier"], "developer");
     assert_within_developer_ceiling(&granted);
     assert!(granted.covers(&Cap::new(Verb::DATA_KV_WRITE, Scope::name("scratch"))));
-    assert!(
-        !granted.covers(&Cap::new(Verb::AGENT_INVOKE, Scope::name("scratch"))),
-        "caller invoke authority must not enter the target App"
-    );
 
     let session_id = result["session_id"]
         .as_str()
@@ -4244,12 +4211,7 @@ fn a_dev_trusted_app_keeps_its_ceiling_and_cannot_bypass_root_bind_custody() {
             ),
         )
         .expect("launch authority");
-    assert!(
-        launch
-            .caps
-            .covers(&Cap::new(Verb::AGENT_INVOKE, Scope::name("scratch"))),
-        "the launcher still needs exact invoke authority to start the target"
-    );
+    assert_eq!(launch.caps, granted);
 
     // 2. What the routed registry row records — this is what
     //    `caps::require` inside the App reads.
@@ -4373,10 +4335,9 @@ fn a_dev_trusted_app_cannot_widen_itself_through_an_mcp_tool() {
             }),
             &e2e_client(),
         ))
-        .expect_err("developer-trusted code must not attach an MCP service");
+        .expect_err("a CLI cannot attach an MCP server directly");
     assert!(
-        error.message.contains("developer-trusted")
-            && error.message.contains("may not run as an MCP server"),
+            error.message.contains("requires its private App service host"),
         "unexpected: {}",
         error.message
     );
@@ -4403,7 +4364,6 @@ fn the_daemon_resolves_a_dev_trusted_package_to_the_developer_ceiling() {
     let app = installed_app("scratch").expect("a dev-trusted App is installed");
     let ceiling = app_ceiling(&app).expect("ceiling");
     assert!(ceiling.is_developer());
-    assert_eq!(ceiling.own_id(), Some("scratch"));
     assert_eq!(app.trust_label(), "developer");
 
     let delegation = omnipotent_delegation();
@@ -4568,7 +4528,6 @@ async fn cli_app_service_dispatch_rejects_an_extension_host_identity() {
         host_pid: client.pid.unwrap_or(1),
         host_start_time_ticks: client.start_time_ticks,
         task_session: None,
-        task_app_data: None,
     });
     let error = prepare_cli_app_service_call(
         json!({ "app_id": "fs", "tool": "fs.read", "arguments": {} }),
@@ -4615,22 +4574,12 @@ fn cli_principal_is_daemon_derived_and_the_context_is_exact() {
 }
 
 #[test]
-fn cli_target_caps_separate_the_callers_invoke_authority() {
-    // App code receives only the target capabilities of the call. The caller's
-    // exact `agent.invoke:<app>/<tool>` authority is required to authorize the
-    // call but is never handed to the App session.
-    let invoke = crate::agent::tools::app_gateway::invoke_cap("fs", "fs.read").unwrap();
+fn legacy_capability_sets_drop_app_invocation_without_dropping_other_grants() {
     let target = Cap::new(Verb::FS_READ, Scope::path("/workspace/x"));
-    let mut set = CapSet::new();
-    set.insert(invoke.clone());
-    set.insert(target.clone());
-    let app_caps = target_session_caps(set, &invoke);
-    assert!(
-        app_caps.iter().any(|cap| *cap == target),
-        "target capabilities must reach App code"
-    );
-    assert!(
-        !app_caps.iter().any(|cap| *cap == invoke),
-        "the caller's invoke authority must never reach App code"
-    );
+    let mut retired = serde_json::to_value(&target).unwrap();
+    retired["verb"] = json!("agent.invoke");
+    assert!(serde_json::from_value::<Cap>(retired.clone()).is_err());
+    assert!(Verb::parse("agent.invoke").is_none());
+    let set = serde_json::from_value::<CapSet>(json!([retired, &target])).unwrap();
+    assert_eq!(set, CapSet::from_caps([target]));
 }

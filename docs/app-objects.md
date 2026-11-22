@@ -102,8 +102,8 @@ yu object resolve 'app://kv/entry?id=release.status'
 
 `reference` only formats an identity. `catalog` and `describe` read authenticated
 package metadata and never execute an App or fetch the referenced data.
-`resolve` is explicit execution through the existing App gate, including
-`agent.invoke` and the selected operation's normal checks. Resolution errors
+`resolve` is explicit execution through the direct owner CLI and the selected
+operation's normal policy, capability and sandbox checks. Resolution errors
 are errors, not fabricated empty objects.
 
 Opaque IDs are passed as argv values, never through a shell. CLI reference

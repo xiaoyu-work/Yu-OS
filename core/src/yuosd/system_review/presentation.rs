@@ -38,7 +38,7 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
     let tier = [TrustTier::Vendor, TrustTier::System, TrustTier::User, TrustTier::Developer]
         .into_iter().find(|tier| tier.as_str() == record.package.tier)
         .ok_or("unknown App review trust tier")?;
-    let ceiling = crate::provenance::Ceiling::for_package(tier, record.manifest.id.clone());
+    let ceiling = crate::provenance::Ceiling::for_tier(tier);
     let status = match record.effective_state()? {
         ReviewState::Pending => ReviewStatus::Pending,
         ReviewState::Approved => ReviewStatus::Confirmed,
@@ -146,8 +146,8 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
             value: serde_json::to_string(&service.lifecycle).map_err(|error| error.to_string())?,
         });
         disclosures.push(ReviewDetail {
-            label: "External Agent access requested".into(),
-            value: service.access.external_agents.to_string(),
+            label: "System Agent MCP enabled".into(),
+            value: service.access.system_agent.to_string(),
         });
     }
     if let Some(policy) = &disclosure.ai_policy {

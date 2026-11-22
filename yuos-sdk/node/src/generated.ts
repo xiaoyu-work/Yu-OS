@@ -602,7 +602,7 @@ export interface Defaultedpositional {
  * when scope is omitted. Other requests require an explicit scope.
  */
 export interface Need {
-  verb: "fs.read" | "fs.write" | "fs.delete" | "fs.exec" | "fs.watch" | "fs.meta" | "net.dial" | "net.listen" | "net.raw" | "net.resolve" | "net.probe" | "net.manage" | "net.firewall" | "proc.spawn" | "proc.signal" | "proc.observe" | "sys.observe" | "sys.crash" | "sys.container" | "sys.config" | "sys.events" | "sys.identity" | "sys.locale" | "sys.language" | "sys.hostname" | "sys.security" | "sys.storage" | "sys.service" | "sys.package" | "sys.mount" | "sys.snapshot" | "sys.time" | "sys.power" | "sys.kernel" | "sys.permissions" | "secret.read" | "secret.write" | "secret.grant" | "agent.spawn" | "agent.invoke" | "agent.observe" | "agent.delegate" | "data.kv.read" | "data.kv.write" | "data.kv.delete" | "data.db.read" | "data.db.write" | "data.log.read" | "data.log.write" | "data.inbox.read" | "data.inbox.write" | "data.backup" | "memory.write" | "memory.read" | "ipc.publish" | "ipc.subscribe" | "ipc.invoke" | "ui.notify" | "ui.prompt" | "ui.window" | "ui.panel" | "ui.input" | "ui.accessibility" | "clipboard.read" | "clipboard.write" | "device.audio" | "device.bluetooth" | "device.media-route" | "device.printer" | "device.display" | "device.camera" | "device.microphone" | "device.location" | "device.sensor" | "device.usb" | "time.cron" | "time.delay" | "ai.chat" | "ai.chat.untrusted" | "ai.embed" | "ai.decide" | "ai.image.generate" | "ai.image.analyze" | "ai.audio.tts" | "ai.audio.stt" | "ai.vision.analyze" | "ai.video.generate" | "ai.video.analyze" | "ai.bypass" | "desktop.launch" | "desktop.window" | "desktop.capture" | "desktop.media.observe" | "desktop.media.control" | "browser.tabs.read" | "browser.nav" | "browser.dom.read" | "browser.dom.write" | "browser.input.secret" | "browser.eval" | "mail.accounts" | "mail.read" | "mail.draft" | "mail.send";
+  verb: "fs.read" | "fs.write" | "fs.delete" | "fs.exec" | "fs.watch" | "fs.meta" | "net.dial" | "net.listen" | "net.raw" | "net.resolve" | "net.probe" | "net.manage" | "net.firewall" | "proc.spawn" | "proc.signal" | "proc.observe" | "sys.observe" | "sys.crash" | "sys.container" | "sys.config" | "sys.events" | "sys.identity" | "sys.locale" | "sys.language" | "sys.hostname" | "sys.security" | "sys.storage" | "sys.service" | "sys.package" | "sys.mount" | "sys.snapshot" | "sys.time" | "sys.power" | "sys.kernel" | "sys.permissions" | "secret.read" | "secret.write" | "secret.grant" | "agent.spawn" | "agent.observe" | "agent.delegate" | "data.kv.read" | "data.kv.write" | "data.kv.delete" | "data.db.read" | "data.db.write" | "data.log.read" | "data.log.write" | "data.inbox.read" | "data.inbox.write" | "data.backup" | "memory.write" | "memory.read" | "ipc.publish" | "ipc.subscribe" | "ipc.invoke" | "ui.notify" | "ui.prompt" | "ui.window" | "ui.panel" | "ui.input" | "ui.accessibility" | "clipboard.read" | "clipboard.write" | "device.audio" | "device.bluetooth" | "device.media-route" | "device.printer" | "device.display" | "device.camera" | "device.microphone" | "device.location" | "device.sensor" | "device.usb" | "time.cron" | "time.delay" | "ai.chat" | "ai.chat.untrusted" | "ai.embed" | "ai.decide" | "ai.image.generate" | "ai.image.analyze" | "ai.audio.tts" | "ai.audio.stt" | "ai.vision.analyze" | "ai.video.generate" | "ai.video.analyze" | "ai.bypass" | "desktop.launch" | "desktop.window" | "desktop.capture" | "desktop.media.observe" | "desktop.media.control" | "browser.tabs.read" | "browser.nav" | "browser.dom.read" | "browser.dom.write" | "browser.input.secret" | "browser.eval" | "mail.accounts" | "mail.read" | "mail.draft" | "mail.send";
   scope?: Scopebinding;
   when?: Needcondition;
   why?: Localizedtext;
@@ -664,8 +664,7 @@ export interface Aibudget {
 
 /**
  * mcpService.
- * Long-lived MCP server the app launches for stateful, agent-driven tool
- * calls.
+ * MCP service exposing declared tools to the authenticated System Agent.
  */
 export interface Mcpservice {
   entry?: string;
@@ -677,8 +676,8 @@ export interface Mcpservice {
 
 /**
  * mcpAccess.
- * Caller restrictions for an MCP App service. Callers still require exact
- * invoke authority.
+ * Read for compatibility with existing App manifests. These fields never grant
+ * access to another principal.
  */
 export interface Mcpaccess {
   system_agent?: boolean;
@@ -753,7 +752,7 @@ export interface McpCallContext {
  * McpPrincipal.
  */
 export interface McpPrincipal {
-  kind: "system-agent" | "external-agent" | "cli";
+  kind: "system-agent" | "cli";
   id: string;
   owner_uid: number;
 }
@@ -1291,7 +1290,7 @@ export function normalizeGuiFileWriteIntegers(value: unknown): void {
   normalizeWireIntegers(_WIRE_SCHEMA_GUI_FILE_WRITE, _WIRE_SCHEMA_GUI_FILE_WRITE, value);
 }
 
-const _WIRE_SCHEMA_MCP_CALL_CONTEXT: WireRule = decodeWireJson("{\"$defs\":{\"McpPrincipal\":{\"additionalProperties\":false,\"properties\":{\"id\":{\"maxLength\":256,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"kind\":{\"enum\":[\"system-agent\",\"external-agent\",\"cli\"],\"type\":\"string\"},\"owner_uid\":{\"maximum\":4294967295,\"minimum\":0,\"type\":\"integer\"}},\"required\":[\"kind\",\"id\",\"owner_uid\"],\"type\":\"object\"}},\"$id\":\"https://yuos.dev/wire/v1/mcp_call_context.schema.json\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"additionalProperties\":false,\"description\":\"Authenticated call identity and lineage injected by the Yu OS MCP Gateway over the private App-host transport. Caller-supplied MCP arguments must never populate this object.\",\"properties\":{\"call_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:-]*$\",\"type\":\"string\",\"x-full-match\":true},\"caller\":{\"$ref\":\"#/$defs/McpPrincipal\"},\"deadline_unix_ms\":{\"maximum\":9007199254740991,\"minimum\":1,\"type\":\"integer\"},\"session_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"task_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"trace_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:-]*$\",\"type\":\"string\",\"x-full-match\":true},\"wire_version\":{\"const\":1,\"maximum\":1,\"minimum\":1,\"type\":\"integer\"}},\"required\":[\"wire_version\",\"call_id\",\"trace_id\",\"caller\"],\"title\":\"MCP call context\",\"type\":\"object\"}") as WireRule;
+const _WIRE_SCHEMA_MCP_CALL_CONTEXT: WireRule = decodeWireJson("{\"$defs\":{\"McpPrincipal\":{\"additionalProperties\":false,\"properties\":{\"id\":{\"maxLength\":256,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"kind\":{\"enum\":[\"system-agent\",\"cli\"],\"type\":\"string\"},\"owner_uid\":{\"maximum\":4294967295,\"minimum\":0,\"type\":\"integer\"}},\"required\":[\"kind\",\"id\",\"owner_uid\"],\"type\":\"object\"}},\"$id\":\"https://yuos.dev/wire/v1/mcp_call_context.schema.json\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"additionalProperties\":false,\"description\":\"Authenticated call identity and lineage injected by the Yu OS MCP Gateway over the private App-host transport. Caller-supplied MCP arguments must never populate this object.\",\"properties\":{\"call_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:-]*$\",\"type\":\"string\",\"x-full-match\":true},\"caller\":{\"$ref\":\"#/$defs/McpPrincipal\"},\"deadline_unix_ms\":{\"maximum\":9007199254740991,\"minimum\":1,\"type\":\"integer\"},\"session_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"task_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"trace_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:-]*$\",\"type\":\"string\",\"x-full-match\":true},\"wire_version\":{\"const\":1,\"maximum\":1,\"minimum\":1,\"type\":\"integer\"}},\"required\":[\"wire_version\",\"call_id\",\"trace_id\",\"caller\"],\"title\":\"MCP call context\",\"type\":\"object\"}") as WireRule;
 
 export function validateMcpCallContext(value: unknown): asserts value is McpCallContext & Record<string, unknown> {
   validateWireSchema(_WIRE_SCHEMA_MCP_CALL_CONTEXT, _WIRE_SCHEMA_MCP_CALL_CONTEXT, value, "McpCallContext", "$");

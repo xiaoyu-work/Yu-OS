@@ -126,11 +126,12 @@ principal to the call/trace correlation, owner, task/session, and
 deadline. This context is descriptive, not authority; the App Host retains
 the transient target capability grant.
 
-Caller kinds are `system-agent`, `external-agent`, and `cli`. App principals,
+Caller kinds are `system-agent` and `cli`. External agents, App principals,
 caller `app_id`, `parent_call_id`, and `depth` are rejected, not translated.
 Apps cannot call other Apps; cross-App orchestration belongs to the system
-Agent. The manifest access object accepts only `system_agent` and
-`external_agents`.
+Agent through verified installed Apps' declared MCP tools. There is no
+App invocation permission. The legacy `access.system_agent: false` keeps
+the service CLI-only, and `access.external_agents` has no effect.
 
 The Python runtime exposes that value through `yuos_sdk.mcp.current_context()`
 and supports MCP progress tokens plus cooperative

@@ -163,7 +163,6 @@ app_bind() {
     for fixture in \
         ordinary_root_standalone_retires_host_before_publication \
         ordinary_root_standalone_cancel_retry_publishes_only_after_cleanup \
-        ordinary_root_task_host_retires_namespace_data_before_publication \
         ordinary_root_live_grandchild_blocks_publication_until_checked_retry \
         ordinary_root_foreign_and_lost_ack_cannot_authorize_publication \
         ordinary_root_indeterminate_provider_blocks_store_publication

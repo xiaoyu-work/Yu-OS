@@ -118,7 +118,6 @@ impl Verb {
 
     // -- Agents (the agent-orchestrating-agents axis) ----------------------
     pub const AGENT_SPAWN: Verb = Verb::new("agent.spawn");
-    pub const AGENT_INVOKE: Verb = Verb::new("agent.invoke");
     pub const AGENT_OBSERVE: Verb = Verb::new("agent.observe");
     pub const AGENT_DELEGATE: Verb = Verb::new("agent.delegate");
 
@@ -280,7 +279,6 @@ pub const ALL_VERBS: &[Verb] = &[
     Verb::SECRET_WRITE,
     Verb::SECRET_GRANT,
     Verb::AGENT_SPAWN,
-    Verb::AGENT_INVOKE,
     Verb::AGENT_OBSERVE,
     Verb::AGENT_DELEGATE,
     Verb::DATA_KV_READ,

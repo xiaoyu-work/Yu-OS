@@ -351,15 +351,7 @@ fn approve_fixture_app(
 
 fn launch_parent(process: &ProcessIdentity, case: usize) -> String {
     let native = native_products::Product::for_case(case);
-    let app = if let Some(product) = native {
-        product.app
-    } else if case == 0 {
-        "gui-boundary-zero"
-    } else {
-        "gui-boundary-test"
-    };
     let mut caps = CapSet::new();
-    caps.insert(Cap::new(Verb::AGENT_INVOKE, Scope::name(app)));
     if native.is_none() {
         caps.insert(Cap::new(Verb::FS_READ, Scope::path("/run/gui-public")));
     }

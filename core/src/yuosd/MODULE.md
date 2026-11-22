@@ -307,14 +307,10 @@ namespace, allow directory enumeration or relax the daemon's private umask.
 The genuine native Calendar consumer regression runs under `0077` and checks
 the parent mode, actual dropped-reader success and checked view retirement.
 
-Task Host ordinary-operation registrations additionally return
-`task_app_data_dir`, the private view of the authenticated owner/App partition.
-The request cannot choose a data path, owner or mount namespace. Preparation
-follows verified manifest/operation review and capability settlement, before
-the child session is published. The Root-held Host custody reference is
-in-process only; public peers and App children cannot supply it. The task bridge
-requires this response field rather than silently using Host scratch data.
-Other registration clients retain their existing optional response behavior.
+Ordinary operation and GUI registration are reserved for the direct owner
+frontend. Task Hosts can relay System Agent MCP calls but cannot register an
+ordinary operation or an App process. The exact owner/App service Host alone
+registers its broker-authorized MCP child.
 
 `system.package.install` and `system.package.control` accept any authenticated
 client with the existing Critical `sys.package` grant for the exact requested
@@ -726,12 +722,10 @@ never from the request, and never accepting a caller-supplied identity, call
 context, audit binding, capabilities, package identity, owner uid, or deadline.
 An Extension Host (task or App-service) can neither reach this route nor forge a
 CLI identity through it, and the route can never mint a private-task-host
-principal. A CLI principal may address a service even when
-`mcp.access.system_agent` is false, but it must still hold exact
-`agent.invoke:<app>/<tool>` authority; the target `needs[]` are independently
-derived, ceiling-clamped, approved, single-call bound, and audited, and App
-code receives only the target capabilities, never the caller's invoke
-authority. Both routes converge on the same `AppServiceManager`, so lifecycle,
+principal. A CLI principal may address a service even when legacy
+`mcp.access.system_agent` is false. There is no App-invocation permission.
+Exact target `needs[]` are derived, ceiling-clamped, approved, single-call
+bound and audited. Both routes converge on the same `AppServiceManager`, so lifecycle,
 restart, capacity, ticketing, and the launch gate are shared and there is no
 alternate App process path, compatibility fallback, raw MCP invocation, or
 local execution. This CLI path is selected only for MCP-only Apps (empty

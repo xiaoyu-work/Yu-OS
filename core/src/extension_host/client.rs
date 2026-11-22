@@ -294,52 +294,17 @@ impl ExtensionHostClient {
         }
     }
 
-    pub async fn run_app(
+    #[cfg(test)]
+    pub(crate) async fn check_retired_app_operation(
         &self,
         app_id: String,
         command: String,
         args: Vec<String>,
-    ) -> Result<Option<String>, String> {
-        let started = std::time::Instant::now();
-        let digest = app_manifest_digest(&app_id);
-        let result = self
-            .request(HostAction::RunApp {
-                app_id: app_id.clone(),
-                command,
-                args,
-            })
-            .await
-            .and_then(|result| match result {
-                HostResult::AppOutput { output } => Ok(output),
-                _ => Err(ClientFault::protocol(
-                    "extension host returned the wrong App result",
-                )),
-            });
-        self.emit_result(
-            super::protocol::ExtensionKind::App,
-            super::protocol::LifecycleAction::Attach,
-            &app_id,
-            digest.as_deref(),
-            started.elapsed(),
-            &result,
-        );
-        self.emit_result(
-            super::protocol::ExtensionKind::App,
-            action_for_result(&result),
-            &app_id,
-            digest.as_deref(),
-            started.elapsed(),
-            &result,
-        );
-        self.emit_result(
-            super::protocol::ExtensionKind::App,
-            super::protocol::LifecycleAction::Detach,
-            &app_id,
-            digest.as_deref(),
-            started.elapsed(),
-            &result,
-        );
-        result.map_err(|error| error.message)
+    ) -> Result<(), String> {
+        match self.request(HostAction::RunApp { app_id, command, args }).await {
+            Err(error) => Err(error.message),
+            Ok(_) => Ok(()),
+        }
     }
 
     pub async fn call_app(

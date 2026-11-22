@@ -88,7 +88,7 @@ async fn trusted_non_app_task_checks_caps_without_opening_extension_runtime_stat
     let base: crate::proc::SessionInfo = serde_json::from_value(serde_json::json!({
         "session_id":"task-scope","pid":std::process::id(),"command":["task"],
         "started_at":"now","stdout_path":"","stderr_path":"","group":"agent",
-        "caps":CapSet::from_caps([Cap::new(Verb::AGENT_INVOKE, Scope::name("demo"))])
+        "caps":CapSet::from_caps([Cap::new(Verb::DATA_KV_READ, Scope::name("demo"))])
     }))
     .unwrap();
     for (group, app, allowed) in [
@@ -104,7 +104,7 @@ async fn trusted_non_app_task_checks_caps_without_opening_extension_runtime_stat
             directory.path().to_path_buf(),
             crate::proc::with_trusted_session_override(session, async {
                 let result = require_impl(
-                    Verb::AGENT_INVOKE,
+                    Verb::DATA_KV_READ,
                     Scope::name("demo"),
                     Mode::Strict,
                     Some("task-scope"),
@@ -113,7 +113,7 @@ async fn trusted_non_app_task_checks_caps_without_opening_extension_runtime_stat
                 );
                 assert_eq!(result.is_ok(), allowed, "{group}: {result:?}");
                 assert!(require_impl(
-                    Verb::AGENT_INVOKE,
+                    Verb::DATA_KV_READ,
                     Scope::name("other"),
                     Mode::Strict,
                     Some("task-scope"),
@@ -511,7 +511,7 @@ fn system_agent_task_keeps_owner_scoped_reads_and_resourceless_work() {
     assert!(require(Verb::SYS_OBSERVE, Scope::name("storage")).is_ok());
     assert!(require(Verb::UI_NOTIFY, Scope::wild()).is_ok());
     assert!(require(Verb::TIME_DELAY, Scope::wild()).is_ok());
-    assert!(require(Verb::AGENT_INVOKE, Scope::name("web")).is_ok());
+    assert!(require(Verb::DATA_KV_READ, Scope::name("web")).is_ok());
 }
 
 /// A user approval moves exactly one resource, exactly once. It never

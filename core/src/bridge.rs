@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::caps::manifest::{ArgKind, Manifest, Need, Operation, Runtime, ScopeBinding};
-use crate::caps::{Cap, CapSet, Scope, Verb};
+use crate::caps::{Cap, CapSet, Scope};
 use crate::yuosd::routes::Command as YuosdCommand;
 use crate::proc::{deregister_session, register_session, SessionInfo};
 
@@ -361,16 +361,6 @@ impl LaunchRequest<'_> {
         }
     }
 
-    fn invoke_cap(&self, app_id: &str) -> Result<Cap, String> {
-        match self {
-            LaunchRequest::Mcp { tool } => {
-                crate::agent::tools::app_gateway::invoke_cap(app_id, tool)
-            }
-            LaunchRequest::Operation { .. } | LaunchRequest::Gui { .. } => {
-                Ok(Cap::new(Verb::AGENT_INVOKE, Scope::name(app_id)))
-            }
-        }
-    }
 }
 
 /// One daemon-issued authorization for an App MCP call.
@@ -730,10 +720,6 @@ impl AppIdentitySession {
         }
         crate::caps::enforcement::require_current_session_identity(&parent.session_id, parent.pid)
             .map_err(|err| format!("App parent session identity check failed: {err}"))?;
-        let invoke = request.invoke_cap(app_id)?;
-        if !parent_caps.covers(&invoke) {
-            return Err(format!("parent session cannot invoke `{}`", invoke.scope));
-        }
 
         if yuosd_backend {
             // Root settles the complete plan; local derivation must not spend
@@ -2426,15 +2412,6 @@ pub fn run_app_with_stdin(
     stdin_data: Option<Vec<u8>>,
 ) -> Result<Option<String>, String> {
     run_operation(launch, command, args, Some(data_dir), apps_dir, stdin_data)
-}
-
-pub(crate) fn run_task_app(
-    launch: &AppLaunch,
-    command: &str,
-    args: &[String],
-    apps_dir: &str,
-) -> Result<Option<String>, String> {
-    run_operation(launch, command, args, None, apps_dir, None)
 }
 
 fn run_operation(

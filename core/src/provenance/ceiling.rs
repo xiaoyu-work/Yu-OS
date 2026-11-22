@@ -26,7 +26,6 @@
 //! * hold [`Scope::Wild`] — an unsigned package cannot get a wildcard
 //!   over any resource kind;
 //! * reach a privileged broker route ([`Ceiling::allows_audience`]);
-//! * invoke a different App's identity;
 //! * mount any host path beyond its own package (read-only) and its own
 //!   App data partition.
 
@@ -120,32 +119,15 @@ impl Audience {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ceiling {
     tier: TrustTier,
-    /// The package's own id, when known. Only used to allow a developer
-    /// package to invoke *itself*; every other App identity is refused.
-    own_id: Option<String>,
 }
 
 impl Ceiling {
-    /// A tier-only ceiling. Use [`Ceiling::for_package`] wherever the
-    /// package id is known: without it a developer package cannot even
-    /// invoke itself.
     pub fn for_tier(tier: TrustTier) -> Self {
-        Self { tier, own_id: None }
-    }
-
-    pub fn for_package(tier: TrustTier, own_id: impl Into<String>) -> Self {
-        Self {
-            tier,
-            own_id: Some(own_id.into()),
-        }
+        Self { tier }
     }
 
     pub fn tier(&self) -> TrustTier {
         self.tier
-    }
-
-    pub fn own_id(&self) -> Option<&str> {
-        self.own_id.as_deref()
     }
 
     /// True when the tier is the restricted developer tier.
@@ -172,9 +154,6 @@ impl Ceiling {
     }
 
     /// May a package at this tier hold `verb` at all?
-    ///
-    /// `agent.invoke` is the one verb whose answer depends on scope, so
-    /// it is deliberately *not* allowed here — see [`Self::allows_cap`].
     pub fn allows_verb(&self, verb: Verb) -> bool {
         if !self.is_developer() {
             return true;
@@ -191,21 +170,12 @@ impl Ceiling {
     /// resource at all (`ui.notify`, `time.delay`) have no narrower
     /// form than [`Scope::Wild`], so for them it is the canonical
     /// scope rather than unbounded authority.
-    ///
-    /// `agent.invoke` is permitted only at the package's own id — an
-    /// unsigned App may re-enter itself, never another App.
     pub fn allows_cap(&self, cap: &Cap) -> bool {
         if !self.is_developer() {
             return true;
         }
         if cap.scope.is_wildcard() && verb_addresses_a_resource(cap.verb) {
             return false;
-        }
-        if cap.verb == Verb::AGENT_INVOKE {
-            return match (&self.own_id, &cap.scope) {
-                (Some(own), Scope::Name(name)) => own == name,
-                _ => false,
-            };
         }
         DEVELOPER_ALLOWED.contains(&cap.verb)
     }

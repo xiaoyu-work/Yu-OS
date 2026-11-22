@@ -1,4 +1,5 @@
 use super::*;
+use crate::caps::Verb;
 
 mod app_sources {
     include!(concat!(env!("CARGO_MANIFEST_DIR"), "/test/support/app_sources.rs"));

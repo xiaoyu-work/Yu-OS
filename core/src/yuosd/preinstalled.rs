@@ -36,7 +36,7 @@ pub(super) fn allows(cap: &Cap, home: &Path) -> bool {
     };
     if meta.risk == Risk::Critical || matches!(
         cap.verb,
-        Verb::AGENT_INVOKE | Verb::AGENT_SPAWN
+        Verb::AGENT_SPAWN
             | Verb::SECRET_READ | Verb::SECRET_WRITE
             | Verb::SYS_PERMISSIONS | Verb::SYS_SERVICE
             | Verb::SYS_MOUNT | Verb::SYS_TIME | Verb::SYS_HOSTNAME

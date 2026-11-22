@@ -337,7 +337,7 @@ fn broker_requests_preserve_declared_arguments_without_manufacturing_a_parent() 
         serde_json::to_value(launch.package_ref()).unwrap()
     );
     assert!(anonymous.get("parent_caps").is_none());
-    let parent = CapSet::from_caps([Cap::new(Verb::AGENT_INVOKE, Scope::name(APP))]);
+    let parent = CapSet::from_caps([Cap::new(Verb::FS_READ, Scope::path("/home/test"))]);
     let mut narrowed = request_for(Some(&parent));
     assert_eq!(
         narrowed["parent_caps"],
@@ -369,10 +369,7 @@ fn operation_authorization_never_borrows_another_tools_permissions() {
     fs::write(path, manifest.to_string()).unwrap();
     let launch = fixture.launch();
     let mut parent = crate::proc::current_session_info_for_caps().unwrap();
-    parent.caps = Some(CapSet::from_caps([Cap::new(
-        Verb::AGENT_INVOKE,
-        Scope::name(APP),
-    )]));
+    parent.caps = Some(CapSet::new());
     crate::proc::register_session(parent).unwrap();
     let error = match stdio_session(&launch, OPERATION, &[]) {
         Ok(_) => panic!("a required capability was silently granted"),

@@ -676,36 +676,8 @@ async fn dispatch(
                 .try_into()
                 .unwrap_or_default(),
         }),
-        HostAction::RunApp {
-            app_id,
-            command,
-            args,
-        } => {
-            require_purpose(&state, super::protocol::HostPurpose::Task, "run App")?;
-            if state.binding.app_id.is_some() {
-                return Err("App-owned agents cannot launch Apps".to_string().into());
-            }
-            validate_name(&app_id, "App id")?;
-            validate_text(&command, "App command", 256)?;
-            validate_args(&args)?;
-            let apps_root = apps_root();
-            let app = crate::apps::find_verified(&apps_root, &app_id)?;
-            let launch = crate::bridge::AppLaunch::new(app.require_verified()?.clone())?;
-            let apps = apps_root.to_string_lossy().into_owned();
-            let output = tokio::task::spawn_blocking(move || {
-                crate::bridge::run_task_app(&launch, &command, &args, &apps)
-            })
-            .await
-            .map_err(|error| format!("App host task failed: {error}"))??;
-            if output
-                .as_ref()
-                .is_some_and(|value| value.len() > MAX_CONTROL_FRAME_BYTES / 2)
-            {
-                return Err("App output exceeds the extension-host limit"
-                    .to_string()
-                    .into());
-            }
-            Ok(HostResult::AppOutput { output })
+        HostAction::RunApp { .. } => {
+            Err("Ordinary App operations are not available to Extension Hosts".to_string().into())
         }
         HostAction::AppCall {
             app_id,

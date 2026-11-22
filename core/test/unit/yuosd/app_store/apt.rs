@@ -1652,8 +1652,6 @@ impl WebOwner {
             .env("YUOS_SESSION", &session)
             .stdin(Stdio::null()).stderr(Stdio::from(log)).spawn().unwrap();
         let caps = crate::caps::CapSet::from_caps([
-            crate::agent::tools::app_gateway::invoke_cap("kv", "kv.get").unwrap(),
-            crate::agent::tools::app_gateway::invoke_cap("kv", "kv.set").unwrap(),
             crate::caps::Cap::new(crate::caps::Verb::DATA_KV_READ, crate::caps::Scope::Wild),
             crate::caps::Cap::new(crate::caps::Verb::DATA_KV_WRITE, crate::caps::Scope::name("web-proof")),
         ]);
@@ -1748,10 +1746,7 @@ impl OrdinaryActor {
             .env("YUOS_APP_APT_OPERATION", operation)
             .spawn()
             .unwrap();
-        let mut caps = crate::caps::CapSet::from_caps([crate::caps::Cap::new(
-            crate::caps::Verb::AGENT_INVOKE,
-            crate::caps::Scope::name(app),
-        )]);
+        let mut caps = crate::caps::CapSet::new();
         if operation == "handoff" {
             caps.insert(crate::caps::Cap::new(
                 crate::caps::Verb::SYS_PACKAGE,
@@ -2304,8 +2299,6 @@ async fn persistent_mcp_self_handoff(fixture: &Fixture, peer: &mut RetainedPeer)
             crate::caps::Verb::SYS_PACKAGE,
             crate::caps::Scope::name(BUNDLE),
         ),
-        crate::agent::tools::app_gateway::invoke_cap(APPS[0], "fixture.probe").unwrap(),
-        crate::agent::tools::app_gateway::invoke_cap(APPS[0], "fixture.remove").unwrap(),
     ]));
     peer.result(
         Command::AppServiceCliCall,
@@ -2384,9 +2377,7 @@ async fn private_apt_owner_withdrawal_denies_live_calls_and_retires_only_owner()
     foreign_app.ready(&fixture).await;
     let mut owner = RetainedPeer::start(OWNER);
     let mut foreign = RetainedPeer::start(FOREIGN_UID);
-    let invoke = crate::agent::tools::app_gateway::invoke_cap(APPS[0], "fixture.probe").unwrap();
     for peer in [&mut owner, &mut foreign] {
-        peer.authorize_caps(crate::caps::CapSet::from_caps([invoke.clone()]));
         peer.result(
             Command::AppServiceCliCall,
             json!({"app_id": APPS[0], "tool": "fixture.probe", "arguments": {}}),
@@ -2432,7 +2423,6 @@ async fn private_apt_owner_withdrawal_denies_live_calls_and_retires_only_owner()
     let (allowed, error) = tokio::time::timeout(Duration::from_secs(10), denied).await.unwrap().unwrap();
     assert!(!allowed && error.is_some(), "Root admitted the exact held call after owner withdrawal");
     assert_eq!(fixture.server.count(), 1, "withdrawn authority must not dispatch APT");
-    owner.authorize_caps(crate::caps::CapSet::from_caps([invoke.clone()]));
     assert!(
         !owner
             .call(
@@ -2486,7 +2476,6 @@ async fn private_apt_owner_withdrawal_denies_live_calls_and_retires_only_owner()
     assert!(yuos_display_control::identity::pidfd_exited(process.as_fd()).unwrap());
     assert!(fixture.services.retained_trust_bindings(Some(OWNER)).await.unwrap().is_empty());
     foreign_app.assert_running();
-    foreign.authorize_caps(crate::caps::CapSet::from_caps([invoke]));
     foreign
         .result(
             Command::AppServiceCliCall,
@@ -2848,7 +2837,6 @@ async fn private_installed_product_web_calls_real_kv_without_model() {
                 "Root-owned App MCP died with yu agent serve");
             let mut cli = RetainedPeer::start(OWNER);
             cli.authorize_caps(crate::caps::CapSet::from_caps([
-                crate::agent::tools::app_gateway::invoke_cap("kv", "kv.get").unwrap(),
                 crate::caps::Cap::new(crate::caps::Verb::DATA_KV_READ,
                     crate::caps::Scope::name("web-proof")),
             ]));

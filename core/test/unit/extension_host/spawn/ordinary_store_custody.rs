@@ -67,7 +67,7 @@ fn ordinary_store_actor() {
     let launch = crate::bridge::AppLaunch::new(app.require_verified().unwrap().clone()).unwrap();
     let operation = std::env::var("YUOS_ORDINARY_CUSTODY_OPERATION").unwrap();
     let result = if std::env::var("YUOS_ORDINARY_CUSTODY_TASK").as_deref() == Ok("1") {
-        crate::bridge::run_task_app(&launch, &operation, &[], apps.to_str().unwrap())
+        crate::bridge::run_app(&launch, &operation, &[], "/unused", apps.to_str().unwrap())
     } else {
         crate::bridge::run_app(
             &launch, &operation, &[], &format!("{BASE}/data"), apps.to_str().unwrap(),
@@ -519,7 +519,6 @@ impl Actor {
             data
         });
         let caps = crate::caps::CapSet::from_caps([
-            crate::caps::Cap::new(crate::caps::Verb::AGENT_INVOKE, crate::caps::Scope::name(ID)),
         ]);
         let task_session = Arc::new(session("task-parent", child.id(), caps.clone()));
         let client = match &data {
@@ -534,7 +533,7 @@ impl Actor {
                     owner_uid: OWNER, extension_uid: execution_uid,
                     capability_generation: data.binding.capability_generation.clone(),
                     host_pid: child.id(), host_start_time_ticks: data.binding.host_start_time_ticks,
-                    task_session: Some(task_session.clone()), task_app_data: Some(data.clone()),
+                    task_session: Some(task_session.clone()),
                 },
             ),
             None => crate::yuosd::client_identity::ClientIdentity::from_peer(peer::PeerProcess {
@@ -795,22 +794,6 @@ async fn ordinary_root_standalone_cancel_retry_publishes_only_after_cleanup() {
     assert_eq!(fixture.version(), "2.0.0");
     assert!(fixture.approved());
     assert!(!actor.group(&fixture).exists());
-    assert!(!actor.observed.lock().unwrap().socket.parent().unwrap().exists());
-    actor.finish().await;
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Root private mount/network namespaces, cgroup v2, ptrace, idmapped mounts and YUOS_ORDINARY_TEST_YU/RUNNER"]
-async fn ordinary_root_task_host_retires_namespace_data_before_publication() {
-    let _environment = crate::test_env::lock_env();
-    let fixture = Fixture::new();
-    let mut actor = Actor::start(&fixture, true, false);
-    actor.ready().await;
-    assert_eq!(actor.task_data.as_ref().unwrap().views.lock().unwrap().len(), 1);
-    let result = fixture.publish().await.unwrap();
-    assert_eq!(result["version"], "2.0.0");
-    assert!(!actor.group(&fixture).exists());
-    assert!(actor.task_data.as_ref().unwrap().views.lock().unwrap().is_empty());
     assert!(!actor.observed.lock().unwrap().socket.parent().unwrap().exists());
     actor.finish().await;
 }

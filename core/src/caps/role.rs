@@ -405,7 +405,6 @@ const AGENT_HOST_VERBS: &[Verb] = &[
     Verb::AI_VIDEO_ANALYZE,
     // agent-host additions ↓
     Verb::AGENT_SPAWN,
-    Verb::AGENT_INVOKE,
     Verb::AGENT_DELEGATE,
     Verb::PROC_SIGNAL,
     Verb::BROWSER_TABS_READ,
@@ -463,7 +462,6 @@ const ADMIN_VERBS: &[Verb] = &[
     Verb::AI_VIDEO_GENERATE,
     Verb::AI_VIDEO_ANALYZE,
     Verb::AGENT_SPAWN,
-    Verb::AGENT_INVOKE,
     Verb::AGENT_DELEGATE,
     Verb::PROC_SIGNAL,
     // admin additions ↓

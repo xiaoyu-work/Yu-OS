@@ -602,15 +602,6 @@ async fn worker_child() {
 
     let _installed = client::install(binding.clone()).await.expect("host ready");
     let client = client::current().expect("installed client");
-    let output = client
-        .run_app("echo-app".to_string(), "echo".to_string(), Vec::new())
-        .await
-        .expect("hosted App call")
-        .expect("App output");
-    let output: serde_json::Value = serde_json::from_str(&output).expect("App JSON");
-    assert_eq!(output["command"], "echo");
-    assert!(output["env_leak"].is_null(), "{output}");
-
     let call_context = yu::agent::tools::app_gateway::McpCallContext {
         wire_version: yu::agent::tools::app_gateway::CALL_CONTEXT_WIRE_VERSION,
         call_id: "call-boundary".to_string(),
@@ -1051,8 +1042,6 @@ async fn hosted_app_and_mcp_lifecycle_is_isolated_and_fail_closed() {
     let host_session = "extension-session";
     let expires = yu::agentd::grant::now_ms() + 120_000;
     let caps = CapSet::from_caps([
-        Cap::new(Verb::AGENT_INVOKE, Scope::name("echo-app")),
-        Cap::new(Verb::AGENT_INVOKE, Scope::name("echo-app/ping")),
     ]);
     let capability_generation = yu::agent::tools::exposure::capability_generation(&caps);
     yu::storage::install_routed_extension_reader(identity.uid, extension_identity.uid)

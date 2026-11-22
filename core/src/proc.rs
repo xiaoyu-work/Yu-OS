@@ -293,11 +293,19 @@ pub(crate) fn registry_sessions() -> Vec<SessionInfo> {
 }
 
 pub(crate) fn try_registry_sessions_for_owner(uid: u32) -> Result<Vec<SessionInfo>, String> {
-    let Some(data) = crate::filelock::read_locked(&owner_registry_path(uid))
-        .map_err(|error| format!("read owner {uid} process registry: {error}"))?
+    read_registry_sessions(&owner_registry_path(uid))
+}
+
+pub(crate) fn try_registry_sessions() -> Result<Vec<SessionInfo>, String> {
+    read_registry_sessions(&registry_path())
+}
+
+fn read_registry_sessions(path: &std::path::Path) -> Result<Vec<SessionInfo>, String> {
+    let Some(data) = crate::filelock::read_locked(path)
+        .map_err(|error| format!("read process registry: {error}"))?
     else { return Ok(Vec::new()) };
     serde_json::from_str::<Registry>(&data).map(|registry| registry.sessions)
-        .map_err(|error| format!("parse owner {uid} process registry: {error}"))
+        .map_err(|error| format!("parse process registry: {error}"))
 }
 
 /// True only after the current process has been bound to the expected

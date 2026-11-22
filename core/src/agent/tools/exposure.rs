@@ -110,10 +110,7 @@ impl ToolExposureContext {
             ToolTransport::McpStdio,
             ToolTransport::McpHttp,
         ]);
-        if (host == ExecutionHost::Direct && session.client.local)
-            || (host == ExecutionHost::AgentWorker
-                && crate::extension_host::client::is_available())
-        {
+        if host == ExecutionHost::AgentWorker && crate::extension_host::client::is_available() {
             transports.insert(ToolTransport::AppSession);
         }
         if session.client.local && (session.client.attended || presence.is_some()) {
@@ -242,6 +239,7 @@ impl ToolExposureContext {
         self.presence = None;
         self.transports
             .remove(&ToolTransport::InteractiveAuthorization);
+        self.transports.remove(&ToolTransport::AppSession);
         self
     }
 
@@ -251,6 +249,7 @@ impl ToolExposureContext {
         self.presence = None;
         self.transports
             .remove(&ToolTransport::InteractiveAuthorization);
+        self.transports.remove(&ToolTransport::AppSession);
         self.guardrails = guardrails;
         self.task_id = None;
         self
@@ -263,6 +262,7 @@ impl ToolExposureContext {
     pub(crate) fn attenuated_for_extension(&self, extension: &str, requested: &CapSet) -> Self {
         let mut context = self.clone();
         context.capabilities = self.capabilities.intersect(requested);
+        context.transports.remove(&ToolTransport::AppSession);
         context.enabled_extensions.clear();
         context.enabled_extensions.insert(extension.to_string());
         context
@@ -451,12 +451,18 @@ pub struct ToolExposure {
     attended_local: bool,
     extension: Option<String>,
     memory: Option<(Vec<Verb>, MemoryExposure)>,
-    app_service_caller: bool,
+    non_app: bool,
+    system_agent_app_caller: bool,
 }
 
 impl ToolExposure {
-    pub fn requiring_app_service_caller(mut self) -> Self {
-        self.app_service_caller = true;
+    pub(super) fn requiring_non_app(mut self) -> Self {
+        self.non_app = true;
+        self
+    }
+
+    pub fn requiring_system_agent_app_caller(mut self) -> Self {
+        self.system_agent_app_caller = true;
         self
     }
 
@@ -518,7 +524,10 @@ impl ToolExposure {
     }
 
     pub fn decide(&self, context: &ToolExposureContext) -> ExposureDecision {
-        if self.app_service_caller {
+        if self.non_app && context.app_id.is_some() {
+            return ExposureDecision::Hidden("unavailable to App-owned sessions".to_string());
+        }
+        if self.system_agent_app_caller {
             if let Err(error) = super::app_gateway::McpPrincipal::from_exposure(context) {
                 return ExposureDecision::Hidden(error);
             }

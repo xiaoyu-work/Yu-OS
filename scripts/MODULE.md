@@ -113,8 +113,8 @@ surface or controlled file operations.
 `--product terminal` prepares the original `yuos-term` ELF and installer
 resources/licenses, without changing its manifest or default shell. The
 `test-boundaries.sh native-terminal` lane uses the same normal PAM/common Host
-and sandbox, but requires **empty GUI capabilities** and only the launcher's
-exact `agent.invoke:yuos-term`; MCP needs never become GUI authority.
+and sandbox, but requires **empty GUI capabilities** under the authenticated
+owner launch; MCP needs never become GUI authority.
 There is no Home-metadata approval or FUSE mount. Root discovers the unique
 bound App session through its typed owner registry, not App output.
 The original absolute 25-second startup budget includes real configured,
@@ -137,8 +137,8 @@ is restricted to the already approved archive digest.
 distinct `panel-calendar` identity, including its original desktop entry,
 symbolic actions icon and GPL license; it neither invents metainfo nor copies
 an unused argv-adapter license. `test-boundaries.sh native-calendar` adds case
-28 through the same PAM/common Host and sandbox. The parent starts with only
-`agent.invoke:panel-calendar`; normal exact-owner protected one-shot reviews
+28 through the same PAM/common Host and sandbox. The parent starts without
+target resource grants; normal exact-owner protected one-shot reviews
 settle `data.db.read:calendar` and `ui.panel:*`, without widening that parent.
 The panel must acknowledge its original applet-sized configure and submit
 nonuniform real SHM bytes through the live authenticated instance's Layer Shell

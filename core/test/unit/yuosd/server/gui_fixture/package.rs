@@ -260,7 +260,7 @@ fn private_native_package_owner() {
             assert_eq!(info.start_time_ticks, crate::proc::read_start_time_ticks_pub(info.pid));
             assert!(info.app_id.is_none());
             assert!(!info.pending_bind);
-            assert_eq!(info.caps.as_ref().unwrap(), &owner_invoke_caps());
+            assert!(info.caps.as_ref().unwrap().is_empty());
             crate::caps::enforcement::require_current_session_identity(&session, info.pid).unwrap();
             let liveness = crate::provenance::runtime::assert_live_now(OWNER, &session);
             println!("{}", json!({
@@ -294,13 +294,6 @@ fn private_native_package_owner() {
         });
         std::io::stdout().flush().unwrap();
     }
-}
-
-fn owner_invoke_caps() -> CapSet {
-    CapSet::from_caps([
-        Cap::new(Verb::AGENT_INVOKE, Scope::name(DENIED_APP)),
-        crate::agent::tools::app_gateway::invoke_cap(DENIED_APP, "gui-package-denied.intent-probe").unwrap(),
-    ])
 }
 
 fn owner_command(arguments: &[&str]) -> &'static str {
@@ -405,7 +398,7 @@ impl OwnerPeer {
         let descriptor = unsafe { OwnedFd::from_raw_fd(raw as i32) };
         let process = ProcessIdentity::from_pidfd(descriptor.as_fd()).unwrap();
         peer.session = format!("native-package-owner-{pid}");
-        let caps = owner_invoke_caps();
+        let caps = CapSet::new();
         let info = crate::proc::SessionInfo {
             session_id: peer.session.clone(), pid,
             command: vec!["/usr/local/bin/yuos-gui-broker-fixture".into(), PEER.into()],

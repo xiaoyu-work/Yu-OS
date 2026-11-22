@@ -71,9 +71,10 @@ capability needs. The removed `session` block is rejected. Optional
 they are not a second Agent tool contract.
 
 Apps do not call other Apps. Cross-App workflows are orchestrated by the
-built-in system Agent. Apps may use gated AI, controlled kernel/system
-services, and shared libraries. `mcp.access` accepts only `system_agent` and
-`external_agents`; an App allowlist is not supported. App-owned AI agents
+built-in System Agent through the installed App's exposed MCP tools, without
+an App invocation permission. Omit the legacy `mcp.access` object in new
+manifests. Apps may use gated AI, controlled system services, and shared
+libraries. App-owned AI agents
 cannot access App services or mint system Agent tasks. The broker enforces
 this using authenticated process/session ancestry, not environment flags.
 
@@ -1220,7 +1221,7 @@ network access.
 
 Each `tools/call` is checked against `mcp.tools[].args` and `needs`, receives
 canonical arguments, and carries a single-use, action-bound authorization.
-Caller invoke authority does not enter the App. Broker-mediated effects can
+No caller authority is copied into the App. Broker-mediated effects can
 use a reusable child with no standing target authority; direct-resource calls
 receive a freshly authorized call-scoped sandbox. Exact grants, RPC and
 clearing retain their ordinary serialized lifecycle. There is no in-worker

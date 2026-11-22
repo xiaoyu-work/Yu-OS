@@ -184,8 +184,8 @@ where
 /// request-specific success payload.
 ///
 /// This is a human CLI/desktop client, not an App-to-App transport.
-/// The broker rejects App processes and App-owned agents using it, even
-/// when their grants contain `agent.invoke`. Apps use gated AI, controlled
+/// The broker rejects App processes and agents using this owner frontend.
+/// Apps use gated AI, controlled
 /// system services, and shared libraries; the system Agent orchestrates Apps.
 ///
 /// `stdin` is the body to forward to the subprocess on stdin for operations

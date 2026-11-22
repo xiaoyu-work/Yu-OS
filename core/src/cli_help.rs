@@ -17,7 +17,12 @@ fn apps_dir() -> PathBuf {
 pub(crate) fn show_overview() -> Result<Option<String>, String> {
     // The headline count means "Apps you can run". Quarantined installs
     // are surfaced with their reason by `yu app`, not counted here.
-    let output = cli_catalog::overview(VERSION, apps::discover_verified(&apps_dir()).len());
+    let installed = if apps::direct_owner_frontend() {
+        apps::discover_verified(&apps_dir()).len()
+    } else {
+        0
+    };
+    let output = cli_catalog::overview(VERSION, installed);
     Ok(Some(output.to_string()))
 }
 
@@ -36,13 +41,14 @@ pub(crate) fn show_help_for(topic: &str) -> Result<Option<String>, String> {
     // code, and a quarantined install must stay visible so the operator
     // can see why it stopped working. Every execution path goes through
     // `apps::find_verified` / `require_runnable` instead.
-    let discovered = apps::discover(&apps_dir());
-    if let Some(app) = discovered.get(topic) {
-        return show_app_help(topic, app);
-    }
-    // `yu help app` → list all apps.
-    if topic == "app" {
-        return show_apps(&discovered);
+    if apps::direct_owner_frontend() {
+        let discovered = apps::discover(&apps_dir());
+        if let Some(app) = discovered.get(topic) {
+            return show_app_help(topic, app);
+        }
+        if topic == "app" {
+            return show_apps(&discovered);
+        }
     }
 
     // Unknown topic: degrade to the overview but include a note so the

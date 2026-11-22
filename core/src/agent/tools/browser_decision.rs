@@ -9,7 +9,6 @@ use crate::agent::{llm::ToolCall, runtime::hooks};
 use crate::model::tasks::decision::{Answer, DecisionModel, DecisionRequest, Question};
 
 use super::{
-    app_gateway,
     yu_apps_session::{AppSessionTool, RegisteredAppSession},
     delegate::PARENT_APPROVAL,
     exposure::{self, ToolExposure, ToolExposureContext, ToolTransport},
@@ -109,14 +108,9 @@ impl Tool for BrowserDecision {
 
     fn exposure(&self) -> ToolExposure {
         ToolExposure::always()
-            .requiring_app_service_caller()
+            .requiring_system_agent_app_caller()
             .requiring_transport(ToolTransport::AppSession)
             .requiring_attended_local()
-            .requiring_caps(
-                [SNAPSHOT, FOLLOW].map(|name| {
-                    app_gateway::invoke_cap(APP, name).expect("fixed app tool identity")
-                }),
-            )
     }
 
     async fn exec(&self, input: Value) -> ToolResult {

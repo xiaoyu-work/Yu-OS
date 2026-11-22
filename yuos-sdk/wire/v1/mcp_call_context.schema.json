@@ -58,7 +58,7 @@
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["system-agent", "external-agent", "cli"]
+          "enum": ["system-agent", "cli"]
         },
         "id": {
           "type": "string",

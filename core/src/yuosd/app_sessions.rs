@@ -108,6 +108,7 @@ struct LauncherAuthority {
     pid: u32,
     start_time_ticks: Option<u64>,
     parent: Option<String>,
+    direct_owner: bool,
     caps: CapSet,
     tier: Option<u8>,
     scope: Option<String>,
@@ -243,15 +244,6 @@ fn require_expected_package(
     Ok(package)
 }
 
-fn target_session_caps(authorized: CapSet, caller_invoke: &Cap) -> CapSet {
-    CapSet::from_caps(
-        authorized
-            .iter()
-            .filter(|cap| *cap != caller_invoke)
-            .cloned(),
-    )
-}
-
 async fn remove_session_row(owner: u32, home: std::path::PathBuf, session_id: &str) {
     let remove_id = session_id.to_string();
     crate::paths::with_user_override(owner, home, async move {
@@ -313,9 +305,6 @@ pub async fn register(params: Value, client: &ClientIdentity) -> Result<Value, B
     let uid = client.require_uid()?;
     let home = client.require_home_dir()?;
     let app_id = required_string(&params, "app_id")?;
-    let admission = std::sync::Arc::new(super::app_mutation::admit_for_owner(&app_id, uid)
-        .map_err(BrokerError::unavailable)?);
-    let expected_package = required_package_ref(&params)?;
     let kind = launch_kind(&params)?;
     let gui_entry = params
         .get("gui_entry")
@@ -324,14 +313,30 @@ pub async fn register(params: Value, client: &ClientIdentity) -> Result<Value, B
     if gui_entry.is_some() && kind != LaunchKind::Gui {
         return Err(BrokerError::execution("GUI entry selection requires a GUI registration"));
     }
-    if client.extension_host.as_ref().is_some_and(|host| {
-        host.purpose == crate::extension_host::protocol::HostPurpose::Task
-    }) && kind != LaunchKind::Operation {
-        return Err(BrokerError::authorization(
-            "Task Hosts register ordinary App operations; MCP calls use the App service Host",
-        ));
-    }
     let launcher = authenticate_launcher(client, uid, home.clone()).await?;
+    match kind {
+        LaunchKind::Mcp => {
+            let service_host = client.extension_host.as_ref().is_some_and(|host| {
+                host.purpose == crate::extension_host::protocol::HostPurpose::AppService
+                    && host.owner_uid == uid
+                    && client.execution_uid == Some(host.extension_uid)
+                    && client.pid == Some(host.host_pid)
+                    && client.start_time_ticks == host.host_start_time_ticks
+                    && launcher.start_time_ticks == host.host_start_time_ticks
+                    && launcher.parent.is_some()
+                    && launcher.parent == host.host_session_id
+            });
+            if !service_host {
+                return Err(BrokerError::authorization(
+                    "MCP session registration requires its private App service host",
+                ));
+            }
+        }
+        LaunchKind::Operation | LaunchKind::Gui => require_owner_app_launcher(client, &launcher)?,
+    }
+    let _admission =
+        super::app_mutation::admit_for_owner(&app_id, uid).map_err(BrokerError::unavailable)?;
+    let expected_package = required_package_ref(&params)?;
     let delegation = Delegation::new(&launcher, uid, &home, &params)?;
     let app = installed_app(&app_id)?;
     let package = require_expected_package(&app, &expected_package)?;
@@ -407,27 +412,19 @@ pub async fn register(params: Value, client: &ClientIdentity) -> Result<Value, B
         }
     };
 
-    let (command, mut plan, caller_invoke) = match kind {
+    let (command, mut plan) = match kind {
         LaunchKind::Operation => {
             let operation = required_string(&params, "operation")?;
             let args = string_array(&params, "args")?;
             let plan = operation_plan(&app, &operation, &args, &delegation, &ceiling)?;
-            (
-                format!("yu app {app_id} {operation}"),
-                plan,
-                Cap::new(Verb::AGENT_INVOKE, Scope::name(&app_id)),
-            )
+            (format!("yu app {app_id} {operation}"), plan)
         }
         LaunchKind::Gui => {
             let exec = required_string(&params, "operation")?;
             let selected = app.manifest.gui_entry(gui_entry.as_deref())?;
             let command = selected.cli_selector();
             let plan = gui_plan(&app, gui_entry.as_deref(), &exec, &delegation, &ceiling)?;
-            (
-                format!("yu app {app_id} {command}"),
-                plan,
-                Cap::new(Verb::AGENT_INVOKE, Scope::name(&app_id)),
-            )
+            (format!("yu app {app_id} {command}"), plan)
         }
         LaunchKind::Mcp => {
             let tool = required_string(&params, "tool")?;
@@ -436,16 +433,11 @@ pub async fn register(params: Value, client: &ClientIdentity) -> Result<Value, B
                 .as_ref()
                 .and_then(|service| service.tools.iter().find(|declared| declared.name == tool))
                 .ok_or_else(|| format!("App `{app_id}` has no MCP tool `{tool}`"))?;
-            let invoke = crate::agent::tools::app_gateway::invoke_cap(&app_id, &tool)?;
-            (
-                format!("yu app {app_id} mcp {tool}"),
-                LaunchPlan::default(),
-                invoke,
-            )
+            crate::agent::tools::app_gateway::invoke_target(&app_id, &tool)?;
+            (format!("yu app {app_id} mcp {tool}"), LaunchPlan::default())
         }
     };
     plan.app_name = Some(app.manifest.name.current().trim().to_owned());
-    plan.require(caller_invoke.clone(), &delegation);
     #[cfg(target_os = "linux")]
     if desktop_shell {
         if !gui::desktop_shell_startup_caps().covers_all(&plan.caps) {
@@ -465,44 +457,19 @@ pub async fn register(params: Value, client: &ClientIdentity) -> Result<Value, B
     let apply_saved = gui_draft.as_ref().is_some_and(|draft| draft.owner_launch);
     #[cfg(not(target_os = "linux"))]
     let apply_saved = false;
-    // The local launcher's admission never reaches the App as a capability.
     plan.missing.retain(|cap| {
         !(apply_saved && policy.allows(cap)
-            || defaults.as_ref().is_some_and(|defaults| defaults.allows(cap, &home))
-            || (apply_saved || defaults.is_some()) && cap == &caller_invoke)
+            || defaults.as_ref().is_some_and(|defaults| defaults.allows(cap, &home)))
     });
-    let mut grant_caps = authorize_plan(&delegation, plan, &ceiling, &app_id)?;
+    let mut caps = authorize_plan(&delegation, plan, &ceiling, &app_id)?;
     let optional_gui = if kind == LaunchKind::Gui {
         authorize_optional_gui_needs(
-            &app, gui_entry.as_deref(), &delegation, &ceiling, &mut grant_caps, desktop_shell,
+            &app, gui_entry.as_deref(), &delegation, &ceiling, &mut caps, desktop_shell,
             owner_settings, defaults.as_ref(), apply_saved, &policy,
         )
     } else {
         OptionalGuiAuthorization::default()
     };
-    let caps = target_session_caps(grant_caps.clone(), &caller_invoke);
-    #[cfg(unix)]
-    let task_data_root = match client.extension_host.as_ref() {
-        Some(host) if host.purpose == crate::extension_host::protocol::HostPurpose::Task => {
-            let data = host.task_app_data.clone().ok_or_else(|| BrokerError::unavailable(
-                "Task Host has no Root-owned App data binding",
-            ))?;
-            let data_client = client.clone();
-            let data_package = package.clone();
-            let data_admission = admission.clone();
-            Some(tokio::task::spawn_blocking(move || {
-                let _admission = data_admission;
-                data.bind(&data_client, &data_package)
-            })
-                .await
-                .map_err(|error| BrokerError::unavailable(format!("Task App data preparation: {error}")))?
-                .map_err(BrokerError::unavailable)?)
-        }
-        _ => None,
-    };
-    #[cfg(not(unix))]
-    let task_data_root: Option<std::path::PathBuf> = None;
-
     let session_id = format!("app-{}", uuid::Uuid::new_v4().simple());
     let info = SessionInfo {
         session_id: session_id.clone(),
@@ -548,7 +515,7 @@ pub async fn register(params: Value, client: &ClientIdentity) -> Result<Value, B
         Some(&app_id),
         uid,
         &launcher,
-        &grant_caps,
+        &caps,
         Some(&ceiling),
         kind == LaunchKind::Gui,
     ) {
@@ -610,10 +577,6 @@ pub async fn register(params: Value, client: &ClientIdentity) -> Result<Value, B
         response["gui_data_dir"] = serde_json::to_value(data_dir).map_err(|error| {
             BrokerError::execution(format!("encode GUI data location: {error}"))
         })?;
-    }
-    if let Some(data_root) = task_data_root {
-        response["task_app_data_dir"] = serde_json::to_value(data_root)
-            .map_err(|error| BrokerError::execution(format!("encode Task App data location: {error}")))?;
     }
     Ok(response)
 }
@@ -923,7 +886,6 @@ pub(crate) async fn prepare_app_service_call(
     let delegation = Delegation::new(&launcher, uid, &home, &params)?;
     validate_mcp_call_context(&audit.context, &launcher, &delegation, uid, &home).await?;
 
-    let app = installed_app(&app_id)?;
     let generation = crate::agent::tools::exposure::capability_generation(&delegation.ceiling);
     if generation != audit.capability_generation {
         return Err(BrokerError::authorization(
@@ -935,7 +897,7 @@ pub(crate) async fn prepare_app_service_call(
         .map(|(name, value)| (name.clone(), value.clone()))
         .collect();
     finalize_prepared_app_service_call(
-        &app,
+        &installed_app(&app_id)?,
         &tool,
         &supplied,
         &delegation,
@@ -951,11 +913,8 @@ pub(crate) async fn prepare_app_service_call(
 /// This is the shared tail of both the private-task-host and the local
 /// CLI paths: given the verified App, the exact tool and arguments, the
 /// authenticated delegation, and a daemon-derived call context, it
-/// resolves the manifest tool, derives and ceiling-clamps the target
-/// capabilities, requires (and separates out) the caller's exact
-/// `agent.invoke:<app>/<tool>` authority, and packages the result. The
-/// App only ever receives the target capabilities; the invoke authority
-/// stays with the caller and never reaches App code.
+/// resolves the manifest tool and applies the ceiling, resource policy and
+/// consent to that tool's exact target capabilities.
 fn finalize_prepared_app_service_call(
     app: &App,
     tool: &str,
@@ -966,9 +925,18 @@ fn finalize_prepared_app_service_call(
     local_defaults: bool,
 ) -> Result<super::app_services::PreparedAppServiceCall, BrokerError> {
     let app_id = app.manifest.id.as_str();
-    super::trust_withdrawal::check_package(uid, app.require_verified()?)
+    let verified = app.require_verified()?;
+    super::trust_withdrawal::check_package(uid, verified)
         .map_err(BrokerError::authorization)?;
-    crate::agent::tools::app_gateway::authorize_manifest(&app.manifest, &context.caller)?;
+    let ceiling = verified.ceiling();
+    if !ceiling.allows_mcp_attach() {
+        return Err(BrokerError::authorization(
+            "App trust tier does not permit MCP services",
+        ));
+    }
+    crate::agent::tools::app_gateway::authorize_manifest(&app.manifest, &context.caller)
+        .map_err(BrokerError::authorization)?;
+    crate::agent::tools::app_gateway::invoke_target(app_id, tool)?;
     let generation = crate::agent::tools::exposure::capability_generation(&delegation.ceiling);
     let service = app
         .manifest
@@ -1004,7 +972,6 @@ fn finalize_prepared_app_service_call(
             crate::worker::derive::authorize_granted_path_mounts(&CapSet::from_caps(placement_caps))
                 .map_err(BrokerError::authorization)?
         };
-    let ceiling = app_ceiling(app)?;
     let mut plan = derive_plan(
         &declared_tool.needs,
         &effective.needs,
@@ -1024,16 +991,14 @@ fn finalize_prepared_app_service_call(
             plan.missing.push(cap.clone());
         }
     }
-    let invoke = crate::agent::tools::app_gateway::invoke_cap(app_id, tool)?;
     plan.app_name = Some(app.manifest.name.current().trim().to_owned());
-    plan.require(invoke.clone(), delegation);
     super::system_review::require_app_review(uid, app, &delegation.requester)?;
     crate::approvals::app_policy::InstalledPolicy::from_app(uid, app, &delegation.paths.home)
         .and_then(|policy| policy.require(&plan.caps)).map_err(BrokerError::authorization)?;
-    if local_defaults && super::preinstalled::approved(app.require_verified()?) {
+    if local_defaults && super::preinstalled::approved(verified) {
         plan.missing.retain(|cap| {
             Some(cap) == brokered_write.as_ref()
-                || (cap != &invoke && !super::preinstalled::allows(cap, &delegation.paths.home))
+                || !super::preinstalled::allows(cap, &delegation.paths.home)
         });
     }
     let authorized = authorize_plan(delegation, plan, &ceiling, app_id)?;
@@ -1043,11 +1008,11 @@ fn finalize_prepared_app_service_call(
         .map(|boundary| boundary.binding_for_authorized(&authorized))
         .transpose()
         .map_err(BrokerError::authorization)?;
-    let package = crate::provenance::runtime::PackageRef::of(app.require_verified()?);
+    let package = crate::provenance::runtime::PackageRef::of(verified);
     let deadline_ms = context
         .deadline_unix_ms
         .ok_or_else(|| "App service call omitted its deadline".to_string())?;
-    let mut session_caps = target_session_caps(authorized, &invoke);
+    let mut session_caps = authorized;
     if let Some(file) = &brokered_file {
         let required = file.caps(file.writable());
         if !required.iter().all(|cap| session_caps.iter().any(|held| held == cap))
@@ -1137,6 +1102,7 @@ pub(crate) async fn prepare_cli_app_service_call(
     // is passed as the params for ceiling derivation so no caller-supplied
     // `parent_caps` (or any other field) can influence the launcher ceiling.
     let launcher = authenticate_launcher(client, uid, home.clone()).await?;
+    require_owner_app_launcher(client, &launcher)?;
     let delegation = Delegation::new(&launcher, uid, &home, &Value::Null)?;
 
     let now = crate::agentd::grant::now_ms();
@@ -1559,7 +1525,7 @@ async fn validate_mcp_caller_session(
     uid: u32,
     home: &std::path::Path,
 ) -> Result<(), String> {
-    use crate::agent::tools::app_gateway::McpPrincipalKind;
+    use crate::agent::tools::app_gateway::{McpPrincipal, McpPrincipalKind};
 
     let caller_session = context
         .session_id
@@ -1601,29 +1567,9 @@ async fn validate_mcp_caller_session(
         }
     };
 
-    let principal_matches = match context.caller.kind {
-        McpPrincipalKind::SystemAgent => {
-            caller.app_id.is_none()
-                && matches!(
-                    caller.client.source,
-                    crate::session::SessionSource::LocalCli
-                        | crate::session::SessionSource::LocalWeb
-                        | crate::session::SessionSource::BrokerTask
-                        | crate::session::SessionSource::ScheduledTrigger
-                        | crate::session::SessionSource::System
-                )
-        }
-        McpPrincipalKind::ExternalAgent => {
-            caller.app_id.is_none()
-                && matches!(
-                    caller.client.source,
-                    crate::session::SessionSource::ExternalMcp
-                        | crate::session::SessionSource::DelegatedAgent
-                )
-        }
-        McpPrincipalKind::Cli => false,
-    };
-    if !principal_matches {
+    if context.caller.kind != McpPrincipalKind::SystemAgent
+        || !McpPrincipal::is_system_agent(caller.app_id.as_deref(), caller.client.source)
+    {
         return Err("MCP App caller principal does not match the registered session".to_string());
     }
     Ok(())
@@ -1632,6 +1578,27 @@ async fn validate_mcp_caller_session(
 // ---------------------------------------------------------------------------
 // Launcher authentication
 // ---------------------------------------------------------------------------
+
+fn require_owner_app_launcher(
+    client: &ClientIdentity,
+    launcher: &LauncherAuthority,
+) -> Result<(), BrokerError> {
+    if !launcher.direct_owner || client.extension_host.is_some() {
+        return Err(BrokerError::authorization(
+            "App CLI and GUI entrypoints require a direct owner launch",
+        ));
+    }
+    Ok(())
+}
+
+pub(super) async fn require_direct_owner_launcher(client: &ClientIdentity) -> Result<(), BrokerError> {
+    let uid = client.require_uid()?;
+    let home = client.require_home_dir()?;
+    let launcher = authenticate_launcher(client, uid, home)
+        .await
+        .map_err(BrokerError::authorization)?;
+    require_owner_app_launcher(client, &launcher)
+}
 
 /// Resolve the authority of the process on the other end of the socket.
 ///
@@ -1660,10 +1627,14 @@ async fn authenticate_launcher(
         ));
     }
     let start_time_ticks = crate::proc::read_start_time_ticks_pub(pid);
+    #[cfg(target_os = "linux")]
+    if start_time_ticks.is_none() || start_time_ticks != client.start_time_ticks {
+        return Err("App launcher process identity changed after socket admission".to_string());
+    }
     let sessions = crate::paths::with_user_override(uid, home.clone(), async {
-        crate::proc::registry_sessions()
+        crate::proc::try_registry_sessions()
     })
-    .await;
+    .await?;
     let trusted_extension_host =
         is_trusted_extension_host_launcher(&sessions, pid, start_time_ticks);
     if process_no_new_privs(pid) != Some(false) && !trusted_extension_host {
@@ -1721,11 +1692,12 @@ fn launcher_authority(
 ) -> Result<LauncherAuthority, String> {
     match nearest_registered_session(sessions, pid)? {
         Some(session) => {
-            require_non_app_session_ancestry(sessions, session)?;
+            let local_cli = non_app_ancestry_is_local_cli(sessions, session)?;
             Ok(LauncherAuthority {
                 pid,
                 start_time_ticks,
                 parent: Some(session.session_id.clone()),
+                direct_owner: session.pid == pid && local_cli,
                 caps: session.caps.clone().unwrap_or_else(CapSet::new),
                 tier: session.tier,
                 scope: session.scope.clone(),
@@ -1740,6 +1712,7 @@ fn launcher_authority(
             pid,
             start_time_ticks,
             parent: None,
+            direct_owner: true,
             caps: super::system_caps::local_launcher_ceiling(home),
             tier: Some(Role::Worker.credential_tier()),
             scope: None,
@@ -1812,8 +1785,16 @@ fn launcher_authority_for_client(
 /// An intermediate task Host or helper session must not erase App ownership.
 pub(crate) fn require_non_app_session_ancestry<'a>(
     sessions: &'a [SessionInfo],
-    mut session: &'a SessionInfo,
+    session: &'a SessionInfo,
 ) -> Result<(), String> {
+    non_app_ancestry_is_local_cli(sessions, session).map(|_| ())
+}
+
+fn non_app_ancestry_is_local_cli<'a>(
+    sessions: &'a [SessionInfo],
+    mut session: &'a SessionInfo,
+) -> Result<bool, String> {
+    let mut local_cli = true;
     for _ in 0..=sessions.len() {
         if session.app_id.is_some() || session.client.source == crate::session::SessionSource::App {
             return Err(format!(
@@ -1821,8 +1802,10 @@ pub(crate) fn require_non_app_session_ancestry<'a>(
                 session.session_id
             ));
         }
+        local_cli &= session.client.local
+            && session.client.source == crate::session::SessionSource::LocalCli;
         let Some(parent) = session.parent.as_deref() else {
-            return Ok(());
+            return Ok(local_cli);
         };
         session = sessions
             .iter()
@@ -3012,10 +2995,9 @@ fn issue_relay_grant(
 
 /// Mint target authority for one authenticated App MCP call.
 ///
-/// The caller's exact `agent.invoke:<app>/<tool>` capability was checked in
-/// the call plan and is deliberately absent from `caps`. The grant is rooted
-/// at the daemon because target capabilities may have been approved for this
-/// exact call rather than delegated as standing caller authority.
+/// The grant is rooted at the daemon because the exact target capabilities
+/// may have been approved for this call rather than delegated as standing
+/// caller authority.
 fn issue_gateway_target_grant(
     session_id: &str,
     app_id: &str,

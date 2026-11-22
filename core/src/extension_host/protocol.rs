@@ -709,6 +709,7 @@ impl ControlRequest {
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum HostAction {
     Ping,
+    /// Retired; decoded only to refuse older private control clients.
     RunApp {
         app_id: String,
         command: String,

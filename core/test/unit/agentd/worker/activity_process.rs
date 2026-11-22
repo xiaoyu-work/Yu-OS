@@ -20,7 +20,6 @@ struct ProcessContext {
     execution_gid: u32,
     owner_home: PathBuf,
     app_id: String,
-    package_digest: String,
     case: Case,
 }
 
@@ -131,10 +130,6 @@ fn activity_extension_worker_child() {
         ))
         .unwrap();
     let client = crate::extension_host::client::current().expect("installed task Host client");
-    let channel = ChannelReceiptRecorder {
-        task_id: task_id.clone(),
-        state: io.state.clone(),
-    };
     let max_turns = assignment.job.max_turns;
     let outcome = runtime.block_on(crate::paths::with_routed_job(
         crate::paths::with_user_override(
@@ -143,28 +138,13 @@ fn activity_extension_worker_child() {
             with_session(assignment.session, async {
                 match context.case {
                     Case::OneShot { operation, args } => {
-                        let output = client
-                            .run_app(context.app_id.clone(), operation.clone(), args)
+                        let refused = client
+                            .check_retired_app_operation(context.app_id, operation, args)
                             .await
-                            .expect("real isolated one-shot App");
-                        let report = crate::operations::receipts::capture(
-                            uuid::Uuid::new_v4().to_string(),
-                            context.app_id,
-                            operation,
-                            context.package_digest,
-                            Ok(output.clone()),
-                        );
-                        let first = channel
-                            .record(report.clone())
-                            .expect("record actual output");
-                        assert_eq!(
-                            channel.record(report).unwrap(),
-                            first,
-                            "retry only reporting, never the App"
-                        );
+                            .expect_err("Task Hosts cannot run an ordinary operation");
+                        assert!(refused.contains("not available to Extension Hosts"), "{refused}");
                         WorkerOutcome::Ok(Box::new(protocol::CompletedRun {
-                            response:
-                                json!({"output":output,"receipt_id":first,"worker_uid":identity.uid,
+                            response: json!({"worker_uid":identity.uid,
                                 "extension_uid":binding.extension_uid})
                                 .to_string(),
                             turns_used: 1,

@@ -400,7 +400,7 @@ async fn app_owned_tasks_cannot_run_apps_or_relay_forged_system_agent_calls() {
         .await
         .expect_err("App-owned tasks must not launch even their own App");
         assert!(
-            error.contains("App-owned agents cannot launch Apps"),
+            error.contains("not available to Extension Hosts"),
             "{error}"
         );
 
@@ -551,5 +551,5 @@ async fn task_and_service_hosts_cannot_swap_app_actions() {
     )
     .await
     .expect_err("service host must not run task actions");
-    assert!(error.contains("cannot run App"), "{error}");
+    assert!(error.contains("not available to Extension Hosts"), "{error}");
 }

@@ -287,7 +287,6 @@ fn system_agent_caps_keep_the_owner_scoped_conversation_baseline() {
     assert!(caps.covers(&Cap::new(Verb::MEMORY_READ, Scope::self_ref("web"))));
     assert!(caps.covers(&Cap::new(Verb::MEMORY_WRITE, Scope::self_ref("calendar"))));
     assert!(caps.covers(&Cap::new(Verb::PROC_OBSERVE, Scope::Wild)));
-    assert!(caps.covers(&Cap::new(Verb::AGENT_INVOKE, Scope::name("web"))));
     assert!(caps.covers(&Cap::new(Verb::AGENT_OBSERVE, Scope::name("tasks"))));
     assert!(caps.covers(&Cap::new(Verb::DATA_KV_READ, Scope::name("notes/last"))));
     assert!(caps.covers(&Cap::new(Verb::DATA_DB_READ, Scope::name("calendar"))));
@@ -683,7 +682,6 @@ fn clamp_to_owner_baseline_only_ever_narrows() {
 fn local_launcher_ceiling_is_an_unprivileged_home_bounded_policy() {
     let home = Path::new("/home/test");
     let caps = local_launcher_ceiling(home);
-    assert!(caps.covers(&Cap::new(Verb::AGENT_INVOKE, Scope::name("pkg"))));
     assert!(caps.covers(&Cap::new(
         Verb::FS_READ,
         Scope::path("/home/test/notes.txt")

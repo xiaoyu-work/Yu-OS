@@ -280,7 +280,7 @@
             "sys.observe", "sys.crash", "sys.container", "sys.config", "sys.events", "sys.identity", "sys.locale", "sys.language", "sys.hostname", "sys.security", "sys.storage",
             "sys.service", "sys.package", "sys.mount", "sys.snapshot", "sys.time", "sys.power", "sys.kernel", "sys.permissions",
             "secret.read", "secret.write", "secret.grant",
-            "agent.spawn", "agent.invoke", "agent.observe", "agent.delegate",
+            "agent.spawn", "agent.observe", "agent.delegate",
             "data.kv.read", "data.kv.write", "data.kv.delete", "data.db.read", "data.db.write", "data.log.read", "data.log.write", "data.inbox.read", "data.inbox.write", "data.backup",
             "memory.write", "memory.read",
             "ipc.publish", "ipc.subscribe", "ipc.invoke",
@@ -427,24 +427,24 @@
     },
     "mcpService": {
       "type": "object",
-      "description": "Long-lived MCP server the app launches for stateful, agent-driven tool calls.",
+      "description": "MCP service exposing declared tools to the authenticated System Agent.",
       "required": ["tools"],
       "additionalProperties": false,
       "properties": {
         "entry": { "type": "string", "description": "MCP server entry file relative to the app dir. Defaults to the runtime's server entry." },
         "transport": { "type": "string", "enum": ["stdio"], "default": "stdio", "description": "Wire protocol. Only stdio is supported today." },
         "lifecycle": { "type": "string", "enum": ["lazy", "always-on", "while-app-running"], "default": "lazy", "description": "Host lifecycle." },
-        "access": { "$ref": "#/$defs/mcpAccess", "description": "Authenticated caller restrictions. This never grants authority." },
+        "access": { "$ref": "#/$defs/mcpAccess", "deprecated": true, "description": "Legacy exposure switches. Omit this object in new manifests." },
         "tools": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/mcpTool" }, "description": "Tools advertised through this service (authoritative allowlist)." }
       }
     },
     "mcpAccess": {
       "type": "object",
-      "description": "Caller restrictions for an MCP App service. Callers still require exact invoke authority.",
+      "description": "Read for compatibility with existing App manifests. These fields never grant access to another principal.",
       "additionalProperties": false,
       "properties": {
-        "system_agent": { "type": "boolean", "default": true, "description": "Allow the owner-scoped system Agent." },
-        "external_agents": { "type": "boolean", "default": false, "description": "Allow authenticated external-Gateway agents." }
+        "system_agent": { "type": "boolean", "default": true, "description": "If explicitly false, hide this service from the System Agent; it remains available to the owner frontend." },
+        "external_agents": { "type": "boolean", "default": false, "deprecated": true, "description": "Ignored. External agents cannot discover or call an App service." }
       }
     },
     "mcpTool": {

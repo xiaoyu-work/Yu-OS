@@ -880,9 +880,9 @@ This keeps local, sandboxed, and remote implementations interchangeable.
 - Runtime dispatch runs guardrails and pre/post hooks around tool calls.
 - App manifests declare capability needs; bundled apps enforce them through
   `yuos_runtime.policy`.
-- App Mesh callers require exact `agent.invoke:<app>/<tool>` authority. The
-  target receives only the independently derived needs of that signed tool,
-  never the caller's invoke authority.
+- The authenticated built-in System Agent discovers and calls only enabled MCP
+  tools declared by verified installed Apps. The target receives only the
+  independently derived needs of that signed tool.
 - A model response is data, never authorization.
 
 ### AI ownership
@@ -2161,7 +2161,7 @@ installed $YUOS_APPS_DIR/<relative-app-path>/app.json
        operation schema -> effective argv -> operation capabilities
        -> one sandboxed Python / Node / shell / binary process
   -> authenticated App Mesh:
-       exact agent.invoke:<app>/<tool> caller authorization
+       authenticated System Agent task and enabled MCP exposure
        -> fresh signed-package verification
        -> manifest argument validation and target-capability derivation
        -> task Host authenticated relay
@@ -2291,16 +2291,15 @@ direct-worker network access and is not a second DNS server.
 Cross-App workflows belong to the built-in system Agent, never to Apps calling
 Apps. Apps may use gated AI, controlled system services, and shared libraries.
 App processes and App-owned agents cannot discover or invoke App services,
-launch other Apps, or submit system Agent tasks, even with invoke grants.
+launch other Apps, or submit system Agent tasks. External agents also cannot
+discover or call App services.
 Registered session ancestry is checked so an intermediate task Host, helper,
 or a claimed CLI identity cannot erase App ownership.
 
-Agent-to-App calls use the private App Gateway. The caller must
-hold exact authority for `<app-id>/<tool-name>`, and the target manifest's
-`mcp.access` policy must admit the authenticated principal. `yuosd` then
-re-verifies the current signed package, validates the exact declared tool,
-generation, task/session identity, and deadline, and derives a separate target grant from
-that tool's `needs[]`. Caller invoke authority never enters the target grant.
+Agent-to-App calls use the private App Gateway. `yuosd` authenticates the
+built-in Agent's task and Host, re-verifies the installed package and enabled
+MCP exposure, and checks the exact tool, generation and deadline. It derives
+the target grant from that tool's `needs[]`; there is no App-invocation grant.
 
 The authenticated local CLI path shares that authority model but derives its
 principal differently. `app_service.cli_call` accepts only the exact App id,
@@ -2308,9 +2307,8 @@ tool, and arguments; `yuosd` mints an `McpPrincipalKind::Cli` caller and derives
 the call context, capability ceiling, verified package, owner uid, and deadline
 from the peer's kernel-reported identity, its process ancestry / registered
 launcher session, and the installed manifest — never from the request. A CLI
-principal may address a service even when `mcp.access.system_agent` is false,
-but it still needs exact `agent.invoke:<app>/<tool>` authority, and the target
-`needs[]` are independently derived, ceiling-clamped, approved, single-call
+principal may address a service even when the legacy MCP exposure switch is
+explicitly off. The target `needs[]` are derived, ceiling-clamped, approved, single-call
 bound, and audited. An Extension Host can neither reach this route nor forge a
 CLI identity, and the route can never mint a private-task-host principal. Both
 the CLI and task-host paths converge on the same owner/App service manager, so
@@ -2318,8 +2316,9 @@ there is no alternate App process path.
 
 The task-owned Extension Host is the only dynamic boundary directly available
 to `yuos-agentd`. Its broker-derived binding retains App ownership for bounded
-App AI, but rejects that ownership on App invocation paths. Only System Agent
-and permitted external-Agent principals can use the typed App-call path.
+App AI, but rejects that ownership on App invocation paths. Only System
+Agent tasks can use the typed App-call path; Task Hosts cannot execute
+ordinary App operations.
 The worker sends only typed App id, tool name, and
 arguments. The task Host cannot execute an App call; it relays over its private
 broker, which injects the verified task/Host lease facts. `yuosd` re-authorizes

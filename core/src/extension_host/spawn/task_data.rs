@@ -1,12 +1,14 @@
-//! Root-owned, per-App data views admitted after a task's App registration.
-//! No caller path or environment value selects the backing storage.
+//! Retirement of private task-namespace App views. New tasks cannot attach
+//! App data; MCP App services use their own owner/App-bound Host.
 
 use std::collections::BTreeMap;
 use std::sync::{Mutex, OnceLock};
 
 use super::*;
+#[cfg(test)]
 use crate::yuosd::client_identity::ClientIdentity;
 
+#[cfg(test)]
 const MAX_APP_VIEWS: usize = 64;
 const MOUNT_HELPER_TIMEOUT: Duration = Duration::from_secs(3);
 
@@ -17,6 +19,7 @@ fn retained_views() -> &'static Mutex<Vec<Arc<TaskAppData>>> {
 
 #[derive(Debug)]
 struct View {
+    #[cfg(test)]
     binding: app_data::Binding,
     destination: CString,
     package: PackageRef,
@@ -24,8 +27,10 @@ struct View {
 
 pub(crate) struct TaskAppData {
     owner: WorkerIdentity,
+    #[cfg(test)]
     execution: ExtensionIdentity,
     binding: ExtensionBinding,
+    #[cfg(test)]
     paths: HostPaths,
     namespace: Arc<OwnedFd>,
     stopped: AtomicBool,
@@ -50,10 +55,14 @@ impl TaskAppData {
         paths: HostPaths,
         namespace: Arc<OwnedFd>,
     ) -> Self {
+        #[cfg(not(test))]
+        let _ = (execution, paths);
         Self {
             owner,
+            #[cfg(test)]
             execution,
             binding,
+            #[cfg(test)]
             paths,
             namespace,
             stopped: AtomicBool::new(false),
@@ -61,6 +70,7 @@ impl TaskAppData {
         }
     }
 
+    #[cfg(test)]
     fn require_client(&self, client: &ClientIdentity) -> Result<(), String> {
         let host = client
             .extension_host
@@ -91,21 +101,7 @@ impl TaskAppData {
         Ok(())
     }
 
-    pub(crate) fn bind(
-        self: &Arc<Self>,
-        client: &ClientIdentity,
-        package: &crate::provenance::VerifiedPackage,
-    ) -> Result<PathBuf, String> {
-        crate::yuosd::trust_withdrawal::check_package(self.owner.uid, package)?;
-        let package_ref = PackageRef::of(package);
-        if package_ref.kind != crate::provenance::PackageKind::App {
-            return Err("Task App data requires a verified App package".to_string());
-        }
-        let view = self.bind_app(client, &package_ref)?;
-        crate::yuosd::trust_withdrawal::check_package(self.owner.uid, package)?;
-        Ok(view)
-    }
-
+    #[cfg(test)]
     fn bind_app(self: &Arc<Self>, client: &ClientIdentity, package: &PackageRef) -> Result<PathBuf, String> {
         let app = package.id.as_str();
         self.require_client(client)?;
@@ -155,6 +151,7 @@ impl TaskAppData {
         Ok(prepared.view_root)
     }
 
+    #[cfg(test)]
     fn require_capacity(held: usize) -> Result<(), String> {
         if held >= MAX_APP_VIEWS {
             return Err("Task App data view limit reached".to_string());

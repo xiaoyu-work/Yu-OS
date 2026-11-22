@@ -701,7 +701,7 @@ pub struct Aibudget {
 }
 
 /// mcpService
-/// Long-lived MCP server the app launches for stateful, agent-driven tool calls.
+/// MCP service exposing declared tools to the authenticated System Agent.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Mcpservice {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -716,8 +716,8 @@ pub struct Mcpservice {
 }
 
 /// mcpAccess
-/// Caller restrictions for an MCP App service. Callers still require exact invoke
-/// authority.
+/// Read for compatibility with existing App manifests. These fields never grant
+/// access to another principal.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Mcpaccess {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1485,7 +1485,7 @@ pub fn normalize_gui_file_write_integers(value: &mut serde_json::Value) {
     normalize_wire_integers(&schema, &schema, value);
 }
 
-const _WIRE_SCHEMA_MCP_CALL_CONTEXT: &str = r###"{"$defs":{"McpPrincipal":{"additionalProperties":false,"properties":{"id":{"maxLength":256,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$","type":"string","x-full-match":true},"kind":{"enum":["system-agent","external-agent","cli"],"type":"string"},"owner_uid":{"maximum":4294967295,"minimum":0,"type":"integer"}},"required":["kind","id","owner_uid"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/mcp_call_context.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"description":"Authenticated call identity and lineage injected by the Yu OS MCP Gateway over the private App-host transport. Caller-supplied MCP arguments must never populate this object.","properties":{"call_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:-]*$","type":"string","x-full-match":true},"caller":{"$ref":"#/$defs/McpPrincipal"},"deadline_unix_ms":{"maximum":9007199254740991,"minimum":1,"type":"integer"},"session_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$","type":"string","x-full-match":true},"task_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$","type":"string","x-full-match":true},"trace_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:-]*$","type":"string","x-full-match":true},"wire_version":{"const":1,"maximum":1,"minimum":1,"type":"integer"}},"required":["wire_version","call_id","trace_id","caller"],"title":"MCP call context","type":"object"}"###;
+const _WIRE_SCHEMA_MCP_CALL_CONTEXT: &str = r###"{"$defs":{"McpPrincipal":{"additionalProperties":false,"properties":{"id":{"maxLength":256,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$","type":"string","x-full-match":true},"kind":{"enum":["system-agent","cli"],"type":"string"},"owner_uid":{"maximum":4294967295,"minimum":0,"type":"integer"}},"required":["kind","id","owner_uid"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/mcp_call_context.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"description":"Authenticated call identity and lineage injected by the Yu OS MCP Gateway over the private App-host transport. Caller-supplied MCP arguments must never populate this object.","properties":{"call_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:-]*$","type":"string","x-full-match":true},"caller":{"$ref":"#/$defs/McpPrincipal"},"deadline_unix_ms":{"maximum":9007199254740991,"minimum":1,"type":"integer"},"session_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$","type":"string","x-full-match":true},"task_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$","type":"string","x-full-match":true},"trace_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:-]*$","type":"string","x-full-match":true},"wire_version":{"const":1,"maximum":1,"minimum":1,"type":"integer"}},"required":["wire_version","call_id","trace_id","caller"],"title":"MCP call context","type":"object"}"###;
 pub fn validate_mcp_call_context(value: &serde_json::Value) -> Result<(), WireDecodeError> {
     let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_MCP_CALL_CONTEXT)
         .expect("generated wire schema must be valid JSON");

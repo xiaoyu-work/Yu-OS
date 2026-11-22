@@ -24,6 +24,7 @@ pub(super) fn dispatch_app(
     args: &[String],
     stdin_data: Option<Vec<u8>>,
 ) -> Result<Option<String>, String> {
+    require_owner_frontend()?;
     if args.first().map(String::as_str) == Some("stdio") {
         return stdio_schema(&args[1..]);
     }
@@ -185,6 +186,7 @@ fn stdio_schema(args: &[String]) -> Result<Option<String>, String> {
 }
 
 pub(super) fn run_stdio(args: &[String]) -> Result<(), String> {
+    require_owner_frontend()?;
     let (Some(app_id), Some(operation)) = (args.first(), args.get(1)) else {
         return Err("usage: yu app stdio <id> <operation> [args...]".into());
     };
@@ -209,6 +211,13 @@ pub(super) fn run_stdio(args: &[String]) -> Result<(), String> {
         result.as_ref().err().map(String::as_str),
     );
     result
+}
+
+pub(super) fn require_owner_frontend() -> Result<(), String> {
+    if !apps::direct_owner_frontend() {
+        return Err("The App CLI is only available to the direct owner frontend".to_string());
+    }
+    Ok(())
 }
 
 /// Refuse to run a quarantined App, and re-assert the verified snapshot

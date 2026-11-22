@@ -136,7 +136,10 @@ impl RegistryDeps {
         };
         let app_sessions = crate::apps::discover_verified(&paths.apps_dir)
             .values()
-            .filter(|app| app.manifest.mcp.is_some())
+            .filter(|app| {
+                super::app_gateway::system_agent_mcp_enabled(&app.manifest)
+                    && app.require_verified().is_ok_and(|pkg| pkg.ceiling().allows_mcp_attach())
+            })
             .map(|app| super::yu_apps_session::RegisteredAppSession {
                 manifest: Arc::new(app.manifest.clone()),
                 app_dir: app.dir.clone(),

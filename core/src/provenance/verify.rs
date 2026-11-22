@@ -447,7 +447,7 @@ impl VerifiedPackage {
 
     /// The capability ceiling this package's tier and identity imply.
     pub fn ceiling(&self) -> super::Ceiling {
-        super::Ceiling::for_package(self.tier, self.id.clone())
+        super::Ceiling::for_tier(self.tier)
     }
 
     /// Bind this package for execution.

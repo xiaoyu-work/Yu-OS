@@ -195,28 +195,6 @@ fn facts_name_the_tier_and_its_restriction() {
 }
 
 #[test]
-fn developer_content_may_invoke_only_its_own_identity() {
-    let ceiling = Ceiling::for_package(TrustTier::Developer, "notes");
-    assert!(
-        ceiling.allows_cap(&Cap::new(Verb::AGENT_INVOKE, Scope::name("notes"))),
-        "an unsigned App must still be able to re-enter itself"
-    );
-    for other in ["fs", "pkg", "notes-evil", "**"] {
-        assert!(
-            !ceiling.allows_cap(&Cap::new(Verb::AGENT_INVOKE, Scope::name(other))),
-            "developer content must not invoke `{other}`"
-        );
-    }
-    assert!(!ceiling.allows_cap(&Cap::new(Verb::AGENT_INVOKE, Scope::Wild)));
-    // Without a bound identity there is nothing to compare against, so
-    // the verb is refused rather than guessed.
-    assert!(!developer().allows_cap(&Cap::new(Verb::AGENT_INVOKE, Scope::name("notes"))));
-    // And it is still not a *verb* the tier holds in general.
-    assert!(!ceiling.allows_verb(Verb::AGENT_INVOKE));
-    assert!(publisher().allows_cap(&Cap::new(Verb::AGENT_INVOKE, Scope::name("anything"))));
-}
-
-#[test]
 fn permitted_audiences_filters_rather_than_advises() {
     let requested = [
         Audience::AppLaunch,
@@ -247,26 +225,24 @@ fn developer_content_gets_no_relay_and_no_granted_path_mounts() {
 
 #[test]
 fn clamp_vec_keeps_the_plan_and_the_missing_list_in_step() {
-    let ceiling = Ceiling::for_package(TrustTier::Developer, "notes");
+    let ceiling = developer();
     let caps = vec![
         Cap::new(Verb::FS_READ, Scope::path("/home/u/notes/**")),
         Cap::new(Verb::SYS_PACKAGE, Scope::name("nano")),
-        Cap::new(Verb::AGENT_INVOKE, Scope::name("notes")),
+        Cap::new(Verb::DATA_KV_READ, Scope::name("notes")),
         Cap::new(Verb::NET_DIAL, Scope::host("example.com")),
     ];
     let (kept, dropped) = ceiling.clamp_vec(&caps);
     assert_eq!(kept.len(), 2);
     assert_eq!(dropped.len(), 2);
-    assert!(kept.contains(&Cap::new(Verb::AGENT_INVOKE, Scope::name("notes"))));
+    assert!(kept.contains(&Cap::new(Verb::DATA_KV_READ, Scope::name("notes"))));
     assert!(dropped.contains(&Cap::new(Verb::SYS_PACKAGE, Scope::name("nano"))));
     assert!(dropped.contains(&Cap::new(Verb::NET_DIAL, Scope::host("example.com"))));
 }
 
 #[test]
-fn the_package_ceiling_reports_its_own_identity() {
-    let ceiling = Ceiling::for_package(TrustTier::Developer, "notes");
-    assert_eq!(ceiling.own_id(), Some("notes"));
-    assert_eq!(developer().own_id(), None);
+fn the_package_ceiling_keeps_runtime_identity_exact() {
+    let ceiling = developer();
     assert!(ceiling.allows_app_identity("notes", "notes"));
     assert!(!ceiling.allows_app_identity("notes", "fs"));
 }

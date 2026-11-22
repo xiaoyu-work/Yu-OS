@@ -4,8 +4,6 @@
 //! only structural path segments. It cannot express flags, operands, hidden
 //! `__*` routes, or an operational invocation.
 
-use std::path::PathBuf;
-
 use async_trait::async_trait;
 use serde_json::{json, Value};
 
@@ -110,11 +108,11 @@ fn valid_segment(segment: &str) -> bool {
 fn discover(path: &[String]) -> Value {
     match path {
         [] => {
-            let root = apps_root();
-            crate::cli_catalog::overview(
-                env!("CARGO_PKG_VERSION"),
-                crate::apps::discover_verified(&root).len(),
-            )
+            let mut overview = crate::cli_catalog::overview(env!("CARGO_PKG_VERSION"), 0);
+            if let Some(object) = overview.as_object_mut() {
+                object.remove("apps_available");
+            }
+            overview
         }
         [namespace, command] if namespace == "agent" && command == "dev" => discover_agent_dev(),
         [namespace, command, subcommand] if namespace == "agent" && command == "dev" => {
@@ -192,16 +190,6 @@ fn discover_builtin_command(namespace: &str, command: &str, path: &[String]) -> 
 }
 
 fn discover_apps() -> Value {
-    let apps = crate::apps::discover_verified(&apps_root());
-    let entries: Vec<Value> = apps
-        .values()
-        .map(|app| {
-            json!({
-                "name": app.manifest.id,
-                "description": app.manifest.summary.current(),
-            })
-        })
-        .collect();
     json!({
         "found": true,
         "path": ["app"],
@@ -214,7 +202,6 @@ fn discover_apps() -> Value {
             "create": "Scaffold a new App",
             "consent": "Inspect and manage App AI consent",
         },
-        "apps": entries,
         "model_tool": "yu_tool_search",
         "next": "Search permitted MCP App tools with yu_tool_search.",
     })
@@ -236,35 +223,11 @@ fn discover_app(app_id: &str) -> Value {
             "model_tool": Value::Null,
         });
     }
-    let apps = crate::apps::discover_verified(&apps_root());
-    let Some(app) = apps.get(app_id) else {
-        return json!({
-            "found": false,
-            "path": ["app", app_id],
-            "available": apps.keys().collect::<Vec<_>>(),
-        });
-    };
-    let operations: Vec<Value> = app
-        .manifest
-        .operations
-        .iter()
-        .map(|(name, operation)| {
-            json!({
-                "name": name,
-                "description": operation.summary.current(),
-            })
-        })
-        .collect();
     json!({
-        "found": true,
+        "found": false,
         "path": ["app", app_id],
-        "kind": "app",
-        "description": app.manifest.summary.current(),
-        "cli_operations": operations,
-        "model_callable": false,
         "model_tool": "yu_tool_search",
-        "model_server": app_id,
-        "next": "Use yu_tool_search with the model_server filter for permitted MCP tools.",
+        "reason": "Installed App tools are discoverable only through the MCP tool catalogue.",
     })
 }
 
@@ -287,32 +250,10 @@ fn discover_app_command(app_id: &str, command: &str) -> Value {
             "model_tool": Value::Null,
         });
     }
-    let apps = crate::apps::discover_verified(&apps_root());
-    let Some(app) = apps.get(app_id) else {
-        return json!({
-            "found": false,
-            "path": ["app", app_id, command],
-            "available": apps.keys().collect::<Vec<_>>(),
-        });
-    };
-    let Some(operation) = app.manifest.operations.get(command) else {
-        return json!({
-            "found": false,
-            "path": ["app", app_id, command],
-            "available": app.manifest.operations.keys().collect::<Vec<_>>(),
-        });
-    };
-    let schema = crate::apps::operation_schema(operation);
     json!({
-        "found": true,
+        "found": false,
         "path": ["app", app_id, command],
-        "kind": "command",
-        "command": format!("yu app {app_id} {command}"),
-        "description": operation.summary.current(),
-        "parameters": schema["parameters"],
-        "stdin": schema["stdin"],
-        "model_callable": false,
-        "model_tool": Value::Null,
+        "reason": "Installed App tools are discoverable only through the MCP tool catalogue.",
     })
 }
 
@@ -482,12 +423,6 @@ fn app_management(name: &str) -> Option<(&'static str, &'static [&'static str])>
         )),
         _ => None,
     }
-}
-
-fn apps_root() -> PathBuf {
-    std::env::var_os("YUOS_APPS_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/usr/lib/yuos/apps"))
 }
 
 #[cfg(test)]

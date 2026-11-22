@@ -781,10 +781,9 @@ the owner's. Existing private-directory and legacy-state migration logic is
 reused; data is neither copied nor recursively chowned. Only the runtime view
 is unmounted at retirement.
 
-Task Host ordinary operations now acquire the same owner/App data partition
-after their normal Root registration checks. No App data is mounted when the
-task Host starts. Each authorized operation uses the returned binding instead
-of the Host's temporary HOME/data, and task retirement unmounts all its views.
+Task Hosts no longer run ordinary App operations or mount App data. The
+System Agent relays only enabled MCP tools to the separate owner/App service
+Host, and ordinary operations remain available through the owner CLI.
 Keep the broker and Host from the same source/package cohort; existing tasks
 must finish or be cancelled before replacing their running Host binaries.
 

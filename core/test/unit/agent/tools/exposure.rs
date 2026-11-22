@@ -1,24 +1,25 @@
 use super::*;
 
 #[test]
-fn app_owned_agents_cannot_discover_or_dispatch_app_services_even_with_invoke() {
-    let invoke = Cap::new(Verb::AGENT_INVOKE, crate::caps::Scope::name("email/email.search"));
-    let rule = ToolExposure::always()
-        .requiring_app_service_caller()
-        .requiring_caps([invoke.clone()]);
-    let agent = ToolExposureContext::isolated(Guardrails::permissive())
+fn only_the_system_agent_task_can_discover_app_services() {
+    let rule = ToolExposure::always().requiring_system_agent_app_caller();
+    let mut agent = ToolExposureContext::isolated(Guardrails::permissive())
         .with_identity("agent-session", 1000, SessionSource::BrokerTask)
-        .with_capabilities(CapSet::from_caps([invoke]));
+        .with_transport(ToolTransport::AppSession, true);
+    assert!(matches!(rule.decide(&agent), ExposureDecision::Hidden(_)));
+    agent.task_id = Some("task".to_string());
     assert_eq!(rule.decide(&agent), ExposureDecision::Visible);
 
-    for source in [SessionSource::BrokerTask, SessionSource::ExternalMcp, SessionSource::LocalCli] {
+    for source in [SessionSource::BrokerTask, SessionSource::LocalCli] {
         let mut app = agent.clone().with_identity("app-agent", 1000, source);
         app.app_id = Some("crm".to_string());
         assert!(matches!(rule.decide(&app), ExposureDecision::Hidden(_)));
         assert!(crate::agent::tools::app_gateway::McpPrincipal::from_exposure(&app).is_err());
     }
-    let app = agent.with_identity("app", 1000, SessionSource::App);
-    assert!(matches!(rule.decide(&app), ExposureDecision::Hidden(_)));
+    for source in [SessionSource::App, SessionSource::ExternalMcp, SessionSource::DelegatedAgent] {
+        let caller = agent.clone().with_identity("caller", 1000, source);
+        assert!(matches!(rule.decide(&caller), ExposureDecision::Hidden(_)));
+    }
 }
 
 fn cap(verb: Verb, scope: crate::caps::Scope) -> CapSet {

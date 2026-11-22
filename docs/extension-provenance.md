@@ -304,8 +304,8 @@ The service's at-rest grant cannot perform one tool call's privileged
 work. For each authenticated call, `yuosd` installs a separate
 deadline-bound `AppGateway` grant derived from that exact tool and
 effective arguments, then clears it on completion, error, timeout,
-cancellation, or teardown. Caller `agent.invoke` authority is never
-copied into the target grant.
+cancellation, or teardown. The System Agent's authenticated task identity
+admits the call; no caller capability is copied into the target grant.
 
 ### Where a call's own authority goes
 
@@ -563,7 +563,6 @@ Developer content is additionally refused:
   addressable through a dead handle;
 * any host path mount derived from a capability — the sandbox sees the
   package read-only and the App's own data partition, nothing else;
-* `agent.invoke` on any identity but its own;
 * an MCP attach altogether — a running server holding a live broker
   endpoint is a standing attack surface even with no capabilities.
 

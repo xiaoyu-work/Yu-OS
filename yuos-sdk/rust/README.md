@@ -43,7 +43,7 @@ OS already accepted and never replaces broker capability checks.
 
 The generic `call`/`call_typed` transport is for authenticated human CLI and
 desktop clients, not App-to-App calls. Broker admission rejects App processes
-and App-owned agents even if they hold invoke grants. App code uses gated AI,
+and App-owned agents. App code uses gated AI,
 controlled system services, and shared libraries; the built-in system Agent
 owns cross-App workflows.
 

@@ -26,7 +26,6 @@ fn principal(kind: McpPrincipalKind) -> McpPrincipal {
     McpPrincipal {
         kind,
         id: match kind {
-            McpPrincipalKind::ExternalAgent => "spiffe://yuos.test/agent/client",
             McpPrincipalKind::Cli => "cli-session",
             McpPrincipalKind::SystemAgent => "agent-session",
         }
@@ -69,30 +68,27 @@ fn binding() -> ExtensionBinding {
 }
 
 #[test]
-fn invoke_scope_is_exact_to_app_and_tool() {
-    let requested = invoke_cap("email", "email.search").unwrap();
-    assert_eq!(requested.scope, Scope::name("email/email.search"));
-    assert!(!Cap::new(Verb::AGENT_INVOKE, Scope::name("email")).covers(&requested));
-    assert!(!Cap::new(Verb::AGENT_INVOKE, Scope::name("email/email.send")).covers(&requested));
-    assert!(Cap::new(Verb::AGENT_INVOKE, Scope::name("email/*")).covers(&requested));
-    assert!(invoke_cap("Bad/App", "email.search").is_err());
-    assert!(invoke_cap("email", "../search").is_err());
+fn invoke_target_is_exact_to_app_and_tool() {
+    assert_eq!(invoke_target("email", "email.search").unwrap(), "email/email.search");
+    assert!(invoke_target("email", "*").is_err());
+    assert!(invoke_target("Bad/App", "email.search").is_err());
+    assert!(invoke_target("email", "../search").is_err());
 }
 
 #[test]
-fn manifest_access_restricts_each_authenticated_principal_class() {
-    let manifest = manifest();
+fn legacy_mcp_off_is_cli_only_and_external_opt_in_is_inert() {
+    let mut manifest = manifest();
+    assert!(!system_agent_mcp_enabled(&manifest));
     assert!(
         authorize_manifest(&manifest, &principal(McpPrincipalKind::SystemAgent)).is_err()
     );
-    // An authenticated local CLI principal may explicitly address a service
-    // even though this manifest sets `access.system_agent = false`. Access is
-    // a caller restriction, not authority; the CLI path still enforces exact
-    // `agent.invoke:<app>/<tool>` authority in the daemon.
     assert!(authorize_manifest(&manifest, &principal(McpPrincipalKind::Cli)).is_ok());
-    assert!(
-        authorize_manifest(&manifest, &principal(McpPrincipalKind::ExternalAgent)).is_ok()
-    );
+    manifest.mcp.as_mut().unwrap().access.system_agent = true;
+    assert!(system_agent_mcp_enabled(&manifest));
+    assert!(authorize_manifest(&manifest, &principal(McpPrincipalKind::SystemAgent)).is_ok());
+    assert!(serde_json::from_value::<McpPrincipal>(serde_json::json!({
+        "kind": "external-agent", "id": "agent-session", "owner_uid": 1000,
+    })).is_err());
 }
 
 #[test]
@@ -141,10 +137,6 @@ fn call_context_is_bound_to_extension_lease() {
         },
     };
     context.validate_extension_binding(&binding).unwrap();
-
-    let mut external = context.clone();
-    external.caller.kind = McpPrincipalKind::ExternalAgent;
-    external.validate_extension_binding(&binding).unwrap();
 
     let invocation = crate::extension_host::protocol::AppInvocationAudit::new(
         "email",

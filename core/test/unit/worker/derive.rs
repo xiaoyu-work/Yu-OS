@@ -447,7 +447,6 @@ fn a_write_grant_for_a_missing_file_mounts_its_parent() {
 fn non_filesystem_verbs_never_mount_anything() {
     let mounts = granted_path_mounts(&caps(vec![
         Cap::new(Verb::SYS_OBSERVE, Scope::path("/etc")),
-        Cap::new(Verb::AGENT_INVOKE, Scope::name("fs")),
     ]))
     .expect("mounts");
     assert!(mounts.is_empty());
@@ -587,7 +586,7 @@ fn an_app_session_is_a_network_denied_stdio_server_over_its_own_package() {
     let package = tempfile::tempdir().expect("package");
     let data = tempfile::tempdir().expect("data");
     std::fs::write(package.path().join("server.py"), "# fixture\n").unwrap();
-    let standing = caps(vec![Cap::new(Verb::AGENT_INVOKE, Scope::name("probe"))]);
+    let standing = CapSet::new();
 
     let policy = app_session(app_session_input(
         package.path(),

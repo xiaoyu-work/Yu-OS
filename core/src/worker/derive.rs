@@ -448,10 +448,8 @@ pub fn mcp_server(input: McpServerInput<'_>) -> Result<LaunchPolicy, String> {
 /// egress rules cannot be revised on a live worker, so deriving them
 /// from *any* per-call set would leave the first call's filesystem and
 /// network reach standing for every later call — including calls the
-/// authority denied. The standing grant a session holds is
-/// `agent.invoke` on itself, which names no path and no host, so a
-/// reusable policy mounts no host path and opens no egress at all. A
-/// standing grant that *would* need one is refused rather than
+/// authority denied. A reusable policy mounts no host path and opens no
+/// egress at all. A standing grant that *would* need one is refused rather than
 /// honoured.
 ///
 /// A [`SessionLifetime::SingleCall`] worker exists for exactly one

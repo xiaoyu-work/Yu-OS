@@ -398,14 +398,6 @@ pub const CATALOG: &[CapMeta] = &[
         Risk::Medium,
     ),
     CapMeta::new(
-        Verb::AGENT_INVOKE,
-        ScopeKind::Name,
-        LocalizedStr::new("Call other agents"),
-        LocalizedStr::new("Send tasks to existing agents and receive their results."),
-        "📨",
-        Risk::Medium,
-    ),
-    CapMeta::new(
         Verb::AGENT_OBSERVE,
         ScopeKind::Name,
         LocalizedStr::new("Watch other agents"),

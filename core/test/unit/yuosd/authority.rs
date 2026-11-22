@@ -760,7 +760,7 @@ fn app_session_grants_are_unbounded_only_where_they_stay_bound() {
             binding: Binding::Process,
             subject: Subject::session("app-unbounded").with_app(Some("fs".into())),
             audience: AudienceSet::one(Audience::AppLaunch),
-            caps: CapSet::from_caps([Cap::new(Verb::AGENT_INVOKE, Scope::name("fs"))]),
+            caps: CapSet::from_caps([Cap::new(Verb::FS_READ, Scope::path("/home/test"))]),
             lifetime: std::time::Duration::from_secs(3600),
             uses: Uses::Unbounded,
             index_session: true,

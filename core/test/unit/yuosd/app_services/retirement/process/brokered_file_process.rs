@@ -126,14 +126,6 @@ async fn public_sdk_reads_and_replaces_as_the_owner() {
             scope: None,
             priority: None,
             caps: Some(CapSet::from_caps([
-                Cap::new(
-                    Verb::AGENT_INVOKE,
-                    Scope::name(format!("{app_id}/probe.read")),
-                ),
-                Cap::new(
-                    Verb::AGENT_INVOKE,
-                    Scope::name(format!("{app_id}/probe.apply")),
-                ),
                 Cap::new(Verb::FS_READ, scopes.clone()),
                 Cap::new(Verb::FS_WRITE, scopes),
             ])),
@@ -144,7 +136,7 @@ async fn public_sdk_reads_and_replaces_as_the_owner() {
             client: crate::session::SessionClient::new(
                 crate::session::SessionSource::LocalCli,
                 false,
-                false,
+                true,
             ),
         },
         owner.uid,

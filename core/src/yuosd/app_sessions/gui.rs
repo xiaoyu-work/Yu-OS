@@ -61,7 +61,6 @@ struct BoundDelegation {
     parent: Option<String>,
     session: String,
     generation: u32,
-    inherited_invoke: bool,
     inherited_ceiling: CapSet,
 }
 
@@ -124,9 +123,6 @@ impl Draft {
                         &delegation.grant_session,
                     )
                 })?;
-        let inherited_invoke = delegation
-            .ceiling
-            .covers(&Cap::new(Verb::AGENT_INVOKE, Scope::name(launch.app_id())));
         Ok(Self {
             launch,
             gui_entry: gui_entry.map(str::to_string),
@@ -144,7 +140,6 @@ impl Draft {
                 parent: launcher_authority.parent.clone(),
                 session: delegation.grant_session.clone(),
                 generation,
-                inherited_invoke,
                 inherited_ceiling: delegation.ceiling.clone(),
             },
         })
@@ -237,7 +232,6 @@ pub(super) fn owner_settings_cap(cap: &Cap) -> bool {
 pub(super) fn desktop_shell_startup_caps() -> CapSet {
     let notifications = crate::yuosd::notifications::gui::RESOURCE;
     CapSet::from_caps([
-        Cap::new(Verb::AGENT_INVOKE, Scope::name(SHELL_APP)),
         Cap::unscoped(Verb::UI_PANEL),
         Cap::new(Verb::SYS_OBSERVE, Scope::name("desktop")),
         Cap::new(Verb::DESKTOP_WINDOW, Scope::name("control")),
@@ -403,20 +397,19 @@ impl Registration {
                     Some(self.owner()),
                     &self.delegation.session,
                 )?;
-                if current.parent != self.delegation.parent
+                if !current.direct_owner
+                    || current.parent != self.delegation.parent
                     || generation != self.delegation.generation
                 {
                     return Err(
                         "GUI launcher's authority or revocation generation changed".to_string()
                     );
                 }
-                let invoke = Cap::new(Verb::AGENT_INVOKE, Scope::name(self.launch.app_id()));
                 if self
                     .caps
                     .iter()
                     .filter(|cap| self.delegation.inherited_ceiling.covers(cap))
                     .any(|cap| !current.caps.covers(cap))
-                    || (self.delegation.inherited_invoke && !current.caps.covers(&invoke))
                 {
                     return Err(
                         "GUI launcher no longer delegates the bound operation needs".to_string()

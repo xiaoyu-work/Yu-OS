@@ -105,6 +105,7 @@ pub struct ExtensionLease {
     activity: Option<Arc<crate::caps::activity_boundary::ActivityBoundary>>,
     task_session: Option<Arc<crate::proc::SessionInfo>>,
     task_app_data: Option<Arc<super::spawn::TaskAppData>>,
+    app_service_package: Option<crate::provenance::runtime::PackageRef>,
 }
 
 impl ExtensionLease {
@@ -142,6 +143,7 @@ impl ExtensionLease {
             activity: None,
             task_session: None,
             task_app_data: None,
+            app_service_package: None,
         }
     }
 
@@ -161,6 +163,14 @@ impl ExtensionLease {
 
     pub fn with_task_app_data(mut self, host: &super::spawn::SpawnedExtensionHost) -> Self {
         self.task_app_data = host.task_app_data();
+        self
+    }
+
+    pub(crate) fn with_app_service_package(
+        mut self,
+        package: crate::provenance::runtime::PackageRef,
+    ) -> Self {
+        self.app_service_package = Some(package);
         self
     }
 
@@ -530,7 +540,6 @@ async fn serve_connection(
             } else {
                 None
             },
-            task_app_data: lease.task_app_data.clone(),
         },
     );
 
@@ -549,6 +558,16 @@ fn request_allowed(request: &Request, process: peer::PeerProcess, lease: &Extens
     {
         if request.command == Command::AppServiceCall {
             return lease.purpose == crate::extension_host::protocol::HostPurpose::Task;
+        }
+        if request.command == Command::AppSessionRegister {
+            return lease.app_service_package.as_ref().is_some_and(|package| {
+                lease.purpose == crate::extension_host::protocol::HostPurpose::AppService
+                    && request.params["kind"].as_str() == Some("mcp")
+                    && request.params["app_id"].as_str() == Some(package.id.as_str())
+                    && request.params.get("package").cloned().and_then(|value| {
+                        serde_json::from_value::<crate::provenance::runtime::PackageRef>(value).ok()
+                    }).as_ref() == Some(package)
+            });
         }
         return host_lifecycle_route(request.command);
     }

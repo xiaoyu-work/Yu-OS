@@ -334,11 +334,8 @@ pub fn enforce_identity_for(arg_app: &str) -> Result<(), String> {
             session.session_id, session.app_id
         ));
     }
-    crate::caps::require(
-        crate::caps::Verb::AGENT_INVOKE,
-        crate::caps::Scope::name(arg_app),
-    )
-    .map_err(|denial| format!("App identity ancestry check failed: {}", denial.summary()))
+    crate::caps::enforcement::require_current_session_identity(&session.session_id, session.pid)
+        .map_err(|error| format!("App identity ancestry check failed: {error}"))
 }
 
 /// Normalize the legacy flag; the gate rejects nonempty lists.

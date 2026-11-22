@@ -215,22 +215,11 @@ UID cannot reopen persistent data while an earlier Host may still retain it;
 unknown quarantine ownership also blocks admission. Known other owners remain
 independent.
 
-Task Host `RunApp` uses the same backing partition and idmapping implementation.
-It starts with no App data views. After normal verified-manifest, operation,
-review and capability authorization, `app_session.register` attaches only the
-requested App to the Root-held task namespace and returns `task_app_data_dir`.
-The private broker's in-process custody reference, not request JSON, identifies
-that namespace. Registration is restricted to the exact live Host process;
-children, other tasks and App-owned agents cannot select it. MCP App calls
-continue through the separate exact-App service Host.
-
-The bridge requires the returned binding for task operations and never
-substitutes Host HOME or an environment-supplied data root. Python and other
-ordinary runtimes share this selection before sandbox derivation. At most 64
-distinct App views are held for one task; a reused view rechecks its source
-identity/topology. Failed or uncertain mount setup stops further admission
-and retains the target for cleanup. Lease closure and supervisor reaping stop
-new bindings before all task views are unmounted ahead of runtime deletion.
+Task Hosts cannot open App data views or execute ordinary App operations.
+The retired `RunApp` control action and ordinary registration through the
+private proxy are refused. A System Agent App call is always a typed MCP
+relay to the separate verified owner/App service Host; Root binds that Host
+to the exact package and authorizes the tool's target resource needs.
 Configured external MCP and Agent-extension scratch state remain private and
 temporary. Cross-App Calendar resource reads still require their own provider
 binding; this does not expose one App's private files to another.
@@ -290,8 +279,8 @@ are storage/isolation checks, not a release or complete installed-App acceptance
 `spawn::task_data::tests::task_app_registration_binds_persistent_data_after_authorization`
 uses the same private Root requirements, CLI input, and an explicitly built
 `YUOS_APP_DATA_TEST_RUNNER`. It exercises signed
-ordinary App operations through real broker registration, process binding and
-the worker sandbox across two Task Host namespaces/UIDs. Unknown/denied
-operations and forged owner/task/path inputs must create no data view.
+ordinary App registration refusals over the real broker path across two Task
+Host namespaces/UIDs. Valid and unknown operations and forged owner/task/path
+inputs must create no data view.
 An injected first-bind refusal must leave the SQLite counter unchanged; later
 real bindings run through the same private launch gate before writing data.

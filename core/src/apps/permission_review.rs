@@ -298,10 +298,10 @@ impl PermissionReview {
         }
         if let Some(service) = &self.service {
             text.push_str(&format!(
-                "\nService lifecycle: {}\nExternal Agent access requested: {}\n",
+                "\nService lifecycle: {}\nSystem Agent MCP enabled: {}\n",
                 serde_json::to_string(&service.lifecycle)
                     .map_err(|error| format!("format App lifecycle: {error}"))?,
-                service.access.external_agents,
+                service.access.system_agent,
             ));
         }
         if let Some(desktop) = &self.desktop {

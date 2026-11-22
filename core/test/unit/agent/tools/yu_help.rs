@@ -100,7 +100,7 @@ fn accepts_namespaced_app_operation_names_without_allowing_traversal() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn discovers_namespaced_app_operation() {
+async fn does_not_discover_an_installed_apps_cli_operations() {
     let _lock = crate::test_env::lock_env();
     let apps = tempfile::tempdir().unwrap();
     let app = apps.path().join("notes");
@@ -117,8 +117,7 @@ async fn discovers_namespaced_app_operation() {
         }"#,
     )
     .unwrap();
-    // `yu_help` is a model-visible surface, so it only advertises Apps
-    // whose provenance authenticated.
+    // The package is verified but its CLI operation is still not model-visible.
     crate::test_env::sign_test_package(&app, crate::provenance::PackageKind::App, "notes");
     let _apps_dir = crate::test_env::TestEnvVarGuard::set("YUOS_APPS_DIR", apps.path());
 
@@ -127,9 +126,8 @@ async fn discovers_namespaced_app_operation() {
             .exec(json!({"path": ["app", "notes", "notes.create"]}))
             .await,
     );
-    assert_eq!(result["found"], true);
-    assert_eq!(result["command"], "yu app notes notes.create");
-    assert_eq!(result["model_callable"], false);
+    assert_eq!(result["found"], false);
+    assert!(result["command"].is_null());
     assert!(result["model_tool"].is_null());
 }
 

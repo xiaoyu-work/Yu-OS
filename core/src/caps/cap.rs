@@ -45,10 +45,43 @@ impl Cap {
 
 /// A set of capabilities. Order is not significant; duplicates are
 /// elided on insertion. Serialised as a flat array for compactness.
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
 #[serde(transparent)]
 pub struct CapSet {
     caps: Vec<Cap>,
+}
+
+impl<'de> serde::Deserialize<'de> for CapSet {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // Existing proc/session snapshots include this former role member.
+        // Drop it at read time without making it a Verb or accepting it in needs.
+        #[derive(serde::Deserialize)]
+        enum RetiredVerb {
+            #[serde(rename = "agent.invoke")]
+            AgentInvoke,
+        }
+        #[derive(serde::Deserialize)]
+        #[serde(untagged)]
+        enum Entry {
+            Live(Cap),
+            Retired {
+                #[serde(rename = "verb")]
+                _verb: RetiredVerb,
+                #[serde(rename = "scope")]
+                _scope: Scope,
+            },
+        }
+        let entries = Vec::<Entry>::deserialize(deserializer)?;
+        Ok(Self {
+            caps: entries
+                .into_iter()
+                .filter_map(|entry| match entry {
+                    Entry::Live(cap) => Some(cap),
+                    Entry::Retired { .. } => None,
+                })
+                .collect(),
+        })
+    }
 }
 
 impl CapSet {

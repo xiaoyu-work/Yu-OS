@@ -8,9 +8,8 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use crate::agent::tools::exposure::ToolExposureContext;
+use crate::agent::tools::exposure::{ToolExposureContext, ToolTransport};
 use crate::caps::manifest::Manifest;
-use crate::caps::{Cap, Scope, Verb};
 use crate::extension_host::protocol::ExtensionBinding;
 use crate::session::SessionSource;
 
@@ -21,7 +20,6 @@ pub const CALL_CONTEXT_WIRE_VERSION: u8 = 1;
 #[serde(rename_all = "kebab-case")]
 pub enum McpPrincipalKind {
     SystemAgent,
-    ExternalAgent,
     Cli,
 }
 
@@ -29,7 +27,6 @@ impl McpPrincipalKind {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::SystemAgent => "system-agent",
-            Self::ExternalAgent => "external-agent",
             Self::Cli => "cli",
         }
     }
@@ -45,29 +42,32 @@ pub struct McpPrincipal {
 
 impl McpPrincipal {
     pub(crate) fn from_exposure(context: &ToolExposureContext) -> Result<Self, String> {
-        if context.app_id().is_some() {
-            return Err("Apps and App-owned agents cannot call App services".to_string());
+        if !Self::is_system_agent(context.app_id(), context.client().source)
+            || !context.has_transport(ToolTransport::AppSession)
+            || context.task_id().is_none()
+            || context.owner_uid() == 0
+        {
+            return Err("App services require an authenticated System Agent task".to_string());
         }
-        let kind = match context.client().source {
-            SessionSource::LocalCli
-            | SessionSource::LocalWeb
-            | SessionSource::BrokerTask
-            | SessionSource::ScheduledTrigger
-            | SessionSource::System => McpPrincipalKind::SystemAgent,
-            SessionSource::ExternalMcp | SessionSource::DelegatedAgent => {
-                McpPrincipalKind::ExternalAgent
-            }
-            SessionSource::App | SessionSource::ChildProcess | SessionSource::Unknown => {
-                return Err("MCP App call has no authenticated caller classification".to_string());
-            }
-        };
         let principal = Self {
-            kind,
+            kind: McpPrincipalKind::SystemAgent,
             id: context.authority_session_id().to_string(),
             owner_uid: context.owner_uid(),
         };
         principal.validate()?;
         Ok(principal)
+    }
+
+    pub(crate) fn is_system_agent(app_id: Option<&str>, source: SessionSource) -> bool {
+        app_id.is_none()
+            && matches!(
+                source,
+                SessionSource::LocalCli
+                    | SessionSource::LocalWeb
+                    | SessionSource::BrokerTask
+                    | SessionSource::ScheduledTrigger
+                    | SessionSource::System
+            )
     }
 
     fn validate(&self) -> Result<(), String> {
@@ -248,11 +248,8 @@ impl McpCallContext {
             .session_id
             .as_deref()
             .ok_or_else(|| "extension binding has no Agent session".to_string())?;
-        let principal_matches = binding.app_id.is_none()
-            && matches!(
-                self.caller.kind,
-                McpPrincipalKind::SystemAgent | McpPrincipalKind::ExternalAgent
-            );
+        let principal_matches =
+            binding.app_id.is_none() && self.caller.kind == McpPrincipalKind::SystemAgent;
         if !principal_matches
             || self.caller.owner_uid != binding.owner_uid
             || self.caller.id != session_id
@@ -276,22 +273,22 @@ impl McpCallContext {
     }
 }
 
+pub(crate) fn system_agent_mcp_enabled(manifest: &Manifest) -> bool {
+    manifest
+        .mcp
+        .as_ref()
+        .is_some_and(|service| service.access.system_agent)
+}
+
 pub fn authorize_manifest(manifest: &Manifest, caller: &McpPrincipal) -> Result<(), String> {
     caller.validate()?;
     let service = manifest
         .mcp
         .as_ref()
         .ok_or_else(|| format!("App `{}` has no MCP service", manifest.id))?;
-    let allowed = match caller.kind {
-        McpPrincipalKind::SystemAgent => service.access.system_agent,
-        McpPrincipalKind::ExternalAgent => service.access.external_agents,
-        // An authenticated local CLI principal may explicitly address a
-        // service even when `access.system_agent` is false. Access is a
-        // caller restriction, not authority: the CLI path still derives and
-        // enforces exact `agent.invoke:<app>/<tool>` authority in the daemon.
-        McpPrincipalKind::Cli => true,
-    };
-    if !allowed {
+    // A legacy explicit off switch leaves the service available only to the
+    // direct owner frontend; nothing can opt another principal in.
+    if caller.kind == McpPrincipalKind::SystemAgent && !service.access.system_agent {
         return Err(format!(
             "MCP caller is not allowed to address App `{}`",
             manifest.id
@@ -305,13 +302,6 @@ pub fn invoke_target(app_id: &str, tool: &str) -> Result<String, String> {
         return Err("invalid MCP App invocation target".to_string());
     }
     Ok(format!("{app_id}/{tool}"))
-}
-
-pub fn invoke_cap(app_id: &str, tool: &str) -> Result<Cap, String> {
-    Ok(Cap::new(
-        Verb::AGENT_INVOKE,
-        Scope::name(invoke_target(app_id, tool)?),
-    ))
 }
 
 fn valid_app_id(value: &str) -> bool {

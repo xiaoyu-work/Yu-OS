@@ -249,7 +249,7 @@ fn enforcement_reads_per_user_registry() {
             .expect("bootstrap should succeed");
     // require() must see the per-user row.
     use crate::caps::Verb;
-    let result = crate::caps::require(Verb::AGENT_INVOKE, Scope::Wild);
+    let result = crate::caps::require(Verb::AGENT_SPAWN, Scope::Wild);
     assert!(
         result.is_ok(),
         "expected per-user-registry session to be granted; got {result:?}"

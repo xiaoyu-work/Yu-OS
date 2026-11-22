@@ -86,6 +86,16 @@ pub async fn control(
             }
             validate_action(&action, identifier.as_deref(), app_id.as_deref(), &uris)?;
         }
+        if matches!(action.as_str(), "launch" | "restart") {
+            // Detached desktop launch must not erase the initiating App or
+            // task. Owner menu launches use the separate display-bound route.
+            if authority.app_id().is_some() || authority.task_id().is_some() {
+                return Err("Desktop launch and restart require an owner action".into());
+            }
+            super::app_sessions::require_direct_owner_launcher(client)
+                .await
+                .map_err(|error| error.message)?;
+        }
         match native_launch_target_for_request(authority, &action, app_id.as_deref(), &uris) {
             Some(NativeLaunchTarget::Terminal) => {
                 return open_terminal(&uris, authority, uid, gid, home, peer_pid).await;

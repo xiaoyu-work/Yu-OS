@@ -312,7 +312,6 @@ fn extension_identity_preserves_owner_and_execution_uid_as_distinct_principals()
             host_pid: pid,
             host_start_time_ticks: Some(start),
             task_session: None,
-            task_app_data: None,
         },
     );
     assert_eq!(identity.require_uid().unwrap(), 1000);

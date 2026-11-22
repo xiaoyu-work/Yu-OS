@@ -42,7 +42,10 @@ impl Tool for Decide {
     }
 
     fn exposure(&self) -> ToolExposure {
-        ToolExposure::always().requiring_app_service_caller()
+        use crate::session::SessionSource::*;
+        ToolExposure::always().requiring_non_app().from_sources([
+            LocalCli, LocalWeb, BrokerTask, ScheduledTrigger, System, ExternalMcp, DelegatedAgent,
+        ])
     }
 
     async fn exec(&self, input: Value) -> ToolResult {

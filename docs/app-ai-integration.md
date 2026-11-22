@@ -28,10 +28,6 @@ block define the App service surface:
     "entry": "server.py",
     "transport": "stdio",
     "lifecycle": "lazy",
-    "access": {
-      "system_agent": true,
-      "external_agents": false
-    },
     "tools": [
       {
         "name": "notes.get",
@@ -68,7 +64,6 @@ The signed manifest is authoritative for:
 - App and package identity;
 - tool names and model-visible summaries;
 - argument schemas, defaults, choices, and conditions;
-- caller restrictions;
 - target capabilities; and
 - service entrypoint and lifecycle.
 
@@ -92,7 +87,7 @@ in MCP arguments or environment variables.
 - session id;
 - process id and process start time;
 - task id and Extension Host ancestry;
-- System Agent, permitted external Agent, or authenticated local CLI identity.
+- built-in System Agent or authenticated direct owner CLI identity.
 
 For a task-owned Extension Host, the broker signs the binding between the
 task, capability generation, caller session, and App ownership where present.
@@ -118,23 +113,16 @@ Every App service call checks both the caller and the target:
 
 | Check | Meaning |
 | --- | --- |
-| Caller invoke authority | May this workload address this exact App tool? |
+| Caller identity and MCP exposure | Is this a live System Agent task and does the verified App expose this tool? |
 | Target capability needs | What may the target App do while handling this call? |
 
-The caller needs exact `agent.invoke:<app-id>/<tool-name>` authority. An
-App-level name does not cover a tool:
+There is no App-invocation permission. An `mcp` declaration exposes only its
+listed tools to the authenticated System Agent. A legacy explicit
+`mcp.access.system_agent: false` leaves the service CLI-only; the old
+`external_agents` field is ignored. Ordinary operations are not visible
+to the model.
 
-```text
-agent.invoke:notes              does not cover notes/notes.get
-agent.invoke:notes/notes.get    covers only notes.get
-agent.invoke:notes/*            covers the declared tools under notes
-```
-
-`mcp.access` only narrows the accepted principal classes. It never grants
-invoke authority.
-
-Caller invoke authority is not copied into the target process. After the
-caller is authorized, `yuosd` derives the target's capabilities from that
+After authenticating the caller, `yuosd` derives the target's capabilities from that
 tool's signed `needs[]` and effective validated arguments. The resulting
 `AppGateway` grant is:
 
@@ -151,14 +139,13 @@ Authority from call A cannot be spent by call B.
 ## 4. End-to-end call flow
 
 ```text
-System Agent or permitted external Agent
+Built-in System Agent
   -> trusted ToolExposureContext
-  -> exact agent.invoke:<app>/<tool> authorization
   -> task-owned Extension Host control channel
   -> fresh verification of the installed signed App package
   -> app-mcp session registration and exact process binding
   -> manifest argument validation and default materialization
-  -> manifest access policy and capability-generation checks
+  -> MCP exposure and capability-generation checks
   -> deadline-bound AppGateway target grant
   -> MCP tools/call with authenticated _meta call context
   -> App handler
@@ -252,11 +239,10 @@ Node uses `mcp.App.fromManifest()` plus `app.tool(name, handler)`. Go uses
 
 ## 6. Cross-App orchestration and gated App AI
 
-Cross-App workflows belong to the built-in system Agent. Apps cannot call
-other Apps, including through App-owned AI agents, shell helpers, or a forged
-CLI origin. An `agent.invoke` grant does not override that boundary.
-`mcp.access` admits only `system_agent` and `external_agents`; removed App
-principals, caller `app_id`, nesting fields, and App allowlists are rejected.
+Cross-App workflows belong to the built-in System Agent. Apps, App-owned AI
+agents and external agents cannot discover or call App tools, including through
+shell helpers or a forged CLI origin. App principal claims, nested-call
+fields, and App allowlists are rejected.
 The broker checks registered session ancestry before App launch and rejects
 App-origin system Agent task and proactive-job admission.
 

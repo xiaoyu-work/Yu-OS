@@ -93,7 +93,6 @@ fn bootstrap_user_cli_session_impl(
     if env::var_os("YUOS_SESSION").is_some_and(|v| !v.is_empty()) {
         return None;
     }
-    let is_app_launcher = is_safe_noninteractive_app_launcher(args);
     if env::var_os("YUOS_APP_ID").is_some()
         || env::var_os("YUOS_MCP_SERVER").is_some()
         || crate::caps::enforcement::process_has_no_new_privs()
@@ -101,7 +100,7 @@ fn bootstrap_user_cli_session_impl(
             args.first().map(String::as_str),
             Some("ai" | "__policy" | "__memory")
         )
-        || (!interactive_terminal && !is_app_launcher)
+        || (!interactive_terminal && !is_safe_noninteractive_app_launcher(args))
     {
         tracing::warn!(
             target: "yu::caps::bootstrap",

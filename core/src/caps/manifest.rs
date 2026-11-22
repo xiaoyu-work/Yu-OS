@@ -595,9 +595,7 @@ pub struct McpService {
     #[serde(default)]
     pub lifecycle: McpLifecycle,
 
-    /// Which authenticated Yu OS principals may address this service.
-    /// This is a restriction only; callers still need exact invoke
-    /// authority and every tool's capabilities.
+    /// Legacy exposure switches retained for signed manifest compatibility.
     #[serde(default)]
     pub access: McpAccess,
 
@@ -636,7 +634,7 @@ pub struct McpAccess {
     /// The owner-scoped system Agent may discover and call this service.
     #[serde(default = "default_mcp_system_agent")]
     pub system_agent: bool,
-    /// Authenticated agents entering through the external MCP gateway.
+    /// Ignored; retained so previously signed manifests still parse.
     #[serde(default)]
     pub external_agents: bool,
 }

@@ -562,7 +562,7 @@ type Aibudget struct {
 }
 
 // Mcpservice — mcpService.
-// Long-lived MCP server the app launches for stateful, agent-driven tool calls.
+// MCP service exposing declared tools to the authenticated System Agent.
 type Mcpservice struct {
 	Entry string `json:"entry,omitempty"`
 	Transport string `json:"transport,omitempty"`
@@ -572,8 +572,8 @@ type Mcpservice struct {
 }
 
 // Mcpaccess — mcpAccess.
-// Caller restrictions for an MCP App service. Callers still require exact invoke
-// authority.
+// Read for compatibility with existing App manifests. These fields never grant
+// access to another principal.
 type Mcpaccess struct {
 	SystemAgent bool `json:"system_agent,omitempty"`
 	ExternalAgents bool `json:"external_agents,omitempty"`
@@ -1234,7 +1234,7 @@ func ValidateGuiFileWrite(value any) error {
 	return validateWireSchema(schema, schema, value, "GuiFileWrite", "$")
 }
 
-const wireSchemaMcpCallContext = "{\"$defs\":{\"McpPrincipal\":{\"additionalProperties\":false,\"properties\":{\"id\":{\"maxLength\":256,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"kind\":{\"enum\":[\"system-agent\",\"external-agent\",\"cli\"],\"type\":\"string\"},\"owner_uid\":{\"maximum\":4294967295,\"minimum\":0,\"type\":\"integer\"}},\"required\":[\"kind\",\"id\",\"owner_uid\"],\"type\":\"object\"}},\"$id\":\"https://yuos.dev/wire/v1/mcp_call_context.schema.json\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"additionalProperties\":false,\"description\":\"Authenticated call identity and lineage injected by the Yu OS MCP Gateway over the private App-host transport. Caller-supplied MCP arguments must never populate this object.\",\"properties\":{\"call_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:-]*$\",\"type\":\"string\",\"x-full-match\":true},\"caller\":{\"$ref\":\"#/$defs/McpPrincipal\"},\"deadline_unix_ms\":{\"maximum\":9007199254740991,\"minimum\":1,\"type\":\"integer\"},\"session_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"task_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"trace_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:-]*$\",\"type\":\"string\",\"x-full-match\":true},\"wire_version\":{\"const\":1,\"maximum\":1,\"minimum\":1,\"type\":\"integer\"}},\"required\":[\"wire_version\",\"call_id\",\"trace_id\",\"caller\"],\"title\":\"MCP call context\",\"type\":\"object\"}"
+const wireSchemaMcpCallContext = "{\"$defs\":{\"McpPrincipal\":{\"additionalProperties\":false,\"properties\":{\"id\":{\"maxLength\":256,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"kind\":{\"enum\":[\"system-agent\",\"cli\"],\"type\":\"string\"},\"owner_uid\":{\"maximum\":4294967295,\"minimum\":0,\"type\":\"integer\"}},\"required\":[\"kind\",\"id\",\"owner_uid\"],\"type\":\"object\"}},\"$id\":\"https://yuos.dev/wire/v1/mcp_call_context.schema.json\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"additionalProperties\":false,\"description\":\"Authenticated call identity and lineage injected by the Yu OS MCP Gateway over the private App-host transport. Caller-supplied MCP arguments must never populate this object.\",\"properties\":{\"call_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:-]*$\",\"type\":\"string\",\"x-full-match\":true},\"caller\":{\"$ref\":\"#/$defs/McpPrincipal\"},\"deadline_unix_ms\":{\"maximum\":9007199254740991,\"minimum\":1,\"type\":\"integer\"},\"session_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"task_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"trace_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:-]*$\",\"type\":\"string\",\"x-full-match\":true},\"wire_version\":{\"const\":1,\"maximum\":1,\"minimum\":1,\"type\":\"integer\"}},\"required\":[\"wire_version\",\"call_id\",\"trace_id\",\"caller\"],\"title\":\"MCP call context\",\"type\":\"object\"}"
 
 // ValidateMcpCallContext validates a value against wire/v1/mcp_call_context.schema.json.
 func ValidateMcpCallContext(value any) error {

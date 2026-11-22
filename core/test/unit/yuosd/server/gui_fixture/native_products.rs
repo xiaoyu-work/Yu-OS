@@ -904,8 +904,7 @@ fn startup_authority(session: &str, parent: &str, product: Product) -> (CapSet, 
                 .caps
                 .unwrap();
             let mut expected_gui = CapSet::from_caps(product.startup_needs());
-            let mut expected_parent =
-                CapSet::from_caps([Cap::new(Verb::AGENT_INVOKE, Scope::name(product.app))]);
+            let mut expected_parent = CapSet::new();
             if product.home_metadata {
                 let metadata = Cap::new(Verb::FS_META, Scope::path("/run/display-home/**"));
                 expected_gui.insert(metadata.clone());
