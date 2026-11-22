@@ -42,7 +42,8 @@ fn child_proxy_is_an_explicit_session_route_allowlist() {
             );
         assert_eq!(child_route(route), expected, "route {}", route.name);
     }
-    assert_eq!(CHILD_PROVIDER_ROUTES.len(), 48);
+    assert!(child_route(Command::AiInference.route()));
+    assert!(!host_lifecycle_route(Command::AiInference));
     assert!(child_route(Command::SystemPackageQuery.route()));
     assert!(!host_lifecycle_route(Command::SystemPackageQuery));
     assert!(child_route(Command::SystemFileReplace.route()));

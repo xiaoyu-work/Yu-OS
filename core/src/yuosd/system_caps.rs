@@ -229,6 +229,7 @@ const BASELINE: &[(Verb, Baseline)] = &[
     (Verb::AI_CHAT, Baseline::AnyName),
     (Verb::AI_CHAT_UNTRUSTED, Baseline::Denied),
     (Verb::AI_EMBED, Baseline::AnyName),
+    (Verb::AI_DECIDE, Baseline::Denied),
     (Verb::AI_IMAGE_GENERATE, Baseline::AnyName),
     (Verb::AI_IMAGE_ANALYZE, Baseline::AnyName),
     (Verb::AI_AUDIO_TTS, Baseline::AnyName),

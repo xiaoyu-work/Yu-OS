@@ -144,7 +144,7 @@ fn route_audiences_match_their_families() {
             "system.app-file.transfer" | "system.app-file.commit" => Audience::AppFile,
             name if name.starts_with("system.")
                 || name.starts_with("nearby.")
-                || name == "ai.chat" =>
+                || matches!(name, "ai.chat" | "ai.infer") =>
             {
                 Audience::SystemService
             }
