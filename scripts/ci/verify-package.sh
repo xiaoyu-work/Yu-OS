@@ -69,7 +69,11 @@ case "$component" in
         )
         dpkg-deb -f "$deb" Provides | grep -qw yuos-calendar-read-v1
         dpkg-deb -f "$deb" Provides | grep -qw yuos-nearby-v1
-        dpkg-deb -f "$deb" Provides | grep -qw yuos-display-session-v2
+        dpkg-deb -f "$deb" Provides | grep -qw yuos-display-session-v3
+        if dpkg-deb -f "$deb" Provides | grep -qw yuos-display-session-v2; then
+            echo "error: Agent still advertises the incompatible display session v2" >&2
+            exit 1
+        fi
         dpkg-deb -f "$deb" Provides | grep -qw yuos-browser-render-v1
         if grep -Eq '/(yuos-browser(-worker)?|yuos-browser\.service)$' "$files"; then
             echo "error: legacy raw browser service is still packaged" >&2
@@ -95,8 +99,17 @@ case "$component" in
         fi
         ;;
     desktop)
+        dpkg-deb -f "$deb" Depends \
+            | grep -Eq '(^|,)[[:space:]]*yuos-display-session-v3([[:space:]]*,|[[:space:]]*$)'
+        if dpkg-deb -f "$deb" Depends | grep -qw yuos-display-session-v2; then
+            echo "error: Desktop still accepts the incompatible display session v2" >&2
+            exit 1
+        fi
         required=(
             usr/libexec/yuos-hyprland/Hyprland
+            usr/lib/yuos/system-desktop/bin/yuos-desktop-shell
+            usr/lib/yuos/system-desktop/app.json
+            usr/lib/yuos/release-security/yuos-desktop/system-desktop-tree.json
             usr/libexec/yuos-greeter
             usr/libexec/yuos-create-local-owner
             usr/libexec/yuos-desktop-locales
@@ -139,7 +152,11 @@ done
 if [ "$component" != base ]; then
     if [ "$component" = desktop ]; then
         dpkg-deb -x "$deb" "$extract/payload"
-        python3 scripts/desktop_shell.py check --architecture "$arch" --stage "$extract/payload" >/dev/null
+        python3 scripts/system_desktop_tree.py --stage "$extract/payload" --check
+        if [ -e "$extract/payload/usr/lib/yuos/apps/desktop-shell" ]; then
+            echo "error: Desktop still packages the old App shell" >&2
+            exit 1
+        fi
     fi
     python3 scripts/app_packages.py check --variant "$component" \
         --architecture "$arch" --stage "$extract/payload" --preinstall-policy verify >/dev/null

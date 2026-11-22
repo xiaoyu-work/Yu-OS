@@ -76,6 +76,17 @@ const REAP_POLL: Duration = Duration::from_millis(20);
 /// The provenance of one running instance.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct SystemDesktopIdentity {
+    pub(crate) version: String,
+    pub(crate) security_epoch: u64,
+    pub(crate) abi: u32,
+    pub(crate) manifest_sha256: String,
+    pub(crate) inventory_sha256: String,
+    pub(crate) signer: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PackageRef {
     pub kind: PackageKind,
     pub id: String,
@@ -85,6 +96,8 @@ pub struct PackageRef {
     pub tier: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub developer_path: Option<PathBuf>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system_desktop: Option<SystemDesktopIdentity>,
 }
 
 impl PackageRef {
@@ -92,6 +105,7 @@ impl PackageRef {
         self.kind == other.kind && self.id == other.id
             && self.content_digest == other.content_digest
             && self.publisher_key_id == other.publisher_key_id && self.tier == other.tier
+            && self.system_desktop == other.system_desktop
     }
 
     pub fn of(pkg: &VerifiedPackage) -> Self {
@@ -103,14 +117,43 @@ impl PackageRef {
                 TrustSource::Publisher { key_id } => Some(key_id.clone()),
                 _ => None,
             },
-            tier: pkg.tier().as_str().to_string(),
+            tier: if pkg.source().is_system_desktop() {
+                "system-desktop".to_string()
+            } else {
+                pkg.tier().as_str().to_string()
+            },
             developer_path: matches!(pkg.source(), TrustSource::Developer)
                 .then(|| pkg.dir().canonicalize().ok()).flatten(),
+            system_desktop: pkg.system_desktop_identity().cloned(),
         }
     }
 
     /// Is this package still acceptable under `trust`?
     pub fn is_live(&self, trust: &TrustStore) -> Result<(), String> {
+        if self.tier == "system-desktop" {
+            if self.kind != PackageKind::App
+                || self.id != "desktop-shell"
+                || self.publisher_key_id.is_some()
+                || self.developer_path.is_some()
+                || trust.is_package_revoked(&self.content_digest)
+            {
+                return Err("invalid or revoked system desktop identity".into());
+            }
+            #[cfg(target_os = "linux")]
+            {
+                let identity = self.system_desktop.as_ref()
+                    .ok_or("system desktop release identity is missing")?;
+                if identity.fingerprint()? != self.content_digest {
+                    return Err("system desktop release identity does not match its digest".into());
+                }
+                return crate::update::system_desktop::assert_release_current(identity);
+            }
+            #[cfg(not(target_os = "linux"))]
+            return Err("system desktop release verification requires Linux".into());
+        }
+        if self.system_desktop.is_some() {
+            return Err("ordinary package has a system desktop identity".into());
+        }
         if trust.is_package_revoked(&self.content_digest) {
             return Err(format!(
                 "package `{}` ({}) was revoked by content digest",

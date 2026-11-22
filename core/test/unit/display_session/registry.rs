@@ -25,6 +25,32 @@ fn display_fixture(
 }
 
 #[test]
+fn desktop_launcher_requires_the_supervisor_child_and_yu_executable() {
+    let display = display_fixture(1, Epoch([1; 16]), None);
+    let current = ProcessIdentity::current().unwrap();
+    assert!(display
+        .lock()
+        .unwrap()
+        .gui_launcher(&current)
+        .unwrap()
+        .is_none());
+
+    let child = RegistrySleeper(
+        std::process::Command::new("/usr/bin/sleep")
+            .arg("30")
+            .spawn()
+            .unwrap(),
+    );
+    let child_identity = ProcessIdentity::child(&child.0).unwrap();
+    assert!(display
+        .lock()
+        .unwrap()
+        .gui_launcher(&child_identity)
+        .unwrap()
+        .is_none());
+}
+
+#[test]
 fn completed_retirement_releases_only_the_matching_registration() {
     let registry = Registry {
         displays: Mutex::new(HashMap::new()),

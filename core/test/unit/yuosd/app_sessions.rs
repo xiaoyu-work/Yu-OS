@@ -1,5 +1,63 @@
 use super::*;
 
+#[cfg(target_os = "linux")]
+#[test]
+fn system_desktop_request_is_fixed_and_cannot_supply_a_package() {
+    let request = serde_json::json!({"operation": "--gui"});
+    let valid = |params: &Value, id, kind, entry| {
+        validate_system_desktop_request(params, id, kind, entry).is_ok()
+    };
+    assert!(valid(&request, "desktop-shell", LaunchKind::Gui, None));
+    assert!(!valid(&request, "other", LaunchKind::Gui, None));
+    assert!(!valid(&request, "desktop-shell", LaunchKind::Mcp, None));
+    assert!(!valid(&request, "desktop-shell", LaunchKind::Gui, Some("other")));
+    assert!(!valid(
+        &serde_json::json!({"operation": "--gui", "package": null}),
+        "desktop-shell", LaunchKind::Gui, None,
+    ));
+    assert!(!valid(
+        &serde_json::json!({"operation": "--gui", "args": ["extra"]}),
+        "desktop-shell", LaunchKind::Gui, None,
+    ));
+    assert!(!valid(
+        &serde_json::json!({"operation": "--other"}),
+        "desktop-shell", LaunchKind::Gui, None,
+    ));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn system_desktop_launch_rejects_delegated_principals() {
+    let mut launcher = test_authority();
+    let mut client = test_client();
+    launcher.parent = Some("parent-session".into());
+    assert!(!gui::system_launcher(&client, &launcher).unwrap());
+
+    launcher.parent = None;
+    client.extension_host = Some(crate::yuosd::client_identity::AuthenticatedExtensionHost {
+        purpose: crate::extension_host::protocol::HostPurpose::Task,
+        lease_id: "task".into(),
+        authority_session_id: None,
+        host_session_id: None,
+        owner_uid: client.uid.unwrap(),
+        extension_uid: 61_000,
+        capability_generation: "a".repeat(16),
+        host_pid: client.pid.unwrap(),
+        host_start_time_ticks: client.start_time_ticks,
+        task_session: None,
+    });
+    assert!(!gui::system_launcher(&client, &launcher).unwrap());
+}
+
+#[test]
+fn ordinary_app_session_requires_a_verified_package_reference() {
+    assert_eq!(
+        required_package_ref(&serde_json::json!({})).unwrap_err(),
+        "App session omitted its verified package"
+    );
+    assert!(required_package_ref(&serde_json::json!({"package": null})).is_err());
+}
+
 mod app_sources {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),

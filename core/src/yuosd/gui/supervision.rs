@@ -594,7 +594,12 @@ fn lease_expiry(view: &GrantView) -> Result<u64, String> {
         .ok_or_else(|| "GUI lease clock overflow".to_string())
 }
 
-pub(super) fn run(job: Arc<Job>, manager: Arc<Manager>, request: LaunchRequest) {
+pub(super) fn run(
+    job: Arc<Job>,
+    manager: Arc<Manager>,
+    request: LaunchRequest,
+    mut package_lock: Option<crate::update::system_desktop::PackageManagerLock>,
+) {
     let mut supervised = match Supervised::prepare(job.clone(), &manager, &request) {
         Ok(supervised) => supervised,
         Err(error) => {
@@ -604,6 +609,10 @@ pub(super) fn run(job: Arc<Job>, manager: Arc<Manager>, request: LaunchRequest) 
         }
     };
     let started = supervised.start(&manager, &request);
+    crate::update::system_desktop::PackageManagerLock::release_after_start(
+        &mut package_lock,
+        started.is_ok(),
+    );
     drop(request);
     let result = started.and_then(|view| supervised.watch(&view));
     if let Err(error) = &result {
@@ -620,6 +629,7 @@ pub(super) fn run(job: Arc<Job>, manager: Arc<Manager>, request: LaunchRequest) 
             }
         }
     }
+    drop(package_lock);
     let (stdout, stderr) = match supervised.output.take() {
         Some(output) => output,
         None => {

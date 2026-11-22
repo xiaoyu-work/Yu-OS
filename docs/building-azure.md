@@ -205,8 +205,8 @@ ssh yuosadmin@<vm-address>
 sudo passwd yuosadmin
 ```
 
-The signed Desktop Shell is built from the locked App source revision and
-embedded in `yuos-desktop`; the other Apps come from the authenticated App APT
-channel. The Azure serial console is text-only; to see the running
+The OS-owned Desktop Shell is built and authenticated as part of
+`yuos-desktop`; ordinary Apps come from the authenticated App APT channel.
+The Azure serial console is text-only; to see the running
 Wayland session, configure a compatible remote display transport separately.
 No password or Internet-facing remote desktop service is baked into the image.

@@ -44,7 +44,8 @@ fi
 compositor="$STAGE_ROOT/usr/libexec/yuos-hyprland/Hyprland"
 locker="$STAGE_ROOT/usr/libexec/yuos-hyprland/yuos-lockscreen"
 APPLET_PROVIDER="$STAGE_ROOT/usr/libexec/yuos-applet-provider"
-for executable in "$APPLET_PROVIDER" "$compositor" "$locker"; do
+SHELL_BINARY="$STAGE_ROOT/usr/lib/yuos/system-desktop/bin/yuos-desktop-shell"
+for executable in "$APPLET_PROVIDER" "$compositor" "$locker" "$SHELL_BINARY"; do
 if [ ! -f "$executable" ] || [ ! -x "$executable" ] || [ -L "$executable" ]; then
     echo "error: required native desktop ELF is not a regular executable: $executable" >&2
     exit 1
@@ -85,8 +86,7 @@ fi
 APP_DEPS="$(python3 "$PROJECT_DIR/scripts/app_packages.py" check \
     --variant desktop --architecture "$DEB_ARCH" --stage "$STAGE_ROOT" \
     --preinstall-policy stage --print-depends)"
-SHELL_DEPS="$(python3 "$PROJECT_DIR/scripts/desktop_shell.py" check \
-    --architecture "$DEB_ARCH" --stage "$STAGE_ROOT")"
+python3 "$PROJECT_DIR/scripts/system_desktop_tree.py" --stage "$STAGE_ROOT" --check
 
 DPKG_DEB="$(command -v dpkg-deb || true)"
 if [ -z "$DPKG_DEB" ]; then
@@ -160,7 +160,7 @@ sed -e "s/__VERSION__/$VERSION/g" -e "s/__ARCH__/$DEB_ARCH/g" \
     -e "s/__ABI__/$SECURITY_ABI/g" \
     -e "s/__APP_RUNTIME_VERSION__/$APP_RUNTIME_VERSION/g" \
     -e "s/__APP_DEPS__/$APP_DEPS/g" \
-    -e "s/__NATIVE_DEPS__/$NATIVE_DEPS, $SHELL_DEPS/g" \
+    -e "s/__NATIVE_DEPS__/$NATIVE_DEPS/g" \
     -e "s/__SECURITY_EPOCH__/$SECURITY_EPOCH/g" \
     -e "s/__MIN_AGENT__/$MIN_AGENT_VERSION/g" \
     -e "s/__MIN_BASE__/$MIN_BASE_VERSION/g" \

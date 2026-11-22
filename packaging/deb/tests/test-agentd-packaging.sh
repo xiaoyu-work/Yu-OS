@@ -77,7 +77,7 @@ assert_contains "$BUILD_DEBS" 'install -Dm0644 "$PAM_DISPLAY_MODULE"' \
     "the PAM module must retain its non-executable installation mode"
 assert_contains "$BUILD_DEBS" '/usr/lib/$PAM_MULTIARCH/security/pam_yuos_display.so' \
     "the PAM module must use the target multiarch installation directory"
-assert_contains "$PROJECT_DIR/packaging/deb/yuos-agent/control" 'yuos-display-session-v2' \
+assert_contains "$PROJECT_DIR/packaging/deb/yuos-agent/control" 'yuos-display-session-v3' \
     "Agent must provide the internal display runtime interface"
 assert_contains "$PROJECT_DIR/packaging/deb/yuos-agent/control" 'libpam0g' \
     "Agent must declare its PAM runtime dependency"
@@ -85,8 +85,13 @@ assert_contains "$PROJECT_DIR/packaging/deb/yuos-agent/control" 'pkexec' \
     "Agent must install the protected terminal approval launcher"
 assert_contains "$PROJECT_DIR/packaging/deb/yuos-agent/control" 'polkitd' \
     "Agent must install the unprivileged pkttyagent authentication presenter"
-assert_contains "$PROJECT_DIR/packaging/deb/yuos-desktop/control" 'yuos-display-session-v2' \
+assert_contains "$PROJECT_DIR/packaging/deb/yuos-desktop/control" 'yuos-display-session-v3' \
     "Desktop must require the Agent display runtime"
+if grep -Fq 'yuos-display-session-v2' \
+    "$PROJECT_DIR/packaging/deb/yuos-agent/control" \
+    "$PROJECT_DIR/packaging/deb/yuos-desktop/control"; then
+    fail "the OS Shell requires the new display runtime without a v2 fallback"
+fi
 assert_contains "$PROJECT_DIR/packaging/deb/yuos-agent/control" 'yuos-file-manager-v1 (= 1)' \
     "Agent must provide the unprivileged file-manager transport interface"
 assert_contains "$PROJECT_DIR/packaging/deb/yuos-desktop/control" 'yuos-file-manager-v1 (= 1)' \

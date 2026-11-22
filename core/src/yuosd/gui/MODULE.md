@@ -30,9 +30,11 @@ still does not evaluate `when`. Neither binds a later file-picker selection.
 
 The installed system desktop shell is started by the authenticated Root
 display supervisor, not by an ordinary App launcher. Only its direct launcher
-and verified vendor-signed default entry qualify for the fixed desktop startup
-policy. That policy covers the declared panel, window controls, notification
-presentation and current-display lock, plus supported optional device controls.
+and Root-verified OS release's fixed default entry qualify for the fixed desktop
+startup policy. The [update contract](../../../../docs/updating.md) binds its
+complete installed tree to the authorized release. That policy covers the
+declared panel, window controls, notification presentation and current-display
+lock, plus supported optional device controls.
 It still checks App denials, package trust and instance lifetime. It grants no
 power, App-launch or Agent capability. The signed system menu dispatches an
 explicit owner click through its private endpoint, pinned display and exact

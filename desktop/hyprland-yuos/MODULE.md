@@ -3,14 +3,13 @@
 ## Responsibility
 
 Own the Yu OS-specific integration boundary around the complete
-[Hyprland source](../hyprland/). The replacement stack uses Hyprland,
-Quickshell and the independently source-owned
-[Caelestia frontend](https://github.com/xiaoyu-work/yuos-app/tree/main/products/desktop-shell).
+[Hyprland source](../hyprland/). The replacement stack uses Hyprland and the
+OS-owned [Quickshell/Caelestia frontend](../desktop-shell/MODULE.md).
 It does not replace the system Agent.
 
 Desktop source builds select only the Root-integrated Hyprland executable.
-Installed acceptance requires the corresponding Agent package, the signed
-Desktop Shell App and a real authenticated graphical session.
+Installed acceptance requires the corresponding Agent package, the
+release-authenticated Desktop Shell and a real authenticated graphical session.
 
 ## Source ownership
 
@@ -125,7 +124,7 @@ current account and theme.
 
 The subscriber's `--desktop` mode attaches to the Root login binding. It runs
 post-login configuration only on installed profiles that request it, starts
-the FileManager1 facade, and asks the Root supervisor to launch the signed
+the FileManager1 facade, and asks the Root supervisor to launch the OS-owned
 system shell with its fixed [desktop startup rights](../../core/src/yuosd/gui/MODULE.md).
 The [desktop review presenter](session/yuos-desktop-reviews) opens a compact,
 centered window for one pending request. It puts the action, target and choices
@@ -153,7 +152,7 @@ computes scale automatically for a new owner. Existing owner configuration
 takes precedence. The default pairs short geometry and opacity transitions
 when opening and closing windows, with brief window moves and directional
 workspace slides. Only the `caelestia-yuos-top-menu` layer skips compositor
-animation because the signed Shell's QML already animates it. The config
+animation because the Shell's QML already animates it. The config
 supplies native window/workspace bindings without launching a second panel,
 wallpaper process or terminal.
 
@@ -197,7 +196,8 @@ GUI App, XWayland startup, physical-display/greetd/logind or installed-package
 acceptance. A build or an authority bypass cannot substitute for those checks.
 
 A separate Debian 13 KVM guest booted through the real VT7 greetd/PAM flow.
-The installed signed Shell passed the separate App activation and capability
+This historical run used the former App-signed Shell, not the OS-owned tree.
+The installed Shell passed the separate App activation and capability
 reviews, then rendered through the ordinary GUI Host on a virtio display.
 This source-staged guest did not exercise the official APT transaction.
 Clicking the Shell's Logout after the PAM close-hook ordering change removed

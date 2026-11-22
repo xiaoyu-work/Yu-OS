@@ -326,7 +326,8 @@ mod unix {
 
         pub fn entries_bounded(&self, rel: Option<&str>, cap: usize) -> io::Result<Vec<(String, NodeMeta)>> {
             let dir_fd = match rel {
-                None => dup_fd(self.fd.as_raw_fd())?,
+                // A duplicated descriptor would share the offset across scans.
+                None => openat_dir_raw(self.fd.as_raw_fd(), ".")?,
                 Some(path) => {
                     let mut cursor: Option<OwnedFd> = None;
                     for segment in path.split('/') {

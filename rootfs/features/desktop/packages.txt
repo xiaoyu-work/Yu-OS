@@ -53,9 +53,23 @@ libpng-dev
 libwebp-dev
 libheif-dev
 libjxl-dev
+libharfbuzz-dev
+libicu-dev
+libzstd-dev
+libsqlite3-dev
+libpulse-dev
+libgstreamer-plugins-bad1.0-dev
+libqalculate-dev
+libaubio-dev
+libfftw3-dev
+libsensors-dev
+libcli11-dev
+libjemalloc-dev
+libunwind-dev
+libvulkan-dev
 
 # --- Wayland / graphics core ---
-# Match the Debian backports ABI used to build the signed Desktop Shell.
+# Match the Debian backports ABI used to build the OS Desktop Shell.
 wayland-protocols/trixie-backports
 libwayland-dev/trixie-backports
 libwayland-bin/trixie-backports

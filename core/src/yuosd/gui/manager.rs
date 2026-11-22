@@ -367,6 +367,23 @@ pub(crate) async fn launch(params: Value, client: &ClientIdentity) -> Result<Val
         job.registration.launch.app_id(), job.registration.owner(),
     )
         .map_err(BrokerError::unavailable)?;
+    let package_lock = if job.registration.desktop_shell {
+        let lock = crate::update::system_desktop::lock_package_manager()
+            .map_err(BrokerError::unavailable)?;
+        let snapshot = crate::update::system_desktop::verify(lock)
+            .map_err(BrokerError::authorization)?;
+        if snapshot.identity != job.registration.launch.package().identity()
+            || snapshot.release.fingerprint().map_err(BrokerError::authorization)?
+                != job.registration.launch.package_ref().content_digest
+        {
+            return Err(BrokerError::authorization(
+                "system desktop changed after Root registration",
+            ));
+        }
+        Some(snapshot.package_lock)
+    } else {
+        None
+    };
     job.registration
         .require_launch(request.handle.as_str(), client)
         .map_err(BrokerError::authorization)?;
@@ -390,7 +407,7 @@ pub(crate) async fn launch(params: Value, client: &ClientIdentity) -> Result<Val
     if let Err(error) = std::thread::Builder::new()
         .name("gui-supervisor".to_string())
         .spawn(move || {
-            context.scope_sync(|| super::supervision::run(running, manager, request));
+            context.scope_sync(|| super::supervision::run(running, manager, request, package_lock));
         })
     {
         job.registration.clear_after_retirement();

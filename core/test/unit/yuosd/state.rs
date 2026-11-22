@@ -97,7 +97,7 @@ fn app_authorization(expires_at_ms: u64) -> super::super::app_services::AppCallA
             content_digest: "b".repeat(64),
             publisher_key_id: None,
             tier: "system".to_string(),
-            developer_path: None,
+            developer_path: None, system_desktop: None,
         },
         service_host_session_id: "app-service-a".to_string(),
         service_host_pid: 123,

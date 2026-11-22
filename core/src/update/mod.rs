@@ -62,6 +62,8 @@ pub mod projection;
 pub mod recovery;
 pub mod runtime;
 pub mod signature;
+#[cfg(target_os = "linux")]
+pub(crate) mod system_desktop;
 
 /// The release-security epoch this build belongs to.
 ///
@@ -233,6 +235,12 @@ pub const COMPONENTS: &[Component] = &[
     Component {
         name: "browser-chat-native-host",
         path: "/usr/lib/yuos/browser-chat-native-host",
+        package: "yuos-desktop",
+        critical: false,
+    },
+    Component {
+        name: "yuos-system-desktop-tree",
+        path: "/usr/lib/yuos/release-security/yuos-desktop/system-desktop-tree.json",
         package: "yuos-desktop",
         critical: false,
     },

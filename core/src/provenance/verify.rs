@@ -133,6 +133,9 @@ pub enum TrustSource {
     Vendor,
     /// Explicit local developer grant over unsigned content.
     Developer,
+    /// The fixed OS desktop payload authenticated by the private release floor.
+    #[cfg(target_os = "linux")]
+    SystemDesktop,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -203,11 +206,24 @@ impl PackageVerificationReceipt {
 }
 
 impl TrustSource {
+    pub(crate) fn is_system_desktop(&self) -> bool {
+        #[cfg(target_os = "linux")]
+        {
+            matches!(self, Self::SystemDesktop)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            false
+        }
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Publisher { .. } => "publisher",
             Self::Vendor => "vendor",
             Self::Developer => "developer",
+            #[cfg(target_os = "linux")]
+            Self::SystemDesktop => "system-desktop",
         }
     }
 }
@@ -232,11 +248,49 @@ pub struct VerifiedPackage {
     tier: TrustTier,
     trust_generation: String,
     publisher_public_key_sha256: Option<String>,
+    #[cfg(target_os = "linux")]
+    system_desktop: Option<crate::provenance::runtime::SystemDesktopIdentity>,
     handle: DirHandle,
     identity: (u64, u64),
 }
 
 impl VerifiedPackage {
+    #[cfg(target_os = "linux")]
+    pub(crate) fn from_system_desktop(
+        snapshot: crate::update::system_desktop::VerifiedSystemDesktop,
+    ) -> Result<(Self, crate::update::system_desktop::PackageManagerLock), String> {
+        let crate::update::system_desktop::VerifiedSystemDesktop {
+            package_lock,
+            handle,
+            identity,
+            files,
+            release,
+        } = snapshot;
+        let fingerprint = release.fingerprint()?;
+        Ok((
+            Self {
+                kind: PackageKind::App,
+                id: crate::display_session::SHELL_APP.to_string(),
+                version: release.version.clone(),
+                dir: "/usr/lib/yuos/system-desktop".into(),
+                content_digest: fingerprint,
+                envelope_sha256: None,
+                manifest_path: "app.json".into(),
+                entrypoints: vec!["bin/yuos-desktop-shell".into()],
+                resources: Vec::new(),
+                files: files.into_iter().map(|file| (file.path.clone(), file)).collect(),
+                source: TrustSource::SystemDesktop,
+                tier: TrustTier::System,
+                trust_generation: String::new(),
+                publisher_public_key_sha256: None,
+                system_desktop: Some(release),
+                handle,
+                identity,
+            },
+            package_lock,
+        ))
+    }
+
     pub fn kind(&self) -> PackageKind {
         self.kind
     }
@@ -268,6 +322,18 @@ impl VerifiedPackage {
     pub fn source(&self) -> &TrustSource {
         &self.source
     }
+    pub(crate) fn system_desktop_identity(
+        &self,
+    ) -> Option<&crate::provenance::runtime::SystemDesktopIdentity> {
+        #[cfg(target_os = "linux")]
+        {
+            self.system_desktop.as_ref()
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            None
+        }
+    }
     pub fn tier(&self) -> TrustTier {
         self.tier
     }
@@ -290,6 +356,10 @@ impl VerifiedPackage {
                     "developer-trusted packages cannot be delegated to an extension host"
                         .to_string(),
                 )
+            }
+            #[cfg(target_os = "linux")]
+            TrustSource::SystemDesktop => {
+                return Err("system desktop cannot be delegated as an extension package".into())
             }
         };
         Ok(PackageVerificationReceipt {
@@ -486,6 +556,25 @@ impl VerifiedPackage {
     /// verified and that the trust store has not moved on. Callers
     /// invoke this immediately before launching or disclosing.
     pub fn assert_current(&self, trust: &TrustStore) -> Result<(), ProvenanceError> {
+        #[cfg(target_os = "linux")]
+        if self.source == TrustSource::SystemDesktop {
+            if trust.is_package_revoked(&self.content_digest) {
+                return Err(ProvenanceError::Trust {
+                    path: self.dir.clone(),
+                    source: TrustError::RevokedPackage(self.content_digest.clone()),
+                });
+            }
+            let identity = self.system_desktop.as_ref().ok_or_else(|| {
+                ProvenanceError::TreeMismatch {
+                    path: self.dir.clone(),
+                    reason: "system desktop release identity is missing".into(),
+                }
+            })?;
+            crate::update::system_desktop::assert_release_current(identity).map_err(|reason| {
+                ProvenanceError::TreeMismatch { path: self.dir.clone(), reason }
+            })?;
+            return self.assert_tree_current();
+        }
         if trust.generation() != self.trust_generation {
             return Err(ProvenanceError::TreeMismatch {
                 path: self.dir.clone(),
@@ -860,6 +949,8 @@ pub fn verify_package_with_receipt(
         tier: receipt.tier,
         trust_generation: receipt.trust_generation.clone(),
         publisher_public_key_sha256: Some(public_key_sha256.clone()),
+        #[cfg(target_os = "linux")]
+        system_desktop: None,
         handle,
         identity,
     })
@@ -969,6 +1060,8 @@ fn verify_signed(
         tier: key.tier,
         trust_generation: trust.generation().to_string(),
         publisher_public_key_sha256: Some(crate::crypto::sha256_hex(&public_key)),
+        #[cfg(target_os = "linux")]
+        system_desktop: None,
         handle,
         identity,
     })
@@ -1011,7 +1104,7 @@ fn verify_unsigned(
         })?;
     }
 
-    let files = scan_tree(dir, &handle, options.max_bytes, vendor)?;
+    let files = scan_tree(dir, &handle, options.max_bytes, vendor, true)?;
     let digest = content_digest(&files);
 
     if vendor {
@@ -1037,6 +1130,8 @@ fn verify_unsigned(
             tier: TrustTier::Vendor,
             trust_generation: trust.generation().to_string(),
             publisher_public_key_sha256: None,
+            #[cfg(target_os = "linux")]
+            system_desktop: None,
             handle,
             identity,
         });
@@ -1088,6 +1183,8 @@ fn verify_unsigned(
                 tier: TrustTier::Developer,
                 trust_generation: trust.generation().to_string(),
                 publisher_public_key_sha256: None,
+                #[cfg(target_os = "linux")]
+                system_desktop: None,
                 handle,
                 identity,
             });
@@ -1225,6 +1322,7 @@ fn scan_tree(
     handle: &DirHandle,
     max_bytes: u64,
     require_root_owned: bool,
+    skip_envelope: bool,
 ) -> Result<Vec<FileEntry>, ProvenanceError> {
     let mut files: Vec<FileEntry> = Vec::new();
     let mut total: u64 = 0;
@@ -1235,7 +1333,7 @@ fn scan_tree(
         #[cfg(test)]
         let _directory_inventory = Span::new(Step::DirectoryInventory);
         let entries = handle
-            .entries(rel.as_deref())
+            .entries_bounded(rel.as_deref(), super::envelope::MAX_FILES + 1)
             .map_err(|e| ProvenanceError::Io {
                 path: dir.join(rel.clone().unwrap_or_default()),
                 reason: e.to_string(),
@@ -1247,7 +1345,7 @@ fn scan_tree(
                 Some(parent) => format!("{parent}/{name}"),
                 None => name.clone(),
             };
-            if rel.is_none() && name == ENVELOPE_FILE {
+            if skip_envelope && rel.is_none() && name == ENVELOPE_FILE {
                 continue;
             }
             super::envelope::validate_tree_path(&child).map_err(|reason| {
@@ -1272,6 +1370,12 @@ fn scan_tree(
                 return Err(ProvenanceError::TreeMismatch {
                     path: dir.join(&child),
                     reason: format!("mode {:o} is group- or world-writable", meta.mode),
+                });
+            }
+            if files.len() >= super::envelope::MAX_FILES {
+                return Err(ProvenanceError::TreeMismatch {
+                    path: dir.join(&child),
+                    reason: format!("package exceeds {} entries", super::envelope::MAX_FILES),
                 });
             }
             if meta.is_dir {
@@ -1304,12 +1408,6 @@ fn scan_tree(
                     reason: format!("package exceeds the {max_bytes}-byte cap"),
                 });
             }
-            if files.len() >= super::envelope::MAX_FILES {
-                return Err(ProvenanceError::TreeMismatch {
-                    path: dir.join(&child),
-                    reason: format!("package exceeds {} entries", super::envelope::MAX_FILES),
-                });
-            }
             #[cfg(test)]
             let _file_open = Span::new(Step::FileOpen);
             let fd = handle
@@ -1318,6 +1416,21 @@ fn scan_tree(
                     path: dir.join(&child),
                     reason: e.to_string(),
                 })?;
+            if !skip_envelope {
+                let opened = fd.meta();
+                if opened.dev != meta.dev
+                    || opened.ino != meta.ino
+                    || opened.uid != meta.uid
+                    || opened.mode != meta.mode
+                    || opened.nlink != meta.nlink
+                    || opened.size != meta.size
+                {
+                    return Err(ProvenanceError::TreeMismatch {
+                        path: dir.join(&child),
+                        reason: "file changed while verifying the system desktop".to_string(),
+                    });
+                }
+            }
             #[cfg(test)]
             drop(_file_open);
             #[cfg(test)]
@@ -1349,6 +1462,47 @@ fn scan_tree(
     Ok(files)
 }
 
+/// Verify every node in the fixed OS desktop tree against its release inventory.
+#[cfg(target_os = "linux")]
+pub(crate) fn verify_system_desktop_tree(
+    dir: &Path,
+    root_mode: u32,
+    declared: &[FileEntry],
+) -> Result<(DirHandle, (u64, u64)), ProvenanceError> {
+    let meta = fsec::require_secure_location(dir, &[0]).map_err(|error| ProvenanceError::Io {
+        path: dir.to_path_buf(),
+        reason: error.to_string(),
+    })?;
+    if !meta.is_dir {
+        return Err(ProvenanceError::Io {
+            path: dir.to_path_buf(),
+            reason: "system desktop root is not a directory".to_string(),
+        });
+    }
+    let handle = DirHandle::open(dir).map_err(|error| ProvenanceError::Io {
+        path: dir.to_path_buf(),
+        reason: error.to_string(),
+    })?;
+    let opened = fsec::require_secure_fd(handle.as_raw_fd(), &[0]).map_err(|error| ProvenanceError::Io {
+        path: dir.to_path_buf(),
+        reason: error.to_string(),
+    })?;
+    if (opened.dev, opened.ino) != (meta.dev, meta.ino) || opened.mode != root_mode {
+        return Err(ProvenanceError::TreeMismatch {
+            path: dir.to_path_buf(),
+            reason: "system desktop root changed or differs from its inventory".to_string(),
+        });
+    }
+    let actual = scan_tree(dir, &handle, MAX_PACKAGE_BYTES, true, false)?;
+    if actual != declared {
+        return Err(ProvenanceError::TreeMismatch {
+            path: dir.to_path_buf(),
+            reason: "system desktop inventory differs from the installed tree".to_string(),
+        });
+    }
+    Ok((handle, (meta.dev, meta.ino)))
+}
+
 /// Confirm the on-disk tree is exactly the signed tree: no missing
 /// entries, no extra entries, no type/mode/size/digest drift.
 fn verify_tree(
@@ -1359,7 +1513,7 @@ fn verify_tree(
 ) -> Result<(), ProvenanceError> {
     #[cfg(test)]
     let _tree_scan = Span::new(Step::TreeScan);
-    let actual = scan_tree(dir, handle, max_bytes, false)?;
+    let actual = scan_tree(dir, handle, max_bytes, false, true)?;
     #[cfg(test)]
     drop(_tree_scan);
     #[cfg(test)]

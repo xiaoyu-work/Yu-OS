@@ -111,6 +111,8 @@ struct Generations {
     app_permissions: BTreeMap<String, Vec<super::app_policy::Block>>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     installed_choices: BTreeMap<String, BTreeMap<String, bool>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    migrated_desktop_denials: BTreeMap<String, Vec<crate::caps::Cap>>,
     /// `owner -> generation`. Raised by an owner-wide revocation and
     /// used as a floor for every session under that owner.
     #[serde(default)]
@@ -158,6 +160,21 @@ pub(super) fn app_choices(key: &str) -> Result<BTreeMap<String, bool>, String> {
     Ok(load()?.installed_choices.remove(key).unwrap_or_default())
 }
 
+pub(super) fn legacy_desktop_denials(owner: u32) -> Result<BTreeMap<String, bool>, String> {
+    let prefix = format!("{owner}/desktop-shell/vendor/");
+    let mut denials = BTreeMap::new();
+    for (key, choices) in load()?.installed_choices {
+        if key.strip_prefix(&prefix).is_some_and(|publisher| !publisher.is_empty()) {
+            for (id, allowed) in choices {
+                if !allowed {
+                    denials.insert(id, false);
+                }
+            }
+        }
+    }
+    Ok(denials)
+}
+
 /// Caller holds the common approvals lock.
 pub(super) fn write_app_choice(
     key: &str, owner: u32, app: &str, id: String, cap: crate::caps::Cap, allowed: bool,
@@ -176,6 +193,40 @@ pub(super) fn write_app_choice(
 
 pub(super) fn app_blocks(uid: u32, app: &str) -> Result<Vec<super::app_policy::Block>, String> {
     Ok(load()?.app_permissions.remove(&format!("{uid}/{app}")).unwrap_or_default())
+}
+
+pub(super) fn ensure_legacy_desktop_blocks(
+    uid: u32,
+    caps: Vec<crate::caps::Cap>,
+) -> Result<(), String> {
+    if caps.is_empty() {
+        return Ok(());
+    }
+    super::ensure_dirs().map_err(|error| format!("approvals dir: {error}"))?;
+    crate::filelock::with_exclusive_path_lock(&super::grant_lock_path(), || {
+        let mut state = load()?;
+        let key = format!("{uid}/desktop-shell");
+        let entries = state.app_permissions.entry(key.clone()).or_default();
+        let migrated = state.migrated_desktop_denials.entry(key).or_default();
+        let mut changed = false;
+        for cap in caps {
+            if !migrated.contains(&cap) {
+                let generation = entries.iter().find(|entry| entry.cap == cap)
+                    .map_or(0, |entry| entry.generation)
+                    .checked_add(1).ok_or("App permission generation exhausted")?;
+                entries.retain(|entry| entry.cap != cap);
+                entries.push(super::app_policy::Block {
+                    cap: cap.clone(), generation, restored_in_settings: false,
+                });
+                migrated.push(cap);
+                changed = true;
+            }
+        }
+        if changed {
+            store(&state)?;
+        }
+        Ok(())
+    })
 }
 
 pub(super) fn block_app_cap(uid: u32, app: &str, cap: crate::caps::Cap) -> Result<super::app_policy::Block, String> {

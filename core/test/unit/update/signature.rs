@@ -67,3 +67,88 @@ fn keyring_discovery_prefers_operator_roots_then_the_apt_keyring() {
     let found = keyrings(&root, crate::update::APT_KEYRING);
     assert_eq!(found, vec![operator.join("10-rotation.gpg"), apt]);
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn detached_fd_verification_uses_the_pinned_files() {
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path();
+    let document = home.join("manifest");
+    let signature = home.join("manifest.asc");
+    let keyring = home.join("keyring.gpg");
+    std::fs::write(&document, b"authorized release\n").unwrap();
+    let run = |arguments: &[&str]| {
+        let output = Command::new("gpg")
+            .env("GNUPGHOME", home)
+            .args([
+                "--batch",
+                "--yes",
+                "--pinentry-mode",
+                "loopback",
+                "--passphrase",
+                "",
+            ])
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        output.stdout
+    };
+    run(&[
+        "--quick-generate-key",
+        "Desktop test <desktop@example.invalid>",
+        "ed25519",
+        "sign",
+        "0",
+    ]);
+    std::fs::write(&keyring, run(&["--export"])).unwrap();
+    run(&[
+        "--detach-sign",
+        "--output",
+        signature.to_str().unwrap(),
+        document.to_str().unwrap(),
+    ]);
+
+    let dir = crate::provenance::fsec::DirHandle::open(home).unwrap();
+    let document_fd = dir.open_file("manifest").unwrap();
+    let signature_fd = dir.open_file("manifest.asc").unwrap();
+    let keyring_fd = dir.open_file("keyring.gpg").unwrap();
+    let keyrings = [PinnedKeyring {
+        path: keyring,
+        file: keyring_fd,
+    }];
+    let keybox = [PinnedKeyring {
+        path: home.join("pubring.kbx"),
+        file: dir.open_file("pubring.kbx").unwrap(),
+    }];
+    std::fs::rename(&document, home.join("original")).unwrap();
+    std::fs::write(&document, b"replacement\n").unwrap();
+    std::fs::rename(home.join("keyring.gpg"), home.join("original-keyring")).unwrap();
+    std::fs::write(home.join("keyring.gpg"), b"replacement\n").unwrap();
+    assert!(verify_detached_fds(&document_fd, &signature_fd, &keyrings).is_verified());
+    assert!(verify_detached_fds(&document_fd, &signature_fd, &keybox).is_verified());
+    std::fs::write(home.join("unrelated.gpg"), b"").unwrap();
+    let fallback = [
+        PinnedKeyring {
+            path: home.join("unrelated.gpg"),
+            file: dir.open_file("unrelated.gpg").unwrap(),
+        },
+        PinnedKeyring {
+            path: home.join("original-keyring"),
+            file: dir.open_file("original-keyring").unwrap(),
+        },
+    ];
+    assert!(verify_detached_fds(&document_fd, &signature_fd, &fallback).is_verified());
+    std::fs::write(home.join("original"), b"modified\n").unwrap();
+    assert!(!verify_detached_fds(&document_fd, &signature_fd, &keyrings).is_verified());
+    let status = Command::new("gpgconf")
+        .env("GNUPGHOME", home)
+        .args(["--kill", "gpg-agent"])
+        .status()
+        .unwrap();
+    assert!(status.success());
+}

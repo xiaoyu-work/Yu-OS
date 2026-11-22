@@ -192,50 +192,8 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  build-desktop-shell:
-    needs: [prepare, test]
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-24.04
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
-    container: debian:trixie
-    env:
-      ARCH: ${{ matrix.arch }}
-      APP_REVISION: ${{ needs.prepare.outputs.app_revision }}
-    steps:
-      - run: apt-get update -qq && apt-get install -y --no-install-recommends git ca-certificates python3
-
-      - uses: actions/checkout@v5
-        with:
-          repository: xiaoyu-work/yuos-app
-          ref: ${{ needs.prepare.outputs.app_revision }}
-          persist-credentials: false
-
-      - name: Compile and archive the locked Desktop UI without signing material
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          test "$(git rev-parse HEAD)" = "$APP_REVISION"
-          python3 tools/release_ci.py build --desktop-shell --architecture "$ARCH"
-          python3 tools/build_desktop_shell.py --architecture "$ARCH"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: unsigned-shell-${{ matrix.arch }}
-          path: build/desktop-shell/unsigned-${{ matrix.arch }}.tar.gz
-          compression-level: 0
-          retention-days: 7
-          if-no-files-found: error
-          overwrite: true
-
   build-desktop:
-    needs: [prepare, build-desktop-shell]
+    needs: [prepare, test]
     strategy:
       fail-fast: false
       matrix:
@@ -287,19 +245,6 @@ jobs:
           cargo build --release --locked -p yu --bin yu --target "$RUST_TARGET"
           install -D -m 0755 "target/$RUST_TARGET/release/yu" \
             "$YUOS_APP_PACKAGE_ROOT/yu-provenance-linux-$ARCH"
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: unsigned-shell-${{ matrix.arch }}
-          path: build/shell-unsigned
-
-      - name: Seal the locked Desktop Shell with the official Yu OS App publisher
-        env:
-          APP_REVISION: ${{ needs.prepare.outputs.app_revision }}
-          YUOS_APPS_PROVENANCE_SIGNING_PRIVATE_KEY: ${{ secrets.YUOS_APPS_PROVENANCE_SIGNING_PRIVATE_KEY }}
-        run: |
-          python3 scripts/desktop_shell.py seal --architecture "$ARCH" --source-revision "$APP_REVISION" \
-            --unsigned-archive "build/shell-unsigned/unsigned-$ARCH.tar.gz"
 
       - name: Import signing key
         env:

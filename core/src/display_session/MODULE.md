@@ -71,6 +71,12 @@ reserved Yu OS AI menu entry instead opens the protected `yuos-agent-ui` with no
 arguments in that display as the same owner. It does not record audio or send
 an Agent request. Submission does not prove a window appeared.
 
+The fixed Shell launch uses a separate OS release identity, not an App
+publisher. Root verifies the installed Desktop package, private release floor,
+authorized signature and complete fixed Shell tree, and holds dpkg admission
+locks through startup or checked failed-start retirement. The locks do not
+remain held for the desktop session.
+
 Lock requests carry no executable, password or owner selector. The supervisor
 links the fixed native locker to its compositor by a Root-held Wayland
 descriptor and reports lock only after compositor admission and native ready.
@@ -97,8 +103,9 @@ work; regional persistence/readback does not establish startup consumption.
 | `/usr/libexec/yuos-hyprland/Hyprland` | Desktop |
 | `/etc/pam.d/yuos-desktop` and greetd startup integration | Desktop |
 
-Agent provides the OS-only `yuos-display-session-v2` ABI; Desktop requires
-it. The PAM library is built for the GNU target and requires the system PAM
+Agent provides the OS-only `yuos-display-session-v3` interface; Desktop requires
+it. The previous v2 and current package pair cannot be mixed. The PAM library is
+built for the GNU target and requires the system PAM
 development library. Package assembly takes real architecture-checked ELF
 inputs, never an App payload or a source-only substitute.
 

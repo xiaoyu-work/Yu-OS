@@ -97,14 +97,18 @@ impl InstalledPolicy {
         let mut review = PermissionReview::from_manifest(manifest)?;
         review.resolve_owner_paths(&crate::caps::args::PathContext { home: home.to_path_buf(), cwd: None })?;
         let ceiling = package.ceiling();
+        let system_desktop = package.source().is_system_desktop();
+        let mut legacy_denials = Vec::new();
         for permission in review.permissions {
             if let (Some(allowed), Some(cap)) =
                 (decisions.get(&permission.decision_id()?), permission.persistent_cap(&ceiling))
             {
                 if *allowed { policy.allowed.insert(cap); }
+                else if system_desktop && supported(cap.verb) { legacy_denials.push(cap); }
                 else { policy.denied.insert(cap); }
             }
         }
+        super::generations::ensure_legacy_desktop_blocks(owner, legacy_denials)?;
         Ok(policy)
     }
 

@@ -388,7 +388,7 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
             assert!(data.bind_app(&forged, &PackageRef {
                 kind: crate::provenance::PackageKind::App, id: APP.into(),
                 content_digest: format!("sha256:{}", "a".repeat(64)),
-                publisher_key_id: None, tier: "vendor".into(), developer_path: None,
+                publisher_key_id: None, tier: "vendor".into(), developer_path: None, system_desktop: None,
             }).is_err());
             assert!(data.views.lock().unwrap().is_empty());
         }
@@ -464,7 +464,7 @@ async fn task_app_registration_binds_persistent_data_after_authorization() {
         assert!(data.bind_app(&task_client(&data), &PackageRef {
             kind: crate::provenance::PackageKind::App, id: APP.into(),
             content_digest: format!("sha256:{}", "a".repeat(64)),
-            publisher_key_id: None, tier: "vendor".into(), developer_path: None,
+            publisher_key_id: None, tier: "vendor".into(), developer_path: None, system_desktop: None,
         }).is_err());
         let stopped = stop.send(());
         let served = broker.await;

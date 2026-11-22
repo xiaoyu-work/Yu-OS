@@ -73,8 +73,9 @@ dispatched and reusable test/publication pipelines.
 `release.yml` freezes one
 [date-based package version](../../packaging/README.md#independent-publication)
 and one App-main snapshot for the whole run. It calls `test.yml` with that
-snapshot before building the packages. Desktop retains its dedicated rootfs
-build and native source graph. Its package jobs use native GitHub-hosted
+snapshot before building the packages. Desktop builds the Shell from OS source
+inside its rootfs build and checks the resulting signed tree inventory.
+Its package jobs use native GitHub-hosted
 amd64/arm64 runners and remove only
 unused Android, .NET and GHC toolchains from those disposable machines before
 the existing disk-space preflight.

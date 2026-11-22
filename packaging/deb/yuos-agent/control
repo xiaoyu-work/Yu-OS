@@ -5,7 +5,7 @@ Priority: optional
 Architecture: __ARCH__
 Maintainer: Yu OS <noreply@github.com>
 Homepage: https://github.com/xiaoyu-work/Yu-OS
-Provides: yuos-abi-__ABI__, yuos-app-runtime-v1 (= __APP_RUNTIME_VERSION__), yuos-display-session-v2, yuos-file-manager-v1 (= 1), yuos-app-permissions-v1, yuos-capture-v1, yuos-media-player-v1, yuos-notifications-v1, yuos-calendar-read-v1 (= 1), yuos-observation-v1 (= 1), yuos-clipboard-history-v1 (= 1), yuos-launcher-backend-v1 (= 1), pop-launcher (= 2.0.0), yuos-browser-bridge-v1 (= 1), yuos-nearby-v1, yuos-desktop-settings-v1,
+Provides: yuos-abi-__ABI__, yuos-app-runtime-v1 (= __APP_RUNTIME_VERSION__), yuos-display-session-v3, yuos-file-manager-v1 (= 1), yuos-app-permissions-v1, yuos-capture-v1, yuos-media-player-v1, yuos-notifications-v1, yuos-calendar-read-v1 (= 1), yuos-observation-v1 (= 1), yuos-clipboard-history-v1 (= 1), yuos-launcher-backend-v1 (= 1), pop-launcher (= 2.0.0), yuos-browser-bridge-v1 (= 1), yuos-nearby-v1, yuos-desktop-settings-v1,
  yuos-browser-render-v1 (= 1), yuos-software-store-v1 (= 1)
 Breaks: yuos-base (<< __MIN_BASE__), yuos-desktop (<< __MIN_DESKTOP__)
 Conflicts: owly, pop-launcher

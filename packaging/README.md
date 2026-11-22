@@ -38,7 +38,7 @@ packaging/
 |---|---|---|---|
 | `yuos-agent` | `yu` with the Yu OS-owned TUI, `yuosd`, `yuos-agentd`, browser provider, semantic binaries, skills, SDK/runtime, trust roots, Agent system/user units and App channel configuration; no App payloads | `amd64`, `arm64` | Debian/Ubuntu runtime libraries, `systemd`, and `pkexec`; recommends `yuos-apps-agent` and Helium |
 | `yuos-base` | `yuos-init`, managed agent-home setup, Yu OS boot/service policy, and model-specific udev/libinput rules | `all` | `yuos-agent` |
-| `yuos-desktop` | Protected Hyprland, graphical login and Agent, system services, and the signed Desktop Shell (Quickshell, Caelestia and private Qt) | `amd64`, `arm64` | `yuos-base`, `yuos-display-session-v2`, `yuos-apps-agent`, every individual graphical Yu OS App package and the Thunderbird integration |
+| `yuos-desktop` | Protected Hyprland, graphical login and Agent, system services, and the OS-owned Desktop Shell (Quickshell, Caelestia and private Qt) | `amd64`, `arm64` | `yuos-base`, `yuos-display-session-v3`, `yuos-apps-agent`, every individual graphical Yu OS App package and the Thunderbird integration |
 
 Keep the [hardware workarounds](../docs/image-architecture.md#hardware-enablement) in `deb/yuos-base/hardware/`. Base stages the system udev and libinput data; Desktop stages the same libinput quirk source into Hyprland's private libinput database. Both packages use the existing signed release path.
 
@@ -49,9 +49,9 @@ and its offline boot service. Source pushes alone do not supply packages to it.
 
 The approved source boundary is **`1:0.2.1`**, not `1:0.3.0`. App packages
 bound `Breaks`/`Replaces` to the former Agent/Desktop owners strictly below
-that boundary. Installed paths, all 63 retained identities (51 headless and
-12 native), data and grants are unchanged. No updater, identity migration or
-new privilege is introduced.
+that boundary. For the 62 retained App identities (51 headless and 11 native),
+installed paths, data and grants are unchanged. No updater, identity migration
+or new privilege is introduced.
 
 The separately signed App channel owns product/capability packages, native
 ELFs/resources, Browser assets, Mail's XPI, `yuos-app-support` and named Python
@@ -70,13 +70,14 @@ refuse any OS/App file overlap. Missing, stale, incomplete or changed inputs
 fail closed; there is no production source fallback. Images install the same
 checked independent `.deb` files in the ordinary APT transaction.
 
-Desktop embeds only the signed `desktop-shell` App in
-`/usr/lib/yuos/apps/desktop-shell`. The OS release locks the `yuos-app/main`
-commit and builds its UI natively on Debian 13. OS-controlled assembly seals
-the Shell with the official App publisher and verifies its signed inventory,
-entrypoint, resources and target architecture without changing the App tree.
-Its launcher, identity and permission checks are unchanged. The remaining
-62 identities and Mail's Thunderbird integration are separately owned packages
+Desktop builds its OS-owned Shell natively on Debian 13 and installs it at
+`/usr/lib/yuos/system-desktop`. Its release manifest binds a complete inventory
+of the fixed tree, including file content, modes and directories. Root requires
+the exact installed Desktop release, authorized signer, private security floor
+and a fresh tree match before admitting the fixed supervisor launch through the
+common GUI Host. Ordinary Apps retain their separate signed App identity and
+permission checks. The 62 retained App identities and Mail's Thunderbird
+integration are separately owned packages
 required by Desktop, not an installed `yuos-apps-desktop` metapackage.
 The historical immutable metapackage remains in the App archive for retention.
 
@@ -403,8 +404,10 @@ retains the overlay/recovery data; see
 ## Authenticated desktop runtime
 
 The unpublished authenticated desktop runtime adds the OS-only
-`yuos-display-session-v2` interface: Agent provides it and Desktop requires
-it. Agent owns `/usr/lib/yuos/bin/yuos-display-host`,
+`yuos-display-session-v3` interface: Agent provides it and Desktop requires
+it. The previous v2 Desktop and the new Agent cannot satisfy each other's
+dependency, nor can the previous Agent satisfy the new Desktop.
+Agent owns `/usr/lib/yuos/bin/yuos-display-host`,
 `/usr/local/bin/yuos-display-session`, `/usr/local/bin/yuos-gui-runner` and
 `/usr/lib/<GNU-multiarch>/security/pam_yuos_display.so`. The executables install
 as `0755`, PAM as `0644`, with Root ownership and protected ancestors. Desktop
@@ -607,11 +610,8 @@ channel.
 Before a signed release, add the existing OS archive's armored GPG private key
 and passphrase to the repository Actions secrets `YUOS_APT_SIGNING_PRIVATE_KEY`
 and `YUOS_APT_SIGNING_PASSPHRASE`. Reuse the trusted archive key; these settings
-do not rotate it. Sealing the bundled Desktop Shell also requires the approved App
-Ed25519 key JSON in the OS repository's
-`YUOS_APPS_PROVENANCE_SIGNING_PRIVATE_KEY` Actions secret. It must match the
-publisher installed by `yuos-agent`; it is only used in the OS sealing step,
-never by the App source build.
+do not rotate it. The bundled Shell uses the signed OS release manifest, not
+an App publisher signing key.
 
 Run **Release Yu OS** (`release.yml`) on `main` to publish `yuos-agent`,
 `yuos-base` and `yuos-desktop` together. After the shared tests, CI builds Agent
@@ -631,13 +631,14 @@ suffix sorts after the former `+git` versions at the same base version and
 Debian epoch. Standalone App versions are independent.
 
 The workflow freezes the authenticated App APT package closure for both
-architectures and one App main commit for the native Debian 13 Shell build
-and separate test fixture. It seals the Shell for `yuos-desktop`, not for a
-standalone release. Package checks reverify official APT evidence and refuse
-ordinary App/support/library ownership before upload.
+architectures and one App main commit for the shared test fixtures. The
+Desktop package builds its Shell from [`desktop/desktop-shell/`](../desktop/desktop-shell/)
+on Debian 13 and binds its complete inventory to the signed OS release
+manifest. Package checks reverify official App APT evidence and reject
+ordinary App payloads or libraries inside the OS packages before upload.
 
-One publisher gathers the packages from this run, stages the website, and
-compares each package and architecture against the authenticated current
+One publisher gathers the packages from this run, preserves the published
+website, and compares each package and architecture against the authenticated current
 repository. Only a strictly newer package version replaces
 the existing candidate; equal or older artifacts are discarded before the
 indexes are regenerated, signed, and deployed to Pages. A build that carries a
