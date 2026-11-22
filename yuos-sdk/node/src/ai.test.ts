@@ -101,6 +101,17 @@ test("stable error code determines the typed error", async () => {
     () => withCos(safety, { YUOS_APP_ID: "notes" }, () => ai.chat("hi", trusted)),
     ai.AiSafetyViolation,
   );
+
+  const unavailable = installFakeYu(wireError("opaque", "KERNEL_UNAVAILABLE"), 1);
+  await assert.rejects(
+    () => withCos(unavailable, { YUOS_APP_ID: "notes" }, () => ai.chat("hi")),
+    (error: unknown) => error instanceof ai.AiUnavailable && error.code === "KERNEL_UNAVAILABLE",
+  );
+  assert.deepEqual(readFileSync(unavailable.argvOut, "utf8").trim().split("\n"),
+    ["--wire=1", "ai", "chat", "--request-stdin"]);
+  const invalid = installFakeYu(wireError("opaque", "INVALID_ARGS"), 1);
+  await assert.rejects(() => withCos(invalid, { YUOS_APP_ID: "notes" }, () => ai.embed("text")),
+    ai.AiInvalidArgs);
 });
 
 test("malformed tool call rejects the entire response", async () => {

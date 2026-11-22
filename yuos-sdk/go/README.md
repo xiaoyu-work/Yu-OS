@@ -139,13 +139,10 @@ and the optional App manifest `objects` resolver declaration.
 
 ## AI support
 
-`Chat` and `ChatContext` require explicit `Origin`. `external-content` selects
-`ai.chat.untrusted`. The owner configures the model; see the
-[shared AI contract](../REFERENCE.md#ai-support) and
-[App consent requirements](../../docs/app-development.md#7-ai-features).
-`Budget` and `BudgetContext` report the App, period, and units used.
+Use `Chat(prompt, ChatOptions{})` or pass an MCP call as the context to
+`ChatContext`. See the [model capabilities](../REFERENCE.md#ai-support).
 
-Use `Embed`, `TTS`, `STT`, `ImageGen`, or `Decide` with `ModelOptions`. Every
+Use `Embed`, `TTS`, `STT`, `ImageGen`, or `Decide` with `ModelOptions{}`. Every
 model reply exposes `Provider`, `Model`, `Units`, and `Output`.
 `ChatOptions.Images` and `ChatOptions.Functions` extend a chat request.
 `OpenAiPermissionSettings(ctx)` opens the [model permission page](../../docs/app-development.md#model-permissions-in-settings)
@@ -155,11 +152,11 @@ after a user action and with the separate desktop launcher permission.
 
 Each domain returns typed errors you can switch on:
 
-- `*AiDeniedError` / `*AiBudgetExceededError` / `*AiSafetyViolationError`
-  — a gate refused the call. `AiDeniedError.Payload` carries the structured
-  kernel envelope.
-- `*AiUnavailableError` / `*ToolUnavailableError` — transport failure
-  (binary missing, timeout, non-JSON output).
+- `*AiDeniedError`, `*AiBudgetExceededError`, `*AiInvalidArgsError`,
+  `*AiSafetyViolationError`, and `*AiUnavailableError` correspond to the
+  [AI error codes](../REFERENCE.md#handle-ai-errors). `Payload` carries
+  the structured error from Yu OS when present.
+- `*ToolUnavailableError` — transport failure.
 - `*ToolDeniedError` — capability / unknown-tool / arg-shape refusal.
 - `*ObjectRefError` — pure object-reference validation; no operation was invoked.
 

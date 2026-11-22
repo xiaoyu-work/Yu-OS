@@ -832,7 +832,7 @@ async fn semantic_recall(job: &Job, input: SemanticInput) -> Result<Value, Strin
             let home = crate::yuosd::system_caps::verified_owner_home(owner)?;
             let config = crate::config::load_for_home(&home);
             let embed =
-                crate::model::tasks::embed::build_from_with_agent(&config.embed, &config.agent)?
+                crate::ai::model_service::build_system_embedder(&config.embed, &config.agent, Some(owner))?
                     .ok_or(
                         "conversation semantic embedding is disabled; use scoped exact recall",
                     )?;

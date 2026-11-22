@@ -21,7 +21,7 @@ From an authenticated App with the [matching AI capability and consent](../../do
 from yuos_sdk.ai import chat
 
 def summarize(body: str) -> dict:
-    result = chat(body, origin="external-content", max_units=2000)
+    result = chat(body)
     return {"summary": result.output.text, "units": result.units}
 ```
 
@@ -115,13 +115,10 @@ the optional App manifest `objects` resolver declaration.
 
 ## AI support
 
-`ai.chat` requires an explicit `origin`. `external-content` selects
-`ai.chat.untrusted`. See the [shared AI contract](../REFERENCE.md#ai-support).
-`ai.budget()` reports the App, period, and units used.
-
-`chat` takes optional images and App functions. Named model calls return
-`provider`, `model`, `units`, and `output`. See the [Settings button example](../../docs/app-development.md#model-permissions-in-settings)
-for a GUI model permission denial.
+`chat` takes optional images and App functions. All six model calls return
+`provider`, `model`, `units`, and `output`. See the
+[model capabilities](../REFERENCE.md#ai-support) and
+[typed errors](../REFERENCE.md#handle-ai-errors).
 
 ## Configuration
 

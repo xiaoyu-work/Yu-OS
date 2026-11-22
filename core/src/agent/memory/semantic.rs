@@ -56,7 +56,7 @@ pub fn open_with_config(
     agent: &crate::config::AgentConfig,
     path: impl Into<PathBuf>,
 ) -> Result<Option<SemanticStore>, SemanticError> {
-    let embedder = match crate::model::tasks::embed::build_from_with_agent(embed, agent) {
+    let embedder = match crate::ai::model_service::build_system_embedder(embed, agent, None) {
         Ok(Some(e)) => e,
         Ok(None) => return Ok(None),
         Err(e) => return Err(SemanticError::Embed(e)),

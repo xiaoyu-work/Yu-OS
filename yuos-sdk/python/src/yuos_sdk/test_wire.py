@@ -442,6 +442,11 @@ class WireValidationTests(unittest.TestCase):
             ai._raise_for_error(
                 {"error": "budget words", "code": "SAFETY_VIOLATION"}
             )
+        with self.assertRaises(ai.AiUnavailable) as unavailable:
+            ai._raise_for_error({"error": "opaque", "code": "KERNEL_UNAVAILABLE"})
+        self.assertEqual(unavailable.exception.code, "KERNEL_UNAVAILABLE")
+        with self.assertRaises(ai.AiInvalidArgs):
+            ai._raise_for_error({"error": "opaque", "code": "INVALID_ARGS"})
 
     def test_transport_rejects_flat_and_incoherent_wire_replies(self) -> None:
         for completed in (

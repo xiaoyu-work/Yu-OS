@@ -1,11 +1,6 @@
 //! Media tools surfaced to the LLM.
 //!
-//! Three thin LLM-facing tools (`yu_tts`, `yu_stt`, `yu_imagegen`)
-//! that route to the matching media registry. Each tool accepts a
-//! `provider` field (defaulting to "noop" when omitted) so the
-//! model can target a specific backend, and gracefully reports
-//! "provider not registered" rather than failing silently when
-//! the backend hasn't been configured yet.
+//! Agent tools for the owner's configured speech and image models.
 //!
 //! Output policy: media bytes are large; we never inline them.
 //! Each tool returns a JSON summary (length, format, sample rate,
@@ -32,6 +27,7 @@ use crate::agent::media::{
     stt::{SttRegistry, SttRequest},
     tts::{AudioFormat, TtsRegistry, TtsRequest},
 };
+use crate::ai::model_service;
 use crate::caps::{Cap, Scope, Verb};
 
 fn parse_audio_format(s: &str) -> AudioFormat {
@@ -69,13 +65,10 @@ fn provider_capabilities(
         .collect()
 }
 
-fn require_provider(verb: Verb, provider: &str) -> Result<(), ToolResult> {
-    crate::caps::require(verb, Scope::name(provider)).map_err(|denial| {
-        ToolResult::err(format!(
-            "{} denied for provider '{provider}': {denial}",
-            verb.as_str()
-        ))
-    })
+fn provider_name(input: &Value, names: Vec<String>) -> String {
+    input["provider"].as_str().map(str::to_owned)
+        .or_else(|| names.into_iter().next())
+        .unwrap_or_default()
 }
 
 // =============== TTS tool ===============
@@ -113,7 +106,6 @@ impl Tool for TtsTool {
             "type": "object",
             "properties": {
                 "text": { "type": "string", "description": "Text to synthesize." },
-                "provider": { "type": "string", "description": "TTS provider name. Defaults to 'noop'." },
                 "voice": { "type": "string", "description": "Voice id (provider-specific)." },
                 "format": { "type": "string", "enum": ["wav", "mp3", "ogg", "pcm"], "description": "Output format." },
                 "speed": { "type": "number", "description": "Playback speed multiplier in [0.1, 4.0]." }
@@ -139,11 +131,7 @@ impl Tool for TtsTool {
             Some(s) => s.to_string(),
             None => return ToolResult::err("missing required field: text"),
         };
-        let provider_name = input
-            .get("provider")
-            .and_then(|v| v.as_str())
-            .unwrap_or("noop")
-            .to_string();
+        let provider_name = provider_name(&input, self.registry.names());
         let provider = match self.registry.get(&provider_name) {
             Some(p) => p,
             None => {
@@ -164,10 +152,10 @@ impl Tool for TtsTool {
             return ToolResult::err(format!("tts provider error: {error}"));
         }
         let effective_provider = provider.name().to_string();
-        if let Err(error) = require_provider(Verb::AI_AUDIO_TTS, &effective_provider) {
-            return error;
-        }
-        let resp = match provider.synthesize(req).await {
+        let resp = match model_service::system_media(
+            Verb::AI_AUDIO_TTS, &effective_provider, model_service::speech_units(&req.text),
+            provider.synthesize(req),
+        ).await {
             Ok(r) => r,
             Err(e) => return ToolResult::err(format!("tts provider error: {e}")),
         };
@@ -220,7 +208,6 @@ impl Tool for SttTool {
             "type": "object",
             "properties": {
                 "path": { "type": "string", "description": "Filesystem path to an audio file." },
-                "provider": { "type": "string", "description": "STT provider name. Defaults to 'noop'." },
                 "language": { "type": "string", "description": "Optional BCP-47 language hint." },
                 "format": { "type": "string", "enum": ["wav", "mp3", "ogg", "pcm"], "description": "Audio container/format. Inferred from extension when omitted." }
             },
@@ -281,11 +268,7 @@ impl Tool for SttTool {
             ));
         }
 
-        let provider_name = input
-            .get("provider")
-            .and_then(|v| v.as_str())
-            .unwrap_or("noop")
-            .to_string();
+        let provider_name = provider_name(&input, self.registry.names());
         let provider = match self.registry.get(&provider_name) {
             Some(p) => p,
             None => {
@@ -306,6 +289,7 @@ impl Tool for SttTool {
                 None => AudioFormat::Other,
             }
         };
+        let units = model_service::transcription_units(bytes.len());
         let mut req = SttRequest::new(bytes, format);
         if let Some(l) = input.get("language").and_then(|v| v.as_str()) {
             req.language = Some(l.to_string());
@@ -314,10 +298,9 @@ impl Tool for SttTool {
             return ToolResult::err(format!("stt provider error: {error}"));
         }
         let effective_provider = provider.name().to_string();
-        if let Err(error) = require_provider(Verb::AI_AUDIO_STT, &effective_provider) {
-            return error;
-        }
-        let resp = match provider.transcribe(req).await {
+        let resp = match model_service::system_media(
+            Verb::AI_AUDIO_STT, &effective_provider, units, provider.transcribe(req),
+        ).await {
             Ok(r) => r,
             Err(e) => return ToolResult::err(format!("stt provider error: {e}")),
         };
@@ -368,7 +351,6 @@ impl Tool for ImageGenTool {
             "type": "object",
             "properties": {
                 "prompt": { "type": "string" },
-                "provider": { "type": "string", "description": "Image-gen provider name. Defaults to 'noop'." },
                 "negative_prompt": { "type": "string" },
                 "width": { "type": "integer", "minimum": 1 },
                 "height": { "type": "integer", "minimum": 1 },
@@ -397,11 +379,7 @@ impl Tool for ImageGenTool {
             Some(s) => s.to_string(),
             None => return ToolResult::err("missing required field: prompt"),
         };
-        let provider_name = input
-            .get("provider")
-            .and_then(|v| v.as_str())
-            .unwrap_or("noop")
-            .to_string();
+        let provider_name = provider_name(&input, self.registry.names());
         let provider = match self.registry.get(&provider_name) {
             Some(p) => p,
             None => {
@@ -433,10 +411,10 @@ impl Tool for ImageGenTool {
             return ToolResult::err(format!("imagegen provider error: {error}"));
         }
         let effective_provider = provider.name().to_string();
-        if let Err(error) = require_provider(Verb::AI_IMAGE_GENERATE, &effective_provider) {
-            return error;
-        }
-        let resp = match provider.generate(req).await {
+        let resp = match model_service::system_media(
+            Verb::AI_IMAGE_GENERATE, &effective_provider, model_service::image_units(req.n),
+            provider.generate(req),
+        ).await {
             Ok(r) => r,
             Err(e) => return ToolResult::err(format!("imagegen provider error: {e}")),
         };
@@ -461,6 +439,28 @@ impl Tool for ImageGenTool {
 }
 
 // =============== Registry helper ===============
+
+pub(super) fn register_configured_media(
+    tools: &mut super::registry::ToolRegistry,
+    config: &crate::config::YuConfig,
+    outputs: PathBuf,
+) {
+    if let Some(provider) = model_service::configured_tts(config).filter(|p| p.is_configured()) {
+        let mut registry = TtsRegistry::new();
+        registry.register(provider);
+        tools.register(Arc::new(TtsTool::with_outputs_dir(Arc::new(registry), outputs.clone())));
+    }
+    if let Some(provider) = model_service::configured_stt(config).filter(|p| p.is_configured()) {
+        let mut registry = SttRegistry::new();
+        registry.register(provider);
+        tools.register(Arc::new(SttTool::new(Arc::new(registry))));
+    }
+    if let Some(provider) = model_service::configured_imagegen(config).filter(|p| p.is_configured()) {
+        let mut registry = ImageGenRegistry::new();
+        registry.register(provider);
+        tools.register(Arc::new(ImageGenTool::with_outputs_dir(Arc::new(registry), outputs)));
+    }
+}
 
 /// Register all three media tools (TTS / STT / imagegen) backed by
 /// the `with_default_providers` registries. Concrete providers can

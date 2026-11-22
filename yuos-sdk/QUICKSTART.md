@@ -11,7 +11,7 @@ configured in Settings. Save these two files in `hello-ai/`:
 from yuos_sdk.ai import chat
 
 def run(command, args):
-    reply = chat(args[0], origin="user-input", system="Summarize in one short sentence.")
+    reply = chat(args[0], system="Summarize in one short sentence.")
     return {"summary": reply.output.text}
 ```
 
@@ -22,7 +22,7 @@ def run(command, args):
   "id": "hello-ai",
   "version": "0.1.0",
   "name": {"en": "Hello AI"},
-  "ai": {"origins": ["user-input"]},
+  "ai": {},
   "operations": {
     "summarize": {
       "label": {"en": "Summarize text"},
@@ -53,6 +53,7 @@ Approve any capability prompt. The model generates the text in `summary`, for ex
 ```
 
 [All model slots](REFERENCE.md#ai-support) ·
+[Handle AI errors](REFERENCE.md#handle-ai-errors) ·
 [Give the model your own tools](REFERENCE.md#app-owned-tools) ·
 [Model permissions in Settings](../docs/app-development.md#model-permissions-in-settings) ·
 [Expose App tools over MCP](../docs/app-development.md#quickstart-an-mcp-only-app)

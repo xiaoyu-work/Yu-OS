@@ -1,46 +1,8 @@
-"""AI helper for Yu OS Python apps.
+"""Call the user's configured Yu OS models from an authorized App.
 
-``chat`` is the stable model API and shells out to
-``yu ai chat --app <id>``. The kernel derives ``ai.chat`` or
-``ai.chat.untrusted`` from the prompt origin, then runs capability
-checks, budget, safety, and audit before a model sees the prompt.
+    from yuos_sdk.ai import chat
 
-``yu ai chat`` is deliberately separate from ``yu agent chat``.
-``yu agent`` is the kernel's *own* Agent product (REPL, memory,
-skills, hooks, sessions, recall). Apps must not use it. ``yu ai``
-is the App-developer-facing primitive: raw, gated LLM access with
-no loop and no kernel state.
-
-Apps **never** name a verb and do **not** pick the model. The machine owner
-configures one
-provider/model in ``/etc/yuos/agent.toml`` and every app's call uses
-that. ``chat`` exposes ``origin``, ``max_units``, and prompt controls,
-never a ``model`` argument.
-
-Typical usage::
-
-    from yuos_sdk import ai
-
-    def handle_summarize(args):
-        result = ai.chat(
-            prompt=args["body"],
-            origin="external-content",   # text came from outside
-            max_units=2000,
-        )
-        return {"summary": result.text, "usage": result.usage}
-
-The helper makes ``app_id`` explicit when the env var
-``YUOS_APP_ID`` is missing — that way unit tests can target a specific
-app without having to set up a full kernel session.
-
-Why a subprocess and not an in-process check?
----------------------------------------------
-
-Apps are **not** allowed to import provider SDKs (openai, anthropic,
-google.generativeai, ...). The kernel enforces this at install time
-via ``yu app lint``; the AI helper is the *only* sanctioned route to
-a model. Centralising the request in ``yu ai chat`` means the
-kernel — not the app — controls budget, safety, and audit.
+    summary = chat(body, system="Summarize this document.").output.text
 """
 
 from __future__ import annotations
@@ -95,26 +57,29 @@ _DEFAULT_TIMEOUT_S = 60
 class AiError(Exception):
     """Base class for every error this module raises."""
 
+    def __init__(self, message: str, payload: Optional[Mapping[str, Any]] = None):
+        super().__init__(message)
+        self.payload = dict(payload) if payload is not None else {}
+        self.code = self.payload.get("code")
+
 
 class AiUnavailable(AiError):
-    """The ``yu`` binary could not be invoked or returned garbage."""
+    """The OS AI service or the local SDK transport is unavailable."""
+
+
+class AiInvalidArgs(AiError):
+    """The input did not satisfy the model call's contract."""
 
 
 class AiDenied(AiError):
-    """A gate (capability / origin / budget) refused the call.
-
-    The ``payload`` attribute holds the structured envelope
-    ``yu ai chat`` returned (verb, scope, reason, hint, …) —
-    suitable for forwarding back to the agent.
-    """
+    """The App does not have permission to make the call."""
 
     def __init__(self, payload: Mapping[str, Any]):
-        self.payload = dict(payload)
-        super().__init__(self.payload.get("error") or "AI call denied")
+        super().__init__(str(payload.get("error") or "AI call denied"), payload)
 
 
 class AiBudgetExceeded(AiDenied):
-    """The per-app monthly budget was exhausted."""
+    """The available budget could not cover the call."""
 
 
 class AiSafetyViolation(AiDenied):
@@ -239,7 +204,7 @@ class AiResponse:
 def chat(
     prompt: str,
     *,
-    origin: Origin,
+    origin: Optional[Origin] = None,
     max_units: Optional[int] = None,
     system: Optional[str] = None,
     app_id: Optional[str] = None,
@@ -249,16 +214,16 @@ def chat(
     tool_turns: Sequence[AiToolTurn] = (),
 ) -> AiResponse:
     """Call the configured chat model with text, optional images and App functions."""
-    if not prompt or not prompt.strip():
-        raise AiError("chat: prompt must be non-empty")
-    if not isinstance(origin, str) or not origin.strip():
-        raise AiError("chat: prompt origin is required")
-    if images or functions or tool_turns:
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise AiInvalidArgs("chat: prompt must be non-empty")
+    if origin is not None and (not isinstance(origin, str) or not origin.strip()):
+        raise AiInvalidArgs("chat: invalid origin")
+    if origin is None or images or functions or tool_turns:
         if tools:
-            raise AiError("chat: supply App functions in functions")
+            raise AiInvalidArgs("chat: supply App functions in functions")
         if app_id and app_id != os.environ.get("YUOS_APP_ID"):
             raise AiDenied({"code": "PERMISSION_DENIED", "error": "chat: App identity does not match the session"})
-        request: AiChatRequest = {"prompt": prompt, "origin": origin}
+        request: AiChatRequest = {"prompt": prompt, "origin": origin or "app"}
         if system is not None:
             request["system"] = system
         if max_units is not None:
@@ -282,20 +247,14 @@ def chat(
 
 
 def chat_request(request: AiChatRequest) -> AiResponse:
-    """Call the configured text model with optional App functions and prior tool results."""
-    data = encode_wire_json(request).encode("utf-8")
-    if len(data) > 720 * 1024:
-        raise AiError("App chat request exceeds the byte limit")
-    validate_ai_chat_request(request)
+    """Call the configured chat model with optional App functions and prior results."""
+    data = _encode_request(request, validate_ai_chat_request)
     return _parse_response(_model_call("chat", "--request-stdin", data=data))
 
 
 def infer(request: AiInferenceRequest) -> AiInference:
     """Run the owner's configured embedding, speech, image, or decision model."""
-    data = encode_wire_json(request).encode("utf-8")
-    if len(data) > 720 * 1024:
-        raise AiError("AI request exceeds the byte limit")
-    validate_ai_inference_request(request)
+    data = _encode_request(request, validate_ai_inference_request)
     reply = _model_call("infer", "--request-stdin", data=data)
     try:
         validate_ai_inference(reply)
@@ -307,13 +266,24 @@ def infer(request: AiInferenceRequest) -> AiInference:
     return cast(AiInference, reply)
 
 
+def _encode_request(request: Any, validate: Callable[[Any], Any]) -> bytes:
+    try:
+        validate(request)
+        data = encode_wire_json(request).encode("utf-8")
+    except (TypeError, ValueError) as error:
+        raise AiInvalidArgs(str(error)) from error
+    if len(data) > 720 * 1024:
+        raise AiInvalidArgs("AI request exceeds the byte limit")
+    return data
+
+
 def _run_model(
     input: EmbedInput | SpeechInput | TranscriptionInput | ImageInput | DecisionInput,
-    origin: Origin,
+    origin: Optional[Origin],
     max_units: Optional[int],
     output_type: Callable[..., _Output],
 ) -> ModelResponse[_Output]:
-    request: AiInferenceRequest = {"origin": origin, "input": input}
+    request: AiInferenceRequest = {"origin": "app" if origin is None else origin, "input": input}
     if max_units is not None:
         request["max_units"] = max_units
     reply = infer(request)
@@ -328,17 +298,17 @@ def _run_model(
     return ModelResponse(reply["provider"], reply["model"], reply["units"], output_type(**output))
 
 
-def embed(text: str, *, origin: Origin, max_units: Optional[int] = None) -> ModelResponse[Embedding]:
+def embed(text: str, *, origin: Optional[Origin] = None, max_units: Optional[int] = None) -> ModelResponse[Embedding]:
     return _run_model({"kind": "embed", "text": text}, origin, max_units, Embedding)
 
 
-def tts(text: str, *, origin: Origin, max_units: Optional[int] = None) -> ModelResponse[Speech]:
+def tts(text: str, *, origin: Optional[Origin] = None, max_units: Optional[int] = None) -> ModelResponse[Speech]:
     return _run_model({"kind": "tts", "text": text}, origin, max_units, Speech)
 
 
 def stt(
     audio_base64: str, *, format: Literal["wav", "mp3", "ogg"],
-    origin: Origin, max_units: Optional[int] = None,
+    origin: Optional[Origin] = None, max_units: Optional[int] = None,
 ) -> ModelResponse[Transcription]:
     return _run_model(
         {"kind": "stt", "audio_base64": audio_base64, "format": format},
@@ -346,13 +316,13 @@ def stt(
     )
 
 
-def imagegen(prompt: str, *, origin: Origin, max_units: Optional[int] = None) -> ModelResponse[Image]:
+def imagegen(prompt: str, *, origin: Optional[Origin] = None, max_units: Optional[int] = None) -> ModelResponse[Image]:
     return _run_model({"kind": "imagegen", "prompt": prompt}, origin, max_units, Image)
 
 
 def decide(
     state: WireJsonValue, questions: Mapping[str, WireJsonValue], *,
-    origin: Origin, max_units: Optional[int] = None,
+    origin: Optional[Origin] = None, max_units: Optional[int] = None,
 ) -> ModelResponse[Decision]:
     return _run_model(
         {"kind": "decision", "state": state, "questions": dict(questions)},
@@ -430,9 +400,7 @@ def _dispatch(
     """Build the stable ``yu ai chat`` command and parse its envelope."""
     app = app_id or os.environ.get("YUOS_APP_ID")
     if not app:
-        raise AiError(
-            f"{modality}: app_id is required (pass app_id= or set YUOS_APP_ID)"
-        )
+        raise AiDenied({"code": "PERMISSION_DENIED", "error": f"{modality}: App identity is required"})
 
     with tempfile.TemporaryDirectory(prefix="yuos-ai-") as private_dir:
         cmd = [
@@ -476,6 +444,8 @@ def _dispatch(
             raise AiUnavailable(
                 f"yu ai {modality} timed out after {_DEFAULT_TIMEOUT_S}s"
             ) from exc
+        except (OSError, UnicodeError) as exc:
+            raise AiUnavailable(str(exc)) from exc
     payload_text = (proc.stdout or "").strip()
     try:
         envelope = decode_response(payload_text, proc.returncode, "yu ai chat")
@@ -536,7 +506,14 @@ def _raise_for_error(env: Mapping[str, Any]) -> NoReturn:
         raise AiBudgetExceeded(env)
     if code == "SAFETY_VIOLATION":
         raise AiSafetyViolation(env)
-    raise AiDenied(env)
+    message = str(env["error"])
+    if code == "KERNEL_UNAVAILABLE":
+        raise AiUnavailable(message, env)
+    if code == "INVALID_ARGS":
+        raise AiInvalidArgs(message, env)
+    if code in {"PERMISSION_DENIED", "UNKNOWN_APP", "UNKNOWN_VERB", "DENIED"}:
+        raise AiDenied(env)
+    raise AiError(message, env)
 
 
 def _yu_binary() -> str:

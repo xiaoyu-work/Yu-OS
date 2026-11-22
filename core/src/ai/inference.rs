@@ -1,4 +1,4 @@
-//! App access to the settings slots other than conversational text.
+//! App access to the settings slots other than chat.
 
 mod local;
 mod providers;
@@ -12,14 +12,15 @@ use serde_json::{json, Value};
 use crate::agent::llm::run_log::{self, LlmRunRecord};
 use crate::agent::llm::types::{FinishReason, Usage};
 use crate::agent::media::tts::AudioFormat;
-use crate::caps::manifest::{AiSafety, PromptOrigin};
+use crate::caps::manifest::AiSafety;
 use crate::caps::{Cap, Scope, Verb};
 use crate::model::tasks::decision::{DecisionRequest, Question};
 use crate::yuosd::authority::Decision;
 use crate::yuosd::routes::Command;
 use crate::yuosd::wire::bounded::AI_INFERENCE_REQUEST_BYTES;
 
-use super::gate::{self, AiError, BudgetReservation};
+use super::gate::{self, AiError};
+use super::model_service;
 
 pub use local::serve_local;
 
@@ -29,6 +30,7 @@ pub(super) fn target_identity(
 ) -> Option<(String, String)> {
     providers::Target::resolve(verb, config)
         .ok()
+        .filter(providers::Target::is_configured)
         .map(|target| (target.provider, target.model))
 }
 
@@ -38,7 +40,7 @@ const MEDIA_OUTPUT_BYTES: usize = 3 * 1024 * 1024 - 1024;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct InferenceRequest {
-    origin: PromptOrigin,
+    origin: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     max_units: Option<u32>,
     input: Input,
@@ -152,10 +154,10 @@ impl Prepared {
     fn units(&self) -> Result<u32, AiError> {
         Ok(match self {
             Self::Embed(text) => text.len() as u32,
-            Self::Tts(text) => (text.len() as u32).max(50),
-            Self::Stt(audio, _) => audio.len().div_ceil(1024) as u32 * 50,
-            Self::Imagegen(_) => 1000,
-            Self::Decision(request) => serde_json::to_vec(request).map_err(internal)?.len() as u32,
+            Self::Tts(text) => model_service::speech_units(text) as u32,
+            Self::Stt(audio, _) => model_service::transcription_units(audio.len()) as u32,
+            Self::Imagegen(_) => model_service::image_units(1) as u32,
+            Self::Decision(request) => model_service::decision_units(request).map_err(internal)? as u32,
         })
     }
 
@@ -253,11 +255,7 @@ async fn run_inner(
         ));
     }
     let request = decode(canonical).map_err(AiError::InvalidInference)?;
-    let origin = match request.origin {
-        PromptOrigin::Trusted => "trusted",
-        PromptOrigin::UserInput => "user-input",
-        PromptOrigin::ExternalContent => "external-content",
-    };
+    let origin = request.origin.as_str();
     let verb = request.input.verb();
     let cfg = crate::config::current_snapshot();
     let target = providers::Target::resolve(verb, &cfg)?;
@@ -265,6 +263,9 @@ async fn run_inner(
     let authorization = authority.require(Cap::new(verb, Scope::name(&target.model)));
     let (policy, app_cap) = gate::app_policy(app, origin, verb, Some(authority))?;
     let _authorized = authorization.map_err(|error| AiError::Denied(json!({"error": error})))?;
+    if !target.is_configured() {
+        return Err(AiError::Provider("The configured AI model is unavailable; check Yu OS settings".into()));
+    }
     let input = request.input.prepare(policy.safety)?;
     let units = input.units()?;
     if let Some(limit) = request.max_units.filter(|limit| units > *limit) {
@@ -273,23 +274,20 @@ async fn run_inner(
             limit: limit.into(),
         });
     }
-    let mut reservation = BudgetReservation::for_app(
+    let call = model_service::begin_app_call(
         Some(authority),
         app,
-        units.into(),
-        app_cap,
-    )?;
-    reservation.record_input(
-        authority,
         origin,
+        app_cap,
+        units.into(),
         &json!({
             "provider": target.provider, "model": target.model, "input": input.audit_input(),
         }),
     )?;
-    reservation.retain_estimate_on_drop();
-    let output =
-        gate::await_live(authority, target.run(input, authority.owner_uid(), home)).await?;
-    reservation.commit(units.into())?;
+    let (output, units, _) = call.run(
+        target.run(input, authority.owner_uid(), home),
+        |_| units.into(),
+    ).await?;
     let result = json!({"provider": target.provider, "model": target.model, "units": units, "output": output});
     yuos_sdk::generated::validate_ai_inference(&result)
         .map_err(|_| AiError::Provider("model returned an invalid inference result".into()))?;

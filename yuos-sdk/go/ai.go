@@ -12,13 +12,23 @@ import (
 	"strings"
 )
 
-// AiUnavailableError: the `yu` binary could not be invoked or returned
-// garbage (transport failure). Distinct from a gate refusal.
-type AiUnavailableError struct{ Msg string }
+// AiUnavailableError reports a service or transport failure.
+// Payload is present for a structured error from Yu OS.
+type AiUnavailableError struct {
+	Msg     string
+	Payload map[string]any
+}
 
 func (e *AiUnavailableError) Error() string { return e.Msg }
 
-// AiDeniedError: a gate (capability / origin) refused the call.
+type AiInvalidArgsError struct {
+	Msg     string
+	Payload map[string]any
+}
+
+func (e *AiInvalidArgsError) Error() string { return e.Msg }
+
+// AiDeniedError reports that the App cannot make the call.
 type AiDeniedError struct{ Payload map[string]any }
 
 func (e *AiDeniedError) Error() string {
@@ -28,7 +38,7 @@ func (e *AiDeniedError) Error() string {
 	return "AI call denied"
 }
 
-// AiBudgetExceededError: the per-app monthly budget was exhausted.
+// AiBudgetExceededError reports that the available budget could not cover the call.
 type AiBudgetExceededError struct{ Payload map[string]any }
 
 func (e *AiBudgetExceededError) Error() string {
@@ -110,8 +120,7 @@ type AiResponse struct {
 
 // ChatOptions are the optional parameters for Chat.
 type ChatOptions struct {
-	// Origin is required: "trusted" for developer-authored text,
-	// "user-input" for text from the user, or "external-content" for outside content.
+	// Origin retains the explicit route used by older Apps. Leave empty for new calls.
 	Origin string
 	// MaxUnits caps the spend for this call (0 = let the gate decide).
 	MaxUnits int
@@ -135,50 +144,35 @@ func Chat(prompt string, opts ChatOptions) (*AiResponse, error) {
 // can pass its *MCPCall directly.
 func ChatContext(ctx context.Context, prompt string, opts ChatOptions) (*AiResponse, error) {
 	if strings.TrimSpace(prompt) == "" {
-		return nil, &AiUnavailableError{Msg: "Chat: prompt must be non-empty"}
+		return nil, &AiInvalidArgsError{Msg: "chat: prompt must be non-empty"}
 	}
-	if strings.TrimSpace(opts.Origin) == "" {
-		return nil, &AiUnavailableError{Msg: "Chat: prompt origin is required"}
+	if opts.MaxUnits < 0 {
+		return nil, &AiInvalidArgsError{Msg: "chat: MaxUnits must be nonnegative"}
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if len(opts.Images) != 0 || len(opts.Functions) != 0 || len(opts.ToolTurns) != 0 {
+	if opts.Origin == "" || len(opts.Images) != 0 || len(opts.Functions) != 0 || len(opts.ToolTurns) != 0 {
 		if len(opts.Tools) != 0 {
-			return nil, fmt.Errorf("chat: supply App functions in Functions")
+			return nil, &AiInvalidArgsError{Msg: "chat: supply App functions in Functions"}
 		}
 		if opts.AppID != "" && opts.AppID != os.Getenv("YUOS_APP_ID") {
 			return nil, &AiDeniedError{Payload: map[string]any{
 				"code": "PERMISSION_DENIED", "error": "chat: App identity does not match the session",
 			}}
 		}
-		if opts.MaxUnits < 0 {
-			return nil, fmt.Errorf("chat: MaxUnits must be nonnegative")
-		}
 		return ChatRequest(ctx, AiChatRequest{
-			Origin: opts.Origin, Prompt: prompt, System: opts.System, MaxUnits: uint64(opts.MaxUnits),
+			Origin: appInput(opts.Origin), Prompt: prompt, System: opts.System, MaxUnits: uint64(opts.MaxUnits),
 			Images: opts.Images, Tools: opts.Functions, ToolTurns: opts.ToolTurns,
 		})
 	}
 	return dispatch(ctx, prompt, opts)
 }
 
-// ChatRequest calls the configured text model with optional App functions and prior results.
+// ChatRequest calls the configured chat model with optional App functions and prior results.
 func ChatRequest(ctx context.Context, request AiChatRequest) (*AiResponse, error) {
-	payload, err := json.Marshal(request)
+	payload, _, err := encodeModelRequest(request, ValidateAiChatRequest)
 	if err != nil {
-		return nil, err
-	}
-	if len(payload) > 720*1024 {
-		return nil, fmt.Errorf("App chat request exceeds the byte limit")
-	}
-	decoder := json.NewDecoder(bytes.NewReader(payload))
-	decoder.UseNumber()
-	var body map[string]any
-	if err := decoder.Decode(&body); err != nil {
-		return nil, err
-	}
-	if err := ValidateAiChatRequest(body); err != nil {
 		return nil, err
 	}
 	out, err := yuCallJSONContext(ctx, "yu ai chat", []string{"ai", "chat", "--request-stdin"}, payload)
@@ -196,20 +190,8 @@ func ChatRequest(ctx context.Context, request AiChatRequest) (*AiResponse, error
 
 // Infer invokes the owner's configured embedding, speech, image, or decision model.
 func Infer(ctx context.Context, request AiInferenceRequest) (*AiInference, error) {
-	payload, err := json.Marshal(request)
+	payload, body, err := encodeModelRequest(request, ValidateAiInferenceRequest)
 	if err != nil {
-		return nil, err
-	}
-	if len(payload) > 720*1024 {
-		return nil, fmt.Errorf("AI request exceeds the byte limit")
-	}
-	decoder := json.NewDecoder(bytes.NewReader(payload))
-	decoder.UseNumber()
-	var body map[string]any
-	if err := decoder.Decode(&body); err != nil {
-		return nil, err
-	}
-	if err := ValidateAiInferenceRequest(body); err != nil {
 		return nil, err
 	}
 	out, err := yuCallJSONContext(ctx, "yu ai infer", []string{"ai", "infer", "--request-stdin"}, payload)
@@ -237,13 +219,40 @@ func Infer(ctx context.Context, request AiInferenceRequest) (*AiInference, error
 	}, nil
 }
 
+func encodeModelRequest(request any, validate func(any) error) ([]byte, map[string]any, error) {
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return nil, nil, &AiInvalidArgsError{Msg: err.Error()}
+	}
+	if len(payload) > 720*1024 {
+		return nil, nil, &AiInvalidArgsError{Msg: "AI request exceeds the byte limit"}
+	}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.UseNumber()
+	var body map[string]any
+	if err := decoder.Decode(&body); err != nil {
+		return nil, nil, &AiInvalidArgsError{Msg: err.Error()}
+	}
+	if err := validate(body); err != nil {
+		return nil, nil, &AiInvalidArgsError{Msg: err.Error()}
+	}
+	return payload, body, nil
+}
+
+func appInput(origin string) string {
+	if origin == "" {
+		return "app"
+	}
+	return origin
+}
+
 type ModelOptions struct {
 	Origin   string
 	MaxUnits uint32
 }
 
 func runModel[T any](ctx context.Context, input any, opts ModelOptions) (*ModelResponse[T], error) {
-	reply, err := Infer(ctx, AiInferenceRequest{Origin: opts.Origin, MaxUnits: opts.MaxUnits, Input: input})
+	reply, err := Infer(ctx, AiInferenceRequest{Origin: appInput(opts.Origin), MaxUnits: opts.MaxUnits, Input: input})
 	if err != nil {
 		return nil, err
 	}
@@ -336,7 +345,9 @@ func resolveApp(modality, appID string) (string, error) {
 		app = os.Getenv("YUOS_APP_ID")
 	}
 	if app == "" {
-		return "", &AiUnavailableError{Msg: modality + ": app_id is required (set AppID or YUOS_APP_ID)"}
+		return "", &AiDeniedError{Payload: map[string]any{
+			"code": "PERMISSION_DENIED", "error": modality + ": App identity is required",
+		}}
 	}
 	return app, nil
 }
@@ -421,8 +432,15 @@ func classifyError(env map[string]any) error {
 		return &AiBudgetExceededError{Payload: env}
 	case "SAFETY_VIOLATION":
 		return &AiSafetyViolationError{Payload: env}
+	case "KERNEL_UNAVAILABLE":
+		return &AiUnavailableError{Msg: asString(env["error"]), Payload: env}
+	case "INVALID_ARGS":
+		return &AiInvalidArgsError{Msg: asString(env["error"]), Payload: env}
+	case "PERMISSION_DENIED", "UNKNOWN_APP", "UNKNOWN_VERB", "DENIED":
+		return &AiDeniedError{Payload: env}
+	default:
+		return &DeniedError{Payload: env}
 	}
-	return &AiDeniedError{Payload: env}
 }
 
 func parseBudget(blk map[string]any) AiBudget {

@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["origin", "input"],
   "properties": {
-    "origin": { "type": "string", "enum": ["trusted", "user-input", "external-content"] },
+    "origin": { "type": "string", "enum": ["app", "trusted", "user-input", "external-content"] },
     "max_units": { "type": "integer", "minimum": 1, "maximum": 4294967295, "x-rust-type": "u32", "x-go-type": "uint32" },
     "input": {
       "x-ts-type": "EmbedInput | SpeechInput | TranscriptionInput | ImageInput | DecisionInput",

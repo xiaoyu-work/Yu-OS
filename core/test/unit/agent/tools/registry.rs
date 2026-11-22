@@ -406,7 +406,12 @@ async fn safe_extension_proposal_reenters_exact_capability_and_approval_enforcem
 
 #[test]
 fn default_registry_has_builtins_and_yu_proxy() {
-    let r = default_registry();
+    let mut config = YuConfig::default();
+    config.tts.provider = "none".into();
+    config.stt.provider = "none".into();
+    config.imagegen.provider = "none".into();
+    let deps = RegistryDeps::load(Arc::new(config), RegistryPaths::from_process());
+    let r = default_registry_with_deps(&deps);
     assert!(r.get("echo").is_some());
     assert!(r.get("now").is_some());
     assert!(r.get("yu_delegate").is_some());
@@ -416,18 +421,18 @@ fn default_registry_has_builtins_and_yu_proxy() {
     assert!(r.get("yu_sandbox").is_some());
     assert!(r.get("yu_sysinfo").is_some());
     assert!(r.get("yu_memory").is_some());
-    assert!(r.get("yu_tts").is_some());
-    assert!(r.get("yu_stt").is_some());
-    assert!(r.get("yu_imagegen").is_some());
+    assert!(r.get("yu_tts").is_none());
+    assert!(r.get("yu_stt").is_none());
+    assert!(r.get("yu_imagegen").is_none());
     assert!(r.get("yu_doctor").is_some());
     assert!(r.get("yu_app_catalog").is_none());
     assert!(r.get("yu_app_run").is_none());
 
     // Lower bound: 2 builtins + yu_delegate + yu_todo + yu_clarify
     // + yu_skill
-    // + every yu_proxy tool (primitives + yu_memory) + 3 media tools,
+    // + every yu_proxy tool (primitives + yu_memory),
     // plus optionally yu_recall and authenticated MCP App tools.
-    let expected_min = 6 + super::super::yu_proxy::total_count() + 3;
+    let expected_min = 6 + super::super::yu_proxy::total_count();
     assert!(
         r.len() >= expected_min,
         "expected at least {} tools, got {}",

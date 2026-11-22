@@ -5,7 +5,8 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use serde_json::{json, Value};
 use yuos_embed::{EmbedRequest, EmbedResponse, Embedder};
 
-use crate::agent::media::{factory, imagegen, stt, tts};
+use crate::agent::media::{imagegen, stt, tts};
+use crate::ai::model_service;
 use crate::caps::Verb;
 use crate::config::{DecisionConfig, EmbedConfig, YuConfig};
 use crate::model::tasks::{decision, embed, qwen3_genai};
@@ -45,7 +46,6 @@ impl Target {
                     let provider = embed::build_from_with_agent(&config.embed, &config.agent)
                         .ok()
                         .flatten()
-                        .filter(|provider| provider.is_configured())
                         .ok_or_else(|| unconfigured("embed"))?;
                     Self {
                         provider: provider.name().into(),
@@ -55,14 +55,7 @@ impl Target {
                 }
             },
             Verb::AI_AUDIO_TTS => {
-                let alias = config.tts.provider.trim().to_ascii_lowercase();
-                let provider = factory::tts_registry_from_cfg(config)
-                    .get(match alias.as_str() {
-                        "edge-tts" => "edge",
-                        "gemini-tts" => "gemini",
-                        name => name,
-                    })
-                    .filter(|provider| alias != "noop" && provider.is_configured())
+                let provider = model_service::configured_tts(config)
                     .ok_or_else(|| unconfigured("tts"))?;
                 Self {
                     provider: provider.name().into(),
@@ -71,10 +64,7 @@ impl Target {
                 }
             }
             Verb::AI_AUDIO_STT => {
-                let alias = config.stt.provider.trim().to_ascii_lowercase();
-                let provider = factory::stt_registry_from_cfg(config)
-                    .get(&alias)
-                    .filter(|provider| alias != "noop" && provider.is_configured())
+                let provider = model_service::configured_stt(config)
                     .ok_or_else(|| unconfigured("stt"))?;
                 Self {
                     provider: provider.name().into(),
@@ -83,10 +73,7 @@ impl Target {
                 }
             }
             Verb::AI_IMAGE_GENERATE => {
-                let alias = config.imagegen.provider.trim().to_ascii_lowercase();
-                let provider = factory::imagegen_registry_from_cfg(config)
-                    .get(&alias)
-                    .filter(|provider| alias != "noop" && provider.is_configured())
+                let provider = model_service::configured_imagegen(config)
                     .ok_or_else(|| unconfigured("imagegen"))?;
                 Self {
                     provider: provider.name().into(),
@@ -116,6 +103,16 @@ impl Target {
             ));
         }
         Ok(target)
+    }
+
+    pub(super) fn is_configured(&self) -> bool {
+        match &self.backend {
+            Backend::Embed(provider) => provider.is_configured(),
+            Backend::Speech(provider) => provider.is_configured(),
+            Backend::Transcribe(provider) => provider.is_configured(),
+            Backend::Image(provider) => provider.is_configured(),
+            Backend::LocalEmbed(_) | Backend::Decision(_) => true,
+        }
     }
 
     pub(super) async fn run(

@@ -52,7 +52,7 @@ impl Tool for Decide {
         let Ok(request) = serde_json::from_value::<DecisionRequest>(input) else {
             return ToolResult::err("invalid decision request");
         };
-        match self.0.decide(&request).await {
+        match crate::ai::model_service::system_decide(&self.0, &request).await {
             Ok(result) => match serde_json::to_string(&result) {
                 Ok(result) => ToolResult::ok(result),
                 Err(_) => ToolResult::err("could not encode the decision result"),

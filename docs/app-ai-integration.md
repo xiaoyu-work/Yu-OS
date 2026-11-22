@@ -241,22 +241,18 @@ The built-in System Agent coordinates Apps through their enabled MCP tools.
 The broker authenticates registered session ancestry before App invocation
 and System Agent task admission.
 
-Apps may use controlled system services, shared libraries, and the public
-SDK's [six model slots](../yuos-sdk/REFERENCE.md#ai-support) when their
-manifests declare the corresponding capabilities. Yu OS sends App input to
-the configured model and applies the owner's App inference limit, input
-policy, and auditing. `tools.call` runs a capability-checked catalog operation.
+The System Agent and Apps use the same Yu OS model service. Apps call its
+[six model slots](../yuos-sdk/REFERENCE.md#ai-support) through the SDK and
+declare the matching capability. The service applies the owner's App
+inference limit to App calls and a separate budget to the System Agent.
+`tools.call` runs a capability-checked catalog operation.
 
 [App-owned functions](../yuos-sdk/REFERENCE.md#app-owned-tools) are schemas
 the App passes to its model. The App validates and runs proposed calls, then
 sends the results in a follow-up request.
 
-SDK chat calls require explicit prompt origin. `external-content` selects
-the separate `ai.chat.untrusted` capability, not a safety profile. The
-effective App and owner policy selects the profile: `strict` and `standard`
-currently apply the same prompt-secret redaction, and `minimal` does not
-redact. Do not rely on an origin label or profile to detect prompt injection
-or to make model output trustworthy.
+App chat sends text and images under `ai.chat`. The effective App and owner
+policy controls prompt-secret redaction. Treat model output as data.
 
 In Node MCP handlers, pass the call's `signal` to `ai.chat` and subsequent
 catalog calls. In Go, pass the `*MCPCall` as the context to `ChatContext`

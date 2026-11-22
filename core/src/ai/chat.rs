@@ -1,46 +1,8 @@
 //! `yu ai chat` — App-facing call to the configured chat model.
 //!
-//! The App–AI gate sends only the App's input to the configured model.
-//! It does not enter `yu agent` or attach Agent context or system tools.
-//!
-//! The gate ([`crate::ai::gate`]) enforces, in order: request
-//! classification, capability check, manifest model glob + prompt origin
-//! allowlist, per-app monthly budget, safety profile, audit. The
-//! **modality** (and therefore the caps verb required) is derived
-//! from the request shape — Apps never pass a verb directly:
-//!
-//!   - `--prompt` (text only)                       → `ai.chat`
-//!   - `--prompt` + `--origin external-content`     → `ai.chat.untrusted`
-//!
-//! Other configured model slots use `yu ai infer --request-stdin`.
-//! Legacy non-text flags on `yu ai chat` do not invoke those slots.
-//! `yu ai chat --request-stdin` accepts images, App functions and tool results.
-//!
-//! Flags:
-//!   --app <id>           App requesting the call (required).
-//!   --prompt <text>      Text portion of the request (modality-dependent).
-//!   --prompt-file <p>    Read prompt body from a file.
-//!   --system-file <p>    Read the optional system prompt from a file.
-//!   --origin <kind>      trusted | user-input | external-content (default: trusted).
-//!   --max-units <N>      Cap units for this call.
-//!   --system <text>      Optional App-authored instruction for the model.
-//!   --embed / --*-input / --*-output
-//!                        Experimental selectors; currently unsupported.
-//!
-//! Apps do not pick the model or receive its credentials. The broker uses
-//! the authenticated owner's settings. Legacy `--tools` lists are
-//! transported for compatibility and rejected by the gate when nonempty.
-//!
-//! Identity
-//! --------
-//!
-//! Per `docs/app-ai-integration.md` §3, an App's identity is established
-//! **only** when the kernel itself spawns the App (`yu app <id> <op>`).
-//! The kernel creates a registered App session and binds it to the spawned
-//! process. `YUOS_SESSION` routes the request; the broker authenticates the
-//! peer (or its verified worker relay), registered App and live transient
-//! grant. No registry or provider credentials are needed inside the App.
-//! Every chat uses this broker path, with no local-execution fallback.
+//! `--request-stdin` carries the App prompt, images and function history.
+//! The broker authenticates the registered session and derives authority from
+//! the live grant. Apps route the other configured slots through `yu ai infer`.
 
 use serde_json::Value;
 

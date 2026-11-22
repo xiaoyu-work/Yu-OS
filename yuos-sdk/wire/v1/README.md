@@ -7,7 +7,7 @@ language-idiomatic wrapper over this protocol.
 
 ## Stable AI surface
 
-Chat uses `ai.chat` and `ai.chat.untrusted`. The
+Chat uses `ai.chat`. The
 `yu ai infer --request-stdin` operation accepts
 [`ai_inference_request.schema.json`](ai_inference_request.schema.json) and
 returns [`ai_inference.schema.json`](ai_inference.schema.json) in the same
@@ -16,16 +16,14 @@ or local decision slot.
 
 [`chat --request-stdin`](ai_chat_request.schema.json) accepts up to 720 KiB
 of JSON, with up to four images, 16 App-owned functions and 16 prior tool
-rounds. Use `external-content` for image input. Send standard padded base64
+rounds. Send standard padded base64
 with `format` set to `png`, `jpg`, or `webp`. Images may total 512 KiB decoded.
 The App executes proposed calls. Include the same functions on follow-up calls, one result
 for every prior call ID, and optional `provider_state` from the reply
 unchanged.
 
-SDK callers must declare prompt origin; `origin=external-content` selects
-`ai.chat.untrusted` for chat. The effective policy determines redaction of
-cloud text prompts. Raw audio and owner-local structured decision requests
-are not text prompts and do not receive that redaction.
+The named SDK calls supply `origin: "app"` in the wire request. The
+effective App policy controls redaction of text prompts.
 
 Inference stdin accepts up to 720 KiB of JSON. `embed` text is limited to
 16 KiB, TTS and image prompts to 4 KiB, STT input bytes to 512 KiB, and

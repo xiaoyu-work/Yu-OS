@@ -1,58 +1,7 @@
-//! `yu::ai` — the App–AI Gate (internal kernel module).
+//! Configured model dispatch for the System Agent and authenticated Apps.
 //!
-//! Every App-driven LLM / image / TTS / STT / vision call passes
-//! through this subsystem. The gate enforces, in order:
-//!
-//!   1. Capability — the calling app's session must hold the AI verb
-//!      (e.g. `ai.chat`) at a `name` scope covering the requested
-//!      model.
-//!   2. Manifest policy — the app's manifest must declare an `ai`
-//!      block; the prompt's declared `origin` must be in its origin
-//!      list. The kernel-owned model is then layered on top.
-//!   3. User override — a per-app file under `$HOME/.config/yuos/apps/`
-//!      may tighten manifest safety or origins, or disable an App's AI.
-//!   4. Consent — the user must have approved a snapshot of the
-//!      manifest's AI block (`$HOME/.config/yuos/consents/<id>.json`).
-//!      Missing or drifted snapshots deny with `consent_required` /
-//!      `consent_stale`.
-//!   5. Budget — the owner's aggregate App AI limit in Settings, plus
-//!      any existing owner-configured per-App override. Manifests set no limit.
-//!      A conservative input+maximum-output bound is reserved pre-call;
-//!      settlement atomically releases that reservation and records actual
-//!      usage. Cap checks include every in-flight reservation, and either
-//!      ceiling tripping hard-denies the call.
-//!   6. Safety — `Strict` redacts secrets in the prompt before
-//!      sending it upstream. `Minimal` is audit-only.
-//!   7. Audit — every accepted and denied call is logged.
-//!
-//! Apps **never** talk to providers directly. The frontend desktop
-//! talks to apps; apps shell out to `yu ai chat --app <id>`; the
-//! dispatcher in [`chat`] then calls into [`gate`] after every gate
-//! above has cleared.
-//!
-//! ## What this module does NOT do
-//!
-//! - It does not host the per-turn agent loop. `yu agent ask` and
-//!   the REPL form of `yu agent chat` keep their own kernel-only
-//!   loops with full tool/memory wiring — those belong to the
-//!   *kernel Agent product* ([`crate::agent`]), not to Apps.
-//! - It does not classify or detect prompt injection beyond routing
-//!   `external-content` through the strict safety profile. The
-//!   injection detector and classifier remain Phase 8 work.
-//!
-//! ## CLI surface
-//!
-//! - `yu ai chat --app <id> …` — App-gated conversational text.
-//! - `yu ai infer --request-stdin` — the other configured model slots.
-//! - `yu agent budget …` — per-App budget ledger (lives under
-//!   `yu agent` for historical reasons; will likely move under
-//!   `yu ai budget` in a future cleanup).
-//! - `yu app consent …` — per-App user consent, lives under
-//!   `yu app` because it is a per-App user decision.
-//!
-//! `yu agent chat` and `yu agent ask` are *not* App entry points.
-//! They are the kernel Agent's own surface and Apps must not invoke
-//! them.
+//! The App gate applies exact capability, policy and consent checks.
+//! The model service accounts for App and System Agent usage separately.
 
 pub(crate) mod app_tools;
 pub mod budget;
@@ -60,6 +9,7 @@ pub mod chat;
 pub mod consent;
 pub mod gate;
 pub mod inference;
+pub(crate) mod model_service;
 pub mod overrides;
 pub mod tools;
 pub mod user_budget;

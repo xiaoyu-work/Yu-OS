@@ -187,7 +187,10 @@ impl Tool for BrowserDecision {
                 },
             )]),
         };
-        let response = match tokio::time::timeout(DECISION_BUDGET, self.model.decide(&request))
+        let response = match tokio::time::timeout(
+            DECISION_BUDGET,
+            crate::ai::model_service::system_decide(&self.model, &request),
+        )
             .await
         {
             Ok(Ok(response)) => response,

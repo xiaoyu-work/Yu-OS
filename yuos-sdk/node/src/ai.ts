@@ -1,19 +1,7 @@
-// AI helper for Yu OS Node apps.
+// Call the user's configured Yu OS models from an authorized App.
 //
-// `chat` is the stable model API and shells out to
-// `yu ai chat --app <id>`. The kernel derives `ai.chat` or
-// `ai.chat.untrusted` from origin, then runs capability checks, budget,
-// safety, and audit.
-//
-// Apps never name a verb and never pick a model. They describe what
-// they want; the gate picks the verb and the machine owner configures
-// the one provider/model in /etc/yuos/agent.toml. Importing a provider
-// SDK directly (openai, anthropic, ...) is refused at install time by
-// `yu app lint` — this module is the only sanctioned route to a model.
-//
-//   import { ai } from "@yuos/sdk";
-//   const res = await ai.chat("Summarise this", { origin: "trusted" });
-//   console.log(res.text, res.usage.units);
+//   import { chat } from "@yuos/sdk";
+//   const { output } = await chat("Summarize this.");
 
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -47,19 +35,24 @@ import {
 } from "./generated";
 
 /** Base class for every error this module raises. */
-export class AiError extends BridgeError {}
-/** The `yu` binary could not be invoked or returned garbage. */
-export class AiUnavailable extends AiError {}
-/** A gate (capability / origin / budget / safety) refused the call.
- * `payload` is the structured envelope the kernel returned. */
-export class AiDenied extends AiError {
-  readonly payload: Record<string, unknown>;
-  constructor(payload: Record<string, unknown>) {
-    super(String(payload["error"] ?? "AI call denied"));
-    this.payload = payload;
+export class AiError extends BridgeError {
+  constructor(message: string, readonly payload: Record<string, unknown> = {}) {
+    super(message);
+  }
+  get code(): string | undefined {
+    return typeof this.payload.code === "string" ? this.payload.code : undefined;
   }
 }
-/** The per-app monthly budget was exhausted. */
+/** The OS AI service or the local SDK transport is unavailable. */
+export class AiUnavailable extends AiError {}
+export class AiInvalidArgs extends AiError {}
+/** The App does not have permission to make the call. */
+export class AiDenied extends AiError {
+  constructor(payload: Record<string, unknown>) {
+    super(String(payload["error"] ?? "AI call denied"), payload);
+  }
+}
+/** The available budget could not cover the call. */
 export class AiBudgetExceeded extends AiDenied {}
 /** The safety pipeline refused the request. */
 export class AiSafetyViolation extends AiDenied {}
@@ -95,7 +88,7 @@ export interface ProposedToolCall {
 }
 
 export interface ModelOptions {
-  origin: "trusted" | "user-input" | "external-content";
+  origin?: "trusted" | "user-input" | "external-content";
   maxUnits?: number;
   signal?: AbortSignal;
 }
@@ -137,23 +130,23 @@ export interface ChatOptions extends ModelOptions {
 }
 
 /** Single-shot chat completion through the kernel's AI gate. */
-export async function chat(prompt: string, opts: ChatOptions): Promise<AiResponse> {
-  if (!prompt || !prompt.trim()) throw new AiError("chat: prompt must be non-empty");
-  if (typeof opts?.origin !== "string" || !opts.origin.trim()) {
-    throw new AiError("chat: prompt origin is required");
+export async function chat(prompt: string, opts: ChatOptions = {}): Promise<AiResponse> {
+  if (typeof prompt !== "string" || !prompt.trim()) throw new AiInvalidArgs("chat: prompt must be non-empty");
+  const { origin, maxUnits, system, tools, signal, images, functions, toolTurns } = opts;
+  if (origin !== undefined && (typeof origin !== "string" || !origin.trim())) {
+    throw new AiInvalidArgs("chat: invalid origin");
   }
   const app = opts.appId || process.env.YUOS_APP_ID;
   if (!app) {
-    throw new AiError("chat: app_id is required (pass appId or set YUOS_APP_ID)");
+    throw new AiDenied({ code: "PERMISSION_DENIED", error: "chat: App identity is required" });
   }
-  const { origin, maxUnits, system, tools, signal, images, functions, toolTurns } = opts;
   signal?.throwIfAborted();
-  if (images?.length || functions?.length || toolTurns?.length) {
-    if (tools?.length) throw new AiError("chat: supply App functions in functions");
+  if (origin === undefined || images?.length || functions?.length || toolTurns?.length) {
+    if (tools?.length) throw new AiInvalidArgs("chat: supply App functions in functions");
     if (app !== process.env.YUOS_APP_ID) {
       throw new AiDenied({ code: "PERMISSION_DENIED", error: "chat: App identity does not match the session" });
     }
-    const request: AiChatRequest = { origin, prompt };
+    const request: AiChatRequest = { origin: origin ?? "app", prompt };
     if (system != null) request.system = system;
     if (maxUnits != null) request.max_units = maxUnits;
     if (images?.length) request.images = images;
@@ -189,14 +182,12 @@ export async function chat(prompt: string, opts: ChatOptions): Promise<AiRespons
   }
 }
 
-/** Call the configured text model with optional App functions and prior tool results. */
+/** Call the configured chat model with optional App functions and prior results. */
 export async function chatRequest(
   request: AiChatRequest,
   { signal }: { signal?: AbortSignal } = {},
 ): Promise<AiResponse> {
-  const input = stringifyWireJson(materializeWireValue(request));
-  if (Buffer.byteLength(input) > 720 * 1024) throw new AiError("App chat request exceeds the byte limit");
-  validateAiChatRequest(request);
+  const input = encodeRequest(request, validateAiChatRequest);
   try {
     return parseResponse(await yuCallJsonAsync("yu ai chat", ["ai", "chat", "--request-stdin"], signal, input));
   } catch (error) {
@@ -211,9 +202,7 @@ export async function infer(
   request: AiInferenceRequest,
   { signal }: { signal?: AbortSignal } = {},
 ): Promise<AiInference> {
-  const input = stringifyWireJson(materializeWireValue(request));
-  if (Buffer.byteLength(input) > 720 * 1024) throw new AiError("AI request exceeds the byte limit");
-  validateAiInferenceRequest(request);
+  const input = encodeRequest(request, validateAiInferenceRequest);
   let data: unknown;
   try {
     data = await yuCallJsonAsync("yu ai infer", ["ai", "infer", "--request-stdin"], signal, input);
@@ -234,6 +223,20 @@ export async function infer(
   return data;
 }
 
+function encodeRequest(request: unknown, validate: (value: unknown) => void): string {
+  try {
+    validate(request);
+    const input = stringifyWireJson(materializeWireValue(request));
+    if (Buffer.byteLength(input) > 720 * 1024) throw new AiInvalidArgs("AI request exceeds the byte limit");
+    return input;
+  } catch (error) {
+    if (error instanceof WireDecodeError || error instanceof TypeError || error instanceof RangeError) {
+      throw new AiInvalidArgs(error.message);
+    }
+    throw error;
+  }
+}
+
 type ModelInput = AiInferenceRequest["input"];
 type ModelKind = ModelInput["kind"];
 type TaggedOutput<K extends ModelKind> = Extract<AiInference["output"], { kind: K }>;
@@ -247,7 +250,7 @@ function matchesKind<K extends ModelKind>(
 async function runModel<K extends ModelKind>(
   input: ModelInput & { kind: K }, opts: ModelOptions,
 ): Promise<ModelResponse<Omit<TaggedOutput<K>, "kind">>> {
-  const request: AiInferenceRequest = { origin: opts.origin, input };
+  const request: AiInferenceRequest = { origin: opts.origin ?? "app", input };
   if (opts.maxUnits != null) request.max_units = opts.maxUnits;
   const { output, ...reply } = await infer(request, { signal: opts.signal });
   if (!matchesKind(output, input.kind)) {
@@ -257,11 +260,11 @@ async function runModel<K extends ModelKind>(
   return { ...reply, output: payload };
 }
 
-export function embed(text: string, opts: ModelOptions) {
+export function embed(text: string, opts: ModelOptions = {}) {
   return runModel({ kind: "embed", text }, opts);
 }
 
-export function tts(text: string, opts: ModelOptions) {
+export function tts(text: string, opts: ModelOptions = {}) {
   return runModel({ kind: "tts", text }, opts);
 }
 
@@ -269,11 +272,11 @@ export function stt(audioBase64: string, opts: ModelOptions & { format: Transcri
   return runModel({ kind: "stt", audio_base64: audioBase64, format: opts.format }, opts);
 }
 
-export function imagegen(prompt: string, opts: ModelOptions) {
+export function imagegen(prompt: string, opts: ModelOptions = {}) {
   return runModel({ kind: "imagegen", prompt }, opts);
 }
 
-export function decide(state: DecisionInput["state"], questions: DecisionInput["questions"], opts: ModelOptions) {
+export function decide(state: DecisionInput["state"], questions: DecisionInput["questions"], opts: ModelOptions = {}) {
   return runModel({ kind: "decision", state, questions }, opts);
 }
 
@@ -319,7 +322,11 @@ function raiseForError(env: Record<string, unknown>): never {
   const code = String(env["code"]);
   if (code === "BUDGET_EXCEEDED") throw new AiBudgetExceeded(env);
   if (code === "SAFETY_VIOLATION") throw new AiSafetyViolation(env);
-  throw new AiDenied(env);
+  const message = String(env["error"]);
+  if (code === "KERNEL_UNAVAILABLE") throw new AiUnavailable(message, env);
+  if (code === "INVALID_ARGS") throw new AiInvalidArgs(message, env);
+  if (["PERMISSION_DENIED", "UNKNOWN_APP", "UNKNOWN_VERB", "DENIED"].includes(code)) throw new AiDenied(env);
+  throw new AiError(message, env);
 }
 
 function parseBudget(blk: AiBudget): Budget {

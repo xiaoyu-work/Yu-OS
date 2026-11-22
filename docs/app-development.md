@@ -667,41 +667,24 @@ rejected because capability matching does not expand them.
 
 ## 7. AI features
 
-Use the SDK to call the model configured in Yu OS Settings. Yu OS holds the
-credentials and sends the App's input directly to that model API, or runs the
-configured local model. Neither route starts the system Agent, includes its
-memory or conversation, or attaches system tools. Apps can
-[supply their own functions and return results](../yuos-sdk/REFERENCE.md#app-owned-tools);
-only the App decides whether to execute them. From an App with approved access
-to the supplied file and `ai.chat.untrusted`:
+Use the SDK to call the model configured in Yu OS Settings. Declare `"ai": {}`
+and add `"needs": [{"verb": "ai.chat"}]` to the operation, MCP tool, or GUI
+entry. From an App with `ai.chat` and approved access to the file:
 
 ```python
-from dataclasses import asdict
 from pathlib import Path
 
-from yuos_sdk import ai
+from yuos_sdk.ai import chat
 
 def run(command, args):
     body = Path(args[0]).read_text(encoding="utf-8")
-    resp = ai.chat(
-        prompt=f"Summarise:\n{body}",
-        origin="external-content",
-        max_units=2000,
-    )
-    return {"summary": resp.text, "usage": asdict(resp.usage)}
+    reply = chat(body, system="Summarize the document.")
+    return {"summary": reply.output.text, "units": reply.units}
 ```
 
-Always pass `origin` to chat: `trusted` for developer-authored text only,
-`user-input` for text typed by the user, and `external-content` for files,
-email, web pages, or output from another agent. If inputs mix sources,
-declare the outside content rather than labeling the whole prompt `trusted`.
-`external-content` selects `ai.chat.untrusted`; the effective policy
-determines redaction. The label does not prove the input is safe.
-
-Request chat with `"needs": [{"verb": "ai.chat"}]` in an operation, MCP tool,
-or GUI entry. Set input origins in `ai` and pass the text to `ai.chat`.
-The user picks the model in Settings. See the
-[SDK model table](../yuos-sdk/REFERENCE.md#ai-support) for the other verbs.
+See the SDK reference for [model capabilities](../yuos-sdk/REFERENCE.md#ai-support),
+[typed errors](../yuos-sdk/REFERENCE.md#handle-ai-errors), and
+[App-owned functions](../yuos-sdk/REFERENCE.md#app-owned-tools).
 
 | Calling surface | Owner consent |
 |---|---|
@@ -711,10 +694,6 @@ The user picks the model in Settings. See the
 Both paths enforce the matching capability and input policy. The owner sets
 the App inference limit in Settings → AI Budget. An optional model choice
 applies to the selected GUI entry.
-
-For the full AI integration model — `origin`, safety, App-owned functions,
-usage and auditing — read
-[`app-ai-integration.md`](app-ai-integration.md).
 
 ## 8. Developer commands
 
@@ -1063,13 +1042,9 @@ require a valid AI policy and remain budget-gated.
 
 #### Optional system AI at installation
 
-To offer optional system AI at installation, list `{"verb": "ai.chat"}` or
-`{"verb": "ai.chat.untrusted"}` in that GUI's `optional_needs`.
-For document input use `ai.chat.untrusted`, with `external-content` in `ai.origins`,
-and strict or standard safety. For input
-without external content use `ai.chat` with its corresponding origin. Only the
-optional GUI entry uses the Store installation choice, which applies to the
-provider and model the user has configured at installation.
+To offer optional chat AI at installation, add `"ai": {}` and list
+`{"verb": "ai.chat"}` in the GUI's `optional_needs`. The Store choice
+applies to the selected GUI entry and the user's configured chat model.
 
 Only verified publisher-signed Apps requesting this optional feature get this
 choice, and only when a model is configured. The protected Store reviews show
@@ -1078,7 +1053,7 @@ it. Explicit Allow takes effect only after verified publication. Normal owner
 GUI launches may then call the same SDK `ai.chat` without a second AI prompt.
 Turning it off in Settings → Applications retires the current grant. A declined
 or unavailable choice leaves ordinary App use available. The installation
-choice is for text AI; all supported models can be managed as described below.
+choice is for chat; all supported models can be managed as described below.
 
 Signed directory installation remains a direct Root publication and the
 protected review belongs to UID 0. It must not enable an ordinary user's AI
@@ -1086,9 +1061,8 @@ session. The ordinary owner can make a separate choice in Settings.
 
 #### Model permissions in Settings
 
-Declare a model capability without a condition in the GUI entry's
-`optional_needs` and include its input origin in `ai.origins`. For example, to offer
-speech synthesis:
+Declare `"ai": {}` and add a model capability to the GUI entry's
+`optional_needs`. For example, to offer speech synthesis:
 
 ```json
 {"verb": "ai.audio.tts"}
@@ -1102,7 +1076,7 @@ selects that action:
 
 ```python
 try:
-    speech = ai.tts(text, origin="user-input")
+    speech = ai.tts(text)
 except ai.AiDenied as error:
     if error.payload.get("detail", {}).get("reason") != "model_permission_required":
         raise

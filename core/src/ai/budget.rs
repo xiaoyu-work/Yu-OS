@@ -16,6 +16,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 
 pub(super) const OWNER_APP_BUCKET: &str = "__owner_apps__";
+pub const SYSTEM_AGENT_BUCKET: &str = "system.agent";
 const LEGACY_USER_BUCKET: &str = "__user__";
 
 /// Current snapshot for an `(app, period)` row.
@@ -148,7 +149,7 @@ fn owner_app_row(conn: &Connection, period: &str) -> Result<(i64, i64), BudgetEr
         "SELECT units_used, units_reserved FROM ai_budget
          WHERE period = ?1 AND app_id NOT GLOB '__*' AND app_id != ?2",
     )?;
-    let rows = stmt.query_map(params![period, super::gate::SYSTEM_AGENT_BUCKET], |row| {
+    let rows = stmt.query_map(params![period, SYSTEM_AGENT_BUCKET], |row| {
         Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?))
     })?;
     let (mut used, mut reserved) = (0i64, 0i64);
@@ -632,7 +633,7 @@ impl Store {
         }
         let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let period = current_period_utc();
-        if app == super::gate::SYSTEM_AGENT_BUCKET {
+        if app == SYSTEM_AGENT_BUCKET {
             tx.execute(
                 "DELETE FROM ai_budget WHERE app_id = ?1 AND period = ?2",
                 params![app, period],
@@ -665,6 +666,118 @@ impl Store {
             })?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(rows)
+    }
+}
+
+enum Account {
+    App {
+        id: String,
+        cap: u64,
+        owner: Option<u32>,
+    },
+    SystemAgent {
+        cap: u64,
+    },
+}
+
+/// A budget hold against the UTC month in which the service admitted the call.
+pub(super) struct Reservation {
+    store: Store,
+    account: Account,
+    period: String,
+    estimate: u64,
+    charge_on_drop: bool,
+    finished: bool,
+}
+
+impl Reservation {
+    pub(super) fn app(
+        mut store: Store,
+        id: &str,
+        owner: Option<u32>,
+        estimate: u64,
+        cap: u64,
+        owner_limit: impl FnOnce() -> Result<u64, String>,
+    ) -> Result<Self, BudgetError> {
+        let snapshot = store.reserve_app(id, estimate, cap, owner_limit)?;
+        Ok(Self::new(
+            store,
+            Account::App { id: id.into(), cap, owner },
+            snapshot.period,
+            estimate,
+        ))
+    }
+
+    pub(super) fn system(
+        mut store: Store,
+        estimate: u64,
+        cap: u64,
+    ) -> Result<Self, BudgetError> {
+        let snapshot = store.reserve(SYSTEM_AGENT_BUCKET, estimate, cap)?;
+        Ok(Self::new(store, Account::SystemAgent { cap }, snapshot.period, estimate))
+    }
+
+    fn new(store: Store, account: Account, period: String, estimate: u64) -> Self {
+        Self { store, account, period, estimate, charge_on_drop: false, finished: false }
+    }
+
+    pub(super) fn record_input(
+        &self,
+        session: &str,
+        origin: &str,
+        input: &impl Serialize,
+    ) -> Result<(), String> {
+        match &self.account {
+            Account::App { id, .. } => self.store.record_input(session, id, origin, input),
+            Account::SystemAgent { .. } => Err("System Agent input is recorded in its session".into()),
+        }
+    }
+
+    pub(super) fn retain_estimate_on_drop(&mut self) {
+        self.charge_on_drop = true;
+    }
+
+    pub(super) fn finish(mut self, reported: u64) -> Result<(u64, Snapshot), BudgetError> {
+        let units = if reported == 0 { self.estimate } else { reported };
+        let result = self.settle(units);
+        // The estimate is still reserved if settlement failed before it could commit.
+        self.finished = true;
+        result.map(|snapshot| (units, snapshot))
+    }
+
+    fn settle(&mut self, units: u64) -> Result<Snapshot, BudgetError> {
+        match &self.account {
+            Account::App { id, cap, owner } => {
+                let result = self.store.settle_reservations(
+                    &self.period,
+                    &[
+                        (id.as_str(), self.estimate, units, *cap),
+                        (OWNER_APP_BUCKET, self.estimate, units, 0),
+                    ],
+                );
+                if units > 0 && (result.is_ok() || matches!(&result, Err(BudgetError::OverUnitCap { .. }))) {
+                    if let Some(owner) = owner {
+                        super::user_budget::notify(*owner, &self.period, None);
+                    }
+                }
+                result
+            }
+            Account::SystemAgent { cap } => self.store.settle_reservation(
+                SYSTEM_AGENT_BUCKET, &self.period, self.estimate, units,
+                if units == 0 { 0 } else { *cap },
+            ),
+        }
+    }
+}
+
+impl Drop for Reservation {
+    fn drop(&mut self) {
+        if !self.finished {
+            let units = if self.charge_on_drop { self.estimate } else { 0 };
+            if let Err(error) = self.settle(units) {
+                tracing::warn!(%error, "model reservation settlement failed");
+            }
+        }
     }
 }
 

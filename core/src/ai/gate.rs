@@ -87,10 +87,12 @@ use crate::caps::{self, Scope, Verb};
 use crate::config;
 
 use super::app_tools::AppTools;
-use super::budget::{BudgetError, Store};
+use super::budget::BudgetError;
 use super::consent;
+use super::model_service;
 use super::overrides;
-use super::user_budget;
+pub use super::budget::SYSTEM_AGENT_BUCKET;
+pub(super) const APP_INPUT: &str = "app";
 
 // ---------------------------------------------------------------------------
 // Public request / response shapes
@@ -188,11 +190,9 @@ pub struct ProposedToolCall {
 /// requires the corresponding caps verb.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Modality {
-    /// Text in, text out. Origin is `trusted` or `user-input`.
+    /// Prompt and optional images in, text and App function proposals out.
     Chat,
-    /// Text in (origin = `external-content`), text out. Same as
-    /// [`Chat`](Modality::Chat) but enforces the hardened verb
-    /// `ai.chat.untrusted` so cap grants can scope it separately.
+    /// Compatibility route for existing external-content grants.
     ChatUntrusted,
     /// Text in, vector out. The text is what the caller wants
     /// embedded; the response carries an `embedding` array.
@@ -280,7 +280,9 @@ impl Modality {
             return Ok(Modality::VideoAnalyze);
         }
 
-        // Pure text path. Origin decides hardened-or-not.
+        if req.origin == APP_INPUT {
+            return Ok(Modality::Chat);
+        }
         let origin = parse_origin(&req.origin)?;
         Ok(match origin {
             PromptOrigin::ExternalContent => Modality::ChatUntrusted,
@@ -601,162 +603,6 @@ pub(crate) fn denial_reason_token(err: &AiError) -> &'static str {
     }
 }
 
-/// RAII guard that owns the per-app + per-user budget reservation
-/// for one in-flight AI call. Provider errors refund the reservation;
-/// after a provider succeeds, an unexpected drop conservatively charges
-/// the estimate so already-spent capacity never becomes reusable.
-/// `commit(actual_units)` atomically converts reserved units to actuals.
-///
-/// Lifecycle:
-/// 1. `reserve()` — increments `units_reserved` in both rows.
-/// 2. `commit(actual)` — decrements that reservation and increments usage.
-/// 3. drop before provider success — releases it; drop after success charges it.
-///
-/// The owner aggregate is always tracked, including in unlimited mode.
-pub(super) struct BudgetReservation {
-    store: Store,
-    app_id: String,
-    estimated: u64,
-    per_app_cap: u64,
-    owner: Option<u32>,
-    /// Period that the underlying SQL row was tagged with at
-    /// `reserve` time. Re-using this for settle/refund avoids a
-    /// month-boundary race where the request started in period N
-    /// but settled in N+1, double-billing both periods.
-    period: String,
-    committed: bool,
-    refund_on_drop: bool,
-}
-
-impl BudgetReservation {
-    pub(super) fn for_app(
-        authority: Option<&crate::yuosd::authority::Decision>,
-        app_id: &str,
-        units: u64,
-        cap: u64,
-    ) -> Result<Self, AiError> {
-        let owner = authority.map(|decision| decision.owner_uid());
-        let store = match owner {
-            Some(owner) => Store::open_for_owner(owner),
-            None => Store::open(),
-        }
-        .map_err(AiError::Internal)?;
-        Self::reserve_with(store, app_id.into(), units, cap, owner, || {
-            user_budget::limit(owner)
-        })
-    }
-
-    #[cfg(test)]
-    fn reserve(
-        store: Store,
-        app_id: String,
-        estimated: u64,
-        per_app_cap: u64,
-        user_cap: u64,
-    ) -> Result<Self, AiError> {
-        Self::reserve_with(store, app_id, estimated, per_app_cap, None, || Ok(user_cap))
-    }
-
-    fn reserve_with(
-        mut store: Store,
-        app_id: String,
-        estimated: u64,
-        per_app_cap: u64,
-        owner: Option<u32>,
-        limit: impl FnOnce() -> Result<u64, String>,
-    ) -> Result<Self, AiError> {
-        let snapshot = match store.reserve_app(&app_id, estimated, per_app_cap, limit) {
-            Ok(snapshot) => snapshot,
-            Err(BudgetError::OwnerLimit { period, cap }) => {
-                if let Some(owner) = owner {
-                    user_budget::notify(owner, &period, Some(cap));
-                }
-                return Err(AiError::UserBudgetExceeded);
-            }
-            Err(BudgetError::Settings(error)) => {
-                tracing::warn!(?owner, %error, "could not read the App AI budget");
-                return Err(AiError::Internal("Could not read Settings > AI Budget".into()));
-            }
-            Err(error) => return Err(error.into()),
-        };
-        Ok(Self {
-            store,
-            app_id,
-            estimated,
-            per_app_cap,
-            owner,
-            period: snapshot.period,
-            committed: false,
-            refund_on_drop: true,
-        })
-    }
-
-    pub(super) fn retain_estimate_on_drop(&mut self) {
-        self.refund_on_drop = false;
-    }
-
-    pub(super) fn record_input(
-        &self,
-        authority: &crate::yuosd::authority::Decision,
-        origin: &str,
-        input: &impl serde::Serialize,
-    ) -> Result<(), AiError> {
-        self.store
-            .record_input(
-                authority
-                    .session_id()
-                    .ok_or_else(|| AiError::Internal("missing App session".into()))?,
-                &self.app_id,
-                origin,
-                input,
-            )
-            .map_err(AiError::Internal)
-    }
-
-    /// Settle the reservation against the actual usage. After this
-    /// returns the guard no longer holds a debt — `Drop` will not
-    /// refund.
-    pub(super) fn commit(mut self, actual_units: u64) -> Result<crate::ai::budget::Snapshot, AiError> {
-        let result = self.settle(actual_units);
-        // A storage failure leaves the pre-dispatch estimate reserved. An
-        // overrun is already charged even when an owner App override denies it.
-        self.committed = true;
-        result.map_err(Into::into)
-    }
-
-    fn settle(&mut self, actual_units: u64) -> Result<crate::ai::budget::Snapshot, BudgetError> {
-        let result = self.store.settle_reservations(&self.period, &[
-            (self.app_id.as_str(), self.estimated, actual_units, self.per_app_cap),
-            (super::budget::OWNER_APP_BUCKET, self.estimated, actual_units, 0),
-        ]);
-        if actual_units > 0 && (result.is_ok() || matches!(result, Err(BudgetError::OverUnitCap { .. }))) {
-            if let Some(owner) = self.owner {
-                user_budget::notify(owner, &self.period, None);
-            }
-        }
-        result
-    }
-}
-
-impl Drop for BudgetReservation {
-    fn drop(&mut self) {
-        if self.committed {
-            return;
-        }
-        let actual_units = if self.refund_on_drop {
-            0
-        } else {
-            self.estimated
-        };
-        if let Err(e) = self.settle(actual_units) {
-            eprintln!(
-                "ai::gate budget reservation drop settlement failed (app={}): {e}",
-                self.app_id
-            );
-        }
-    }
-}
-
 pub(super) fn app_policy(
     app_id: &str,
     origin: &str,
@@ -845,7 +691,15 @@ pub(super) fn app_policy(
         }
     }
 
-    if !policy.origins.contains(&parse_origin(origin)?) {
+    let allowed = if origin == APP_INPUT {
+        // Do not promote a legacy external-content-only policy to ai.chat.
+        policy.origins.iter().any(|origin| {
+            *origin != PromptOrigin::ExternalContent || verb != Verb::AI_CHAT
+        })
+    } else {
+        policy.origins.contains(&parse_origin(origin)?)
+    };
+    if !allowed {
         return Err(AiError::OriginNotAllowed {
             got: origin.to_owned(),
             allowed: policy.origins.iter().map(origin_label).collect(),
@@ -865,7 +719,7 @@ async fn chat_inner(
     let verb = modality.verb();
     let config = config::current_snapshot();
     let cfg = &config.agent;
-    let images = chat_images(&req.images, modality);
+    let images = chat_images(&req.images, req.origin == APP_INPUT || modality == Modality::ChatUntrusted);
     if cfg.model == crate::caps::manifest::CONFIGURED_AI_MODEL {
         return Err(AiError::Provider("Configure a chat model in Yu OS settings".into()));
     }
@@ -874,16 +728,14 @@ async fn chat_inner(
         authority.require(crate::caps::Cap::new(verb, Scope::name(&model)))
     });
     let (policy, app_cap) = app_policy(&req.app_id, &req.origin, verb, authority)?;
-    validate_inputs(req, modality)?;
-
-    // 6. Capability check at the kernel boundary.
+    // Spend the exact model capability before releasing input diagnostics.
     if let Some(authorization) = authorization {
         let _authorized = authorization
             .map_err(|error| AiError::Denied(serde_json::json!({"error": error})))?;
     } else {
         caps::require(verb, Scope::name(&model)).map_err(|d| AiError::Denied(d.to_json()))?;
     }
-    // Release image validation details only to an authorized model caller.
+    validate_inputs(req, modality)?;
     let images = images?;
     if !images.is_empty() && (cfg.provider == "llama_local"
         || llm::metadata::lookup(&model).is_some_and(|model| !model.supports_vision))
@@ -922,7 +774,7 @@ async fn chat_inner(
     if !llm_req.tools.is_empty() {
         llm_req.tool_choice = ToolChoice::Auto;
     }
-    let input_units = estimate_input_units(&llm_req);
+    let input_units = model_service::estimate_chat_input(&llm_req);
     if let Some(limit) = req.max_units {
         let minimum = input_units.saturating_add(1);
         let available_output = limit.checked_sub(input_units).filter(|units| *units > 0);
@@ -935,7 +787,7 @@ async fn chat_inner(
         llm_req.max_tokens =
             Some(available_output.min(DEFAULT_APP_MAX_OUTPUT_TOKENS as u64) as u32);
     }
-    let estimated_units = estimate_request_units(&llm_req);
+    let estimated_units = model_service::estimate_chat_request(&llm_req);
     if let Some(limit) = req.max_units {
         if estimated_units > limit {
             return Err(AiError::RequestBudgetExceeded {
@@ -945,42 +797,20 @@ async fn chat_inner(
         }
     }
 
-    let provider = llm::registry::build(&cfg.provider, &model, cfg)
+    let provider = model_service::build_chat(&cfg.provider, &model, cfg, None)
         .map_err(|error| AiError::Provider(app_provider_error(error)))?;
-    let mut reservation = BudgetReservation::for_app(
+    let call = model_service::begin_app_call(
         authority,
         &req.app_id,
-        estimated_units,
+        &req.origin,
         app_cap,
-    )?;
-
-    // 9. Charge ambiguous provider failures at the conservative estimate.
-    // Only a refusal before dispatch can prove that no provider units were used.
-    let llm_resp = if let Some(authority) = authority {
-        authority
-            .ensure_current()
-            .map_err(|error| AiError::Denied(serde_json::json!({"error": error})))?;
-        reservation.record_input(authority, &req.origin, &llm_req)?;
-        // Once dispatched, cancellation cannot prove the upstream spent zero.
-        reservation.retain_estimate_on_drop();
-        await_authorized(authority, provider.chat(llm_req)).await?
-    } else {
-        reservation.retain_estimate_on_drop();
-        provider
-            .chat(llm_req)
-            .await
-            .map_err(|error| AiError::Provider(app_provider_error(error)))?
-    };
-    // 10. Settle the budget against actuals via the reservation
-    //     guard. `commit()` consumes the guard, so any subsequent
-    //     early return (e.g. response construction) does not double-
-    //     refund — there is nothing left to roll back.
-    let actual_units = reported_units_or_estimate(
-        llm_resp.usage.input_tokens,
-        llm_resp.usage.output_tokens,
         estimated_units,
-    );
-    let snapshot = reservation.commit(actual_units)?;
+        &llm_req,
+    )?;
+    let (llm_resp, actual_units, snapshot) = call.run(
+        async { provider.chat(llm_req).await.map_err(app_provider_error) },
+        |response| model_service::chat_units(&response.usage),
+    ).await?;
     if let Some(limit) = req.max_units {
         if actual_units > limit {
             return Err(AiError::RequestBudgetExceeded {
@@ -1032,45 +862,13 @@ async fn chat_inner(
 fn app_provider_error(error: llm::LlmError) -> String {
     // Raw upstream errors can echo the private endpoint or credentials.
     match error {
-        llm::LlmError::NotConfigured(_) => "configure a text model in Yu OS settings".into(),
+        llm::LlmError::NotConfigured(_) => "configure a chat model in Yu OS settings".into(),
         llm::LlmError::Auth | llm::LlmError::CredentialStore { .. } => {
-            "text model authentication failed; check Yu OS settings".into()
+            "chat model authentication failed; check Yu OS settings".into()
         }
-        llm::LlmError::Provider { status, .. } => format!("text model API returned HTTP {status}"),
-        llm::LlmError::RateLimited { retry_after_ms } => {
-            format!("text model API rate limited the request; retry after {retry_after_ms}ms")
-        }
-        _ => "configured text model request failed; check Yu OS settings".into(),
-    }
-}
-
-/// Observe live transient authority while awaiting a potentially slow provider.
-/// The route's absolute timeout also drops this future and its reservation.
-pub(crate) async fn await_authorized(
-    authority: &crate::yuosd::authority::Decision,
-    pending: impl std::future::Future<Output = LlmResult<LlmChatResponse>>,
-) -> Result<LlmChatResponse, AiError> {
-    await_live(authority, async { pending.await.map_err(app_provider_error) }).await
-}
-
-pub(super) async fn await_live<T, E: std::fmt::Display>(
-    authority: &crate::yuosd::authority::Decision,
-    pending: impl std::future::Future<Output = Result<T, E>>,
-) -> Result<T, AiError> {
-    authority
-        .ensure_current()
-        .map_err(|error| AiError::Denied(serde_json::json!({"error": error})))?;
-    tokio::pin!(pending);
-    loop {
-        tokio::select! {
-            response = &mut pending => {
-                authority.ensure_current().map_err(|error| AiError::Denied(serde_json::json!({"error": error})))?;
-                return response.map_err(|error| AiError::Provider(error.to_string()));
-            }
-            _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
-                authority.ensure_current().map_err(|error| AiError::Denied(serde_json::json!({"error": error})))?;
-            }
-        }
+        llm::LlmError::Provider { status, .. } => format!("chat model API returned HTTP {status}"),
+        llm::LlmError::RateLimited { .. } => "chat model is rate limited".into(),
+        _ => "configured chat model request failed; check Yu OS settings".into(),
     }
 }
 
@@ -1224,12 +1022,12 @@ pub(super) fn apply_safety(prompt: &str, safety: AiSafety) -> (String, bool) {
 
 fn chat_images(
     images: &[yuos_sdk::generated::AiChatImage],
-    modality: Modality,
+    allowed: bool,
 ) -> Result<Vec<ContentBlock>, AiError> {
     use base64::{engine::general_purpose::STANDARD, Engine};
 
-    if !images.is_empty() && modality != Modality::ChatUntrusted {
-        return Err(AiError::InvalidInference("chat images require external-content origin"));
+    if !images.is_empty() && !allowed {
+        return Err(AiError::InvalidInference("images require the App chat request format"));
     }
     if images.len() > 4 {
         return Err(AiError::InvalidInference("chat accepts up to four images"));
@@ -1309,10 +1107,6 @@ fn _ensure_arc_send<T: ?Sized + Send + Sync>(_: &Arc<T>) {}
 // `chat_stream()` get the additional caps/budget pipeline.
 // ---------------------------------------------------------------------------
 
-/// Stable pseudo-app id under which the system agent's AI usage is
-/// rolled up. Surfaces alongside real apps in `yu agent budget show`.
-pub const SYSTEM_AGENT_BUCKET: &str = "system.agent";
-
 /// Wrap an LLM provider so the kernel-resident agent reaches the
 /// upstream model through the same caps + budget + audit pipeline
 /// real apps use. The wrapper is cheap (single `Arc` indirection)
@@ -1371,7 +1165,7 @@ pub fn build_system_provider_with_context(
             cfg.provider_fallbacks.len()
         )));
     }
-    let primary = llm::registry::build_with_context(&cfg.provider, &cfg.model, cfg, context)?;
+    let primary = model_service::build_chat(&cfg.provider, &cfg.model, cfg, Some(context))?;
     let primary = Arc::new(llm::attempt_observer::ObservedProvider::new(
         primary,
         cfg.provider.clone(),
@@ -1402,7 +1196,7 @@ pub fn build_system_provider_with_context(
             )));
         }
         let fallback_cfg = fallback.apply_to(cfg);
-        let built = llm::registry::build_with_context(provider, model, &fallback_cfg, context)?;
+        let built = model_service::build_chat(provider, model, &fallback_cfg, Some(context))?;
         let built = Arc::new(llm::attempt_observer::ObservedProvider::new(
             built,
             provider.to_string(),
@@ -1459,264 +1253,19 @@ impl LlmProvider for SystemGatedProvider {
         self.inner.fallback_state()
     }
 
-    async fn chat(&self, mut request: LlmChatRequest) -> LlmResult<LlmChatResponse> {
-        let config = config::current_snapshot();
-        let cfg = &config.agent;
-        let model = request.model.clone();
-        normalize_output_limit(&mut request)?;
-
-        // 1. Capability check at the kernel boundary. The session that
-        //    spawned the agent loop should hold `ai.chat` already; if
-        //    it somehow doesn't (or the caps system was bypassed), we
-        //    fail closed here. Also emits one structured record per
-        //    call to `caps.jsonl`.
-        caps::require(Verb::AI_CHAT, Scope::name(&model)).map_err(|d| {
-            llm::LlmError::InvalidRequest(format!(
-                "system-agent caps denied for ai.chat: {}",
-                d.to_json()
-            ))
-        })?;
-
-        // 2. Reserve budget against the system-agent bucket. Provider
-        //    errors before a response release the reservation; after a
-        //    successful response, any unexpected drop charges the estimate.
-        let est_units = estimate_request_units(&request);
-        let cap_units = cfg.system_budget_monthly_units;
-
-        let store = Store::open()
-            .map_err(|e| llm::LlmError::Internal(format!("system-agent budget store: {e}")))?;
-        let mut reservation = SystemBudgetReservation::reserve(store, est_units, cap_units)
-            .map_err(|e| llm::LlmError::InvalidRequest(format!("system-agent budget: {e}")))?;
-
-        // 3. Delegate to the wrapped provider. `?` on this line
-        //    will drop the reservation, which refunds the full
-        //    estimate automatically.
-        let resp = self.inner.chat(request).await?;
-        reservation.retain_estimate_on_drop();
-
-        // 4. Settle to actuals under the same hard cap. The provider has
-        //    already run, but returning success after accounting crossed
-        //    the cap would invite retries and hide the enforcement failure.
-        let actual_units = u64::from(resp.usage.input_tokens) + u64::from(resp.usage.output_tokens);
-        reservation.commit_to_actuals(actual_units).map_err(|e| {
-            llm::LlmError::InvalidRequest(format!("system-agent budget settlement: {e}"))
-        })?;
-
-        Ok(resp)
+    async fn chat(&self, request: LlmChatRequest) -> LlmResult<LlmChatResponse> {
+        model_service::system_chat(self.inner.as_ref(), request).await
     }
 
     async fn chat_stream(
         &self,
-        mut request: LlmChatRequest,
+        request: LlmChatRequest,
     ) -> LlmResult<BoxStream<'static, LlmResult<StreamEvent>>> {
-        // Streaming path: do the caps check, reserve, then wrap the
-        // returned stream so that:
-        //   - on `StreamEvent::Done { usage }` we settle to actuals,
-        //   - on early drop (consumer hung up) we charge the conservative
-        //     estimate because the provider may already have generated tokens.
-        let config = config::current_snapshot();
-        let cfg = &config.agent;
-        let model = request.model.clone();
-        normalize_output_limit(&mut request)?;
-
-        caps::require(Verb::AI_CHAT, Scope::name(&model)).map_err(|d| {
-            llm::LlmError::InvalidRequest(format!(
-                "system-agent caps denied for ai.chat: {}",
-                d.to_json()
-            ))
-        })?;
-
-        let est_units = estimate_request_units(&request);
-        let store = Store::open()
-            .map_err(|e| llm::LlmError::Internal(format!("system-agent budget store: {e}")))?;
-        let reservation =
-            SystemBudgetReservation::reserve(store, est_units, cfg.system_budget_monthly_units)
-                .map_err(|e| llm::LlmError::InvalidRequest(format!("system-agent budget: {e}")))?;
-
-        let inner_stream = self.inner.chat_stream(request).await?;
-        Ok(wrap_system_stream(inner_stream, reservation))
+        model_service::system_chat_stream(self.inner.as_ref(), request).await
     }
-}
-
-/// Drop-guarded reservation for the system-agent budget bucket. Same
-/// shape as [`BudgetReservation`] but single-row (no per-user axis).
-struct SystemBudgetReservation {
-    store: Store,
-    estimated: u64,
-    cap_units: u64,
-    /// Period the reservation row was tagged with; we settle/refund
-    /// against this exact period so a long-running streaming call
-    /// that crosses a UTC month boundary doesn't end up debiting
-    /// two separate rows.
-    period: String,
-    committed: bool,
-    refund_on_drop: bool,
-}
-
-impl SystemBudgetReservation {
-    fn reserve(mut store: Store, estimated: u64, cap_units: u64) -> Result<Self, BudgetError> {
-        let snap = store.reserve(SYSTEM_AGENT_BUCKET, estimated, cap_units)?;
-        Ok(Self {
-            store,
-            estimated,
-            cap_units,
-            period: snap.period,
-            committed: false,
-            refund_on_drop: true,
-        })
-    }
-
-    /// Settle the bucket from `estimated` to `actual_units` while enforcing
-    /// the configured monthly cap. Marks the guard committed even on error
-    /// because the upstream provider has already consumed the tokens.
-    fn commit_to_actuals(
-        &mut self,
-        actual_units: u64,
-    ) -> Result<crate::ai::budget::Snapshot, BudgetError> {
-        let actual_units = if actual_units == 0 {
-            self.estimated
-        } else {
-            actual_units
-        };
-        let result = self.store.settle_reservation(
-            SYSTEM_AGENT_BUCKET,
-            &self.period,
-            self.estimated,
-            actual_units,
-            self.cap_units,
-        );
-        self.committed = true;
-        result
-    }
-
-    /// Once a streaming provider has accepted the request, an early consumer
-    /// disconnect no longer proves that no tokens were spent. Keep the full
-    /// conservative reservation instead of refunding it into reusable budget.
-    fn retain_estimate_on_drop(&mut self) {
-        self.refund_on_drop = false;
-    }
-}
-
-impl Drop for SystemBudgetReservation {
-    fn drop(&mut self) {
-        if self.committed {
-            return;
-        }
-        let actual_units = if self.refund_on_drop {
-            0
-        } else {
-            self.estimated
-        };
-        let cap_units = if self.refund_on_drop {
-            0
-        } else {
-            self.cap_units
-        };
-        if let Err(e) = self.store.settle_reservation(
-            SYSTEM_AGENT_BUCKET,
-            &self.period,
-            self.estimated,
-            actual_units,
-            cap_units,
-        ) {
-            tracing::warn!(
-                target: "ai.gate",
-                "system-agent budget reservation drop settlement failed: {e}",
-            );
-        }
-    }
-}
-
-/// Wraps a streaming chat response so the [`SystemBudgetReservation`]
-/// is settled to actuals on `StreamEvent::Done { usage }` and
-/// charged at the conservative estimate on early drop. The wrapper carries
-/// the reservation in its state and runs `commit_to_actuals` exactly once,
-/// the first time it sees a `Done` event.
-fn wrap_system_stream(
-    inner: BoxStream<'static, LlmResult<StreamEvent>>,
-    mut reservation: SystemBudgetReservation,
-) -> BoxStream<'static, LlmResult<StreamEvent>> {
-    use futures_util::StreamExt;
-    reservation.retain_estimate_on_drop();
-    let state = std::sync::Arc::new(std::sync::Mutex::new(Some(reservation)));
-    let wrapped = inner.map(move |item| {
-        if let Ok(StreamEvent::Done { ref usage, .. }) = item {
-            if let Some(mut r) = state.lock().ok().and_then(|mut g| g.take()) {
-                let actual = u64::from(usage.input_tokens) + u64::from(usage.output_tokens);
-                if let Err(e) = r.commit_to_actuals(actual) {
-                    return Err(llm::LlmError::InvalidRequest(format!(
-                        "system-agent budget settlement: {e}"
-                    )));
-                }
-            }
-        }
-        item
-    });
-    Box::pin(wrapped)
 }
 
 const DEFAULT_APP_MAX_OUTPUT_TOKENS: u32 = 1024;
-const DEFAULT_SYSTEM_MAX_OUTPUT_TOKENS: u32 = 4096;
-const REQUEST_TOKEN_OVERHEAD: u64 = 512;
-
-fn reported_units_or_estimate(input_tokens: u32, output_tokens: u32, estimated_units: u64) -> u64 {
-    let reported = u64::from(input_tokens) + u64::from(output_tokens);
-    if reported == 0 {
-        estimated_units
-    } else {
-        reported
-    }
-}
-
-fn normalize_output_limit(req: &mut LlmChatRequest) -> LlmResult<()> {
-    if let serde_json::Value::Object(extra) = &req.extra {
-        const RESERVED_OUTPUT_KEYS: &[&str] = &[
-            "max_tokens",
-            "max_completion_tokens",
-            "max_output_tokens",
-            "maxOutputTokens",
-            "generationConfig",
-            "generation_config",
-        ];
-        if let Some(key) = RESERVED_OUTPUT_KEYS
-            .iter()
-            .find(|key| extra.contains_key(**key))
-        {
-            return Err(llm::LlmError::InvalidRequest(format!(
-                "provider extra field `{key}` cannot override the budgeted output limit"
-            )));
-        }
-    }
-    match req.max_tokens {
-        Some(0) => Err(llm::LlmError::InvalidRequest(
-            "max_tokens must be greater than zero".to_string(),
-        )),
-        Some(_) => Ok(()),
-        None => {
-            req.max_tokens = Some(DEFAULT_SYSTEM_MAX_OUTPUT_TOKENS);
-            Ok(())
-        }
-    }
-}
-
-/// Conservative input bound. A tokenizer cannot emit more ordinary text
-/// tokens than the UTF-8 bytes that encode the full serialized request;
-/// the fixed overhead covers provider-added role and protocol markers.
-fn estimate_input_units(req: &LlmChatRequest) -> u64 {
-    let mut input_only = req.clone();
-    input_only.max_tokens = None;
-    serde_json::to_vec(&input_only)
-        .map(|encoded| (encoded.len() as u64).saturating_add(REQUEST_TOKEN_OVERHEAD))
-        .unwrap_or(u64::MAX)
-}
-
-/// Maximum units this request can report if the provider respects the
-/// normalized `max_tokens` output limit.
-fn estimate_request_units(req: &LlmChatRequest) -> u64 {
-    estimate_input_units(req).saturating_add(u64::from(
-        req.max_tokens.unwrap_or(DEFAULT_SYSTEM_MAX_OUTPUT_TOKENS),
-    ))
-}
 
 // ---------------------------------------------------------------------------
 // Tests

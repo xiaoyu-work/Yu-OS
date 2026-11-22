@@ -1085,10 +1085,15 @@ pub fn default_registry_with_deps(deps: &RegistryDeps) -> ToolRegistry {
         Ok(None) => {}
         Err(error) => tracing::warn!(%error, "could not configure the local decision model"),
     }
-    super::media::register_default_media_tools_with_outputs_dir(
-        &mut r,
-        deps.paths.media_outputs_dir.clone(),
-    );
+    // Activity prices apply to chat turns. Do not introduce unpriced media
+    // calls into a runtime that has an Activity monetary controller.
+    if deps.runtime.monetary_budget().is_none() {
+        super::media::register_configured_media(
+            &mut r,
+            &deps.config,
+            deps.paths.media_outputs_dir.clone(),
+        );
+    }
     if let Some(db) = &deps.memory {
         super::yu_proxy::register_recall(&mut r, db.clone());
         super::yu_proxy::register_app_memory(&mut r, db.clone());

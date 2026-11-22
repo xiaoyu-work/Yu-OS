@@ -66,12 +66,12 @@ generated binding compatibility.
 
 ## AI support
 
-The App sends input and receives a result from the user's configured model.
-Yu OS manages model selection and provider credentials. The optional `system`
-field in a chat request carries App-authored instructions.
+Use the six models configured in Yu OS Settings. Yu OS selects the model,
+authorizes the call, and accounts for usage. The optional `system` field
+carries your App's instructions to the chat model.
 
-Add the matching capability to `needs` in `app.json`, for example
-`{"verb": "ai.chat"}`. Declare input origins and any safety profile in `ai`.
+In `app.json`, add `"ai": {}` and the capability to `needs` for the
+operation, MCP tool, or GUI entry.
 
 In **Settings → AI Budget**, the owner sets one limit across all Apps and
 model slots for the UTC month. `0` means unlimited. Yu OS tracks usage
@@ -79,7 +79,7 @@ and notifies the owner near or at the limit.
 
 | SDK call | Model input | App capability | `output` |
 |---|---|---|---|
-| `chat` | Prompt, optional images and App functions | `ai.chat` or `ai.chat.untrusted` | `text`, optional function calls |
+| `chat` | Prompt, optional images and App functions | `ai.chat` | `text`, optional function calls |
 | `embed` | Text | `ai.embed` | `vector` |
 | `tts` | Text | `ai.audio.tts` | `format`, `audio_base64`, optional `sample_rate_hz` |
 | `stt` | `audio_base64` and `format` | `ai.audio.stt` | `text` |
@@ -92,42 +92,34 @@ function you want:
 ```python
 from yuos_sdk.ai import chat, embed
 
-reply = chat("Summarize this sentence.", origin="user-input")
-vector = embed("Text to index.", origin="user-input").output.vector
+reply = chat("Summarize this sentence.")
+vector = embed("Text to index.").output.vector
 print(reply.output.text)
 ```
 
 [Node](node/README.md#ai-and-catalog-tools), [Go](go/README.md#ai-support),
 and [Rust](rust/README.md#ai-support) expose the same six calls.
 
-Every call requires explicit origin: `trusted` for
-developer-authored text, `user-input` for text typed by the user, and
-`external-content` for files, web pages, email, or other outside content.
-For chat, `external-content` selects `ai.chat.untrusted`. Safety policy
-controls redaction: `strict` and `standard` redact prompt secrets;
-`minimal` preserves the original text.
+### Handle AI errors
 
-For an optional GUI feature, put the verb in
-[`optional_needs`](../docs/app-development.md#model-permissions-in-settings).
-On a model permission error, show an App-written message and let the user
-open Settings → Applications.
+Use error types or [wire codes](wire/v1/error_codes.md), not message text.
 
-Pass the MCP call's `signal` to Node AI and catalog calls to propagate the
-deadline and cancellation. In Go, pass the
-`*MCPCall` to `ChatContext`, `CallToolContext`, `BudgetContext`, or
-`CatalogContext`. The Python and Rust `chat` helpers are synchronous.
-The cancellable clients stop their CLI child. Check the outcome of an accepted
-mutation before retrying it.
+| Code | Python and Node error | What the App can do |
+|---|---|---|
+| `PERMISSION_DENIED` | `AiDenied` | For an [optional GUI permission](../docs/app-development.md#model-permissions-in-settings), show your own message and offer a button to Settings → Applications. |
+| `BUDGET_EXCEEDED` | `AiBudgetExceeded` | Tell the user the call exceeds the available budget. The owner can review the App limit in Settings → AI Budget. |
+| `KERNEL_UNAVAILABLE` | `AiUnavailable` | Show that AI is unavailable. The owner can check the configured model in Settings. |
+| `INVALID_ARGS` | `AiInvalidArgs` | Check the input and its limits before sending it again. |
+| `SAFETY_VIOLATION` | `AiSafetyViolation` | Tell the user the request was refused. |
 
-Use `max_units` to limit an individual request. On `BUDGET_EXCEEDED`, tell
-the user the request exceeded its budget. The standalone usage query in
-Python, Node, and Go reports App ID, period, and units used.
+An unavailability error can also come from the local SDK transport, without
+a server code. A timeout or lost reply can occur after the model has begun
+work. Let the user decide whether to submit another call.
 
 ### Image input
 
-Use a chat model that supports images and declare `ai.chat.untrusted` with
-`external-content` in `ai.origins`. Each image takes `format` (`png`, `jpg`,
-or `webp`) and `image_base64`. Send up to four images, 512 KiB combined
+Use a chat model that supports images. Each image takes `format` (`png`,
+`jpg`, or `webp`) and `image_base64`. Send up to four images, 512 KiB combined
 before encoding.
 
 ```python
@@ -137,7 +129,6 @@ from yuos_sdk.ai import chat
 def describe_image(png_bytes: bytes) -> str:
     reply = chat(
         "Describe this image.",
-        origin="external-content",
         images=[{"format": "png", "image_base64": b64encode(png_bytes).decode("ascii")}],
     )
     return reply.output.text
@@ -154,7 +145,6 @@ from dataclasses import asdict
 from yuos_sdk.ai import chat
 
 request = {
-    "origin": "trusted",
     "prompt": "Look up the price of tea, then tell me the price.",
     "functions": [{
         "name": "lookup_price",
@@ -184,7 +174,6 @@ print(reply.text)
 
 Keep prior `tool_turns` in order if the model asks for another call.
 Pass one result per call ID and echo optional `provider_state` unchanged.
-For results derived from files, email or web pages, use `external-content`.
 Each request counts toward the App AI budget.
 
 ## SDK source and code generation

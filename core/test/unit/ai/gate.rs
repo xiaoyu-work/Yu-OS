@@ -1,4 +1,5 @@
 use super::*;
+use crate::ai::budget::{Reservation, Store};
 
 #[test]
 fn wire_codes_follow_error_semantics() {
@@ -212,10 +213,10 @@ fn app_provider_error_does_not_forward_upstream_body() {
         status: 401,
         message: "do not disclose this provider credential diagnostic".into(),
     };
-    assert_eq!(app_provider_error(error), "text model API returned HTTP 401");
+    assert_eq!(app_provider_error(error), "chat model API returned HTTP 401");
 }
 
-// ---------- BudgetReservation Drop guard (audit fix) ----------
+// ---------- Model service budget hold ----------
 
 /// Build a `Store` backed by a private on-disk SQLite file under
 /// a tempdir. Returns the tempdir so the file outlives the
@@ -236,7 +237,7 @@ async fn dispatched_app_request_timeout_retains_its_budget_reservation() {
     let store = Store::open().unwrap();
     let call = async move {
         let mut reservation =
-            BudgetReservation::reserve(store, "yuos-edit".into(), 500, 1000, 0).unwrap();
+            Reservation::app(store, "yuos-edit", None, 500, 1000, || Ok(0)).unwrap();
         reservation.retain_estimate_on_drop();
         std::future::pending::<()>().await;
         drop(reservation);
@@ -248,13 +249,10 @@ async fn dispatched_app_request_timeout_retains_its_budget_reservation() {
     );
     let store = Store::open().unwrap();
     assert_eq!(store.current("yuos-edit").unwrap().units_used, 500);
-    assert!(BudgetReservation::reserve(store, "yuos-edit".into(), 501, 1000, 0).is_err());
+    assert!(Reservation::app(store, "yuos-edit", None, 501, 1000, || Ok(0)).is_err());
 }
 
-/// The `BudgetReservation` Drop guard refunds the reserved
-/// units when it goes out of scope without `commit()`. This is
-/// the audit fix for `ai/gate.rs HIGH`: previously a provider
-/// error between `reserve` and `settle` left the units debited.
+/// Dropping the hold before dispatch releases the reserved units.
 #[test]
 fn budget_refunded_on_provider_error() {
     let (_dir, store) = ephemeral_budget_store_via_tempdir();
@@ -269,12 +267,13 @@ fn budget_refunded_on_provider_error() {
     // Reserve 500 units, then drop without committing — mimics
     // a provider error path between `reserve` and `commit`.
     {
-        let _r = BudgetReservation::reserve(
+        let _r = Reservation::app(
             store,
-            "test.app".to_string(),
+            "test.app",
+            None,
             500,
             10_000,
-            0, // no user cap
+            || Ok(0),
         )
         .expect("reserve");
         // Reservation is alive here; the row should reflect the debit.
@@ -293,7 +292,7 @@ fn budget_refunded_on_provider_error() {
     let after = after_store.current("test.app").unwrap().units_used;
     assert_eq!(
         after, before,
-        "BudgetReservation::drop must refund the reservation when commit() was not called"
+        "a call stopped before dispatch must release reserved units"
     );
 
     std::env::remove_var("YUOS_DATA_DIR");
@@ -305,7 +304,7 @@ async fn system_stream_settles_reported_openai_usage_to_actuals() {
 
     let (_dir, store) = ephemeral_budget_store_via_tempdir();
     let reservation =
-        SystemBudgetReservation::reserve(store, 500, 10_000).expect("reserve estimate");
+        Reservation::system(store, 500, 10_000).expect("reserve estimate");
     let inner: futures_util::stream::BoxStream<'static, crate::agent::llm::Result<StreamEvent>> =
         Box::pin(futures_util::stream::iter(vec![Ok(StreamEvent::Done {
             finish: FinishReason::Stop,
@@ -316,7 +315,7 @@ async fn system_stream_settles_reported_openai_usage_to_actuals() {
             },
         })]));
 
-    let events: Vec<_> = wrap_system_stream(inner, reservation).collect().await;
+    let events: Vec<_> = model_service::settle_stream(inner, reservation).collect().await;
     let charged = Store::open()
         .unwrap()
         .current(SYSTEM_AGENT_BUCKET)
@@ -341,14 +340,14 @@ async fn system_stream_without_compat_usage_keeps_conservative_estimate() {
 
     let (_dir, store) = ephemeral_budget_store_via_tempdir();
     let reservation =
-        SystemBudgetReservation::reserve(store, 500, 10_000).expect("reserve estimate");
+        Reservation::system(store, 500, 10_000).expect("reserve estimate");
     let inner: futures_util::stream::BoxStream<'static, crate::agent::llm::Result<StreamEvent>> =
         Box::pin(futures_util::stream::iter(vec![Ok(StreamEvent::Done {
             finish: FinishReason::Stop,
             usage: Default::default(),
         })]));
 
-    let events: Vec<_> = wrap_system_stream(inner, reservation).collect().await;
+    let events: Vec<_> = model_service::settle_stream(inner, reservation).collect().await;
     let charged = Store::open()
         .unwrap()
         .current(SYSTEM_AGENT_BUCKET)

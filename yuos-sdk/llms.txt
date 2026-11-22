@@ -2,9 +2,9 @@
 
 > Build Yu OS Apps in Python, Node.js, Go, or Rust. Call the user's configured AI model through Yu OS, or expose App tools to the system Agent via MCP.
 
-- Declare the AI verb in `app.json`, e.g. `{"verb":"ai.chat"}` under `needs`. Import `chat`, `embed`, `tts`, `stt`, `imagegen`, or `decide`. Each result has `provider`, `model`, `units`, and `output`. Settings selects the user's model and monthly App AI limit.
-- Pass explicit `origin`: `trusted` for developer-authored text, `user-input` for typed input, and `external-content` for outside data. External chat content uses `ai.chat.untrusted`.
-- Use `chat` with `images` for image input and `external-content` origin. An image has `format` and `image_base64`. For App-owned functions, pass schemas in `functions`, validate and run proposals in App code, and return results by call ID in `tool_turns`.
+- Add `"ai": {}` in `app.json` and declare the matching capability, e.g. `{"verb":"ai.chat"}` under `needs`. Import `chat`, `embed`, `tts`, `stt`, `imagegen`, or `decide`. Each result has `provider`, `model`, `units`, and `output`. Settings selects the model and monthly App AI limit.
+- Call `chat(prompt)` for text or pass `images` (`format` and `image_base64`) with an image-capable chat model. Pass schemas in `functions`, validate and run proposals in App code, and return results by call ID in `tool_turns`.
+- Handle authorization, exhausted budget, service unavailable, and invalid input using the SDK's typed errors.
 - Declare optional GUI model capabilities in `optional_needs`. On `model_permission_required`, show an App-written message and let the user open Settings → Applications.
 - The built-in System Agent calls enabled MCP tools declared in the signed `app.json`. Set `schema_version: 2` and bind handlers to `mcp.tools`. Name a tool `<app-id>.<command>` to expose `yu app <app-id> <command>`.
 - Read caller identity from the Gateway's call context. Use MCP stdout for protocol messages and stderr for logs.

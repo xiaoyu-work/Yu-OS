@@ -1,9 +1,8 @@
-# AI Gate Module
+# AI Model Service
 
 ## Purpose
 
-`ai/` is the policy, consent, budget, and provider-facing gate used by apps and
-system callers that request AI work outside the interactive agent loop.
+`ai/` dispatches model calls for the System Agent and for Apps using the SDK.
 
 ## Responsibilities
 
@@ -13,6 +12,8 @@ system callers that request AI work outside the interactive agent loop.
   The UTC ledger counts settled usage and in-flight reservations even
   when unlimited. Settings displays settled usage; provider dispatch
   uses both. Legacy manifest budgets are not enforcement inputs.
+- Charge System Agent inference to `system.agent`, with its own configured
+  cap and the same reservation and settlement mechanism.
 - Notify the owner at 80% and when the limit is reached or a reservation
   cannot fit, at most once per threshold and UTC month. Notification
   delivery does not determine budget enforcement.
@@ -23,8 +24,7 @@ system callers that request AI work outside the interactive agent loop.
 - Serve `chat` through the authenticated `yuosd` `ai.chat` route. The gate uses
   the live App capability, verified manifest, user configuration and consent.
   It validates bounded image data and places it with the App's prompt in a
-  user message. Images use `ai.chat.untrusted` via `external-content` origin
-  and go to the configured chat model alongside text.
+  user message. Text and images use the same `ai.chat` capability.
 - Serve SDK `yu ai infer` through the same App authority and budget. The owner
   configures the destination; binary data is bounded stdin/reply data.
   Configured local embeddings and decisions run as the owner in a fixed worker.
@@ -40,12 +40,13 @@ system callers that request AI work outside the interactive agent loop.
 
 | Path | Role |
 | --- | --- |
-| `gate.rs` | AI request validation, authorization, provider call |
-| `budget.rs`, `user_budget.rs` | Shared App ledger, atomic owner setting, and threshold alerts |
+| `model_service.rs` | Metered model calls, shared configured provider selection, and streaming settlement |
+| `gate.rs` | Chat input, App policy and consent, and System Agent chat provider chain |
+| `budget.rs`, `user_budget.rs` | Separate Agent and App accounts in the owner ledger, App settings and alerts |
 | `consent.rs` | Persisted consent decisions |
 | `chat.rs` | AI chat request surface |
 | `app_tools.rs` | Bounded App-owned function schemas, matched result replay, and proposal projection |
-| `inference.rs`, `inference/` | Closed App model input, configured provider dispatch, and owner-local worker |
+| `inference.rs`, `inference/` | Typed App input and result projection for embeddings, speech, images, and decisions |
 
 ## Dependencies
 

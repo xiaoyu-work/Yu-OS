@@ -68,8 +68,8 @@ func TestChatRequiresAppID(t *testing.T) {
 	withCos(t, bin, map[string]string{"YUOS_APP_ID": ""}, func() {
 		_, err = Chat("hi", ChatOptions{Origin: "trusted"})
 	})
-	if _, ok := err.(*AiUnavailableError); !ok {
-		t.Fatalf("expected AiUnavailableError, got %T %v", err, err)
+	if _, ok := err.(*AiDeniedError); !ok {
+		t.Fatalf("expected AiDeniedError, got %T %v", err, err)
 	}
 }
 
@@ -81,12 +81,14 @@ func TestChatErrorClassification(t *testing.T) {
 		{wireErrorEnvelope("safety words", "BUDGET_EXCEEDED"), "budget"},
 		{wireErrorEnvelope("budget words", "SAFETY_VIOLATION"), "safety"},
 		{wireErrorEnvelope("capability denied", "PERMISSION_DENIED"), "denied"},
+		{wireErrorEnvelope("opaque", "KERNEL_UNAVAILABLE"), "unavailable"},
+		{wireErrorEnvelope("opaque", "INVALID_ARGS"), "invalid"},
 	}
 	for _, c := range cases {
 		bin, _ := fakeYu(t, c.body, 1)
 		var err error
 		withCos(t, bin, map[string]string{"YUOS_APP_ID": "notes"}, func() {
-			_, err = Chat("hi", ChatOptions{Origin: "trusted"})
+			_, err = Chat("hi", ChatOptions{})
 		})
 		switch c.want {
 		case "budget":
@@ -96,6 +98,14 @@ func TestChatErrorClassification(t *testing.T) {
 		case "safety":
 			if _, ok := err.(*AiSafetyViolationError); !ok {
 				t.Fatalf("%s: want AiSafetyViolationError, got %T", c.body, err)
+			}
+		case "unavailable":
+			if e, ok := err.(*AiUnavailableError); !ok || e.Payload["code"] != "KERNEL_UNAVAILABLE" {
+				t.Fatalf("%s: want server AiUnavailableError, got %T", c.body, err)
+			}
+		case "invalid":
+			if _, ok := err.(*AiInvalidArgsError); !ok {
+				t.Fatalf("%s: want AiInvalidArgsError, got %T", c.body, err)
 			}
 		default:
 			if _, ok := err.(*AiDeniedError); !ok {

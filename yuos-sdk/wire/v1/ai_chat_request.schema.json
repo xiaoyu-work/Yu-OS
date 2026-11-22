@@ -7,7 +7,7 @@
   "additionalProperties": false,
   "required": ["origin", "prompt"],
   "properties": {
-    "origin": { "type": "string", "enum": ["trusted", "user-input", "external-content"] },
+    "origin": { "type": "string", "enum": ["app", "trusted", "user-input", "external-content"] },
     "prompt": { "type": "string", "minLength": 1, "x-max-utf8-bytes": 131072 },
     "system": { "type": "string", "x-max-utf8-bytes": 131072 },
     "images": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "$ref": "#/$defs/AiChatImage" } },

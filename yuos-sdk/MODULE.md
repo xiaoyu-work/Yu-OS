@@ -17,8 +17,8 @@ Rust, Python, Node, and Go bindings.
 - Expose `chat`, `embed`, `tts`, `stt`, `imagegen`, and `decide` as named SDK
   functions. Each exposes provider, model, units, and its typed output; dispatch
   stays in the binding.
-- `yu ai chat` uses the configured chat model and accepts bounded images for
-  `external-content` requests. Apps supply function schemas, execute
+- The configured chat model accepts text and bounded images under `ai.chat`.
+  Apps supply function schemas, execute
   proposals, and return results. The other five slots use `yu ai infer`.
   Optional GUI permission failures carry a Settings recovery reason.
 - App operations, MCP tools, and GUI entries can declare a supported AI verb
@@ -147,12 +147,10 @@ across the four clients; no lossy name/parent conversion is permitted.
 
 ## Dependencies
 
-All four chat bindings require explicit prompt origin. Origin selects the
-capability route, not a safety tier. Node's async AI/catalog calls share the
-same decoder as synchronous control primitives and accept the MCP call's
-abort signal. Go's context-aware AI/catalog calls preserve the MCP caller's
-deadline and cancellation. The standalone budget query reports usage, not a
-fabricated cap. These facade changes do not change wire v1 or App authority.
+Model bindings preserve typed authorization, budget, invalid input, safety,
+and service availability errors. Node's async AI/catalog calls accept the MCP
+call's abort signal. Go's context-aware AI/catalog calls preserve the MCP
+caller's deadline and cancellation. The standalone budget query reports usage.
 
 Wire schemas and `wire/v1/contract.json` are the source of truth. Core, MCP,
 and every language SDK consume them.

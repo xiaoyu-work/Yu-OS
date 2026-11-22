@@ -9,7 +9,6 @@ use crate::ai::{gate, inference};
 const MODEL_PERMISSION_REQUIRED: &str = "model_permission_required";
 
 const CHAT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
-static IN_FLIGHT: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
 
 pub async fn chat(
     params: Value,
@@ -23,10 +22,6 @@ pub async fn chat(
         AiChat::Request(body) => body.app_id.as_str(),
     }.to_owned();
     require_app(authority, &app_id)?;
-    // Worker relays call handlers directly, so enforce bounds here too.
-    let _permit = IN_FLIGHT
-        .try_acquire()
-        .map_err(|_| BrokerError::unavailable("AI gate is busy"))?;
     let home = client.require_home_dir()?;
     let req = match body {
         AiChat::Text(body) => gate::ChatRequest {
@@ -66,9 +61,6 @@ pub async fn infer(
     let body: super::wire::requests::AiInference = serde_json::from_value(params)
         .map_err(|_| BrokerError::execution("invalid inference request"))?;
     require_app(authority, body.app_id.as_str())?;
-    let _permit = IN_FLIGHT
-        .try_acquire()
-        .map_err(|_| BrokerError::unavailable("AI gate is busy"))?;
     let home = client.require_home_dir()?;
     crate::paths::with_user_override(authority.owner_uid(), home.clone(), async {
         crate::config::with_snapshot(crate::config::load_user_config(), async {
@@ -122,6 +114,8 @@ fn error_reply(app_id: &str, error: gate::AiError) -> BrokerError {
     if settings_required {
         BrokerError::authorization_required(error.to_string(), data)
             .classified(MODEL_PERMISSION_REQUIRED)
+    } else if error.wire_code() == "PERMISSION_DENIED" {
+        BrokerError::authorization_required(error.to_string(), data)
     } else {
         BrokerError::with_data(error.to_string(), data)
     }

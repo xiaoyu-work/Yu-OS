@@ -122,7 +122,8 @@ The normal call direction is:
 CLI/web -> yuosd task queue -> yuos-agentd worker
   -> runtime loop
   -> prompt + memory
-  -> Provider
+  -> shared AI model service (System Agent budget)
+  -> configured Provider
   -> stream accumulator
   -> guarded tool registry
   -> tool result history

@@ -1,15 +1,11 @@
-//! AI helper for the stable `chat` / `chat-untrusted` surface.
-//!
-//! [`chat`] shells out to `yu ai chat --app <id>`. Passing
-//! `origin("external-content")` makes the kernel select
-//! `ai.chat.untrusted`.
+//! Call the user's configured Yu OS models from an authorized App.
 //!
 //! ```no_run
 //! use yuos_sdk::ai;
 //!
 //! fn summarise(body: &str) -> Result<String, ai::AiError> {
-//!     let r = ai::chat(body, ai::ChatOpts::default().origin("external-content").max_units(2000))?;
-//!     Ok(r.text)
+//!     let r = ai::chat(body, ai::ChatOpts::default())?;
+//!     Ok(r.output.text)
 //! }
 //! ```
 
@@ -131,7 +127,7 @@ pub enum AiError {
     #[error("ai: {0}")]
     InvalidArg(String),
 
-    /// Gate refused (caps / origin / unknown app / unknown verb).
+    /// The App does not have permission to make the call.
     #[error("ai denied: {message}")]
     Denied {
         message: String,
@@ -139,7 +135,7 @@ pub enum AiError {
         payload: serde_json::Value,
     },
 
-    /// Per-app monthly budget exhausted.
+    /// Available budget could not cover the call.
     #[error("budget exceeded: {0}")]
     BudgetExceeded(String),
 
@@ -150,6 +146,10 @@ pub enum AiError {
     /// Transport / decode failure.
     #[error("ai unavailable: {0}")]
     Unavailable(String),
+
+    /// Yu OS returned `KERNEL_UNAVAILABLE`.
+    #[error("AI service unavailable: {0}")]
+    ServiceUnavailable(String),
 
     #[error(transparent)]
     Bridge(#[from] BridgeError),
@@ -173,7 +173,7 @@ pub struct ChatOpts {
 }
 
 impl ChatOpts {
-    /// Declare `trusted`, `user-input`, or `external-content`. Required for chat.
+    /// Select the explicit origin route used by older Apps.
     pub fn origin(mut self, o: impl Into<String>) -> Self {
         self.origin = Some(o.into());
         self
@@ -218,17 +218,15 @@ impl ChatOpts {
 // Public helpers
 // ---------------------------------------------------------------------------
 
-/// Single-shot chat completion. Requires an explicit [`ChatOpts::origin`].
+/// Call the configured chat model.
 pub fn chat(prompt: &str, opts: ChatOpts) -> Result<AiResponse, AiError> {
     if prompt.trim().is_empty() {
         return Err(AiError::InvalidArg("chat: prompt must be non-empty".into()));
     }
-    let origin = opts
-        .origin
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| AiError::InvalidArg("chat: prompt origin is required".into()))?;
-    if opts.images.is_some() || opts.functions.is_some() || opts.tool_turns.is_some() {
+    if opts.origin.as_ref().is_some_and(|origin| origin.trim().is_empty()) {
+        return Err(AiError::InvalidArg("chat: invalid origin".into()));
+    }
+    if opts.origin.is_none() || opts.images.is_some() || opts.functions.is_some() || opts.tool_turns.is_some() {
         if opts.tools.as_ref().is_some_and(|tools| !tools.is_empty()) {
             return Err(AiError::InvalidArg("chat: supply App functions in functions".into()));
         }
@@ -240,7 +238,7 @@ pub fn chat(prompt: &str, opts: ChatOpts) -> Result<AiResponse, AiError> {
             });
         }
         return chat_request(&AiChatRequest {
-            origin: origin.into(),
+            origin: opts.origin.unwrap_or_else(|| "app".into()),
             prompt: prompt.into(),
             system: opts.system,
             images: opts.images,
@@ -249,10 +247,10 @@ pub fn chat(prompt: &str, opts: ChatOpts) -> Result<AiResponse, AiError> {
             tool_turns: opts.tool_turns,
         });
     }
-    dispatch(prompt, origin, &opts)
+    dispatch(prompt, &opts)
 }
 
-/// Call the configured text model with optional App functions and prior results.
+/// Call the configured chat model with optional App functions and prior results.
 pub fn chat_request(request: &AiChatRequest) -> Result<AiResponse, AiError> {
     let value = serde_json::to_value(request)
         .map_err(|error| AiError::InvalidArg(error.to_string()))?;
@@ -304,7 +302,7 @@ pub fn infer(request: &AiInferenceRequest) -> Result<AiInference, AiError> {
     serde_json::from_value(reply).map_err(|error| AiError::Unavailable(error.to_string()))
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct ModelOpts {
     pub origin: String,
     pub max_units: Option<u32>,
@@ -320,7 +318,8 @@ fn run_model<T: serde::de::DeserializeOwned>(
     input: serde_json::Value,
     opts: ModelOpts,
 ) -> Result<ModelResponse<T>, AiError> {
-    let reply = infer(&AiInferenceRequest { origin: opts.origin, max_units: opts.max_units, input })?;
+    let origin = if opts.origin.is_empty() { "app".into() } else { opts.origin };
+    let reply = infer(&AiInferenceRequest { origin, max_units: opts.max_units, input })?;
     let output = serde_json::from_value(reply.output)
         .map_err(|error| AiError::Unavailable(error.to_string()))?;
     Ok(ModelResponse { provider: reply.provider, model: reply.model, units: reply.units.into(), output })
@@ -416,14 +415,15 @@ impl Drop for PrivateInputFile {
     }
 }
 
-fn dispatch(prompt: &str, origin: &str, opts: &ChatOpts) -> Result<AiResponse, AiError> {
+fn dispatch(prompt: &str, opts: &ChatOpts) -> Result<AiResponse, AiError> {
     let app = opts
         .app_id
         .clone()
         .or_else(|| std::env::var("YUOS_APP_ID").ok())
         .ok_or_else(|| {
-            AiError::InvalidArg(
-                "chat: app id is required (pass .app(...) or set YUOS_APP_ID)".into(),
+            classify_ai_error(
+                "chat: App identity is required",
+                &serde_json::json!({"code": "PERMISSION_DENIED"}),
             )
         })?;
 
@@ -433,7 +433,7 @@ fn dispatch(prompt: &str, origin: &str, opts: &ChatOpts) -> Result<AiResponse, A
         "--app".into(),
         app.into(),
         "--origin".into(),
-        origin.into(),
+        opts.origin.as_deref().unwrap_or("app").into(),
     ];
     let prompt_file = PrivateInputFile::new("prompt", prompt)?;
     argv.push("--prompt-file".into());
@@ -522,7 +522,15 @@ fn classify_ai_error(message: &str, payload: &serde_json::Value) -> AiError {
     match code.as_str() {
         "BUDGET_EXCEEDED" => return AiError::BudgetExceeded(message.to_string()),
         "SAFETY_VIOLATION" => return AiError::SafetyViolation(message.to_string()),
-        _ => {}
+        "KERNEL_UNAVAILABLE" => return AiError::ServiceUnavailable(message.to_string()),
+        "INVALID_ARGS" => return AiError::InvalidArg(message.to_string()),
+        "PERMISSION_DENIED" | "UNKNOWN_APP" | "UNKNOWN_VERB" | "DENIED" => {}
+        _ => return AiError::Bridge(BridgeError::AppError {
+            app: "ai".into(),
+            verb: "model".into(),
+            message: message.into(),
+            code,
+        }),
     }
     AiError::Denied {
         message: message.to_string(),

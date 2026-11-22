@@ -69,18 +69,11 @@ token.
 
 ## AI and catalog tools
 
-`ai` and `tools` are thin clients over wire protocol v1. They invoke `yu`,
-which enforces capabilities, prompt-origin allowlists, monthly budget, safety,
-and audit before model or computer operations run.
-
 AI and catalog calls return promises. In an MCP handler, pass `call.signal`
 to propagate cancellation and the deadline:
 
 ```ts
-const reply = await ai.chat(body, {
-  origin: "external-content",
-  signal: call.signal,
-});
+const reply = await ai.chat(body, { signal: call.signal });
 ```
 
 `tools.call`, `tools.catalog`, and `ai.budget` also accept `{ signal }`
@@ -113,15 +106,10 @@ spelling, byte limits, and the optional manifest `objects` resolver declaration.
 
 ## AI support
 
-`ai.chat` requires explicit `origin`. `external-content` selects
-`ai.chat.untrusted`. See the
-[shared AI contract](../REFERENCE.md#ai-support) and [App consent requirements](../../docs/app-development.md#7-ai-features).
-Use the SDK rather than a provider SDK or `yu agent`. The owner configures
-the provider and model.
-
 Import named calls directly from `@yuos/sdk`. Each model reply has
-`provider`, `model`, `units`, and `output`. `chat` accepts `images` and
-`functions` in its options.
+`provider`, `model`, `units`, and `output`. See the
+[model capabilities](../REFERENCE.md#ai-support) and
+[typed errors](../REFERENCE.md#handle-ai-errors).
 `await ai.openPermissionSettings()` opens the [model permission page](../../docs/app-development.md#model-permissions-in-settings)
 after a user action and with the separate desktop launcher permission.
 
@@ -129,10 +117,9 @@ after a user action and with the separate desktop launcher permission.
 
 Transport-facing domain errors extend `transport.BridgeError`:
 
-- `ai.AiDenied` / `ai.AiBudgetExceeded` / `ai.AiSafetyViolation` — a gate
-  refused the call; `.payload` carries the structured kernel envelope.
-- `ai.AiUnavailable` / `tools.ToolUnavailable` — transport failure
-  (binary missing, timeout, non-JSON output).
+- AI errors carry the server's `code` and `payload` when available.
+- `tools.ToolUnavailable` — transport failure (binary missing, timeout,
+  non-JSON output).
 - `tools.ToolDenied` — capability / unknown-tool / arg-shape refusal.
 
 Pure reference validation throws `objects.ObjectRefError`, which extends

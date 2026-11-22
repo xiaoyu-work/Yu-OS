@@ -888,23 +888,18 @@ This keeps local, sandboxed, and remote implementations interchangeable.
 
 ### AI ownership
 
-Apps use the Yu OS SDK rather than provider SDKs. The broker calls the
-authenticated owner's configured model API or local model without starting
-the system Agent. It does not include Agent prompts, memory, conversation
-history, or system tools. Structured `yu ai chat --request-stdin` can send
-App-provided function schemas and tool history. Proposals are limited to
-that request's function names; App code decides and executes outside the
-broker under its own permissions. The broker never dispatches a proposal.
+The [model service](core/src/ai/MODULE.md) dispatches inference to the owner's
+configured chat, embedding, speech, image generation, and decision models.
+The System Agent uses the service in its worker and keeps its own monthly
+budget. Apps call the same service through the SDK and their authenticated
+broker session. App usage is pooled under the owner's App AI limit.
 
-SDK `ai::chat` calls `yu ai chat`, which always sends a bounded `ai.chat`
-broker request. The worker relay rederives the registered App session and live
-transient capabilities; the daemon runs the existing single-shot AI gate, not
-the system Agent loop. It rejects legacy catalog tool names before calling
-the provider. App workers need no local session registry, credentials or
-provider network. The gate applies verified manifest policy, owner consent,
-safety and budgets and persists exact safety-filtered model inputs in the
-owner-partitioned AI ledger. Revoked/replaced grants cancel in-flight calls;
-dispatched reservations are conservatively charged on cancellation.
+The App gate checks the exact capability, verified manifest policy, and owner
+consent. It sends the App's input without Agent conversation or tools and
+records the safety-filtered request against the owner and App session.
+Revoking the live grant cancels a call; the ledger conservatively charges
+dispatched work. Apps can send function schemas and prior tool results.
+App code alone decides whether to execute a proposed function.
 
 Mail's UI Native Messaging host and Agent MCP server use the same installed
 package at `/usr/lib/yuos/apps/mail-ai`; the desktop feature does not install a

@@ -115,10 +115,12 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
             "verb":"ai.chat.untrusted", "scope":{"kind":"fixed", "scope":{"kind":"name","value":"test-model"}},
             "why":{"en":"test"}
         }, {
+            "verb":"ai.chat"
+        }, {
             "verb": "ai.embed", "scope":{"kind":"fixed", "scope":{"kind":"name","value":"embed-test"}}
         }]}},
         "ai":{"budget":{"monthly_units":50000}, "safety":"strict",
-              "origins":["external-content"], "tools":["fs.read_text"]}
+              "origins":["user-input", "external-content"], "tools":["fs.read_text"]}
     });
     std::fs::write(dir.join("app.json"), manifest.to_string()).unwrap();
     std::fs::write(
@@ -146,22 +148,22 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
     .unwrap();
     crate::proc::register_session(session).unwrap();
     crate::provenance::runtime::register(uid, &sid, app.require_verified().unwrap());
-    let (_, grant) = authority::authority()
+    let issue = |caps| authority::authority()
         .issue(Issuance {
             issuer: Issuer::AppSessionAuthority,
             principal: Principal::of_process(uid, std::process::id()).unwrap(),
             binding: Binding::ProcessTree,
             subject: Subject::session(&sid).with_app(Some("yuos-edit".into())),
             audience: AudienceSet::one(Audience::SystemService),
-            caps: CapSet::from_caps(vec![Cap::new(
-                Verb::AI_CHAT_UNTRUSTED,
-                Scope::name("test-model"),
-            ), Cap::new(Verb::AI_EMBED, Scope::name("embed-test"))]),
+            caps: CapSet::from_caps(caps),
             lifetime: std::time::Duration::from_secs(60),
             uses: Uses::Unbounded,
             index_session: true,
         })
-        .unwrap();
+        .unwrap().1;
+    let legacy = Cap::new(Verb::AI_CHAT_UNTRUSTED, Scope::name("test-model"));
+    let embedding = Cap::new(Verb::AI_EMBED, Scope::name("embed-test"));
+    let grant = issue(vec![legacy.clone(), embedding.clone()]);
 
     let path = root.join("ai.sock");
     let _socket = TestEnvVarGuard::set(crate::extension_host::protocol::BROKER_SOCKET_ENV, &path);
@@ -276,7 +278,7 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
 
     let mut params_infer = json!({
         "session": sid, "app_id": "yuos-edit",
-        "request": {"origin": "external-content", "max_units": 1,
+        "request": {"origin": "app", "max_units": 1,
             "input": {"kind": "embed", "text": "to embed"}}
     });
     let refused = crate::yuosd::server::dispatch_verified_request(
@@ -383,7 +385,7 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
     forged["app_id"] = json!("other-app");
     assert!(!dispatch(forged, &identity, &state, &admission).await.ok);
     let mut wrong_cap = params.clone();
-    wrong_cap["origin"] = json!("trusted");
+    wrong_cap["origin"] = json!("app");
     assert!(!dispatch(wrong_cap, &identity, &state, &admission).await.ok);
     let mut small = params.clone();
     small["max_units"] = json!(1);
@@ -442,16 +444,16 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
     let server = tokio::spawn(async move { axum::serve(provider, provider_routes).await.unwrap() });
     let mut app_chat = json!({
         "session":sid,"app_id":"yuos-edit","request":{
-            "prompt":"Convert two meters","origin":"external-content","max_units":4000,
+            "prompt":"Convert two meters","origin":"app","max_units":4000,
             "images":[{"format":"png","image_base64":IMAGE}],
             "tools":[{"name":"convert_units","description":"Convert meters to centimeters.",
                 "parameters":{"type":"object","properties":{"meters":{"type":"number"}},"required":["meters"]}}]
         }
     });
-    let mut invalid = app_chat.clone();
-    invalid["request"]["origin"] = json!("trusted");
-    let refused = dispatch(invalid, &identity, &state, &admission).await;
-    assert!(!refused.ok, "image input requires the external-content capability");
+    let refused = dispatch(app_chat.clone(), &identity, &state, &admission).await;
+    assert!(!refused.ok, "a legacy grant is not a grant of ai.chat");
+    authority::authority().revoke(grant.id);
+    let grant = issue(vec![legacy, embedding, Cap::new(Verb::AI_CHAT, Scope::name("test-model"))]);
     let mut invalid = app_chat.clone();
     invalid["request"]["images"][0]["format"] = json!("jpg");
     let refused = dispatch(invalid, &identity, &state, &admission).await;
@@ -459,6 +461,7 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
     assert_eq!(seen.load(std::sync::atomic::Ordering::SeqCst), 0);
     let response = dispatch(app_chat.clone(), &identity, &state, &admission).await;
     let proposal = response.result.unwrap_or_else(|| panic!("tool request failed: {:?}", response.error));
+    assert_eq!(proposal["verb"], "ai.chat");
     assert_eq!(proposal["tool_calls"], json!([{"id":"call_1","name":"convert_units","input":{"meters":2}}]));
     assert_eq!(seen.load(std::sync::atomic::Ordering::SeqCst), 1);
 
@@ -477,10 +480,13 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
     let answer = response.result.unwrap_or_else(|| panic!("tool continuation failed: {:?}", response.error));
     assert_eq!(answer["text"], "Two meters is 200 centimeters.");
     assert!(answer.get("tool_calls").is_none());
-    let undeclared = dispatch(first, &identity, &state, &admission).await;
+    let undeclared = dispatch(first.clone(), &identity, &state, &admission).await;
     assert_eq!(undeclared.error.unwrap().data.unwrap()["ai_error"]["code"], "KERNEL_UNAVAILABLE");
     assert_eq!(seen.load(std::sync::atomic::Ordering::SeqCst), 3);
     server.abort();
+    assert!(server.await.unwrap_err().is_cancelled());
+    let unavailable = dispatch(first, &identity, &state, &admission).await;
+    assert_eq!(unavailable.error.unwrap().data.unwrap()["ai_error"]["code"], "KERNEL_UNAVAILABLE");
 
     crate::ai::consent::delete("yuos-edit").unwrap();
     let denied = dispatch(params.clone(), &identity, &state, &admission).await;
@@ -496,7 +502,10 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
     .await
     .unwrap()
     .unwrap();
-    let awaiting = gate::await_authorized(&current, std::future::pending());
+    let awaiting = crate::ai::model_service::await_live(
+        &current,
+        std::future::pending::<Result<(), &'static str>>(),
+    );
     let cancelling = async {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         authority::authority().revoke(grant.id);

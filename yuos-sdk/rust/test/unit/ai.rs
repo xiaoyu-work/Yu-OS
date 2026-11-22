@@ -41,6 +41,10 @@ fn error_messages_do_not_override_stable_codes() {
     });
     let err = classify_ai_error("budget safety blocked", &payload);
     assert!(matches!(err, AiError::Denied { .. }));
+    let unavailable = classify_ai_error("opaque", &serde_json::json!({"code": "KERNEL_UNAVAILABLE"}));
+    assert!(matches!(unavailable, AiError::ServiceUnavailable(_)));
+    let invalid = classify_ai_error("opaque", &serde_json::json!({"code": "INVALID_ARGS"}));
+    assert!(matches!(invalid, AiError::InvalidArg(_)));
 }
 
 #[test]
