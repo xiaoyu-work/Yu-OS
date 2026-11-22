@@ -2,14 +2,9 @@
 
 Official **Go** SDK for [Yu OS](https://github.com/xiaoyu-work/Yu-OS).
 
-This module is the public surface a Go App uses to expose MCP tools, reach the
-kernel's stable chat and fixed tool catalog, and bootstrap a desktop GUI.
-It does not allow App-to-App invocation. Like the Python, Rust, and Node SDKs,
-its outbound transport is a **thin client over
-wire protocol v1**: supported operations shell out to the `yu` binary,
-which enforces capabilities, prompt-origin allowlists, monthly budget,
-the safety pipeline, and audit before any model or computer operation
-runs.
+Use this module to call models and catalog tools, expose MCP tools, and
+bootstrap a desktop GUI. Outbound calls use `yu` and wire protocol v1.
+Yu OS handles capability checks, input policy, budgets, and auditing.
 
 ## Install
 
@@ -145,15 +140,15 @@ and the optional App manifest `objects` resolver declaration.
 ## AI support
 
 `Chat` and `ChatContext` require explicit `Origin`. `external-content` selects
-`ai.chat.untrusted`, not a safety profile. See the
-[shared AI contract](../REFERENCE.md#ai-support). `Budget` and `BudgetContext`
-report usage without a cap; the chat reply still contains the actual cap.
+`ai.chat.untrusted`. The owner configures the model; see the
+[shared AI contract](../REFERENCE.md#ai-support) and
+[App consent requirements](../../docs/app-development.md#7-ai-features).
+`Budget` and `BudgetContext` report the App, period, and units used.
 
-Use the SDK rather than a provider SDK or `yu agent`. The owner configures
-the provider and model; see [App consent requirements](../../docs/app-development.md#7-ai-features).
-
-Use `Infer(ctx, request)` for the other model slots. `OpenAiPermissionSettings(ctx)`
-opens the [model permission page](../../docs/app-development.md#model-permissions-in-settings)
+Use `Embed`, `TTS`, `STT`, `ImageGen`, or `Decide` with `ModelOptions`. Every
+model reply exposes `Provider`, `Model`, `Units`, and `Output`.
+`ChatOptions.Images` and `ChatOptions.Functions` extend a chat request.
+`OpenAiPermissionSettings(ctx)` opens the [model permission page](../../docs/app-development.md#model-permissions-in-settings)
 after a user action and with the separate desktop launcher permission.
 
 ## Errors

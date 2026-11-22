@@ -35,10 +35,15 @@ import {
   validateAiInference,
   validateAiInferenceRequest,
   validateBudgetShow,
+  type AiAppTool,
   type AiBudget,
+  type AiChatImage,
   type AiChatRequest,
   type AiInference,
   type AiInferenceRequest,
+  type AiToolTurn,
+  type DecisionInput,
+  type TranscriptionInput,
 } from "./generated";
 
 /** Base class for every error this module raises. */
@@ -89,10 +94,27 @@ export interface ProposedToolCall {
   input: WireJsonValue;
 }
 
-export interface AiResponse {
-  text: string;
-  model: string;
+export interface ModelOptions {
+  origin: "trusted" | "user-input" | "external-content";
+  maxUnits?: number;
+  signal?: AbortSignal;
+}
+
+export interface ModelResponse<Output> {
   provider: string;
+  model: string;
+  units: number | bigint;
+  output: Output;
+}
+
+export interface ChatOutput {
+  text: string;
+  tool_calls: ProposedToolCall[];
+  provider_state?: string;
+}
+
+export interface AiResponse extends ModelResponse<ChatOutput> {
+  text: string;
   verb: string;
   usage: Usage;
   budget: Budget;
@@ -102,18 +124,16 @@ export interface AiResponse {
   raw: Record<string, WireJsonValue>;
 }
 
-export interface ChatOptions {
-  /** Declare where the prompt came from; `trusted` is developer-authored text only. */
-  origin: "trusted" | "user-input" | "external-content";
-  maxUnits?: number;
+export interface ChatOptions extends ModelOptions {
   /** Optional App instruction, not the system Agent's prompt. */
   system?: string;
   /** App identity. Defaults to `YUOS_APP_ID`. */
   appId?: string;
   /** @deprecated Catalog names are not accepted. Use {@link chatRequest} for App functions. */
   tools?: string[];
-  /** In an MCP handler, pass the call's signal to inherit its deadline and cancellation. */
-  signal?: AbortSignal;
+  images?: AiChatImage[];
+  functions?: AiAppTool[];
+  toolTurns?: AiToolTurn[];
 }
 
 /** Single-shot chat completion through the kernel's AI gate. */
@@ -126,8 +146,21 @@ export async function chat(prompt: string, opts: ChatOptions): Promise<AiRespons
   if (!app) {
     throw new AiError("chat: app_id is required (pass appId or set YUOS_APP_ID)");
   }
-  const { origin, maxUnits, system, tools, signal } = opts;
+  const { origin, maxUnits, system, tools, signal, images, functions, toolTurns } = opts;
   signal?.throwIfAborted();
+  if (images?.length || functions?.length || toolTurns?.length) {
+    if (tools?.length) throw new AiError("chat: supply App functions in functions");
+    if (app !== process.env.YUOS_APP_ID) {
+      throw new AiDenied({ code: "PERMISSION_DENIED", error: "chat: App identity does not match the session" });
+    }
+    const request: AiChatRequest = { origin, prompt };
+    if (system != null) request.system = system;
+    if (maxUnits != null) request.max_units = maxUnits;
+    if (images?.length) request.images = images;
+    if (functions?.length) request.tools = functions;
+    if (toolTurns?.length) request.tool_turns = toolTurns;
+    return chatRequest(request, { signal });
+  }
   const argv = ["ai", "chat", "--app", app, "--origin", origin];
   const privateDir = await mkdtemp(join(tmpdir(), "yuos-ai-"));
   try {
@@ -162,7 +195,7 @@ export async function chatRequest(
   { signal }: { signal?: AbortSignal } = {},
 ): Promise<AiResponse> {
   const input = stringifyWireJson(materializeWireValue(request));
-  if (Buffer.byteLength(input) > 512 * 1024) throw new AiError("App chat request exceeds the byte limit");
+  if (Buffer.byteLength(input) > 720 * 1024) throw new AiError("App chat request exceeds the byte limit");
   validateAiChatRequest(request);
   try {
     return parseResponse(await yuCallJsonAsync("yu ai chat", ["ai", "chat", "--request-stdin"], signal, input));
@@ -199,6 +232,49 @@ export async function infer(
     throw new AiUnavailable("AI inference reply does not match the request");
   }
   return data;
+}
+
+type ModelInput = AiInferenceRequest["input"];
+type ModelKind = ModelInput["kind"];
+type TaggedOutput<K extends ModelKind> = Extract<AiInference["output"], { kind: K }>;
+
+function matchesKind<K extends ModelKind>(
+  output: AiInference["output"], kind: K,
+): output is TaggedOutput<K> {
+  return output.kind === kind;
+}
+
+async function runModel<K extends ModelKind>(
+  input: ModelInput & { kind: K }, opts: ModelOptions,
+): Promise<ModelResponse<Omit<TaggedOutput<K>, "kind">>> {
+  const request: AiInferenceRequest = { origin: opts.origin, input };
+  if (opts.maxUnits != null) request.max_units = opts.maxUnits;
+  const { output, ...reply } = await infer(request, { signal: opts.signal });
+  if (!matchesKind(output, input.kind)) {
+    throw new AiUnavailable("AI inference reply does not match the request");
+  }
+  const { kind: _kind, ...payload } = output;
+  return { ...reply, output: payload };
+}
+
+export function embed(text: string, opts: ModelOptions) {
+  return runModel({ kind: "embed", text }, opts);
+}
+
+export function tts(text: string, opts: ModelOptions) {
+  return runModel({ kind: "tts", text }, opts);
+}
+
+export function stt(audioBase64: string, opts: ModelOptions & { format: TranscriptionInput["format"] }) {
+  return runModel({ kind: "stt", audio_base64: audioBase64, format: opts.format }, opts);
+}
+
+export function imagegen(prompt: string, opts: ModelOptions) {
+  return runModel({ kind: "imagegen", prompt }, opts);
+}
+
+export function decide(state: DecisionInput["state"], questions: DecisionInput["questions"], opts: ModelOptions) {
+  return runModel({ kind: "decision", state, questions }, opts);
 }
 
 /** Open Applications settings after a user action. This does not authorize AI. */
@@ -274,6 +350,8 @@ function parseResponse(env: unknown): AiResponse {
     text: env.text,
     model: env.model,
     provider: env.provider,
+    units: usage.units,
+    output: { text: env.text, tool_calls: toolCalls, provider_state: env.provider_state },
     verb: env.verb,
     usage: {
       inputTokens: usage.input_tokens,

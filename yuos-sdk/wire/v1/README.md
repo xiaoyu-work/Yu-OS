@@ -7,20 +7,20 @@ language-idiomatic wrapper over this protocol.
 
 ## Stable AI surface
 
-Text chat uses `ai.chat` and `ai.chat.untrusted`. The additive
+Chat uses `ai.chat` and `ai.chat.untrusted`. The
 `yu ai infer --request-stdin` operation accepts
 [`ai_inference_request.schema.json`](ai_inference_request.schema.json) and
 returns [`ai_inference.schema.json`](ai_inference.schema.json) in the same
 wire-v1 envelope. It uses the owner's embedding, TTS, STT, image generation,
-or local decision slot. It does not enable the reserved vision/video chat flags.
+or local decision slot.
 
-These routes call models, not the system Agent. Optional
-[`chat --request-stdin`](ai_chat_request.schema.json) accepts up to 512 KiB
-of JSON, with up to 16 App-owned functions and 16 prior tool rounds. It
-returns proposals only for declared App functions; the broker never
-executes them. Include the same functions on follow-up calls, one result
+[`chat --request-stdin`](ai_chat_request.schema.json) accepts up to 720 KiB
+of JSON, with up to four images, 16 App-owned functions and 16 prior tool
+rounds. Use `external-content` for image input. Send standard padded base64
+with `format` set to `png`, `jpg`, or `webp`. Images may total 512 KiB decoded.
+The App executes proposed calls. Include the same functions on follow-up calls, one result
 for every prior call ID, and optional `provider_state` from the reply
-unchanged. Legacy catalog-name `--tools` lists return `INVALID_ARGS`.
+unchanged.
 
 SDK callers must declare prompt origin; `origin=external-content` selects
 `ai.chat.untrusted` for chat. The effective policy determines redaction of

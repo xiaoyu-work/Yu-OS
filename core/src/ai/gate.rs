@@ -132,6 +132,7 @@ pub struct ChatRequest {
 
     /// Legacy input carried by older clients. The gate rejects nonempty lists.
     pub tools: Vec<String>,
+    pub(crate) images: Vec<yuos_sdk::generated::AiChatImage>,
     pub(crate) app_tools: AppTools,
 }
 
@@ -864,8 +865,9 @@ async fn chat_inner(
     let verb = modality.verb();
     let config = config::current_snapshot();
     let cfg = &config.agent;
+    let images = chat_images(&req.images, modality);
     if cfg.model == crate::caps::manifest::CONFIGURED_AI_MODEL {
-        return Err(AiError::Provider("Configure a text model in Yu OS Agent settings".into()));
+        return Err(AiError::Provider("Configure a chat model in Yu OS settings".into()));
     }
     let model = cfg.model.clone();
     let authorization = authority.map(|authority| {
@@ -880,6 +882,13 @@ async fn chat_inner(
             .map_err(|error| AiError::Denied(serde_json::json!({"error": error})))?;
     } else {
         caps::require(verb, Scope::name(&model)).map_err(|d| AiError::Denied(d.to_json()))?;
+    }
+    // Release image validation details only to an authorized model caller.
+    let images = images?;
+    if !images.is_empty() && (cfg.provider == "llama_local"
+        || llm::metadata::lookup(&model).is_some_and(|model| !model.supports_vision))
+    {
+        return Err(AiError::Provider("Choose a chat model that accepts images in Yu OS settings".into()));
     }
 
     // 7. Apply safety pipeline to the prompt (when present).
@@ -906,6 +915,7 @@ async fn chat_inner(
         req.system.as_deref(),
         DEFAULT_APP_MAX_OUTPUT_TOKENS,
     );
+    llm_req.messages[0].content.extend(images);
     llm_req.tools = req.app_tools.project(
         &cfg.provider, &model, policy.safety, &mut llm_req.messages, &mut prompt_redacted,
     )?;
@@ -1210,6 +1220,41 @@ pub(super) fn apply_safety(prompt: &str, safety: AiSafety) -> (String, bool) {
             (redacted, changed)
         }
     }
+}
+
+fn chat_images(
+    images: &[yuos_sdk::generated::AiChatImage],
+    modality: Modality,
+) -> Result<Vec<ContentBlock>, AiError> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+
+    if !images.is_empty() && modality != Modality::ChatUntrusted {
+        return Err(AiError::InvalidInference("chat images require external-content origin"));
+    }
+    if images.len() > 4 {
+        return Err(AiError::InvalidInference("chat accepts up to four images"));
+    }
+    let mut total = 0;
+    images.iter().map(|image| {
+        let media_type = match image.format.as_str() {
+            "png" => "image/png",
+            "jpg" => "image/jpeg",
+            "webp" => "image/webp",
+            _ => return Err(AiError::InvalidInference("unsupported chat image format")),
+        };
+        let bytes = STANDARD.decode(&image.image_base64)
+            .map_err(|_| AiError::InvalidInference("image must be standard padded base64"))?;
+        total += bytes.len();
+        if total > 512 * 1024 {
+            return Err(AiError::InvalidInference("chat images exceed 512 KiB combined"));
+        }
+        crate::agent::attachments::validate_magic(media_type, &bytes)
+            .map_err(|_| AiError::InvalidInference("image data does not match its format"))?;
+        Ok(ContentBlock::Image {
+            media_type: media_type.into(),
+            data: image.image_base64.clone(),
+        })
+    }).collect()
 }
 
 fn build_chat_request(

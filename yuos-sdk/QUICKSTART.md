@@ -1,20 +1,18 @@
 # Quickstart: Call a model from your App
 
-This App summarizes text. The App calls `ai.chat`; Yu OS sends the request to
-the model API the user configured in Settings. The App gets no API key or
-access to the system Agent, its memory, or its tools.
+Build a text summarizer with `ai.chat` and the user's configured model.
 
-With an up-to-date Yu OS Agent package and `yuosd` running, save these two
-files in `hello-ai/`. The Python SDK is included.
+Use the current Yu OS Agent package with `yuosd` running and a chat model
+configured in Settings. Save these two files in `hello-ai/`:
 
 **`main.py`**
 
 ```python
-from yuos_sdk import ai
+from yuos_sdk.ai import chat
 
 def run(command, args):
-    reply = ai.chat(args[0], origin="user-input", system="Summarize in one short sentence.")
-    return {"summary": reply.text}
+    reply = chat(args[0], origin="user-input", system="Summarize in one short sentence.")
+    return {"summary": reply.output.text}
 ```
 
 **`app.json`**
@@ -34,9 +32,6 @@ def run(command, args):
   }
 }
 ```
-
-`app.json` asks for permission to use AI chat. `main.py` sends the text to summarize.
-The user chooses the model and budget in Settings. The App specifies neither.
 
 From the parent directory, sign with your
 [system-trusted App key](../docs/extension-provenance.md#trust-roots).
@@ -60,4 +55,4 @@ Approve any capability prompt. The model generates the text in `summary`, for ex
 [All model slots](REFERENCE.md#ai-support) ·
 [Give the model your own tools](REFERENCE.md#app-owned-tools) ·
 [Model permissions in Settings](../docs/app-development.md#model-permissions-in-settings) ·
-[Separate path: Agent calls your App (MCP)](../docs/app-development.md#quickstart-an-mcp-only-app)
+[Expose App tools over MCP](../docs/app-development.md#quickstart-an-mcp-only-app)

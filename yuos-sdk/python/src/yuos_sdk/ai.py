@@ -50,14 +50,26 @@ import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Mapping, NoReturn, Optional, cast
+from typing import (
+    Any, Callable, Dict, Generic, List, Literal, Mapping, NoReturn, Optional,
+    Sequence, TypeVar, cast,
+)
 
 from ._transport import WIRE_ARG, WireDenied, WireUnavailable, decode_response
 from .generated import (
+    AiAppTool,
+    AiChatImage,
     AiChatRequest,
     AiInference,
     AiInferenceRequest,
+    AiToolTurn,
+    DecisionInput,
+    EmbedInput,
+    ImageInput,
+    SpeechInput,
+    TranscriptionInput,
     WireDecodeError,
+    WireDecimal,
     WireJsonValue,
     encode_wire_json,
     validate_ai,
@@ -150,6 +162,53 @@ class ProposedToolCall:
     input: WireJsonValue
 
 
+Origin = Literal["trusted", "user-input", "external-content"]
+_Output = TypeVar("_Output")
+
+
+@dataclass(frozen=True)
+class ModelResponse(Generic[_Output]):
+    provider: str
+    model: str
+    units: int
+    output: _Output
+
+
+@dataclass(frozen=True)
+class ChatOutput:
+    text: str
+    tool_calls: List[ProposedToolCall]
+    provider_state: Optional[str]
+
+
+@dataclass(frozen=True)
+class Embedding:
+    vector: List[float]
+
+
+@dataclass(frozen=True)
+class Speech:
+    format: str
+    audio_base64: str
+    sample_rate_hz: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class Transcription:
+    text: str
+
+
+@dataclass(frozen=True)
+class Image:
+    format: str
+    image_base64: str
+
+
+@dataclass(frozen=True)
+class Decision:
+    answers: Mapping[str, WireJsonValue]
+
+
 @dataclass
 class AiResponse:
     text: str
@@ -163,6 +222,14 @@ class AiResponse:
     raw: Dict[str, WireJsonValue] = field(default_factory=dict)
     provider_state: Optional[str] = None
 
+    @property
+    def units(self) -> int:
+        return self.usage.units
+
+    @property
+    def output(self) -> ChatOutput:
+        return ChatOutput(self.text, self.tool_calls, self.provider_state)
+
 
 # ---------------------------------------------------------------------------
 # Public API
@@ -172,31 +239,37 @@ class AiResponse:
 def chat(
     prompt: str,
     *,
-    origin: Literal["trusted", "user-input", "external-content"],
+    origin: Origin,
     max_units: Optional[int] = None,
     system: Optional[str] = None,
     app_id: Optional[str] = None,
     tools: Optional[List[str]] = None,
+    images: Sequence[AiChatImage] = (),
+    functions: Sequence[AiAppTool] = (),
+    tool_turns: Sequence[AiToolTurn] = (),
 ) -> AiResponse:
-    """Send a single-shot chat completion through the kernel's AI gate.
-
-    Declare where the prompt came from. ``"trusted"`` is for developer-authored
-    text only. ``"external-content"`` selects ``ai.chat.untrusted`` for content
-    such as emails, files, web pages, or another agent's output. The effective
-    App and owner policy determines redaction; the label is not a safety guarantee.
-
-    ``system`` is an optional instruction supplied by the App, not the
-    system Agent's prompt. Use :func:`chat_request` for App-owned functions.
-    Legacy catalog tool names are not accepted by chat.
-
-    Returns an :class:`AiResponse`. Raises :class:`AiBudgetExceeded`,
-    :class:`AiSafetyViolation`, :class:`AiDenied`, or
-    :class:`AiUnavailable` on failure.
-    """
+    """Call the configured chat model with text, optional images and App functions."""
     if not prompt or not prompt.strip():
         raise AiError("chat: prompt must be non-empty")
     if not isinstance(origin, str) or not origin.strip():
         raise AiError("chat: prompt origin is required")
+    if images or functions or tool_turns:
+        if tools:
+            raise AiError("chat: supply App functions in functions")
+        if app_id and app_id != os.environ.get("YUOS_APP_ID"):
+            raise AiDenied({"code": "PERMISSION_DENIED", "error": "chat: App identity does not match the session"})
+        request: AiChatRequest = {"prompt": prompt, "origin": origin}
+        if system is not None:
+            request["system"] = system
+        if max_units is not None:
+            request["max_units"] = max_units
+        if images:
+            request["images"] = list(images)
+        if functions:
+            request["tools"] = list(functions)
+        if tool_turns:
+            request["tool_turns"] = list(tool_turns)
+        return chat_request(request)
     return _dispatch(
         modality="chat",
         prompt=prompt,
@@ -211,7 +284,7 @@ def chat(
 def chat_request(request: AiChatRequest) -> AiResponse:
     """Call the configured text model with optional App functions and prior tool results."""
     data = encode_wire_json(request).encode("utf-8")
-    if len(data) > 512 * 1024:
+    if len(data) > 720 * 1024:
         raise AiError("App chat request exceeds the byte limit")
     validate_ai_chat_request(request)
     return _parse_response(_model_call("chat", "--request-stdin", data=data))
@@ -232,6 +305,59 @@ def infer(request: AiInferenceRequest) -> AiInference:
         raise AiUnavailable("AI inference reply does not match the request")
     reply["units"] = wire_integer_to_int(reply["units"])
     return cast(AiInference, reply)
+
+
+def _run_model(
+    input: EmbedInput | SpeechInput | TranscriptionInput | ImageInput | DecisionInput,
+    origin: Origin,
+    max_units: Optional[int],
+    output_type: Callable[..., _Output],
+) -> ModelResponse[_Output]:
+    request: AiInferenceRequest = {"origin": origin, "input": input}
+    if max_units is not None:
+        request["max_units"] = max_units
+    reply = infer(request)
+    output = {key: value for key, value in reply["output"].items() if key != "kind"}
+    if "vector" in output:
+        output["vector"] = [
+            float(value.lexeme if isinstance(value, WireDecimal) else value)
+            for value in output["vector"]
+        ]
+    if "sample_rate_hz" in output:
+        output["sample_rate_hz"] = wire_integer_to_int(output["sample_rate_hz"])
+    return ModelResponse(reply["provider"], reply["model"], reply["units"], output_type(**output))
+
+
+def embed(text: str, *, origin: Origin, max_units: Optional[int] = None) -> ModelResponse[Embedding]:
+    return _run_model({"kind": "embed", "text": text}, origin, max_units, Embedding)
+
+
+def tts(text: str, *, origin: Origin, max_units: Optional[int] = None) -> ModelResponse[Speech]:
+    return _run_model({"kind": "tts", "text": text}, origin, max_units, Speech)
+
+
+def stt(
+    audio_base64: str, *, format: Literal["wav", "mp3", "ogg"],
+    origin: Origin, max_units: Optional[int] = None,
+) -> ModelResponse[Transcription]:
+    return _run_model(
+        {"kind": "stt", "audio_base64": audio_base64, "format": format},
+        origin, max_units, Transcription,
+    )
+
+
+def imagegen(prompt: str, *, origin: Origin, max_units: Optional[int] = None) -> ModelResponse[Image]:
+    return _run_model({"kind": "imagegen", "prompt": prompt}, origin, max_units, Image)
+
+
+def decide(
+    state: WireJsonValue, questions: Mapping[str, WireJsonValue], *,
+    origin: Origin, max_units: Optional[int] = None,
+) -> ModelResponse[Decision]:
+    return _run_model(
+        {"kind": "decision", "state": state, "questions": dict(questions)},
+        origin, max_units, Decision,
+    )
 
 
 def open_permission_settings() -> None:

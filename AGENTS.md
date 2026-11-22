@@ -213,6 +213,7 @@ Documentation-only changes do not require code tests.
   Yu OS SDK/agent gate so consent, budgets, logging, and provider ownership
   remain centralized. Use AI verb-only needs; the owner chooses the model and
   monthly budget in Settings, not the App manifest.
+  Use the named [SDK model calls](yuos-sdk/REFERENCE.md#ai-support) in examples.
 - Ordinary Apps can use their own data, owner-selected files and default
   public egress as described in the [App guide](docs/app-development.md).
   Do not add App-to-App permissions. The built-in System Agent calls enabled

@@ -1,8 +1,6 @@
 # yuos-sdk (Python)
 
-The official Python SDK for Yu OS. Python App packages import this package
-as `yuos_sdk`; bundled App implementations live in the external App source
-repository rather than an OS-local `apps/` tree.
+The official Python SDK for Yu OS. Import it as `yuos_sdk`.
 
 ## Install
 
@@ -20,35 +18,29 @@ Requires Python 3.10 or later. The Yu OS Agent package already supplies
 From an authenticated App with the [matching AI capability and consent](../../docs/app-development.md#7-ai-features):
 
 ```python
-from dataclasses import asdict
-
-from yuos_sdk import ai
+from yuos_sdk.ai import chat
 
 def summarize(body: str) -> dict:
-    result = ai.chat(prompt=body, origin="external-content", max_units=2000)
-    return {"summary": result.text, "usage": asdict(result.usage)}
+    result = chat(body, origin="external-content", max_units=2000)
+    return {"summary": result.output.text, "units": result.units}
 ```
 
 ## What's in it
 
 | Module                  | Purpose                                                                |
 |-------------------------|------------------------------------------------------------------------|
-| `yuos_sdk.ai`        | The six configured model slots through `chat` and `infer`.          |
+| `yuos_sdk.ai`        | `chat`, `embed`, `tts`, `stt`, `imagegen`, and `decide`. |
 | `yuos_sdk.tools`     | `yu ai tool <name>` — explicitly call a catalog operation.           |
 | `yuos_sdk.gui`       | Desktop GUI bootstrap and kernel-provided launch context.              |
 | `yuos_sdk.mcp`       | Manifest-bound App MCP server, call context, progress, and cancellation. |
 | `yuos_sdk.kernel`    | Explicit installed-CLI stdin transport with shared wire errors and cancellation. |
-| `yuos_sdk.objects`   | Pure canonical App object identifiers, without discovery or dispatch. |
-| `yuos_sdk.manifest`  | Validate or preview manifest path requests without granting access. |
+| `yuos_sdk.objects`   | Format and parse canonical App object identifiers. |
+| `yuos_sdk.manifest`  | Validate or preview manifest path requests. |
 | `yuos_sdk.events`, `yuos_sdk.channels` | Report App events and control authorized App-owned channels. |
 | `yuos_sdk.yuos_session` | Read / observe `YUOS_SESSION` from inside an app.                 |
 | `yuos_sdk.generated` | TypedDicts generated from `wire/v1/*.schema.json`.                     |
 
-The package does not export `policy`. Capability gating
-(`yuos_runtime.policy.require`) and COW snapshots belong to the
-OS-internal **`yuos_runtime`** package, which is unavailable to
-third-party SDK consumers. The `yu` kernel performs capability checks
-when public SDK operations run.
+The OS checks capabilities when public SDK operations run.
 
 ## Expose App tools
 
@@ -123,13 +115,13 @@ the optional App manifest `objects` resolver declaration.
 
 ## AI support
 
-`ai.chat` requires an explicit `origin`. Use `external-content` for outside
-content; it selects `ai.chat.untrusted`, not a safety profile. See the
-[shared AI contract](../REFERENCE.md#ai-support). `ai.budget()` reports current
-usage (App, period, and units used), without a cap.
+`ai.chat` requires an explicit `origin`. `external-content` selects
+`ai.chat.untrusted`. See the [shared AI contract](../REFERENCE.md#ai-support).
+`ai.budget()` reports the App, period, and units used.
 
-Use `ai.infer(request)` for the other model slots. For a GUI model permission
-denial, see the [custom prompt and Settings example](../../docs/app-development.md#model-permissions-in-settings).
+`chat` takes optional images and App functions. Named model calls return
+`provider`, `model`, `units`, and `output`. See the [Settings button example](../../docs/app-development.md#model-permissions-in-settings)
+for a GUI model permission denial.
 
 ## Configuration
 

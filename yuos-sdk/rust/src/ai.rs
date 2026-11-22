@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{yu_call_json_structured, BridgeError, StructuredCosError};
 pub use crate::generated::{
-    AiAppTool, AiChatRequest, AiChatToolCall, AiChatToolResult, AiInference, AiInferenceRequest,
+    AiAppTool, AiChatImage, AiChatRequest, AiChatToolCall, AiChatToolResult, AiInference, AiInferenceRequest,
     AiToolTurn,
 };
 
@@ -57,12 +57,61 @@ pub struct Review {
 /// A proposed call to an App function, not authorization to execute it.
 pub type ProposedToolCall = AiChatToolCall;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelResponse<T> {
+    pub provider: String,
+    pub model: String,
+    pub units: u64,
+    pub output: T,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ChatOutput {
+    pub text: String,
+    pub tool_calls: Vec<ProposedToolCall>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_state: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Embedding {
+    pub vector: Vec<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Speech {
+    pub format: String,
+    pub audio_base64: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sample_rate_hz: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Transcription {
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Image {
+    pub format: String,
+    pub image_base64: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Decision {
+    pub answers: serde_json::Map<String, serde_json::Value>,
+}
+
 /// Parsed reply from `yu ai chat`. See `wire/v1/ai.schema.json`.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AiResponse {
     pub text: String,
     pub model: String,
     pub provider: String,
+    #[serde(skip)]
+    pub units: u64,
+    #[serde(skip)]
+    pub output: ChatOutput,
     pub verb: String,
     pub usage: Usage,
     pub budget: Budget,
@@ -118,6 +167,9 @@ pub struct ChatOpts {
     system: Option<String>,
     app_id: Option<String>,
     tools: Option<Vec<String>>,
+    images: Option<Vec<AiChatImage>>,
+    functions: Option<Vec<AiAppTool>>,
+    tool_turns: Option<Vec<AiToolTurn>>,
 }
 
 impl ChatOpts {
@@ -137,6 +189,18 @@ impl ChatOpts {
     }
     pub fn app(mut self, id: impl Into<String>) -> Self {
         self.app_id = Some(id.into());
+        self
+    }
+    pub fn images(mut self, images: Vec<AiChatImage>) -> Self {
+        self.images = (!images.is_empty()).then_some(images);
+        self
+    }
+    pub fn functions(mut self, functions: Vec<AiAppTool>) -> Self {
+        self.functions = (!functions.is_empty()).then_some(functions);
+        self
+    }
+    pub fn tool_turns(mut self, tool_turns: Vec<AiToolTurn>) -> Self {
+        self.tool_turns = (!tool_turns.is_empty()).then_some(tool_turns);
         self
     }
     /// Legacy catalog names are not accepted. Use [`chat_request`] for App functions.
@@ -164,6 +228,27 @@ pub fn chat(prompt: &str, opts: ChatOpts) -> Result<AiResponse, AiError> {
         .as_deref()
         .filter(|value| !value.trim().is_empty())
         .ok_or_else(|| AiError::InvalidArg("chat: prompt origin is required".into()))?;
+    if opts.images.is_some() || opts.functions.is_some() || opts.tool_turns.is_some() {
+        if opts.tools.as_ref().is_some_and(|tools| !tools.is_empty()) {
+            return Err(AiError::InvalidArg("chat: supply App functions in functions".into()));
+        }
+        if opts.app_id.as_ref().is_some_and(|app| std::env::var("YUOS_APP_ID").ok().as_ref() != Some(app)) {
+            return Err(AiError::Denied {
+                message: "chat: App identity does not match the session".into(),
+                code: "PERMISSION_DENIED".into(),
+                payload: serde_json::json!({"code": "PERMISSION_DENIED", "error": "chat: App identity does not match the session"}),
+            });
+        }
+        return chat_request(&AiChatRequest {
+            origin: origin.into(),
+            prompt: prompt.into(),
+            system: opts.system,
+            images: opts.images,
+            max_units: opts.max_units,
+            tools: opts.functions,
+            tool_turns: opts.tool_turns,
+        });
+    }
     dispatch(prompt, origin, &opts)
 }
 
@@ -173,7 +258,7 @@ pub fn chat_request(request: &AiChatRequest) -> Result<AiResponse, AiError> {
         .map_err(|error| AiError::InvalidArg(error.to_string()))?;
     let input = serde_json::to_vec(&value)
         .map_err(|error| AiError::InvalidArg(error.to_string()))?;
-    if input.len() > 512 * 1024 {
+    if input.len() > 720 * 1024 {
         return Err(AiError::InvalidArg("App chat request exceeds the byte limit".into()));
     }
     crate::generated::validate_ai_chat_request(&value)
@@ -219,7 +304,53 @@ pub fn infer(request: &AiInferenceRequest) -> Result<AiInference, AiError> {
     serde_json::from_value(reply).map_err(|error| AiError::Unavailable(error.to_string()))
 }
 
-/// Open Applications settings after a user action. This does not authorize AI.
+#[derive(Debug, Clone)]
+pub struct ModelOpts {
+    pub origin: String,
+    pub max_units: Option<u32>,
+}
+
+impl ModelOpts {
+    pub fn new(origin: impl Into<String>) -> Self {
+        Self { origin: origin.into(), max_units: None }
+    }
+}
+
+fn run_model<T: serde::de::DeserializeOwned>(
+    input: serde_json::Value,
+    opts: ModelOpts,
+) -> Result<ModelResponse<T>, AiError> {
+    let reply = infer(&AiInferenceRequest { origin: opts.origin, max_units: opts.max_units, input })?;
+    let output = serde_json::from_value(reply.output)
+        .map_err(|error| AiError::Unavailable(error.to_string()))?;
+    Ok(ModelResponse { provider: reply.provider, model: reply.model, units: reply.units.into(), output })
+}
+
+pub fn embed(text: &str, opts: ModelOpts) -> Result<ModelResponse<Embedding>, AiError> {
+    run_model(serde_json::json!({"kind": "embed", "text": text}), opts)
+}
+
+pub fn tts(text: &str, opts: ModelOpts) -> Result<ModelResponse<Speech>, AiError> {
+    run_model(serde_json::json!({"kind": "tts", "text": text}), opts)
+}
+
+pub fn stt(audio_base64: &str, format: &str, opts: ModelOpts) -> Result<ModelResponse<Transcription>, AiError> {
+    run_model(serde_json::json!({"kind": "stt", "audio_base64": audio_base64, "format": format}), opts)
+}
+
+pub fn imagegen(prompt: &str, opts: ModelOpts) -> Result<ModelResponse<Image>, AiError> {
+    run_model(serde_json::json!({"kind": "imagegen", "prompt": prompt}), opts)
+}
+
+pub fn decide(
+    state: serde_json::Value,
+    questions: serde_json::Map<String, serde_json::Value>,
+    opts: ModelOpts,
+) -> Result<ModelResponse<Decision>, AiError> {
+    run_model(serde_json::json!({"kind": "decision", "state": state, "questions": questions}), opts)
+}
+
+/// Open Applications settings after a user action.
 pub fn open_permission_settings() -> Result<(), AiError> {
     match yu_call_json_structured("ai", "settings", ["ai", "settings"]) {
         Ok(_) => Ok(()),
@@ -343,8 +474,14 @@ fn parse_response(mut value: serde_json::Value) -> Result<AiResponse, AiError> {
     crate::generated::validate_ai(&value)
         .map_err(|error| AiError::Unavailable(format!("ai response decode failed: {error}")))?;
     crate::generated::normalize_ai_integers(&mut value);
-    let resp: AiResponse = serde_json::from_value(value)
+    let mut resp: AiResponse = serde_json::from_value(value)
         .map_err(|e| AiError::Unavailable(format!("ai response decode failed: {e}")))?;
+    resp.units = resp.usage.units;
+    resp.output = ChatOutput {
+        text: resp.text.clone(),
+        tool_calls: resp.tool_calls.clone(),
+        provider_state: resp.provider_state.clone(),
+    };
     Ok(resp)
 }
 

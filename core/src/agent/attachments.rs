@@ -167,7 +167,7 @@ fn validate_name(name: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_magic(media_type: &str, bytes: &[u8]) -> Result<(), String> {
+pub(crate) fn validate_magic(media_type: &str, bytes: &[u8]) -> Result<(), String> {
     let valid = match media_type {
         "image/png" => bytes.starts_with(b"\x89PNG\r\n\x1a\n"),
         "image/jpeg" => bytes.starts_with(&[0xff, 0xd8, 0xff]) && bytes.ends_with(&[0xff, 0xd9]),

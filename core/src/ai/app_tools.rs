@@ -52,6 +52,7 @@ impl ChatInput {
             prompt: Some(request.prompt),
             system: request.system,
             max_units: request.max_units,
+            images: request.images.unwrap_or_default(),
             app_tools: AppTools {
                 tools: request.tools.unwrap_or_default(),
                 turns: request.tool_turns.unwrap_or_default(),

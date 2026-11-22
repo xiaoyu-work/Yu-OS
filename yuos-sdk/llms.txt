@@ -2,22 +2,18 @@
 
 > Build Yu OS Apps in Python, Node.js, Go, or Rust. Call the user's configured AI model through Yu OS, or expose App tools to the system Agent via MCP.
 
-Pick the guide for the direction you need: **App → model** or **system Agent → App tool**. Installing the SDK alone does not provide the Yu OS runtime or authorize calls.
-
-- For model access, see Quickstart. Put the AI verb in `app.json`, e.g. `{"verb":"ai.chat"}`. Omit `scope` and `why`. Use `ai.chat` for text or `ai.infer` for embeddings, TTS, STT, images, and decisions. Yu OS uses the owner's configured model without exposing credentials, Agent context, or system tools.
-- Do not put a budget in `app.json`. The user sets the monthly App inference limit in Settings → AI Budget; the system tracks usage and sends reminders.
-- For App-owned functions, use `chat_request` (Python/Rust), `chatRequest` (Node), or `ChatRequest` (Go). Send custom function schemas, validate and execute the proposals in App code, and send results back by call ID in `tool_turns`. No system tool catalog or MCP dispatch is available in this path.
-- Optional GUI model permissions are controlled in Settings → Applications. When inference returns `PERMISSION_DENIED` with `detail.reason = "model_permission_required"`, show App-owned copy and let the user open Settings. Do not retry without a user action or let the App approve itself.
-- Use a signed `app.json` with `schema_version: 2` and `mcp.tools` for Agent-facing tools. Bind handlers to the declared names. An MCP-only App needs no `operations` or `main.py`. Name a tool `<app-id>.<command>` to expose `yu app <app-id> <command>`.
-- Use the Gateway's call context, not tool arguments or environment variables, for caller identity. Keep MCP stdout for protocol messages; log to stderr.
-- Use SDK chat with an explicit origin: `trusted` for developer-authored text, `user-input` for typed input, and `external-content` for outside data. Declare the corresponding AI capability and follow the owner consent path. Do not call model providers directly.
-- Apps cannot invoke other Apps; the built-in System Agent can call enabled App MCP tools without an App-access grant. The target App's own capabilities still apply.
-- Ordinary owner-launched signed Apps get their own data directory and a public-only outbound TCP proxy without manifest needs. The system Open dialog gives a signed GUI read access to the exact selected file, not to folders, writes, or other Apps' data.
+- Declare the AI verb in `app.json`, e.g. `{"verb":"ai.chat"}` under `needs`. Import `chat`, `embed`, `tts`, `stt`, `imagegen`, or `decide`. Each result has `provider`, `model`, `units`, and `output`. Settings selects the user's model and monthly App AI limit.
+- Pass explicit `origin`: `trusted` for developer-authored text, `user-input` for typed input, and `external-content` for outside data. External chat content uses `ai.chat.untrusted`.
+- Use `chat` with `images` for image input and `external-content` origin. An image has `format` and `image_base64`. For App-owned functions, pass schemas in `functions`, validate and run proposals in App code, and return results by call ID in `tool_turns`.
+- Declare optional GUI model capabilities in `optional_needs`. On `model_permission_required`, show an App-written message and let the user open Settings → Applications.
+- The built-in System Agent calls enabled MCP tools declared in the signed `app.json`. Set `schema_version: 2` and bind handlers to `mcp.tools`. Name a tool `<app-id>.<command>` to expose `yu app <app-id> <command>`.
+- Read caller identity from the Gateway's call context. Use MCP stdout for protocol messages and stderr for logs.
+- Apps get their own data directory. Ordinary signed Apps launched by the owner get a public outbound TCP proxy. The system Open dialog gives a signed GUI read access to the selected file in that window.
 
 ## Start
 
 - [Model Quickstart](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/QUICKSTART.md): call `ai.chat` in a two-file App, declare permission, and run it.
-- [MCP example](https://github.com/xiaoyu-work/Yu-OS/blob/main/docs/app-development.md#quickstart-an-mcp-only-app): expose a tool to the CLI and system Agent without calling a model.
+- [MCP example](https://github.com/xiaoyu-work/Yu-OS/blob/main/docs/app-development.md#quickstart-an-mcp-only-app): expose a tool to the CLI and System Agent.
 - [Python](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/python/README.md): `App.from_manifest()`, `@app.tool`, `ai.chat`.
 - [Node.js](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/node/README.md): `mcp.App.fromManifest()`, `app.tool`, `await ai.chat`; pass the MCP `signal`.
 - [Go](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/go/README.md): `LoadMCPApp`, `Bind`, `ServeStdio`; pass `MCPCall` to `ChatContext`.

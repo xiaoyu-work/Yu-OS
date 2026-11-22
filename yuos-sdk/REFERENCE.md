@@ -4,24 +4,19 @@ New to the SDK? Start with the [Quickstart](QUICKSTART.md).
 
 ## The model
 
-Only the built-in System Agent can discover and call an App's enabled MCP
-tools as an Agent. It needs no App-access grant. An owner can still use an
-App directly from its UI or CLI. An App cannot invoke other Apps, directly
-or through an App-owned AI agent. Apps may use gated AI, controlled system
-services, and shared libraries; `tools.call` addresses a separate capability-
-checked primitive catalog, not App MCP.
+The built-in System Agent discovers and calls enabled App MCP tools.
+Owners can use an App from its UI or CLI. Each App runs with its own
+capabilities.
 
-Outbound AI and catalog calls use a `yu --wire=1` subprocess. The OS verifies
-authority against the registered workload; an App ID argument or environment
-variable does not establish identity. Inbound App tools use private MCP stdio
-owned by the App Host. The Gateway supplies caller context separately from
-tool arguments. See [App, Agent, and AI integration](../docs/app-ai-integration.md).
+AI and catalog calls use `yu --wire=1`. The OS authenticates the registered
+workload and checks its capabilities. App MCP tools run over private stdio
+managed by the App Host. Read caller identity from the Gateway's call context.
+See [App, Agent, and AI integration](../docs/app-ai-integration.md).
 
-Manifest helpers can validate requests such as `owner-path` without filesystem
-access. [Named GUI entries and optional needs](../docs/app-development.md#multiple-gui-entries-under-one-app-identity)
-retain one App identity. Only the OS resolves scopes, grants capabilities,
-and mounts resources. [`yuos-runtime`](../yuos-runtime/) contains first-party
-helpers; it is not a third-party SDK dependency.
+Manifest helpers validate declarations such as `owner-path`.
+[Named GUI entries and optional needs](../docs/app-development.md#multiple-gui-entries-under-one-app-identity)
+retain one App identity. The OS resolves scopes, grants capabilities, and
+mounts resources.
 
 For other capabilities, see [App events](wire/v1/app-events.md),
 [managed channels](wire/v1/channel-ingress.md), and
@@ -30,30 +25,20 @@ OS service and grant.
 
 ## Desktop defaults
 
-Apps can use their own data directory without a separate permission. An
-ordinary signed App launched by the owner can use the
-[public outbound TCP proxy](../docs/app-development.md#10-what-an-operation-can-reach)
-without a manifest permission. The proxy does not allow LAN access,
-listening, or raw IP sockets.
+Apps get a private data directory. Ordinary signed Apps launched by the owner
+get a [public-only outbound TCP proxy](../docs/app-development.md#10-what-an-operation-can-reach).
 
 In a signed GUI, the [system Open dialog](../docs/app-development.md#open-a-user-selected-file)
-gives that window read access to the file the user chooses, without a second
-prompt or a manifest permission for Open. It does not grant folder browsing,
-write access, or access to another App's private data.
+grants the requesting window read access to the exact file the user selects.
+The selection is the user's approval.
 
 ## App object references
 
 Every binding exports the generated `ObjectRef` data contract and pure
 format/parse helpers for canonical references such as
-`app://notes/note?id=draft%2F1&revision=7`. References contain only an App ID,
-object type, opaque object ID, and optional revision. They carry no owner,
-grant, URI field, or data payload.
-
-These helpers do not invoke `yu`, discover Apps, read data, or assert
-existence, freshness, or permission. Terminal and desktop presentations share
-the same identity semantics and backend. Actual resolution belongs to normal,
-verified App operation/MCP command dispatch, with the existing capability and
-audit gates. References introduce no legacy operation or App-local fallback.
+`app://notes/note?id=draft%2F1&revision=7`. A reference identifies an App,
+object type, opaque object ID, and optional revision. Resolve it through the
+declared App operation or MCP tool; the OS checks capabilities at dispatch.
 
 See [the normative object-reference contract](wire/v1/object-references.md)
 for byte limits, strict URI spelling, generated validation, shared golden
@@ -63,114 +48,115 @@ vectors, and the optional manifest `objects` declaration.
 
 The generated `FileChangePlan` value and validators describe a bounded,
 App-owned staged proposal, including its public diff and lifecycle state.
-The App owns private before/proposed contents and the plan's lifecycle;
-the SDK introduces no plan store, apply transport, or authority.
-
-Review fingerprints bind proposal data, not permission. Normal authorization
-and current-file checks still apply, and uncooperative writers may race after
-the final check: this is not atomic compare-and-swap or universal rollback.
+The App owns the plan's contents and lifecycle. A review fingerprint binds the
+proposal data. Applying the plan still requires authorization and a current-file
+check; another writer can change the file after that check.
 See [the file change plan contract](wire/v1/file-change-plans.md) for exact
 fields, nullable values, reference semantics, and validation limits.
 
 ## App effect declarations
 
-An ordinary operation or MCP tool may declare up to 16 effects in its manifest for a metadata-only
-preview. These declarations do not grant authority, execute App code, inspect
-object data or credentials, or promise file diffs. Missing effects mean
-unknown effects, not purity; recovery is App-declared guidance, not proof that
-an inverse exists.
+An operation or MCP tool may declare up to 16 effects for a metadata-only
+preview. Undeclared effects are unknown. Recovery text gives App-authored
+guidance.
 
 See [the effect declaration and preview contract](wire/v1/operation-effects.md)
 for fields, label limits, target bindings, unresolved runtime arguments, and
-generated binding compatibility. No new SDK execution API is introduced.
+generated binding compatibility.
 
 ## AI support
 
-Yu OS calls the user's configured model API (or runs the configured local
-model). It does not start the system Agent or attach its prompts, memory,
-history, or tools. Yu OS keeps provider credentials; the App sends input
-and receives the model result. The optional `system` text is the App's own
-instruction to the model.
+The App sends input and receives a result from the user's configured model.
+Yu OS manages model selection and provider credentials. The optional `system`
+field in a chat request carries App-authored instructions.
 
-In `app.json`, add the capability you need, for example `{"verb": "ai.chat"}`.
-Send the actual input in the SDK call, without a model ID. Exposing App tools
-for the system Agent to call via MCP is a separate path.
+Add the matching capability to `needs` in `app.json`, for example
+`{"verb": "ai.chat"}`. Declare input origins and any safety profile in `ai`.
 
-Declare input origins (and, if needed, a safety profile) in the `ai` block.
-Do not declare a budget. The owner sets one limit for App inference in
-**Settings → AI Budget**. The limit covers all six model slots and all Apps
-for the current UTC month; `0` means unlimited. Yu OS records usage even
-without a limit and notifies the owner near or at the limit. Budget units
-are not money, and the System Agent and Activity budgets are separate.
+In **Settings → AI Budget**, the owner sets one limit across all Apps and
+model slots for the UTC month. `0` means unlimited. Yu OS tracks usage
+and notifies the owner near or at the limit.
 
-| Settings slot | SDK call or `infer` input | App capability | Result |
+| SDK call | Model input | App capability | `output` |
 |---|---|---|---|
-| `text` | `chat(prompt, …)` | `ai.chat` or `ai.chat.untrusted` | Text |
-| `embed` | `{"kind":"embed","text":"..."}` | `ai.embed` | `vector` |
-| `tts` | `{"kind":"tts","text":"..."}` | `ai.audio.tts` | `format`, `audio_base64`, and `sample_rate_hz` if known |
-| `stt` | `{"kind":"stt","format":"wav","audio_base64":"..."}` | `ai.audio.stt` | `text` |
-| `imagegen` | `{"kind":"imagegen","prompt":"..."}` | `ai.image.generate` | `format` and `image_base64` |
-| `decision` | `{"kind":"decision","state":{},"questions":{…}}` | `ai.decide` | `answers` for the [System One questions](../docs/decision-model.md) |
+| `chat` | Prompt, optional images and App functions | `ai.chat` or `ai.chat.untrusted` | `text`, optional function calls |
+| `embed` | Text | `ai.embed` | `vector` |
+| `tts` | Text | `ai.audio.tts` | `format`, `audio_base64`, optional `sample_rate_hz` |
+| `stt` | `audio_base64` and `format` | `ai.audio.stt` | `text` |
+| `imagegen` | Prompt | `ai.image.generate` | `format`, `image_base64` |
+| `decide` | `state` and [questions](../docs/decision-model.md) | `ai.decide` | `answers` |
 
-Inference returns `{provider, model, units, output}`; `output.kind` matches
-the requested kind. For example, Python:
+Each call returns `provider`, `model`, `units`, and `output`. Import the
+function you want:
 
 ```python
-result = ai.infer({"origin": "user-input", "input": {"kind": "embed", "text": text}})
-vector = result["output"]["vector"]
+from yuos_sdk.ai import chat, embed
+
+reply = chat("Summarize this sentence.", origin="user-input")
+vector = embed("Text to index.", origin="user-input").output.vector
+print(reply.output.text)
 ```
 
-In Node, use `await ai.infer(request, {signal})`; Go uses `Infer(ctx, request)`;
-Rust uses `ai::infer(&request)`. Input and output media cross as bytes encoded
-in base64, not paths or URLs. A missing provider or runtime returns an error.
+[Node](node/README.md#ai-and-catalog-tools), [Go](go/README.md#ai-support),
+and [Rust](rust/README.md#ai-support) expose the same six calls.
 
-Both `infer` and `chat` require explicit origin: `trusted` for
+Every call requires explicit origin: `trusted` for
 developer-authored text, `user-input` for text typed by the user, and
 `external-content` for files, web pages, email, or other outside content.
-For chat, `external-content` selects `ai.chat.untrusted`. It does not
-force a safety profile or prove provenance. The effective App and owner
-policy controls redaction; `strict` and `standard` currently do the same
-prompt-secret redaction, and `minimal` does not redact. No profile promises
-prompt-injection detection.
+For chat, `external-content` selects `ai.chat.untrusted`. Safety policy
+controls redaction: `strict` and `standard` redact prompt secrets;
+`minimal` preserves the original text.
 
 For an optional GUI feature, put the verb in
 [`optional_needs`](../docs/app-development.md#model-permissions-in-settings).
-On a model permission error the App can show its own message and link to
-Settings → Applications. The App cannot approve its own request.
+On a model permission error, show an App-written message and let the user
+open Settings → Applications.
 
-Node AI and catalog calls return promises. Pass the MCP call's `signal` to
-carry its cancellation and deadline through to `yu`. In Go, pass the
+Pass the MCP call's `signal` to Node AI and catalog calls to propagate the
+deadline and cancellation. In Go, pass the
 `*MCPCall` to `ChatContext`, `CallToolContext`, `BudgetContext`, or
-`CatalogContext`. The Python and Rust `chat` helpers are synchronous;
-checking an MCP call context in the handler does not interrupt those helpers.
-Cancellation stops the cancellable client's CLI child; it cannot undo a
-request the OS already accepted. Do not retry an indeterminate mutation
-automatically.
+`CatalogContext`. The Python and Rust `chat` helpers are synchronous.
+The cancellable clients stop their CLI child. Check the outcome of an accepted
+mutation before retrying it.
 
-The standalone budget query in Python, Node, and Go reports the App, period,
-and units used. The CLI does not return a cap, so the query result has no
-cap field. The chat reply retains its wire-v1 App usage snapshot.
-`units_cap` is `0` unless an existing owner-set per-App override applies;
-it never exposes the owner's total limit. Handle `BUDGET_EXCEEDED` without
-automatically retrying or prompting for a new permission. `max_units` is
-an optional ceiling for a particular request, not a manifest setting.
+Use `max_units` to limit an individual request. On `BUDGET_EXCEEDED`, tell
+the user the request exceeded its budget. The standalone usage query in
+Python, Node, and Go reports App ID, period, and units used.
+
+### Image input
+
+Use a chat model that supports images and declare `ai.chat.untrusted` with
+`external-content` in `ai.origins`. Each image takes `format` (`png`, `jpg`,
+or `webp`) and `image_base64`. Send up to four images, 512 KiB combined
+before encoding.
+
+```python
+from base64 import b64encode
+from yuos_sdk.ai import chat
+
+def describe_image(png_bytes: bytes) -> str:
+    reply = chat(
+        "Describe this image.",
+        origin="external-content",
+        images=[{"format": "png", "image_base64": b64encode(png_bytes).decode("ascii")}],
+    )
+    return reply.output.text
+```
 
 ### App-owned tools
 
-If the configured text model supports function calling, give it only
-functions your App implements. The model proposes a call; **your App
-validates and runs it**, then sends back the result. Yu OS does not run
-these tools or add its own. No new manifest permission is needed for
-the model request; any action your App takes still needs its own permissions.
+With a chat model that supports function calling, pass the schemas for your
+App's functions. The model proposes a call; **your App validates and runs
+it** using its own permissions, then sends back the result.
 
 ```python
 from dataclasses import asdict
-from yuos_sdk import ai
+from yuos_sdk.ai import chat
 
 request = {
     "origin": "trusted",
     "prompt": "Look up the price of tea, then tell me the price.",
-    "tools": [{
+    "functions": [{
         "name": "lookup_price",
         "description": "Look up the App's price for an item.",
         "parameters": {
@@ -181,7 +167,7 @@ request = {
     }],
 }
 
-reply = ai.chat_request(request)
+reply = chat(**request).output
 if reply.tool_calls:
     results = []
     for call in reply.tool_calls:
@@ -192,17 +178,14 @@ if reply.tool_calls:
     turn = {"text": reply.text, "calls": [asdict(c) for c in reply.tool_calls], "results": results}
     if reply.provider_state:
         turn["provider_state"] = reply.provider_state
-    reply = ai.chat_request({**request, "tool_turns": [turn]})
+    reply = chat(**request, tool_turns=[turn]).output
 print(reply.text)
 ```
 
-In Node, use `await ai.chatRequest(request, {signal})`; Go uses
-`ChatRequest(ctx, request)`; Rust uses `ai::chat_request(&request)`.
 Keep prior `tool_turns` in order if the model asks for another call.
 Pass one result per call ID and echo optional `provider_state` unchanged.
 For results derived from files, email or web pages, use `external-content`.
-Each request is budgeted separately. Legacy `--tools` catalog names and
-provider-hosted tool types are not accepted. This requires an updated runtime.
+Each request counts toward the App AI budget.
 
 ## SDK source and code generation
 
@@ -226,27 +209,23 @@ four language bindings and the Rust SDK's MCP constants.
 ## Versioning
 
 - **Wire protocol:** subprocess calls request `--wire=1` and check the version
-  and shape of each response. They do not spawn a separate startup probe.
+  and shape of each response.
 - **SDK packages:** Python, Node, Rust, and Go share the `yuos-sdk-v<version>`
   release and target the same generated CLI/MCP contract. Python derives its
   package metadata from the source `yuos_sdk.__version__`.
 - **App runtime ABI:** the separate [App development platform](../docs/app-platform.md)
-  records its ABI, export inventory, and version. SDK version, manifest
-  `schema_version`, wire version, and installed runtime ABI are not interchangeable.
+  records its ABI, export inventory, and version.
 
 ## Compatibility
 
 Use SDK `0.1.0` with `yu` and the Yu OS runtime built from the same source
 revision as a baseline. Live App calls need the installed runtime and running
-broker; GUI and App data clients also need their OS services. You can use
-pure helpers and test business logic off-system without those services.
-`yu --wire=1 --version` checks the CLI and envelope, not feature availability
-or broker readiness. A different OS build must implement wire v1 and the
-specific operations or providers the App uses.
+broker; GUI and App data clients also need their OS services. Use pure helpers
+and business logic tests off-system. `yu --wire=1 --version` checks the CLI
+and envelope. Other OS builds must provide wire v1 and the operations the App uses.
 
-Wire v1 stays backward compatible: add operations or fields in shapes that
-already allow them, without changing the existing behavior. A breaking change
-to a closed shape or its meaning needs a versioned contract.
+Wire v1 supports additive changes within extensible shapes and preserves
+existing behavior. Breaking changes need a versioned contract.
 
 Generated decoders follow JSON Schema's mathematical-integer semantics:
 finite `1`, `1.0`, and `1e0` values are equivalent integers. Bounds are
@@ -275,8 +254,8 @@ non-finite and unsafe integer-valued native `number` values—use `bigint` or
 
 ## Releases
 
-SDK packages are distributed through GitHub Releases, not PyPI, npm, or
-crates.io. [Publish SDK Release](../.github/workflows/publish-sdk-release.yml)
+SDK packages are distributed through GitHub Releases.
+[Publish SDK Release](../.github/workflows/publish-sdk-release.yml)
 is dispatched manually on `main` and requires successful Root validation
 for the exact source commit. It checks version metadata and generated
 bindings, tests all four languages, and produces:
@@ -291,22 +270,22 @@ bindings, tests all four languages, and produces:
 - `SHA256SUMS`.
 
 For distribution, pin a release artifact or tag. Verify downloaded archives
-and signing tools against that release's `SHA256SUMS`. The signing tool does
-not install the Yu OS runtime. The [App development platform](../docs/app-platform.md)
-is a separate artifact.
+and signing tools against that release's `SHA256SUMS`. See the
+[App development platform](../docs/app-platform.md) for development artifacts.
 
 ## Language support
 
-| SDK surface | [Rust](rust/README.md) | [Python](python/README.md) | [Node](node/README.md) | [Go](go/README.md) |
-|---|---|---|---|---|
-| Development toolchain | Stable Cargo/Rust used by CI | Python 3.10+ | Node.js 18+ | Go 1.21+ |
-| Gated AI model calls and fixed catalog tools | Yes | Yes | Yes | Yes |
-| Standalone AI usage query | — | Yes | Yes | Yes |
-| Manifest-bound MCP services, progress, and cancellation | Yes | Yes | Yes | Yes |
-| GUI bootstrap, object references, manifest helpers, events, and channels | Yes | Yes | Yes | Yes |
-| App data services: Calendar, tasks, telemetry, and history preflight | Yes | — | — | — |
+| Binding | Development toolchain |
+|---|---|
+| [Rust](rust/README.md) | Stable Cargo/Rust used by CI |
+| [Python](python/README.md) | Python 3.10+ |
+| [Node](node/README.md) | Node.js 18+ |
+| [Go](go/README.md) | Go 1.21+ |
 
-MCP App inputs use the [manifest argument model](../docs/app-development.md#3-the-minimum-viable-app),
-not arbitrary nested JSON Schema. The separate [App data services protocol](wire/v1/applet-services.md)
-is language-neutral, but only Rust has an SDK binding and it requires the
-installed OS provider. A supported binding is not itself a capability grant.
+All four bindings support model and catalog calls, manifest-bound MCP with
+progress and cancellation, GUI bootstrap, object references, manifest
+helpers, events, and channels. MCP tool inputs follow the
+[manifest argument model](../docs/app-development.md#3-the-minimum-viable-app).
+
+Python, Node, and Go support standalone AI usage queries. Rust provides
+[App data services](wire/v1/applet-services.md) through the installed OS provider.

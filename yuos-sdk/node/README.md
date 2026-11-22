@@ -24,7 +24,7 @@ Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
 | Module       | What                                                          | Equivalent CLI                       |
 |--------------|---------------------------------------------------------------|--------------------------------------|
 | `mcp`        | Manifest-bound MCP App service runtime over private stdio      | launched by the Yu OS App Host        |
-| `ai`         | Six configured model slots through `chat` and `infer`         | `yu ai chat` / `yu ai infer`        |
+| `ai`         | `chat`, `embed`, `tts`, `stt`, `imagegen`, and `decide` | `yu ai chat` / `yu ai infer` |
 | `tools`      | Explicit catalog operations (`call`, `catalog`)               | `yu ai tool <name> --app <id>`      |
 | `gui`        | Desktop GUI bootstrap (kernel context, agent overlay)          | launched via `yu app <id> --gui`    |
 | `objects`    | Pure canonical App object identifiers                        | No transport or dispatch           |
@@ -84,8 +84,8 @@ const reply = await ai.chat(body, {
 ```
 
 `tools.call`, `tools.catalog`, and `ai.budget` also accept `{ signal }`
-in their options. `ai.budget()` returns usage, not a cap. Cancellation
-does not undo accepted effects.
+in their options. `ai.budget()` reports the App, period, and units used.
+Check the outcome of an accepted mutation before retrying it.
 
 ## App object references
 
@@ -114,12 +114,14 @@ spelling, byte limits, and the optional manifest `objects` resolver declaration.
 ## AI support
 
 `ai.chat` requires explicit `origin`. `external-content` selects
-`ai.chat.untrusted`, not a safety profile. See the
+`ai.chat.untrusted`. See the
 [shared AI contract](../REFERENCE.md#ai-support) and [App consent requirements](../../docs/app-development.md#7-ai-features).
 Use the SDK rather than a provider SDK or `yu agent`. The owner configures
 the provider and model.
 
-Use `await ai.infer(request, {signal})` for the other model slots.
+Import named calls directly from `@yuos/sdk`. Each model reply has
+`provider`, `model`, `units`, and `output`. `chat` accepts `images` and
+`functions` in its options.
 `await ai.openPermissionSettings()` opens the [model permission page](../../docs/app-development.md#model-permissions-in-settings)
 after a user action and with the separate desktop launcher permission.
 

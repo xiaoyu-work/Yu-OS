@@ -18,34 +18,26 @@ Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
 
 | Module      | Purpose                                                                         |
 |-------------|---------------------------------------------------------------------------------|
-| `ai`        | Six configured model slots through `chat` and `infer`.                         |
+| `ai`        | `chat`, `embed`, `tts`, `stt`, `imagegen`, and `decide`. |
 | `mcp`       | Manifest-bound App MCP runtime, call context, and stdio transport.                |
 | `applet`    | Versioned OS Calendar/task/telemetry client and separate history-permission preflight. |
 | `tools`     | `yu ai tool <name>` — explicitly call a catalog operation.                   |
 | `gui`       | Desktop GUI bootstrap and kernel-provided launch context.                       |
-| `objects`   | Pure, canonical references to App-owned objects; no discovery or dispatch.      |
+| `objects`   | Format and parse canonical App object references. |
 | `manifest`, `events`, `channels` | Manifest path validation, App events, and authorized App-owned channel controls. |
 | `envelope`  | Strict CLI wire-v1 envelope decoder. |
 | `generated` | Typed structs generated from `wire/v1/*.schema.json`.                          |
 
-The crate does not export `policy`, `fs`, `exec`, `pkg`, `notify`, or
-`net`. Those helpers belong to the unpublished, OS-internal
-`yuos-runtime` crate and are unavailable to third-party SDK consumers.
-The `yu` kernel performs capability checks when public SDK operations run.
-Native Apps expose agent-callable tools through `yuos_sdk::mcp`; MCP is a
-module of this SDK rather than a separate developer package.
+The OS checks capabilities when public SDK operations run.
+Use `yuos_sdk::mcp` to expose App tools to the System Agent.
 
 Installed native clients can use `yu_call_json_async_with_binary` with an
 absolute OS CLI path and select it against `CallContext::cancelled()`. It uses
-the shared strict wire decoder and kills its CLI child when dropped, without
-consulting `PATH` or `YUOS_KERNEL_BIN`. Cancellation does not undo an action the
-OS already accepted and never replaces broker capability checks.
+the shared wire decoder and kills its CLI child when dropped. Check the
+outcome of an accepted mutation before retrying it.
 
-The generic `call`/`call_typed` transport is for authenticated human CLI and
-desktop clients, not App-to-App calls. Broker admission rejects App processes
-and App-owned agents. App code uses gated AI,
-controlled system services, and shared libraries; the built-in system Agent
-owns cross-App workflows.
+The `call`/`call_typed` transport serves authenticated owner CLI and desktop
+clients. Apps use their own capabilities for AI and OS services.
 
 ## App data services
 
@@ -167,10 +159,13 @@ optional App manifest `objects` resolver declaration.
 ## AI support
 
 `ai::chat` requires explicit `.origin(...)`. `external-content` selects
-`ai.chat.untrusted`, not a safety profile. See the
+`ai.chat.untrusted`. See the
 [shared AI contract](../REFERENCE.md#ai-support).
 
-Use `ai::infer(&request)` for the other model slots. `ai::open_permission_settings()`
+Use `ai::embed`, `ai::tts`, `ai::stt`, `ai::imagegen`, or `ai::decide` with
+`ModelOpts`. All six calls expose `provider`, `model`, `units`, and `output`.
+`ChatOpts` takes `.images(...)` and `.functions(...)`.
+`ai::open_permission_settings()`
 opens the [model permission page](../../docs/app-development.md#model-permissions-in-settings)
 after a user action and with the separate desktop launcher permission.
 

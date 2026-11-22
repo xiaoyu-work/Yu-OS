@@ -14,14 +14,13 @@ Rust, Python, Node, and Go bindings.
   authenticated owner's direct CLI/UI is separate. Apps and their agents cannot
   invoke other Apps.
 - Provide public SDK calls without exposing internal broker details.
-- `yu ai chat` transports bounded text, an optional App instruction and a
-  optional per-call limit to the authenticated broker. It uses the owner's model
-  without Agent context or system tools. Structured `chat --request-stdin`
-  accepts App-owned function schemas and results; Apps execute proposals
-  themselves. Legacy catalog names are rejected.
-- Use `ai.infer` for the other five model slots. Its versioned request/reply
-  carry only model inputs and results, never a provider selection, file path,
-  or grant. Optional GUI permission failures carry a Settings recovery reason.
+- Expose `chat`, `embed`, `tts`, `stt`, `imagegen`, and `decide` as named SDK
+  functions. Each exposes provider, model, units, and its typed output; dispatch
+  stays in the binding.
+- `yu ai chat` uses the configured chat model and accepts bounded images for
+  `external-content` requests. Apps supply function schemas, execute
+  proposals, and return results. The other five slots use `yu ai infer`.
+  Optional GUI permission failures carry a Settings recovery reason.
 - App operations, MCP tools, and GUI entries can declare a supported AI verb
   without a scope. Root resolves the owner's exact model; the SDK and App do
   not supply a model ID.

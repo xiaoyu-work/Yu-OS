@@ -10,6 +10,7 @@
 // deliberately NOT here — they live in the internal yuos-runtime tree.
 
 export * as ai from "./ai";
+export { chat, embed, tts, stt, imagegen, decide } from "./ai";
 export * as channels from "./channels";
 export * as events from "./events";
 export * as tools from "./tools";

@@ -31,11 +31,11 @@ func TestChatBuildsArgvAndParses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Chat returned error: %v", err)
 	}
-	if res.Text != "hello there" {
-		t.Fatalf("text = %q", res.Text)
+	if res.Output.Text != "hello there" || res.Output.Text != res.Text {
+		t.Fatalf("output text = %q (legacy text %q)", res.Output.Text, res.Text)
 	}
-	if res.Usage.Units != 8 {
-		t.Fatalf("units = %v", res.Usage.Units)
+	if res.Units != 8 || res.Units != res.Usage.Units {
+		t.Fatalf("units = %v (legacy units %v)", res.Units, res.Usage.Units)
 	}
 	if res.Budget.UnitsCap != 1000 {
 		t.Fatalf("units_cap = %v", res.Budget.UnitsCap)

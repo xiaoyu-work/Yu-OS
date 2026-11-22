@@ -1,4 +1,4 @@
-//! `yu ai chat` — App-facing single-shot text-model call.
+//! `yu ai chat` — App-facing call to the configured chat model.
 //!
 //! The App–AI gate sends only the App's input to the configured model.
 //! It does not enter `yu agent` or attach Agent context or system tools.
@@ -14,8 +14,7 @@
 //!
 //! Other configured model slots use `yu ai infer --request-stdin`.
 //! Legacy non-text flags on `yu ai chat` do not invoke those slots.
-//! `yu ai chat --request-stdin` accepts optional App-owned functions and
-//! App-supplied tool results. The gate never dispatches them.
+//! `yu ai chat --request-stdin` accepts images, App functions and tool results.
 //!
 //! Flags:
 //!   --app <id>           App requesting the call (required).

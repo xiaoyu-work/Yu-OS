@@ -20,10 +20,11 @@ system callers that request AI work outside the interactive agent loop.
   system tools, or tool execution. The App supplies custom function schemas
   and returns the results; the gate rejects undeclared proposals.
 - Record usage and deny direct provider ownership by apps.
-- Serve SDK `yu ai chat` through the authenticated `yuosd` `ai.chat` route.
-  Workers receive neither the session registry, provider credentials nor network
-  access. The gate uses the live exact App capability, owner configuration,
-  verified manifest, consent, budget and safety policy; no local fallback exists.
+- Serve `chat` through the authenticated `yuosd` `ai.chat` route. The gate uses
+  the live App capability, verified manifest, user configuration and consent.
+  It validates bounded image data and places it with the App's prompt in a
+  user message. Images use `ai.chat.untrusted` via `external-content` origin
+  and go to the configured chat model alongside text.
 - Serve SDK `yu ai infer` through the same App authority and budget. The owner
   configures the destination; binary data is bounded stdin/reply data.
   Configured local embeddings and decisions run as the owner in a fixed worker.

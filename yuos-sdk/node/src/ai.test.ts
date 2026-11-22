@@ -30,8 +30,10 @@ test("chat builds the right argv and parses the envelope", async () => {
   const res = await withCos(fake, { YUOS_APP_ID: "notes" }, () =>
     ai.chat("summarise", { origin: "external-content", maxUnits: 100, tools: ["fs.read_text"] }),
   );
+  assert.equal(res.output.text, res.text);
   assert.equal(res.text, "hello there");
-  assert.equal(res.usage.units, 8);
+  assert.equal(res.units, res.usage.units);
+  assert.equal(res.units, 8);
   assert.equal(res.budget.unitsCap, 1000);
   assert.equal(res.toolCalls.length, 1);
   assert.equal(res.toolCalls[0].name, "fs.read_text");

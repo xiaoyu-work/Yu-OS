@@ -65,18 +65,12 @@ provide an authenticated Gateway call context.
 ## App integration
 
 Agent-to-App integration uses `schema_version: 2` and one
-top-level `mcp` service containing lifecycle, caller access, tools, and exact
-capability needs. The removed `session` block is rejected. Optional
-`operations` remain the human-facing `yu app <id> <operation>` CLI surface;
-they are not a second Agent tool contract.
+top-level `mcp` service containing lifecycle, tools, and capability needs.
+`operations` define human-facing commands for `yu app <id> <operation>`.
 
-Apps do not call other Apps. Cross-App workflows are orchestrated by the
-built-in System Agent through the installed App's exposed MCP tools, without
-an App invocation permission. Omit the legacy `mcp.access` object in new
-manifests. Apps may use gated AI, controlled system services, and shared
-libraries. App-owned AI agents
-cannot access App services or mint system Agent tasks. The broker enforces
-this using authenticated process/session ancestry, not environment flags.
+The built-in System Agent coordinates Apps through their enabled MCP tools.
+Each App uses its own capabilities for AI and system services. The broker
+authenticates callers through their registered process and session.
 
 `YUOS_DATA_DIR` names only the App's own data. Normal owner launches, service
 Hosts and task-host ordinary operations use the same existing owner/App
@@ -704,28 +698,19 @@ declare the outside content rather than labeling the whole prompt `trusted`.
 `external-content` selects `ai.chat.untrusted`; the effective policy
 determines redaction. The label does not prove the input is safe.
 
-In `app.json`, list what your App needs to do, for example
-`"needs": [{"verb": "ai.chat"}]`. That line requests chat permission.
-In code, call `ai.chat` with the actual text. The user picks the model in
-Yu OS settings, so the App does not need `scope`, `value`, or a model ID.
-The [SDK model table](../yuos-sdk/REFERENCE.md#ai-support) lists the supported
-verbs, including `ai.chat.untrusted` for `external-content`.
-
-The same declaration works in an operation, MCP tool, or GUI entry. Keep the
-`ai` input policy in the manifest: consent and owner budget checks still apply. Older
-manifests that declare an explicit scope remain supported. Other permissions
-still need a scope to say which resource the App wants, such as a file or host.
+Request chat with `"needs": [{"verb": "ai.chat"}]` in an operation, MCP tool,
+or GUI entry. Set input origins in `ai` and pass the text to `ai.chat`.
+The user picks the model in Settings. See the
+[SDK model table](../yuos-sdk/REFERENCE.md#ai-support) for the other verbs.
 
 | Calling surface | Owner consent |
 |---|---|
 | An operation, MCP tool, or GUI call declaring AI in required `needs` | The owner grants separate consent to the App's AI policy with `yu app consent grant <id>`. Changes to the policy require renewed consent. |
 | An eligible GUI entry using [optional model permissions](#model-permissions-in-settings) | The owner explicitly allows the App to use that model in Settings → Applications. The Store can also offer optional text AI during installation. Neither path requires a second `consent grant` for the selected GUI entry. |
 
-Both paths require the matching capability and enforce the effective input
-policy. Set input origins in `ai`, not a model ID or monthly cap. The owner
-sets the App inference limit in Settings → AI Budget. The optional GUI choice
-does not flow to other surfaces. A direct Root directory install is not an
-ordinary user's Store AI opt-in.
+Both paths enforce the matching capability and input policy. The owner sets
+the App inference limit in Settings → AI Budget. An optional model choice
+applies to the selected GUI entry.
 
 For the full AI integration model — `origin`, safety, App-owned functions,
 usage and auditing — read
@@ -1117,7 +1102,7 @@ selects that action:
 
 ```python
 try:
-    speech = ai.infer({"origin": "user-input", "input": {"kind": "tts", "text": text}})
+    speech = ai.tts(text, origin="user-input")
 except ai.AiDenied as error:
     if error.payload.get("detail", {}).get("reason") != "model_permission_required":
         raise

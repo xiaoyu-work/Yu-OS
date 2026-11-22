@@ -80,7 +80,9 @@ fn response_accepts_mathematical_integers_and_unrestricted_tool_input() {
     .unwrap();
     assert_eq!(response.usage.input_tokens, 1);
     assert_eq!(response.usage.output_tokens, 1);
-    assert_eq!(response.usage.units, u64::MAX);
+    assert_eq!(response.units, u64::MAX);
+    assert_eq!(response.units, response.usage.units);
+    assert_eq!(response.output.text, response.text);
     assert_eq!(
         serde_json::to_string(&response.tool_calls[0].input).unwrap(),
         "0.12345678901234567890"

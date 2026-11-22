@@ -116,11 +116,9 @@ Every App service call checks both the caller and the target:
 | Caller identity and MCP exposure | Is this a live System Agent task and does the verified App expose this tool? |
 | Target capability needs | What may the target App do while handling this call? |
 
-There is no App-invocation permission. An `mcp` declaration exposes only its
-listed tools to the authenticated System Agent. A legacy explicit
-`mcp.access.system_agent: false` leaves the service CLI-only; the old
-`external_agents` field is ignored. Ordinary operations are not visible
-to the model.
+The authenticated System Agent sees the App's enabled tools from its `mcp`
+declaration. An explicit `mcp.access.system_agent: false` keeps the service
+available to the owner through the CLI.
 
 After authenticating the caller, `yuosd` derives the target's capabilities from that
 tool's signed `needs[]` and effective validated arguments. The resulting
@@ -239,26 +237,19 @@ Node uses `mcp.App.fromManifest()` plus `app.tool(name, handler)`. Go uses
 
 ## 6. Cross-App orchestration and gated App AI
 
-Cross-App workflows belong to the built-in System Agent. Apps, App-owned AI
-agents and external agents cannot discover or call App tools, including through
-shell helpers or a forged CLI origin. App principal claims, nested-call
-fields, and App allowlists are rejected.
-The broker checks registered session ancestry before App launch and rejects
-App-origin system Agent task and proactive-job admission.
+The built-in System Agent coordinates Apps through their enabled MCP tools.
+The broker authenticates registered session ancestry before App invocation
+and System Agent task admission.
 
 Apps may use controlled system services, shared libraries, and the public
 SDK's [six model slots](../yuos-sdk/REFERENCE.md#ai-support) when their
-manifests declare the corresponding capabilities. Agent-to-App authorization
-does not grant these App-to-model rights. Yu OS calls the configured provider
-API or local model without running the Agent or including its prompt, memory,
-history, or tools. The broker owns credentials, model selection, the owner-set
-App inference budget, prompt-origin policy, and model-visible logging.
-An App manifest does not set a monthly budget. `tools.call` makes a separate
-capability-checked App operation; it is not part of inference or MCP.
+manifests declare the corresponding capabilities. Yu OS sends App input to
+the configured model and applies the owner's App inference limit, input
+policy, and auditing. `tools.call` runs a capability-checked catalog operation.
 
 [App-owned functions](../yuos-sdk/REFERENCE.md#app-owned-tools) are schemas
-the App passes to its model, not tools registered with the system Agent. The
-App owns validation, execution, and any follow-up request carrying results.
+the App passes to its model. The App validates and runs proposed calls, then
+sends the results in a follow-up request.
 
 SDK chat calls require explicit prompt origin. `external-content` selects
 the separate `ai.chat.untrusted` capability, not a safety profile. The

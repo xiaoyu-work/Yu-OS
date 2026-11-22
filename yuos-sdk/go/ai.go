@@ -1,19 +1,4 @@
-// AI helper for Yu OS Go apps.
-//
-// Chat is the stable model API and shells out to
-// `yu ai chat --app <id>`. The kernel derives ai.chat or
-// ai.chat.untrusted from origin, then runs capability checks, budget,
-// safety, and audit.
-//
-// Apps never name a verb and never pick a model. They describe what
-// they want; the gate picks the verb and the machine owner configures
-// the one provider/model in /etc/yuos/agent.toml. Importing a provider
-// SDK directly is refused at install time by `yu app lint` — this is
-// the only sanctioned route to a model.
-//
-//	res, err := yuossdk.Chat("Summarise this", yuossdk.ChatOptions{
-//		Origin: "external-content", AppID: "notes",
-//	})
+// Named model calls for Yu OS Apps.
 
 package yuossdk
 
@@ -70,12 +55,50 @@ type ProposedToolCall struct {
 	Input any    `json:"input"`
 }
 
+type ModelResponse[T any] struct {
+	Provider string `json:"provider"`
+	Model    string `json:"model"`
+	Units    uint64 `json:"units"`
+	Output   T      `json:"output"`
+}
+
+type ChatOutput struct {
+	Text          string             `json:"text"`
+	ToolCalls     []ProposedToolCall `json:"tool_calls,omitempty"`
+	ProviderState string             `json:"provider_state,omitempty"`
+}
+
+type Embedding struct {
+	Vector []float64 `json:"vector"`
+}
+
+type Speech struct {
+	Format       string  `json:"format"`
+	AudioBase64  string  `json:"audio_base64"`
+	SampleRateHz *uint32 `json:"sample_rate_hz,omitempty"`
+}
+
+type Transcription struct {
+	Text string `json:"text"`
+}
+
+type Image struct {
+	Format      string `json:"format"`
+	ImageBase64 string `json:"image_base64"`
+}
+
+type Decision struct {
+	Answers map[string]any `json:"answers"`
+}
+
 // AiResponse is the parsed reply from the AI gate. It reuses the
 // generated AiUsage / AiBudget / AiReview wire types.
 type AiResponse struct {
 	Text          string
 	Model         string
 	Provider      string
+	Units         uint64     `json:"-"`
+	Output        ChatOutput `json:"-"`
 	Verb          string
 	Usage         AiUsage
 	Budget        AiBudget
@@ -97,7 +120,10 @@ type ChatOptions struct {
 	// AppID is the app identity; defaults to $YUOS_APP_ID.
 	AppID string
 	// Deprecated: Catalog names are not accepted. Use ChatRequest for App functions.
-	Tools []string
+	Tools     []string
+	Images    []AiChatImage
+	Functions []AiAppTool
+	ToolTurns []AiToolTurn
 }
 
 // Chat sends a single-shot chat completion through the kernel's AI gate.
@@ -117,6 +143,23 @@ func ChatContext(ctx context.Context, prompt string, opts ChatOptions) (*AiRespo
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	if len(opts.Images) != 0 || len(opts.Functions) != 0 || len(opts.ToolTurns) != 0 {
+		if len(opts.Tools) != 0 {
+			return nil, fmt.Errorf("chat: supply App functions in Functions")
+		}
+		if opts.AppID != "" && opts.AppID != os.Getenv("YUOS_APP_ID") {
+			return nil, &AiDeniedError{Payload: map[string]any{
+				"code": "PERMISSION_DENIED", "error": "chat: App identity does not match the session",
+			}}
+		}
+		if opts.MaxUnits < 0 {
+			return nil, fmt.Errorf("chat: MaxUnits must be nonnegative")
+		}
+		return ChatRequest(ctx, AiChatRequest{
+			Origin: opts.Origin, Prompt: prompt, System: opts.System, MaxUnits: uint64(opts.MaxUnits),
+			Images: opts.Images, Tools: opts.Functions, ToolTurns: opts.ToolTurns,
+		})
+	}
 	return dispatch(ctx, prompt, opts)
 }
 
@@ -126,7 +169,7 @@ func ChatRequest(ctx context.Context, request AiChatRequest) (*AiResponse, error
 	if err != nil {
 		return nil, err
 	}
-	if len(payload) > 512*1024 {
+	if len(payload) > 720*1024 {
 		return nil, fmt.Errorf("App chat request exceeds the byte limit")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(payload))
@@ -192,6 +235,53 @@ func Infer(ctx context.Context, request AiInferenceRequest) (*AiInference, error
 		Units:    asUint32(reply["units"]),
 		Output:   reply["output"],
 	}, nil
+}
+
+type ModelOptions struct {
+	Origin   string
+	MaxUnits uint32
+}
+
+func runModel[T any](ctx context.Context, input any, opts ModelOptions) (*ModelResponse[T], error) {
+	reply, err := Infer(ctx, AiInferenceRequest{Origin: opts.Origin, MaxUnits: opts.MaxUnits, Input: input})
+	if err != nil {
+		return nil, err
+	}
+	output := asMap(reply.Output)
+	if sample, present := output["sample_rate_hz"]; present {
+		output["sample_rate_hz"] = asUint32(sample)
+	}
+	data, err := json.Marshal(output)
+	if err != nil {
+		return nil, &AiUnavailableError{Msg: err.Error()}
+	}
+	result := ModelResponse[T]{Provider: reply.Provider, Model: reply.Model, Units: uint64(reply.Units)}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if err := decoder.Decode(&result.Output); err != nil {
+		return nil, &AiUnavailableError{Msg: err.Error()}
+	}
+	return &result, nil
+}
+
+func Embed(ctx context.Context, text string, opts ModelOptions) (*ModelResponse[Embedding], error) {
+	return runModel[Embedding](ctx, EmbedInput{Kind: "embed", Text: text}, opts)
+}
+
+func TTS(ctx context.Context, text string, opts ModelOptions) (*ModelResponse[Speech], error) {
+	return runModel[Speech](ctx, SpeechInput{Kind: "tts", Text: text}, opts)
+}
+
+func STT(ctx context.Context, audioBase64, format string, opts ModelOptions) (*ModelResponse[Transcription], error) {
+	return runModel[Transcription](ctx, TranscriptionInput{Kind: "stt", AudioBase64: audioBase64, Format: format}, opts)
+}
+
+func ImageGen(ctx context.Context, prompt string, opts ModelOptions) (*ModelResponse[Image], error) {
+	return runModel[Image](ctx, ImageInput{Kind: "imagegen", Prompt: prompt}, opts)
+}
+
+func Decide(ctx context.Context, state any, questions map[string]any, opts ModelOptions) (*ModelResponse[Decision], error) {
+	return runModel[Decision](ctx, DecisionInput{Kind: "decision", State: state, Questions: questions}, opts)
 }
 
 // OpenAiPermissionSettings opens Applications settings after a user action.
@@ -365,15 +455,20 @@ func parseResponse(value any) (*AiResponse, error) {
 		}
 	}
 
+	text := asString(env["text"])
+	units := asUint64(usage["units"])
+	providerState := asString(env["provider_state"])
 	return &AiResponse{
-		Text:     asString(env["text"]),
+		Text:     text,
 		Model:    asString(env["model"]),
 		Provider: asString(env["provider"]),
+		Units:    units,
+		Output:   ChatOutput{Text: text, ToolCalls: calls, ProviderState: providerState},
 		Verb:     asString(env["verb"]),
 		Usage: AiUsage{
 			InputTokens:  asUint32(usage["input_tokens"]),
 			OutputTokens: asUint32(usage["output_tokens"]),
-			Units:        asUint64(usage["units"]),
+			Units:        units,
 		},
 		Budget: parseBudget(asMap(env["budget"])),
 		Review: AiReview{
@@ -381,7 +476,7 @@ func parseResponse(value any) (*AiResponse, error) {
 			PromptRedacted: asBool(review["prompt_redacted"]),
 		},
 		ToolCalls:     calls,
-		ProviderState: asString(env["provider_state"]),
+		ProviderState: providerState,
 		Raw:           env,
 	}, nil
 }

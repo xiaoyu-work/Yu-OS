@@ -85,8 +85,8 @@ pub struct AiToolCall {
 }
 
 /// App chat request
-/// One model call with optional App-defined functions and prior App tool turns.
-/// No function is executed by Yu OS.
+/// One model call with a prompt, optional images, and App-defined functions and
+/// results.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AiChatRequest {
     pub origin: String,
@@ -94,11 +94,20 @@ pub struct AiChatRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub system: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub images: Option<Vec<AiChatImage>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_units: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<AiAppTool>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_turns: Option<Vec<AiToolTurn>>,
+}
+
+/// AiChatImage
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AiChatImage {
+    pub format: String,
+    pub image_base64: String,
 }
 
 /// AiAppTool
@@ -1335,7 +1344,7 @@ pub fn normalize_ai_integers(value: &mut serde_json::Value) {
     normalize_wire_integers(&schema, &schema, value);
 }
 
-const _WIRE_SCHEMA_AI_CHAT_REQUEST: &str = r###"{"$defs":{"AiAppTool":{"additionalProperties":false,"properties":{"description":{"type":"string","x-max-utf8-bytes":4096},"name":{"maxLength":64,"minLength":1,"pattern":"^[A-Za-z0-9_-]+$","type":"string"},"parameters":{"description":"JSON Schema with a top-level type of object.","type":"object"}},"required":["name","description","parameters"],"type":"object"},"AiChatToolCall":{"additionalProperties":false,"properties":{"id":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"input":{"type":"object"},"name":{"maxLength":64,"minLength":1,"pattern":"^[A-Za-z0-9_-]+$","type":"string"}},"required":["id","name","input"],"type":"object"},"AiChatToolResult":{"additionalProperties":false,"properties":{"content":{"type":"string","x-max-utf8-bytes":131072},"id":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"is_error":{"type":"boolean"}},"required":["id","content"],"type":"object"},"AiToolTurn":{"additionalProperties":false,"properties":{"calls":{"items":{"$ref":"#/$defs/AiChatToolCall"},"maxItems":16,"minItems":1,"type":"array"},"provider_state":{"minLength":1,"type":"string","x-max-utf8-bytes":65536},"results":{"items":{"$ref":"#/$defs/AiChatToolResult"},"maxItems":16,"minItems":1,"type":"array"},"text":{"type":"string","x-max-utf8-bytes":131072}},"required":["calls","results"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai_chat_request.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"description":"One model call with optional App-defined functions and prior App tool turns. No function is executed by Yu OS.","properties":{"max_units":{"maximum":18446744073709551615,"minimum":1,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"},"origin":{"enum":["trusted","user-input","external-content"],"type":"string"},"prompt":{"minLength":1,"type":"string","x-max-utf8-bytes":131072},"system":{"type":"string","x-max-utf8-bytes":131072},"tool_turns":{"items":{"$ref":"#/$defs/AiToolTurn"},"maxItems":16,"type":"array"},"tools":{"items":{"$ref":"#/$defs/AiAppTool"},"maxItems":16,"type":"array"}},"required":["origin","prompt"],"title":"App chat request","type":"object"}"###;
+const _WIRE_SCHEMA_AI_CHAT_REQUEST: &str = r###"{"$defs":{"AiAppTool":{"additionalProperties":false,"properties":{"description":{"type":"string","x-max-utf8-bytes":4096},"name":{"maxLength":64,"minLength":1,"pattern":"^[A-Za-z0-9_-]+$","type":"string"},"parameters":{"description":"JSON Schema with a top-level type of object.","type":"object"}},"required":["name","description","parameters"],"type":"object"},"AiChatImage":{"additionalProperties":false,"properties":{"format":{"enum":["png","jpg","webp"],"type":"string"},"image_base64":{"maxLength":699052,"minLength":4,"type":"string"}},"required":["format","image_base64"],"type":"object"},"AiChatToolCall":{"additionalProperties":false,"properties":{"id":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"input":{"type":"object"},"name":{"maxLength":64,"minLength":1,"pattern":"^[A-Za-z0-9_-]+$","type":"string"}},"required":["id","name","input"],"type":"object"},"AiChatToolResult":{"additionalProperties":false,"properties":{"content":{"type":"string","x-max-utf8-bytes":131072},"id":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"is_error":{"type":"boolean"}},"required":["id","content"],"type":"object"},"AiToolTurn":{"additionalProperties":false,"properties":{"calls":{"items":{"$ref":"#/$defs/AiChatToolCall"},"maxItems":16,"minItems":1,"type":"array"},"provider_state":{"minLength":1,"type":"string","x-max-utf8-bytes":65536},"results":{"items":{"$ref":"#/$defs/AiChatToolResult"},"maxItems":16,"minItems":1,"type":"array"},"text":{"type":"string","x-max-utf8-bytes":131072}},"required":["calls","results"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai_chat_request.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"description":"One model call with a prompt, optional images, and App-defined functions and results.","properties":{"images":{"items":{"$ref":"#/$defs/AiChatImage"},"maxItems":4,"minItems":1,"type":"array"},"max_units":{"maximum":18446744073709551615,"minimum":1,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"},"origin":{"enum":["trusted","user-input","external-content"],"type":"string"},"prompt":{"minLength":1,"type":"string","x-max-utf8-bytes":131072},"system":{"type":"string","x-max-utf8-bytes":131072},"tool_turns":{"items":{"$ref":"#/$defs/AiToolTurn"},"maxItems":16,"type":"array"},"tools":{"items":{"$ref":"#/$defs/AiAppTool"},"maxItems":16,"type":"array"}},"required":["origin","prompt"],"title":"App chat request","type":"object"}"###;
 pub fn validate_ai_chat_request(value: &serde_json::Value) -> Result<(), WireDecodeError> {
     let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_AI_CHAT_REQUEST)
         .expect("generated wire schema must be valid JSON");
