@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f6f2">
+  <meta name="description" content="Install Yu Agent on Ubuntu, build a Yu OS image, or update an existing installation.">
+  <title>Install Yu OS</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="../assets/brand/yuos-favicon-64.png">
+  <link rel="stylesheet" href="../style.css?v=@@GIT_SHA@@">
+</head>
+<body id="top">
+  <header class="site-head">
+    <a class="brand" href="../"><img src="../assets/brand/yuos-symbol.png" alt=""><b>Yu OS</b></a>
+  </header>
+  <main>
+    <header class="install-hero">
+      <svg class="install-art" viewBox="0 0 560 310" aria-hidden="true">
+        <defs>
+          <pattern id="install-lines" width="8" height="81" patternUnits="userSpaceOnUse">
+            <path d="M0 0h8M0 81h8" stroke="#bdb9ae" stroke-width="2" opacity=".6"/>
+            <path d="M0 9h8m-8 9h8m-8 9h8m-8 9h8m-8 9h8m-8 9h8m-8 9h8m-8 9h8" stroke="#bdb9ae" stroke-width=".6" opacity=".6"/>
+          </pattern>
+          <path id="install-slashes" d="M178 0h121L145 310H24ZM330 106h121L348 310H227ZM469 209h121L541 310H420Z"/>
+        </defs>
+        <use href="#install-slashes" fill="#202124"/>
+        <use href="#install-slashes" fill="url(#install-lines)"/>
+        <circle cx="365" cy="51" r="49" fill="#005cfe"/>
+      </svg>
+      <div class="install-intro">
+        <h1>Install<br>Yu OS<span class="brand-dot">.</span></h1>
+        <p>Install Yu Agent without replacing Ubuntu, or <a href="#from-source">build a Yu OS image from source</a>.</p>
+      </div>
+    </header>
+
+    <div class="install-guide">
+      <section class="install-section" aria-labelledby="ubuntu">
+        <h2 id="ubuntu">On Ubuntu</h2>
+        <div>
+          <p>Open Terminal on a 64-bit Ubuntu computer (Intel, AMD or ARM). You'll need administrator access and <code>curl</code>. Run the steps in order and stop if a command fails.</p>
+          <p class="install-notice" data-source-status role="status" hidden></p>
+          <ol class="install-steps" role="list">
+            <li>
+              <h3>Add the signed package source</h3>
+              <figure class="command">
+                <figcaption>Terminal</figcaption>
+                <pre><code>repo=https://xiaoyu-work.github.io/Yu-OS/apt
+keyring=/usr/share/keyrings/yuos-archive-keyring.gpg
+temp_key="$(mktemp)" &amp;&amp;
+curl -fsSL "$repo/yuos-archive-keyring.gpg" -o "$temp_key" &amp;&amp;
+test -s "$temp_key" &amp;&amp;
+sudo install -D -m 0644 "$temp_key" "$keyring" &amp;&amp;
+rm -f "$temp_key" &amp;&amp;
+printf 'deb [arch=%s signed-by=%s] %s trixie main\n' \
+  "$(dpkg --print-architecture)" "$keyring" "$repo" \
+  | sudo tee /etc/apt/sources.list.d/yuos.list &gt;/dev/null</code></pre>
+              </figure>
+            </li>
+            <li>
+              <h3>Install Yu Agent</h3>
+              <p>APT checks the repository signature before installing the Agent.</p>
+              <figure class="command">
+                <figcaption>Terminal</figcaption>
+                <pre><code>sudo apt-get update --error-on=any &amp;&amp;
+sudo apt install yuos-agent</code></pre>
+              </figure>
+            </li>
+            <li>
+              <h3>Start your first chat</h3>
+              <p>Check that the service is active, then set up a model and open Yu Agent.</p>
+              <figure class="command">
+                <figcaption>Terminal</figcaption>
+                <pre><code>systemctl is-active yuosd.service &amp;&amp;
+yu agent setup text &amp;&amp;
+yu agent chat</code></pre>
+              </figure>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="install-section" aria-labelledby="from-source">
+        <h2 id="from-source">Build from source</h2>
+        <div class="build-options">
+          <p>Run the build commands from an existing Yu OS source checkout on Linux or WSL2. These options need build tools and package access; they are not prebuilt downloads.</p>
+          <details>
+            <summary>Windows / WSL2</summary>
+            <figure class="command">
+              <figcaption>Linux terminal</figcaption>
+              <pre><code>sudo ./build.sh wsl</code></pre>
+            </figure>
+            <p>In PowerShell, open the checkout folder or use the path to the built <code>.wsl</code> file.</p>
+            <figure class="command">
+              <figcaption>PowerShell</figcaption>
+              <pre><code>wsl --install --from-file .\build\yuos-wsl-amd64.wsl `
+    --name yuos --location C:\WSL\yuos --version 2</code></pre>
+            </figure>
+          </details>
+          <details>
+            <summary>Docker / OrbStack</summary>
+            <p>With Docker or OrbStack running, build the headless <code>yuos</code> image locally.</p>
+            <figure class="command">
+              <figcaption>Linux terminal</figcaption>
+              <pre><code>./build.sh docker</code></pre>
+            </figure>
+          </details>
+          <details>
+            <summary>Headless VM (experimental)</summary>
+            <p>With QEMU installed, build and boot the amd64 disk. On first boot, set the password for <code>yu</code>, then sign in with that account.</p>
+            <figure class="command">
+              <figcaption>Linux terminal</figcaption>
+              <pre><code>sudo ./build.sh vm &amp;&amp;
+qemu-system-x86_64 -m 2G -nographic \
+  -drive file=build/yuos-vm-amd64.qcow2,format=qcow2,if=virtio</code></pre>
+            </figure>
+          </details>
+          <details>
+            <summary>Desktop VM / ISO (experimental)</summary>
+            <p>These builds require an authorized package signer, signed App packages and a sealed Desktop Shell. They are intended for development.</p>
+            <p>For VMware, build the desktop image and attach the resulting <code>.vmdk</code> as an existing disk in a new VM.</p>
+            <figure class="command">
+              <figcaption>Build a VMware disk</figcaption>
+              <pre><code>sudo ./presets/desktop.sh</code></pre>
+            </figure>
+            <p>To test the installer, boot the generated ISO in a VM with an empty virtual disk.</p>
+            <figure class="command">
+              <figcaption>Build an installer ISO</figcaption>
+              <pre><code>sudo ./build.sh iso-installer</code></pre>
+            </figure>
+          </details>
+          <details>
+            <summary>Azure</summary>
+            <p>Build a fixed VHD for a Generation 2 VM. Azure sets up the administrator account and SSH key when it starts.</p>
+            <figure class="command">
+              <figcaption>Linux terminal</figcaption>
+              <pre><code>sudo ./build.sh azure</code></pre>
+            </figure>
+          </details>
+        </div>
+      </section>
+
+      <section class="install-section" aria-labelledby="update">
+        <h2 id="update">Already installed?</h2>
+        <div>
+          <p>Get updates from the signed package source without reinstalling Yu OS.</p>
+          <figure class="command">
+            <figcaption>Terminal</figcaption>
+            <pre><code>sudo apt-get update --error-on=any &amp;&amp;
+sudo apt full-upgrade</code></pre>
+          </figure>
+        </div>
+      </section>
+    </div>
+  </main>
+  <footer class="site-foot">
+    <a class="brand" href="../"><img src="../assets/brand/yuos-symbol.png" alt=""><b>Yu OS</b></a>
+    <nav aria-label="Resources"><a href="#top">Back to top</a></nav>
+  </footer>
+  <span class="sr" data-copy-status role="status"></span>
+  <script src="install.js?v=@@GIT_SHA@@" defer></script>
+</body>
+</html>

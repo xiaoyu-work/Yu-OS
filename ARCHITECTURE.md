@@ -2538,7 +2538,7 @@ the App nor the running desktop is the package transaction owner.
 | Top-level target build | `build.sh` | WSL/Docker/VM/ISO/Azure dispatcher |
 | Debian package build | `packaging/deb/build-debs.sh` | Installed package artifacts |
 | APT repository build | `packaging/apt-repo/build-repo.sh` | Signed repository assembly |
-| Website | `web/index.html` | Static marketing site |
+| Website | `web/index.html`, `web/install/index.html` | Static marketing site and public installation guide |
 | Website publication | `.github/workflows/publish-website.yml` | Static website deployment without package builds |
 | CI test workflow | `.github/workflows/test.yml` | Pull-request/manual/reusable test workflow |
 | OS release workflow | `.github/workflows/release.yml` | One manual signed APT publication |

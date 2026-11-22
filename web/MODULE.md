@@ -10,6 +10,7 @@ root beside the signed APT repository.
 | Path | Role |
 | --- | --- |
 | `index.html` | Marketing page |
+| `install/index.html`, `install/install.js` | Public `/install/` guide based on the [README Quick Start](../README.md#quick-start), with copyable commands and a signed package index availability notice |
 | `style.css` | Page styles |
 | `app.js` | Yu Agent captions rotate automatically until a dot is selected |
 | `fonts/` | Self-hosted Barlow Condensed and Space Grotesk with their SIL Open Font License texts |
@@ -43,5 +44,7 @@ python3 -m http.server --directory build/web-dist 8000
 
 Open `http://localhost:8000/` at desktop and mobile widths; browsers block the
 web fonts from `file://`. At 1200 CSS pixels and up, check that the cropped hero
-art shows three slashes without overlapping the headline. Fail on broken
-assets, console errors or horizontal overflow.
+art shows three slashes without overlapping the headline. Check that both
+**Get Yu OS** links open `/install/` and that visitors can read its commands
+without visiting GitHub. Fail on broken assets, console errors or horizontal
+overflow.
