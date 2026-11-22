@@ -21,6 +21,7 @@ use tracing::warn;
 use tokio::io::AsyncReadExt;
 
 mod activities;
+mod agent_mark;
 mod bridge;
 mod bridge_state;
 mod effects;
@@ -246,10 +247,16 @@ impl Application for App {
             Vec::new()
         } else {
             vec![
-                container(text(fl!("streaming")).size(11.0))
-                    .padding([0u16, 10u16])
-                    .class(theme::Container::custom(styles::active_pill))
-                    .into(),
+                container(
+                    widget::Row::new()
+                        .push(agent_mark::speaking(14.0))
+                        .push(text(fl!("streaming")).size(11.0))
+                        .spacing(6.0)
+                        .align_y(cosmic::iced::Alignment::Center),
+                )
+                .padding([0u16, 10u16])
+                .class(theme::Container::custom(styles::active_pill))
+                .into(),
             ]
         }
     }

@@ -6,6 +6,7 @@ use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{Column, Row, button, container, scrollable, text};
 use cosmic::{Element, theme, widget};
 
+use crate::agent_mark;
 use crate::bridge::{
     EvidencePresentation, EvidenceStatus, ModelsResponse, ToolCallView, ToolPhase, ToolResultView,
 };
@@ -502,8 +503,6 @@ impl App {
                     );
                 } else if !message.content.is_empty() {
                     column = column.push(text(message.content.clone()).size(body_size));
-                } else if message.in_progress && message.tool_calls.is_empty() {
-                    column = column.push(text(fl!("streaming")).size(body_size));
                 }
                 for call in &message.tool_calls {
                     let result = message.tool_results.iter().find(|result| {
@@ -519,6 +518,15 @@ impl App {
                             .any(|call| !call.id.is_empty() && call.id == result.id)
                 }) {
                     column = column.push(Self::tool_card(None, Some(result), compact));
+                }
+                if message.in_progress {
+                    column = column.push(
+                        Row::new()
+                            .push(agent_mark::speaking(body_size + 4.0))
+                            .push(text(fl!("streaming")).size(body_size))
+                            .spacing(spacing.space_xxs)
+                            .align_y(Alignment::Center),
+                    );
                 }
                 for warning in &message.warnings {
                     column = column.push(Self::warning_card(warning));

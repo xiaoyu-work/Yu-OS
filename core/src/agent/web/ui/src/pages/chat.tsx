@@ -33,6 +33,7 @@ import { applyFrame, markToolsUnconfirmed } from "@/lib/chat-presentation";
 import { ChatEvidence } from "@/components/chat-evidence";
 import { ApprovalViews } from "@/components/chat-approvals";
 import { FollowUpQueuePanel } from "@/components/followup-queue";
+import { YuAgentMark } from "@/components/yu-agent-mark";
 import {
   streamDurableTask,
   taskReplay,
@@ -830,8 +831,17 @@ function Message({ m }: { m: Msg }) {
       )}
       {m.status === "streaming" && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          {m.frozenText === undefined ? "generating…" : "Stopping…"}
+          {m.frozenText === undefined ? (
+            <>
+              <YuAgentMark speaking className="h-4 w-4 text-foreground" />
+              generating…
+            </>
+          ) : (
+            <>
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Stopping…
+            </>
+          )}
         </div>
       )}
       {m.status === "interrupted" && <p className="text-xs text-muted-foreground">Stopped</p>}

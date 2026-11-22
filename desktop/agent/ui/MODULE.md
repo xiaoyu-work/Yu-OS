@@ -30,6 +30,7 @@ versioned desktop Agent protocol without importing yuosd or core models.
 | `src/overlay.rs` | Deferred context submission, file-picker focus, and layer-surface lifecycle; activation type is owned by `yuos-runtime` |
 | `src/views.rs` | Read-only widget composition for reasoning summaries, cumulative usage, safe tool status/metrics, selected-image metadata, and other presentation state |
 | `src/styles.rs` | Presentation styles |
+| `src/agent_mark.rs` | Yu Agent speaking mark drawn on a canvas while a reply is in progress; the same bar animation as the Web and terminal clients |
 | `src/bridge.rs`, `src/sse.rs`, `src/recorder.rs` | Protocol transport, SSE decoding, and audio capture/upload adapters |
 
 State modules do not call one another through a service locator or global

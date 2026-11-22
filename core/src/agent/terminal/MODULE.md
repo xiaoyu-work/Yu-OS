@@ -17,7 +17,7 @@ audit.
 | `state.rs` | Bounded transcript, composer, durable-task handles, approval and session state |
 | `commands.rs` | Closed Yu OS slash catalogue and canonical conversation/model/Skill actions |
 | `stream.rs` | Durable task submission, identity/model acknowledgement and stream polling |
-| `ui.rs`, `ui/progress.rs`, `ui/permission.rs` | ratatui layout, live execution animation, wrapped permission viewport, styling, transcript projection and cursor |
+| `ui.rs`, `ui/progress.rs`, `ui/permission.rs` | ratatui layout, live execution animation with the Yu Agent speaking mark, wrapped permission viewport, styling, transcript projection and cursor |
 | `presentation.rs` | Redacted model/tool/reasoning/progress projection |
 | `approvals.rs` | Exact owner-scoped status refresh, stale-read generations and modal lifecycle cleanup |
 | `backend.rs` | Narrow typed consumer of canonical `yuosd` routes, including attended one-shot decisions |

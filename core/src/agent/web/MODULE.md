@@ -117,6 +117,7 @@ web UI.
 | `routes/activities/work.rs`, `ui/src/components/activity-auto-work.tsx` | Shared automatic-work controls and bounded reported handoffs, without local scheduling or permission authority |
 | `ui/` | TypeScript/React source and generated distribution assets |
 | `ui/src/components/yuos-sidebar.tsx` | New chat and conversation history alongside OS navigation, without duplicate Chat or primary Tasks entries |
+| `ui/src/components/yu-agent-mark.tsx` | Yu Agent speaking mark shown while a reply streams; the same bar animation as the terminal and native clients |
 | `ui/src/pages/tasks.tsx` | Contextual global execution inspection and stop/retry controls through existing Chat/Activity links and `/tasks`; not a primary sidebar entry |
 | `ui/src/pages/notifications.tsx`, `ui/src/components/notification-settings.tsx` | Notification-first bounded Inbox, compact browser controls and grouped delivery-settings dialog; original permission and preference contracts remain unchanged |
 | `ui/src/lib/chat-stream.ts` | Terminal-event validation and bounded same-Job transport recovery through verified history replay |

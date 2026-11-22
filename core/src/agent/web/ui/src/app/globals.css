@@ -440,3 +440,40 @@
     transform: scaleX(1);
   }
 }
+
+/* Yu Agent speaking mark: three bars at their own pace, still blue dot. */
+.yu-agent-mark line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 66;
+  stroke-linecap: round;
+  stroke-dasharray: 100 100;
+}
+
+.yu-agent-mark circle {
+  fill: #005cfe;
+}
+
+.yu-agent-mark.is-speaking line {
+  animation: yu-agent-level 0.9s ease-in-out infinite;
+}
+
+.yu-agent-mark.is-speaking line:nth-of-type(2) {
+  animation-duration: 0.7s;
+  animation-delay: -0.25s;
+}
+
+.yu-agent-mark.is-speaking line:nth-of-type(3) {
+  animation-duration: 1.1s;
+  animation-delay: -0.5s;
+}
+
+@keyframes yu-agent-level {
+  0%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dashoffset: 46;
+  }
+}
