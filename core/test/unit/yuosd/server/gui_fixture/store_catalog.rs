@@ -330,7 +330,7 @@ Description: Private controlled Store inventory\n\n".to_vec();
         }
         report["buffer_commits_at_input_delivery"] = delivery_commit.into();
         report["passive_window_snapshot"] = captured["snapshot"].clone();
-        report["coverage"] = "Actual signed native Store reached real Root catalog/inventory/update reads and a new authenticated configured frame after ordinary search keys. Passive own-instance bytes are evidence for inspection, not an automated exact-entry text or reply-decode assertion; payload UI self-handoff remains separate.".into();
+        report["coverage"] = "Actual signed native Store reached real Root catalog/inventory/update reads and a new authenticated configured frame after ordinary input. Passive own-instance bytes are evidence for inspection, not an automated exact-entry text or reply-decode assertion; payload UI self-handoff remains separate.".into();
         std::fs::write(REPORT, serde_json::to_vec_pretty(&report).unwrap()).map_err(|error| error.to_string())?;
         Ok(captured)
     }

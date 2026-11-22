@@ -479,7 +479,9 @@ def checked_snapshot(data, index, window):
     assert f"{checksum:016x}" == frame["pixel_checksum"] == index["pixel_checksum"] == frame["raster"]["pixel_checksum"]
 
 window = json.loads(protected(source / "window.json", 62050, 8192))
-consumer = json.loads(protected(pathlib.Path(f"/run/gui-fixture/native-{product}-consumer.json"), 0, 16384))
+consumer_limit = 64 * 1024 if product == "store" else 16384
+consumer = json.loads(protected(
+    pathlib.Path(f"/run/gui-fixture/native-{product}-consumer.json"), 0, consumer_limit))
 assert window["instance"] == consumer["instance"]
 if popup:
     assert window["popup"]["closed"]
