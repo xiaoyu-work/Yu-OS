@@ -85,8 +85,9 @@ pub(super) fn system_launcher(
     let result = display
         .lock()
         .map_err(|_| "display registry lock poisoned")?
-        .starts_gui_launcher(&launcher)
-        .map_err(|error| error.to_string())?;
+        .gui_launcher(&launcher)
+        .map_err(|error| error.to_string())?
+        .is_some();
     Ok(result)
 }
 

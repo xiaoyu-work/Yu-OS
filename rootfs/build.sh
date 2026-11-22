@@ -208,12 +208,6 @@ artifact_hash() {
         if [ -d "$PROJECT_DIR/build/debs" ]; then
             find "$PROJECT_DIR/build/debs" -maxdepth 1 -type f -name '*.deb' -print0
         fi
-        if [[ ",$FEATURES," == *",desktop,"* ]]; then
-            shell_pin="${YUOS_APP_PACKAGE_ROOT:-$PROJECT_DIR/build/app-packages}/desktop-shell-$DEB_ARCH/selection.json"
-            if [ -f "$shell_pin" ]; then
-                printf '%s\0' "$shell_pin"
-            fi
-        fi
         key_file="${YUOS_APT_PUBLIC_KEY_FILE:-$PROJECT_DIR/packaging/apt-repo/yuos-archive-keyring.gpg}"
         if [ -f "$key_file" ]; then
             printf '%s\0' "$key_file"
