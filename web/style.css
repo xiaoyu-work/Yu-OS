@@ -81,17 +81,11 @@ h1, h2 { font-family: var(--display); font-weight: 700; }
 .caption > span { grid-area: 1 / 1; }
 .caption > span:not(.live) { visibility: hidden; }
 .caret { display: inline-block; width: .07em; height: .9em; margin-left: .07em; background: var(--blue); vertical-align: -.08em; }
-.live .caret { animation: blink 1s steps(1) infinite; }
+.speaking .live .caret { animation: blink 1s steps(1) infinite; }
 .controls { display: flex; align-items: center; gap: 6px; }
 .pick { position: relative; width: 28px; height: 28px; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .pick::after { content: ""; position: absolute; inset: 8px; border: 1.5px solid var(--ink); border-radius: 50%; }
 .pick[aria-pressed="true"]::after { border-color: var(--blue); background: var(--blue); }
-.toggle { display: grid; place-items: center; width: 42px; height: 42px; margin-left: 12px; padding: 0; border: 1px solid var(--rule); border-radius: 50%; background: transparent; color: var(--ink); cursor: pointer; }
-.toggle:hover { border-color: var(--ink); }
-.toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.toggle .i-play { display: none; fill: currentColor; }
-.paused .toggle .i-pause { display: none; }
-.paused .toggle .i-play { display: block; }
 button:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
 .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @keyframes level { 0%, 100% { stroke-dashoffset: 0; } 50% { stroke-dashoffset: 46; } }
@@ -102,6 +96,17 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
 .licenses { padding: 0 var(--pad) 18px; color: var(--soft); font-size: 12px; }
 .licenses summary { width: fit-content; cursor: pointer; }
 .licenses p { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; }
+@media (min-width: 1200px) {
+  .hero { grid-template-columns: max-content minmax(0, 1fr); column-gap: clamp(24px, 2vw, 48px); }
+  .hero .poster-mark {
+    /* Fit beside the headline and bleed past the right gutter. */
+    grid-column: 2 / 3;
+    left: auto;
+    right: calc(var(--pad) * -1.5);
+    width: min(calc(100% + var(--pad) * 1.5), 112svh);
+    transform: translateY(-50%);
+  }
+}
 @media (max-width: 850px) {
   .hero .poster-mark { width: max(91vw, 355px); top: 38%; left: 65%; }
   .hero h1 { font-size: clamp(64px, 15vw, 126px); }
