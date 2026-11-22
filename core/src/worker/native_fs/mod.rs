@@ -21,6 +21,7 @@ use crate::yuosd::client_identity::FsIdentityGuard;
 mod backend;
 mod metadata_scope;
 pub(crate) use metadata_scope::MetadataRoot;
+pub(crate) mod picker;
 mod selected_read;
 mod selected_write;
 mod selected_create;

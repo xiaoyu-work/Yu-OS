@@ -541,11 +541,11 @@ impl HomeMetadata {
         view.bind(process, resources.gui_cgroup()?)?;
         self.refresh(registration, grant)?;
         let provider = view.read_provider()?;
-        picker.bind_native_files(provider.clone())?;
         let selected = crate::yuosd::gui::selected_read::SelectedReads::new(
             registration.clone(), instance, process.clone(), resources.gui_cgroup()?,
-            provider, self.consent.declaration.cap.clone(), self.consent.ceiling, grant, picker,
+            provider.clone(), self.consent.declaration.cap.clone(), self.consent.ceiling, grant, picker.clone(),
         )?;
+        picker.bind_native_files(provider, &selected, self.path.clone())?;
         self.selected_reads.set(selected.clone()).map_err(|_| "selected read endpoint already bound")?;
         Ok(selected)
     }

@@ -208,6 +208,10 @@ impl Broker {
             None => Ok(()),
         }
     }
+
+    pub(super) fn refresh_picker(&self) -> Result<(), String> {
+        self.state.picker.snapshots().refresh()
+    }
 }
 
 impl Drop for Broker {

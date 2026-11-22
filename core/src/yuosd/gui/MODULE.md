@@ -364,6 +364,16 @@ operate; its default file permissions and callbacks still deny writes.
 
 ### Draft selected regular-file read
 
+System **Open** for a signed App is an authenticated GUI action, not a manifest
+permission. `file_picker.rs` accepts only the protected GTK chooser's retired
+selection. It installs an exact native read if the consented metadata view
+and surface declaration cover that file. Otherwise the eligible ordinary
+Open path returns a bounded read-only snapshot through a separate per-window
+mount. Snapshot reads check the live instance cgroup and exact Root-held file
+lease; no raw URI, descriptor, or sibling path is returned for that mode.
+An eligible native read that fails its checks does not fall back to copying.
+The snapshot does not add any startup caps or change Folder/Save policy.
+
 `selected_read.rs` admits only a proposed virtual inode from this window's
 controlled metadata view. Typed request/status bodies carry no App-selected
 owner, source path, window, lease or approval flag. Root authenticates the

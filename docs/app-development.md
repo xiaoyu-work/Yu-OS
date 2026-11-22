@@ -1142,7 +1142,38 @@ This is an initial presentation snapshot, not permission authority or a promise
 that a provider is ready. Apps must retain normal live policy/provider checks
 and handle existing denial errors. No later approval silently widens the
 running grant; expiry/revocation retains checked instance retirement.
-This contract adds no on-demand widening or file-picker capability.
+This contract does not widen a running GUI's permissions.
+
+#### Open a user-selected file
+
+An ordinary publisher-signed GUI can show the system **Open** dialog without
+declaring `fs.read` or `ui.prompt`. The dialog identifies the App. The user's
+choice authorizes reading only that file in the requesting window; the OS
+does not ask for a second approval.
+
+The existing `yu __gui-file-picker` bridge supports `open`, `status`, and
+`cancel` with the same request ID. Use `mode: "file"` (the default) and wait
+for `status: "selected"` before opening the returned `uri`:
+
+- `access: "native_read"` means the file is readable through the GUI's
+  existing consented Home view. This applies only to eligible declared native
+  reads, with their existing file revision and lease checks.
+- `access: "read_only_snapshot"` means the URI names an isolated, read-only
+  copy under `/run/yuos/opened-files` inside this GUI. Open it as an ordinary
+  file for reading; it is not the original and does not reflect later edits.
+  The snapshot supports reads and seeks, not `mmap`. Limits are 32 MiB per
+  file, 8 files and 64 MiB per window, and a shared 256 MiB snapshot budget.
+  Closing the window or revoking its lease removes access to this projection;
+  it cannot recall bytes the App already read.
+
+This Open path supports regular local files under the authenticated user's
+Home. Symlinks, nested mounts, multiply linked files, and private App or
+system data are not supported. An unavailable view or an unsupported choice
+produces an error, not a host path presented as readable. The picker grants
+no Home listing, sibling-file access, write, create, or save permission.
+Folder and Save remain separate modes with their existing `ui.prompt` policy.
+Their returned URI is a selection, not an unrestricted filesystem grant;
+the existing native write/create and save reservation process still applies.
 
 A GUI requiring a bounded owner-relative filesystem request can instead use
 the common Need binding:

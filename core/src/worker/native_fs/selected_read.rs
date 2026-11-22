@@ -302,6 +302,7 @@ impl ReadProvider {
                 if !metadata.is_file() || metadata.nlink() != 1 {
                     return Err("file picker target is not a regular file".into());
                 }
+
                 Ok(PickerTarget::File { pin, stamp: backend::fingerprint(&metadata) })
             }
             Err(libc::ENOENT) if save => {
@@ -321,6 +322,12 @@ impl ReadProvider {
             }
             Err(code) => Err(errno(code)),
         }
+    }
+
+    pub(crate) fn picker_local(&self, relative: &Path) -> Result<Option<PathBuf>, String> {
+        let shared = self.shared.upgrade().ok_or("native view has retired")?;
+        let source = shared.metadata_root.as_ref().ok_or("native view has no metadata source")?;
+        Ok(relative.strip_prefix(source.relative()).ok().map(Path::to_path_buf))
     }
 
     pub(crate) fn install(&self, selection: &str, permit: ReadPermit) -> Result<(), String> {

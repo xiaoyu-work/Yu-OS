@@ -2407,7 +2407,11 @@ routes! {
         access: Access::User,
         kind: Kind::Mutation,
         budget: Budget::mutation(),
-        authority: session(Audience::GuiResource),
+        authority: RouteAuthority {
+            requirement: authority::no_requirement,
+            approval: Approval::Ineligible,
+            ..session(Audience::GuiResource)
+        },
         body: body::GuiFilePicker,
         audit: &[("session", FieldRule::Token), ("request_id", FieldRule::Token), ("action", FieldRule::Token)],
         run: |c| {

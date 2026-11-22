@@ -1,4 +1,4 @@
-//! Return picker metadata; keep exact native-file decisions private to Root.
+//! Authenticated system picker. Only a retired chooser can supply exact consent.
 
 use std::collections::HashMap;
 use std::io::Write;
@@ -8,7 +8,7 @@ use std::os::unix::process::CommandExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, Weak};
 use std::time::{Duration, Instant};
 
 use yuos_display_control::ProcessIdentity;
@@ -27,7 +27,13 @@ use crate::yuosd::desktop::{
 };
 use crate::yuosd::protocol::BrokerError;
 use crate::yuosd::wire::bounded::{Text, Token};
+use crate::worker::native_fs::picker::PickerFiles;
 use crate::worker::native_fs::{PickerTarget, ReadProvider};
+
+use super::selected_read::SelectedReads;
+
+#[path = "file_picker_open.rs"]
+mod selected_open;
 
 const REPORT_BYTES: usize = 16 * 1024;
 static PICKERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(8);
@@ -111,14 +117,16 @@ impl Report {
     fn failed(message: &str, portal_retired: bool) -> Self {
         Self {
             outcome: Outcome::Failed {
-                error: Text::parse(message).expect("static picker diagnostic"),
+                error: Text::parse(message).unwrap_or_else(|_| {
+                    Text::parse("The system file picker did not complete").expect("static diagnostic")
+                }),
             },
             portal_retired,
         }
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct Options {
     title: Text<256>,
@@ -128,12 +136,20 @@ struct Options {
     filter: Option<Filter>,
 }
 
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum OpenAccess {
+    NativeRead,
+    ReadOnlySnapshot,
+}
+
 struct Entry {
     id: String,
     options: Options,
     active: bool,
     retired: bool,
     report: Option<Report>,
+    open_access: Option<OpenAccess>,
     selection: Option<Selected>,
     cancelled: Arc<AtomicBool>,
     slot: Option<tokio::sync::SemaphorePermit<'static>>,
@@ -156,6 +172,12 @@ struct Selected {
     generation: u64,
 }
 
+struct NativeFiles {
+    provider: ReadProvider,
+    endpoint: Weak<SelectedReads>,
+    mountpoint: PathBuf,
+}
+
 pub(in crate::yuosd) struct PickerConsent {
     expires: Instant,
 }
@@ -172,7 +194,8 @@ pub(crate) struct Window {
     stopped: AtomicBool,
     cancel: tokio::sync::watch::Sender<u64>,
     entry: Mutex<Option<Entry>>,
-    native_files: OnceLock<ReadProvider>,
+    native_files: OnceLock<NativeFiles>,
+    snapshots: Arc<PickerFiles>,
 }
 
 tokio::task_local! { static WINDOW: Arc<Window>; }
@@ -194,6 +217,7 @@ impl Window {
             cancel,
             entry: Mutex::new(None),
             native_files: OnceLock::new(),
+            snapshots: Arc::new(PickerFiles::default()),
         })
     }
 
@@ -206,12 +230,24 @@ impl Window {
 
     pub(crate) fn stop(&self) {
         self.stopped.store(true, Ordering::Release);
+        self.snapshots.stop();
         self.cancel
             .send_modify(|value| *value = value.wrapping_add(1));
     }
 
-    pub(super) fn bind_native_files(&self, provider: ReadProvider) -> Result<(), String> {
-        self.native_files.set(provider).map_err(|_| "file picker already has a native file view".into())
+    pub(super) fn snapshots(&self) -> Arc<PickerFiles> {
+        self.snapshots.clone()
+    }
+
+    pub(super) fn signed_app(&self) -> bool {
+        matches!(self.registration.launch.package().source(), crate::provenance::TrustSource::Publisher { .. })
+    }
+
+    pub(super) fn bind_native_files(
+        &self, provider: ReadProvider, endpoint: &Arc<SelectedReads>, mountpoint: PathBuf,
+    ) -> Result<(), String> {
+        self.native_files.set(NativeFiles { provider, endpoint: Arc::downgrade(endpoint), mountpoint })
+            .map_err(|_| "file picker already has a native file view".into())
     }
 
     pub(super) fn claim(
@@ -255,6 +291,40 @@ impl Window {
         }
         self.registration
             .snapshot(self.process.get().ok_or("file picker GUI is not bound")?)
+    }
+
+    fn authorize_mode(&self, mode: Mode, authority: &Decision) -> Result<(), BrokerError> {
+        if mode == Mode::File {
+            if self.signed_app() {
+                if self.snapshots.bound() || self.native_files.get().is_some() {
+                    return Ok(());
+                }
+                return Err(BrokerError::unavailable("The system's private Open file view is unavailable"));
+            }
+            if self.native_files.get().is_none() {
+                return Err(BrokerError::authorization("System Open requires a publisher-signed App"));
+            }
+        }
+        // Preserve existing Save/Folder policy, and the old native path for local development Apps.
+        let selected = self.registration.launch.manifest()
+            .gui_entry(self.registration.gui_entry.as_deref())
+            .map_err(BrokerError::authorization)?;
+        if selected.legacy_needs
+            || !selected.launch_needs()
+                .chain(selected.optional_needs.iter().copied()
+                    .filter(|need| selected.optional_need_is_bound(need)))
+                .any(|need| need.verb == Verb::UI_PROMPT && match &need.scope {
+                    crate::caps::manifest::ScopeBinding::Fixed { scope } => scope.covers(&Scope::Wild),
+                    crate::caps::manifest::ScopeBinding::Wild => true,
+                    _ => false,
+                })
+        {
+            return Err(BrokerError::authorization("this GUI must explicitly declare ui.prompt"));
+        }
+        let _authorized = authority
+            .require(Cap::unscoped(Verb::UI_PROMPT))
+            .map_err(BrokerError::authorization)?;
+        Ok(())
     }
 
     fn request(
@@ -311,46 +381,13 @@ impl Window {
                 "file picker requires this GUI's exact current grant",
             ));
         }
-        let selected = self
-            .registration
-            .launch
-            .manifest()
-            .gui_entry(self.registration.gui_entry.as_deref())
-            .map_err(BrokerError::authorization)?;
-        if selected.legacy_needs
-            || !selected
-                .launch_needs()
-                .chain(
-                    selected
-                        .optional_needs
-                        .iter()
-                        .copied()
-                        .filter(|need| selected.optional_need_is_bound(need)),
-                )
-                .any(|need| {
-                    need.verb == Verb::UI_PROMPT
-                        && match &need.scope {
-                            crate::caps::manifest::ScopeBinding::Fixed { scope } => {
-                                scope.covers(&Scope::Wild)
-                            }
-                            crate::caps::manifest::ScopeBinding::Wild => true,
-                            _ => false,
-                        }
-                })
-        {
-            return Err(BrokerError::authorization(
-                "this GUI must explicitly declare ui.prompt",
-            ));
-        }
-        let _authorized = authority
-            .require(Cap::unscoped(Verb::UI_PROMPT))
-            .map_err(BrokerError::authorization)?;
         let mut entry = self
             .entry
             .lock()
             .map_err(|_| BrokerError::unavailable("file picker custody is poisoned"))?;
         if let Some(retained) = entry.as_ref() {
             if retained.id == id {
+                self.authorize_mode(retained.options.mode, authority)?;
                 if matches!(&request, Request::Open { title, modal, mode, name, filter, .. }
                     if title.as_str()!=retained.options.title.as_str() || *modal!=retained.options.modal
                         || *mode!=retained.options.mode || name.as_ref().map(Text::as_str)!=retained.options.name.as_ref().map(Text::as_str)
@@ -386,6 +423,7 @@ impl Window {
                 "file picker correlation is not retained",
             ));
         };
+        self.authorize_mode(mode, authority)?;
         let slot = PICKERS
             .try_acquire()
             .map_err(|_| BrokerError::unavailable("file picker is at capacity"))?;
@@ -440,7 +478,13 @@ impl Window {
             .spawn()
             .map_err(|error| BrokerError::execution(error.to_string()))?;
         drop(peer);
-        let bytes = serde_json::to_vec(&options).expect("bounded picker options");
+        let mut presentation = options.clone();
+        if mode == Mode::File {
+            presentation.title = Text::parse(&format!(
+                "Open a file for {}", self.registration.launch.app_id(),
+            )).map_err(BrokerError::execution)?;
+        }
+        let bytes = serde_json::to_vec(&presentation).expect("bounded picker options");
         let dispatched = dispatch
             .write_all(&[1])
             .and_then(|_| dispatch.write_all(&(bytes.len() as u32).to_be_bytes()))
@@ -453,6 +497,7 @@ impl Window {
             active: true,
             retired: false,
             report: None,
+            open_access: None,
             selection: None,
             cancelled: cancelled.clone(),
             slot: Some(slot),
@@ -507,7 +552,7 @@ impl Window {
         let mut cancelled = self.cancel.subscribe();
         let mut tick = tokio::time::interval(Duration::from_millis(200));
         let mut cancel_deadline = None;
-        let report = loop {
+        let mut report = loop {
             if !dispatched {
                 break Report::failed("file picker was not dispatched", true);
             }
@@ -550,13 +595,35 @@ impl Window {
             let _ = child.start_kill();
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
+        let mut open_access = None;
+        if binding.mode == Mode::File && report.portal_retired {
+            if let Outcome::Selected { uri } = &report.outcome {
+                let window = self.clone();
+                let uri = uri.clone();
+                let context = crate::paths::RoutedPathContext::for_owner(
+                    self.registration.owner(), self.registration.home.clone(),
+                );
+                report.outcome = match tokio::task::spawn_blocking(move || {
+                    context.scope_sync(|| window.finish_open(&uri, &binding))
+                }).await {
+                    Ok(Ok((uri, access))) => {
+                        open_access = Some(access);
+                        Outcome::Selected { uri }
+                    }
+                    Ok(Err(message)) => Report::failed(&message, true).outcome,
+                    Err(_) => Report::failed("The system could not prepare the selected file", true).outcome,
+                };
+            }
+            self.complete(report, open_access, None);
+            return;
+        }
         let accepted_at = Instant::now();
         let selection = match (&report.outcome, self.native_files.get(), binding.mode) {
-            (Outcome::Selected { uri }, Some(provider), mode @ (Mode::File | Mode::Save))
+            (Outcome::Selected { uri }, Some(native), Mode::Save)
                 if report.portal_retired && !binding.cancelled.load(Ordering::Acquire) =>
             {
                 let uri = uri.as_str().to_owned();
-                let provider = provider.clone();
+                let provider = native.provider.clone();
                 let home = self.registration.home.clone();
                 tokio::task::spawn_blocking(move || {
                     let path = url::Url::parse(&uri).ok()?.to_file_path().ok()?;
@@ -566,7 +633,7 @@ impl Window {
                     {
                         return None;
                     }
-                    let target = provider.pin_picker(&relative, mode == Mode::Save).ok()?;
+                    let target = provider.pin_picker(&relative, true).ok()?;
                     Some(Selected {
                         relative,
                         target,
@@ -579,6 +646,10 @@ impl Window {
             }
             _ => None,
         };
+        self.complete(report, None, selection);
+    }
+
+    fn complete(&self, report: Report, open_access: Option<OpenAccess>, selection: Option<Selected>) {
         if let Ok(mut entry) = self.entry.lock() {
             if let Some(entry) = entry.as_mut() {
                 crate::provenance::audit(
@@ -598,6 +669,7 @@ impl Window {
                 entry.active = false;
                 entry.retired = report.portal_retired;
                 entry.report = Some(report);
+                entry.open_access = open_access;
                 entry.selection = selection;
                 if entry.retired {
                     entry.slot.take();
@@ -609,8 +681,19 @@ impl Window {
 
 fn projection(entry: &Entry) -> Value {
     let mut value = if !entry.active && entry.retired {
-        serde_json::to_value(&entry.report.as_ref().expect("completed picker").outcome)
-            .expect("picker outcome")
+        let outcome = &entry.report.as_ref().expect("completed picker").outcome;
+        if entry.options.mode == Mode::File && matches!(outcome, Outcome::Selected { .. }) {
+            match entry.open_access {
+                Some(access) => {
+                    let mut value = serde_json::to_value(outcome).expect("picker outcome");
+                    value["access"] = json!(access);
+                    value
+                }
+                None => json!({"status":"failed","error":"The selected file is not accessible"}),
+            }
+        } else {
+            serde_json::to_value(outcome).expect("picker outcome")
+        }
     } else {
         json!({"status":if entry.report.is_some() {"cleanup_pending"} else {"pending"}})
     };

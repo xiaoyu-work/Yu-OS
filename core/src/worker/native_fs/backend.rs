@@ -114,7 +114,7 @@ fn fd_path(file: &File) -> Result<PathBuf, i32> {
     std::fs::read_link(format!("/proc/self/fd/{}", file.as_raw_fd())).map_err(errno)
 }
 
-fn request_leader(pid: u32) -> Result<i32, i32> {
+pub(super) fn request_leader(pid: u32) -> Result<i32, i32> {
     let mut status = String::new();
     File::open(format!("/proc/{pid}/status"))
         .map_err(errno)?
@@ -791,7 +791,7 @@ fn materialize(
     Ok(file)
 }
 
-pub(super) fn fingerprint(metadata: &std::fs::Metadata) -> [u64; 8] {
+pub(crate) fn fingerprint(metadata: &std::fs::Metadata) -> [u64; 8] {
     [
         metadata.dev(),
         metadata.ino(),

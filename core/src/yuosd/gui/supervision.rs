@@ -13,6 +13,8 @@ use crate::display_session::creator::{Creator, Lease};
 use crate::display_session::runtime::{Runtime, Socket};
 use crate::worker::{
     linux::{GuiPreparation, LinuxSandbox},
+    native_fs::picker::{PickerMount, PICKER_PATH},
+    policy::{Mount, MountClass},
     LaunchResources,
 };
 
@@ -58,6 +60,7 @@ struct Supervised {
     resources: Option<LaunchResources>,
     launch: Option<crate::worker::WorkerLaunch>,
     home: Option<resources::HomeMetadata>,
+    picker_mount: Option<PickerMount>,
     command: Option<Command>,
     child: Option<Child>,
     process: Option<ProcessIdentity>,
@@ -141,6 +144,7 @@ impl Supervised {
             resources: None,
             launch: Some(plan.launch),
             home,
+            picker_mount: None,
             command: None,
             child: None,
             process: None,
@@ -168,6 +172,20 @@ impl Supervised {
         if let Some(home) = &mut self.home {
             home.mount(&self.job.registration)?;
             home.attach(&mut launch.policy, &self.job.registration)?;
+        }
+        if self.broker.picker().signed_app() {
+            let path = self.runtime.socket(Socket::Broker).with_file_name("opened-files");
+            let mount = self.picker_mount.insert(PickerMount::new(path));
+            match mount.mount(self.broker.picker().snapshots()) {
+                Ok(()) => launch.policy.mounts.push(Mount::read_only(
+                    mount.path.clone(), PICKER_PATH, MountClass::Runtime,
+                )),
+                Err(error) => {
+                    mount.retire(Instant::now() + RETIREMENT)?;
+                    self.picker_mount = None;
+                    tracing::warn!(%error, "System Open snapshot provider unavailable");
+                }
+            }
         }
         let prepared = LinuxSandbox.prepare_gui(
             &launch,
@@ -233,6 +251,9 @@ impl Supervised {
             )
             .map_err(|error| format!("bind supervised GUI process: {error}"))?;
         self.process = Some(process.clone());
+        if self.picker_mount.is_some() {
+            self.broker.picker().snapshots().bind(&process, resources.gui_cgroup()?)?;
+        }
         if let Some(home) = &self.home {
             let view = self.job.registration.snapshot(&process)?;
             let selected = home.bind(
@@ -355,6 +376,7 @@ impl Supervised {
             }
             let health = (|| {
                 self.broker.health()?;
+                if let Some(picker) = &self.picker_mount { picker.health()?; }
                 if let Some(home) = &self.home { home.health()?; }
                 self.transport
                     .as_ref()
@@ -390,6 +412,7 @@ impl Supervised {
                     return Err("GUI permissions changed".to_string());
                 }
                 if let Some(home) = &self.home { home.refresh(&self.job.registration, &view)?; }
+                self.broker.refresh_picker()?;
                 let reply = self.job.registration.control.exchange(
                     CompositorCommand::Refresh {
                         epoch: self.job.registration.control.epoch,
@@ -453,10 +476,14 @@ impl Supervised {
             resources.retire_gui(deadline)?;
         }
         if let Some(resources) = &mut self.resources {
-            if self.home.is_some() { resources.release_gui_source_pins(deadline)?; }
+            if self.home.is_some() || self.picker_mount.is_some() {
+                resources.release_gui_source_pins(deadline)?;
+            }
         }
         if let Some(home) = &mut self.home { home.retire(deadline)?; }
         self.home.take();
+        if let Some(picker) = &mut self.picker_mount { picker.retire(deadline)?; }
+        self.picker_mount.take();
         if let Some(guard) = &mut self.transport {
             guard.finish(deadline)?;
         }
@@ -542,7 +569,8 @@ impl Supervised {
 
 impl Drop for Supervised {
     fn drop(&mut self) {
-        if self.resources.is_some() || self.home.is_some() || (self.creator_attempted && !self.creator_retired) {
+        if self.resources.is_some() || self.home.is_some() || self.picker_mount.is_some()
+            || (self.creator_attempted && !self.creator_retired) {
             if let Err(error) = self.retire() {
                 tracing::error!(%error, "GUI emergency retirement could not be verified");
             }

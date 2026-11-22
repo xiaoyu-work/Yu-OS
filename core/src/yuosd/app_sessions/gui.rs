@@ -308,52 +308,8 @@ impl Registration {
         let _profile = ProfileGuard::enter();
         #[cfg(test)]
         let _needs = Span::new(Step::Needs);
-        use crate::caps::manifest::ScopeBinding;
-        if !matches!(verb, Verb::FS_READ | Verb::FS_WRITE) {
-            return Err("native file selection supports only independent read or write".into());
-        }
-        if relative.as_os_str().is_empty() || relative.components().any(|part|
-            !matches!(part, std::path::Component::Normal(_)))
-        { return Err("selected read requires a retained view-relative file".into()); }
-        let selected = self.launch.manifest().gui_entry(self.gui_entry.as_deref())?;
-        if selected.legacy_needs {
-            return Err("selected read requires an explicit need of this signed surface".into());
-        }
-        let target = self.home.join(relative);
-        let paths = crate::caps::args::PathContext { home: self.home.clone(), cwd: None };
-        let mut candidates = Vec::new();
-        for need in selected.launch_needs().chain(selected.optional_needs.iter().copied()
-            .filter(|need| selected.optional_need_is_bound(need)))
-        {
-            if need.verb != verb { continue; }
-            let scopes = match &need.scope {
-                ScopeBinding::OwnerPath { path } =>
-                    vec![crate::caps::manifest::resolve_owner_path(need.verb, path, &paths)?],
-                ScopeBinding::Fixed { scope: Scope::Path(path) } if std::path::Path::new(path).is_absolute() =>
-                    vec![Scope::path(path.clone()).canonicalized()],
-                ScopeBinding::Wild => self.caps.iter()
-                    .filter(|cap| cap.verb == verb && matches!(cap.scope, Scope::Path(_)))
-                    .map(|cap| cap.scope.clone()).collect(),
-                _ => continue,
-            };
-            for scope in scopes {
-                let Scope::Path(pattern) = &scope else { continue; };
-                let root = pattern.strip_suffix("/**").unwrap_or(pattern);
-                if root.contains(['*', '?', '[', ']', '{', '}'])
-                    || !std::path::Path::new(root).starts_with(&self.home)
-                { continue; }
-                let covered = if pattern.ends_with("/**") {
-                    target.starts_with(root)
-                } else {
-                    target.as_os_str() == std::path::Path::new(root).as_os_str()
-                };
-                if covered { candidates.push(Cap::new(verb, scope)); }
-            }
-        }
-        candidates.sort_by_key(|cap| std::cmp::Reverse(match &cap.scope {
-            Scope::Path(path) => path.len(), _ => 0,
-        }));
-        let cap = candidates.into_iter().next().ok_or("selected file is outside this surface's declared read needs")?;
+        let cap = self.declared_selected_file_capability(relative, verb)?
+            .ok_or("selected file is outside this surface's declared read/write needs")?;
         #[cfg(test)]
         drop(_needs);
         #[cfg(test)]
@@ -397,6 +353,58 @@ impl Registration {
         }
         crate::approvals::app_policy::require(self.owner(), self.launch.app_id(), &caps)?;
         Ok(cap)
+    }
+
+    // Routing eligibility only; using a native file still requires selected_file_capability.
+    pub(crate) fn declared_selected_file_capability(
+        &self, relative: &std::path::Path, verb: Verb,
+    ) -> Result<Option<Cap>, String> {
+        use crate::caps::manifest::ScopeBinding;
+        if !matches!(verb, Verb::FS_READ | Verb::FS_WRITE) {
+            return Err("native file selection supports only independent read or write".into());
+        }
+        if relative.as_os_str().is_empty() || relative.components().any(|part|
+            !matches!(part, std::path::Component::Normal(_)))
+        { return Err("selected read requires a retained view-relative file".into()); }
+        let selected = self.launch.manifest().gui_entry(self.gui_entry.as_deref())?;
+        if selected.legacy_needs {
+            return Ok(None);
+        }
+        let target = self.home.join(relative);
+        let paths = crate::caps::args::PathContext { home: self.home.clone(), cwd: None };
+        let mut candidates = Vec::new();
+        for need in selected.launch_needs().chain(selected.optional_needs.iter().copied()
+            .filter(|need| selected.optional_need_is_bound(need)))
+        {
+            if need.verb != verb { continue; }
+            let scopes = match &need.scope {
+                ScopeBinding::OwnerPath { path } =>
+                    vec![crate::caps::manifest::resolve_owner_path(need.verb, path, &paths)?],
+                ScopeBinding::Fixed { scope: Scope::Path(path) } if std::path::Path::new(path).is_absolute() =>
+                    vec![Scope::path(path.clone()).canonicalized()],
+                ScopeBinding::Wild => self.caps.iter()
+                    .filter(|cap| cap.verb == verb && matches!(cap.scope, Scope::Path(_)))
+                    .map(|cap| cap.scope.clone()).collect(),
+                _ => continue,
+            };
+            for scope in scopes {
+                let Scope::Path(pattern) = &scope else { continue; };
+                let root = pattern.strip_suffix("/**").unwrap_or(pattern);
+                if root.contains(['*', '?', '[', ']', '{', '}'])
+                    || !std::path::Path::new(root).starts_with(&self.home)
+                { continue; }
+                let covered = if pattern.ends_with("/**") {
+                    target.starts_with(root)
+                } else {
+                    target.as_os_str() == std::path::Path::new(root).as_os_str()
+                };
+                if covered { candidates.push(Cap::new(verb, scope)); }
+            }
+        }
+        candidates.sort_by_key(|cap| std::cmp::Reverse(match &cap.scope {
+            Scope::Path(path) => path.len(), _ => 0,
+        }));
+        Ok(candidates.into_iter().next())
     }
 
     fn require_delegation(&self) -> Result<(), String> {

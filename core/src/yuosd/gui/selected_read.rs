@@ -420,17 +420,33 @@ impl SelectedReads {
                 .require_inverse_path()
                 .map_err(BrokerError::authorization)?;
         }
-        self.propose(Target::File(candidate), access, &gui)
+        self.propose(Target::File(candidate), access, &gui, None)
     }
 
     fn request_create(&self, parent_node: u64, name: &str) -> Result<Value, BrokerError> {
         let gui = self.fresh().map_err(BrokerError::authorization)?;
         let candidate = self.provider.creation_candidate(parent_node, name)
             .map_err(BrokerError::authorization)?;
-        self.propose(Target::Create(candidate), Access::Create, &gui)
+        self.propose(Target::Create(candidate), Access::Create, &gui, None)
     }
 
-    fn propose(&self, candidate: Target, access: Access, gui: &GrantView) -> Result<Value, BrokerError> {
+    pub(super) fn open_from_picker(
+        &self, node: u64, relative: &std::path::Path, selected: &crate::worker::native_fs::PickerTarget,
+        consent: PickerConsent, gui: &GrantView,
+    ) -> Result<(), String> {
+        let candidate = self.provider.candidate(node)?;
+        if candidate.relative() != relative || !selected.matches_file(&candidate) {
+            return Err("The selected native file changed; choose it again".into());
+        }
+        let result = self.propose(Target::File(candidate), Access::Read, gui, Some(consent))
+            .map_err(|error| error.message)?;
+        if result["state"] != "selected" {
+            return Err("The selected native file was not granted".into());
+        }
+        Ok(())
+    }
+
+    fn propose(&self, candidate: Target, access: Access, gui: &GrantView, open: Option<PickerConsent>) -> Result<Value, BrokerError> {
         candidate.revalidate().map_err(BrokerError::authorization)?;
         let node = candidate.node();
         let capability = access
@@ -441,7 +457,7 @@ impl SelectedReads {
             .lock()
             .map_err(|_| BrokerError::unavailable("selected reads poisoned"))?;
         self.fresh().map_err(BrokerError::authorization)?;
-        if let Some(proposal) = proposals.values().find(|proposal| {
+        if let Some(proposal) = proposals.values_mut().find(|proposal| {
             proposal.access == access
                 && proposal.candidate.node() == node
                 && proposal.candidate.identity() == candidate.identity()
@@ -449,6 +465,13 @@ impl SelectedReads {
                 && (access == Access::Create || proposal.candidate.stamp() == candidate.stamp()
                     && matches!(proposal.stage, Stage::Pending | Stage::Selected))
         }) {
+            if let Some(picker) = open {
+                if proposal.stage == Stage::Pending {
+                    self.select(proposal, SelectionDecision::Picker(picker)).map_err(BrokerError::authorization)?;
+                }
+                proposal.authority.as_ref().ok_or_else(|| BrokerError::authorization("Native file is not selected"))?
+                    .require().map_err(BrokerError::authorization)?;
+            }
             return serde_json::to_value(proposal.status())
                 .map_err(|error| BrokerError::unavailable(error.to_string()));
         }
@@ -490,11 +513,14 @@ impl SelectedReads {
             Epoch(self.instance.0).label()
         );
         let display = candidate.display().map_err(BrokerError::authorization)?;
-        let mode = if access == Access::Read { Mode::File } else { Mode::Save };
-        let picker = self.picker.claim(gui, candidate.relative(), mode, |selected| match &candidate {
-            Target::File(file) => selected.matches_file(file),
-            Target::Create(file) => selected.matches_creation(file),
-        }).map_err(BrokerError::authorization)?;
+        let picker = if access == Access::Read {
+            open
+        } else {
+            self.picker.claim(gui, candidate.relative(), Mode::Save, |selected| match &candidate {
+                Target::File(file) => selected.matches_file(file),
+                Target::Create(file) => selected.matches_creation(file),
+            }).map_err(BrokerError::authorization)?
+        };
         let mut proposal = Proposal {
             access, id: id.clone(), candidate, capability, digest, approval_session,
             approval_request: None, display, stage: Stage::Pending, authority: None,
