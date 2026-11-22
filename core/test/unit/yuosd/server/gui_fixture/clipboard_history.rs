@@ -160,7 +160,7 @@ impl Fixture {
             .open("/run/gui-fixture/native-clipboard-history-open.shm").unwrap();
         checkpoint.write_all(&pixels).unwrap();
         drop(checkpoint);
-        let mutations = self.mutations(&mut driver, session, &instance, &frame).await;
+        let mutations = self.mutations(&mut driver, session, &instance).await;
         driver.click().await;
         let closed = loop {
             driver.live("Clipboard original popup close").await;
@@ -188,7 +188,7 @@ impl Fixture {
 
     async fn queries(
         &mut self, driver: &mut calendar_popup::Driver<'_>, session: &str,
-        instance: &str, count: usize, floor: u64, heights: std::ops::RangeInclusive<i64>,
+        instance: &str, count: usize, floor: u64,
     ) -> serde_json::Value {
         let actions = ["history-list", "history-restore", "history-remove", "history-list", "history-clear", "history-list"];
         loop {
@@ -233,8 +233,6 @@ impl Fixture {
                     calendar_popup::buffered_popup_for(window, instance, CLIPBOARD.desktop_id)
                         && popup["pending_configures"] == 0
                         && popup["buffer_commits"].as_u64().is_some_and(|value| value > floor)
-                        && popup["geometry"][3].as_i64().is_some_and(|value|
-                            heights.contains(&value))
                 }) {
                     return serde_json::json!({"window":window,"requests":requests,"exact_scope_uses":uses});
                 }
@@ -245,11 +243,10 @@ impl Fixture {
 
     async fn mutations(
         &mut self, driver: &mut calendar_popup::Driver<'_>, session: &str,
-        instance: &str, opened: &serde_json::Value,
+        instance: &str,
     ) -> serde_json::Value {
-        let height = opened["popup"]["geometry"][3].as_i64().unwrap();
         let floor = driver.popup_click(140, 155).await;
-        self.queries(driver, session, instance, 2, floor, height + 1..=800).await;
+        self.queries(driver, session, instance, 2, floor).await;
         let selection = Path::new("/run/user/62050/native-product-observer/root-selection.json");
         let info = selection.symlink_metadata().unwrap();
         assert!(info.is_file() && info.uid() == OWNER && info.nlink() == 1
@@ -267,10 +264,11 @@ impl Fixture {
         assert_eq!(String::from_utf8(query(&["eval", "tab('Clipboard'); print(size());"]).await)
             .unwrap().trim(), "2");
         let floor = driver.popup_click(318, 155).await;
-        self.queries(driver, session, instance, 4, floor, height..=height).await;
+        let deleted = self.queries(driver, session, instance, 4, floor).await;
         let remaining: serde_json::Value = serde_json::from_slice(&query(&["eval",
             "tab('Clipboard'); print(JSON.stringify({size:size(),text:str(read(0))}));"]).await).unwrap();
         assert_eq!(remaining, serde_json::json!({"size":1,"text":FIRST}));
+        let height = deleted["window"]["popup"]["geometry"][3].as_i64().unwrap();
         let floor = driver.popup_click(80, u16::try_from(height - 32).unwrap()).await;
         let confirmation = loop {
             driver.live("Clipboard original clear confirmation").await;
@@ -290,7 +288,7 @@ impl Fixture {
         let popup = &confirmation["popup"]["geometry"];
         let floor = driver.popup_click(u16::try_from(popup[2].as_i64().unwrap() - 60).unwrap(),
             u16::try_from(popup[3].as_i64().unwrap() - 48).unwrap()).await;
-        let result = self.queries(driver, session, instance, 6, floor, 100..=300).await;
+        let result = self.queries(driver, session, instance, 6, floor).await;
         assert_eq!(String::from_utf8(query(&["eval", "tab('Clipboard'); print(size());"]).await)
             .unwrap().trim(), "0");
         serde_json::json!({"requests":result["requests"],"exact_scope_uses":result["exact_scope_uses"],

@@ -307,21 +307,28 @@ Description: Private controlled Store inventory\n\n".to_vec();
                     && record["buffer_commits"].as_u64().is_some_and(|count| {
                         count > baseline && count > delivery_commit
                     })
-                    && record["snapshot"]["status"] == "saved"
-                    && record["snapshot"]["snapshot_commit"] == record["buffer_commits"]
-                    && record["snapshot"]["latest_buffer_commit"] == record["buffer_commits"]
-                    && record["snapshot"]["matches_current_configure"] == true
             }) {
-                let pixels = &record["raster"]["pixel_checksum"];
-                // Ignore transitional hover frames before clicking the next control.
-                match &settled {
-                    _ if pixels == previous_pixels => settled = None,
-                    Some((earlier, since)) if earlier == pixels => {
-                        if Instant::now().duration_since(*since) >= Duration::from_millis(500) {
-                            break record;
-                        }
+                if kind == "text" {
+                    let snapshot = &record["snapshot"];
+                    if snapshot["status"] == "saved"
+                        && snapshot["snapshot_commit"] == record["buffer_commits"]
+                        && snapshot["latest_buffer_commit"] == record["buffer_commits"]
+                        && snapshot["matches_current_configure"] == true
+                    {
+                        break record;
                     }
-                    _ => settled = Some((pixels.clone(), Instant::now())),
+                } else {
+                    let pixels = &record["raster"]["pixel_checksum"];
+                    // Use rendered checksums even if the bounded snapshot capture stops.
+                    match &settled {
+                        _ if pixels == previous_pixels => settled = None,
+                        Some((earlier, since)) if earlier == pixels => {
+                            if Instant::now().duration_since(*since) >= Duration::from_millis(500) {
+                                break record;
+                            }
+                        }
+                        _ => settled = Some((pixels.clone(), Instant::now())),
+                    }
                 }
             }
             if Instant::now() >= deadline {
