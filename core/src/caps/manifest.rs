@@ -89,7 +89,6 @@ mod effects;
 pub use effects::{EffectKind, EffectRecovery, OperationEffect};
 mod desktop;
 pub use desktop::{is_valid_gui_entry_name, DesktopEntry, GuiEntry};
-pub(crate) use desktop::{requests_configured_ai, CONFIGURED_AI_MODEL};
 mod owner_path;
 pub use owner_path::resolve_owner_path;
 
@@ -797,12 +796,32 @@ pub struct Need {
 }
 
 impl Need {
+    fn validate_configured_model(&self) -> Result<(), String> {
+        if requests_configured_ai(&self.scope)
+            && !matches!(
+                self.verb,
+                Verb::AI_CHAT | Verb::AI_CHAT_UNTRUSTED | Verb::AI_EMBED
+                    | Verb::AI_AUDIO_TTS | Verb::AI_AUDIO_STT | Verb::AI_IMAGE_GENERATE
+                    | Verb::AI_DECIDE
+            )
+        {
+            return Err("$configured-ai-model requires a supported App AI capability".into());
+        }
+        Ok(())
+    }
+
     fn validate_purpose(&self) -> Result<(), String> {
         if self.why.is_empty() && self.verb.as_str().starts_with("ai.") {
             return Ok(());
         }
         self.why.validate()
     }
+}
+
+pub(crate) const CONFIGURED_AI_MODEL: &str = "$configured-ai-model";
+
+pub(crate) fn requests_configured_ai(scope: &ScopeBinding) -> bool {
+    matches!(scope, ScopeBinding::Fixed { scope: Scope::Name(name) } if name == CONFIGURED_AI_MODEL)
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -1399,12 +1418,11 @@ impl Manifest {
                         detail,
                     }
                 })?;
-                if requests_configured_ai(&need.scope) {
-                    return Err(ManifestError::DesktopInvalid {
-                        field: "operations",
-                        detail: "$configured-ai-model is only valid in GUI optional_needs".into(),
-                    });
-                }
+                need.validate_configured_model().map_err(|detail| ManifestError::NeedInvalid {
+                    op: op_name.clone(),
+                    idx,
+                    detail,
+                })?;
                 need.validate_purpose()
                     .map_err(|d| ManifestError::NeedInvalid {
                         op: op_name.clone(),
@@ -1584,12 +1602,11 @@ impl Manifest {
                             detail,
                         }
                     })?;
-                    if requests_configured_ai(&need.scope) {
-                        return Err(ManifestError::DesktopInvalid {
-                            field: "mcp",
-                            detail: "$configured-ai-model is only valid in GUI optional_needs".into(),
-                        });
-                    }
+                    need.validate_configured_model().map_err(|detail| ManifestError::McpNeedInvalid {
+                        tool: tool.name.clone(),
+                        idx,
+                        detail,
+                    })?;
                     need.validate_purpose()
                         .map_err(|d| ManifestError::McpNeedInvalid {
                             tool: tool.name.clone(),

@@ -167,6 +167,22 @@ impl Delegation {
             workspace: launcher.workspace.clone(),
         })
     }
+
+    fn configured_model_cap(
+        &self,
+        verb: Verb,
+        config: &OnceLock<Arc<crate::config::YuConfig>>,
+    ) -> Result<Cap, BrokerError> {
+        crate::paths::RoutedPathContext::for_owner(self.uid, self.paths.home.clone()).scope_sync(|| {
+            let config = config.get_or_init(crate::config::load_user_config);
+            let model = crate::ai::consent::configured_target(verb, config)
+                .map_err(BrokerError::execution)?
+                .ok_or_else(|| BrokerError::unavailable(format!(
+                    "No usable model is configured for {verb}. Configure that model in Yu OS Agent settings."
+                )))?;
+            Ok(Cap::new(verb, model.scope()))
+        })
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -2154,7 +2170,14 @@ fn derive_plan(
     }
     let mut plan = LaunchPlan::default();
     let mut refused_wild = Vec::new();
+    let model_config = OnceLock::new();
     for (need, caps) in needs.iter().zip(resolved) {
+        if crate::caps::manifest::requests_configured_ai(&need.scope) {
+            if !caps.is_empty() {
+                plan.require(delegation.configured_model_cap(need.verb, &model_config)?, delegation);
+            }
+            continue;
+        }
         if matches!(need.scope, ScopeBinding::Wild) {
             // A `wild` binding is a request to borrow the launcher's
             // reach. Unsigned content does not get to: the need is
@@ -2374,11 +2397,15 @@ fn gui_plan(
 
     let mut plan = LaunchPlan::default();
     let mut refused_wild = Vec::new();
+    let model_config = OnceLock::new();
     for need in selected.launch_needs() {
         match &need.scope {
             ScopeBinding::OwnerPath { path } => {
                 let scope = crate::caps::manifest::resolve_owner_path(need.verb, path, &delegation.paths)?;
                 plan.require(Cap::new(need.verb, scope), delegation);
+            }
+            ScopeBinding::Fixed { .. } if crate::caps::manifest::requests_configured_ai(&need.scope) => {
+                plan.require(delegation.configured_model_cap(need.verb, &model_config)?, delegation);
             }
             ScopeBinding::Fixed { scope } => {
                 plan.require(Cap::new(need.verb, scope.clone()), delegation);

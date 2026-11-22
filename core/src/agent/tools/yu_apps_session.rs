@@ -2481,7 +2481,7 @@ fn resolve_daemon_authorized_call(
     } else {
         None
     };
-    let resolved = manifest
+    let mut resolved = manifest
         .resolve_mcp_tool_needs_with_paths(tool_name, &args, owner_paths.as_ref())
         .map_err(|error| format!("capability resolution failed: {error}"))?;
     let tool = manifest
@@ -2489,6 +2489,13 @@ fn resolve_daemon_authorized_call(
         .as_ref()
         .and_then(|service| service.tools.iter().find(|tool| tool.name == tool_name))
         .ok_or("daemon-authorized MCP tool not found")?;
+    // The Root call ticket carries the resolved model capability; no model
+    // token participates in local resource placement or transient grants.
+    for (need, caps) in tool.needs.iter().zip(&mut resolved) {
+        if crate::caps::manifest::requests_configured_ai(&need.scope) {
+            caps.clear();
+        }
+    }
     let (caps, file) = crate::yuosd::brokered_file::split(&tool.needs, &resolved)?;
     Ok((args, caps, file.is_some()))
 }

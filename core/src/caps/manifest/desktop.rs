@@ -1,14 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use super::{AiPolicy, AiSafety, Manifest, ManifestError, Need, NeedCondition, PromptOrigin, ScopeBinding, Verb};
-use crate::caps::Scope;
+use super::{requests_configured_ai, AiPolicy, AiSafety, Manifest, ManifestError, Need, NeedCondition, PromptOrigin, ScopeBinding, Verb};
 use crate::i18n::LocalizedText;
-
-pub(crate) const CONFIGURED_AI_MODEL: &str = "$configured-ai-model";
-
-pub(crate) fn requests_configured_ai(scope: &ScopeBinding) -> bool {
-    matches!(scope, ScopeBinding::Fixed { scope: Scope::Name(name) } if name == CONFIGURED_AI_MODEL)
-}
 
 fn supports_optional_ai(verb: Verb, policy: &AiPolicy) -> bool {
     policy.budget.monthly_units > 0
@@ -246,8 +239,9 @@ fn validate_needs(manifest: &Manifest, name: &str, needs: &[Need], optional: boo
         let context = |detail| invalid("needs", &format!("{name} need #{index}: {detail}"));
         need.validate_purpose().map_err(context)?;
         super::validate_literal_path_scopes(&need.scope).map_err(context)?;
-        if requests_configured_ai(&need.scope)
-            && !(optional && need.when.is_none() && manifest.ai.as_ref().is_some_and(|policy|
+        need.validate_configured_model().map_err(context)?;
+        if optional && requests_configured_ai(&need.scope)
+            && !(need.when.is_none() && manifest.ai.as_ref().is_some_and(|policy|
                 supports_optional_ai(need.verb, policy)))
         {
             return Err(context("the configured model requires an unconditional optional GUI AI need and a compatible finite AI policy".into()));

@@ -106,6 +106,7 @@ impl Target {
             _ => return Err(unconfigured("inference")),
         };
         if target.model.trim().is_empty()
+            || target.model == crate::caps::manifest::CONFIGURED_AI_MODEL
             || target.model.len() > 256
             || target.model.contains(['*', '?', '[', ']', '{', '}'])
             || target.model.chars().any(char::is_control)

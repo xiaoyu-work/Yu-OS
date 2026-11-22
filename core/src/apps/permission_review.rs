@@ -361,15 +361,20 @@ impl PermissionReview {
 }
 
 fn collect(
-    requested: &mut BTreeMap<String, RequestedPermission>,
+    requested: &mut BTreeMap<(String, bool), RequestedPermission>,
     entry: &str,
     arguments: &[Arg],
     needs: &[Need],
     optional: bool,
 ) -> Result<(), String> {
     for need in needs {
-        let key = serde_json::to_string(&(need.verb, &need.scope, &need.when))
-            .map_err(|error| format!("serialize App permission request: {error}"))?;
+        // A GUI install choice must not cover an ordinary invocation that
+        // requests the same model.
+        let key = (
+            serde_json::to_string(&(need.verb, &need.scope, &need.when))
+                .map_err(|error| format!("serialize App permission request: {error}"))?,
+            optional && crate::caps::manifest::requests_configured_ai(&need.scope),
+        );
         let metadata = catalog::lookup(need.verb)
             .ok_or_else(|| format!("capability {} has no review metadata", need.verb))?;
         let permission = requested.entry(key).or_insert_with(|| RequestedPermission {
@@ -408,6 +413,9 @@ pub(crate) fn scope_description(scope: &ScopeBinding) -> Result<String, String> 
             "authenticated owner's home-relative path {}; Root resolves the exact bounded target",
             quote(path)?,
         ),
+        scope if crate::caps::manifest::requests_configured_ai(scope) => {
+            "The user's configured model, resolved when used".into()
+        }
         ScopeBinding::Fixed { scope } => quote(&scope.to_string())?,
         ScopeBinding::FromArg { arg, transform } => {
             let selection = match transform {

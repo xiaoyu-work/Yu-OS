@@ -58,20 +58,17 @@ pub(crate) struct InstallModel {
 
 impl InstallModel {
     pub(crate) fn for_owner(owner: u32) -> Result<Option<Self>, String> {
-        Ok(Self::from_config(&owner_config(owner)?.agent))
+        with_owner_config(owner, |config| Ok(Self::from_config(&config.agent)))
     }
 }
 
-fn owner_config(owner: u32) -> Result<crate::config::YuConfig, String> {
+fn with_owner_config<T>(
+    owner: u32,
+    run: impl FnOnce(&crate::config::YuConfig) -> Result<T, String>,
+) -> Result<T, String> {
     let home = paths::verified_home_for_uid(owner)?;
-    let path = std::env::var_os("YUOS_CONFIG_PATH")
-        .map(PathBuf::from)
-        .or_else(|| {
-            std::env::var_os("YUOS_USER_CONFIG_DIR")
-                .map(|dir| PathBuf::from(dir).join("config.json"))
-        })
-        .unwrap_or_else(|| paths::user_config_path_for(&home));
-    Ok(crate::config::load_from_path(&path))
+    paths::RoutedPathContext::for_owner(owner, home)
+        .scope_sync(|| run(&crate::config::load_user_config()))
 }
 
 #[derive(Serialize)]
@@ -87,7 +84,7 @@ pub(crate) fn gui_ai_for_owner(
     package: &VerifiedPackage,
     manifest: &Manifest,
 ) -> Result<Vec<GuiAiChoice>, String> {
-    gui_ai_choices(owner, package, manifest, &owner_config(owner)?)
+    with_owner_config(owner, |config| gui_ai_choices(owner, package, manifest, config))
 }
 
 pub(crate) fn gui_ai_choices(
@@ -123,7 +120,7 @@ pub(crate) fn gui_ai_choices(
         .iter()
         .filter(|permission| permission.requests_configured_gui_ai())
     {
-        let Some(target) = gui_target(permission.verb, config)? else {
+        let Some(target) = configured_target(permission.verb, config)? else {
             continue;
         };
         let cap = Cap::new(permission.verb, target.scope());
@@ -155,7 +152,7 @@ pub(crate) fn gui_ai_choices(
     Ok(result)
 }
 
-fn gui_target(
+pub(crate) fn configured_target(
     verb: Verb,
     config: &crate::config::YuConfig,
 ) -> Result<Option<InstallModel>, String> {

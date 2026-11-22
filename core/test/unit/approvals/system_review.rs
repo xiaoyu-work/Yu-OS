@@ -97,7 +97,9 @@ fn install_ai_is_hidden_without_an_optional_request_and_bound_to_verified_delive
     let mut manifest = serde_json::json!({
         "id": "review-app", "version": "1.0.0", "schema_version": 2,
         "name": {"en": "Review App"},
-        "mcp": {"tools": [{"name": "review.inspect", "summary": {"en": "Inspect"}}]},
+        "mcp": {"tools": [{"name": "review.inspect", "summary": {"en": "Inspect"}, "needs": [
+            {"verb": "ai.chat.untrusted", "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}}}
+        ]}]},
         "ai": {"budget": {"monthly_units": 1000}, "origins": ["external-content"]}
     });
     let mcp_only = environment.package_from_manifest(&environment.directory.path().join("only-mcp"), manifest.clone());
@@ -122,7 +124,12 @@ fn install_ai_is_hidden_without_an_optional_request_and_bound_to_verified_delive
     };
     let review = submit_delivery(owner, &package, "install".into(), delivery.clone()).unwrap();
     let disclosure = review.permission_review().unwrap();
-    let (choice, cap) = review.ai_choice(&disclosure.permissions[0], &package.ceiling()).unwrap().unwrap();
+    let mut choices = disclosure.permissions.iter().filter_map(|permission| {
+        review.ai_choice(permission, &package.ceiling()).unwrap().map(|choice| (permission, choice))
+    });
+    let (permission, (choice, cap)) = choices.next().unwrap();
+    assert!(choices.next().is_none());
+    assert!(permission.uses.iter().all(|usage| usage.optional && usage.entry.starts_with("gui:")));
     assert_eq!(cap.scope, crate::caps::Scope::name("owner-model"));
     assert!(decide(owner, &review.id, true, Some(&package)).is_err());
     decide_with_permissions(owner, &review.id, true, Some(&package), [(choice.clone(), true)].into()).unwrap();

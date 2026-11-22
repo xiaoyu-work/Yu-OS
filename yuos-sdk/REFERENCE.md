@@ -74,6 +74,9 @@ generated binding compatibility. No new SDK execution API is introduced.
 
 Apps call the owner's configured model through the SDK. This is separate
 from exposing MCP tools for the system Agent to call.
+For CLI, MCP, and GUI entries, use the
+[`$configured-ai-model` scope](../docs/app-development.md#7-ai-features);
+keep this literal name rather than substituting a model ID.
 
 | Settings slot | SDK call or `infer` input | App capability | Result |
 |---|---|---|---|

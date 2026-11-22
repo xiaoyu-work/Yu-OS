@@ -20,9 +20,6 @@ def run(command, args):
 
 **`app.json`**
 
-Replace `YOUR_MODEL_ID` with the exact ID configured in `yu agent setup text`.
-This limits the App's permission; it does not select the model.
-
 ```json
 {
   "id": "hello-ai",
@@ -35,12 +32,14 @@ This limits the App's permission; it does not select the model.
       "args": [{"name": "text", "kind": "text", "required": true}],
       "needs": [{
         "verb": "ai.chat",
-        "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "YOUR_MODEL_ID"}}
+        "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}}
       }]
     }
   }
 }
 ```
+
+`$configured-ai-model` means "use the model the user configured." Keep it as written.
 
 From the parent directory, sign with your
 [system-trusted App key](../docs/extension-provenance.md#trust-roots).

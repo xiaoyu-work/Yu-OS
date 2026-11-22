@@ -904,6 +904,9 @@ async fn chat_inner(
     let verb = modality.verb();
     let config = config::current_snapshot();
     let cfg = &config.agent;
+    if cfg.model == crate::caps::manifest::CONFIGURED_AI_MODEL {
+        return Err(AiError::Provider("Configure a text model in Yu OS Agent settings".into()));
+    }
     let model = cfg.model.clone();
     let authorization = authority.map(|authority| {
         authority.require(crate::caps::Cap::new(verb, Scope::name(&model)))

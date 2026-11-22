@@ -254,6 +254,9 @@ fn finish_revocation(audit: Result<(), String>, retirement: Result<(), String>) 
 }
 
 fn fixed_cap(need: &Need) -> Option<Cap> {
+    if crate::caps::manifest::requests_configured_ai(&need.scope) {
+        return None;
+    }
     let scope = match &need.scope {
         ScopeBinding::Fixed { scope } => scope.clone(),
         ScopeBinding::Wild => Scope::Wild,

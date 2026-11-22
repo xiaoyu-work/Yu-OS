@@ -18,8 +18,9 @@ system callers that request AI work outside the interactive agent loop.
 - Serve SDK `yu ai infer` through the same App authority and budget. The owner
   configures the destination; binary data is bounded stdin/reply data.
   Configured local embeddings and decisions run as the owner in a fixed worker.
-- Resolve exact configured-model choices for optional GUI AI through the
-  protected Settings App. These choices do not admit Agent-to-App calls.
+- Resolve `$configured-ai-model` from the authenticated owner's settings for
+  ordinary operations, MCP tools, and GUI entries. Optional GUI model
+  choices still use protected Settings and do not admit Agent-to-App calls.
 - Persist safety-filtered provider requests in the owner's AI budget database
   (`ai_inputs`), correlated to the authenticated App session. This history is
   not App or agent memory. Cancellation retains the dispatched reservation's

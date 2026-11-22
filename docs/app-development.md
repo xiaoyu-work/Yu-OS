@@ -703,13 +703,19 @@ determines redaction. The label does not prove the input is safe.
 Declare an `ai` policy in the manifest and the matching capability on the
 calling surface: `ai.chat.untrusted` for `external-content`, or `ai.chat`
 for `trusted` and `user-input`. See the [SDK model table](../yuos-sdk/REFERENCE.md#ai-support)
-for non-chat capabilities. The owner configures the model. A declaration
-does not authorize a call. `why` is optional on AI needs; the system
-supplies its own permission description.
+for non-chat capabilities. Use
+`"scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}}`
+in an operation's, MCP tool's, or GUI entry's `needs` to request the owner's
+configured model. The verb selects the model slot. Yu OS resolves the scope
+to the configured model when authorizing the entry; no model ID is needed
+in the manifest or SDK call. An unconfigured slot can't grant access to
+another model. Changing the model does not require editing the App.
+The usual capability, consent, and budget checks still apply. `why` is
+optional on AI needs; the system supplies its own permission description.
 
 | Calling surface | Owner consent |
 |---|---|
-| An operation, MCP tool, or GUI call not using the configured-model opt-in | The owner grants separate consent to the App's AI policy with `yu app consent grant <id>`. Changes to the policy require renewed consent. |
+| An operation, MCP tool, or GUI call declaring AI in required `needs` | The owner grants separate consent to the App's AI policy with `yu app consent grant <id>`. Changes to the policy require renewed consent. |
 | An eligible GUI entry using [optional model permissions](#model-permissions-in-settings) | The owner explicitly allows the App to use that model in Settings → Applications. The Store can also offer optional text AI during installation. Neither path requires a second `consent grant` for the selected GUI entry. |
 
 Both paths still require the matching capability and are subject to budgeting
@@ -1074,9 +1080,9 @@ that GUI's `optional_needs` with
 For document input use `ai.chat.untrusted`, with `external-content` in `ai.origins`,
 strict or standard safety, and a positive `ai.budget.monthly_units`. For input
 without external content use `ai.chat` with its corresponding origin. This
-reserved name is not a wildcard or model selector; Root resolves it to the
-installing owner's exact configured provider and model. It is rejected in
-mandatory GUI needs, operations and MCP tools.
+reserved name is the same declaration used by required AI needs. Only the
+optional GUI entry uses the Store installation choice, which binds to the
+installing owner's exact configured provider and model.
 
 Only verified publisher-signed Apps requesting this optional feature get this
 choice, and only when a model is configured. The protected Store reviews show

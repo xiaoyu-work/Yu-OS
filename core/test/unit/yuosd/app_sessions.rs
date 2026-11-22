@@ -3623,6 +3623,48 @@ fn a_signed_package_keeps_everything_the_same_plan_asked_for() {
 }
 
 #[test]
+fn configured_model_needs_resolve_for_each_owner_on_every_app_surface() {
+    let _env = crate::test_env::lock_env();
+    let directory = tempfile::tempdir().unwrap();
+    let config_file = directory.path().join("config.json");
+    let _config = crate::test_env::TestEnvVarGuard::set("YUOS_CONFIG_PATH", &config_file);
+    let app = app_from(r#"{
+        "id":"model-demo","version":"0.1.0","schema_version":2,"name":{"en":"Model Demo"},
+        "ai":{"budget":{"monthly_units":5000},"origins":["user-input"]},
+        "operations":{"summarize":{"label":{"en":"Summarize"},"needs":[
+            {"verb":"ai.chat","scope":{"kind":"fixed","scope":{"kind":"name","value":"$configured-ai-model"}}}
+        ]}},
+        "mcp":{"tools":[{"name":"model-demo.summarize","summary":{"en":"Summarize"},"needs":[
+            {"verb":"ai.chat","scope":{"kind":"fixed","scope":{"kind":"name","value":"$configured-ai-model"}}}
+        ]}]},
+        "desktop":{}
+    }"#);
+    let old_cap = Cap::new(Verb::AI_CHAT, Scope::name("first-model"));
+    let delegation = delegation(CapSet::from_caps([old_cap.clone()]));
+    let ceiling = publisher_ceiling();
+    let cli = || operation_plan(&app, "summarize", &[], &delegation, &ceiling);
+    assert!(cli().unwrap_err().message.contains("No usable model is configured"));
+
+    // Keep the installed manifest and the launcher's permission unchanged.
+    // Changing only the user config must derive a different exact permission.
+    for model in ["first-model", "second-model"] {
+        std::fs::write(&config_file, json!({
+            "agent": {"provider": "mock", "model": model}
+        }).to_string()).unwrap();
+        let expected = Cap::new(Verb::AI_CHAT, Scope::name(model));
+        let plans = [
+            cli().unwrap(),
+            mcp_tool_plan(&app, &json!({"tool":"model-demo.summarize"}), &delegation, &ceiling).unwrap(),
+            gui_plan(&app, None, "--gui", &delegation, &ceiling).unwrap(),
+        ];
+        for plan in plans {
+            assert_eq!(plan.caps, CapSet::from_caps([expected.clone()]));
+            assert_eq!(plan.missing, if expected == old_cap { vec![] } else { vec![expected.clone()] });
+        }
+    }
+}
+
+#[test]
 fn a_developer_gui_launch_is_clamped_on_the_same_path() {
     let app = dev_app();
     let delegation = omnipotent_delegation();

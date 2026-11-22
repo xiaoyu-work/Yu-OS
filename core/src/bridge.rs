@@ -597,9 +597,12 @@ impl AppIdentitySession {
         let resolved = manifest
             .as_ref()
             .map(|manifest| {
-                if declared.is_some_and(|operation| operation.needs.iter().any(|need| matches!(need.scope, ScopeBinding::OwnerPath { .. }))) {
+                if declared.is_some_and(|operation| operation.needs.iter().any(|need|
+                    matches!(need.scope, ScopeBinding::OwnerPath { .. })
+                        || crate::caps::manifest::requests_configured_ai(&need.scope)))
+                {
                     if !use_yuosd_app_session_backend()? {
-                        return Err("owner-path App needs require authenticated Root registration".to_string());
+                        return Err("owner-bound App needs require authenticated Root registration".to_string());
                     }
                     // Root rederives the actual owner; local preview is not authority.
                     Ok(Vec::new())
@@ -1647,6 +1650,7 @@ fn constrained_caps(parent: &CapSet, needs: Vec<&Need>) -> CapSet {
     let mut caps = CapSet::new();
     for need in needs {
         match &need.scope {
+            ScopeBinding::Fixed { .. } if crate::caps::manifest::requests_configured_ai(&need.scope) => {}
             ScopeBinding::Fixed { scope } => {
                 let requested = Cap::new(need.verb, scope.clone());
                 if parent.covers(&requested) {

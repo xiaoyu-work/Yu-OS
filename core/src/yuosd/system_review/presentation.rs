@@ -76,7 +76,10 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
             },
             risk: risk(permission.risk),
             scope: ReviewScope {
-                kind: if matches!(permission.scope, ScopeBinding::Fixed { .. }) || permission.resolved_scope.is_some() {
+                kind: if ai_choice.is_some() || permission.resolved_scope.is_some()
+                    || (matches!(permission.scope, ScopeBinding::Fixed { .. })
+                        && !crate::caps::manifest::requests_configured_ai(&permission.scope))
+                {
                     ScopeKind::Fixed
                 } else {
                     ScopeKind::LateBound
