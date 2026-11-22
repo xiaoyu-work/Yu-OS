@@ -93,9 +93,6 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
 .site-foot { justify-content: space-between; flex-wrap: wrap; padding: 24px var(--pad); border-top: 1px solid var(--rule); }
 .site-foot nav { display: flex; flex-wrap: wrap; gap: 9px 22px; font-size: 14px; }
 .site-foot nav a { text-underline-offset: 4px; }
-.licenses { padding: 0 var(--pad) 18px; color: var(--soft); font-size: 12px; }
-.licenses summary { width: fit-content; cursor: pointer; }
-.licenses p { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; }
 @media (min-width: 1200px) {
   .hero { grid-template-columns: max-content minmax(0, 1fr); column-gap: clamp(24px, 2vw, 48px); }
   .hero .poster-mark {
