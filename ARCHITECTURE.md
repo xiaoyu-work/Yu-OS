@@ -823,8 +823,8 @@ credential store, other App implementation or user state moves with the client.
 AI Helpers owns the complete `summarize` client at
 `capabilities/ai-helpers/apps/summarize`, not an AI provider or another product's
 gateway. Explicit external text passes through SDK AI under the unchanged
-`summarize` identity, strict policy, 100,000-unit monthly budget and 4,000-unit
-request cap. Summary/usage/budget/review output and bounded summary-memory
+`summarize` identity, strict policy, and 4,000-unit request cap. The monthly
+limit is owner-set across Apps. Summary/usage/budget/review output and bounded summary-memory
 requests remain unchanged. The OS alone owns Agent execution, providers,
 credentials, consent, budgets, safety, audit and `self:summarize` memory storage.
 The manifest now fixes its existing wildcard AI requirement instead of borrowing

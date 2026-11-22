@@ -4,8 +4,8 @@ This App summarizes text. The App calls `ai.chat`; Yu OS sends the request to
 the model API the user configured in Settings. The App gets no API key or
 access to the system Agent, its memory, or its tools.
 
-On Yu OS or Ubuntu with the Yu OS Agent package and `yuosd` running, save these
-two files in `hello-ai/`. The Python SDK is included.
+With an up-to-date Yu OS Agent package and `yuosd` running, save these two
+files in `hello-ai/`. The Python SDK is included.
 
 **`main.py`**
 

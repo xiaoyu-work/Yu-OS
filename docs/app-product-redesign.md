@@ -225,7 +225,7 @@ runtime capability, grant union, identity deprecation or backend/data redesign.
 | Document engine | `doc` | Source moved to the shared-capability client group; it consumes Files' declared parsing/conversion library. Existing Doc AI remains under the `doc` identity; product-specific AI stays with its consuming product. |
 | Storage SDK | `db`, `kv` | Both clients have moved to `capabilities/storage-sdk`. Existing owner/App SQLite and JSON namespaces and grants stay independent from one another, the Storage business product and Agent memory; no privileged SDK/provider is copied. |
 | HTTP | `net` | Source moved to `capabilities/http`; the unchanged client consumes App-owned common HTTP support and OS brokered transport/policy, with exact per-hop destination and output authority. |
-| AI helpers client | `summarize` | Source moved to `capabilities/ai-helpers`; the client retains its own `summarize` consent, budget and memory namespace. The AI gate/providers remain OS-owned; other products use SDK AI directly under their own identities, never this App. |
+| AI helpers client | `summarize` | Source moved to `capabilities/ai-helpers`; the client retains its own consent and memory namespace and uses the owner's monthly App inference budget. Other products use SDK AI directly under their own identities. |
 
 ### Connectors
 

@@ -577,7 +577,7 @@ installs `/usr/lib/yuos/apps/summarize` through the normal signed OS package;
 there is no runtime Git download or independent updater.
 
 Its implementation, explicit-text MCP/CLI, strict `external-content` AI policy,
-100,000-unit monthly budget and 4,000-unit request cap are unchanged. It still
+4,000-unit request cap is unchanged; the owner now sets the monthly App limit. It still
 returns summary/model/provider/usage/budget/review fields and records only a
 bounded first-line note through OS memory under `self:summarize`. Providers,
 credentials, consent, budgets, safety, audit and memory storage remain OS-owned.
