@@ -511,7 +511,7 @@ pub async fn authorize_relayed(
     // and a future route table change must not turn this into a way to
     // reach a peer-scoped or root surface.
     if descriptor.subject != SubjectSource::Session
-        || descriptor.audience != Audience::SystemService
+        || !matches!(descriptor.audience, Audience::SystemService | Audience::AppFile)
     {
         return Err(Fault::NotAuthorized);
     }

@@ -231,7 +231,7 @@ impl RelayProof {
         presentation: &Presentation,
         now: Instant,
     ) -> Result<(), AuthorityError> {
-        if presentation.audience != Audience::SystemService
+        if !matches!(presentation.audience, Audience::SystemService | Audience::AppFile)
             || presentation.session_id.as_deref() != Some(self.session_id.as_str())
         {
             return Err(AuthorityError::Subject);
@@ -338,6 +338,14 @@ impl Authority {
         if issuance.audience.is_empty() {
             return Err(AuthorityError::Audience { route: "issue" });
         }
+        if issuance.audience.contains(Audience::AppFile) != issuance.subject.brokered_file.is_some()
+            || (issuance.subject.brokered_file.is_some()
+                && (issuance.issuer != Issuer::AppGateway
+                    || issuance.subject.app_id.is_none()
+                    || !issuance.index_session))
+        {
+            return Err(AuthorityError::Subject);
+        }
         if issuance
             .subject
             .activity
@@ -407,6 +415,9 @@ impl Authority {
         parent_handle: &str,
         mut request: Attenuation,
     ) -> Result<(GrantHandle, GrantView), AuthorityError> {
+        if request.subject.brokered_file.is_some() || request.audience.contains(Audience::AppFile) {
+            return Err(AuthorityError::Subject);
+        }
         if request.principal.start_time_ticks.is_none() {
             return Err(AuthorityError::UnverifiablePrincipal);
         }
@@ -607,7 +618,12 @@ impl Authority {
         let grant = inner.grants.get(&key).ok_or(AuthorityError::UnknownGrant)?;
         check_presentation_with(grant, presentation, now, relay)?;
         for cap in required {
-            if !grant.caps.covers(cap) {
+            let covered = if presentation.audience == Audience::AppFile {
+                grant.subject.brokered_file.as_ref().is_some_and(|file| file.covers(cap))
+            } else {
+                grant.caps.covers(cap)
+            };
+            if !covered {
                 return Err(AuthorityError::Capability {
                     verb: cap.verb.as_str(),
                     scope: cap.scope.to_string(),
@@ -681,7 +697,11 @@ impl Authority {
                 && grant.subject.app_id.as_deref() == Some(app)
                 && grant.subject.session_id.is_some()
                 && grant.principal.is_live())
-            .flat_map(|grant| grant.caps.iter().cloned()))
+            .flat_map(|grant| {
+                grant.caps.iter().cloned().chain(
+                    grant.subject.brokered_file.iter().flat_map(|file| file.caps()),
+                )
+            }))
     }
 
     /// Revoke only the grant that owns the session index and its descendants.
@@ -1119,7 +1139,9 @@ fn check_presentation_with(
             }
         }
     }
-    if !grant.audience.contains(presentation.audience) {
+    if !grant.audience.contains(presentation.audience)
+        || (presentation.audience == Audience::AppFile && relay.is_none())
+    {
         return Err(AuthorityError::Audience {
             route: presentation.route,
         });

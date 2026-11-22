@@ -1,5 +1,9 @@
 # Staged file changes
 
+These are the Files App's text plans. For App MCP tools that need binary
+reads and revision-checked replacement of one existing owner file without a
+raw mount, see [Brokered existing files](../yuos-sdk/wire/v1/brokered-files.md).
+
 The Files App can prepare a real, bounded unified diff without changing the
 target, then apply the reviewed proposal through the normal App permission
 path. A plan is App-owned data, not write authority.

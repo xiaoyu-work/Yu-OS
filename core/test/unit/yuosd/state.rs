@@ -76,6 +76,7 @@ fn app_authorization(expires_at_ms: u64) -> super::super::app_services::AppCallA
         app_id: "mail".to_string(),
         tool: "messages.list".to_string(),
         caps: crate::caps::CapSet::new(),
+        brokered_file: None,
         context: crate::agent::tools::app_gateway::McpCallContext {
             wire_version: crate::agent::tools::app_gateway::CALL_CONTEXT_WIRE_VERSION,
             call_id: "call-a".to_string(),

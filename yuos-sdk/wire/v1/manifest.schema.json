@@ -236,6 +236,9 @@
       "allOf": [{
         "if": {"properties": {"scope": {"properties": {"kind": {"const": "owner-path"}}, "required": ["kind"]}}, "required": ["scope"]},
         "then": {"properties": {"verb": {"enum": ["fs.read", "fs.write", "fs.delete", "fs.exec", "fs.watch", "fs.meta", "sys.config", "sys.mount", "data.backup"]}}}
+      }, {
+        "if": {"properties": {"scope": {"properties": {"transform": {"const": "brokered-file"}}, "required": ["transform"]}}, "required": ["scope"]},
+        "then": {"properties": {"verb": {"enum": ["fs.read", "fs.write"]}, "scope": {"properties": {"kind": {"const": "from-arg"}}}}}
       }],
       "properties": {
         "verb": {
@@ -343,7 +346,7 @@
           "description": "Owner-relative Path-kind request; Root joins only authenticated PathContext.home and applies normal scope/protected-resource checks. See owner_path_need.schema.json."
         },
         "arg": { "type": "string", "description": "Arg name to bind from (kind=from-arg)." },
-        "transform": { "type": "string", "enum": ["identity", "parent", "url-host"], "description": "Safe transformation applied after binding a scope source." },
+        "transform": { "type": "string", "enum": ["identity", "parent", "url-host", "brokered-file"], "description": "Safe transformation after binding a scope source. brokered-file is MCP-only and places an exact fs.read/fs.write need behind the file broker, not a mount." },
         "values": { "type": "object", "additionalProperties": { "$ref": "#/$defs/scope" }, "description": "Explicit argument-value to scope mapping for kind=from-arg-map." },
         "wild_when": { "type": "string", "description": "Boolean argument that selects wildcard scope for kind=from-arg-or-wild." },
         "scope": { "$ref": "#/$defs/scope", "description": "Hard-coded scope (kind=fixed)." }

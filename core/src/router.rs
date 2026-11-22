@@ -790,6 +790,19 @@ fn dispatch_with_stdin_impl(
     if name == "__file" {
         return file_replace_bridge(args, stdin_data);
     }
+    if name == "__app_file" {
+        let command = match args.get(1..).unwrap_or_default() {
+            [action] if action == "transfer" => Command::SystemAppFileTransfer,
+            [action] if action == "commit" => Command::SystemAppFileCommit,
+            _ => return Err("App file bridge requires transfer or commit with bounded stdin".into()),
+        };
+        let mut request =
+            parse_internal_request_object(stdin_data.as_deref(), 768 * 1024, "App file")?;
+        let session = env::var("YUOS_SESSION")
+            .map_err(|_| "App file bridge requires an authenticated App session")?;
+        request.insert("session".into(), json!(session));
+        return Ok(Some(request_wire_yuosd(command, Value::Object(request))?.to_string()));
+    }
     if name == "__app_event" {
         if args.len() != 2 || args[1] != "publish" {
             return Err("App event bridge requires `publish` with bounded stdin".into());

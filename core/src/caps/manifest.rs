@@ -853,11 +853,24 @@ pub enum ScopeTransform {
     Identity,
     Parent,
     UrlHost,
+    BrokeredFile,
 }
 
 impl ScopeTransform {
     fn is_identity(&self) -> bool {
         *self == Self::Identity
+    }
+}
+
+impl ScopeBinding {
+    pub(crate) fn brokered_file_arg(&self) -> Option<&str> {
+        match self {
+            Self::FromArg {
+                arg,
+                transform: ScopeTransform::BrokeredFile,
+            } => Some(arg),
+            _ => None,
+        }
     }
 }
 
@@ -1419,6 +1432,7 @@ impl Manifest {
                             ScopeTransform::Identity => a.kind.binds_to_scope(),
                             ScopeTransform::Parent => a.kind == ArgKind::Path,
                             ScopeTransform::UrlHost => a.kind == ArgKind::Text,
+                            ScopeTransform::BrokeredFile => false,
                         };
                         if !compatible {
                             return Err(ManifestError::NeedArgKindMismatch {
@@ -1602,6 +1616,12 @@ impl Manifest {
                                 ScopeTransform::Identity => a.kind.binds_to_scope(),
                                 ScopeTransform::Parent => a.kind == ArgKind::Path,
                                 ScopeTransform::UrlHost => a.kind == ArgKind::Text,
+                                ScopeTransform::BrokeredFile => {
+                                    a.kind == ArgKind::Path
+                                        && !a.repeatable
+                                        && a.default.is_none()
+                                        && matches!(need.verb, Verb::FS_READ | Verb::FS_WRITE)
+                                }
                             };
                             if !compatible {
                                 return Err(ManifestError::McpNeedArgKindMismatch {
@@ -2052,12 +2072,24 @@ impl Manifest {
                 idx: 0,
                 detail: "unknown mcp tool".to_string(),
             })?;
-        let (mut values, defaulted) = resolve_effective_args(&tool.args, supplied, Some(paths))
+        let (mut values, defaulted) = resolve_effective_args(&tool.args, supplied, None)
             .map_err(|detail| ManifestError::McpNeedInvalid {
                 tool: tool_name.to_string(),
                 idx: 0,
                 detail,
             })?;
+        // Do not turn a symlink, traversal or shorthand into an apparently
+        // exact managed scope before Root can verify the original spelling.
+        super::args::resolve_path_args_except(&tool.args, &mut values, paths, |name| {
+            tool.needs
+                .iter()
+                .any(|need| need.scope.brokered_file_arg() == Some(name))
+        })
+        .map_err(|detail| ManifestError::McpNeedInvalid {
+            tool: tool_name.to_string(),
+            idx: 0,
+            detail,
+        })?;
         canonicalize_url_scope_args(&tool.args, &tool.needs, &mut values).map_err(|detail| {
             ManifestError::McpNeedInvalid {
                 tool: tool_name.to_string(),
@@ -2279,6 +2311,13 @@ fn scopes_from_arg_value(
     value: &serde_json::Value,
     transform: ScopeTransform,
 ) -> Option<Vec<Scope>> {
+    if transform == ScopeTransform::BrokeredFile {
+        let path = value
+            .as_str()
+            .filter(|path| super::args::is_literal_file_path(path))?;
+        return (arg.kind == ArgKind::Path && !arg.repeatable && arg.default.is_none())
+            .then(|| vec![Scope::path(path)]);
+    }
     let scope = |value: &serde_json::Value| {
         if transform == ScopeTransform::UrlHost {
             let raw = value.as_str()?;
@@ -2293,7 +2332,7 @@ fn scopes_from_arg_value(
                 Some(Scope::path(parent.to_string_lossy()))
             }
             (ScopeTransform::Parent, _) => None,
-            (ScopeTransform::UrlHost, _) => unreachable!(),
+            (ScopeTransform::UrlHost | ScopeTransform::BrokeredFile, _) => unreachable!(),
         }
     };
     if arg.repeatable {

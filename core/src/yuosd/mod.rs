@@ -51,6 +51,7 @@ pub mod desktop_preferences;
 pub mod display;
 pub mod event_center;
 pub mod file_changes;
+pub(crate) mod brokered_file;
 pub mod filesystem;
 pub mod firewall;
 pub mod gui;

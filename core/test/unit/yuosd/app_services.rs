@@ -66,6 +66,7 @@ fn automatic_receipts_require_a_task_and_do_not_double_record_human_cli_calls() 
             developer_path: None,
         },
         caps: CapSet::new(),
+        brokered_file: None,
         placement: crate::agent::tools::yu_apps_session::CallPlacement::Reusable,
         authorized_mounts: Vec::new(),
         lifecycle: McpLifecycle::Lazy,

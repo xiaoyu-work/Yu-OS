@@ -504,6 +504,11 @@ fn admit(command: Command, authority: &BrokerAuthority) -> Result<(), String> {
             command.as_str()
         ));
     }
+    if matches!(command, Command::SystemAppFileTransfer | Command::SystemAppFileCommit) {
+        // These capabilities deliberately do not live in the worker's
+        // advisory caps. Only the authenticated App Host relay can spend them.
+        return Ok(());
+    }
     let verbs = required_verbs(command);
     if verbs.is_empty() {
         return Err(format!(

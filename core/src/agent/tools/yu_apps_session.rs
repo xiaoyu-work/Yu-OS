@@ -1109,6 +1109,19 @@ pub(crate) fn classify_app_call(app_id: &str, caps: &[crate::caps::Cap]) -> Call
     classify_call(&direct)
 }
 
+pub(crate) fn classify_call_placement(
+    app_id: &str,
+    raw: &[crate::caps::Cap],
+    brokered_file: bool,
+) -> CallPlacement {
+    match classify_app_call(app_id, raw) {
+        // A managed revision and transfer must not survive the invocation
+        // through a reusable App process or a leftover helper.
+        CallPlacement::Reusable if brokered_file => CallPlacement::Ephemeral,
+        placement => placement,
+    }
+}
+
 fn scope_label(scope: &crate::caps::Scope) -> String {
     use crate::caps::Scope;
     match scope {
@@ -2440,7 +2453,7 @@ fn resolve_daemon_authorized_call(
     manifest: &Manifest,
     tool_name: &str,
     input: &Value,
-) -> Result<(BTreeMap<String, Value>, Vec<crate::caps::Cap>), String> {
+) -> Result<(BTreeMap<String, Value>, Vec<crate::caps::Cap>, bool), String> {
     let supplied = input
         .as_object()
         .ok_or_else(|| "daemon-authorized App arguments must be an object".to_string())?
@@ -2468,13 +2481,16 @@ fn resolve_daemon_authorized_call(
     } else {
         None
     };
-    let caps = manifest
+    let resolved = manifest
         .resolve_mcp_tool_needs_with_paths(tool_name, &args, owner_paths.as_ref())
-        .map_err(|error| format!("capability resolution failed: {error}"))?
-        .into_iter()
-        .flatten()
-        .collect();
-    Ok((args, caps))
+        .map_err(|error| format!("capability resolution failed: {error}"))?;
+    let tool = manifest
+        .mcp
+        .as_ref()
+        .and_then(|service| service.tools.iter().find(|tool| tool.name == tool_name))
+        .ok_or("daemon-authorized MCP tool not found")?;
+    let (caps, file) = crate::yuosd::brokered_file::split(&tool.needs, &resolved)?;
+    Ok((args, caps, file.is_some()))
 }
 
 pub(crate) async fn host_call_session(
@@ -2503,10 +2519,11 @@ pub(crate) async fn host_call_session(
         }
     };
     super::app_gateway::authorize_manifest(&app.manifest, &context.caller)?;
-    let (args, caps) = resolve_daemon_authorized_call(&app.manifest, tool_name, &input)?;
+    let (args, caps, brokered_file) =
+        resolve_daemon_authorized_call(&app.manifest, tool_name, &input)?;
     let maximum_timeout = call_timeout.min(DEFAULT_TIMEOUT);
     context.remaining(maximum_timeout)?;
-    let placement = classify_app_call(app_id, &caps);
+    let placement = classify_call_placement(app_id, &caps, brokered_file);
     if let CallPlacement::Unsupported(reason) = &placement {
         return Err(HostedAppError::remote(format!(
             "app `{app_id}` tool `{tool_name}` cannot be authorized: {reason}"

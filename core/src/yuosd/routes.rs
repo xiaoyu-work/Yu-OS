@@ -2699,6 +2699,32 @@ routes! {
             file_changes::replace(c.params, authority).await
         },
     }
+    SystemAppFileTransfer {
+        name: "system.app-file.transfer",
+        access: Access::User,
+        kind: Kind::Query,
+        budget: Budget::log_query(),
+        authority: RouteAuthority { approval: Approval::Ineligible, ..session(Audience::AppFile) },
+        body: body::AppFileTransfer,
+        audit: &[("session", FieldRule::Token), ("action", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::brokered_file::transfer(c.params, authority)
+        },
+    }
+    SystemAppFileCommit {
+        name: "system.app-file.commit",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::mutation(),
+        authority: RouteAuthority { approval: Approval::Ineligible, ..session(Audience::AppFile) },
+        body: body::AppFileCommit,
+        audit: &[("session", FieldRule::Token)],
+        run: |c| {
+            let authority = c.authority()?;
+            super::brokered_file::commit(c.params, authority).await
+        },
+    }
     SystemFirewallControl {
         name: "system.firewall.control",
         access: Access::User,

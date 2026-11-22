@@ -968,14 +968,14 @@ fn finalize_prepared_app_service_call(
         .manifest
         .resolve_mcp_tool_call(tool, supplied, &delegation.paths)
         .map_err(|error| format!("resolve `{tool}` capabilities: {error}"))?;
-    let placement_caps = effective
-        .needs
-        .iter()
-        .flatten()
-        .cloned()
-        .collect::<Vec<_>>();
-    let placement =
-        crate::agent::tools::yu_apps_session::classify_app_call(app_id, &placement_caps);
+    let (placement_caps, brokered_file) =
+        super::brokered_file::split(&declared_tool.needs, &effective.needs)
+            .map_err(BrokerError::authorization)?;
+    let placement = crate::agent::tools::yu_apps_session::classify_call_placement(
+        app_id,
+        &placement_caps,
+        brokered_file.is_some(),
+    );
     if let crate::agent::tools::yu_apps_session::CallPlacement::Unsupported(reason) = &placement {
         return Err(BrokerError::authorization(format!(
             "App `{app_id}` tool `{tool}` cannot be authorized: {reason}"
@@ -996,6 +996,18 @@ fn finalize_prepared_app_service_call(
         &ceiling,
         app_id,
     )?;
+    // A broad parent write grant is not the protected approval for this
+    // apply. Require either an exact live delegation or the ordinary
+    // owner approval for the exact path.
+    let brokered_write = brokered_file
+        .as_ref()
+        .filter(|file| file.writable())
+        .and_then(|file| file.caps(true).into_iter().find(|cap| cap.verb == Verb::FS_WRITE));
+    if let Some(cap) = &brokered_write {
+        if !delegation.ceiling.iter().any(|held| held == cap) && !plan.missing.contains(cap) {
+            plan.missing.push(cap.clone());
+        }
+    }
     let invoke = crate::agent::tools::app_gateway::invoke_cap(app_id, tool)?;
     plan.app_name = Some(app.manifest.name.current().trim().to_owned());
     plan.require(invoke.clone(), delegation);
@@ -1003,7 +1015,10 @@ fn finalize_prepared_app_service_call(
     crate::approvals::app_policy::InstalledPolicy::from_app(uid, app, &delegation.paths.home)
         .and_then(|policy| policy.require(&plan.caps)).map_err(BrokerError::authorization)?;
     if local_defaults && super::preinstalled::approved(app.require_verified()?) {
-        plan.missing.retain(|cap| cap != &invoke && !super::preinstalled::allows(cap, &delegation.paths.home));
+        plan.missing.retain(|cap| {
+            Some(cap) == brokered_write.as_ref()
+                || (cap != &invoke && !super::preinstalled::allows(cap, &delegation.paths.home))
+        });
     }
     let authorized = authorize_plan(delegation, plan, &ceiling, app_id)?;
     let activity = delegation
@@ -1016,6 +1031,20 @@ fn finalize_prepared_app_service_call(
     let deadline_ms = context
         .deadline_unix_ms
         .ok_or_else(|| "App service call omitted its deadline".to_string())?;
+    let mut session_caps = target_session_caps(authorized, &invoke);
+    if let Some(file) = &brokered_file {
+        let required = file.caps(file.writable());
+        if !required.iter().all(|cap| session_caps.iter().any(|held| held == cap))
+            || !ceiling.allows_audience(crate::provenance::ceiling::Audience::SystemService)
+        {
+            return Err(BrokerError::authorization(
+                "App ceiling does not allow the exact brokered file",
+            ));
+        }
+        session_caps = CapSet::from_caps(
+            session_caps.iter().filter(|cap| !required.contains(cap)).cloned(),
+        );
+    }
     Ok(super::app_services::PreparedAppServiceCall {
         owner_uid: uid,
         app_id: app_id.to_string(),
@@ -1024,7 +1053,8 @@ fn finalize_prepared_app_service_call(
         context,
         capability_generation: generation,
         package,
-        caps: target_session_caps(authorized, &invoke),
+        caps: session_caps,
+        brokered_file,
         placement,
         authorized_mounts,
         lifecycle: service.lifecycle,
@@ -1229,8 +1259,8 @@ pub async fn set_transient(
     // Derive and authorize the requested capabilities *before* anything
     // is written. A launch that cannot settle its approvals leaves both
     // the registry and the authority untouched.
-    let (caps, call_context, activity) = match authorization {
-        None => (None, None, None),
+    let (caps, call_context, activity, brokered_file) = match authorization {
+        None => (None, None, None, None),
         Some(token) => {
             let supplied_action_digest =
                 action_digest.ok_or_else(|| "App session action digest is missing".to_string())?;
@@ -1268,7 +1298,12 @@ pub async fn set_transient(
             {
                 return Err("App call authorization is internally inconsistent".to_string());
             }
-            (Some(pending.caps), Some(pending.context), pending.activity)
+            (
+                Some(pending.caps),
+                Some(pending.context),
+                pending.activity,
+                pending.brokered_file,
+            )
         }
     };
 
@@ -1317,6 +1352,7 @@ pub async fn set_transient(
             context,
             ceiling,
             activity.as_ref(),
+            brokered_file,
         ),
         None => reissue_session_grant(
             &handle,
@@ -1986,7 +2022,7 @@ fn audience_facet(audience: authority::Audience) -> crate::provenance::ceiling::
         authority::Audience::AppLaunch => Facet::AppLaunch,
         authority::Audience::AppRelay => Facet::AppRelay,
         authority::Audience::GuiResource => Facet::GuiResource,
-        authority::Audience::SystemService => Facet::SystemService,
+        authority::Audience::SystemService | authority::Audience::AppFile => Facet::SystemService,
         authority::Audience::Credential => Facet::Credential,
         authority::Audience::Scheduler => Facet::Scheduler,
         authority::Audience::Permission => Facet::Permission,
@@ -2775,6 +2811,23 @@ pub async fn relay(
     let inner =
         Command::parse(&command).ok_or_else(|| format!("unknown relay route `{command}`"))?;
     let route = relayable_route(inner)?;
+    let _file_transition = if route.authority.audience == authority::Audience::AppFile {
+        use crate::extension_host::protocol::HostPurpose;
+        if !client.extension_host.as_ref().is_some_and(|host| {
+            host.purpose == HostPurpose::AppService
+                && client.uid == Some(host.owner_uid)
+                && client.execution_uid == Some(host.extension_uid)
+                && client.pid == Some(host.host_pid)
+                && client.start_time_ticks == host.host_start_time_ticks
+        }) {
+            return Err(BrokerError::authorization(
+                "brokered file calls require the private App service host",
+            ));
+        }
+        Some(session_lock(&session_id).lock_owned().await)
+    } else {
+        None
+    };
 
     // The session id is not taken from the worker: it is overwritten
     // with the one the relay grant names, before the inner body is
@@ -2908,7 +2961,10 @@ fn relayable_route(command: Command) -> Result<&'static Route, String> {
     if route.authority.subject != authority::SubjectSource::Session {
         return refuse("is not addressed by an App session");
     }
-    if route.authority.audience != authority::Audience::SystemService {
+    if !matches!(
+        route.authority.audience,
+        authority::Audience::SystemService | authority::Audience::AppFile
+    ) {
         return refuse("is outside the system-service audience a relay may reach");
     }
     Ok(route)
@@ -2944,6 +3000,7 @@ fn issue_gateway_target_grant(
     context: &crate::agent::tools::app_gateway::McpCallContext,
     ceiling: Option<&Ceiling>,
     activity: Option<&crate::caps::activity_boundary::PolicyBinding>,
+    brokered_file: Option<super::brokered_file::Access>,
 ) -> Result<(), String> {
     if let Some(activity) = activity {
         if activity.owner_uid != uid {
@@ -2955,22 +3012,37 @@ fn issue_gateway_target_grant(
     let remaining = context.remaining(TARGET_CALL_GRANT_TTL)?;
     let principal = authority::Principal::of_process(uid, child_pid)
         .ok_or_else(|| format!("App process {child_pid} could not be identified"))?;
+    let mut subject = authority::Subject::session(session_id)
+        .with_app(Some(app_id.to_string()))
+        .with_task(context.task_id.clone())
+        .with_activity(activity.cloned());
+    let mut audiences = vec![
+        authority::Audience::SystemService,
+        authority::Audience::Credential,
+    ];
+    if let Some(file) = brokered_file {
+        let required = CapSet::from_caps(file.caps(file.writable()));
+        if let Some(ceiling) = ceiling {
+            let (_, dropped) = ceiling.clamp(&required);
+            if !dropped.is_empty()
+                || !ceiling.allows_audience(audience_facet(authority::Audience::AppFile))
+            {
+                return Err("App ceiling no longer allows brokered file access".into());
+            }
+        } else {
+            return Err("brokered file access needs a current App ceiling".into());
+        }
+        crate::approvals::app_policy::require(uid, app_id, &required)?;
+        subject.brokered_file = Some(super::brokered_file::Lease::new(file));
+        audiences.push(authority::Audience::AppFile);
+    }
     let (_handle, view) = authority::authority()
         .issue(authority::Issuance {
             issuer: authority::Issuer::AppGateway,
             principal,
             binding: authority::Binding::ProcessTree,
-            subject: authority::Subject::session(session_id)
-                .with_app(Some(app_id.to_string()))
-                .with_task(context.task_id.clone())
-                .with_activity(activity.cloned()),
-            audience: permitted_audiences(
-                ceiling,
-                &[
-                    authority::Audience::SystemService,
-                    authority::Audience::Credential,
-                ],
-            ),
+            subject,
+            audience: permitted_audiences(ceiling, &audiences),
             caps: caps.clone(),
             lifetime: remaining,
             uses: authority::Uses::Unbounded,

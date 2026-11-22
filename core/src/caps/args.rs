@@ -173,6 +173,15 @@ pub fn resolve_path_args(
     values: &mut BTreeMap<String, Value>,
     context: &PathContext,
 ) -> Result<(), String> {
+    resolve_path_args_except(decls, values, context, |_| false)
+}
+
+pub(super) fn resolve_path_args_except(
+    decls: &[Arg],
+    values: &mut BTreeMap<String, Value>,
+    context: &PathContext,
+    keep_literal: impl Fn(&str) -> bool,
+) -> Result<(), String> {
     for decl in decls {
         if decl.kind != ArgKind::Path {
             continue;
@@ -180,6 +189,12 @@ pub fn resolve_path_args(
         let Some(value) = values.get(&decl.name) else {
             continue;
         };
+        if keep_literal(&decl.name) {
+            if !value.as_str().is_some_and(is_literal_file_path) {
+                return Err(format!("argument `{}` must be an absolute literal file path", decl.name));
+            }
+            continue;
+        }
         if decl.repeatable {
             let resolved = value
                 .as_array()
@@ -200,6 +215,13 @@ pub fn resolve_path_args(
         }
     }
     Ok(())
+}
+
+pub(crate) fn is_literal_file_path(path: &str) -> bool {
+    path.starts_with('/')
+        && path.len() <= 4096
+        && !path.chars().any(|c| c.is_control() || "*?[]{}<>|;&$`\\".contains(c))
+        && path.split('/').skip(1).all(|part| !matches!(part, "" | "." | ".."))
 }
 
 pub fn absolute_arg_path(value: &str, context: &PathContext) -> Result<String, String> {

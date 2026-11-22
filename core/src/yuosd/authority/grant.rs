@@ -76,6 +76,8 @@ pub enum Audience {
     /// that legitimately speaks for that session. Every effect is still
     /// authorized against the session grant on the inner route.
     AppRelay,
+    /// Exact existing-file operations from the private App MCP relay only.
+    AppFile,
     /// Root-supervised GUI instance lifetime and resource projection; no public route.
     GuiResource,
 }
@@ -95,6 +97,7 @@ impl Audience {
             Audience::Credential => "credential",
             Audience::SystemService => "system-service",
             Audience::AppRelay => "app-relay",
+            Audience::AppFile => "app-file",
             Audience::GuiResource => "gui-resource",
         }
     }
@@ -156,6 +159,7 @@ impl AudienceSet {
             Audience::Scheduler,
             Audience::Credential,
             Audience::SystemService,
+            Audience::AppFile,
             Audience::GuiResource,
         ]
         .into_iter()
@@ -235,6 +239,7 @@ pub struct Subject {
     pub task_id: Option<String>,
     pub(crate) activity: Option<crate::caps::activity_boundary::PolicyBinding>,
     pub(crate) workspace: Option<crate::workspaces::boundary::WorkspaceBinding>,
+    pub(crate) brokered_file: Option<std::sync::Arc<crate::yuosd::brokered_file::Lease>>,
 }
 
 impl Subject {

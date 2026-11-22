@@ -41,6 +41,11 @@ mod process {
     use tokio::io::AsyncWriteExt;
     use tokio::sync::Mutex;
 
+    mod brokered_file {
+        include!(concat!(env!("CARGO_MANIFEST_DIR"),
+            "/test/unit/yuosd/app_services/retirement/process/brokered_file_process.rs"));
+    }
+
     fn mount_tmpfs(path: &std::ffi::CStr) {
         assert_eq!(
             unsafe {
@@ -440,6 +445,7 @@ mod process {
                 capability_generation: "fixture".into(),
                 package: spec.package.clone(),
                 caps: crate::caps::CapSet::from_caps([]),
+                brokered_file: None,
                 placement: crate::agent::tools::yu_apps_session::CallPlacement::Reusable,
                 authorized_mounts: vec![],
                 lifecycle: spec.lifecycle,

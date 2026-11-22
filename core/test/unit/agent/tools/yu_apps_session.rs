@@ -1044,7 +1044,7 @@ fn tool_context() -> crate::agent::tools::exposure::ToolExposureContext {
 }
 
 async fn exec_tool(tool: &AppSessionTool, input: Value) -> ToolResult {
-    let (_, caps) =
+    let (_, caps, _) =
         match resolve_daemon_authorized_call(&tool.manifest, &tool.manifest_tool_name, &input) {
             Ok(resolved) => resolved,
             Err(error) => return ToolResult::err(error),
@@ -1458,7 +1458,7 @@ fn service_host_does_not_recanonicalize_daemon_authorized_paths() {
     );
 
     let input = Value::Object(effective.values.into_iter().collect());
-    let (args, caps) =
+    let (args, caps, _) =
         resolve_daemon_authorized_call(&manifest, "probe.read", &input).expect("host resolution");
     assert_eq!(
         args.get("path"),

@@ -407,6 +407,7 @@ pub(crate) fn scope_description(scope: &ScopeBinding) -> Result<String, String> 
                 ScopeTransform::Identity => "value",
                 ScopeTransform::Parent => "parent directory",
                 ScopeTransform::UrlHost => "URL host and port",
+                ScopeTransform::BrokeredFile => "exact existing file (brokered)",
             };
             format!(
                 "{selection} of argument {}, selected when used",

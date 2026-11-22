@@ -148,6 +148,11 @@ impl Decision {
         self.subject.task_id.as_deref()
     }
 
+    pub(crate) fn brokered_file(&self) -> Option<&crate::yuosd::brokered_file::Lease> {
+        self.relay.as_ref()?;
+        self.subject.brokered_file.as_deref()
+    }
+
     pub fn generation(&self) -> u64 {
         self.generation
     }

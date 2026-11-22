@@ -418,7 +418,7 @@ export interface Scopebinding {
   kind: "from-arg" | "from-arg-map" | "from-arg-or-wild" | "fixed" | "wild" | "owner-path";
   path?: string;
   arg?: string;
-  transform?: "identity" | "parent" | "url-host";
+  transform?: "identity" | "parent" | "url-host" | "brokered-file";
   values?: Record<string, unknown>;
   wild_when?: string;
   scope?: Scope;

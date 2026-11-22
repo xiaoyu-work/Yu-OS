@@ -51,17 +51,7 @@ pub async fn replace(params: Value, authority: &Decision) -> Result<Value, Broke
 }
 
 pub(crate) fn validate_path(path: &str) -> Result<(), BrokerError> {
-    if !path.starts_with('/')
-        || path.len() > 4096
-        || path == "/"
-        || path
-            .chars()
-            .any(|c| c.is_control() || "*?[]{}<>|;&$`\\".contains(c))
-        || path
-            .split('/')
-            .skip(1)
-            .any(|part| part.is_empty() || part == "." || part == "..")
-    {
+    if !crate::caps::args::is_literal_file_path(path) {
         return Err(refusal(
             "file_replace_invalid",
             "replacement target must be an absolute literal file path without traversal, globbing or redirection",
@@ -73,6 +63,9 @@ pub(crate) fn validate_path(path: &str) -> Result<(), BrokerError> {
 fn refusal(class: &'static str, message: impl Into<String>) -> BrokerError {
     BrokerError::execution(message).classified(class)
 }
+
+#[cfg(target_os = "linux")]
+pub(super) use linux::brokered;
 
 #[cfg(target_os = "linux")]
 mod linux {
@@ -95,6 +88,9 @@ mod linux {
     use crate::yuosd::routes::Command;
     use crate::yuosd::wire::requests::FileState;
     use crate::yuosd::wire::RequestId;
+
+    #[path = "brokered_file_linux.rs"]
+    pub(crate) mod brokered;
 
     static REPLACEMENTS: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
@@ -462,6 +458,10 @@ mod linux {
     }
 
     fn supported(metadata: &Metadata) -> Result<(), BrokerError> {
+        supported_bounded(metadata, MAX_FILE_BYTES)
+    }
+
+    fn supported_bounded(metadata: &Metadata, limit: usize) -> Result<(), BrokerError> {
         if !metadata.is_file() || metadata.nlink() != 1 {
             return Err(unsupported(
                 "replacement requires a regular single-link file",
@@ -472,8 +472,12 @@ mod linux {
                 "setuid, setgid and sticky modes are unsupported",
             ));
         }
-        if metadata.size() > MAX_FILE_BYTES as u64 {
-            return Err(unsupported("replacement target exceeds 64 KiB"));
+        if metadata.size() > limit as u64 {
+            return Err(unsupported(if limit == MAX_FILE_BYTES {
+                "replacement target exceeds 64 KiB"
+            } else {
+                "brokered file exceeds 32 MiB"
+            }));
         }
         Ok(())
     }

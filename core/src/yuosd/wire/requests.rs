@@ -1456,6 +1456,53 @@ pub struct FileReplace {
     pub content_base64: Text<90_000>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "action", rename_all = "kebab-case", deny_unknown_fields)]
+pub(crate) enum AppFileTransfer {
+    ReadStart { session: Token, path: Text<PATH_BYTES> },
+    ReadChunk { session: Token, path: Text<PATH_BYTES>, id: Token<32>, offset: usize },
+    WriteStart {
+        session: Token,
+        path: Text<PATH_BYTES>,
+        revision: Token<32>,
+        size: usize,
+        #[serde(deserialize_with = "file_state_sha256")]
+        sha256: String,
+    },
+    WriteChunk {
+        session: Token,
+        path: Text<PATH_BYTES>,
+        id: Token<32>,
+        offset: usize,
+        content_base64: Text<{ crate::yuosd::brokered_file::CHUNK_BASE64_BYTES }>,
+    },
+    Abort { session: Token, path: Text<PATH_BYTES>, id: Token<32> },
+}
+
+impl AppFileTransfer {
+    pub(crate) fn subject(&self) -> (&str, &str) {
+        match self {
+            Self::ReadStart { session, path }
+            | Self::ReadChunk { session, path, .. }
+            | Self::WriteStart { session, path, .. }
+            | Self::WriteChunk { session, path, .. }
+            | Self::Abort { session, path, .. } => (session.as_str(), path.as_str()),
+        }
+    }
+
+    pub(crate) fn is_write(&self) -> bool {
+        matches!(self, Self::WriteStart { .. } | Self::WriteChunk { .. })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct AppFileCommit {
+    pub session: Token,
+    pub path: Text<PATH_BYTES>,
+    pub id: Token<32>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AudioControl {

@@ -43,6 +43,7 @@ Rust, Python, Node, and Go bindings.
 | `wire/v1/manifest.schema.json`, `wire/v1/operation-effects.md` | Optional effect declarations and truthful metadata-only preview semantics |
 | `wire/v1/file_change_plan.schema.json`, `wire/v1/file-change-plans.md` | Closed App-reported staged-plan value and semantic validation boundaries |
 | `wire/v1/file_change_plan.vectors.json` | Shared file-plan decoder conformance cases |
+| `wire/v1/brokered-files.md`, `python/src/yuos_sdk/files.py` | Opt-in exact existing-file placement, binary snapshot and checked replacement for App MCP |
 | `wire/v1/ask-yuos-launcher.md` | Versioned secure desktop overlay launcher handshake |
 | `wire/v1/gui_file_read.schema.json`, `wire/v1/gui-selected-read.md` | Draft closed GUI native-node read proposal/status DTOs; thin facades only, protected owner decisions/provider stay Root-owned |
 | `wire/v1/gui_file_write.schema.json`, `wire/v1/gui_file_save.schema.json`, `wire/v1/gui-selected-write.md` | Independent selected-write and exact private atomic-save reservation DTOs; no App-owned approval or directory/delete authority |
