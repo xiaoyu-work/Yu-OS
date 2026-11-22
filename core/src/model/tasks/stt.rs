@@ -5,8 +5,7 @@
 //! Phase 1.5: cloud only. Local Whisper via ort lands when ONNX files
 //! are supplied.
 //!
-//! Live-verifiable against an Azure OpenAI Whisper deployment at
-//! `https://<account>.openai.azure.com/openai/deployments/<name>/audio/transcriptions?api-version=...`.
+//! Azure OpenAI uses a resource URL and deployment name with API-key auth.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -16,6 +15,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::config::SttConfig;
+
+pub(crate) mod azure;
 
 // =====================================================================
 // Public types
@@ -28,6 +29,15 @@ use crate::config::SttConfig;
 pub enum SttMode {
     Transcribe,
     Translate,
+}
+
+impl SttMode {
+    fn path(self) -> &'static str {
+        match self {
+            Self::Transcribe => "audio/transcriptions",
+            Self::Translate => "audio/translations",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,6 +107,9 @@ pub fn build_default() -> Result<Option<Box<dyn SpeechToText>>, String> {
 pub fn build_from(cfg: &SttConfig) -> Result<Option<Box<dyn SpeechToText>>, String> {
     match cfg.provider.as_str() {
         "none" | "" => Ok(None),
+        alias if alias.trim().eq_ignore_ascii_case("azure") => {
+            Ok(Some(Box::new(azure::AzureStt::from_config(cfg)?)))
+        }
         "openai" | "groq" | "mistral" | "deepseek" | "openrouter" | "ollama" => {
             Ok(Some(Box::new(OpenAICompatStt::from_config(cfg))))
         }
@@ -169,10 +182,7 @@ impl OpenAICompatStt {
     }
 
     fn endpoint(&self, mode: SttMode) -> String {
-        let path = match mode {
-            SttMode::Transcribe => "audio/transcriptions",
-            SttMode::Translate => "audio/translations",
-        };
+        let path = mode.path();
         let (base, query) = match self.base_url.split_once('?') {
             Some((b, q)) => (b.trim_end_matches('/'), Some(q)),
             None => (self.base_url.as_str(), None),
@@ -199,49 +209,15 @@ impl SpeechToText for OpenAICompatStt {
     }
 
     async fn transcribe(&self, request: SttRequest) -> Result<SttResponse, SttError> {
-        if request.audio.is_empty() {
-            return Err(SttError::InvalidInput(
-                "audio bytes must not be empty".into(),
-            ));
-        }
-        if request.filename.trim().is_empty() {
-            return Err(SttError::InvalidInput("filename must not be empty".into()));
-        }
         let response_format = request
             .response_format
             .clone()
             .unwrap_or_else(|| self.default_response_format.clone());
-
-        // Azure deployment URLs encode the model in the path — sending
-        // a `model` field is harmless for stock OpenAI but redundant.
-        let is_azure_deployment = self.base_url.contains("/deployments/");
-
-        let mime = guess_mime(&request.filename);
-        let part = reqwest::multipart::Part::bytes(request.audio.clone())
-            .file_name(request.filename.clone())
-            .mime_str(&mime)
-            .map_err(|e| SttError::Transport(e.to_string()))?;
-        let mut form = reqwest::multipart::Form::new().part("file", part);
-        if !is_azure_deployment {
-            form = form.text("model", self.model.clone());
-        }
-        form = form.text("response_format", response_format.clone());
-        if let Some(t) = request.temperature {
-            form = form.text("temperature", t.to_string());
-        }
-        if let Some(p) = request.prompt {
-            form = form.text("prompt", p);
-        }
-        if request.mode == SttMode::Transcribe {
-            if let Some(lang) = request.language {
-                form = form.text("language", lang);
-            }
-        }
-
-        let mut http = self
-            .client
-            .post(self.endpoint(request.mode))
-            .multipart(form);
+        let endpoint = self.endpoint(request.mode);
+        // Keep legacy manually configured deployment-style gateways working.
+        let model = (!self.base_url.contains("/deployments/")).then_some(self.model.as_str());
+        let form = request_form(request, model, &response_format)?;
+        let mut http = self.client.post(endpoint).multipart(form);
         if let Some(key) = &self.api_key {
             http = http.bearer_auth(key);
         }
@@ -261,37 +237,77 @@ impl SpeechToText for OpenAICompatStt {
             return Err(classify_http_error(status.as_u16(), &bytes));
         }
 
-        // Response shape varies. `text`/`srt`/`vtt` return plain text;
-        // `json`/`verbose_json` return JSON.
-        let body_str = String::from_utf8_lossy(&bytes).into_owned();
-        match response_format.as_str() {
-            "text" | "srt" | "vtt" => Ok(SttResponse {
-                text: body_str.clone(),
-                model: self.model.clone(),
-                language: None,
-                raw: serde_json::Value::String(body_str),
-            }),
-            _ => {
-                let raw: serde_json::Value =
-                    serde_json::from_slice(&bytes).map_err(|e| SttError::Parse(e.to_string()))?;
-                let text = raw
-                    .get("text")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let language = raw
-                    .get("language")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                Ok(SttResponse {
-                    text,
-                    model: self.model.clone(),
-                    language,
-                    raw,
-                })
-            }
+        parse_response(&bytes, &response_format, &self.model)
+    }
+}
+
+fn request_form(
+    request: SttRequest,
+    model: Option<&str>,
+    format: &str,
+) -> Result<reqwest::multipart::Form, SttError> {
+    if request.audio.is_empty() {
+        return Err(SttError::InvalidInput(
+            "audio bytes must not be empty".into(),
+        ));
+    }
+    if request.filename.trim().is_empty() {
+        return Err(SttError::InvalidInput("filename must not be empty".into()));
+    }
+
+    let mime = guess_mime(&request.filename);
+    let part = reqwest::multipart::Part::bytes(request.audio)
+        .file_name(request.filename)
+        .mime_str(&mime)
+        .map_err(|e| SttError::Transport(e.to_string()))?;
+    let mut form = reqwest::multipart::Form::new().part("file", part);
+    if let Some(model) = model {
+        form = form.text("model", model.to_owned());
+    }
+    form = form.text("response_format", format.to_owned());
+    if let Some(t) = request.temperature {
+        form = form.text("temperature", t.to_string());
+    }
+    if let Some(p) = request.prompt {
+        form = form.text("prompt", p);
+    }
+    if request.mode == SttMode::Transcribe {
+        if let Some(lang) = request.language {
+            form = form.text("language", lang);
         }
     }
+    Ok(form)
+}
+
+fn parse_response(bytes: &[u8], format: &str, model: &str) -> Result<SttResponse, SttError> {
+    if matches!(format, "text" | "srt" | "vtt") {
+        let text = String::from_utf8_lossy(bytes).into_owned();
+        let raw = serde_json::Value::String(text.clone());
+        return Ok(SttResponse {
+            text,
+            model: model.into(),
+            language: None,
+            raw,
+        });
+    }
+
+    let raw: serde_json::Value =
+        serde_json::from_slice(bytes).map_err(|e| SttError::Parse(e.to_string()))?;
+    let text = raw
+        .get("text")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let language = raw
+        .get("language")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
+    Ok(SttResponse {
+        text,
+        model: model.into(),
+        language,
+        raw,
+    })
 }
 
 fn guess_mime(filename: &str) -> String {

@@ -220,6 +220,26 @@ pub(crate) async fn build_safe_client(
     url: &reqwest::Url,
     timeout: Duration,
 ) -> Result<reqwest::Client, MediaError> {
+    build_pinned_client(url, timeout, reqwest::Client::builder()).await
+}
+
+pub(crate) async fn build_origin_bound_client(
+    url: &reqwest::Url,
+    timeout: Duration,
+) -> Result<reqwest::Client, MediaError> {
+    // Nonstandard credential headers are not stripped by reqwest on cross-origin redirects.
+    let builder = reqwest::Client::builder()
+        .https_only(true)
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none());
+    build_pinned_client(url, timeout, builder).await
+}
+
+async fn build_pinned_client(
+    url: &reqwest::Url,
+    timeout: Duration,
+    mut builder: reqwest::ClientBuilder,
+) -> Result<reqwest::Client, MediaError> {
     match url.scheme() {
         "http" | "https" => {}
         other => {
@@ -262,7 +282,7 @@ pub(crate) async fn build_safe_client(
         )));
     }
 
-    let mut builder = reqwest::Client::builder()
+    builder = builder
         .user_agent(concat!("yuos-agent/", env!("CARGO_PKG_VERSION")))
         .resolve_to_addrs(&host, &public_addrs);
     if timeout > Duration::ZERO {

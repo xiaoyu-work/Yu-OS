@@ -929,7 +929,7 @@ fn split_base_url_handles_query_without_api_version() {
 
 #[test]
 fn extra_fields_for_azure_lists_endpoint_and_api_version() {
-    let fields = extra_fields_for("azure");
+    let fields = extra_fields_for("azure", Modality::Llm);
     assert_eq!(fields.len(), 2);
     assert_eq!(fields[0]["key"].as_str(), Some("base_url"));
     assert_eq!(fields[0]["required"].as_bool(), Some(true));
@@ -939,9 +939,57 @@ fn extra_fields_for_azure_lists_endpoint_and_api_version() {
 
 #[test]
 fn extra_fields_for_non_azure_is_empty() {
-    assert!(extra_fields_for("openai").is_empty());
-    assert!(extra_fields_for("anthropic").is_empty());
-    assert!(extra_fields_for("mock").is_empty());
+    assert!(extra_fields_for("openai", Modality::Llm).is_empty());
+    assert!(extra_fields_for("anthropic", Modality::Llm).is_empty());
+    assert!(extra_fields_for("mock", Modality::Llm).is_empty());
+}
+
+#[test]
+fn azure_stt_catalog_apply_and_status_share_the_deployment_contract() {
+    let providers = providers_cmd(Modality::Stt).unwrap();
+    let azure = providers["providers"].as_array().unwrap().iter()
+        .find(|p| p["name"] == "azure").unwrap();
+    assert_eq!(azure["default_env"], "AZURE_OPENAI_API_KEY");
+    assert_eq!(azure["extra_fields"][0]["key"], "base_url");
+    assert_eq!(azure["extra_fields"][0]["required"], true);
+    assert_eq!(azure["extra_fields"][1]["key"], "api_version");
+    assert_eq!(azure["extra_fields"][1]["required"], false);
+
+    let _g = env_lock();
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("config.json");
+    std::env::set_var("YUOS_CONFIG_PATH", &path);
+    std::env::set_var("YUOS_TEST_AZURE_STT_SETUP_KEY", "synthetic-azure-key");
+    let args = [
+        "stt", "apply", "--provider", "azure", "--model", "dictation-deployment",
+        "--api-key-env", "YUOS_TEST_AZURE_STT_SETUP_KEY",
+    ];
+    let mut args: Vec<String> = args.into_iter().map(str::to_string).collect();
+    assert!(run(&args).unwrap_err().contains("--base-url"));
+    assert!(!path.exists());
+    args.extend([
+        "--base-url", "https://resource.openai.azure.com/",
+        "--api-version", "2024-02-01",
+    ].into_iter().map(str::to_string));
+    run(&args).unwrap();
+    let status = status_cmd(Modality::Stt).unwrap();
+    assert_eq!(status["model"], "dictation-deployment");
+    assert_eq!(status["endpoint"], "https://resource.openai.azure.com/");
+    assert_eq!(status["api_version"], "2024-02-01");
+    assert_eq!(status["ready"], true);
+    let persisted = std::fs::read_to_string(&path).unwrap();
+    assert!(!persisted.contains("synthetic-azure-key"));
+    let cfg: crate::config::YuConfig = serde_json::from_str(&persisted).unwrap();
+    assert!(crate::model::tasks::stt::build_from(&cfg.stt).unwrap().unwrap().is_configured());
+    assert!(crate::agent::media::factory::stt_registry_from_cfg(&cfg)
+        .get("azure").unwrap().is_configured());
+
+    std::fs::write(&path, persisted.replace("resource.openai.azure.com", "wrong.example.test")).unwrap();
+    let status = status_cmd(Modality::Stt).unwrap();
+    assert_eq!(status["ready"], false);
+    assert_eq!(status["reason"]["error"], "invalid Azure STT configuration");
+    std::env::remove_var("YUOS_TEST_AZURE_STT_SETUP_KEY");
+    std::env::remove_var("YUOS_CONFIG_PATH");
 }
 
 #[test]
@@ -1216,9 +1264,8 @@ fn status_media_reports_base_url_and_api_version_split() {
     // status_media reads fresh from disk per call (unlike
     // status_llm which uses the OnceLock-cached config), so we can
     // exercise the new endpoint/api_version fields here without
-    // racing the global config. Azure isn't a media provider in
-    // the spec catalogue, so simulate the same persisted shape on
-    // a TTS block (the parser is provider-agnostic).
+    // racing the global config. Custom endpoints can carry a query
+    // even outside the Azure provider.
     let _g = env_lock();
     let tmp_dir =
         std::env::temp_dir().join(format!("yuos-setup-test-{}", uuid::Uuid::new_v4().simple()));

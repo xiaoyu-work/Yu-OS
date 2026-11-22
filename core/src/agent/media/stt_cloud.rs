@@ -21,6 +21,9 @@ use async_trait::async_trait;
 use reqwest::multipart::{Form, Part};
 use serde::Deserialize;
 
+use crate::config::SttConfig;
+use crate::model::tasks::stt::{self as model_stt, SpeechToText, SttError, SttMode};
+
 use super::stt::{SttProvider, SttRequest, SttResponse, SttSegment};
 use super::tts::AudioFormat;
 use super::MediaError;
@@ -113,6 +116,10 @@ struct WireResponse {
 pub fn parse_response(bytes: &[u8]) -> Result<SttResponse, MediaError> {
     let parsed: WireResponse =
         serde_json::from_slice(bytes).map_err(|e| MediaError::Parse(e.to_string()))?;
+    Ok(media_response(parsed))
+}
+
+fn media_response(parsed: WireResponse) -> SttResponse {
     let segments = parsed
         .segments
         .unwrap_or_default()
@@ -123,11 +130,76 @@ pub fn parse_response(bytes: &[u8]) -> Result<SttResponse, MediaError> {
             text: s.text,
         })
         .collect();
-    Ok(SttResponse {
+    SttResponse {
         text: parsed.text,
         language: parsed.language,
         segments,
-    })
+    }
+}
+
+pub(super) struct AzureSttProvider(Result<model_stt::azure::AzureStt, String>);
+
+impl AzureSttProvider {
+    pub(super) fn from_config(cfg: &SttConfig) -> Self {
+        Self(model_stt::azure::AzureStt::from_config(cfg))
+    }
+}
+
+#[async_trait]
+impl SttProvider for AzureSttProvider {
+    fn name(&self) -> &str {
+        "azure"
+    }
+
+    fn is_configured(&self) -> bool {
+        self.0.as_ref().is_ok_and(SpeechToText::is_configured)
+    }
+
+    async fn transcribe(&self, request: SttRequest) -> Result<SttResponse, MediaError> {
+        let provider = self
+            .0
+            .as_ref()
+            .map_err(|e| MediaError::InvalidRequest(e.clone()))?;
+        if !provider.is_configured() {
+            return Err(MediaError::NotConfigured("azure".into()));
+        }
+        let response = provider
+            .transcribe(model_stt::SttRequest {
+                audio: request.audio,
+                filename: audio_format_filename(request.format).0.into(),
+                language: request.language,
+                prompt: None,
+                response_format: request.response_hint,
+                temperature: None,
+                mode: SttMode::Transcribe,
+            })
+            .await
+            .map_err(|error| match error {
+                SttError::NotConfigured => MediaError::NotConfigured("azure".into()),
+                error @ SttError::Auth => MediaError::Provider {
+                    status: 401,
+                    message: error.to_string(),
+                },
+                error @ SttError::RateLimited { .. } => MediaError::Provider {
+                    status: 429,
+                    message: error.to_string(),
+                },
+                SttError::Provider { status, message } => MediaError::Provider { status, message },
+                SttError::Transport(message) => MediaError::Transport(message),
+                SttError::Parse(message) => MediaError::Parse(message),
+                SttError::InvalidInput(message) => MediaError::InvalidRequest(message),
+            })?;
+        if response.raw.is_string() {
+            return Ok(SttResponse {
+                text: response.text,
+                language: None,
+                segments: Vec::new(),
+            });
+        }
+        serde_json::from_value(response.raw)
+            .map(media_response)
+            .map_err(|e| MediaError::Parse(e.to_string()))
+    }
 }
 
 #[async_trait]
@@ -181,12 +253,9 @@ impl SttProvider for CloudSttProvider {
             .await
             .map_err(|e| MediaError::Transport(e.to_string()))?;
         let status = resp.status();
-        let bytes = super::util::read_bytes_capped(
-            resp,
-            super::util::MAX_TEXT_BODY_BYTES,
-            "stt_cloud",
-        )
-        .await?;
+        let bytes =
+            super::util::read_bytes_capped(resp, super::util::MAX_TEXT_BODY_BYTES, "stt_cloud")
+                .await?;
 
         if !status.is_success() {
             let preview = body_preview(&bytes);

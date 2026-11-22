@@ -30,6 +30,7 @@ use std::io::{IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 
 use crate::agent::llm;
+use crate::model::tasks::stt::azure as azure_stt;
 
 mod copilot;
 mod decision;
@@ -402,11 +403,11 @@ pub(crate) fn help_doc() -> Value {
             "--reset":          "Revert the picked modality's config block to its built-in defaults (`mock`/`none`). With no modality, resets every modality.",
             "--providers":      "Same as the `providers` subcommand.",
             "--provider X":     "(apply only) Provider name. Use `none` to clear the modality.",
-            "--model Y":        "(apply only) Model name.",
+            "--model Y":        "(apply only) Model name, or the deployment name for Azure.",
             "--api-key VALUE":  "(apply only) Inline API key. Stored in the agent credential namespace.",
             "--api-key-stdin":  "(apply only) Read API key from stdin instead of the command line — preferred to keep keys out of shell history.",
             "--api-key-env E":  "(apply only) Don't store a key; persist a pointer to env var `$E`.",
-            "--base-url URL":   "(apply only) Override the provider's default API endpoint. REQUIRED when --provider azure (Azure has no universal default — point at https://<resource>.openai.azure.com/openai/deployments/<deployment>). Accepted as an advanced override for openai / xai / deepseek / openrouter / ollama.",
+            "--base-url URL":   "(apply only) Override the provider's default API endpoint. Azure requires the resource root, e.g. https://<resource>.openai.azure.com/, not a deployment URL.",
             "--api-version V":  "(apply only) Azure REST API version, e.g. 2024-12-01-preview. When set and --base-url has no `?`, gets appended as `?api-version=V`.",
             "--device-code C":  "(oauth-poll only) The opaque device_code returned by `oauth-start`. The UI keeps it private and only forwards it to the kernel.",
             "--device-code-stdin": "(oauth-poll only) Read the opaque device code from stdin to keep it out of process arguments.",
@@ -418,8 +419,9 @@ pub(crate) fn help_doc() -> Value {
             "yu agent setup --providers                                          # JSON catalogue of all providers + models",
             "yu agent setup text apply --provider openai --model gpt-4o --api-key-stdin  < key.txt",
             "yu agent setup text apply --provider azure --model my-deployment \\",
-            "    --base-url https://acme.openai.azure.com/openai/deployments/my-deployment \\",
+            "    --base-url https://example-resource.openai.azure.com/ \\",
             "    --api-version 2024-12-01-preview --api-key-stdin                # Azure OpenAI",
+            "yu agent setup stt apply --provider azure --model my-transcriber --base-url https://example-resource.openai.azure.com/ --api-key-env AZURE_OPENAI_API_KEY",
             "yu agent setup tts apply --provider edge --model en-US-AriaNeural   # no key needed",
             "yu agent setup imagegen test                                        # probe configured imagegen provider",
             "yu agent setup decision apply --provider system-one-local --model h2oai/h2o-lightning-4b",
@@ -1451,7 +1453,7 @@ fn providers_llm() -> Value {
                 "default_env": default_env_name(name),
                 "models": model_list,
                 "default_model": default_model,
-                "extra_fields": extra_fields_for(name),
+                "extra_fields": extra_fields_for(name, Modality::Llm),
             });
             if let Some(kind) = copilot::auth_kind_for(name) {
                 entry
@@ -1493,7 +1495,7 @@ fn providers_media(modality: Modality) -> Value {
                 "default_env": p.default_env,
                 "models": models,
                 "default_model": p.default_model,
-                "extra_fields": extra_fields_for(p.name),
+                "extra_fields": extra_fields_for(p.name, modality),
             })
         })
         .collect();
@@ -1509,7 +1511,12 @@ fn providers_media(modality: Modality) -> Value {
 /// require additional inputs (endpoint URL, API version, …). UIs walk
 /// this list and render appropriate inputs without hard-coding any
 /// per-provider rules.
-fn extra_fields_for(provider: &str) -> Vec<Value> {
+fn extra_fields_for(provider: &str, modality: Modality) -> Vec<Value> {
+    let version = if modality == Modality::Stt {
+        azure_stt::DEFAULT_API_VERSION
+    } else {
+        "2024-12-01-preview"
+    };
     match provider {
         "azure" => vec![
             json!({
@@ -1523,7 +1530,7 @@ fn extra_fields_for(provider: &str) -> Vec<Value> {
             json!({
                 "key": "api_version",
                 "label": "API version",
-                "placeholder": "2024-12-01-preview",
+                "placeholder": version,
                 "help": "Azure REST API version. Find current versions in the Azure OpenAI docs.",
                 "required": false,
                 "secret": false,
@@ -1687,11 +1694,19 @@ fn apply_media(spec: &'static media::ModalitySpec, args: ApplyArgs) -> Result<Va
         }
     }
 
-    let resolved_base_url = resolve_base_url_args(
-        provider.name,
-        args.base_url.as_deref(),
-        args.api_version.as_deref(),
-    )?;
+    let resolved_base_url = if spec.name == "stt" && provider.name == "azure" {
+        Some(media::resolve_azure_stt_base_url(
+            &model,
+            args.base_url.as_deref(),
+            args.api_version.as_deref(),
+        )?)
+    } else {
+        resolve_base_url_args(
+            provider.name,
+            args.base_url.as_deref(),
+            args.api_version.as_deref(),
+        )?
+    };
 
     let credential_hint = format!("{}_{}_api_key", spec.name, provider.name);
     let (credential_name, credential_env) = resolve_key_args(

@@ -651,16 +651,17 @@ pub struct ImageGenConfig {
 /// Speech-to-text config. Reads from `[stt]` block.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SttConfig {
-    /// `"none"` (disabled) | `"openai"` | self-hosted alias.
+    /// `"none"` (disabled) | `"openai"` | `"azure"` | other cloud aliases.
     #[serde(default = "default_stt_provider")]
     pub provider: String,
-    /// Model name (e.g. `"whisper-1"`, `"whisper-large-v3"`).
+    /// Model name (e.g. `"whisper-1"`), or deployment name for `"azure"`.
     #[serde(default = "default_stt_model")]
     pub model: String,
     #[serde(default)]
     pub api_key_credential: Option<String>,
     #[serde(default)]
     pub api_key_env: Option<String>,
+    /// For `"azure"`, the HTTPS resource root, optionally with `?api-version=...`.
     #[serde(default)]
     pub base_url: Option<String>,
     #[serde(default)]

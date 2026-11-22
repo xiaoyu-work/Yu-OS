@@ -109,7 +109,7 @@ async fn transcribe_rejects_empty_audio() {
     assert!(matches!(err, SttError::InvalidInput(_)));
 }
 
-async fn spawn_one_shot_mock(
+pub(super) async fn spawn_one_shot_mock(
     response_body: String,
     status_line: &'static str,
 ) -> (String, tokio::task::JoinHandle<Vec<u8>>) {

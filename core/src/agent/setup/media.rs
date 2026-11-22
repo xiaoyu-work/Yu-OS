@@ -3,9 +3,11 @@
 use serde_json::{json, Value};
 use std::io::{IsTerminal, Write};
 
+use crate::model::tasks::stt::azure as azure_stt;
+
 use super::{
-    config_path, read_config_or_empty, read_line, split_base_url_and_api_version, store_credential,
-    write_config_atomic, Modality,
+    config_path, read_config_or_empty, read_line, resolve_base_url_args,
+    split_base_url_and_api_version, store_credential, write_config_atomic, Modality,
 };
 
 /// Per-modality declarative wizard config.
@@ -137,6 +139,14 @@ pub(super) fn stt_spec() -> &'static ModalitySpec {
                 default_env: "MISTRAL_API_KEY",
                 sample_models: &["voxtral-mini-2507", "voxtral-small-2507"],
                 default_model: "voxtral-mini-2507",
+            },
+            ProviderChoice {
+                name: "azure",
+                label: "Azure OpenAI (Whisper / GPT transcription deployment)",
+                needs_credential: true,
+                default_env: azure_stt::DEFAULT_KEY_ENV,
+                sample_models: &[],
+                default_model: "",
             },
         ],
     };
@@ -282,6 +292,15 @@ pub(super) fn default_provider_for(spec: &ModalitySpec) -> &'static str {
     }
 }
 
+pub(super) fn resolve_azure_stt_base_url(
+    model: &str,
+    base_url: Option<&str>,
+    api_version: Option<&str>,
+) -> Result<String, String> {
+    let url = resolve_base_url_args("azure", base_url, api_version)?;
+    azure_stt::resource_url(url.as_deref(), model).map(|url| url.to_string())
+}
+
 /// Run the wizard for one media modality (TTS / STT / ImageGen / Embed).
 pub(super) fn wizard_media(
     spec: &'static ModalitySpec,
@@ -355,6 +374,7 @@ pub(super) fn wizard_media(
         ));
     }
     let provider = &spec.providers[picked_idx - 1];
+    let azure_stt = spec.name == "stt" && provider.name == "azure";
     if is_embed_spec(spec) && is_local_embed_provider(provider.name) {
         if let Err(err) = local_embed_precheck(&json!({}), None) {
             return Err(json!({
@@ -368,24 +388,30 @@ pub(super) fn wizard_media(
 
     // ---- Step 2: model ---------------------------------------------------
     let _ = writeln!(e);
-    let _ = writeln!(e, "Common models for `{}`:", provider.name);
-    for (i, m) in provider.sample_models.iter().enumerate() {
-        let marker = if *m == provider.default_model {
-            " (default)"
-        } else {
-            ""
-        };
-        let _ = writeln!(e, "  {}. {}{}", i + 1, m, marker);
+    if azure_stt {
+        let _ = write!(e, "Azure deployment name: ");
+    } else {
+        let _ = writeln!(e, "Common models for `{}`:", provider.name);
+        for (i, m) in provider.sample_models.iter().enumerate() {
+            let marker = if *m == provider.default_model {
+                " (default)"
+            } else {
+                ""
+            };
+            let _ = writeln!(e, "  {}. {}{}", i + 1, m, marker);
+        }
+        let _ = write!(
+            e,
+            "Pick a number (1-{}), type a model name, or hit enter for `{}`: ",
+            provider.sample_models.len(),
+            provider.default_model
+        );
     }
-    let _ = write!(
-        e,
-        "Pick a number (1-{}), type a model name, or hit enter for `{}`: ",
-        provider.sample_models.len(),
-        provider.default_model
-    );
     let _ = e.flush();
     let raw = read_line()?.trim().to_string();
-    let model: String = if raw.is_empty() {
+    let model: String = if azure_stt {
+        raw
+    } else if raw.is_empty() {
         provider.default_model.to_string()
     } else if let Ok(idx) = raw.parse::<usize>() {
         if idx < 1 || idx > provider.sample_models.len() {
@@ -397,6 +423,25 @@ pub(super) fn wizard_media(
         provider.sample_models[idx - 1].to_string()
     } else {
         raw
+    };
+    let base_url = if azure_stt {
+        let _ = write!(e, "Azure OpenAI resource root URL: ");
+        let _ = e.flush();
+        let endpoint = read_line()?;
+        let _ = write!(
+            e,
+            "Azure API version (default {}): ",
+            azure_stt::DEFAULT_API_VERSION
+        );
+        let _ = e.flush();
+        let version = read_line()?;
+        Some(resolve_azure_stt_base_url(
+            &model,
+            Some(&endpoint),
+            Some(&version),
+        )?)
+    } else {
+        None
     };
 
     // ---- Step 3: credential ---------------------------------------------
@@ -448,9 +493,7 @@ pub(super) fn wizard_media(
                         e,
                         "Falling back to environment-variable mode: config will read the key"
                     );
-                    let _ = writeln!(e, "from `${env_name}`. Add this to your shell rc:");
-                    let _ = writeln!(e);
-                    let _ = writeln!(e, "    export {env_name}='{key}'");
+                    let _ = writeln!(e, "from `${env_name}`. Set it before using the provider.");
                     let _ = writeln!(e);
                     credential_env = Some(env_name);
                 }
@@ -478,6 +521,16 @@ pub(super) fn wizard_media(
         *block = json!({});
     }
     let block = block.as_object_mut().expect("ensured object above");
+    if let Some(base_url) = base_url {
+        block.insert("base_url".into(), json!(base_url));
+    } else if spec.name == "stt"
+        && block
+            .get("provider")
+            .and_then(Value::as_str)
+            .is_some_and(|p| p.trim().eq_ignore_ascii_case("azure"))
+    {
+        block.remove("base_url");
+    }
     block.insert("provider".into(), json!(provider.name));
     block.insert("model".into(), json!(model));
     if let Some(ref n) = credential_name {
@@ -577,12 +630,15 @@ pub(super) fn status_media(modality: Modality) -> Value {
     } else {
         "none".to_string()
     };
+    let is_azure_stt = modality == Modality::Stt && provider.eq_ignore_ascii_case("azure");
     let mut model = snap
         .get("model")
         .and_then(|s| s.as_str())
         .unwrap_or("")
         .to_string();
-    if model.is_empty() {
+    if is_azure_stt && snap.get("model").is_none() {
+        model = crate::config::SttConfig::default().model;
+    } else if model.is_empty() && !is_azure_stt {
         if matches!(modality, Modality::Embed) && is_local_embed_provider(&provider) {
             model = LOCAL_EMBED_MODEL.to_string();
         } else if let Some(choice) = spec.providers.iter().find(|p| p.name == provider) {
@@ -597,16 +653,37 @@ pub(super) fn status_media(modality: Modality) -> Value {
         .get("api_key_env")
         .and_then(|s| s.as_str())
         .map(|s| s.to_string());
-    let base_url_raw = snap
+    let env = if is_azure_stt {
+        azure_stt::key_environment(credential.as_deref(), env.as_deref()).map(str::to_string)
+    } else {
+        env
+    };
+    let mut base_url_raw = snap
         .get("base_url")
         .and_then(|s| s.as_str())
         .map(|s| s.to_string());
-    let (endpoint, api_version) = split_base_url_and_api_version(base_url_raw.as_deref());
+    let azure_resource =
+        is_azure_stt.then(|| azure_stt::resource_url(base_url_raw.as_deref(), &model));
+    let (endpoint, api_version) = match &azure_resource {
+        Some(Ok(resource)) => split_base_url_and_api_version(Some(resource.as_str())),
+        Some(Err(_)) => {
+            // An invalid URL could contain userinfo or secret query parameters.
+            base_url_raw = None;
+            (None, None)
+        }
+        None => split_base_url_and_api_version(base_url_raw.as_deref()),
+    };
 
     // Ready iff (provider != none) AND (provider doesn't need a key OR a key is resolvable).
     let provider_choice = spec.providers.iter().find(|p| p.name == provider);
     let needs_cred = provider_choice.map(|p| p.needs_credential).unwrap_or(false);
-    let key_resolvable = if !needs_cred {
+    let key_resolvable = if is_azure_stt {
+        azure_resource.as_ref().is_some_and(Result::is_ok)
+            && matches!(
+                azure_stt::resolve_key(credential.as_deref(), env.as_deref()),
+                Ok(Some(_))
+            )
+    } else if !needs_cred {
         true
     } else if let Some(ref n) = credential {
         crate::credential::try_load(n, "agent")
@@ -654,6 +731,15 @@ pub(super) fn status_media(modality: Modality) -> Value {
                 }),
             ),
         }
+    } else if let Some(Err(err)) = azure_resource {
+        (
+            false,
+            json!({
+                "error": "invalid Azure STT configuration",
+                "details": err,
+                "fix": "yu agent setup stt",
+            }),
+        )
     } else {
         let ready = provider != "none" && !provider.is_empty() && key_resolvable;
         let reason = if provider == "none" || provider.is_empty() {
@@ -716,6 +802,14 @@ pub(super) fn reset_media(modality: Modality) -> Result<Value, String> {
         *block = json!({});
     }
     let block = block.as_object_mut().expect("ensured object above");
+    if modality == Modality::Stt
+        && block
+            .get("provider")
+            .and_then(Value::as_str)
+            .is_some_and(|p| p.trim().eq_ignore_ascii_case("azure"))
+    {
+        block.remove("base_url");
+    }
     block.insert("provider".into(), json!("none"));
     block.insert("api_key_credential".into(), Value::Null);
     block.remove("api_key_env");

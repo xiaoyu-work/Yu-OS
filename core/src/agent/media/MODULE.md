@@ -20,6 +20,7 @@ configured local or cloud capabilities.
 | `voice/` | Voice input/output and playback |
 | `imagegen.rs` | Image generation |
 | `factory.rs` | Media provider construction |
+| `stt_cloud.rs` | OpenAI-compatible STT and the Agent adapter for the [shared Azure OpenAI backend](../../model/MODULE.md#azure-openai-speech-to-text) |
 
 ## Dependencies
 

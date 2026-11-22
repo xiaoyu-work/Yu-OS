@@ -24,6 +24,7 @@
 //!   |------------------|-------------------------------------------------------|
 //!   | `none` / empty   | only `noop` registered                                |
 //!   | `openai` / `groq` / `xai` / `mistral` / `custom` | [`CloudSttProvider`] (OpenAI `/v1/audio/transcriptions` shape) |
+//!   | `azure`         | Azure OpenAI deployment, shared with `yu model transcribe` |
 //!
 //! Provider name → backend mapping (Image gen):
 //!
@@ -59,7 +60,7 @@ use super::imagegen_fal::{FalImageGenConfig, FalImageGenProvider};
 use super::imagegen_openai::{OpenAiImageGenConfig, OpenAiImageGenProvider};
 use super::imagegen_xai::{XaiImageGenConfig, XaiImageGenProvider};
 use super::stt::{SttProvider, SttRegistry};
-use super::stt_cloud::{CloudSttConfig, CloudSttProvider};
+use super::stt_cloud::{AzureSttProvider, CloudSttConfig, CloudSttProvider};
 use super::tts::{TtsProvider, TtsRegistry};
 use super::tts_cloud::{CloudTtsConfig, CloudTtsProvider};
 use super::tts_edge::{EdgeTtsConfig, EdgeTtsProvider};
@@ -191,6 +192,10 @@ pub fn stt_registry_from_cfg(cfg: &YuConfig) -> SttRegistry {
     let p = &cfg.stt;
     let provider = p.provider.trim().to_lowercase();
     if provider.is_empty() || provider == "none" {
+        return reg;
+    }
+    if provider == "azure" {
+        reg.register(Arc::new(AzureSttProvider::from_config(p)));
         return reg;
     }
 
