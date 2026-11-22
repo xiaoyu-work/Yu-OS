@@ -57,6 +57,7 @@
 //! They are the kernel Agent's own surface and Apps must not invoke
 //! them.
 
+pub(crate) mod app_tools;
 pub mod budget;
 pub mod chat;
 pub mod consent;
@@ -96,8 +97,7 @@ pub(super) fn permission_denied(
 ///   * `chat` — single-shot, gated, modality-derived LLM call.
 ///   * `tool` — single Tool invocation from the App-facing catalog
 ///     (see [`tools::CATALOG`]).
-///   * `tools` — print the catalog as JSON for App authors and LLM
-///     function-call spec generation.
+///   * `tools` — print the catalog of separate App primitives.
 pub fn run(command: &str, args: &[String]) -> Result<serde_json::Value, String> {
     match command {
         "chat" => chat::chat_cmd(args),

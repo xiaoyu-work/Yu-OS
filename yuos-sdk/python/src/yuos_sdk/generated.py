@@ -55,6 +55,7 @@ class Ai(_AiRequired, total=False):
     Stable text-chat reply returned by `yu ai chat`.
     """
     tool_calls: List["AiToolCall"]
+    provider_state: str
 
 class AiUsage(TypedDict):
     """ai_usage.
@@ -88,6 +89,54 @@ class AiToolCall(TypedDict):
     id: str
     name: str
     input: Any
+
+class _AiChatRequestRequired(TypedDict):
+    origin: str
+    prompt: str
+
+class AiChatRequest(_AiChatRequestRequired, total=False):
+    """App chat request.
+
+    One model call with optional App-defined functions and prior App tool turns.
+    No function is executed by Yu OS.
+    """
+    system: str
+    max_units: int
+    tools: List["AiAppTool"]
+    tool_turns: List["AiToolTurn"]
+
+class AiAppTool(TypedDict):
+    """AiAppTool.
+    """
+    name: str
+    description: str
+    parameters: Dict[str, Any]
+
+class AiChatToolCall(TypedDict):
+    """AiChatToolCall.
+    """
+    id: str
+    name: str
+    input: Dict[str, Any]
+
+class _AiChatToolResultRequired(TypedDict):
+    id: str
+    content: str
+
+class AiChatToolResult(_AiChatToolResultRequired, total=False):
+    """AiChatToolResult.
+    """
+    is_error: bool
+
+class _AiToolTurnRequired(TypedDict):
+    calls: List["AiChatToolCall"]
+    results: List["AiChatToolResult"]
+
+class AiToolTurn(_AiToolTurnRequired, total=False):
+    """AiToolTurn.
+    """
+    text: str
+    provider_state: str
 
 class AiInference(TypedDict):
     """App AI inference reply.
@@ -774,6 +823,13 @@ def validate_ai_review_safety(value: str) -> None:
     if value not in allowed:
         raise ValueError(f"invalid ai_review.safety value: {value!r}")
 
+def validate_ai_chat_request_origin(value: str) -> None:
+    """Raise ValueError if value is not in the ai_chat_request.origin
+    enum. Mirrors generated::validate_ai_chat_request_origin."""
+    allowed = ['trusted', 'user-input', 'external-content']
+    if value not in allowed:
+        raise ValueError(f"invalid ai_chat_request.origin value: {value!r}")
+
 def validate_ai_inference_request_origin(value: str) -> None:
     """Raise ValueError if value is not in the ai_inference_request.origin
     enum. Mirrors generated::validate_ai_inference_request_origin."""
@@ -1155,11 +1211,17 @@ def _validate_wire_schema(
         for index, item in enumerate(value):
             _validate_wire_schema(item_rule, root, item, schema_name, f"{path}[{index}]")
 
-_WIRE_SCHEMA_AI: Dict[str, Any] = decode_wire_json(r'''{"$defs":{"AiToolCall":{"additionalProperties":false,"properties":{"id":{"type":"string"},"input":{},"name":{"type":"string"}},"required":["id","name","input"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":true,"description":"Stable text-chat reply returned by `yu ai chat`.","properties":{"budget":{"additionalProperties":false,"description":"App budget snapshot after the call.","properties":{"period":{"type":"string"},"units_cap":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"},"units_used":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"}},"required":["period","units_used","units_cap"],"type":"object"},"model":{"description":"Provider model id actually used.","type":"string"},"provider":{"description":"Provider name actually used.","type":"string"},"review":{"additionalProperties":false,"description":"Safety policy actually applied by the kernel.","properties":{"prompt_redacted":{"type":"boolean"},"safety":{"enum":["strict","standard","minimal"],"type":"string"}},"required":["safety","prompt_redacted"],"type":"object"},"text":{"description":"Assistant text returned by the configured provider.","type":"string"},"tool_calls":{"description":"Tool calls proposed by the model. The kernel does not execute them inline.","items":{"$ref":"#/$defs/AiToolCall"},"type":"array"},"usage":{"additionalProperties":false,"description":"Token and unit accounting for this call.","properties":{"input_tokens":{"maximum":4294967295,"minimum":0,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"output_tokens":{"maximum":4294967295,"minimum":0,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"units":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"}},"required":["input_tokens","output_tokens","units"],"type":"object"},"verb":{"description":"Capability verb derived by the kernel for this call.","enum":["ai.chat","ai.chat.untrusted"],"type":"string"}},"required":["text","model","provider","verb","usage","budget","review"],"title":"AI request / reply","type":"object"}''')
+_WIRE_SCHEMA_AI: Dict[str, Any] = decode_wire_json(r'''{"$defs":{"AiToolCall":{"additionalProperties":false,"properties":{"id":{"type":"string"},"input":{},"name":{"type":"string"}},"required":["id","name","input"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":true,"description":"Stable text-chat reply returned by `yu ai chat`.","properties":{"budget":{"additionalProperties":false,"description":"App budget snapshot after the call.","properties":{"period":{"type":"string"},"units_cap":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"},"units_used":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"}},"required":["period","units_used","units_cap"],"type":"object"},"model":{"description":"Provider model id actually used.","type":"string"},"provider":{"description":"Provider name actually used.","type":"string"},"provider_state":{"description":"Optional model-issued continuation data. Echo unchanged with the related App tool results.","type":"string","x-max-utf8-bytes":65536},"review":{"additionalProperties":false,"description":"Safety policy actually applied by the kernel.","properties":{"prompt_redacted":{"type":"boolean"},"safety":{"enum":["strict","standard","minimal"],"type":"string"}},"required":["safety","prompt_redacted"],"type":"object"},"text":{"description":"Assistant text returned by the configured provider.","type":"string"},"tool_calls":{"description":"Proposed calls to functions defined by the App. The App validates and executes them, not Yu OS.","items":{"$ref":"#/$defs/AiToolCall"},"type":"array"},"usage":{"additionalProperties":false,"description":"Token and unit accounting for this call.","properties":{"input_tokens":{"maximum":4294967295,"minimum":0,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"output_tokens":{"maximum":4294967295,"minimum":0,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"units":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"}},"required":["input_tokens","output_tokens","units"],"type":"object"},"verb":{"description":"Capability verb derived by the kernel for this call.","enum":["ai.chat","ai.chat.untrusted"],"type":"string"}},"required":["text","model","provider","verb","usage","budget","review"],"title":"AI request / reply","type":"object"}''')
 
 def validate_ai(value: Any) -> None:
     """Validate a value against wire/v1/ai.schema.json."""
     _validate_wire_schema(_WIRE_SCHEMA_AI, _WIRE_SCHEMA_AI, value, "Ai", "$")
+
+_WIRE_SCHEMA_AI_CHAT_REQUEST: Dict[str, Any] = decode_wire_json(r'''{"$defs":{"AiAppTool":{"additionalProperties":false,"properties":{"description":{"type":"string","x-max-utf8-bytes":4096},"name":{"maxLength":64,"minLength":1,"pattern":"^[A-Za-z0-9_-]+$","type":"string"},"parameters":{"description":"JSON Schema with a top-level type of object.","type":"object"}},"required":["name","description","parameters"],"type":"object"},"AiChatToolCall":{"additionalProperties":false,"properties":{"id":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"input":{"type":"object"},"name":{"maxLength":64,"minLength":1,"pattern":"^[A-Za-z0-9_-]+$","type":"string"}},"required":["id","name","input"],"type":"object"},"AiChatToolResult":{"additionalProperties":false,"properties":{"content":{"type":"string","x-max-utf8-bytes":131072},"id":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"is_error":{"type":"boolean"}},"required":["id","content"],"type":"object"},"AiToolTurn":{"additionalProperties":false,"properties":{"calls":{"items":{"$ref":"#/$defs/AiChatToolCall"},"maxItems":16,"minItems":1,"type":"array"},"provider_state":{"minLength":1,"type":"string","x-max-utf8-bytes":65536},"results":{"items":{"$ref":"#/$defs/AiChatToolResult"},"maxItems":16,"minItems":1,"type":"array"},"text":{"type":"string","x-max-utf8-bytes":131072}},"required":["calls","results"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai_chat_request.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"description":"One model call with optional App-defined functions and prior App tool turns. No function is executed by Yu OS.","properties":{"max_units":{"maximum":18446744073709551615,"minimum":1,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"},"origin":{"enum":["trusted","user-input","external-content"],"type":"string"},"prompt":{"minLength":1,"type":"string","x-max-utf8-bytes":131072},"system":{"type":"string","x-max-utf8-bytes":131072},"tool_turns":{"items":{"$ref":"#/$defs/AiToolTurn"},"maxItems":16,"type":"array"},"tools":{"items":{"$ref":"#/$defs/AiAppTool"},"maxItems":16,"type":"array"}},"required":["origin","prompt"],"title":"App chat request","type":"object"}''')
+
+def validate_ai_chat_request(value: Any) -> None:
+    """Validate a value against wire/v1/ai_chat_request.schema.json."""
+    _validate_wire_schema(_WIRE_SCHEMA_AI_CHAT_REQUEST, _WIRE_SCHEMA_AI_CHAT_REQUEST, value, "AiChatRequest", "$")
 
 _WIRE_SCHEMA_AI_INFERENCE: Dict[str, Any] = decode_wire_json(r'''{"$defs":{"ChoiceAnswer":{"additionalProperties":false,"properties":{"choice":{"maxLength":48,"minLength":1,"type":"string"},"probabilities":{"additionalProperties":{"maximum":1,"minimum":0,"type":"number"},"type":"object"},"type":{"const":"choice","type":"string"}},"required":["type","choice","probabilities"],"type":"object"},"DecisionOutput":{"additionalProperties":false,"properties":{"answers":{"additionalProperties":{"oneOf":[{"$ref":"#/$defs/ChoiceAnswer"},{"$ref":"#/$defs/NoulAnswer"},{"$ref":"#/$defs/ScoreAnswer"}]},"type":"object"},"kind":{"const":"decision","type":"string"}},"required":["kind","answers"],"type":"object"},"EmbeddingOutput":{"additionalProperties":false,"properties":{"kind":{"const":"embed","type":"string"},"vector":{"items":{"maximum":3.4028235e+38,"minimum":-3.4028235e+38,"type":"number"},"type":"array"}},"required":["kind","vector"],"type":"object"},"ImageOutput":{"additionalProperties":false,"properties":{"format":{"enum":["png","jpg","webp"],"type":"string"},"image_base64":{"maxLength":4192940,"minLength":4,"type":"string"},"kind":{"const":"imagegen","type":"string"}},"required":["kind","format","image_base64"],"type":"object"},"NoulAnswer":{"additionalProperties":false,"properties":{"noul":{"maximum":1,"minimum":0,"type":"number"},"type":{"const":"noul","type":"string"}},"required":["type","noul"],"type":"object"},"ScoreAnswer":{"additionalProperties":false,"properties":{"probabilities":{"additionalProperties":{"maximum":1,"minimum":0,"type":"number"},"type":"object"},"score":{"maximum":9,"minimum":0,"type":"number"},"type":{"const":"score","type":"string"}},"required":["type","score","probabilities"],"type":"object"},"SpeechOutput":{"additionalProperties":false,"properties":{"audio_base64":{"maxLength":4192940,"minLength":4,"type":"string"},"format":{"enum":["wav","mp3","ogg","pcm"],"type":"string"},"kind":{"const":"tts","type":"string"},"sample_rate_hz":{"maximum":4294967295,"minimum":1,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"}},"required":["kind","format","audio_base64"],"type":"object"},"TranscriptionOutput":{"additionalProperties":false,"properties":{"kind":{"const":"stt","type":"string"},"text":{"type":"string","x-max-utf8-bytes":65536}},"required":["kind","text"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai_inference.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"model":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"output":{"oneOf":[{"$ref":"#/$defs/EmbeddingOutput"},{"$ref":"#/$defs/SpeechOutput"},{"$ref":"#/$defs/TranscriptionOutput"},{"$ref":"#/$defs/ImageOutput"},{"$ref":"#/$defs/DecisionOutput"}],"x-ts-type":"EmbeddingOutput | SpeechOutput | TranscriptionOutput | ImageOutput | DecisionOutput"},"provider":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"units":{"maximum":4294967295,"minimum":1,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"}},"required":["provider","model","units","output"],"title":"App AI inference reply","type":"object"}''')
 

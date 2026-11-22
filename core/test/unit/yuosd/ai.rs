@@ -392,6 +392,80 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
         denied.error.unwrap().data.unwrap()["ai_error"]["code"],
         "BUDGET_EXCEEDED"
     );
+
+    // Exercise the configured provider wire in both directions. The broker
+    // must not run anything between the proposal and the App's next call.
+    let provider = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    std::fs::write(
+        root.join("config.json"),
+        json!({"agent":{"provider":"ollama","model":"test-model",
+            "base_url":format!("http://{}/v1", provider.local_addr().unwrap())}}).to_string(),
+    ).unwrap();
+    let seen = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let requests = Arc::clone(&seen);
+    let provider_routes = axum::Router::new().route("/v1/chat/completions", axum::routing::post(
+        move |axum::Json(body): axum::Json<Value>| {
+            let requests = Arc::clone(&requests);
+            async move {
+                let i = requests.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                assert_eq!(body["model"], "test-model");
+                assert_eq!(body["tools"].as_array().unwrap().len(), 1);
+                assert_eq!(body["tools"][0]["function"]["name"], "convert_units");
+                assert_eq!(body["messages"][0], json!({"role":"user","content":"Convert two meters"}));
+                let (message, finish_reason) = if i == 1 {
+                    assert_eq!(body["messages"].as_array().unwrap().len(), 3);
+                    assert_eq!(body["messages"][1]["tool_calls"][0]["id"], "call_1");
+                    assert_eq!(body["messages"][2], json!({
+                        "role":"tool", "tool_call_id":"call_1", "content":"200 centimeters"
+                    }));
+                    (json!({"role":"assistant","content":"Two meters is 200 centimeters."}), "stop")
+                } else {
+                    assert_eq!(body["messages"].as_array().unwrap().len(), 1);
+                    (json!({"role":"assistant","content":null,"tool_calls":[{
+                        "id":"call_1","type":"function","function":{
+                            "name": if i == 0 { "convert_units" } else { "undeclared_tool" },
+                            "arguments":"{\"meters\":2}"
+                        }
+                    }]}), "tool_calls")
+                };
+                axum::Json(json!({"model":"test-model", "choices":[{"message":message,"finish_reason":finish_reason}],
+                    "usage":{"prompt_tokens":12,"completion_tokens":8}}))
+            }
+        },
+    ));
+    let server = tokio::spawn(async move { axum::serve(provider, provider_routes).await.unwrap() });
+    let mut app_chat = json!({
+        "session":sid,"app_id":"yuos-edit","request":{
+            "prompt":"Convert two meters","origin":"external-content","max_units":4000,
+            "tools":[{"name":"convert_units","description":"Convert meters to centimeters.",
+                "parameters":{"type":"object","properties":{"meters":{"type":"number"}},"required":["meters"]}}]
+        }
+    });
+    let response = dispatch(app_chat.clone(), &identity, &state, &admission).await;
+    let proposal = response.result.unwrap_or_else(|| panic!("tool request failed: {:?}", response.error));
+    assert_eq!(proposal["tool_calls"], json!([{"id":"call_1","name":"convert_units","input":{"meters":2}}]));
+    assert_eq!(seen.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+    let first = app_chat.clone();
+    app_chat["request"]["tool_turns"] = json!([{
+        "calls":proposal["tool_calls"],
+        "results":[{"id":"call_1","content":"200 centimeters"}]
+    }]);
+    let mut unmatched = app_chat.clone();
+    unmatched["request"]["tool_turns"][0]["results"][0]["id"] = json!("wrong");
+    let invalid = dispatch(unmatched, &identity, &state, &admission).await;
+    assert_eq!(invalid.error.unwrap().data.unwrap()["ai_error"]["code"], "INVALID_ARGS");
+    assert_eq!(seen.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+    let response = dispatch(app_chat, &identity, &state, &admission).await;
+    let answer = response.result.unwrap_or_else(|| panic!("tool continuation failed: {:?}", response.error));
+    assert_eq!(answer["text"], "Two meters is 200 centimeters.");
+    assert!(answer.get("tool_calls").is_none());
+    let undeclared = dispatch(first, &identity, &state, &admission).await;
+    assert_eq!(undeclared.error.unwrap().data.unwrap()["ai_error"]["code"], "KERNEL_UNAVAILABLE");
+    assert_eq!(seen.load(std::sync::atomic::Ordering::SeqCst), 3);
+    server.abort();
+
     crate::ai::consent::delete("yuos-edit").unwrap();
     let denied = dispatch(params.clone(), &identity, &state, &admission).await;
     let error = denied.error.unwrap().data.unwrap()["ai_error"].clone();

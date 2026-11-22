@@ -45,6 +45,8 @@ pub struct Ai {
     pub review: AiReview,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<AiToolCall>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_state: Option<String>,
 }
 
 /// ai_usage
@@ -79,6 +81,59 @@ pub struct AiToolCall {
     pub id: String,
     pub name: String,
     pub input: serde_json::Value,
+}
+
+/// App chat request
+/// One model call with optional App-defined functions and prior App tool turns.
+/// No function is executed by Yu OS.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AiChatRequest {
+    pub origin: String,
+    pub prompt: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_units: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<AiAppTool>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_turns: Option<Vec<AiToolTurn>>,
+}
+
+/// AiAppTool
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AiAppTool {
+    pub name: String,
+    pub description: String,
+    pub parameters: serde_json::Value,
+}
+
+/// AiChatToolCall
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AiChatToolCall {
+    pub id: String,
+    pub name: String,
+    pub input: serde_json::Value,
+}
+
+/// AiChatToolResult
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AiChatToolResult {
+    pub id: String,
+    pub content: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_error: Option<bool>,
+}
+
+/// AiToolTurn
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AiToolTurn {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    pub calls: Vec<AiChatToolCall>,
+    pub results: Vec<AiChatToolResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_state: Option<String>,
 }
 
 /// App AI inference reply
@@ -859,6 +914,19 @@ pub fn validate_ai_review_safety(value: &str) -> Result<(), String> {
     }
 }
 
+/// Reject values outside the ai_chat_request.origin enum.
+///
+/// The wire schema lists a closed set of allowed values; a kernel
+/// that emits an unknown one should not be silently accepted.
+pub fn validate_ai_chat_request_origin(value: &str) -> Result<(), String> {
+    const ALLOWED: &[&str] = &["trusted", "user-input", "external-content"];
+    if ALLOWED.iter().any(|a| *a == value) {
+        Ok(())
+    } else {
+        Err(format!("invalid ai_chat_request.origin value: {value}"))
+    }
+}
+
 /// Reject values outside the ai_inference_request.origin enum.
 ///
 /// The wire schema lists a closed set of allowed values; a kernel
@@ -1261,7 +1329,7 @@ fn normalize_wire_integers(
     }
 }
 
-const _WIRE_SCHEMA_AI: &str = r###"{"$defs":{"AiToolCall":{"additionalProperties":false,"properties":{"id":{"type":"string"},"input":{},"name":{"type":"string"}},"required":["id","name","input"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":true,"description":"Stable text-chat reply returned by `yu ai chat`.","properties":{"budget":{"additionalProperties":false,"description":"App budget snapshot after the call.","properties":{"period":{"type":"string"},"units_cap":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"},"units_used":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"}},"required":["period","units_used","units_cap"],"type":"object"},"model":{"description":"Provider model id actually used.","type":"string"},"provider":{"description":"Provider name actually used.","type":"string"},"review":{"additionalProperties":false,"description":"Safety policy actually applied by the kernel.","properties":{"prompt_redacted":{"type":"boolean"},"safety":{"enum":["strict","standard","minimal"],"type":"string"}},"required":["safety","prompt_redacted"],"type":"object"},"text":{"description":"Assistant text returned by the configured provider.","type":"string"},"tool_calls":{"description":"Tool calls proposed by the model. The kernel does not execute them inline.","items":{"$ref":"#/$defs/AiToolCall"},"type":"array"},"usage":{"additionalProperties":false,"description":"Token and unit accounting for this call.","properties":{"input_tokens":{"maximum":4294967295,"minimum":0,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"output_tokens":{"maximum":4294967295,"minimum":0,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"units":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"}},"required":["input_tokens","output_tokens","units"],"type":"object"},"verb":{"description":"Capability verb derived by the kernel for this call.","enum":["ai.chat","ai.chat.untrusted"],"type":"string"}},"required":["text","model","provider","verb","usage","budget","review"],"title":"AI request / reply","type":"object"}"###;
+const _WIRE_SCHEMA_AI: &str = r###"{"$defs":{"AiToolCall":{"additionalProperties":false,"properties":{"id":{"type":"string"},"input":{},"name":{"type":"string"}},"required":["id","name","input"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":true,"description":"Stable text-chat reply returned by `yu ai chat`.","properties":{"budget":{"additionalProperties":false,"description":"App budget snapshot after the call.","properties":{"period":{"type":"string"},"units_cap":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"},"units_used":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"}},"required":["period","units_used","units_cap"],"type":"object"},"model":{"description":"Provider model id actually used.","type":"string"},"provider":{"description":"Provider name actually used.","type":"string"},"provider_state":{"description":"Optional model-issued continuation data. Echo unchanged with the related App tool results.","type":"string","x-max-utf8-bytes":65536},"review":{"additionalProperties":false,"description":"Safety policy actually applied by the kernel.","properties":{"prompt_redacted":{"type":"boolean"},"safety":{"enum":["strict","standard","minimal"],"type":"string"}},"required":["safety","prompt_redacted"],"type":"object"},"text":{"description":"Assistant text returned by the configured provider.","type":"string"},"tool_calls":{"description":"Proposed calls to functions defined by the App. The App validates and executes them, not Yu OS.","items":{"$ref":"#/$defs/AiToolCall"},"type":"array"},"usage":{"additionalProperties":false,"description":"Token and unit accounting for this call.","properties":{"input_tokens":{"maximum":4294967295,"minimum":0,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"output_tokens":{"maximum":4294967295,"minimum":0,"type":"integer","x-go-type":"uint32","x-rust-type":"u32"},"units":{"maximum":18446744073709551615,"minimum":0,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"}},"required":["input_tokens","output_tokens","units"],"type":"object"},"verb":{"description":"Capability verb derived by the kernel for this call.","enum":["ai.chat","ai.chat.untrusted"],"type":"string"}},"required":["text","model","provider","verb","usage","budget","review"],"title":"AI request / reply","type":"object"}"###;
 pub fn validate_ai(value: &serde_json::Value) -> Result<(), WireDecodeError> {
     let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_AI)
         .expect("generated wire schema must be valid JSON");
@@ -1270,6 +1338,19 @@ pub fn validate_ai(value: &serde_json::Value) -> Result<(), WireDecodeError> {
 
 pub fn normalize_ai_integers(value: &mut serde_json::Value) {
     let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_AI)
+        .expect("generated wire schema must be valid JSON");
+    normalize_wire_integers(&schema, &schema, value);
+}
+
+const _WIRE_SCHEMA_AI_CHAT_REQUEST: &str = r###"{"$defs":{"AiAppTool":{"additionalProperties":false,"properties":{"description":{"type":"string","x-max-utf8-bytes":4096},"name":{"maxLength":64,"minLength":1,"pattern":"^[A-Za-z0-9_-]+$","type":"string"},"parameters":{"description":"JSON Schema with a top-level type of object.","type":"object"}},"required":["name","description","parameters"],"type":"object"},"AiChatToolCall":{"additionalProperties":false,"properties":{"id":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"input":{"type":"object"},"name":{"maxLength":64,"minLength":1,"pattern":"^[A-Za-z0-9_-]+$","type":"string"}},"required":["id","name","input"],"type":"object"},"AiChatToolResult":{"additionalProperties":false,"properties":{"content":{"type":"string","x-max-utf8-bytes":131072},"id":{"minLength":1,"type":"string","x-max-utf8-bytes":256},"is_error":{"type":"boolean"}},"required":["id","content"],"type":"object"},"AiToolTurn":{"additionalProperties":false,"properties":{"calls":{"items":{"$ref":"#/$defs/AiChatToolCall"},"maxItems":16,"minItems":1,"type":"array"},"provider_state":{"minLength":1,"type":"string","x-max-utf8-bytes":65536},"results":{"items":{"$ref":"#/$defs/AiChatToolResult"},"maxItems":16,"minItems":1,"type":"array"},"text":{"type":"string","x-max-utf8-bytes":131072}},"required":["calls","results"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/ai_chat_request.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"description":"One model call with optional App-defined functions and prior App tool turns. No function is executed by Yu OS.","properties":{"max_units":{"maximum":18446744073709551615,"minimum":1,"type":"integer","x-go-type":"uint64","x-rust-type":"u64","x-ts-type":"number | bigint"},"origin":{"enum":["trusted","user-input","external-content"],"type":"string"},"prompt":{"minLength":1,"type":"string","x-max-utf8-bytes":131072},"system":{"type":"string","x-max-utf8-bytes":131072},"tool_turns":{"items":{"$ref":"#/$defs/AiToolTurn"},"maxItems":16,"type":"array"},"tools":{"items":{"$ref":"#/$defs/AiAppTool"},"maxItems":16,"type":"array"}},"required":["origin","prompt"],"title":"App chat request","type":"object"}"###;
+pub fn validate_ai_chat_request(value: &serde_json::Value) -> Result<(), WireDecodeError> {
+    let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_AI_CHAT_REQUEST)
+        .expect("generated wire schema must be valid JSON");
+    validate_wire_schema(&schema, &schema, value, "AiChatRequest", "$")
+}
+
+pub fn normalize_ai_chat_request_integers(value: &mut serde_json::Value) {
+    let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_AI_CHAT_REQUEST)
         .expect("generated wire schema must be valid JSON");
     normalize_wire_integers(&schema, &schema, value);
 }

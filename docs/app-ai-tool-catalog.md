@@ -20,8 +20,9 @@ entry below is:
   derived caps verb. Operators can grep one file for everything an
   App did under the AI surface.
 
-> `yu ai chat` is model-only and rejects nonempty `--tools` lists. It
-> does not expose this catalog or return or execute tool proposals.
+> `yu ai chat` rejects legacy catalog-name `--tools` lists. It can return
+> proposals for [App-owned functions](../yuos-sdk/REFERENCE.md#app-owned-tools),
+> but never exposes this catalog or executes a proposal.
 
 For the higher-level architecture and the line between `yu ai`
 (App-facing primitive) and `yu agent` (kernel's own Agent product),

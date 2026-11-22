@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yuos.dev/wire/v1/ai_chat_request.schema.json",
+  "title": "App chat request",
+  "description": "One model call with optional App-defined functions and prior App tool turns. No function is executed by Yu OS.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["origin", "prompt"],
+  "properties": {
+    "origin": { "type": "string", "enum": ["trusted", "user-input", "external-content"] },
+    "prompt": { "type": "string", "minLength": 1, "x-max-utf8-bytes": 131072 },
+    "system": { "type": "string", "x-max-utf8-bytes": 131072 },
+    "max_units": {
+      "type": "integer", "minimum": 1, "maximum": 18446744073709551615,
+      "x-rust-type": "u64", "x-go-type": "uint64", "x-ts-type": "number | bigint"
+    },
+    "tools": { "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/AiAppTool" } },
+    "tool_turns": { "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/AiToolTurn" } }
+  },
+  "$defs": {
+    "AiAppTool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "description", "parameters"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$", "minLength": 1, "maxLength": 64 },
+        "description": { "type": "string", "x-max-utf8-bytes": 4096 },
+        "parameters": { "type": "object", "description": "JSON Schema with a top-level type of object." }
+      }
+    },
+    "AiChatToolCall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "input"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "x-max-utf8-bytes": 256 },
+        "name": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$", "minLength": 1, "maxLength": 64 },
+        "input": { "type": "object" }
+      }
+    },
+    "AiChatToolResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "content"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "x-max-utf8-bytes": 256 },
+        "content": { "type": "string", "x-max-utf8-bytes": 131072 },
+        "is_error": { "type": "boolean" }
+      }
+    },
+    "AiToolTurn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["calls", "results"],
+      "properties": {
+        "text": { "type": "string", "x-max-utf8-bytes": 131072 },
+        "calls": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "$ref": "#/$defs/AiChatToolCall" } },
+        "results": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "$ref": "#/$defs/AiChatToolResult" } },
+        "provider_state": { "type": "string", "minLength": 1, "x-max-utf8-bytes": 65536 }
+      }
+    }
+  }
+}

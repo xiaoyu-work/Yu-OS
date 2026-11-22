@@ -677,9 +677,10 @@ rejected because capability matching does not expand them.
 Use the SDK to call the model configured in Yu OS Settings. Yu OS holds the
 credentials and sends the App's input directly to that model API, or runs the
 configured local model. Neither route starts the system Agent, includes its
-memory or conversation, or attaches system tools. The App can supply its own
-instruction, but cannot enable tools on the request. From an App with approved
-access to the supplied file and `ai.chat.untrusted`:
+memory or conversation, or attaches system tools. Apps can
+[supply their own functions and return results](../yuos-sdk/REFERENCE.md#app-owned-tools);
+only the App decides whether to execute them. From an App with approved access
+to the supplied file and `ai.chat.untrusted`:
 
 ```python
 from dataclasses import asdict

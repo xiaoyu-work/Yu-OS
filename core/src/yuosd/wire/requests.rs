@@ -1795,7 +1795,7 @@ impl MediaPlayerAction {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct AiChat {
+pub struct AiTextChat {
     pub session: Token,
     pub app_id: Name,
     pub origin: Token,
@@ -1805,6 +1805,21 @@ pub struct AiChat {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_units: Option<u64>,
     pub tools: TextList<64, 256>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AiChatWithRequest {
+    pub session: Token,
+    pub app_id: Name,
+    pub(crate) request: crate::ai::app_tools::ChatInput,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum AiChat {
+    Text(AiTextChat),
+    Request(AiChatWithRequest),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

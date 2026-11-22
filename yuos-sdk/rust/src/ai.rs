@@ -22,7 +22,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use serde::{Deserialize, Serialize};
 
 use crate::{yu_call_json_structured, BridgeError, StructuredCosError};
-pub use crate::generated::{AiInference, AiInferenceRequest};
+pub use crate::generated::{
+    AiAppTool, AiChatRequest, AiChatToolCall, AiChatToolResult, AiInference, AiInferenceRequest,
+    AiToolTurn,
+};
 
 // ---------------------------------------------------------------------------
 // Response shape
@@ -51,13 +54,8 @@ pub struct Review {
     pub prompt_redacted: bool,
 }
 
-/// Compatibility shape for older runtimes. Model-only chat returns no proposals.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProposedToolCall {
-    pub id: String,
-    pub name: String,
-    pub input: serde_json::Value,
-}
+/// A proposed call to an App function, not authorization to execute it.
+pub type ProposedToolCall = AiChatToolCall;
 
 /// Parsed reply from `yu ai chat`. See `wire/v1/ai.schema.json`.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -71,6 +69,8 @@ pub struct AiResponse {
     pub review: Review,
     #[serde(default)]
     pub tool_calls: Vec<ProposedToolCall>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_state: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +139,7 @@ impl ChatOpts {
         self.app_id = Some(id.into());
         self
     }
-    /// Legacy option. Omit it: model-only chat rejects nonempty lists.
+    /// Legacy catalog names are not accepted. Use [`chat_request`] for App functions.
     pub fn tools<I, S>(mut self, tools: I) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -165,6 +165,28 @@ pub fn chat(prompt: &str, opts: ChatOpts) -> Result<AiResponse, AiError> {
         .filter(|value| !value.trim().is_empty())
         .ok_or_else(|| AiError::InvalidArg("chat: prompt origin is required".into()))?;
     dispatch(prompt, origin, &opts)
+}
+
+/// Call the configured text model with optional App functions and prior results.
+pub fn chat_request(request: &AiChatRequest) -> Result<AiResponse, AiError> {
+    let value = serde_json::to_value(request)
+        .map_err(|error| AiError::InvalidArg(error.to_string()))?;
+    let input = serde_json::to_vec(&value)
+        .map_err(|error| AiError::InvalidArg(error.to_string()))?;
+    if input.len() > 512 * 1024 {
+        return Err(AiError::InvalidArg("App chat request exceeds the byte limit".into()));
+    }
+    crate::generated::validate_ai_chat_request(&value)
+        .map_err(|error| AiError::InvalidArg(error.to_string()))?;
+    match crate::yu_call_json_structured_input(
+        "ai", "chat", ["ai", "chat", "--request-stdin"], Some(&input),
+        std::process::Stdio::piped(), None,
+    ) {
+        Ok(reply) => parse_response(reply),
+        Err(StructuredCosError::App(error)) =>
+            Err(classify_ai_error(&error.message, &error.payload)),
+        Err(StructuredCosError::Bridge(error)) => Err(AiError::Bridge(error)),
+    }
 }
 
 /// Run the owner's configured embedding, speech, image, or decision model.

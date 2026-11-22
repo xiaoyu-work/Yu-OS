@@ -75,8 +75,7 @@ generated binding compatibility. No new SDK execution API is introduced.
 Yu OS calls the user's configured model API (or runs the configured local
 model). It does not start the system Agent or attach its prompts, memory,
 history, or tools. Yu OS keeps provider credentials; the App sends input
-and receives the model result. Chat rejects nonempty tool lists, even if an
-older manifest declares them. The optional `system` text is the App's own
+and receives the model result. The optional `system` text is the App's own
 instruction to the model.
 
 In `app.json`, add the capability you need, for example `{"verb": "ai.chat"}`.
@@ -131,6 +130,55 @@ The standalone budget query in Python, Node, and Go reports the App, period,
 and units used. The CLI does not return a cap, so the query result has no
 cap field. The chat reply's separate budget snapshot still returns its
 actual cap.
+
+### App-owned tools
+
+If the configured text model supports function calling, give it only
+functions your App implements. The model proposes a call; **your App
+validates and runs it**, then sends back the result. Yu OS does not run
+these tools or add its own. No new manifest permission is needed for
+the model request; any action your App takes still needs its own permissions.
+
+```python
+from dataclasses import asdict
+from yuos_sdk import ai
+
+request = {
+    "origin": "trusted",
+    "prompt": "Look up the price of tea, then tell me the price.",
+    "tools": [{
+        "name": "lookup_price",
+        "description": "Look up the App's price for an item.",
+        "parameters": {
+            "type": "object",
+            "properties": {"item": {"type": "string", "enum": ["tea"]}},
+            "required": ["item"],
+        },
+    }],
+}
+
+reply = ai.chat_request(request)
+if reply.tool_calls:
+    results = []
+    for call in reply.tool_calls:
+        if call.name != "lookup_price" or call.input != {"item": "tea"}:
+            results.append({"id": call.id, "content": "Unknown item", "is_error": True})
+        else:
+            results.append({"id": call.id, "content": "Tea costs $3."})
+    turn = {"text": reply.text, "calls": [asdict(c) for c in reply.tool_calls], "results": results}
+    if reply.provider_state:
+        turn["provider_state"] = reply.provider_state
+    reply = ai.chat_request({**request, "tool_turns": [turn]})
+print(reply.text)
+```
+
+In Node, use `await ai.chatRequest(request, {signal})`; Go uses
+`ChatRequest(ctx, request)`; Rust uses `ai::chat_request(&request)`.
+Keep prior `tool_turns` in order if the model asks for another call.
+Pass one result per call ID and echo optional `provider_state` unchanged.
+For results derived from files, email or web pages, use `external-content`.
+Each request is budgeted separately. Legacy `--tools` catalog names and
+provider-hosted tool types are not accepted. This requires an updated runtime.
 
 ## SDK source and code generation
 

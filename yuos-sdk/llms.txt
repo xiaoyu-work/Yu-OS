@@ -4,7 +4,8 @@
 
 Pick the guide for the direction you need: **App → model** or **system Agent → App tool**. Installing the SDK alone does not provide the Yu OS runtime or authorize calls.
 
-- For model access, see Quickstart. Put the AI verb in `app.json`, e.g. `{"verb":"ai.chat"}`. Omit `scope` and `why`. Use `ai.chat` for text or `ai.infer` for embeddings, TTS, STT, images, and decisions. Yu OS uses the owner's configured model API or local model. Apps receive no credentials, Agent context, or system tools; do not pass `tools` to `ai.chat`.
+- For model access, see Quickstart. Put the AI verb in `app.json`, e.g. `{"verb":"ai.chat"}`. Omit `scope` and `why`. Use `ai.chat` for text or `ai.infer` for embeddings, TTS, STT, images, and decisions. Yu OS uses the owner's configured model without exposing credentials, Agent context, or system tools.
+- For App-owned functions, use `chat_request` (Python/Rust), `chatRequest` (Node), or `ChatRequest` (Go). Send custom function schemas, validate and execute the proposals in App code, and send results back by call ID in `tool_turns`. No system tool catalog or MCP dispatch is available in this path.
 - Optional GUI model permissions are controlled in Settings → Applications. When inference returns `PERMISSION_DENIED` with `detail.reason = "model_permission_required"`, show App-owned copy and let the user open Settings. Do not retry without a user action or let the App approve itself.
 - Use a signed `app.json` with `schema_version: 2` and `mcp.tools` for Agent-facing tools. Bind handlers to the declared names. An MCP-only App needs no `operations` or `main.py`. Name a tool `<app-id>.<command>` to expose `yu app <app-id> <command>`.
 - Use the Gateway's call context, not tool arguments or environment variables, for caller identity. Keep MCP stdout for protocol messages; log to stderr.

@@ -3,6 +3,7 @@
 use serde_json::Value;
 
 use super::{authority::Decision, client_identity::ClientIdentity, protocol::BrokerError};
+use super::wire::requests::AiChat;
 use crate::ai::{gate, inference};
 
 const MODEL_PERMISSION_REQUIRED: &str = "model_permission_required";
@@ -15,22 +16,29 @@ pub async fn chat(
     client: &ClientIdentity,
     authority: &Decision,
 ) -> Result<Value, BrokerError> {
-    let body: super::wire::requests::AiChat =
+    let body: AiChat =
         serde_json::from_value(params).map_err(|_| BrokerError::execution("invalid AI request"))?;
-    require_app(authority, body.app_id.as_str())?;
+    let app_id = match &body {
+        AiChat::Text(body) => body.app_id.as_str(),
+        AiChat::Request(body) => body.app_id.as_str(),
+    }.to_owned();
+    require_app(authority, &app_id)?;
     // Worker relays call handlers directly, so enforce bounds here too.
     let _permit = IN_FLIGHT
         .try_acquire()
         .map_err(|_| BrokerError::unavailable("AI gate is busy"))?;
     let home = client.require_home_dir()?;
-    let req = gate::ChatRequest {
-        app_id: body.app_id.as_str().into(),
-        origin: body.origin.as_str().into(),
-        prompt: Some(body.prompt.as_str().into()),
-        system: body.system.map(|s| s.as_str().into()),
-        max_units: body.max_units,
-        tools: body.tools.as_slice().to_vec(),
-        ..Default::default()
+    let req = match body {
+        AiChat::Text(body) => gate::ChatRequest {
+            app_id: app_id.clone(),
+            origin: body.origin.as_str().into(),
+            prompt: Some(body.prompt.as_str().into()),
+            system: body.system.map(|s| s.as_str().into()),
+            max_units: body.max_units,
+            tools: body.tools.as_slice().to_vec(),
+            ..Default::default()
+        },
+        AiChat::Request(body) => body.request.into_request(app_id.clone()),
     };
     crate::paths::with_user_override(authority.owner_uid(), home, async {
         // Only daemon configuration is consulted. Client environment fields
@@ -39,7 +47,7 @@ pub async fn chat(
             tokio::time::timeout(CHAT_TIMEOUT, gate::chat_authorized(req, authority))
                 .await
                 .map_err(|_| BrokerError::unavailable("AI request deadline exceeded"))?
-                .map_err(|error| error_reply(body.app_id.as_str(), error))
+                .map_err(|error| error_reply(&app_id, error))
                 .and_then(|result| {
                     serde_json::to_value(result)
                         .map_err(|error| BrokerError::execution(error.to_string()))

@@ -54,12 +54,14 @@ from typing import Any, Dict, List, Literal, Mapping, NoReturn, Optional, cast
 
 from ._transport import WIRE_ARG, WireDenied, WireUnavailable, decode_response
 from .generated import (
+    AiChatRequest,
     AiInference,
     AiInferenceRequest,
     WireDecodeError,
     WireJsonValue,
     encode_wire_json,
     validate_ai,
+    validate_ai_chat_request,
     validate_ai_inference,
     validate_ai_inference_request,
     validate_budget_show,
@@ -141,7 +143,7 @@ class Review:
 
 @dataclass
 class ProposedToolCall:
-    """Compatibility shape for older runtimes. Model-only chat returns no proposals."""
+    """A proposed call to an App function; only the App decides whether to execute it."""
 
     id: str
     name: str
@@ -159,6 +161,7 @@ class AiResponse:
     review: Review = field(default_factory=Review)
     tool_calls: List[ProposedToolCall] = field(default_factory=list)
     raw: Dict[str, WireJsonValue] = field(default_factory=dict)
+    provider_state: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -183,8 +186,8 @@ def chat(
     App and owner policy determines redaction; the label is not a safety guarantee.
 
     ``system`` is an optional instruction supplied by the App, not the
-    system Agent's prompt. Omit the legacy ``tools`` option; model-only
-    chat rejects nonempty tool lists.
+    system Agent's prompt. Use :func:`chat_request` for App-owned functions.
+    Legacy catalog tool names are not accepted by chat.
 
     Returns an :class:`AiResponse`. Raises :class:`AiBudgetExceeded`,
     :class:`AiSafetyViolation`, :class:`AiDenied`, or
@@ -203,6 +206,15 @@ def chat(
         app_id=app_id,
         tools=tools,
     )
+
+
+def chat_request(request: AiChatRequest) -> AiResponse:
+    """Call the configured text model with optional App functions and prior tool results."""
+    data = encode_wire_json(request).encode("utf-8")
+    if len(data) > 512 * 1024:
+        raise AiError("App chat request exceeds the byte limit")
+    validate_ai_chat_request(request)
+    return _parse_response(_model_call("chat", "--request-stdin", data=data))
 
 
 def infer(request: AiInferenceRequest) -> AiInference:
@@ -388,6 +400,7 @@ def _parse_response(env: Any) -> AiResponse:
         ),
         tool_calls=parsed_calls,
         raw=dict(env),
+        provider_state=env.get("provider_state"),
     )
 
 

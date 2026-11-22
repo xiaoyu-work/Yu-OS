@@ -10,7 +10,8 @@ system callers that request AI work outside the interactive agent loop.
 - Authorize AI verbs/scopes and app identity.
 - Apply consent and budget decisions.
 - Call the owner's configured model without Agent prompts, history, memory,
-  or tool execution. Text chat rejects tool lists and unsolicited tool replies.
+  system tools, or tool execution. The App supplies custom function schemas
+  and returns the results; the gate rejects undeclared proposals.
 - Record usage and deny direct provider ownership by apps.
 - Serve SDK `yu ai chat` through the authenticated `yuosd` `ai.chat` route.
   Workers receive neither the session registry, provider credentials nor network
@@ -34,6 +35,7 @@ system callers that request AI work outside the interactive agent loop.
 | `gate.rs` | AI request validation, authorization, provider call |
 | `consent.rs` | Persisted consent decisions |
 | `chat.rs` | AI chat request surface |
+| `app_tools.rs` | Bounded App-owned function schemas, matched result replay, and proposal projection |
 | `inference.rs`, `inference/` | Closed App model input, configured provider dispatch, and owner-local worker |
 
 ## Dependencies

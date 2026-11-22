@@ -269,6 +269,10 @@ history, or tools. The broker owns credentials, selection, budgets,
 prompt-origin policy, and model-visible logging. `tools.call` makes a separate
 capability-checked App operation; it is not part of inference or MCP.
 
+[App-owned functions](../yuos-sdk/REFERENCE.md#app-owned-tools) are schemas
+the App passes to its model, not tools registered with the system Agent. The
+App owns validation, execution, and any follow-up request carrying results.
+
 SDK chat calls require explicit prompt origin. `external-content` selects
 the separate `ai.chat.untrusted` capability, not a safety profile. The
 effective App and owner policy selects the profile: `strict` and `standard`

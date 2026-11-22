@@ -89,6 +89,7 @@ use crate::caps::manifest::{AiSafety, PromptOrigin};
 use crate::caps::{self, Scope, Verb};
 use crate::config;
 
+use super::app_tools::AppTools;
 use super::budget::{BudgetError, Store};
 use super::consent;
 use super::overrides;
@@ -134,6 +135,7 @@ pub struct ChatRequest {
 
     /// Legacy input carried by older clients. The gate rejects nonempty lists.
     pub tools: Vec<String>,
+    pub(crate) app_tools: AppTools,
 }
 
 /// Structured envelope returned to apps. Always JSON-serialisable.
@@ -160,17 +162,19 @@ pub struct ChatResult {
     pub budget: BudgetReport,
     pub review: ReviewReport,
 
-    /// Legacy wire field. Model-only calls never return tool proposals.
+    /// Validated proposals for this request's App-owned functions.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_calls: Vec<ProposedToolCall>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_state: Option<String>,
 }
 
-/// Legacy wire shape, retained for decoding earlier chat replies.
+/// A tool call proposal, not authority to execute it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProposedToolCall {
     /// Provider-issued unique id.
     pub id: String,
-    /// Tool name from the App-facing catalog (e.g. `"fs.read_text"`).
+    /// Name of the function supplied by the App for this request.
     pub name: String,
     /// JSON arguments the model wants to pass.
     pub input: serde_json::Value,
@@ -411,9 +415,11 @@ pub enum AiError {
     #[error("modality `{0}` is not yet wired to a provider — gate is ready, but no installed model supports it")]
     ModalityNotSupported(&'static str),
 
-    #[error("App model calls do not support tools; remove the tools option")]
+    #[error("App model calls do not support tools by catalog name; supply App-owned functions in a chat request")]
     ToolsNotSupported,
 
+    #[error("invalid App tool turn: {0}")]
+    InvalidToolTurn(&'static str),
     #[error("missing required input for `{modality}`: {field}")]
     MissingInput {
         modality: &'static str,
@@ -456,6 +462,7 @@ impl AiError {
             AiError::BadOrigin(_)
             | AiError::ModalityConflict(_)
             | AiError::ToolsNotSupported
+            | AiError::InvalidToolTurn(_)
             | AiError::MissingInput { .. }
             | AiError::InvalidInference(_) => "INVALID_ARGS",
             AiError::NoAiPolicy { .. }
@@ -587,6 +594,7 @@ pub(crate) fn denial_reason_token(err: &AiError) -> &'static str {
         AiError::ModalityConflict(_) => "modality_conflict",
         AiError::ModalityNotSupported(_) => "modality_not_supported",
         AiError::ToolsNotSupported => "tools_not_supported",
+        AiError::InvalidToolTurn(_) => "invalid_tool_turn",
         AiError::MissingInput { .. } => "missing_input",
         AiError::InvalidInference(_) => "invalid_args",
         AiError::Denied(_) => "caps_denied",
@@ -896,7 +904,7 @@ async fn chat_inner(
     }
 
     // 7. Apply safety pipeline to the prompt (when present).
-    let (prompt_for_provider, prompt_redacted) = match req.prompt.as_deref() {
+    let (prompt_for_provider, mut prompt_redacted) = match req.prompt.as_deref() {
         Some(p) if !p.is_empty() => {
             let (out, changed) = apply_safety(p, policy.safety);
             (Some(out), changed)
@@ -919,6 +927,12 @@ async fn chat_inner(
         req.system.as_deref(),
         DEFAULT_APP_MAX_OUTPUT_TOKENS,
     );
+    llm_req.tools = req.app_tools.project(
+        &cfg.provider, &model, policy.safety, &mut llm_req.messages, &mut prompt_redacted,
+    )?;
+    if !llm_req.tools.is_empty() {
+        llm_req.tool_choice = ToolChoice::Auto;
+    }
     let input_units = estimate_input_units(&llm_req);
     if let Some(limit) = req.max_units {
         let minimum = input_units.saturating_add(1);
@@ -992,17 +1006,6 @@ async fn chat_inner(
         }
     }
 
-    if llm_resp.finish_reason == FinishReason::ToolUse
-        || !llm_resp.tool_calls.is_empty()
-        || llm_resp
-            .content
-            .iter()
-            .any(|block| matches!(block, ContentBlock::ToolUse { .. }))
-    {
-        return Err(AiError::Provider(
-            "text model returned an unexpected tool call".into(),
-        ));
-    }
     let text = llm_resp
         .content
         .iter()
@@ -1012,6 +1015,9 @@ async fn chat_inner(
         })
         .collect::<Vec<_>>()
         .join("\n");
+    let input_tokens = llm_resp.usage.input_tokens;
+    let output_tokens = llm_resp.usage.output_tokens;
+    let (tool_calls, provider_state) = req.app_tools.proposals(&cfg.provider, &model, llm_resp)?;
 
     Ok(ChatResult {
         text,
@@ -1021,8 +1027,8 @@ async fn chat_inner(
         provider: provider.name().to_string(),
         verb: verb.as_str().to_string(),
         usage: Usage {
-            input_tokens: llm_resp.usage.input_tokens,
-            output_tokens: llm_resp.usage.output_tokens,
+            input_tokens,
+            output_tokens,
             units: actual_units,
         },
         budget: BudgetReport {
@@ -1034,7 +1040,8 @@ async fn chat_inner(
             safety: safety_label(policy.safety),
             prompt_redacted,
         },
-        tool_calls: Vec::new(),
+        tool_calls,
+        provider_state,
     })
 }
 

@@ -15,8 +15,9 @@ Rust, Python, Node, and Go bindings.
 - Provide public SDK calls without exposing internal broker details.
 - `yu ai chat` transports bounded text, an optional App instruction and a
   per-call budget to the authenticated broker. It uses the owner's model
-  without Agent context or system tools. Legacy tool options remain decodable
-  but nonempty lists are rejected. Hosted Apps do not own provider access.
+  without Agent context or system tools. Structured `chat --request-stdin`
+  accepts App-owned function schemas and results; Apps execute proposals
+  themselves. Legacy catalog names are rejected.
 - Use `ai.infer` for the other five model slots. Its versioned request/reply
   carry only model inputs and results, never a provider selection, file path,
   or grant. Optional GUI permission failures carry a Settings recovery reason.
@@ -44,6 +45,7 @@ Rust, Python, Node, and Go bindings.
 | `README.md`, `QUICKSTART.md`, `llms.txt`, `REFERENCE.md` | SDK entry points for developers and coding agents, runnable example, and shared reference |
 | `wire/` | Versioned contract and code generation |
 | `wire/v1/contract.json` | Generated decoder set, stable validation errors, and JSON-RPC codes |
+| `wire/v1/ai_chat_request.schema.json` | Bounded App model input and optional App-owned function rounds, with no tool dispatch authority |
 | `wire/v1/object_ref.schema.json`, `wire/v1/object-references.md` | Object reference shape and normative identity/URI semantics |
 | `wire/v1/object_ref.vectors.json` | Shared four-language object-reference conformance vectors |
 | `wire/v1/manifest_extensions.vectors.json` | Shared MCP-only/mixed manifest cases retaining object metadata without exposing extra tools |

@@ -58,5 +58,6 @@ Approve any capability prompt. The model generates the text in `summary`, for ex
 ```
 
 [All model slots](REFERENCE.md#ai-support) ·
+[Give the model your own tools](REFERENCE.md#app-owned-tools) ·
 [Model permissions in Settings](../docs/app-development.md#model-permissions-in-settings) ·
 [Separate path: Agent calls your App (MCP)](../docs/app-development.md#quickstart-an-mcp-only-app)

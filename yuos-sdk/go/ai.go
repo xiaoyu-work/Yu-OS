@@ -63,7 +63,7 @@ func (e *AiSafetyViolationError) Error() string {
 	return "AI safety violation"
 }
 
-// ProposedToolCall decodes older runtimes' replies. Model-only chat returns no proposals.
+// ProposedToolCall is a proposal for an App function, not authorization to execute it.
 type ProposedToolCall struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
@@ -73,15 +73,16 @@ type ProposedToolCall struct {
 // AiResponse is the parsed reply from the AI gate. It reuses the
 // generated AiUsage / AiBudget / AiReview wire types.
 type AiResponse struct {
-	Text      string
-	Model     string
-	Provider  string
-	Verb      string
-	Usage     AiUsage
-	Budget    AiBudget
-	Review    AiReview
-	ToolCalls []ProposedToolCall
-	Raw       map[string]any
+	Text          string
+	Model         string
+	Provider      string
+	Verb          string
+	Usage         AiUsage
+	Budget        AiBudget
+	Review        AiReview
+	ToolCalls     []ProposedToolCall
+	ProviderState string
+	Raw           map[string]any
 }
 
 // ChatOptions are the optional parameters for Chat.
@@ -95,7 +96,7 @@ type ChatOptions struct {
 	System string
 	// AppID is the app identity; defaults to $YUOS_APP_ID.
 	AppID string
-	// Deprecated: Omit Tools. Model-only chat rejects nonempty lists.
+	// Deprecated: Catalog names are not accepted. Use ChatRequest for App functions.
 	Tools []string
 }
 
@@ -117,6 +118,37 @@ func ChatContext(ctx context.Context, prompt string, opts ChatOptions) (*AiRespo
 		return nil, err
 	}
 	return dispatch(ctx, prompt, opts)
+}
+
+// ChatRequest calls the configured text model with optional App functions and prior results.
+func ChatRequest(ctx context.Context, request AiChatRequest) (*AiResponse, error) {
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+	if len(payload) > 512*1024 {
+		return nil, fmt.Errorf("App chat request exceeds the byte limit")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.UseNumber()
+	var body map[string]any
+	if err := decoder.Decode(&body); err != nil {
+		return nil, err
+	}
+	if err := ValidateAiChatRequest(body); err != nil {
+		return nil, err
+	}
+	out, err := yuCallJSONContext(ctx, "yu ai chat", []string{"ai", "chat", "--request-stdin"}, payload)
+	if denied, ok := err.(*DeniedError); ok {
+		return nil, classifyError(denied.Payload)
+	}
+	if unavailable, ok := err.(*UnavailableError); ok {
+		return nil, &AiUnavailableError{Msg: unavailable.Msg}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return parseResponse(out.Data)
 }
 
 // Infer invokes the owner's configured embedding, speech, image, or decision model.
@@ -348,7 +380,8 @@ func parseResponse(value any) (*AiResponse, error) {
 			Safety:         asString(review["safety"]),
 			PromptRedacted: asBool(review["prompt_redacted"]),
 		},
-		ToolCalls: calls,
-		Raw:       env,
+		ToolCalls:     calls,
+		ProviderState: asString(env["provider_state"]),
+		Raw:           env,
 	}, nil
 }

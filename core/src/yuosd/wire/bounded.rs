@@ -35,6 +35,7 @@ pub const MAX_STRUCTURED_KEY_BYTES: usize = 256;
 /// Keep the SDK's `APP_ARGS_STDIN_MAX_BYTES` in sync.
 pub const APP_ARGS_STDIN_MAX_BYTES: usize = super::MAX_REQUEST_BYTES - 16 * 1024;
 pub const AI_INFERENCE_REQUEST_BYTES: usize = 720 * 1024;
+pub const AI_CHAT_REQUEST_BYTES: usize = 512 * 1024;
 pub const FILE_TEXT_MAX_BYTES: usize = 1_000_000;
 
 /// UTF-8 file content is data, including NUL/control characters. Unlike

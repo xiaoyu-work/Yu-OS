@@ -2302,6 +2302,10 @@ fn dispatch_with_stdin_impl(
         return crate::ai::inference::cli(&args[2..], stdin_data.as_deref())
             .map(|value| Some(value.to_string()));
     }
+    if name == "ai" && args == ["ai", "chat", "--request-stdin"] {
+        return crate::ai::chat::structured_cmd(stdin_data.as_deref())
+            .map(|value| Some(value.to_string()));
+    }
 
     // Built-in OS primitives
     match name.as_str() {

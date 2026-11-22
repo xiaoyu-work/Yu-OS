@@ -97,8 +97,13 @@
     },
     "tool_calls": {
       "type": "array",
-      "description": "Tool calls proposed by the model. The kernel does not execute them inline.",
+      "description": "Proposed calls to functions defined by the App. The App validates and executes them, not Yu OS.",
       "items": { "$ref": "#/$defs/AiToolCall" }
+    },
+    "provider_state": {
+      "type": "string",
+      "x-max-utf8-bytes": 65536,
+      "description": "Optional model-issued continuation data. Echo unchanged with the related App tool results."
     }
   },
   "$defs": {

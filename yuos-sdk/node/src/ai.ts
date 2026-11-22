@@ -31,10 +31,12 @@ import {
   stringifyWireJson,
   type WireJsonValue,
   validateAi,
+  validateAiChatRequest,
   validateAiInference,
   validateAiInferenceRequest,
   validateBudgetShow,
   type AiBudget,
+  type AiChatRequest,
   type AiInference,
   type AiInferenceRequest,
 } from "./generated";
@@ -80,7 +82,7 @@ export interface Review {
   promptRedacted: boolean;
 }
 
-/** Compatibility shape for older runtimes. Model-only chat returns no proposals. */
+/** A proposal for an App function, not authorization to execute it. */
 export interface ProposedToolCall {
   id: string;
   name: string;
@@ -96,6 +98,7 @@ export interface AiResponse {
   budget: Budget;
   review: Review;
   toolCalls: ProposedToolCall[];
+  providerState?: string;
   raw: Record<string, WireJsonValue>;
 }
 
@@ -107,7 +110,7 @@ export interface ChatOptions {
   system?: string;
   /** App identity. Defaults to `YUOS_APP_ID`. */
   appId?: string;
-  /** @deprecated Omit this option. Model-only chat rejects nonempty lists. */
+  /** @deprecated Catalog names are not accepted. Use {@link chatRequest} for App functions. */
   tools?: string[];
   /** In an MCP handler, pass the call's signal to inherit its deadline and cancellation. */
   signal?: AbortSignal;
@@ -150,6 +153,23 @@ export async function chat(prompt: string, opts: ChatOptions): Promise<AiRespons
     return parseResponse(data);
   } finally {
     await rm(privateDir, { recursive: true, force: true });
+  }
+}
+
+/** Call the configured text model with optional App functions and prior tool results. */
+export async function chatRequest(
+  request: AiChatRequest,
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<AiResponse> {
+  const input = stringifyWireJson(materializeWireValue(request));
+  if (Buffer.byteLength(input) > 512 * 1024) throw new AiError("App chat request exceeds the byte limit");
+  validateAiChatRequest(request);
+  try {
+    return parseResponse(await yuCallJsonAsync("yu ai chat", ["ai", "chat", "--request-stdin"], signal, input));
+  } catch (error) {
+    if (error instanceof Denied) raiseForError(error.payload);
+    if (error instanceof Unavailable) throw new AiUnavailable(error.message);
+    throw error;
   }
 }
 
@@ -266,6 +286,7 @@ function parseResponse(env: unknown): AiResponse {
       promptRedacted: review.prompt_redacted,
     },
     toolCalls,
+    providerState: env.provider_state,
     raw: materializeWireValue(env) as Record<string, WireJsonValue>,
   };
 }

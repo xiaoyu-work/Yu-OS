@@ -14,6 +14,8 @@
 //!
 //! Other configured model slots use `yu ai infer --request-stdin`.
 //! Legacy non-text flags on `yu ai chat` do not invoke those slots.
+//! `yu ai chat --request-stdin` accepts optional App-owned functions and
+//! App-supplied tool results. The gate never dispatches them.
 //!
 //! Flags:
 //!   --app <id>           App requesting the call (required).
@@ -216,9 +218,28 @@ pub fn chat_cmd(args: &[String]) -> Result<Value, String> {
         video_input,
         video_output,
         tools,
+        ..Default::default()
     };
 
     broker_chat(req)
+}
+
+pub(crate) fn structured_cmd(stdin: Option<&[u8]>) -> Result<Value, String> {
+    let input = stdin
+        .filter(|input| input.len() <= crate::yuosd::wire::bounded::AI_CHAT_REQUEST_BYTES)
+        .ok_or_else(|| super::invalid_args("chat requires bounded JSON on stdin"))?;
+    let request = serde_json::from_slice::<Value>(input)
+        .map_err(|_| super::invalid_args("chat requires valid JSON"))?;
+    yuos_sdk::generated::validate_ai_chat_request(&request)
+        .map_err(|error| super::invalid_args(error.to_string()))?;
+    let app = std::env::var("YUOS_APP_ID")
+        .map_err(|_| super::permission_denied("App identity is required", None))?;
+    let session = std::env::var("YUOS_SESSION")
+        .map_err(|_| super::permission_denied("App session is required", None))?;
+    broker_request(
+        crate::yuosd::routes::Command::AiChat,
+        serde_json::json!({"session": session, "app_id": app, "request": request}),
+    )
 }
 
 fn read_input_file(path: &str) -> Result<String, String> {

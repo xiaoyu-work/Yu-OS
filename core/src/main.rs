@@ -326,11 +326,15 @@ fn main() {
     // guard cleans up its registry row on Drop.
     let _session_guard = caps::bootstrap_user_cli_session(&args);
 
-    let result = if args.as_slice() == ["ai", "infer", "--request-stdin"] {
-        read_requested_stdin(
-            std::io::stdin(),
-            yu::yuosd::wire::bounded::AI_INFERENCE_REQUEST_BYTES,
-        )
+    let ai_stdin_limit = if args.as_slice() == ["ai", "infer", "--request-stdin"] {
+        Some(yu::yuosd::wire::bounded::AI_INFERENCE_REQUEST_BYTES)
+    } else if args.as_slice() == ["ai", "chat", "--request-stdin"] {
+        Some(yu::yuosd::wire::bounded::AI_CHAT_REQUEST_BYTES)
+    } else {
+        None
+    };
+    let result = if let Some(limit) = ai_stdin_limit {
+        read_requested_stdin(std::io::stdin(), limit)
         .map_err(|error| {
             serde_json::json!({"error": error, "code": "INVALID_ARGS"}).to_string()
         })

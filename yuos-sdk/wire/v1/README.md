@@ -14,9 +14,13 @@ returns [`ai_inference.schema.json`](ai_inference.schema.json) in the same
 wire-v1 envelope. It uses the owner's embedding, TTS, STT, image generation,
 or local decision slot. It does not enable the reserved vision/video chat flags.
 
-These routes are model-only, not system Agent calls. Legacy nonempty
-`--tools` lists return `INVALID_ARGS`; no `tool_calls` are returned by
-model-only chat. Wire-v1 clients still decode that field for older runtimes.
+These routes call models, not the system Agent. Optional
+[`chat --request-stdin`](ai_chat_request.schema.json) accepts up to 512 KiB
+of JSON, with up to 16 App-owned functions and 16 prior tool rounds. It
+returns proposals only for declared App functions; the broker never
+executes them. Include the same functions on follow-up calls, one result
+for every prior call ID, and optional `provider_state` from the reply
+unchanged. Legacy catalog-name `--tools` lists return `INVALID_ARGS`.
 
 SDK callers must declare prompt origin; `origin=external-content` selects
 `ai.chat.untrusted` for chat. The effective policy determines redaction of
