@@ -58,10 +58,10 @@ Description: Private controlled Store inventory\n\n".to_vec();
             file(STATUS, &status);
             status
         };
-        let packages = if package_owned {
-            [PACKAGE, "yuos-package-acceptance-side-effect"]
+        let packages: &[&str] = if package_owned {
+            &[PACKAGE]
         } else {
-            [PACKAGE, "yuos-native-store-available"]
+            &[PACKAGE, "yuos-native-store-available"]
         };
         let components = packages
             .iter().enumerate().map(|(index, package)| format!(

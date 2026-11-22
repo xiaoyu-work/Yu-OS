@@ -1429,12 +1429,16 @@ pub(super) async fn run(group: &std::fs::File, product: Product) {
         if let Err(error) = fixture.consume(&retained, &process, &session, deadline, &before).await {
             renderer_failure(&control, &mut pam, &retained, &process, &session, &error).await;
         }
+        let searched = match fixture.input_frame(&retained, &process, &before, (1, "text", "prive")).await {
+            Ok(frame) => frame,
+            Err(error) => renderer_failure(&control, &mut pam, &retained, &process, &session, &error).await,
+        };
         if package_owned {
-            // Select the sole installed App without racing a live search repaint.
-            let mut frame = before.clone();
+            // Only the fixture App matches this search, not the system package group.
+            let mut frame = searched;
             for input in [
-                (1, "pointer", "120,510"), (2, "pointer", "500,130"),
-                (3, "pointer", "540,230"), (4, "pointer", "600,350"),
+                (2, "pointer", "500,80"), (3, "pointer", "540,230"),
+                (4, "pointer", "600,350"),
             ] {
                 frame = match fixture.input_frame(&retained, &process, &frame, input).await {
                     Ok(frame) => frame,
@@ -1445,8 +1449,6 @@ pub(super) async fn run(group: &std::fs::File, product: Product) {
                 Ok(review) => review,
                 Err(error) => renderer_failure(&control, &mut pam, &retained, &process, &session, &error).await,
             });
-        } else if let Err(error) = fixture.input_frame(&retained, &process, &before, (1, "text", "prive")).await {
-            renderer_failure(&control, &mut pam, &retained, &process, &session, &error).await;
         }
         assert_eq!(startup_authority(&session, &parent, product), original);
     }
