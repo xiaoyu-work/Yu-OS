@@ -86,10 +86,12 @@ OS-started Settings instance and a separate administrator decision.
 Settings Users can create a standard or administrator account with a
 password, or reset the password of a selected local account. The OS keeps
 that input out of the App credential store and process arguments.
-The first-run wizard uses a flat two-column layout. The greeter and the
-in-session locker use the light Yu OS wallpaper full-screen, with dark clock
-and account captions and the password field at the bottom. Cage and Qt Quick render the pre-login UI
-in software; the authenticated desktop retains its normal graphics backend.
+The first-run wizard uses the approved 04 design's two-column layout,
+controls, and appearance artwork. It stacks the columns on narrow displays.
+The greeter and in-session locker use the light Yu OS wallpaper full-screen,
+with dark clock and account captions and the password field at the bottom.
+Cage and Qt Quick render the pre-login UI in software; the authenticated
+desktop retains its normal graphics backend.
 Before greetd starts, the OS hides the text cursor on its configured graphics
 VT only. Mode changes can still briefly blank the display; the login PAM path
 and the ordinary text consoles keep their normal behavior.
@@ -99,9 +101,9 @@ NetworkManager-triggered driver service still reports packages after
 Appearance, Hardware is the final step. Network and Hardware don't disappear
 once entered. Hardware reads the real driver status; a reconnection lets the
 existing dispatcher retry and installation never blocks finishing.
-`yuos-desktop-locales` generates the installed locales. The regional controls
-preview installed XKB layouts, offer bundled Fcitx5 methods when present, and
-use tzdata for time zone names, locations, and current UTC offsets.
+`yuos-desktop-locales` generates the wizard's twelve bundled locales. The regional
+controls preview installed XKB layouts, offer bundled Fcitx5 methods when present,
+and show the country and local time for search results using installed tzdata.
 
 Models is optional and reads the `yu agent setup all providers` catalogue
 for conversation, speech recognition, speech synthesis, image generation,
@@ -110,13 +112,15 @@ applies completed selections via the same CLI. The local wizard keeps them
 in private staging until account creation. API keys go through stdin; the
 GitHub Copilot device flow polls in the backend. Saving either credential
 requires Polkit authorization for the active local setup, then the ordinary
-credential gate checks the one scoped write. Decision saves the selected
-alias without downloading or starting a model. Account names that need a
+credential gate checks the one scoped write. First-run Ollama setup uses a
+model name and optional endpoint without credentials. Decision saves the
+selected alias without downloading or starting a model. Account names that need a
 different POSIX login retain their display name in the system account.
 The welcome plays over the wallpaper mark while the existing greetd flow
-runs. It only greets the owner after greetd acknowledges the launch, then
-exits promptly to hand off to the real session. Login failures return to
-normal sign-in. Preconfigured users keep their current account and theme.
+runs. It shows the greeting and slides in a non-interactive top strip only
+after greetd acknowledges the launch. It then exits to the real desktop.
+Login failures return to normal sign-in. Preconfigured users keep their
+current account and theme.
 
 The subscriber's `--desktop` mode attaches to the Root login binding. It runs
 post-login configuration only on installed profiles that request it, starts

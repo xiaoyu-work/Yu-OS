@@ -81,7 +81,7 @@ surfaces.
 | `curator_commands.rs` | Skill-draft proposal, review, authoring, and session scanning |
 | `app_ai_commands.rs`, `task_commands.rs` | App AI budgets/overrides and todo/nudge commands |
 | `diagnostic_commands.rs`, `developer_commands.rs`, `text_commands.rs` | Public usage and observability, context/hooks, and text/prompt developer commands |
-| `setup.rs` | Provider/modality setup, OAuth, model discovery, verification |
+| `setup.rs` | Provider/modality setup, OAuth, model discovery, verification; non-interactive Ollama setup accepts an optional credential |
 | `setup/copilot.rs` | Copilot OAuth device flow and live model discovery |
 | `setup/media.rs` | TTS/STT/image/embedding specs, wizards, status, and probes |
 | `../../test/unit/agent/setup.rs` | Setup, status, apply, OAuth, and config regression tests |

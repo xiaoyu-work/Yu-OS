@@ -9,6 +9,7 @@ Column {
     required property string selected
     required property var clock
     required property string localTime
+    required property var formatTime
     readonly property var place: choices.find(row => row.id === selected)
     readonly property bool clockReady: clock.id === selected && !!selected
     signal choose(string value)
@@ -24,9 +25,14 @@ Column {
     SetupPicker {
         width: parent.width
         search: true
-        name: qsTr("Search time zones")
+        browseOnFocus: false
+        resultLimit: 6
+        name: qsTr("Search cities")
         placeholder: qsTr("Search")
-        choices: location.choices
+        choices: location.choices.map(row => Object.assign({}, row, {
+            meta: Number.isFinite(row.offsetMinutes) ? location.formatTime(row.offsetMinutes) : "",
+            search: Number.isFinite(row.offsetMinutes) ? location.offsetText(row.offsetMinutes).replace("−", "-") : ""
+        }))
         selected: location.selected
         onChosen: value => location.choose(value)
     }
@@ -93,7 +99,7 @@ Column {
                             const x = (point[1] + 180) / 360 * width;
                             const y = Math.max(0, Math.min(height, (dataGrid.north - point[0])
                                 / (dataGrid.north - dataGrid.south) * height));
-                            dot(x, y, 15, "#dbe6ff");
+                            dot(x, y, 15, "#24005cfe");
                             dot(x, y, 6.75, "white");
                             dot(x, y, 4.5, "#005cfe");
                         }
@@ -113,6 +119,9 @@ Column {
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
                         font.weight: Font.DemiBold
+                        color: "#0f1520"
+                        height: 20
+                        verticalAlignment: Text.AlignVCenter
                     }
                     Controls.Label {
                         width: parent.width
@@ -120,6 +129,8 @@ Column {
                         text: visible ? location.clock.abbr + " · " + location.offsetText(location.clock.offsetMinutes) : ""
                         textFormat: Text.PlainText
                         font.pixelSize: 13
+                        height: 18
+                        verticalAlignment: Text.AlignVCenter
                         color: "#667085"
                     }
                 }
@@ -127,6 +138,8 @@ Column {
                     text: location.clockReady ? location.localTime : ""
                     font.pixelSize: 22
                     font.weight: Font.DemiBold
+                    font.letterSpacing: -0.26
+                    color: "#0f1520"
                 }
             }
         }

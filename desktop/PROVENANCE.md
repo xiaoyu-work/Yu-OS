@@ -37,6 +37,10 @@ The [bundled account avatars](../assets/brand/avatars/) are original generated
 illustrations for Yu OS. They use no third-party characters or images.
 The first-run time zone map uses the approved setup design's
 [public-domain Natural Earth dot grid](hyprland-yuos/session/oobe/WorldDots.NOTICE).
+The [light](hyprland-yuos/session/oobe/appearance-light.png) and
+[dark](hyprland-yuos/session/oobe/appearance-dark.png) appearance thumbnails
+are the original setup mock's decorative artwork. They show the theme on an
+illustrated Files window without launching Files.
 
 ## Shared App framework
 

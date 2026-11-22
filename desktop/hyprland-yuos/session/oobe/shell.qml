@@ -15,15 +15,17 @@ ShellRoot {
     property string current: local ? "language" : ""
     property string networkPage: "undecided"
     property bool hardwareSeen: false
-    property var hardwarePackages: []
     property string phase: "setup"
     property bool passwordSubmitted: false
+    property bool retryAccount: false
+    property string rejectedName: ""
     property string username: ""
     property string password: ""
     property string confirmation: ""
     property string avatar: "fox"
     property string language: ""
     property string keyboard: ""
+    property bool keyboardChosen: false
     property string zone: ""
     property bool light: true
     property var state: ({
@@ -49,7 +51,11 @@ ShellRoot {
     readonly property bool last: index === steps.length - 1
     readonly property bool handingOff: ["working", "authenticating", "launching", "welcomed"].includes(phase)
     readonly property bool busy: handingOff || state.agentState === "saving"
-    readonly property bool validAccount: username.trim() !== "" && password !== "" && password === confirmation
+    readonly property bool nameRejected: rejectedName !== "" && username.trim().toLowerCase() === rejectedName
+    readonly property bool validAccount: username.trim() !== "" && !nameRejected && password !== "" && password === confirmation
+    readonly property bool accountFieldError: ["invalidUsername", "usernameTaken", "invalidPassword",
+        "passwordRejected", "invalidAvatar"].includes(state.finishError)
+    readonly property bool finishHere: last || (current === "account" && retryAccount)
     readonly property bool oauthBusy: ["starting", "authorizing", "loadingModels"].includes(state.oauthState)
     readonly property var titles: ({
         language: qsTr("Language"), keyboard: qsTr("Keyboard"), network: qsTr("Network"),
@@ -65,8 +71,9 @@ ShellRoot {
             en_US: ["English (United States)", ""], en_GB: ["English (United Kingdom)", ""],
             zh_CN: ["简体中文", qsTr("Chinese, Simplified")], zh_TW: ["繁體中文", qsTr("Chinese, Traditional")],
             ja_JP: ["日本語", qsTr("Japanese")], ko_KR: ["한국어", qsTr("Korean")], de_DE: ["Deutsch", qsTr("German")],
-            fr_FR: ["Français", qsTr("French")], es_ES: ["Español", qsTr("Spanish")], it_IT: ["Italiano", qsTr("Italian")],
-            pt_BR: ["Português (Brasil)", qsTr("Portuguese, Brazil")], ru_RU: ["Русский", qsTr("Russian")]
+            fr_FR: ["Français", qsTr("French")], es_ES: ["Español", qsTr("Spanish")],
+            pt_BR: ["Português (Brasil)", qsTr("Portuguese, Brazil")], it_IT: ["Italiano", qsTr("Italian")],
+            ru_RU: ["Русский", qsTr("Russian")]
         };
         const ordered = Object.keys(names).map(id => id + ".utf8");
         return [...ordered.filter(id => state.languages.includes(id)), ...state.languages.filter(id => !ordered.includes(id))]
@@ -87,30 +94,29 @@ ShellRoot {
         const input = {
             pinyin: qsTr("Chinese (Pinyin)"), mozc: qsTr("Japanese (Mozc)"), hangul: qsTr("Korean (Hangul)")
         };
-        return Object.keys(labels).filter(id => !!state.keyboards[id])
-            .map(id => ({id: id, title: labels[id][0], meta: labels[id][1], keys: state.keyboards[id]}))
-            .concat(state.keyboards.us ? state.inputMethods.map(id => ({
-                id: id, title: input[id], meta: qsTr("US keyboard · Fcitx5"), keys: state.keyboards.us
-            })) : []);
+        return ["us", "gb", "pinyin", "mozc", "hangul", "de", "fr", "es", "it", "br", "ru", "jp"]
+            .map(id => state.keyboards[id]
+                ? {id: id, title: labels[id][0], meta: labels[id][1], keys: state.keyboards[id]}
+                : state.keyboards.us && state.inputMethods.includes(id) && input[id]
+                    ? {id: id, title: input[id], meta: "QWERTY", keys: state.keyboards.us} : null)
+            .filter(row => row !== null);
     }
+    readonly property string suggestedKeyboard: ({
+        en_US: "us", en_GB: "gb", zh_CN: "pinyin", zh_TW: "us", ja_JP: "mozc", ko_KR: "hangul",
+        de_DE: "de", fr_FR: "fr", es_ES: "es", it_IT: "it", pt_BR: "br", ru_RU: "ru"
+    })[language.split(".")[0]] ?? "us"
     readonly property var zoneChoices: state.zones.map(row => {
         const parts = row.id.split("/");
+        const region = parts.slice(0, -1).join(" / ");
         return {id: row.id, title: parts[parts.length - 1].replace(/_/g, " "),
-            meta: parts.slice(0, -1).join(" / "), point: row.point};
+            detail: [row.country ?? region, row.abbr].filter(value => value).join(" · "),
+            offsetMinutes: row.offsetMinutes, point: row.point};
     }).sort((a, b) => a.title.localeCompare(b.title))
-    readonly property string localTime: {
-        if (state.zoneClock.id !== zone)
-            return Qt.formatTime(clock.date, Qt.DefaultLocaleShortDate);
-        const shifted = new Date(clock.date.getTime() + state.zoneClock.offsetMinutes * 60000);
-        const hour = shifted.getUTCHours();
-        const minute = String(shifted.getUTCMinutes()).padStart(2, "0");
-        if (language === "en_US.utf8")
-            return qsTr("%1:%2 %3").arg(hour % 12 || 12).arg(minute).arg(hour >= 12 ? qsTr("PM") : qsTr("AM"));
-        return String(hour).padStart(2, "0") + ":" + minute;
-    }
+    readonly property string localTime: state.zoneClock.id === zone
+        ? formatZoneTime(state.zoneClock.offsetMinutes) : Qt.formatTime(clock.date, Qt.DefaultLocaleShortDate)
     readonly property string greeting: {
         const messages = {
-            zh_CN: "欢迎，%1", zh_TW: "歡迎，%1", ja_JP: "ようこそ、%1", ko_KR: "%1님, 환영합니다",
+            zh_CN: "欢迎，%1", zh_TW: "歡迎，%1", ja_JP: "ようこそ、%1 さん", ko_KR: "%1님, 환영합니다",
             de_DE: "Willkommen, %1", fr_FR: "Bienvenue, %1", es_ES: "Te damos la bienvenida, %1",
             it_IT: "Ti diamo il benvenuto, %1", pt_BR: "Boas-vindas, %1", ru_RU: "Добро пожаловать, %1"
         };
@@ -119,6 +125,14 @@ ShellRoot {
 
     function send(action, values) {
         backend.write(JSON.stringify(Object.assign({action: action}, values ?? {})) + "\n");
+    }
+    function formatZoneTime(offsetMinutes) {
+        const shifted = new Date(clock.date.getTime() + offsetMinutes * 60000);
+        const hour = shifted.getUTCHours();
+        const minute = String(shifted.getUTCMinutes()).padStart(2, "0");
+        if (language === "en_US.utf8")
+            return qsTr("%1:%2 %3").arg(hour % 12 || 12).arg(minute).arg(hour >= 12 ? qsTr("PM") : qsTr("AM"));
+        return String(hour).padStart(2, "0") + ":" + minute;
     }
     function change(next) {
         if (!next)
@@ -129,6 +143,7 @@ ShellRoot {
             hardwareSeen = true;
         current = next;
         scroll.contentY = 0;
+        scroll.pinnedTop = -1;
         if (next === "network")
             send("scan");
         else if (next === "models" && !Object.keys(state.catalogue).length)
@@ -139,28 +154,25 @@ ShellRoot {
     function advance() {
         if (current === "keyboard" && networkPage === "undecided" && connected)
             networkPage = "omitted";
-        if (last)
+        if (finishHere)
             finish();
         else
             change(steps[index + 1]);
     }
     function pickLanguage(value) {
         language = value;
-        const preferred = {
-            en_US: "us", en_GB: "gb", zh_CN: "pinyin", zh_TW: "us", ja_JP: "mozc", ko_KR: "hangul",
-            de_DE: "de", fr_FR: "fr", es_ES: "es", it_IT: "it", pt_BR: "br", ru_RU: "ru"
-        }[language.split(".")[0]];
-        if (keyboardChoices.some(row => row.id === preferred))
-            keyboard = preferred;
+        if (!keyboardChosen && keyboardChoices.some(row => row.id === suggestedKeyboard))
+            keyboard = suggestedKeyboard;
         else if (!keyboard)
             keyboard = keyboardChoices[0]?.id ?? "";
     }
     function receive(message) {
         const previousWifi = state.wifiState;
+        if ((current === "drivers" && message.driverState)
+                || (current === "models" && message.agentState === "saveFailed"))
+            scroll.pinWork();
         const saved = Object.assign({}, state.savedModels, message.savedModels ?? {}, message.appliedModels ?? {});
         state = Object.assign({}, state, message, {savedModels: saved});
-        if (message.packages?.length)
-            hardwarePackages = message.packages;
         if (message.languages && !language) {
             const preferred = (Quickshell.env("LANG") ?? "").replace(/\.(utf-8)$/i, ".utf8");
             pickLanguage(state.languages.includes(preferred) ? preferred
@@ -186,8 +198,12 @@ ShellRoot {
         }
         if (message.finishError) {
             phase = "setup";
-            if (["invalidUsername", "usernameTaken", "invalidPassword", "passwordRejected", "invalidAvatar"].includes(message.finishError))
+            if (accountFieldError) {
+                retryAccount = true;
+                if (["invalidUsername", "usernameTaken"].includes(message.finishError))
+                    rejectedName = username.trim().toLowerCase();
                 change("account");
+            }
         } else if (message.finished && phase === "working") {
             confirmation = "";
             if (!local) {
@@ -227,6 +243,7 @@ ShellRoot {
         authWindow.stop();
     }
     function continueSetup() {
+        scroll.pinWork();
         if (current === "models") {
             state = Object.assign({}, state, {agentState: "saving", modelError: "", modelErrorModality: ""});
             send("saveModels", {entries: page.item.entries()});
@@ -259,7 +276,6 @@ ShellRoot {
                 Greetd.cancelSession();
         }
     }
-    Timer { id: handoff; interval: setup.reduced ? 250 : 620; onTriggered: Qt.quit() }
     Connections {
         target: setup.local ? Greetd : null
         enabled: setup.phase === "authenticating" || setup.phase === "launching"
@@ -292,8 +308,6 @@ ShellRoot {
         function onLaunched() {
             authWindow.stop();
             setup.phase = "welcomed";
-            // greetd starts the desktop when the greeter exits. Keep this final hold short.
-            handoff.start();
         }
     }
 
@@ -318,11 +332,13 @@ ShellRoot {
         title: qsTr("Set up Yu OS")
         flags: Qt.FramelessWindowHint
         visibility: Window.FullScreen
-        width: 1280
-        height: 800
+        width: Screen.width || 1280
+        height: Screen.height || 800
         color: "#f3f5f7"
         font.family: "Inter"
         font.pixelSize: 15
+        font.letterSpacing: -0.09
+        font.hintingPreference: Font.PreferNoHinting
         onClosing: event => event.accepted = !setup.local || setup.phase === "signIn"
 
         readonly property real edge: Math.max(24, Math.min(80, width * 0.0625))
@@ -333,7 +349,7 @@ ShellRoot {
             anchors.fill: parent
             color: setup.light ? "#f3f5f7" : "#15181c"
             opacity: setup.handingOff ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: setup.reduced ? 0 : 280 } }
+            Behavior on opacity { NumberAnimation { duration: setup.reduced ? 0 : 640 } }
         }
         Item {
             id: surface
@@ -343,7 +359,7 @@ ShellRoot {
             opacity: setup.handingOff ? 0 : 1
             visible: opacity > 0
             enabled: !setup.handingOff
-            Behavior on opacity { NumberAnimation { duration: setup.reduced ? 0 : 240 } }
+            Behavior on opacity { NumberAnimation { duration: 200 } }
 
             Item {
                 id: header
@@ -380,15 +396,20 @@ ShellRoot {
                 anchors.bottomMargin: anchors.topMargin
                 readonly property real gap: Math.min(80, width / 14)
 
-                Controls.Label {
+                Text {
                     id: title
                     width: window.compact ? parent.width : Math.round(parent.width * 400 / 1120)
+                    height: Math.max(window.compact ? 38 : 48, implicitHeight)
                     y: window.compact ? 0 : (parent.height - height) / 2
                     horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                     wrapMode: Text.Wrap
                     color: "#0f1520"
+                    font.family: "Inter Display"
                     font.pixelSize: window.compact ? 30 : 40
                     font.weight: Font.DemiBold
+                    font.letterSpacing: window.compact ? -0.72 : -0.96
+                    font.hintingPreference: Font.PreferNoHinting
                     text: setup.titles[setup.current] ?? qsTr("Set up Yu OS")
                 }
                 Flickable {
@@ -400,14 +421,27 @@ ShellRoot {
                     contentWidth: width
                     contentHeight: Math.max(height, work.implicitHeight)
                     boundsBehavior: Flickable.StopAtBounds
-                    clip: true
+                    clip: contentHeight > height
+                    property real pinnedTop: -1
+                    function pinWork() {
+                        if (pinnedTop < 0)
+                            pinnedTop = work.y;
+                    }
+                    function settleTop() {
+                        if (pinnedTop > work.spare)
+                            pinnedTop = work.spare;
+                    }
+                    onHeightChanged: pinnedTop = -1
                     Controls.ScrollBar.vertical: Controls.ScrollBar {}
 
                     Column {
                         id: work
-                        y: Math.max(0, (scroll.height - implicitHeight) / 2)
+                        readonly property int spare: Math.max(0, scroll.height - implicitHeight)
+                        y: scroll.pinnedTop < 0 ? Math.round(spare / 2) : Math.min(scroll.pinnedTop, spare)
                         width: scroll.width
                         spacing: 8
+                        // Layout can measure intermediate sizes while replacing an expanded form.
+                        onSpareChanged: Qt.callLater(scroll.settleTop)
                         Loader {
                             id: page
                             width: work.width
@@ -424,12 +458,7 @@ ShellRoot {
                                     return qsTr("Your account is ready, but automatic sign-in didn't finish. Sign in with your password.");
                                 if (setup.state.backendUnavailable)
                                     return qsTr("Setup is unavailable. Restart this computer to try again.");
-                                const error = setup.state.finishError;
-                                if (!error || (setup.current === "account" && [
-                                    "invalidUsername", "usernameTaken", "invalidPassword", "passwordRejected", "invalidAvatar"
-                                ].includes(error)))
-                                    return "";
-                                return qsTr("Setup couldn't finish. Try again.");
+                                return "";
                             }
                         }
                     }
@@ -444,6 +473,7 @@ ShellRoot {
                 spacing: 8
 
                 SetupButton {
+                    Layout.leftMargin: -6
                     visible: setup.index > 0 && setup.phase !== "signIn"
                     enabled: !setup.busy
                     kind: "back"
@@ -457,6 +487,13 @@ ShellRoot {
                     }
                 }
                 Item { Layout.fillWidth: true }
+                SetupHint {
+                    Layout.maximumWidth: Math.max(0, footer.width - 235)
+                    Layout.rightMargin: 12
+                    error: true
+                    text: setup.state.finishError && !setup.accountFieldError
+                        ? qsTr("Couldn't create your account. Try again.") : ""
+                }
                 SetupButton {
                     visible: setup.current === "models" && setup.phase !== "signIn"
                     enabled: !setup.busy && !setup.state.backendUnavailable
@@ -471,6 +508,8 @@ ShellRoot {
                     objectName: "setupContinue"
                     visible: setup.index >= 0
                     kind: setup.current === "network" && !setup.connected ? "secondary" : "primary"
+                    busy: setup.state.agentState === "saving"
+                    reduceMotion: setup.reduced
                     enabled: setup.phase === "signIn" || (!setup.busy && !setup.state.backendUnavailable
                         && (setup.current !== "language" || !!setup.language)
                         && (setup.current !== "keyboard" || (!!setup.keyboard && setup.state.networkState !== "checking"))
@@ -480,41 +519,23 @@ ShellRoot {
                     text: setup.phase === "signIn" ? qsTr("Go to sign-in")
                         : setup.state.agentState === "saving" ? qsTr("Saving…")
                         : setup.current === "network" && !setup.connected ? qsTr("Continue offline")
-                        : setup.last && setup.current !== "models" ? qsTr("Finish setup") : qsTr("Continue")
+                        : setup.finishHere && setup.current !== "models" ? qsTr("Finish setup") : qsTr("Continue")
                     onClicked: setup.phase === "signIn" ? Qt.quit() : setup.continueSetup()
                 }
             }
         }
 
-        SetupMark {
-            id: mark
-            readonly property real wallpaperUnit: 0.72 * Math.max(window.width / 3840, window.height / 2160)
-            x: setup.handingOff ? (window.width - width) / 2 : surface.x
-            y: setup.handingOff ? (window.height - height) / 2 : window.vEdge + 4
-            width: setup.handingOff ? 563 * wallpaperUnit : 26
-            height: width * 524 / 563
-            ink: setup.handingOff && !setup.light ? "#eef2f7" : "#1e1e1e"
-            working: setup.handingOff && setup.phase !== "welcomed" && !setup.reduced
-            Behavior on x { NumberAnimation { duration: setup.reduced ? 0 : 400; easing.type: Easing.InOutCubic } }
-            Behavior on y { NumberAnimation { duration: setup.reduced ? 0 : 400; easing.type: Easing.InOutCubic } }
-            Behavior on width { NumberAnimation { duration: setup.reduced ? 0 : 400; easing.type: Easing.InOutCubic } }
-        }
-        Controls.Label {
-            objectName: "welcomeName"
-            anchors.top: mark.bottom
-            anchors.topMargin: Math.min(40, window.height * 0.05)
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: surface.width
-            horizontalAlignment: Text.AlignHCenter
-            color: setup.light ? "#0f1520" : "#eef2f7"
-            font.weight: Font.DemiBold
-            font.pixelSize: window.compact ? 30 : 40
-            textFormat: Text.PlainText
-            text: setup.phase === "welcomed" ? setup.greeting : ""
-            opacity: setup.phase === "welcomed" ? 1 : 0
-            visible: opacity > 0
-            elide: Text.ElideRight
-            Behavior on opacity { NumberAnimation { duration: setup.reduced ? 0 : 140 } }
+        SetupWelcome {
+            anchors.fill: parent
+            headerX: surface.x
+            headerY: window.vEdge + 4
+            active: setup.handingOff
+            acknowledged: setup.phase === "welcomed"
+            light: setup.light
+            reduceMotion: setup.reduced
+            greeting: setup.greeting
+            clock: setup.localTime
+            onFinished: Qt.quit()
         }
     }
 
@@ -525,6 +546,7 @@ ShellRoot {
             selected: setup.language
             availableHeight: scroll.height
             onChoose: value => setup.pickLanguage(value)
+            onSearchEdited: scroll.pinWork()
         }
     }
     Component {
@@ -532,13 +554,20 @@ ShellRoot {
         SetupKeyboard {
             layouts: setup.keyboardChoices
             selected: setup.keyboard
-            onChoose: value => setup.keyboard = value
+            preferred: setup.suggestedKeyboard
+            reduceMotion: setup.reduced
+            onChoose: value => {
+                setup.keyboard = value;
+                setup.keyboardChosen = true;
+            }
         }
     }
     Component {
         id: wifiPage
         SetupNetwork {
             snapshot: setup.state
+            onBeforeSelection: scroll.pinWork()
+            onClearFailure: setup.state = Object.assign({}, setup.state, {wifiState: "idle"})
             onConnectTo: (name, password) => {
                 setup.state = Object.assign({}, setup.state, {wifiState: "connecting", wifiName: name});
                 setup.send("wifi", {network: name, password: password});
@@ -549,7 +578,13 @@ ShellRoot {
         id: modelPage
         SetupModels {
             snapshot: setup.state
+            canOpenLinks: !setup.local
+            reduceMotion: setup.reduced
             onRequest: action => setup.send(action)
+            onBeforeExpansion: scroll.pinWork()
+            onClearSaveError: setup.state = Object.assign({}, setup.state, {
+                agentState: "idle", modelError: "", modelErrorModality: ""
+            })
             onReveal: item => {
                 const y = item.mapToItem(scroll.contentItem, 0, 0).y;
                 scroll.contentY = Math.max(0, Math.min(y, scroll.contentHeight - scroll.height));
@@ -563,7 +598,8 @@ ShellRoot {
             username: setup.username
             password: setup.password
             confirmation: setup.confirmation
-            error: setup.state.finishError
+            error: setup.nameRejected ? "usernameTaken" : setup.state.finishError
+            onBeforeValidation: scroll.pinWork()
             onChooseAvatar: value => { setup.avatar = value; setup.clearError(); }
             onEditName: value => { setup.username = value; setup.clearError(); }
             onEditPassword: value => { setup.password = value; setup.clearError(); }
@@ -578,6 +614,7 @@ ShellRoot {
             selected: setup.zone
             clock: setup.state.zoneClock
             localTime: setup.localTime
+            formatTime: offset => setup.formatZoneTime(offset)
             onChoose: value => { setup.zone = value; setup.send("zone", {zone: value}); }
         }
     }
@@ -585,7 +622,6 @@ ShellRoot {
         id: appearancePage
         SetupAppearance {
             light: setup.light
-            currentTime: setup.localTime
             onChoose: value => setup.light = value
         }
     }
@@ -593,7 +629,7 @@ ShellRoot {
         id: driverPage
         SetupHardware {
             status: setup.state.driverState
-            packages: setup.hardwarePackages
+            packages: setup.state.packages
             reduceMotion: setup.reduced
         }
     }

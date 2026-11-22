@@ -44,6 +44,8 @@ def model_args(entry, catalogue, signed_in):
             raise ValueError(key)
         if key == "base_url":
             # Endpoint fields describe a resource, never an embedded credential.
+            if provider["name"] == "ollama" and "://" not in value:
+                value = "http://" + value
             try:
                 url = urlsplit(value)
                 _ = url.port
@@ -53,6 +55,8 @@ def model_args(entry, catalogue, signed_in):
                     or url.scheme not in ("https", "http")
                     or (provider["name"] == "azure" and (url.scheme != "https" or url.path not in ("", "/")))):
                 raise ValueError(key)
+            if provider["name"] == "ollama" and url.path in ("", "/"):
+                value = value.rstrip("/") + "/v1"
             args += ["--base-url", value]
         elif key == "api_version":
             if not re.fullmatch(r"[a-zA-Z0-9._-]{1,64}", value):
@@ -118,6 +122,14 @@ class Models:
 
         def loaded(response):
             self.catalogue = response.get("modalities", {})
+            for provider in self.catalogue.get("text", {}).get("providers", []):
+                if provider["name"] == "ollama":
+                    # First-run offers local Ollama without authentication; CLI apply accepts optional credentials.
+                    provider["needs_credential"] = False
+                    if not provider.get("extra_fields"):
+                        provider["extra_fields"] = [{
+                            "key": "base_url", "placeholder": "localhost:11434", "required": False,
+                        }]
             if not self.catalogue:
                 self.send(agentState="unavailable")
             elif self.local:

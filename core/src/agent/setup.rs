@@ -1801,6 +1801,10 @@ fn resolve_key_args(
         }
         return Ok((None, None));
     }
+    // Ollama can run without authentication; explicit credentials still use the normal store.
+    if provider_name == "ollama" && count == 0 {
+        return Ok((None, None));
+    }
     if let Some(env) = args.api_key_env.as_deref() {
         let env = env.trim();
         if env.is_empty() {

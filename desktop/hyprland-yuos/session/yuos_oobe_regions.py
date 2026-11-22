@@ -1,7 +1,7 @@
 """Installed regional choices for the first-run UI."""
 
 import ctypes as C
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import re
 import subprocess
@@ -100,26 +100,36 @@ def coordinates(value):
 def regional_choices():
     locales = subprocess.check_output(["/usr/bin/locale", "-a"], text=True).splitlines()
     zones = available_timezones()
-    points = {}
-    for line in Path("/usr/share/zoneinfo/zone.tab").read_text().splitlines():
-        if not line.startswith("#"):
-            _, position, name, *_ = line.split("\t")
-            point = coordinates(position)
-            if point is not None:
-                points[name] = point
+    tzdata = Path("/usr/share/zoneinfo")
+    countries = dict(line.split("\t", 1) for line in (tzdata / "iso3166.tab").read_text().splitlines()
+                     if line and not line.startswith("#"))
+    locations = {}
+    instant = datetime.now(timezone.utc)
+    for line in (tzdata / "zone.tab").read_text().splitlines():
+        if not line or line.startswith("#"):
+            continue
+        country, position, name, *_ = line.split("\t")
+        point = coordinates(position)
+        if name in zones and point is not None:
+            locations[name] = dict(clock_at(name, instant), point=point, country=countries.get(country))
     local_zone = Path("/etc/localtime").resolve().as_posix().partition("/zoneinfo/")[2]
+    for name in sorted(({"UTC", local_zone} & zones) - locations.keys()):
+        locations[name] = dict(clock_at(name, instant), point=None)
     return {
         "languages": [item for item in locales if "_" in item and item.endswith(".utf8")],
         "keyboards": keyboards(),
         "inputMethods": input_methods(),
-        "zones": [{"id": name, "point": points.get(name)} for name in sorted(points.keys() & zones)]
-        + [{"id": name, "point": None} for name in sorted(({"UTC", local_zone} & zones) - points.keys())],
+        "zones": list(locations.values()),
         "localZone": local_zone if local_zone in zones else "UTC",
     }
+
+
+def clock_at(zone, instant):
+    now = instant.astimezone(ZoneInfo(zone))
+    return {"id": zone, "abbr": now.tzname(), "offsetMinutes": int(now.utcoffset().total_seconds() // 60)}
 
 
 def zone_clock(zone):
     if not isinstance(zone, str) or zone not in available_timezones():
         return {}
-    now = datetime.now(ZoneInfo(zone))
-    return {"id": zone, "abbr": now.tzname(), "offsetMinutes": int(now.utcoffset().total_seconds() // 60)}
+    return clock_at(zone, datetime.now(timezone.utc))

@@ -8,6 +8,8 @@ import Quickshell.Io
 Column {
     id: models
     required property var snapshot
+    required property bool canOpenLinks
+    required property bool reduceMotion
     property var drafts: ({})
     property var keys: ({})
     property string opened: "text"
@@ -19,8 +21,14 @@ Column {
         ["embed", qsTr("Embedding"), qsTr("Memory search")],
         ["decision", qsTr("Decision"), qsTr("Quick choices and scoring")]
     ]
+    readonly property var providerOrder: ({
+        text: ["openai", "anthropic", "gemini", "copilot", "ollama", "azure", "bedrock", "deepseek", "openrouter", "xai"],
+        stt: ["openai", "azure", "groq", "mistral"]
+    })
     signal request(string action)
     signal reveal(Item item)
+    signal clearSaveError()
+    signal beforeExpansion()
     spacing: 12
 
     function catalogue(role) {
@@ -29,17 +37,31 @@ Column {
     function providers(role) {
         return catalogue(role).providers ?? [];
     }
+    function menuProviders(role) {
+        const order = providerOrder[role];
+        const list = providers(role);
+        if (!order)
+            return list;
+        return order.map(name => list.find(item => item.name === name)).filter(item => item)
+            .concat(list.filter(item => !order.includes(item.name)));
+    }
     function draft(role) {
-        return drafts[role] ?? {
-            provider: snapshot.savedModels[role]?.provider ?? (providers(role).some(p => p.name === "openai") ? "openai"
-                : catalogue(role).default_provider ?? providers(role)[0]?.name ?? ""),
-            model: snapshot.savedModels[role]?.model ?? "", extra: {}, dirty: false
-        };
+        if (drafts[role])
+            return drafts[role];
+        const available = providers(role);
+        const saved = snapshot.savedModels[role];
+        const name = saved?.provider ?? (role === "embed" && available.some(p => p.name === "local") ? "local"
+            : catalogue(role).default_provider ?? menuProviders(role)[0]?.name ?? "");
+        const provider = available.find(item => item.name === name);
+        return {provider: name, model: saved?.model ?? provider?.default_model ?? "", extra: {}, dirty: false};
     }
     function providerLabel(provider) {
         return ({
             azure: qsTr("Azure OpenAI"), copilot: qsTr("GitHub Copilot"), openai: "OpenAI",
-            anthropic: "Anthropic", gemini: "Google Gemini", ollama: "Ollama", edge: qsTr("Edge TTS")
+            anthropic: "Anthropic", gemini: "Google Gemini", ollama: "Ollama", edge: "Microsoft Edge",
+            bedrock: "Amazon Bedrock", deepseek: "DeepSeek", openrouter: "OpenRouter", xai: "xAI",
+            groq: "Groq", mistral: "Mistral", elevenlabs: "ElevenLabs", minimax: "MiniMax", fal: "fal.ai",
+            local: qsTr("Local")
         })[provider.name] ?? provider.label ?? provider.name;
     }
     function providerFor(role) {
@@ -49,6 +71,8 @@ Column {
     }
     function edit(role, change) {
         drafts = Object.assign({}, drafts, {[role]: Object.assign({}, draft(role), change, {dirty: true})});
+        if (snapshot.agentState === "saveFailed")
+            clearSaveError();
     }
     function editExtra(role, key, value) {
         edit(role, {extra: Object.assign({}, draft(role).extra, {[key]: value})});
@@ -61,17 +85,24 @@ Column {
         if (provider.extra_fields?.some(field => field.key === "base_url" && field.required) && !endpoint)
             return "";
         // Never reuse a key across providers, credential types, or different resource roots.
-        return [provider.name, provider.default_env || role, endpoint].join("\u0000");
+        return [provider.name, provider.name === "azure" ? role : provider.default_env || role, endpoint].join("\u0000");
     }
     function keyFor(role) {
-        return keys[scope(role)] ?? "";
+        return draft(role).pendingKey ?? keys[scope(role)] ?? "";
     }
     function editKey(role, value) {
         const id = scope(role);
-        if (!id)
+        if (!id) {
+            edit(role, {pendingKey: value});
             return;
+        }
         keys = Object.assign({}, keys, {[id]: value});
-        edit(role, {});
+        edit(role, {pendingKey: undefined});
+    }
+    function bindPendingKey(role) {
+        const key = draft(role).pendingKey;
+        if (key && scope(role))
+            editKey(role, key);
     }
     function suggestions(role) {
         const provider = providerFor(role);
@@ -104,6 +135,7 @@ Column {
         const entries = {};
         for (const [role] of roles) {
             if (ready(role)) {
+                bindPendingKey(role);
                 const value = draft(role);
                 entries[role] = {provider: providerFor(role).name, model: value.model, extra: value.extra, apiKey: keyFor(role)};
             }
@@ -123,12 +155,17 @@ Column {
         Qt.callLater(() => {
             const index = roles.findIndex(item => item[0] === role);
             const row = list.itemAt(index);
-            if (row)
+            if (row) {
                 reveal(row);
+                row.focusError();
+            }
         });
     }
     function toggle(role) {
-        opened = opened === role ? "" : role;
+        beforeExpansion();
+        opened = role;
+        if (snapshot.agentState === "saveFailed")
+            clearSaveError();
         if (opened !== "text" && ["starting", "authorizing"].includes(snapshot.oauthState))
             request("cancelSignIn");
     }
@@ -153,12 +190,10 @@ Column {
     }
     SetupGroup {
         width: parent.width
-        height: rows.implicitHeight + 2
+        height: rows.implicitHeight
         Column {
             id: rows
-            x: 1
-            y: 1
-            width: parent.width - 2
+            width: parent.width
             Repeater {
                 id: list
                 model: models.roles
@@ -172,70 +207,107 @@ Column {
                     readonly property var draft: models.draft(role)
                     readonly property var provider: models.providerFor(role)
                     readonly property bool oauth: provider?.auth_kind === "oauth_device"
-                    readonly property bool failed: models.snapshot.agentState === "saveFailed"
-                        && models.snapshot.modelErrorModality === role
+                    readonly property bool ollama: provider?.name === "ollama"
+                    readonly property string failure: models.snapshot.agentState === "saveFailed"
+                        && models.snapshot.modelErrorModality === role ? models.snapshot.modelError : ""
                     readonly property var specifications: provider?.extra_fields ?? []
-                    readonly property string modelLabel: role === "decision" ? qsTr("System One model")
-                        : provider?.name === "azure" ? qsTr("Deployment") : role === "tts" ? qsTr("Voice") : qsTr("Model")
+                    readonly property string modelLabel: provider?.name === "azure" ? qsTr("Deployment")
+                        : provider?.name === "edge" ? qsTr("Voice") : qsTr("Model")
+                    function focusError() {
+                        fields.item?.focusError();
+                    }
 
-                    RowLayout {
+                    Item {
                         width: parent.width
-                        spacing: 0
+                        height: modelRow.implicitHeight
                         SetupRow {
-                            Layout.fillWidth: true
+                            id: modelRow
+                            width: parent.width
                             text: card.modelData[1]
                             detail: card.modelData[2]
                             strong: card.expanded
                             divided: card.index > 0
+                            roundTop: card.index === 0
+                            roundBottom: card.index + 1 === models.roles.length && !card.expanded
+                            interactive: !card.expanded
                             arrow: card.expanded ? "" : "down"
-                            trailing: card.expanded ? "" : models.summary(card.role)
-                            onClicked: models.toggle(card.role)
+                            trailing: card.expanded ? (card.role === "decision" ? qsTr("Local") : "") : models.summary(card.role)
+                            trailingInk: !card.expanded && (models.ready(card.role) || models.snapshot.savedModels[card.role])
+                                ? "#4b5566" : "#667085"
+                            onClicked: {
+                                models.toggle(card.role);
+                                Qt.callLater(() => {
+                                    if (providerButton.visible)
+                                        providerButton.forceActiveFocus(Qt.MouseFocusReason);
+                                    else
+                                        fields.item?.focusModel();
+                                });
+                            }
                         }
                         SetupButton {
                             id: providerButton
                             visible: card.expanded && !!card.provider && card.role !== "decision"
-                            Layout.rightMargin: 16
-                            implicitHeight: 36
-                            text: card.provider ? models.providerLabel(card.provider) + "  ⌄" : ""
-                            onClicked: providerMenu.open()
+                            anchors.right: parent.right
+                            anchors.rightMargin: 16
+                            anchors.verticalCenter: parent.verticalCenter
+                            kind: "menu"
+                            symbol: "down"
+                            menuOpen: providerMenu.opened
+                            text: card.provider ? models.providerLabel(card.provider) : ""
+                            Accessible.name: qsTr("%1 provider: %2").arg(card.modelData[1]).arg(text)
+                            onClicked: providerMenu.opened ? providerMenu.close() : providerMenu.open()
                             Controls.Popup {
                                 id: providerMenu
                                 parent: providerButton
-                                x: parent.width - width
-                                y: parent.height + 5
+                                x: parent.width - width - 10
+                                y: {
+                                    const windowHeight = models.Window.window?.height ?? 800;
+                                    const top = parent.mapToItem(null, 0, 0).y;
+                                    const below = parent.height + 8;
+                                    return top + below + height > windowHeight - Math.min(124, windowHeight * 0.155)
+                                        && top >= height + 8 ? -height - 8 : below;
+                                }
                                 width: Math.min(320, card.width - 32)
                                 height: menu.implicitHeight
                                 margins: 8
                                 padding: 0
                                 focus: true
+                                closePolicy: Controls.Popup.CloseOnEscape | Controls.Popup.CloseOnPressOutsideParent
+                                onOpened: menu.focusRow(Math.max(0, menu.items.findIndex(item => item.id === menu.selected)))
                                 background: null
                                 contentItem: SetupChoices {
                                     id: menu
+                                    focus: true
+                                    floating: true
                                     maxHeight: 296
-                                    items: models.providers(card.role).map(item => ({
+                                    Keys.onDownPressed: moveFocus(1)
+                                    Keys.onUpPressed: moveFocus(-1)
+                                    Keys.onReturnPressed: if (activeIndex >= 0) choose(items[activeIndex].id)
+                                    Keys.onEnterPressed: if (activeIndex >= 0) choose(items[activeIndex].id)
+                                    items: models.menuProviders(card.role).map(item => ({
                                         id: item.name, title: models.providerLabel(item),
-                                        meta: item.auth_kind === "oauth_device" ? qsTr("GitHub sign-in") : ""
+                                        meta: item.auth_kind === "oauth_device" ? qsTr("GitHub sign-in")
+                                            : item.name === "ollama" ? qsTr("Local")
+                                            : ["edge", "local"].includes(item.name) ? qsTr("Free") : ""
                                     }))
                                     selected: card.provider?.name ?? ""
                                     onChoose: value => {
                                         if (card.oauth && ["starting", "authorizing"].includes(models.snapshot.oauthState))
                                             models.request("cancelSignIn");
-                                        if (value !== card.provider?.name)
-                                            models.edit(card.role, {provider: value, model: "", extra: {}});
+                                        if (value !== card.provider?.name) {
+                                            models.beforeExpansion();
+                                            const selected = models.providers(card.role).find(provider => provider.name === value);
+                                            models.edit(card.role, {provider: value, model: selected?.default_model ?? "",
+                                                extra: {}, pendingKey: undefined});
+                                        }
                                         providerMenu.close();
                                     }
                                 }
                             }
                         }
-                        Controls.Label {
-                            visible: card.expanded && card.role === "decision"
-                            Layout.rightMargin: 16
-                            text: qsTr("Local")
-                            font.pixelSize: 13
-                            color: "#667085"
-                        }
                     }
                     Loader {
+                        id: fields
                         x: 16
                         width: parent.width - 32
                         active: card.expanded && !!card.provider
@@ -245,61 +317,118 @@ Column {
                     Component {
                         id: editor
                         Column {
+                            function focusModel() {
+                                modelPicker.focusInput();
+                            }
+
+                            function focusError() {
+                                for (let i = 0; i < extraFields.count; i++) {
+                                    const field = extraFields.itemAt(i);
+                                    if (field.errorText) {
+                                        field.focusInput();
+                                        return;
+                                    }
+                                }
+                                if (apiKey.errorText)
+                                    apiKey.focusInput();
+                                else if (modelPicker.errorText)
+                                    modelPicker.focusInput();
+                            }
                             spacing: 8
                             GridLayout {
                                 width: parent.width
                                 columns: width < 410 ? 1 : 2
                                 columnSpacing: 12
-                                rowSpacing: 14
+                                rowSpacing: 20
                                 visible: !card.oauth || models.snapshot.signedIn
                                 Repeater {
+                                    id: extraFields
                                     model: card.specifications
                                     SetupField {
                                         required property int index
                                         required property var modelData
                                         Layout.fillWidth: true
-                                        Layout.preferredWidth: index % 2 === 0 ? 2 : 1
+                                        Layout.alignment: Qt.AlignTop
+                                        Layout.preferredWidth: !card.ollama && index % 2 === 0 ? 2 : 1
+                                        Layout.row: card.ollama ? (parent.columns === 1 ? 1 : 0) : -1
+                                        Layout.column: card.ollama ? parent.columns - 1 : -1
                                         label: modelData.key === "base_url" ? qsTr("Endpoint")
                                             : modelData.key === "api_version" ? qsTr("API version") : modelData.label
-                                        placeholder: modelData.required ? modelData.placeholder : qsTr("Optional")
+                                        placeholder: modelData.key === "base_url" && card.provider?.name === "azure"
+                                            ? "https://name.openai.azure.com"
+                                            : card.ollama || modelData.required ? modelData.placeholder : qsTr("Optional")
                                         text: card.draft.extra[modelData.key] ?? ""
-                                        invalid: card.failed && models.snapshot.modelError === modelData.key
+                                        errorText: card.failure !== modelData.key ? "" : modelData.key === "api_version"
+                                            ? qsTr("Check the API version.") : card.provider?.name === "azure"
+                                                ? qsTr("Enter the HTTPS resource endpoint, without a deployment path.")
+                                                : qsTr("Enter a valid endpoint.")
                                         maxLength: 256
                                         onEdited: models.editExtra(card.role, modelData.key, text)
+                                        onEditingChanged: if (modelData.key === "base_url" && !editing) models.bindPendingKey(card.role)
                                     }
                                 }
                                 SetupField {
+                                    id: apiKey
                                     visible: !!card.provider?.needs_credential && !card.oauth
                                     Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignTop
                                     Layout.preferredWidth: 2
                                     label: qsTr("API key")
                                     secret: true
-                                    enabled: models.scope(card.role) !== ""
+                                    revealScope: models.scope(card.role)
                                     text: models.keyFor(card.role)
-                                    invalid: card.failed && models.snapshot.modelError === "apiKey"
+                                    errorText: card.failure === "apiKey" || (card.failure === "write" && visible)
+                                        ? qsTr("Couldn't save the model. Check the details.") : ""
                                     maxLength: 4096
                                     onEdited: models.editKey(card.role, text)
                                 }
-                                Controls.Label {
+                                Column {
                                     visible: card.oauth && models.snapshot.signedIn
                                     Layout.fillWidth: true
                                     Layout.preferredWidth: 2
-                                    text: qsTr("Signed in")
-                                    color: "#0d7a53"
-                                    topPadding: 20
+                                    spacing: 6
+                                    Controls.Label {
+                                        text: qsTr("GitHub")
+                                        color: "#4b5566"
+                                        font.pixelSize: 13
+                                        font.weight: Font.Medium
+                                        height: 18
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    Row {
+                                        height: 44
+                                        spacing: 8
+                                        SetupIcon {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: 18
+                                            height: 18
+                                            name: "check"
+                                            ink: "#0d7a53"
+                                        }
+                                        Controls.Label {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: qsTr("Signed in")
+                                            color: "#0d7a53"
+                                        }
+                                    }
                                 }
                                 SetupPicker {
+                                    id: modelPicker
                                     Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignTop
                                     Layout.preferredWidth: 1
-                                    Layout.columnSpan: card.role === "decision" || (!card.oauth && !card.provider?.needs_credential)
+                                    Layout.row: card.ollama ? 0 : -1
+                                    Layout.column: card.ollama ? 0 : -1
+                                    Layout.columnSpan: card.role === "decision" || (!card.oauth && !card.ollama && !card.provider?.needs_credential)
                                         ? parent.columns : 1
                                     label: card.modelLabel
                                     picker: choices.length > 0
                                     choices: models.suggestions(card.role).map(model => ({id: model, title: model}))
                                     selected: text
                                     text: card.draft.model
-                                    placeholder: card.provider?.default_model ?? ""
-                                    invalid: card.failed && models.snapshot.modelError === "model"
+                                    placeholder: card.provider?.name === "openrouter" ? "provider/model"
+                                        : card.provider?.name === "bedrock" ? qsTr("Model ID") : ""
+                                    errorText: card.failure === "model" ? qsTr("Check the model name.") : ""
                                     maxLength: card.role === "decision" ? 128 : 256
                                     onEdited: models.edit(card.role, {model: text})
                                     onChosen: value => models.edit(card.role, {model: value})
@@ -309,6 +438,7 @@ Column {
                                 visible: card.role === "decision"
                                 text: qsTr("Only the name is saved. Nothing is downloaded or started.")
                                 width: parent.width
+                                topPadding: 2
                                 wrapMode: Text.Wrap
                                 font.pixelSize: 13
                                 color: "#667085"
@@ -321,14 +451,17 @@ Column {
                                 onClicked: models.request("signIn")
                             }
                             Column {
-                                visible: card.oauth && models.snapshot.userCode !== ""
+                                visible: card.oauth && !models.snapshot.signedIn && models.snapshot.userCode !== ""
                                 width: parent.width
-                                spacing: 8
+                                spacing: 12
                                 Controls.Label {
                                     width: parent.width
                                     wrapMode: Text.Wrap
                                     text: qsTr("Enter this code at github.com/login/device")
                                     color: "#4b5566"
+                                    font.pixelSize: 13
+                                    font.weight: Font.Medium
+                                    height: Math.max(18, implicitHeight)
                                 }
                                 RowLayout {
                                     width: parent.width
@@ -339,38 +472,41 @@ Column {
                                         font.family: "monospace"
                                         font.pixelSize: 24
                                         font.weight: Font.DemiBold
+                                        font.letterSpacing: 2.88
+                                        rightPadding: 8
                                     }
                                     SetupButton {
-                                        visible: parent.width > 330
-                                        kind: "secondary"
-                                        text: qsTr("Copy code")
+                                        kind: "square"
+                                        symbol: "copy"
+                                        Accessible.name: qsTr("Copy code")
                                         onClicked: {
                                             clipboard.stdinEnabled = true;
                                             clipboard.running = true;
                                         }
                                     }
                                     SetupButton {
-                                        text: qsTr("Cancel")
-                                        onClicked: models.request("cancelSignIn")
+                                        visible: models.canOpenLinks && parent.width > 330
+                                        kind: "secondary"
+                                        symbol: "external"
+                                        trailingSymbol: true
+                                        text: qsTr("Open GitHub")
+                                        onClicked: Qt.openUrlExternally("https://github.com/login/device")
                                     }
                                 }
-                                Controls.Label {
+                                SetupHint {
+                                    width: parent.width
                                     text: qsTr("Waiting for sign-in…")
-                                    color: "#667085"
-                                    font.pixelSize: 13
+                                    busy: true
+                                    reduceMotion: models.reduceMotion
                                 }
                             }
-                            Controls.Label {
-                                visible: card.failed || (card.oauth && models.snapshot.oauthState === "failed")
+                            SetupHint {
                                 width: parent.width
+                                error: true
                                 text: card.oauth && models.snapshot.oauthState === "failed" ? qsTr("Couldn't sign in. Try again.")
-                                    : models.snapshot.modelError === "base_url" ? qsTr("Enter the HTTPS resource endpoint, without a deployment path.")
-                                    : models.snapshot.modelError === "api_version" ? qsTr("Check the API version.")
+                                    : ["", "base_url", "api_version", "apiKey", "model"].includes(card.failure) || apiKey.errorText ? ""
                                     : card.role === "decision" ? qsTr("Couldn't save this System One model name.")
-                                    : qsTr("Couldn't apply these settings. Check the fields and try again.")
-                                font.pixelSize: 13
-                                color: "#c0321f"
-                                wrapMode: Text.Wrap
+                                    : qsTr("Couldn't save the model. Check the details.")
                             }
                             Item { width: 1; height: 8 }
                         }

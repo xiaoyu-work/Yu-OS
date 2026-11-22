@@ -108,7 +108,11 @@ case "$component" in
             usr/share/yuos/oobe/greeter.qml
             usr/share/yuos/oobe/shell.qml
             usr/share/yuos/oobe/SetupHardware.qml
+            usr/share/yuos/oobe/SetupHint.qml
             usr/share/yuos/oobe/SetupModels.qml
+            usr/share/yuos/oobe/SetupWelcome.qml
+            usr/share/yuos/oobe/appearance-light.png
+            usr/share/yuos/oobe/appearance-dark.png
             usr/share/yuos/oobe/WorldDots.js
             usr/share/yuos/oobe/wallpaper-blurred.jpg
             usr/share/backgrounds/yuos/yuos-default.jpg

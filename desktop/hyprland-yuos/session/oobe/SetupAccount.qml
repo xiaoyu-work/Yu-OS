@@ -11,12 +11,19 @@ Column {
     required property string password
     required property string confirmation
     required property string error
+    property bool checkedConfirmation: false
     signal chooseAvatar(string value)
     signal editName(string value)
     signal editPassword(string value)
     signal editConfirmation(string value)
     signal submit()
+    signal beforeValidation()
     spacing: 0
+
+    function checkLength() {
+        if (confirmation !== "" && confirmation.length >= password.length)
+            checkedConfirmation = true;
+    }
 
     Row {
         id: avatars
@@ -70,7 +77,8 @@ Column {
             label: qsTr("Username")
             text: account.username
             maxLength: 256
-            invalid: ["usernameTaken", "invalidUsername"].includes(account.error)
+            errorText: ["usernameTaken", "invalidUsername"].includes(account.error)
+                ? qsTr("Can't use this username.") : ""
             onEdited: account.editName(text)
             onAccepted: account.submit()
         }
@@ -78,41 +86,49 @@ Column {
             objectName: "accountPassword"
             Layout.fillWidth: true
             Layout.preferredWidth: 1
+            Layout.alignment: Qt.AlignTop
             label: qsTr("Password")
             secret: true
             text: account.password
             maxLength: 256
-            invalid: ["passwordRejected", "invalidPassword"].includes(account.error)
-            onEdited: account.editPassword(text)
+            errorText: account.error === "invalidPassword" ? qsTr("Use a password of up to 256 bytes without line breaks.")
+                : account.error === "passwordRejected" ? qsTr("Your system didn't accept this password. Try a different one.") : ""
+            onEdited: {
+                account.beforeValidation();
+                account.checkedConfirmation = false;
+                account.editPassword(text);
+                account.checkLength();
+            }
             onAccepted: account.submit()
         }
         SetupField {
             objectName: "accountConfirmation"
             Layout.fillWidth: true
             Layout.preferredWidth: 1
+            Layout.alignment: Qt.AlignTop
             label: qsTr("Confirm password")
             secret: true
             text: account.confirmation
             maxLength: 256
-            invalid: !editing && text !== "" && account.password !== text
-            onEdited: account.editConfirmation(text)
+            errorText: account.checkedConfirmation && text !== "" && account.password !== text
+                ? qsTr("Passwords don't match.") : ""
+            onEditingChanged: {
+                if (!editing && text !== "") {
+                    account.beforeValidation();
+                    account.checkedConfirmation = true;
+                }
+            }
+            onEdited: {
+                account.beforeValidation();
+                account.editConfirmation(text);
+                account.checkLength();
+            }
             onAccepted: account.submit()
         }
     }
-    Controls.Label {
+    SetupHint {
         width: parent.width
-        topPadding: 8
-        visible: text !== ""
-        text: ({
-            usernameTaken: qsTr("Can't use this username."),
-            invalidUsername: qsTr("Can't use this username."),
-            invalidPassword: qsTr("Use a password of up to 256 bytes without line breaks."),
-            passwordRejected: qsTr("Your system didn't accept this password. Try a different one."),
-            invalidAvatar: qsTr("Choose an available avatar.")
-        })[account.error] ?? (account.confirmation && account.confirmation !== account.password
-            ? qsTr("Passwords don't match.") : "")
-        color: "#c0321f"
-        font.pixelSize: 13
-        wrapMode: Text.Wrap
+        text: account.error === "invalidAvatar" ? qsTr("Choose an available avatar.") : ""
+        error: true
     }
 }

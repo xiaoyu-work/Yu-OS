@@ -11,7 +11,9 @@ SetupGroup {
     property string password: ""
     readonly property bool connecting: snapshot.wifiState === "connecting"
     signal connectTo(string name, string password)
-    implicitHeight: content.implicitHeight + 2
+    signal beforeSelection()
+    signal clearFailure()
+    implicitHeight: content.implicitHeight
 
     ListModel { id: visibleNetworks }
 
@@ -40,9 +42,7 @@ SetupGroup {
 
     Column {
         id: content
-        x: 1
-        y: 1
-        width: parent.width - 2
+        width: parent.width
 
         SetupRow {
             width: parent.width
@@ -78,10 +78,14 @@ SetupGroup {
                         return "";
                     switch (wifi.snapshot.wifiState) {
                     case "unsupported": return qsTr("This network’s security is not supported in setup.");
-                    case "failed": return secure ? qsTr("Couldn't connect. Check the password and try again.")
+                    case "failed": return secure ? qsTr("Couldn't connect. Check the password.")
                         : qsTr("Couldn't connect. Try again.");
                     default: return "";
                     }
+                }
+                onProblemChanged: {
+                    if (problem && secure && wifi.snapshot.wifiState === "failed")
+                        Qt.callLater(() => { if (passwordBox.visible) passwordBox.focusInput(true); });
                 }
 
                 SetupRow {
@@ -93,12 +97,14 @@ SetupGroup {
                         : entry.selected && wifi.connecting && !entry.secure ? qsTr("Connecting…") : ""
                     good: entry.connected
                     strong: entry.selected || entry.connected
-                    arrow: entry.secure && !entry.connected ? "lock" : ""
-                    selected: entry.connected
+                    arrow: entry.secure ? "lock" : ""
                     divided: entry.index > 0
+                    roundTop: entry.index === 0
+                    roundBottom: entry.index + 1 === visibleNetworks.count && !passwordBox.visible
                     inset: 48
                     interactive: !wifi.connecting && !entry.connected
                     onClicked: {
+                        wifi.beforeSelection();
                         if (!entry.selected) {
                             wifi.network = entry.name;
                             wifi.password = "";
@@ -124,27 +130,30 @@ SetupGroup {
                         enabled: !wifi.connecting
                         text: visible ? wifi.password : ""
                         invalid: entry.problem !== ""
-                        onEdited: wifi.password = text
+                        onEdited: {
+                            wifi.password = text;
+                            if (wifi.snapshot.wifiState === "failed" && wifi.snapshot.wifiName === entry.name)
+                                wifi.clearFailure();
+                        }
                         onAccepted: if (connectButton.enabled) wifi.connectTo(entry.name, wifi.password)
                     }
                     SetupButton {
                         id: connectButton
                         Layout.preferredWidth: Math.min(160, entry.width * 0.38)
                         kind: "primary"
+                        busy: wifi.connecting
+                        reduceMotion: !!wifi.snapshot.reduceMotion
                         text: wifi.connecting ? qsTr("Connecting…") : qsTr("Connect")
                         enabled: !wifi.connecting && wifi.password !== ""
                         onClicked: wifi.connectTo(entry.name, wifi.password)
                     }
                 }
-                Controls.Label {
-                    visible: entry.problem !== ""
+                Item { width: 1; height: 8; visible: passwordBox.visible && entry.problem !== "" }
+                SetupHint {
                     x: 48
                     width: parent.width - 64
-                    topPadding: 8
+                    error: true
                     text: entry.problem
-                    color: "#c0321f"
-                    font.pixelSize: 13
-                    wrapMode: Text.Wrap
                 }
                 Item {
                     visible: (entry.selected && entry.secure && !entry.connected) || entry.problem !== ""

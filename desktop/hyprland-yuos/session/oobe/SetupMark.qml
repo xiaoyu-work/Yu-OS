@@ -4,21 +4,25 @@ Canvas {
     id: mark
     property color ink: "#1e1e1e"
     property bool working: false
+    property real activity: working ? 1 : 0
     property double epoch: 0
     readonly property var bars: [[64, 514, 298, 70, 900, 0],
         [230, 514, 381, 226, 700, 250], [388, 514, 483, 334, 1100, 500]]
     onInkChanged: requestPaint()
     onWorkingChanged: {
-        epoch = Date.now();
+        if (working)
+            epoch = Date.now();
         requestPaint();
     }
+    onActivityChanged: requestPaint()
+    Behavior on activity { NumberAnimation { duration: mark.working ? 0 : 240; easing.type: Easing.OutCubic } }
     onWidthChanged: requestPaint()
     onHeightChanged: requestPaint()
 
     Timer {
         repeat: true
         interval: 33
-        running: mark.working
+        running: mark.working || mark.activity > 0
         onTriggered: mark.requestPaint()
     }
     onPaint: {
@@ -34,7 +38,7 @@ Canvas {
         const elapsed = Date.now() - epoch;
         for (const [x1, y1, x2, y2, period, lead] of bars) {
             const phase = ((elapsed + lead) % period) / period;
-            const length = working ? 1 - 0.23 * (1 - Math.cos(2 * Math.PI * phase)) : 1;
+            const length = 1 - activity * 0.23 * (1 - Math.cos(2 * Math.PI * phase));
             c.beginPath();
             c.moveTo(x1, y1);
             c.lineTo(x1 + (x2 - x1) * length, y1 + (y2 - y1) * length);
