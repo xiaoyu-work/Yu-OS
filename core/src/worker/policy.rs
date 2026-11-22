@@ -267,6 +267,8 @@ pub enum NetworkPolicy {
     /// Private network namespace plus a per-launch egress broker that
     /// admits exactly these endpoints.
     Brokered { endpoints: Vec<Endpoint> },
+    /// The ordinary owner-launched App's outbound-only Internet proxy.
+    PublicInternet,
     /// Retained for parsing/auditing historical policies. Every current
     /// worker rejects host-network sharing.
     HostShared,
@@ -277,8 +279,13 @@ impl NetworkPolicy {
         match self {
             NetworkPolicy::Denied => "denied",
             NetworkPolicy::Brokered { .. } => "brokered",
+            NetworkPolicy::PublicInternet => "public-internet",
             NetworkPolicy::HostShared => "host-shared",
         }
+    }
+
+    pub(crate) const fn uses_egress_broker(&self) -> bool {
+        matches!(self, Self::Brokered { .. } | Self::PublicInternet)
     }
 
     pub fn endpoints(&self) -> &[Endpoint] {
@@ -511,6 +518,13 @@ impl LaunchPolicy {
                 "tier `{}` may not share the host network namespace",
                 self.tier.as_str()
             ));
+        }
+        if self.network == NetworkPolicy::PublicInternet
+            && (!matches!(self.tier, TrustTier::AppOperation | TrustTier::DesktopSurface)
+                || !self.broker
+                || self.seccomp != SeccompProfile::Strict)
+        {
+            return Err("public Internet egress requires a confined ordinary App".into());
         }
         for endpoint in self.network.endpoints() {
             validate_endpoint(endpoint)?;

@@ -344,6 +344,8 @@ pub enum AuthorityCommand {
         target: LaunchTarget,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         from_dock: bool,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        owner_selected: bool,
     },
     LaunchNative {
         epoch: Epoch,

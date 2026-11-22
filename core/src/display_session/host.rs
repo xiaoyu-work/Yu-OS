@@ -355,10 +355,10 @@ impl Supervisor {
                         .send(&command, &descriptors, self.controllers.live_io_deadline()?)
                         .map_err(|error| io_timeout(error, "timed out forwarding compositor command"))?;
                 }
-                AuthorityCommand::Launch { epoch, request, expires_monotonic_ms, target, from_dock }
+                AuthorityCommand::Launch { epoch, request, expires_monotonic_ms, target, from_dock, owner_selected }
                     if epoch == self.controllers.epoch =>
                 {
-                    self.launch(request, expires_monotonic_ms, DesktopProcess::App(target), from_dock)?;
+                    self.launch(request, expires_monotonic_ms, DesktopProcess::App { target, owner_selected }, from_dock)?;
                 }
                 AuthorityCommand::LaunchNative { epoch, request, expires_monotonic_ms, desktop_id }
                     if epoch == self.controllers.epoch =>
@@ -383,11 +383,11 @@ impl Supervisor {
     fn launch(&mut self, request: yuos_display_control::InstanceId, expires: u64, process: DesktopProcess, from_dock: bool) -> Result<(), Error> {
         let now = monotonic_ms()?;
         let app_id = match &process {
-            DesktopProcess::App(target) => Some(target.app_id.clone()),
+            DesktopProcess::App { target, .. } => Some(target.app_id.clone()),
             _ => None,
         };
         let submitted = if !self.display.is_empty()
-            && !matches!(&process, DesktopProcess::App(target) if target.app_id == SHELL_APP)
+            && !matches!(&process, DesktopProcess::App { target, .. } if target.app_id == SHELL_APP)
             && !(self.locker.is_some() && matches!(&process, DesktopProcess::Native(_)))
             && expires > now && expires <= now.saturating_add(2000)
         {
@@ -801,7 +801,7 @@ fn io_timeout(error: Error, phase: &'static str) -> Error {
 
 enum DesktopProcess {
     Shell,
-    App(LaunchTarget),
+    App { target: LaunchTarget, owner_selected: bool },
     Native(String),
     Agent,
 }
@@ -844,7 +844,10 @@ fn spawn_desktop_process(
         .stdout(Stdio::null())
         .stderr(Stdio::inherit());
     match process {
-        DesktopProcess::App(target) => {
+        DesktopProcess::App { target, owner_selected } => {
+            if owner_selected {
+                command.arg0(super::OWNER_MENU_YU_ARG0);
+            }
             command.args(["app", &target.app_id, "--gui"])
                 .env(MENU_LAUNCH_DIGEST, target.digest)
                 .env(MENU_LAUNCH_PUBLISHER, target.publisher);

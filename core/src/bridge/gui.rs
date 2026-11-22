@@ -169,6 +169,7 @@ pub(crate) fn plan(
     caps: &CapSet,
     instance: InstanceId,
     display: &Path,
+    owner_public_egress: bool,
 ) -> Result<PreparedPlan, String> {
     let manifest = launch.manifest();
     let selected = manifest.gui_entry(gui_entry)?;
@@ -251,6 +252,7 @@ pub(crate) fn plan(
         },
         display,
         &program,
+        owner_public_egress,
     )?;
     if !presentation.contains_key(&crate::yuosd::gui::inputs::PresentationKey::LocaleAll) {
         policy.env.remove("LC_ALL");

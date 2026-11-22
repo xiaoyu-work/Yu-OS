@@ -112,6 +112,15 @@ registration directly, not an Admin/bootstrap parent. Root independently
 retains their actual registered ancestry or bounded unregistered-launcher
 policy; unsetting an environment variable cannot erase App ownership.
 
+For ordinary signed GUI targets, an owner selection in the protected menu
+or Dock, or a direct terminal launch, enables the public Internet proxy
+without a manifest need or an approval. The private display launch path
+distinguishes owner selections from approved App-requested openings, which
+do not receive that default. Root retains the decision with the registration;
+the egress socket uses the existing checked per-instance relay. Declared legacy
+`net.dial` needs remain exact-host only. See [worker networking](../../worker/MODULE.md#networking)
+for supported clients and routing limits.
+
 Root retains the selected name, package snapshot, entry and selector before
 authorization and checks the same binding at launch. Every selected target
 uses the generic signed regular-file/executable admission and descriptor-pinned

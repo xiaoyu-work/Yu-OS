@@ -67,7 +67,14 @@ fn wrapped_operation_keeps_the_authenticated_entry_mount() {
         pinned_entries: vec![(entry.clone(), (11, 22))],
         developer: false,
     };
-    let policy = wrapped_app_operation(input, &entry).unwrap();
+    let policy = wrapped_app_operation(input, &entry, true).unwrap();
+    assert_eq!(policy.network, NetworkPolicy::PublicInternet);
+    assert_eq!(policy.seccomp, SeccompProfile::Strict);
+    assert!(!policy.env.contains_key("YUOS_EGRESS_ENDPOINTS"));
+    assert_eq!(
+        policy.env.get("ALL_PROXY").map(String::as_str),
+        Some(format!("socks5h://localhost{}", super::super::linux_egress_socket()).as_str()),
+    );
     let mounts = policy.mounts.iter().filter(|mount| mount.target == entry).collect::<Vec<_>>();
     assert_eq!(mounts.len(), 1);
     assert_eq!(mounts[0].expect_identity, Some((11, 22)));
@@ -97,8 +104,9 @@ fn gui_policy_projects_only_its_explicit_instance_transport() {
     let mut input = app_input(root.path(), data.to_str().unwrap(), &granted);
     input.extra_env.insert("YUOS_APP_RESOURCE_DIR".into(), "/not-the-package".into());
     input.extra_env.insert("XDG_DATA_DIRS".into(), "/not-the-package".into());
-    let policy = gui_operation(input, &socket, Path::new("/usr/bin/true")).unwrap();
+    let policy = gui_operation(input, &socket, Path::new("/usr/bin/true"), true).unwrap();
     assert_eq!(policy.tier, TrustTier::DesktopSurface);
+    assert_eq!(policy.network, NetworkPolicy::PublicInternet);
     assert_eq!(policy.env["WAYLAND_DISPLAY"], super::super::linux::GUI_WAYLAND_SOCKET);
     assert_eq!(policy.env["XDG_RUNTIME_DIR"], "/run/yuos");
     assert_eq!(Path::new(&policy.env["YUOS_APP_RESOURCE_DIR"]), resources);

@@ -126,6 +126,7 @@ mod process {
                 developer: false,
             },
             &command.program,
+            false,
         )
         .unwrap();
         policy.limits.input_bytes = input_bytes;

@@ -396,6 +396,9 @@ impl LinuxSandbox {
         if policy.tier == super::policy::TrustTier::DesktopSurface && gui.is_none() {
             return Err("desktop surfaces require checked Root GUI custody".to_string());
         }
+        if policy.network == NetworkPolicy::PublicInternet && gui.is_none() && !launch.root_custody {
+            return Err("public Internet egress requires checked Root App custody".into());
+        }
         let bwrap = which("bwrap")
             .ok_or_else(|| "worker isolation unavailable: `bwrap` is missing".to_string())?;
         let (uid, gid) = worker_identity()?;
@@ -405,7 +408,7 @@ impl LinuxSandbox {
         let mut resources = RetainedResources::new(destination);
         let mut mounts = policy.mounts.clone();
 
-        if launch.root_custody || policy.broker || matches!(policy.network, NetworkPolicy::Brokered { .. }) {
+        if launch.root_custody || policy.broker || policy.network.uses_egress_broker() {
             let legacy_dir = if gui.is_none() {
                 Some(super::runtime::LaunchDir::create(&id, Some((uid, gid)))?)
             } else {
@@ -439,7 +442,7 @@ impl LinuxSandbox {
                     resources.broker = Some(endpoint);
                 }
             }
-            if let NetworkPolicy::Brokered { endpoints } = &policy.network {
+            if policy.network.uses_egress_broker() {
                 let socket = if let Some(gui) = &gui {
                     gui.runtime
                         .socket(crate::display_session::runtime::Socket::Egress)
@@ -450,9 +453,9 @@ impl LinuxSandbox {
                         .child("egress.sock")
                 };
                 let egress = if gui.is_some() {
-                    super::net_broker::EgressEndpoint::start_gui(socket, endpoints.clone())?
+                    super::net_broker::EgressEndpoint::start_gui(socket, policy.network.clone())?
                 } else {
-                    super::net_broker::EgressEndpoint::start(socket, endpoints.clone(), uid)?
+                    super::net_broker::EgressEndpoint::start_worker(socket, policy.network.clone(), uid)?
                 };
                 if let Some(gui) = &mut gui {
                     gui.runtime

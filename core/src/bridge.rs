@@ -299,6 +299,7 @@ pub(crate) struct AppIdentitySession {
     gui_data_dir: Option<std::path::PathBuf>,
     gui_retired: bool,
     root_custody: bool,
+    owner_public_egress: bool,
     #[cfg(target_os = "linux")]
     custody: std::sync::Mutex<Option<std::sync::Arc<crate::worker::app_custody::Custody>>>,
 }
@@ -542,6 +543,7 @@ impl AppIdentitySession {
             gui_data_dir: None,
             gui_retired: false,
             root_custody: false,
+            owner_public_egress: false,
             #[cfg(target_os = "linux")]
             custody: std::sync::Mutex::new(None),
             relay: crate::worker::relay_slot(),
@@ -778,6 +780,11 @@ impl AppIdentitySession {
         ordinary: bool,
     ) -> Result<Self, String> {
         let root_custody = local::root_custody_response(&result, ordinary)?;
+        let owner_public_egress = match result.get("owner_public_egress") {
+            None | Some(serde_json::Value::Bool(false)) => false,
+            Some(serde_json::Value::Bool(true)) if ordinary && root_custody => true,
+            _ => return Err("invalid Root public Internet egress decision".into()),
+        };
         let session_id = result
             .get("session_id")
             .and_then(serde_json::Value::as_str)
@@ -841,6 +848,7 @@ impl AppIdentitySession {
             gui_data_dir,
             gui_retired: false,
             root_custody,
+            owner_public_egress,
             #[cfg(target_os = "linux")]
             custody: std::sync::Mutex::new(None),
             relay: crate::worker::relay_slot(),
@@ -906,6 +914,7 @@ impl AppIdentitySession {
             gui_data_dir: None,
             gui_retired: false,
             root_custody: false,
+            owner_public_egress: false,
             #[cfg(target_os = "linux")]
             custody: std::sync::Mutex::new(None),
             relay: crate::worker::relay_slot(),
@@ -1070,6 +1079,7 @@ fn prepare_app_worker(
             developer: binding.is_developer(),
         },
         inner_program,
+        session.owner_public_egress,
     )
     .inspect_err(|error| {
         crate::worker::audit::refused(&label, tier.as_str(), error);

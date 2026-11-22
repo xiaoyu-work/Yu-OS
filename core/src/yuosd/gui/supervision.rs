@@ -108,6 +108,7 @@ impl Supervised {
             &sandbox_caps,
             job.instance,
             &runtime.socket(Socket::WaylandTransport),
+            job.registration.owner_public_egress,
         )?;
         plan.launch.policy.env.insert(
             "YUOS_OWNER_HOME".to_string(),
@@ -115,10 +116,7 @@ impl Supervised {
                 .ok_or("Authenticated GUI owner home is not UTF-8")?.to_string(),
         );
         resources::refuse_raw_home(&plan.launch.policy, &job.registration.home, consent.is_some())?;
-        let egress_listener = if matches!(
-            plan.launch.policy.network,
-            crate::worker::NetworkPolicy::Brokered { .. }
-        ) {
+        let egress_listener = if plan.launch.policy.network.uses_egress_broker() {
             Some(
                 runtime
                     .bind(Socket::EgressTransport, job.registration.owner())

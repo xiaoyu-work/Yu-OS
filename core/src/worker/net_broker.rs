@@ -7,11 +7,11 @@
 //! this endpoint on a unix socket inside the launch directory and
 //! bind-mounts it into the sandbox.
 //!
-//! The endpoint speaks HTTP `CONNECT`, which every mainstream client
-//! already knows how to use, and enforces on every tunnel:
+//! The endpoint speaks HTTP `CONNECT` (and SOCKS5 for ordinary App
+//! public Internet egress), and enforces on every tunnel:
 //!
-//! * the requested `host:port` must match one of the exact endpoints
-//!   the operation was granted — no globs, no suffix matching;
+//! * confined workers match one of their exact granted endpoints;
+//!   ordinary Apps without an exact grant must use the public route;
 //! * the name is resolved *here*, and the connection is made to the
 //!   address that resolution returned, so a name that changes answers
 //!   between the check and the connect (DNS rebinding) cannot move the
@@ -37,12 +37,16 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::policy::Endpoint;
+use super::policy::{Endpoint, NetworkPolicy};
 
 #[cfg(unix)]
 mod lifetime;
+#[cfg(target_os = "linux")]
+mod public;
 #[cfg(unix)]
 mod resolver;
+#[cfg(unix)]
+mod socks;
 
 const RESOLVE_DEADLINE: Duration = Duration::from_secs(5);
 const CONNECT_DEADLINE: Duration = Duration::from_secs(20);
@@ -100,25 +104,34 @@ impl EgressEndpoint {
         endpoints: Vec<Endpoint>,
         owner_uid: u32,
     ) -> Result<Self, String> {
-        Self::start_for(socket, endpoints, Peer::Owner(owner_uid))
+        Self::start_worker(socket, NetworkPolicy::Brokered { endpoints }, owner_uid)
+    }
+
+    pub(crate) fn start_worker(
+        socket: PathBuf, network: NetworkPolicy, owner_uid: u32,
+    ) -> Result<Self, String> {
+        Self::start_for(socket, network, Peer::Owner(owner_uid))
     }
 
     #[cfg(target_os = "linux")]
-    pub(crate) fn start_gui(socket: PathBuf, endpoints: Vec<Endpoint>) -> Result<Self, String> {
+    pub(crate) fn start_gui(socket: PathBuf, network: NetworkPolicy) -> Result<Self, String> {
         let relay = yuos_display_control::ProcessIdentity::current().map_err(|error| error.to_string())?;
         if relay.uid() != 0 {
             return Err("GUI egress requires its Root transport relay".to_string());
         }
-        Self::start_for(socket, endpoints, Peer::RootRelay(relay))
+        Self::start_for(socket, network, Peer::RootRelay(relay))
     }
 
-    fn start_for(socket: PathBuf, endpoints: Vec<Endpoint>, peer: Peer) -> Result<Self, String> {
+    fn start_for(socket: PathBuf, network: NetworkPolicy, peer: Peer) -> Result<Self, String> {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             use std::os::unix::net::UnixListener;
 
-            for endpoint in &endpoints {
+            if !network.uses_egress_broker() {
+                return Err("egress endpoint requires a brokered network policy".into());
+            }
+            for endpoint in network.endpoints() {
                 super::policy::validate_endpoint(endpoint)?;
             }
             let listener = UnixListener::bind(&socket)
@@ -129,7 +142,7 @@ impl EgressEndpoint {
             let stop = Arc::new(AtomicBool::new(false));
             let stats = Arc::new(Stats::default());
             let lifetime = Arc::new(lifetime::Lifetime::default());
-            let allowed = Arc::new(endpoints);
+            let network = Arc::new(network);
             listener.set_nonblocking(true).map_err(|error| format!("configure worker egress listener: {error}"))?;
             let thread = {
                 let stop = Arc::clone(&stop);
@@ -159,7 +172,7 @@ impl EgressEndpoint {
                                 continue;
                             }
                             stats.inflight.fetch_add(1, Ordering::Relaxed);
-                            let allowed = Arc::clone(&allowed);
+                            let network = Arc::clone(&network);
                             let stats_for_thread = Arc::clone(&stats);
                             let peer = peer.clone();
                             let tunnel = match lifetime.track(&stream) {
@@ -173,7 +186,7 @@ impl EgressEndpoint {
                             let spawned = std::thread::Builder::new()
                                 .name("yuos-worker-egress-conn".to_string())
                                 .spawn(move || {
-                                    match serve(stream, &allowed, &peer, &tunnel) {
+                                    match serve(stream, &network, &peer, &tunnel) {
                                         true => stats_for_thread
                                             .admitted
                                             .fetch_add(1, Ordering::Relaxed),
@@ -202,7 +215,7 @@ impl EgressEndpoint {
         }
         #[cfg(not(unix))]
         {
-            let _ = (socket, endpoints, peer);
+            let _ = (socket, network, peer);
             Err("worker egress brokers require Unix".to_string())
         }
     }
@@ -261,7 +274,7 @@ impl Drop for EgressEndpoint {
 #[cfg(unix)]
 fn serve(
     mut stream: std::os::unix::net::UnixStream,
-    allowed: &[Endpoint],
+    network: &NetworkPolicy,
     peer: &Peer,
     tunnel: &lifetime::Tunnel,
 ) -> bool {
@@ -271,27 +284,45 @@ fn serve(
     let _ = stream.set_read_timeout(Some(CONNECT_DEADLINE));
     let _ = stream.set_write_timeout(Some(CONNECT_DEADLINE));
 
-    let head = match read_head(&mut stream) {
-        Ok(head) => head,
-        Err(_) => {
+    let mut first = [0];
+    if stream.read_exact(&mut first).is_err() {
+        return false;
+    }
+    let socks = first[0] == 5 && *network == NetworkPolicy::PublicInternet;
+    let endpoint = if socks {
+        match socks::connect_request(&mut stream) {
+            Ok(endpoint) => Some(endpoint),
+            Err(_) => return false,
+        }
+    } else {
+        let Ok(head) = read_head(&mut stream, first[0]) else {
             let _ = stream.write_all(b"HTTP/1.1 400 Bad Request\r\n\r\n");
             return false;
+        };
+        let Some(target) = parse_connect(&head) else {
+            let _ = stream.write_all(b"HTTP/1.1 405 Method Not Allowed\r\n\r\n");
+            return false;
+        };
+        if *network == NetworkPolicy::PublicInternet {
+            public_connect_target(&target)
+        } else {
+            match_endpoint(&target, network.endpoints())
         }
     };
-    let Some(target) = parse_connect(&head) else {
-        let _ = stream.write_all(b"HTTP/1.1 405 Method Not Allowed\r\n\r\n");
+    let Some(endpoint) = endpoint else {
+        reply(&mut stream, socks, 2, b"HTTP/1.1 403 Forbidden\r\n\r\n");
         return false;
     };
-    let Some(endpoint) = match_endpoint(&target, allowed) else {
-        let _ = stream.write_all(b"HTTP/1.1 403 Forbidden\r\n\r\n");
-        return false;
-    };
-    let address = match resolve_public(&endpoint, tunnel) {
+    let address = match if *network == NetworkPolicy::PublicInternet {
+        resolve_internet(&endpoint, tunnel)
+    } else {
+        resolve_public(&endpoint, tunnel)
+    } {
         Ok(address) => address,
         Err(error) => {
             tracing::debug!(%error, "worker egress name resolution failed or retired");
             if !tunnel.stopping() {
-                let _ = stream.write_all(b"HTTP/1.1 403 Forbidden\r\n\r\n");
+                reply(&mut stream, socks, 2, b"HTTP/1.1 403 Forbidden\r\n\r\n");
             }
             return false;
         }
@@ -304,7 +335,7 @@ fn serve(
         Err(error) => {
             tracing::debug!(%error, "worker egress TCP connection failed or retired");
             if !tunnel.stopping() {
-                let _ = stream.write_all(b"HTTP/1.1 502 Bad Gateway\r\n\r\n");
+                reply(&mut stream, socks, 1, b"HTTP/1.1 502 Bad Gateway\r\n\r\n");
             }
             return false;
         }
@@ -312,20 +343,26 @@ fn serve(
     if tunnel.stopping() {
         return false;
     }
-    if stream
-        .write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
-        .is_err()
-    {
+    if !reply(&mut stream, socks, 0, b"HTTP/1.1 200 Connection established\r\n\r\n") {
         return false;
     }
     relay(stream, upstream);
     true
 }
 
+#[cfg(unix)]
+fn reply(stream: &mut impl Write, socks: bool, status: u8, http: &[u8]) -> bool {
+    if socks {
+        socks::reply(stream, status).is_ok()
+    } else {
+        stream.write_all(http).is_ok()
+    }
+}
+
 /// Read the request head, bounded, stopping at the blank line.
 #[cfg(unix)]
-fn read_head(stream: &mut std::os::unix::net::UnixStream) -> Result<String, String> {
-    let mut head = Vec::new();
+fn read_head(stream: &mut std::os::unix::net::UnixStream, first: u8) -> Result<String, String> {
+    let mut head = vec![first];
     let mut byte = [0_u8; 1];
     while head.len() < MAX_REQUEST_HEAD {
         match stream.read(&mut byte) {
@@ -338,6 +375,41 @@ fn read_head(stream: &mut std::os::unix::net::UnixStream) -> Result<String, Stri
         }
     }
     Err("request head too large".to_string())
+}
+
+#[cfg(unix)]
+fn public_connect_target(target: &str) -> Option<Endpoint> {
+    let (host, port) = target.rsplit_once(':')?;
+    let host = if let Some(literal) = host.strip_prefix('[') {
+        let literal = literal.strip_suffix(']')?;
+        literal.parse::<std::net::Ipv6Addr>().ok()?;
+        literal
+    } else {
+        if host.contains(':') {
+            return None;
+        }
+        host.strip_suffix('.').unwrap_or(host)
+    };
+    let endpoint = Endpoint::new(host, port.parse().ok()?);
+    super::policy::validate_endpoint(&endpoint).ok()?;
+    Some(endpoint)
+}
+
+#[cfg(target_os = "linux")]
+fn resolve_internet(endpoint: &Endpoint, tunnel: &lifetime::Tunnel) -> Result<SocketAddr, String> {
+    if [".local", ".localhost", ".home.arpa", ".internal"]
+        .iter().any(|suffix| endpoint.host.ends_with(suffix))
+    {
+        return Err("local-use names are outside public Internet egress".into());
+    }
+    let addresses = resolver::resolve(endpoint, RESOLVE_DEADLINE, || tunnel.stopping())
+        .map_err(|error| error.to_string())?;
+    public::pin(&addresses, || tunnel.stopping()).map_err(|error| error.to_string())
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
+fn resolve_internet(_: &Endpoint, _: &lifetime::Tunnel) -> Result<SocketAddr, String> {
+    Err("public Internet egress requires Linux route verification".into())
 }
 
 /// Extract the `host:port` from a `CONNECT` request line. Any other

@@ -403,35 +403,50 @@ transient grant.
 
 ## Networking
 
-A worker has no route: its network namespace is empty and the seccomp
-filter admits only `AF_UNIX` sockets, so `AF_INET`, `AF_INET6`,
-`AF_NETLINK` and `AF_PACKET` cannot even be created. There is no proxy
-environment variable to honour and no direct fallback to take. `AF_UNIX`
-is allowed because a language runtime's event loop needs a self-pipe and
-because it is how the SDK reaches the broker; the domain is checked in
-the BPF program, on both words of the argument.
+A worker has no direct route: its network namespace is empty and seccomp
+admits only `AF_UNIX` sockets. `AF_INET`, `AF_INET6`, `AF_NETLINK` and
+`AF_PACKET` cannot be created. The proxy does not enable IP sockets or
+listening ports in the worker. The BPF program checks both words of the
+socket-domain argument.
 
-An operation granted exact hosts receives one Unix-domain socket at
-`YUOS_EGRESS_SOCKET`. `yuos_runtime.egress` is its only client: it issues
-a bounded `CONNECT`, and the broker — outside the sandbox — matches the
-request against the grant, resolves the name itself, refuses every
-answer that is not globally routable, and connects to the address it
-resolved. The caller runs TLS over the returned stream against the
-hostname it asked for, so the broker pins the transport and TLS pins the
-identity. A redirect is a new `CONNECT`, authorized from scratch.
+Root can select `public-internet` for an ordinary, signed, directly
+owner-launched Linux GUI or CLI entry without a declared network need.
+It is a launch mode, not a capability the App can request or pass on.
+Agent executions, MCP/service workers, delegated or App-induced starts,
+unsigned developer content and daemonless execution never receive it.
+A surface with a legacy `net.dial` need keeps its exact-host policy even
+if a conditional or optional need was not granted.
+
+The per-launch `YUOS_EGRESS_SOCKET` accepts HTTP `CONNECT` in both modes
+and SOCKS5 `CONNECT` only in public mode. `ALL_PROXY` points stock
+curl/libcurl at that Unix-domain SOCKS5 socket, with DNS done by the
+broker. Clients requiring a TCP proxy listener, UDP/QUIC or raw sockets
+are unsupported. The broker resolves once, checks **all** DNS answers and
+dials a pinned numeric address; the client still owns TLS and hostname
+verification. Each new tunnel, including one opened for a redirect, is
+checked independently.
+
+Public mode additionally excludes local-use names, special-use addresses
+and known cloud platform addresses. Linux must resolve the candidate
+through a unicast default route via a gateway, not to a local service, an
+on-link peer, the gateway itself, or a more-specific route. A family
+without a route is skipped; any blocked answer fails the whole request.
+This can exclude custom VPN/point-to-point or split routes. The host's
+trusted routing/firewall must not redirect Internet traffic back to
+private services. Exact mode keeps its existing public-IP check and only
+matches explicit `host:port` grants.
 
 The egress lifetime retains the TCP socket before its single nonblocking
 connection attempt. Retirement can therefore interrupt an in-progress connect,
 not only an established relay. The wait keeps the existing connection deadline
 and checks cancellation at most every 50 ms; timeout/error releases the pending
-socket without retrying another connection. Exact endpoint and public-address
-checks remain unchanged.
+socket without retrying another connection.
 
 Name resolution runs in one owned `/usr/bin/getent` process using `ahosts`,
 `--no-addrconfig` and `--no-idn`, not an uncancellable in-process
 `getaddrinfo` thread.
 It uses the system NSS/hosts/DNS configuration and includes both address
-families; only TCP records enter the unchanged all-address public-IP check.
+families; only TCP records enter the all-address public-IP check.
 Literal IPs need no subprocess. Lookup has a five-second deadline, 64-KiB
 stdout/4-KiB stderr ceilings and at most 64 distinct TCP addresses. Overflow,
 malformed output and lookup failure are errors, never partial results or a
@@ -439,13 +454,23 @@ different resolver fallback. Cancellation is checked at most every 50 ms and
 kills/reaps the lookup before its tunnel finishes; a checked endpoint retirement
 still fails if its connections have not actually exited. The helper also dies
 with its creating parent thread on Linux. Agent declares the `libc-bin` runtime
-dependency; no DNS server, direct-worker socket or new scope is granted.
+dependency; no DNS server, direct-worker IP socket or new scope is granted.
 
 The ignored `worker::net_broker::tests::retiring_endpoint_cancels_a_pending_tcp_connect`
 case requires Root in a private network namespace with `93.184.216.34/32`
 assigned to loopback. It fills a real listener queue, observes SYN-SENT and
 requires checked endpoint retirement within one second. Never run that setup
 against the real network; CI creates and discards its own namespace.
+
+The ignored `public_internet_uses_the_unix_proxy_and_excludes_local_routes`
+case requires Root, curl and private mount/network namespaces. Use two
+network namespaces with only a veth pair between them. The synthetic
+HTTP server at `93.184.216.34:18080` in the peer namespace returns
+`fixture-egress`. The broker's only uplink `egress-app` has a default
+gateway to that peer, a local address `93.184.216.35` and an on-link
+`93.184.216.36` route. Bind fixture hosts entries for
+`public-egress.example` (the server address) and `mixed-egress.example`
+(the server address plus loopback) inside the broker namespace only.
 
 The three ignored `worker::net_broker::tests::dns::*` cases also require Root
 with private mount/network namespaces and loopback up. They bind synthetic

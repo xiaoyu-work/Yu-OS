@@ -226,6 +226,13 @@ pub struct AgentExecInput {
 
 /// Derive the policy for one headless App operation.
 pub fn app_operation(input: AppOperationInput<'_>) -> Result<LaunchPolicy, String> {
+    app_operation_with_egress(input, false)
+}
+
+fn app_operation_with_egress(
+    input: AppOperationInput<'_>,
+    owner_public_egress: bool,
+) -> Result<LaunchPolicy, String> {
     if input.desktop {
         return Err("GUI policies require a Root-owned instance display binding".to_string());
     }
@@ -268,7 +275,14 @@ pub fn app_operation(input: AppOperationInput<'_>) -> Result<LaunchPolicy, Strin
     let mut env = base_env(&data_dir);
     dedupe_mounts(&mut mounts);
 
-    let network = egress_from_caps(input.caps);
+    let exact = egress_from_caps(input.caps);
+    let network = if input.developer {
+        NetworkPolicy::Denied
+    } else if owner_public_egress && exact == NetworkPolicy::Denied {
+        NetworkPolicy::PublicInternet
+    } else {
+        exact
+    };
     let seccomp = seccomp_for(&network);
     env.insert("YUOS_APP_ID".to_string(), input.app_id.to_string());
     env.insert("YUOS_SESSION".to_string(), input.session_id.to_string());
@@ -307,8 +321,9 @@ pub fn app_operation(input: AppOperationInput<'_>) -> Result<LaunchPolicy, Strin
 pub(crate) fn wrapped_app_operation(
     input: AppOperationInput<'_>,
     inner_program: &Path,
+    owner_public_egress: bool,
 ) -> Result<LaunchPolicy, String> {
-    let mut policy = app_operation(input)?;
+    let mut policy = app_operation_with_egress(input, owner_public_egress)?;
     policy.mounts.extend(program_mount(inner_program));
     dedupe_mounts(&mut policy.mounts);
     Ok(policy)
@@ -320,12 +335,13 @@ pub(crate) fn gui_operation(
     mut input: AppOperationInput<'_>,
     display: &Path,
     inner_program: &Path,
+    owner_public_egress: bool,
 ) -> Result<LaunchPolicy, String> {
     use std::os::unix::fs::{FileTypeExt, MetadataExt};
 
     let app_dir = canonical_dir(input.app_dir, "App package")?;
     input.desktop = false;
-    let mut policy = app_operation(input)?;
+    let mut policy = app_operation_with_egress(input, owner_public_egress)?;
     policy.tier = TrustTier::DesktopSurface;
     policy.limits = Limits::desktop();
     policy.mounts.extend(program_mount(inner_program));
@@ -796,29 +812,26 @@ fn base_env(home: &Path) -> BTreeMap<String, String> {
     env
 }
 
-/// Point standard proxy variables at the brokered egress endpoint so a
-/// stock HTTP client works without knowing anything about the sandbox.
 fn apply_egress_env(env: &mut BTreeMap<String, String>, network: &NetworkPolicy) {
-    let NetworkPolicy::Brokered { endpoints } = network else {
+    if !network.uses_egress_broker() {
         return;
-    };
-    env.insert(
-        "YUOS_EGRESS_SOCKET".to_string(),
-        super::linux_egress_socket().to_string(),
-    );
-    env.insert(
-        "YUOS_EGRESS_ENDPOINTS".to_string(),
-        endpoints
-            .iter()
-            .map(Endpoint::authority)
-            .collect::<Vec<_>>()
-            .join(","),
-    );
+    }
+    let socket = super::linux_egress_socket();
+    env.insert("YUOS_EGRESS_SOCKET".to_string(), socket.to_string());
+    if let NetworkPolicy::Brokered { endpoints } = network {
+        env.insert(
+            "YUOS_EGRESS_ENDPOINTS".to_string(),
+            endpoints.iter().map(Endpoint::authority).collect::<Vec<_>>().join(","),
+        );
+    } else {
+        // libcurl's Unix-domain SOCKS proxy syntax; DNS stays with the broker.
+        env.insert("ALL_PROXY".to_string(), format!("socks5h://localhost{socket}"));
+    }
 }
 
 fn seccomp_for(network: &NetworkPolicy) -> SeccompProfile {
     match network {
-        NetworkPolicy::Denied => SeccompProfile::Strict,
+        NetworkPolicy::Denied | NetworkPolicy::PublicInternet => SeccompProfile::Strict,
         _ => SeccompProfile::StrictNetwork,
     }
 }

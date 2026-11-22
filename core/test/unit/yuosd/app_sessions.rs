@@ -1973,6 +1973,16 @@ fn a_registered_workload_cannot_select_the_direct_owner_frontend() {
     launcher.direct_owner = false;
     assert!(require_owner_app_launcher(&test_client(), &launcher).is_err());
     assert!(require_owner_app_launcher(&test_client(), &test_authority()).is_ok());
+    #[cfg(target_os = "linux")]
+    {
+        let mut client = test_client();
+        let owner = test_authority();
+        assert!(!allows_owner_public_egress(&client, &launcher, true));
+        assert!(!allows_owner_public_egress(&client, &owner, false));
+        assert!(allows_owner_public_egress(&client, &owner, true));
+        client.execution_uid = Some(this_uid());
+        assert!(!allows_owner_public_egress(&client, &owner, true));
+    }
 }
 
 #[test]

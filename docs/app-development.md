@@ -909,8 +909,9 @@ Set explicitly only when overriding defaults
 | `YUOS_KERNEL_BIN` | Override the public SDK's default CLI executable for development. Does not select caller identity; explicit installed-binary clients do not use it. | `yu` (from `$PATH`) |
 | `YUOS_SESSION` | Session id for grouped multi-call audit. | unset |
 | `YUOS_WORKER_SANDBOX` | Set to `1` inside every sandboxed operation. Read it to detect the sandbox; do not rely on it for security. | (auto) |
-| `YUOS_EGRESS_SOCKET` | HTTP `CONNECT` proxy socket, present only when the operation was granted exact `net.dial` hosts. | unset |
-| `YUOS_EGRESS_ENDPOINTS` | Comma-separated `host:port` list the egress broker admits. | unset |
+| `YUOS_EGRESS_SOCKET` | Unix-domain egress proxy socket for an eligible ordinary App or an exact `net.dial` grant. | unset |
+| `YUOS_EGRESS_ENDPOINTS` | Comma-separated `host:port` list for legacy exact-host egress only. | unset |
+| `ALL_PROXY` | Unix-domain SOCKS5 proxy URL for eligible ordinary Apps, with broker-side DNS (supported by curl/libcurl). | unset |
 
 Everything else is cleared. An operation starts from an empty
 environment and receives only the variables above plus a fixed `PATH`,
@@ -947,20 +948,19 @@ this while writing the manifest:
   there is no file to open directly. `show` and `forget --row` answer
   for another app's row exactly as they answer for a row that does not
   exist, so the row id space says nothing about what other apps store.
-* **Network.** Denied by default, in a private network namespace, and
-  the worker seccomp filter allows only `AF_UNIX` sockets — an
-  `AF_INET` socket cannot even be created, so there is no direct dial
-  to fall back to. An operation that declares `net.dial` with an exact
-  `host[:port]` scope receives a Unix-domain egress socket at
-  `YUOS_EGRESS_SOCKET`; `yuos_runtime.egress.create_connection()` opens a
-  tunnel through it, and the broker admits only those endpoints, pins
-  the address it resolved itself, and refuses loopback, link-local,
-  cloud-metadata, private and CGNAT addresses. TLS is established by the
-  caller over the returned stream, against the hostname it asked for. A
-  wildcard host scope grants nothing, because there is no identity to
-  check against. `net.probe` is deliberately different: it authorizes a
-  bounded, daemon-mediated reachability check for one exact endpoint and
-  never adds an egress socket or IP networking to the App sandbox.
+* **Network.** Ordinary signed GUI and CLI Apps launched directly by the
+  owner can use the outbound public TCP proxy without a manifest need,
+  approval, or SDK. Curl/libcurl uses the provided `ALL_PROXY` on versions
+  that support a Unix-domain SOCKS5 proxy; clients that speak HTTP
+  `CONNECT` over a Unix socket can use `YUOS_EGRESS_SOCKET`. Clients
+  still verify TLS; direct IP sockets, UDP/QUIC, listening ports,
+  localhost, private/LAN addresses and cloud metadata remain unavailable.
+  Agent/MCP and unsigned developer launches do not inherit this default.
+  Legacy `net.dial` declarations retain normal authorization; exact grants
+  admit only the listed endpoint(s), and wildcard hosts grant no egress.
+  `net.probe` still authorizes only a bounded daemon-mediated check,
+  not a socket. See [worker networking](../core/src/worker/MODULE.md#networking)
+  for routing and compatibility details.
 * **Filesystem globs.** `*` matches one segment and is expanded entry
   by entry, so `Documents/*` exposes the entries in `Documents` and not
   their children. `**` covers a subtree and is refused outright when

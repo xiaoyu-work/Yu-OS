@@ -140,6 +140,49 @@ fn a_wildcard_endpoint_never_reaches_the_listener() {
 }
 
 #[cfg(target_os = "linux")]
+#[test]
+#[ignore = "requires isolated network namespaces and the local public-egress fixture"]
+fn public_internet_uses_the_unix_proxy_and_excludes_local_routes() {
+    let interfaces = std::fs::read_to_string("/proc/net/dev").unwrap();
+    assert_eq!(
+        interfaces.lines().filter_map(|line| line.split_once(':').map(|(name, _)| name.trim()))
+            .collect::<std::collections::BTreeSet<_>>(),
+        std::collections::BTreeSet::from(["egress-app", "lo"]),
+    );
+    assert_ne!(
+        std::fs::read_link("/proc/self/ns/net").unwrap(),
+        std::fs::read_link("/proc/1/ns/net").unwrap(),
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let mut public = EgressEndpoint::start_worker(
+        dir.path().join("public.sock"),
+        NetworkPolicy::PublicInternet,
+        unsafe { libc::geteuid() },
+    ).unwrap();
+    let curl = |url: &str| {
+        std::process::Command::new("/usr/bin/curl")
+            .env_clear()
+            .env("ALL_PROXY", format!("socks5h://localhost{}", public.socket_path().display()))
+            .args(["-q", "--fail", "--silent", "--show-error", "--max-time", "3", url])
+            .output()
+            .unwrap()
+    };
+    let output = curl("http://public-egress.example:18080/");
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"fixture-egress");
+
+    for host in ["127.0.0.1", "169.254.169.254", "192.168.1.1",
+        "93.184.216.35", "93.184.216.36", "mixed-egress.example"]
+    {
+        let output = curl(&format!("http://{host}:18080/"));
+        assert_eq!(output.status.code(), Some(97), "{host}: {output:?}");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("(2)"), "{host}: {output:?}");
+    }
+    public.retire(std::time::Instant::now() + Duration::from_secs(1)).unwrap();
+    assert_eq!(public.facts(), serde_json::json!({"admitted": 1, "refused": 6}));
+}
+
+#[cfg(target_os = "linux")]
 fn stalled_listener(ip: std::net::Ipv4Addr) -> (std::net::TcpListener, TcpStream, SocketAddr) {
     let listener = socket2::Socket::new(
         socket2::Domain::IPV4,

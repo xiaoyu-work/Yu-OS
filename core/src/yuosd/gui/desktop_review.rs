@@ -298,11 +298,7 @@ impl Window {
                             return Ok(status("submitted"));
                         }
                         let deadline = Instant::now() + view.expires_in.min(Duration::from_secs(2));
-                        let result = if activate {
-                            self.registration.control.launch_from_dock(target.clone(), deadline)
-                        } else {
-                            self.registration.control.launch(target.clone(), deadline)
-                        };
+                        let result = self.registration.control.launch_owner_app(target.clone(), activate, deadline);
                         crate::provenance::audit("desktop.menu_launch", json!({
                             "owner_uid": self.registration.owner(),
                             "source_app": self.registration.launch.app_id(),
@@ -469,7 +465,7 @@ impl Window {
                     return Err("expected the verified desktop launch target".into());
                 };
                 let deadline = record.deadline.min(Instant::now() + Duration::from_secs(2));
-                let result = self.registration.control.launch(installed, deadline);
+                let result = self.registration.control.launch_reviewed_app(installed, deadline);
                 crate::provenance::audit(
                     "desktop.menu_launch",
                     json!({

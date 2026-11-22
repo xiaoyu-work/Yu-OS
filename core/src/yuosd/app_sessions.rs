@@ -570,6 +570,19 @@ pub async fn register(params: Value, client: &ClientIdentity) -> Result<Value, B
         "root_custody": kind != LaunchKind::Gui && !client.extension_host.as_ref().is_some_and(|host|
             host.purpose == crate::extension_host::protocol::HostPurpose::AppService),
     });
+    #[cfg(target_os = "linux")]
+    if kind == LaunchKind::Operation {
+        // A declared network need keeps its legacy semantics, even when
+        // a conditional need was not selected for this invocation.
+        let without_legacy_egress = params["operation"].as_str()
+            .and_then(|name| app.manifest.operations.get(name))
+            .is_some_and(|operation| !operation.needs.iter().any(|need| need.verb == Verb::NET_DIAL));
+        response["owner_public_egress"] = json!(
+            without_legacy_egress
+                && (launcher.parent.is_some() || client.attended_local)
+                && allows_owner_public_egress(client, &launcher, package.envelope_sha256().is_some())
+        );
+    }
     if kind == LaunchKind::Gui {
         response["optional_needs_ungranted"] = json!(optional_gui.ungranted);
         let data_dir = crate::paths::RoutedPathContext::for_owner(uid, home)
@@ -1589,6 +1602,19 @@ fn require_owner_app_launcher(
         ));
     }
     Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn allows_owner_public_egress(
+    client: &ClientIdentity,
+    launcher: &LauncherAuthority,
+    signed: bool,
+) -> bool {
+    signed
+        && require_owner_app_launcher(client, launcher).is_ok()
+        && client.execution_uid.is_none()
+        && launcher.activity.is_none()
+        && launcher.workspace.is_none()
 }
 
 pub(super) async fn require_direct_owner_launcher(client: &ClientIdentity) -> Result<(), BrokerError> {

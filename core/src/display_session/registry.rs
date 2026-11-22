@@ -37,15 +37,38 @@ pub struct Display {
 }
 
 impl Display {
-    pub(crate) fn starts_gui_launcher(&self, launcher: &ProcessIdentity) -> Result<bool, Error> {
+    pub(crate) fn gui_launcher(&self, launcher: &ProcessIdentity) -> Result<Option<GuiLauncher>, Error> {
         if parent_pid(launcher)? != self.host.pid() {
-            return Ok(false);
+            return Ok(None);
         }
         self.host.assert_current()?;
         launcher.assert_current()?;
-        Ok(std::fs::read_link(format!("/proc/{}/exe", launcher.pid()))?
-            == Path::new("/usr/local/bin/yu"))
+        if std::fs::read_link(format!("/proc/{}/exe", launcher.pid()))? != Path::new("/usr/local/bin/yu") {
+            return Ok(None);
+        }
+        // Only the protected display Host's exact `yu` child can attest
+        // an owner selection. A reviewed App launch uses the same parent
+        // and executable, but never receives this argv[0].
+        let origin = match yuos_display_control::identity::read_bounded(
+            &format!("/proc/{}/cmdline", launcher.pid()), 16 * 1024,
+        ) {
+            Ok(args) if args.split('\0').next() == Some(super::OWNER_MENU_YU_ARG0) =>
+                GuiLauncher::OwnerSelection,
+            Ok(_) => GuiLauncher::Other,
+            Err(error) => {
+                tracing::debug!(%error, "desktop launcher origin unavailable");
+                GuiLauncher::Other
+            }
+        };
+        launcher.assert_current()?;
+        Ok(Some(origin))
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum GuiLauncher {
+    OwnerSelection,
+    Other,
 }
 
 struct GuiCall {
@@ -62,7 +85,7 @@ struct LaunchCall {
 }
 
 enum MenuTarget {
-    Signed(LaunchTarget, bool),
+    Signed { target: LaunchTarget, from_dock: bool, owner_selected: bool },
     Native(String),
     Agent,
 }
@@ -158,14 +181,18 @@ impl GuiControl {
         self.desktop_changes.send_replace(());
     }
 
-    pub(crate) fn launch(&self, target: LaunchTarget, deadline: Instant) -> Result<(), Error> {
+    pub(crate) fn launch_owner_app(
+        &self, target: LaunchTarget, from_dock: bool, deadline: Instant,
+    ) -> Result<(), Error> {
         target.validate()?;
-        self.submit_launch(MenuTarget::Signed(target, false), deadline)
+        self.submit_launch(MenuTarget::Signed { target, from_dock, owner_selected: true }, deadline)
     }
 
-    pub(crate) fn launch_from_dock(&self, target: LaunchTarget, deadline: Instant) -> Result<(), Error> {
+    pub(crate) fn launch_reviewed_app(&self, target: LaunchTarget, deadline: Instant) -> Result<(), Error> {
         target.validate()?;
-        self.submit_launch(MenuTarget::Signed(target, true), deadline)
+        self.submit_launch(
+            MenuTarget::Signed { target, from_dock: false, owner_selected: false }, deadline,
+        )
     }
 
     pub(crate) fn launch_native(&self, desktop_id: String, deadline: Instant) -> Result<(), Error> {
@@ -532,9 +559,10 @@ fn monitor(
                     let request = InstanceId::random()?;
                     let expires_monotonic_ms = monotonic_ms()?.saturating_add(remaining.as_millis().min(2000) as u64);
                     let command = match &call.target {
-                        MenuTarget::Signed(target, from_dock) => AuthorityCommand::Launch {
+                        MenuTarget::Signed { target, from_dock, owner_selected } => AuthorityCommand::Launch {
                             epoch, request, expires_monotonic_ms, target: target.clone(),
                             from_dock: *from_dock,
+                            owner_selected: *owner_selected,
                         },
                         MenuTarget::Native(desktop_id) => AuthorityCommand::LaunchNative {
                             epoch, request, expires_monotonic_ms, desktop_id: desktop_id.clone(),

@@ -7,7 +7,7 @@ use yuos_display_control::{Epoch, ProcessIdentity};
 
 use crate::bridge::AppLaunch;
 use crate::caps::{Cap, CapSet, Scope, Verb};
-use crate::display_session::registry::{GuiControl, Registry};
+use crate::display_session::registry::{GuiControl, GuiLauncher, Registry};
 use crate::display_session::SHELL_APP;
 use crate::yuosd::preinstalled::{self, Defaults};
 
@@ -30,6 +30,7 @@ pub(crate) struct Draft {
     delegation: BoundDelegation,
     pub(super) desktop_shell: bool,
     system_menu_app: bool,
+    owner_public_egress: bool,
     pub(super) owner_settings: bool,
     pub(super) owner_launch: bool,
 }
@@ -47,6 +48,7 @@ pub(crate) struct Registration {
     pub(crate) desktop_launcher: bool,
     pub(crate) owner_settings: bool,
     pub(crate) owner_launch: bool,
+    pub(crate) owner_public_egress: bool,
     pub session_id: String,
     pub caps: CapSet,
     pub optional_needs_ungranted: Vec<usize>,
@@ -87,13 +89,16 @@ impl Draft {
             .map_err(|error| error.to_string())?
             .for_process(&launcher)
             .map_err(|error| error.to_string())?;
-        let system_launcher = gui_entry.is_none()
-            && launcher_authority.parent.is_none()
-            && display
+        let supervised_launcher = if gui_entry.is_none() && launcher_authority.parent.is_none() {
+            display
                 .lock()
                 .map_err(|_| "display registry lock poisoned")?
-                .starts_gui_launcher(&launcher)
-                .map_err(|error| error.to_string())?;
+                .gui_launcher(&launcher)
+                .map_err(|error| error.to_string())?
+        } else {
+            None
+        };
+        let system_launcher = supervised_launcher.is_some();
         let desktop_shell = system_launcher && launch.app_id() == SHELL_APP;
         if desktop_shell {
             if entry != "bin/yuos-desktop-shell" || selector != "--gui"
@@ -113,6 +118,17 @@ impl Draft {
             && launcher_authority.workspace.is_none()
             && client.extension_host.is_none()
             && (system_launcher || client.attended_local);
+        let owner_public_egress = !desktop_shell
+            && !system_menu_app
+            && !selected.needs.iter().chain(&selected.optional_needs)
+                .any(|need| need.verb == Verb::NET_DIAL)
+            && match supervised_launcher {
+                Some(origin) => origin == GuiLauncher::OwnerSelection,
+                None => client.attended_local,
+            }
+            && super::allows_owner_public_egress(
+                client, launcher_authority, launch.package().envelope_sha256().is_some(),
+            );
         let control = GuiControl::of(&display).map_err(|error| error.to_string())?;
         let home = crate::paths::verified_home_for_uid(control.owner_uid)?;
         let generation =
@@ -134,6 +150,7 @@ impl Draft {
             control,
             desktop_shell,
             system_menu_app,
+            owner_public_egress,
             owner_settings,
             owner_launch,
             delegation: BoundDelegation {
@@ -171,6 +188,7 @@ impl Draft {
             desktop_launcher,
             owner_settings: self.owner_settings,
             owner_launch: self.owner_launch,
+            owner_public_egress: self.owner_public_egress,
             defaults,
             session_id,
             caps,
