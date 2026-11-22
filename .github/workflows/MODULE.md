@@ -94,6 +94,10 @@ not build installer, Docker or WSL images.
 
 SDK publication also builds tested portable `yu` signing executables for amd64
 and arm64 from that same commit, after its full Root validation succeeds.
+For an initial App publication, validate the exact `main` commit with
+`test.yml`, publish the App platform and SDK artifacts, then publish the
+signed App APT repository. `release.yml` consumes that repository; it cannot
+create the upstream App index.
 The SDK Release binds those bounded assets, dependency source pins and upstream
 notices to its checksums. This lets the first App channel authenticate snapshots
 before the coordinated Agent ownership cutover, without a circular dependency

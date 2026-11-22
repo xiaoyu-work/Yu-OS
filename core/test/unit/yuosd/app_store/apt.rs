@@ -1758,7 +1758,7 @@ impl OrdinaryActor {
                 crate::caps::Scope::name(BUNDLE),
             ));
         } else if operation == "catalog" {
-            for name in ["packages", BUNDLE, "yuos"] {
+            for name in ["packages", BUNDLE, "yu"] {
                 caps.insert(crate::caps::Cap::new(
                     crate::caps::Verb::SYS_OBSERVE,
                     crate::caps::Scope::name(name),
