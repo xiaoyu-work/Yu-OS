@@ -101,7 +101,10 @@ The helper remains `/usr/local/bin/yuos-approval-helper`, invoked through
 `/usr/bin/pkexec`. When `requires_administrator` is set, a third-party App is
 asking for a system permission: presenters run the administrator copy,
 `/usr/local/bin/yuos-admin-approval-helper` (`SystemReview::helper`), whose
-polkit action requires `auth_admin`. The broker must independently validate the authenticated
+polkit action requires `auth_admin`. Before running it, the terminal
+presenter asks Root to approve once with an administrator authentication from
+the same terminal session in the last five minutes, like sudo; Root refuses
+unless its own ticket matches. The broker must independently validate the authenticated
 owner, request id, displayed revision, allowed action and each permission
 selection against protected state.
 Cancellation uses the owner-only route above after the same displayed-revision

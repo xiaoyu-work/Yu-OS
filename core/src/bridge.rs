@@ -1558,7 +1558,8 @@ fn approval_requests(error: &YuosdCallError) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Block this process until every listed request is decided.
+/// Block this process until every listed request is decided. On a
+/// terminal the launcher asks for the decision itself, like sudo.
 ///
 /// Waiting in the launcher is what keeps the retry authentic: `yuosd`
 /// re-derives the same uid/pid/start identity on the follow-up call, so
@@ -1570,6 +1571,7 @@ fn wait_for_approvals(ids: &[String]) -> Result<(), String> {
 }
 
 fn wait_for_approvals_until(ids: &[String], deadline: Instant) -> Result<(), String> {
+    crate::router::system_review::decide_or_announce(ids)?;
     loop {
         check_approval_wait(deadline)?;
         let result = yuosd_request(

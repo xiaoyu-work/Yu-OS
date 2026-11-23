@@ -373,6 +373,11 @@ fn review_request(
         async move { Ok(backend.review(&request_id, decision).await) },
         move |app, result| {
             if let Err(error) = result {
+                // Like sudo: an administrator authenticates in this terminal.
+                if decision == ReviewDecision::ApproveOnce && app.requires_administrator(&id) {
+                    app.administrator_approval = Some(id);
+                    return Ok(());
+                }
                 if detail {
                     app.close_approval_detail();
                 }

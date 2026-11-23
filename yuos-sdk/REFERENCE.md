@@ -117,9 +117,9 @@ Every other capability is a system permission, for example `sys.*`,
 `ui.accessibility`, `ui.panel`, `data.log.read` (every App's and the
 Agent's logs) and other Apps' data. Official Yu OS Apps
 keep them. A third-party App may declare them, but like Windows UAC, an
-administrator must enter their password each time the App uses one.
-Yu OS refuses the permission otherwise and never saves it as a lasting
-choice.
+administrator must approve each use, and Yu OS never saves that approval as
+a lasting choice. In a terminal, `yu` asks for the password in place, like
+sudo, and does not ask again in that terminal session for five minutes.
 
 ## App object references
 

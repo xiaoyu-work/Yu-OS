@@ -178,9 +178,14 @@ audit.
   Both decisions remain inside the alternate-screen TUI: no `pkexec`, polkit,
   password prompt or terminal handoff occurs. `yuosd` derives owner and local
   terminal presence from the kernel peer, accepts only `once`, and refuses
-  owner selectors or reusable duration. An exact approved request already
-  consumed by its task is still a confirmed decision, not a failure or a new
-  grant.
+  owner selectors or reusable duration. The exception is a third-party App's
+  system permission: like sudo, Authorize once uses an administrator's
+  authentication from this terminal session in the last five minutes, and
+  otherwise leaves the full screen while `router::system_review::approve_here`
+  runs the administrator helper through `pkexec`, then returns. The key reader
+  is dropped first so it cannot consume the password. An exact approved
+  request already consumed by its task is still a confirmed decision, not a
+  failure or a new grant.
 - Permission content wraps by terminal display width. Up/Down and PgUp/PgDn
   scroll long targets/effects while decision buttons remain pinned. Compact
   prompts hide nonessential chrome and use an approval-specific footer.

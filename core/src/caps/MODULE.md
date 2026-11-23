@@ -67,7 +67,9 @@ device and everyday App capabilities macOS and Windows let any App request,
 plus an App publishing its own events. Every other verb is a system
 permission. `provenance::Ceiling::requires_administrator` applies the split:
 official packages keep system permissions, and any other package needs an
-administrator-authenticated approval for each use.
+administrator-authenticated approval for each use. Like sudo,
+`yuosd/administrator.rs` lets the same owner reuse that authentication from
+one terminal session for five minutes.
 
 For Agent consent, `caps::require` receives the exact verb and canonical scope
 only after the owning operation validates its arguments. A primitive may also

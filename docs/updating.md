@@ -405,8 +405,11 @@ the decision to `PKEXEC_UID`, and the broker rejects another owner's request.
 A third-party App's system permission instead uses the administrator copy,
 `yuos-admin-approval-helper`, whose separate polkit action requires
 `auth_admin`; the broker accepts only that copy's decision for it.
-Authorization is not cached (`auth_self_keep` and unconditional `yes` are not
-used). Web review authentication now appears in a password dialog in the
+Polkit authorization is not cached (`auth_self_keep` and unconditional `yes`
+are not used). Instead, like sudo, the broker itself lets the same owner reuse
+an administrator's approval from one terminal session for five minutes, and
+journals each reuse; a `yu` command waiting in a terminal asks for the
+password there. Web review authentication now appears in a password dialog in the
 page, not the terminal that launched `yu agent serve`. The serving process
 registers a temporary PID/start-time-bound polkit agent and accepts only its
 own OS identity. Password responses are single-use, same-origin and Web-session

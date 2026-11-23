@@ -58,7 +58,7 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
             None => permission.decision_id()?,
         };
         // A third-party App's system permission is never a saved choice: an
-        // administrator approves each use.
+        // administrator approves its use.
         let administrator = ceiling.requires_administrator(&crate::caps::Cap::new(
             permission.verb,
             match &permission.scope {
@@ -112,7 +112,7 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
             current,
             supported_choices: if selectable { vec![PermissionChoice::AllowAlways, PermissionChoice::Deny] } else { Vec::new() },
             unsupported_reason: (!selectable).then(|| if administrator {
-                "This is a system permission. An administrator must approve it each time this third-party app uses it.".into()
+                "This is a system permission. An administrator must approve it when this third-party app uses it.".into()
             } else if current.is_some() {
                 if ai_choice.is_some() {
                     "This choice takes effect only after verified installation. You can turn it off in Settings → Applications.".into()

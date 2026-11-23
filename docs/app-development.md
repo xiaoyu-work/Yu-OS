@@ -619,10 +619,17 @@ permissions, and the owner approves them as usual. Official Yu OS Apps keep
 system permissions. A third-party App's system permission is never delegated
 from the launcher, saved as an install or Settings choice, or granted to an
 optional GUI need: each launch or call files a request that only an
-administrator can approve, through
+administrator can approve, once, through
 `/usr/local/bin/yuos-admin-approval-helper` and polkit `auth_admin`.
-`yu review approve <id>` and the desktop review ask for that password
-automatically.
+
+A `yu` command waiting in a terminal shows each request and asks for the
+matching password there, like sudo: the owner's for an App permission and an
+administrator's for a system permission. Root then lets the same owner
+approve system permissions from that terminal session for five minutes
+without the password; the ticket is bound to the session leader's start
+time, and each reuse is recorded in the decision journal. Without a terminal,
+`yu` prints each request id and its `yu review approve <id>` command while it
+waits. The desktop and Web reviews ask an administrator every time.
 
 ### Agent-resumable authorization
 

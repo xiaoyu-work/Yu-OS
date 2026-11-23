@@ -58,7 +58,7 @@ fn system_review_shared_app_view_preserves_purpose_scope_arguments_and_non_grant
         );
         assert!(view.permissions[0].supported_choices.is_empty());
         // The test publisher is third-party: its system permission needs an
-        // administrator each time instead of an install choice.
+        // administrator's approval instead of an install choice.
         assert!(view.permissions[0]
             .unsupported_reason
             .as_ref()

@@ -5,8 +5,9 @@ use std::path::Path;
 use std::process::Stdio;
 
 use yuosd_client::system_review::{
-    display_text, format_terminal, AppReviewDecision, PendingReviews, PermissionSelection, ReviewAction,
-    ReviewDecision, ReviewKind, ReviewStatus, ReviewSubmission, SystemReview,
+    display_text, format_terminal, AppReviewDecision, PendingReviews, PermissionChoice,
+    PermissionSelection, ReviewAction, ReviewDecision, ReviewKind, ReviewStatus, ReviewSubmission,
+    SystemReview,
 };
 use serde_json::{json, Value};
 
@@ -65,8 +66,77 @@ fn present(review: &SystemReview) -> Result<(), String> {
         .map_err(|error| format!("flush system review: {error}"))
 }
 
-fn interactive() -> bool {
+pub(crate) fn interactive() -> bool {
     std::io::stdin().is_terminal() && std::io::stderr().is_terminal()
+}
+
+/// Decide what a waiting `yu` needs in this terminal, like sudo. Without a
+/// terminal, name each request and the command that decides it.
+pub(crate) fn decide_or_announce(ids: &[String]) -> Result<(), String> {
+    for id in ids {
+        if interactive() {
+            approve_here(id)?;
+        } else {
+            eprintln!("Waiting for approval {id}. Approve it in a terminal with: yu review approve {id}");
+        }
+    }
+    Ok(())
+}
+
+/// Show one pending request, then authenticate with its fixed helper. A
+/// capability request is approved once: as with sudo, the password is the
+/// confirmation.
+pub(crate) fn approve_here(id: &str) -> Result<(), String> {
+    let review = parse_review(request(Command::SystemReviewShow, json!({"id": id}))?)?;
+    if review.status != ReviewStatus::Pending {
+        return Ok(());
+    }
+    present(&review)?;
+    let action = approval_action(&review)?;
+    let mut decision = ReviewDecision {
+        id: review.id.clone(),
+        revision: review.revision,
+        action,
+        choices: Vec::new(),
+    };
+    let submission = if action == ReviewAction::ApplyChoices {
+        decision.choices = review
+            .permissions
+            .iter()
+            .map(|permission| PermissionSelection {
+                permission_id: permission.id.clone(),
+                choice: PermissionChoice::AllowOnce,
+            })
+            .collect();
+        decision.into()
+    } else {
+        if !confirm(action)? {
+            return Err("system review confirmation was cancelled".into());
+        }
+        choose_for_app(&review, decision)?
+    };
+    submit(&review, submission).map(|_| ())
+}
+
+/// Root approves without a password when an administrator approved from
+/// this terminal session in the last five minutes; otherwise it refuses.
+fn reused_administrator(review: &SystemReview, decision: &ReviewDecision) -> bool {
+    let once = !decision.choices.is_empty()
+        && decision
+            .choices
+            .iter()
+            .all(|selection| selection.choice == PermissionChoice::AllowOnce);
+    let reused = review.requires_administrator
+        && once
+        && request(
+            Command::PermissionDecide,
+            json!({"id": review.id, "decision": "approve", "duration": "once"}),
+        )
+        .is_ok();
+    if reused {
+        eprintln!("Approved with the administrator authentication from this terminal.");
+    }
+    reused
 }
 
 fn confirm(action: ReviewAction) -> Result<bool, String> {
@@ -192,10 +262,11 @@ fn submit(review: &SystemReview, submission: ReviewSubmission) -> Result<SystemR
         .map_err(|error| error.to_string())?;
     let outcome = if decision.action == ReviewAction::Cancel {
         request(Command::SystemReviewCancel, json!({"review": decision})).and_then(parse_review)
+    } else if !interactive() {
+        return Err("system review decisions require an interactive OS presentation".into());
+    } else if reused_administrator(review, decision) {
+        Ok(review.clone())
     } else {
-        if !interactive() {
-            return Err("system review decisions require an interactive OS presentation".into());
-        }
         helper_decision(&submission, review)
     };
     let refreshed =

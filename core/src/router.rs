@@ -1,7 +1,7 @@
 mod app_commands;
 mod object_commands;
 mod operation_commands;
-mod system_review;
+pub(crate) mod system_review;
 
 use std::env;
 use std::io::Read;
@@ -280,6 +280,7 @@ const SCHEDULER_APPROVAL_POLL: std::time::Duration = std::time::Duration::from_m
 /// anything that is not a clean approval.
 fn wait_for_scheduler_approvals(ids: &[String]) -> Result<(), String> {
     let deadline = Instant::now() + SCHEDULER_APPROVAL_WAIT;
+    system_review::decide_or_announce(ids)?;
     loop {
         let result = request_yuosd(Command::PermissionStatus, json!({ "ids": ids }))?;
         let statuses = result

@@ -1011,7 +1011,11 @@ pub fn administrator_session(session: &str) -> String {
 }
 
 pub fn requires_administrator(request: &Request) -> bool {
-    request.session.ends_with(ADMINISTRATOR_APPROVAL)
+    is_administrator_session(&request.session)
+}
+
+pub fn is_administrator_session(session: &str) -> bool {
+    session.ends_with(ADMINISTRATOR_APPROVAL)
 }
 
 pub(crate) fn is_desktop_visual_approval(capability: &Cap, operation_digest: Option<&str>) -> bool {
@@ -1045,6 +1049,9 @@ fn validate_duration(
         && duration != GrantDuration::Once
     {
         return Err("desktop effects can only be approved once".into());
+    }
+    if is_administrator_session(&authorization.session) && duration != GrantDuration::Once {
+        return Err("an administrator approves a third-party App's system permission once".into());
     }
     if authorization.context != Some(ConsentContext::Attended) {
         return Ok(());

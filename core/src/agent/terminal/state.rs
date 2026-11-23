@@ -186,6 +186,8 @@ pub(super) struct App {
     pub approval_choice: ReviewDecision,
     pub approval_scroll: u16,
     pub approval_watch: ApprovalWatch,
+    /// A system permission an administrator approves in this terminal next.
+    pub administrator_approval: Option<String>,
     pub input_history: Vec<String>,
     pub history_index: Option<usize>,
     pub command_selection: usize,
@@ -291,6 +293,7 @@ impl App {
             approval_choice: ReviewDecision::ApproveOnce,
             approval_scroll: 0,
             approval_watch: ApprovalWatch::default(),
+            administrator_approval: None,
             input_history: Vec::new(),
             history_index: None,
             command_selection: 0,
@@ -693,6 +696,16 @@ impl App {
 
     pub fn current_approval(&self) -> Option<&ApprovalRequest> {
         self.pending_approvals.front()
+    }
+
+    /// Is `id` a third-party App's system permission?
+    pub fn requires_administrator(&self, id: &str) -> bool {
+        self.pending_approvals
+            .iter()
+            .chain(&self.approval_detail)
+            .any(|request| {
+                request.id == id && crate::approvals::is_administrator_session(&request.session)
+            })
     }
 
     pub fn cycle_approval_choice(&mut self) {

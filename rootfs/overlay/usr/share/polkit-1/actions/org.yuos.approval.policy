@@ -25,7 +25,8 @@
     <message>An administrator password is required to let a third-party app use a system permission.</message>
     <defaults>
       <!-- Like Windows UAC: the administrator copy of the fixed helper tells the
-           root broker an administrator authenticated this decision. Never cached. -->
+           root broker an administrator authenticated this decision. Polkit keeps
+           nothing; the broker's own terminal ticket provides sudo-style reuse. -->
       <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin</allow_active>

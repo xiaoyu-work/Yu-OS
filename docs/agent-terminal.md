@@ -160,7 +160,11 @@ Controls:
   polkit or OS password prompt is opened. `yuosd` derives the owner and local
   terminal presence from the kernel peer; **Authorize once** is restricted to
   that exact request and cannot become a session or reusable grant. **Deny**
-  grants nothing.
+  grants nothing. A third-party App's system permission is the exception:
+  like sudo, the TUI briefly leaves the full screen and asks for an
+  administrator's password in the same terminal, then returns. For five
+  minutes afterwards, **Authorize once** approves such requests from that
+  terminal session without asking again.
 - Permission prompts lead with the catalog's human action, target and effect,
   for example **Inspect file details**, **All files and folders**, and
   **See file names, sizes, and timestamps without reading the contents**.

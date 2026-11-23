@@ -1,4 +1,5 @@
-//! Read-only waits for OS launch review and capability decisions.
+//! Waits for OS launch review and capability decisions. On a terminal the
+//! launcher asks for them in place, like sudo.
 
 use std::collections::BTreeSet;
 use std::io::Write;
@@ -124,6 +125,11 @@ fn review_complete(review: &SystemReview, app_id: &str, id: &str) -> Result<bool
 }
 
 fn wait_for_review(app_id: &str, id: &str, deadline: Instant) -> Result<(), String> {
+    crate::router::system_review::decide_or_announce(&[id.to_string()])?;
+    if crate::router::system_review::interactive() {
+        // Decided here; the broker settles it on the next registration.
+        return Ok(());
+    }
     poll_review(
         app_id,
         id,

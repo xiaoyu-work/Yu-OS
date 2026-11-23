@@ -83,6 +83,7 @@ and agent tasks.
 | `gui/`, `app_sessions/gui.rs` | Root-supervised default/named GUI instances; signed entry/selector binding, exclusive GUI needs or legacy operation-only needs, live parent/grant/policy checks, independent selection rights and checked retirement |
 | `../display_session/` | Root PAM/login activation and compositor control; owner sockets or Wayland labels cannot register authority |
 | `system_review.rs`, `system_review/presentation.rs` | Shared App/capability review projection, owner-scoped display revisions, root-only choices, fresh package verification and one-use App confirmation; optional AI choice activates only after the installer verifies completion |
+| `administrator.rs` | Sudo-style administrator ticket: after the `auth_admin` helper approves, the same owner's approvals from that terminal session reuse it for five minutes; keyed by controlling terminal, session id and leader start time, in memory only |
 | `app_services.rs`, `app_services/retirement.rs` | Persistent owner/App service manager, retained cleanup custody, lifecycle policy, capacity/restart control, and single-use call authorization |
 | `../extension_host/broker.rs` | Purpose-bound private proxy: verifies SCM credentials, Host/child ancestry, route class, and nearest child session before normal dispatch |
 | `scheduler.rs` | Proactive-scheduler authority: validates `yu cron` / `yu triggers` requests and derives what a job may carry |

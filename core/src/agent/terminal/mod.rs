@@ -236,6 +236,19 @@ async fn run_with_backend(
     let mut nearby_polling=false;
 
     while !app.should_quit || requests.must_settle() {
+        if let Some(id) = app.administrator_approval.take() {
+            // Stop reading keys so pkexec owns the terminal, like sudo.
+            drop(input);
+            let outcome = terminal
+                .outside(|| crate::router::system_review::approve_here(&id))
+                .map_err(|error| format!("Could not hand the terminal to the administrator: {error}"))
+                .and_then(|outcome| outcome);
+            input = EventStream::new();
+            match outcome {
+                Ok(()) => app.push_system("Administrator authentication finished."),
+                Err(error) => app.push_error(&error),
+            }
+        }
         if !requests.busy() && !app.should_quit {
             if let Some(action) = requests.take_deferred() {
                 apply_input_action(
@@ -1435,6 +1448,17 @@ impl TerminalSession {
     }
 
     fn publish_scrollback(&mut self, snapshot: &str) -> io::Result<()> {
+        self.outside(|| {
+            let mut stdout = io::stdout();
+            writeln!(stdout, "\n--- Yu OS transcript snapshot ---")?;
+            stdout.write_all(snapshot.as_bytes())?;
+            writeln!(stdout, "--- end Yu OS transcript snapshot ---\n")?;
+            stdout.flush()
+        })?
+    }
+
+    /// Leave the full-screen view while `work` uses the terminal.
+    fn outside<T>(&mut self, work: impl FnOnce() -> T) -> io::Result<T> {
         self.terminal.show_cursor()?;
         disable_raw_mode()?;
         execute!(
@@ -1444,13 +1468,7 @@ impl TerminalSession {
             LeaveAlternateScreen
         )?;
 
-        let write_result = (|| {
-            let mut stdout = io::stdout();
-            writeln!(stdout, "\n--- Yu OS transcript snapshot ---")?;
-            stdout.write_all(snapshot.as_bytes())?;
-            writeln!(stdout, "--- end Yu OS transcript snapshot ---\n")?;
-            stdout.flush()
-        })();
+        let result = work();
 
         let raw_result = enable_raw_mode();
         let screen_result = execute!(
@@ -1467,11 +1485,11 @@ impl TerminalSession {
         let clear_result = self.terminal.clear();
         let cursor_result = self.terminal.hide_cursor();
 
-        write_result?;
         raw_result?;
         screen_result?;
         clear_result?;
-        cursor_result
+        cursor_result?;
+        Ok(result)
     }
 }
 

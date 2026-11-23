@@ -126,13 +126,23 @@ pub fn decide(params: Value, client: &ClientIdentity) -> Result<Value, String> {
                         "owner terminal approval is limited to one exact request".to_string()
                     );
                 }
+                // Like sudo: an administrator who approved from this terminal
+                // session in the last five minutes is not asked again.
+                let administrator = approvals::lookup_pending(&id)
+                    .is_some_and(|request| approvals::requires_administrator(&request))
+                    && super::administrator::reusable(peer_uid, client);
+                let decided_by = if administrator {
+                    format!("{decided_by} (administrator authentication reused)")
+                } else {
+                    decided_by
+                };
                 approve_request(
                     &id,
                     duration,
                     decided_by,
                     note,
                     Some(peer_uid),
-                    false,
+                    administrator,
                 )
             }
             other => Err(format!("unknown permission decision: {other}")),
@@ -151,14 +161,20 @@ pub fn decide(params: Value, client: &ClientIdentity) -> Result<Value, String> {
     let administrator = params.get("administrator").and_then(Value::as_bool) == Some(true);
 
     match decision.as_str() {
-        "approve" | "allow" => approve_request(
-            &id,
-            duration_from_params(&params)?,
-            decided_by,
-            note,
-            owner_uid,
-            administrator,
-        ),
+        "approve" | "allow" => {
+            let approved = approve_request(
+                &id,
+                duration_from_params(&params)?,
+                decided_by,
+                note,
+                owner_uid,
+                administrator,
+            )?;
+            if let Some(owner) = owner_uid.filter(|_| administrator) {
+                super::administrator::record(owner, client);
+            }
+            Ok(approved)
+        }
         "deny" | "reject" => deny_request(&id, decided_by, note, owner_uid),
         other => Err(format!("unknown permission decision: {other}")),
     }

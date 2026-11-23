@@ -547,7 +547,12 @@ system permissions. For any other package, `yuosd` never delegates one from
 the launcher, saves one as an install or Settings choice, or grants one to
 an optional GUI need. It files the request in an administrator-only approval
 session; only the administrator copy of the approval helper, reached through
-polkit `auth_admin`, can approve it, and one use spends the approval.
+polkit `auth_admin`, can approve it, and one use spends the approval. Like
+sudo, `yuosd` then lets the same owner approve such requests from that
+terminal session for five minutes without the password. The ticket is held
+only in memory and keyed by the owner, the controlling terminal, the session
+id and the session leader's start time, so another terminal or a reused pid
+cannot inherit it; each reuse is recorded in the decision journal.
 
 Unsigned developer content may hold only `fs.read`, `fs.write`,
 `fs.meta`, `data.kv.read`, `data.kv.write`, `data.log.read`,

@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use yuosd_client::system_review::{PermissionChoice, ReviewAction, ReviewDecision, ReviewSubmission, SystemReview};
+use yuosd_client::system_review::{PermissionChoice, ReviewAction, ReviewDecision, ReviewStatus, ReviewSubmission, SystemReview};
 use serde_json::{json, Value};
 
 use crate::approvals::system_review::{self as store, ReviewKind, ReviewRecord};
@@ -165,12 +165,17 @@ pub async fn decide(params: Value, client: &ClientIdentity) -> Result<Value, Bro
     }
     let body: super::wire::requests::SystemReviewDecide = serde_json::from_value(params)
         .map_err(|_| invalid_input("invalid typed system review decision"))?;
+    let client = client.clone();
     tokio::task::spawn_blocking(move || {
         use super::wire::requests::SystemReviewDecide;
         let review = match body {
             SystemReviewDecide::Typed(body) => match body.review.0 {
                 ReviewSubmission::Ordinary(decision) => {
-                    apply_decision(body.owner_uid, &decision, body.administrator)?
+                    let review = apply_decision(body.owner_uid, &decision, body.administrator)?;
+                    if body.administrator && review.status == ReviewStatus::Completed {
+                        super::administrator::record(body.owner_uid, &client);
+                    }
+                    review
                 }
                 ReviewSubmission::App(decision) => {
                     let id = &decision.confirmation.id;
