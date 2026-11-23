@@ -125,28 +125,28 @@ fn capability_decision(owner: u32) -> ReviewDecision {
 fn system_review_typed_decision_rejects_stale_owner_and_unsupported_choices_without_granting() {
     isolated_review(|| {
         let decision = capability_decision(1000);
-        assert!(apply_decision(1001, &decision).is_err());
+        assert!(apply_decision(1001, &decision, false).is_err());
         let mut stale = decision.clone();
         stale.revision += 1;
-        assert!(apply_decision(1000, &stale)
+        assert!(apply_decision(1000, &stale, false)
             .unwrap_err()
             .contains("stale revision"));
         for choice in [PermissionChoice::Ask, PermissionChoice::Restore] {
             let mut unsupported = decision.clone();
             unsupported.choices[0].choice = choice;
-            assert!(apply_decision(1000, &unsupported)
+            assert!(apply_decision(1000, &unsupported, false)
                 .unwrap_err()
                 .contains("not supported"));
         }
         let mut duplicated = decision.clone();
         duplicated.choices.push(duplicated.choices[0].clone());
-        assert!(apply_decision(1000, &duplicated)
+        assert!(apply_decision(1000, &duplicated, false)
             .unwrap_err()
             .contains("duplicate"));
         let mut installation = decision.clone();
         installation.action = ReviewAction::ConfirmInstall;
         installation.choices.clear();
-        assert!(apply_decision(1000, &installation).is_err());
+        assert!(apply_decision(1000, &installation, false).is_err());
         assert!(approvals::list_recent(100).is_empty());
         assert_eq!(approvals::list_pending_for_owner(Some(1000)).len(), 1);
     });
@@ -156,13 +156,13 @@ fn system_review_typed_decision_rejects_stale_owner_and_unsupported_choices_with
 fn system_review_typed_capability_uses_existing_one_shot_authority_and_only_one_decision_wins() {
     isolated_review(|| {
         let decision = capability_decision(1000);
-        let result = apply_decision(1000, &decision).unwrap();
+        let result = apply_decision(1000, &decision, false).unwrap();
         assert_eq!(
             result.status,
             yuosd_client::system_review::ReviewStatus::Completed
         );
         assert!(result.revision > decision.revision);
-        assert!(apply_decision(1000, &decision).is_err());
+        assert!(apply_decision(1000, &decision, false).is_err());
         let resolved = approvals::list_recent_for_owner(10, Some(1000));
         assert_eq!(resolved.len(), 1);
         let grant = resolved[0].decision.grant.as_ref().unwrap();

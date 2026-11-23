@@ -19,6 +19,8 @@ from gi.repository import Gdk, Gtk, Pango
 
 YU = "/usr/local/bin/yu"
 APPROVAL_HELPER = "/usr/local/bin/yuos-approval-helper"
+# A third-party App's system permission: polkit asks for an administrator.
+ADMIN_APPROVAL_HELPER = "/usr/local/bin/yuos-admin-approval-helper"
 REVIEW_ID = re.compile(r"(?:rv-[a-f0-9]{32}|ap-[a-f0-9]{12}|pg-[a-f0-9]{32})")
 CONFIRMATIONS = {
     "confirm_activation": (
@@ -193,6 +195,8 @@ def copy_for(review, action, permission):
         summary = literal(permission["blurb"])
     if subject["app_id"] or "Execution consent context" in context:
         summary = f"Requested by {name}. {summary}"
+    if review.get("requires_administrator"):
+        summary = f"An administrator must approve this system permission. {summary}"
     if reason.startswith("App launch requires "):
         reason = ""
     if target == "All resources" and verb == "sys.power":
@@ -450,6 +454,10 @@ class Reviews:
         if action == "cancel":
             self.message("Declining this request...")
             self.run([YU, "--json", "review", "deny", review_id, str(decision["revision"])], refresh)
+        elif self.pending.get("requires_administrator"):
+            self.message("Enter an administrator password in the system dialog to confirm.")
+            self.run(["/usr/bin/pkexec", "--disable-internal-agent", ADMIN_APPROVAL_HELPER,
+                      "--system-review-json"], refresh, json.dumps(payload))
         else:
             self.message("Enter your sign-in password in the system dialog to confirm.")
             self.run(["/usr/bin/pkexec", "--disable-internal-agent", APPROVAL_HELPER,

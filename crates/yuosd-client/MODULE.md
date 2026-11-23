@@ -98,7 +98,10 @@ and completed package effects remain separate.
 Only the trusted OS helper may submit `system.review.decide`; the normal
 frontend never calls that route directly or serializes capabilities.
 The helper remains `/usr/local/bin/yuos-approval-helper`, invoked through
-`/usr/bin/pkexec`. The broker must independently validate the authenticated
+`/usr/bin/pkexec`. When `requires_administrator` is set, a third-party App is
+asking for a system permission: presenters run the administrator copy,
+`/usr/local/bin/yuos-admin-approval-helper` (`SystemReview::helper`), whose
+polkit action requires `auth_admin`. The broker must independently validate the authenticated
 owner, request id, displayed revision, allowed action and each permission
 selection against protected state.
 Cancellation uses the owner-only route above after the same displayed-revision

@@ -8,6 +8,11 @@
 //! operator agreed to run code nobody signed, so it gets the smallest
 //! set that still allows a developer to iterate.
 //!
+//! The surface is split like macOS and Windows: App permissions
+//! ([`crate::caps::catalog::APP_PERMISSIONS`]) and system permissions.
+//! Official packages keep system permissions; any other package needs an
+//! administrator's approval for each use ([`Ceiling::requires_administrator`]).
+//!
 //! ## What Developer may hold
 //!
 //! Only verbs on [`DEVELOPER_ALLOWED`]: reading and writing the
@@ -119,15 +124,43 @@ impl Audience {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ceiling {
     tier: TrustTier,
+    /// Vendor-signed Apps and the OS desktop Shell.
+    official: bool,
+    package_id: Option<String>,
 }
 
 impl Ceiling {
     pub fn for_tier(tier: TrustTier) -> Self {
-        Self { tier }
+        Self {
+            tier,
+            official: tier == TrustTier::Vendor,
+            package_id: None,
+        }
+    }
+
+    /// One package's ceiling. Vendor-signed Apps and the OS desktop Shell
+    /// are official.
+    pub fn for_package(tier: TrustTier, system_desktop: bool, package_id: &str) -> Self {
+        Self {
+            tier,
+            official: tier == TrustTier::Vendor || system_desktop,
+            package_id: Some(package_id.to_string()),
+        }
     }
 
     pub fn tier(&self) -> TrustTier {
         self.tier
+    }
+
+    /// Must an administrator approve each use of this capability?
+    ///
+    /// As on macOS and Windows, any App may use App permissions with the
+    /// owner's approval. Official Apps keep system permissions; any other
+    /// package may use one only through an administrator-authenticated
+    /// approval.
+    pub fn requires_administrator(&self, cap: &Cap) -> bool {
+        !self.official
+            && !crate::caps::catalog::is_app_permission(cap, self.package_id.as_deref())
     }
 
     /// True when the tier is the restricted developer tier.

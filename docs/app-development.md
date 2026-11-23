@@ -610,6 +610,20 @@ Pass exactly one scope keyword (or `wild=True` for unscoped verbs).
 Use `policy.check(...)` (same signature, returns the raw decision
 envelope) when you want to surface "would-be-denied" without aborting.
 
+### App permissions and system permissions
+
+Like macOS and Windows, a verb is either an App permission or a system
+permission; [the SDK reference](../yuos-sdk/REFERENCE.md#permissions) lists
+them with their macOS and Windows equivalents. Any signed App may declare App
+permissions, and the owner approves them as usual. Official Yu OS Apps keep
+system permissions. A third-party App's system permission is never delegated
+from the launcher, saved as an install or Settings choice, or granted to an
+optional GUI need: each launch or call files a request that only an
+administrator can approve, through
+`/usr/local/bin/yuos-admin-approval-helper` and polkit `auth_admin`.
+`yu review approve <id>` and the desktop review ask for that password
+automatically.
+
 ### Agent-resumable authorization
 
 A bundled App that needs Google or Microsoft user authorization should return
@@ -753,7 +767,9 @@ confirmation and remains saved until changed in Settings. An unchanged choice
 for the same publisher is carried forward; broader scopes or new uses need
 their own choice. Optional denied features stay unavailable, and a required
 denial prevents that launch. Argument-bound access, selected file contents,
-and Agent-run operations do not inherit standing GUI permission. The optional
+and Agent-run operations do not inherit standing GUI permission. A
+third-party App's system permissions are not install choices; an
+administrator approves each use. The optional
 system AI choice described below is bound to the exact package and model, not
 carried forward like ordinary GUI choices.
 

@@ -1540,7 +1540,7 @@ routes! {
         budget: Budget::mutation(),
         authority: peer(Audience::Permission),
         body: body::SystemReviewDecide,
-        audit: &[("id", FieldRule::Token), ("owner_uid", FieldRule::Count), ("decision", FieldRule::Token), ("review", FieldRule::Size)],
+        audit: &[("id", FieldRule::Token), ("owner_uid", FieldRule::Count), ("decision", FieldRule::Token), ("review", FieldRule::Size), ("administrator", FieldRule::Flag)],
         run: |c| super::system_review::decide(c.params, c.client).await,
     }
     SystemReviewConsume {
@@ -1640,6 +1640,7 @@ routes! {
             ("id", FieldRule::Token),
             ("decision", FieldRule::Token),
             ("owner_uid", FieldRule::Count),
+            ("administrator", FieldRule::Flag),
         ],
         run: |c| permissions::decide(c.params, c.client).map_err(BrokerError::from),
     }

@@ -17,6 +17,10 @@ use serde::{Deserialize, Serialize};
 
 pub const SCHEMA_VERSION: u32 = 1;
 pub const MAX_DECISION_BYTES: usize = 64 * 1024;
+/// The fixed root decision helper, reached through `pkexec`.
+pub const APPROVAL_HELPER: &str = "/usr/local/bin/yuos-approval-helper";
+/// Its administrator copy: polkit requires an administrator's password.
+pub const ADMIN_APPROVAL_HELPER: &str = "/usr/local/bin/yuos-admin-approval-helper";
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -35,6 +39,10 @@ pub struct SystemReview {
     pub changes: Option<ReviewChanges>,
     pub contract_digest: Option<String>,
     pub actions: Vec<ReviewAction>,
+    /// A third-party App asks for a system permission: decisions go through
+    /// [`ADMIN_APPROVAL_HELPER`].
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub requires_administrator: bool,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -262,6 +270,15 @@ pub struct PendingReviews {
 pub struct ReviewError(pub String);
 
 impl SystemReview {
+    /// The root helper that must decide this review.
+    pub fn helper(&self) -> &'static str {
+        if self.requires_administrator {
+            ADMIN_APPROVAL_HELPER
+        } else {
+            APPROVAL_HELPER
+        }
+    }
+
     pub fn validate(&self) -> Result<(), ReviewError> {
         if self.schema_version != SCHEMA_VERSION {
             return Err(ReviewError("unsupported schema version".into()));
@@ -496,6 +513,7 @@ pub enum ReviewText {
     NoGrantNotice,
     GlobalStopNotice,
     CapabilityNotice,
+    AdministratorNotice,
     DigestNotice,
     Request,
     Revision,
@@ -575,6 +593,7 @@ impl ReviewText {
             Self::NoGrantNotice => ("review-no-grant-notice", "This confirmation does not grant capabilities or AI consent."),
             Self::GlobalStopNotice => ("review-global-stop-notice", "Permits only the shown all-App stop. Critical package authority and App delivery confirmations remain separate; this is not package success."),
             Self::CapabilityNotice => ("review-capability-notice", "Only explicit supported choices are submitted. Unselected permissions are unchanged."),
+            Self::AdministratorNotice => ("review-administrator-notice", "A third-party app is asking for a system permission. An administrator must approve it."),
             Self::DigestNotice => ("review-digest-notice", "The comparison digest and displayed JSON are not approval authority."),
             Self::Request => ("review-request", "Request"),
             Self::Revision => ("review-revision", "Revision"),
@@ -736,6 +755,9 @@ pub fn format_terminal_with(
             _ => ReviewText::NoGrantNotice,
         })
     ));
+    if review.requires_administrator {
+        output.push_str(&format!("{}\n", label(ReviewText::AdministratorNotice)));
+    }
     output.push_str(&format!("\n{}\n", label(ReviewText::Permissions)));
     if review.permissions.is_empty() {
         output.push_str(&format!("{}\n", label(ReviewText::NoPermissions)));

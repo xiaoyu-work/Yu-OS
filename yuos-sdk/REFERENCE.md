@@ -81,6 +81,45 @@ In a signed GUI, the [system Open dialog](../docs/app-development.md#open-a-user
 grants the requesting window read access to the exact file the user selects.
 The selection is the user's approval.
 
+## Permissions
+
+Like macOS and Windows, Yu OS separates **App permissions** from **system
+permissions**. Declare both in `needs`.
+
+Any signed App may declare App permissions. The owner allows or denies them.
+
+| App permission | macOS | Windows |
+|---|---|---|
+| `fs.read`, `fs.write`, `fs.delete`, `fs.meta`, `fs.watch` | Files and Folders | File system and library capabilities |
+| `ui.prompt` (system Save and Folder dialogs) | User-selected files | File and folder pickers |
+| `net.dial`, `net.resolve`, `net.probe` | Outgoing connections (client) | `internetClient` |
+| `net.listen` | Incoming connections (server) | `internetClientServer` |
+| `device.camera` | Camera | `webcam` |
+| `device.microphone` | Microphone | `microphone` |
+| `device.location` | Location Services | `location` |
+| `device.bluetooth` | Bluetooth | `bluetooth`, `radios` |
+| `device.sensor` | — | `activity` |
+| `device.printer` | Printing | — |
+| `device.audio` | — | — |
+| `desktop.capture` | Screen & System Audio Recording | `graphicsCapture` |
+| `desktop.media.observe`, `desktop.media.control` | — | `globalMediaControl` |
+| `clipboard.read`, `clipboard.write` | — | — |
+| `ui.notify` | Notifications | — |
+| `ui.window`, `time.cron`, `time.delay` | — | — |
+| `ai.*` except `ai.bypass` | — | — |
+| The App's own data: `data.kv.*`, `data.log.read`, `data.log.write`, `memory.read`, `memory.write`, and `ipc.publish` on `app:<app-id>` for [App events](wire/v1/app-events.md) | — | — |
+
+A dash means that platform has no separate permission for it.
+
+Every other capability is a system permission, for example `sys.*`,
+`secret.*`, `agent.*`, `browser.*`, `proc.*`, `fs.exec`, `net.manage`,
+`net.firewall`, `device.display`, `device.usb`, `ui.input`,
+`ui.accessibility`, `ui.panel` and other Apps' data. Official Yu OS Apps
+keep them. A third-party App may declare them, but like Windows UAC, an
+administrator must enter their password each time the App uses one.
+Yu OS refuses the permission otherwise and never saves it as a lasting
+choice.
+
 ## App object references
 
 Every binding exports the generated `ObjectRef` data contract and pure

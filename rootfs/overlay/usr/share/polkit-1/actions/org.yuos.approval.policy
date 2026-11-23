@@ -19,4 +19,17 @@
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/yuos-approval-helper</annotate>
   </action>
+
+  <action id="org.yuos.approval.administrator">
+    <description>Allow a third-party app to use a system permission</description>
+    <message>An administrator password is required to let a third-party app use a system permission.</message>
+    <defaults>
+      <!-- Like Windows UAC: the administrator copy of the fixed helper tells the
+           root broker an administrator authenticated this decision. Never cached. -->
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/yuos-admin-approval-helper</annotate>
+  </action>
 </policyconfig>

@@ -515,7 +515,7 @@ echo "  :: yu                     <- $YUOS_BIN"
 echo "  :: yuosd                  <- $YUOSD_BIN"
 echo "  :: yuos-agentd            <- $AGENTD_BIN"
 echo "  :: yuos-extension-host    <- $EXTENSION_HOST_BIN"
-echo "  :: yuos-approval-helper   <- $APPROVAL_HELPER_BIN"
+echo "  :: yuos-approval-helper   <- $APPROVAL_HELPER_BIN (also yuos-admin-approval-helper)"
 echo "  :: yuos-app-runner        <- $APP_RUNNER_BIN"
 echo "  :: yuos-gui-runner        <- $GUI_RUNNER_BIN"
 echo "  :: yuos-display-host      <- $DISPLAY_HOST_BIN"
@@ -544,6 +544,9 @@ install -Dm0644 "$PROJECT_DIR/crates/yuos-nearby/vendor/owlyd/LICENSE" \
 install -Dm0644 "$PROJECT_DIR/desktop/services/yuos-applet-services/LICENSE" \
     "$AGENT_STAGE/usr/share/doc/yuos-agent/calendar-reader.LICENSE"
 install -m 755 "$APPROVAL_HELPER_BIN" "$AGENT_STAGE/usr/local/bin/yuos-approval-helper"
+# The administrator copy: polkit asks for an administrator's password before
+# running it, and the helper reports that authentication by its own path.
+install -m 755 "$APPROVAL_HELPER_BIN" "$AGENT_STAGE/usr/local/bin/yuos-admin-approval-helper"
 install -m 755 "$APP_RUNNER_BIN" "$AGENT_STAGE/usr/local/bin/yuos-app-runner"
 install -m 755 "$GUI_RUNNER_BIN" "$AGENT_STAGE/usr/local/bin/yuos-gui-runner"
 install -m 755 "$DISPLAY_SESSION_BIN" "$AGENT_STAGE/usr/local/bin/yuos-display-session"

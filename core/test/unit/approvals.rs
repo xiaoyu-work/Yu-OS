@@ -783,7 +783,7 @@ fn status_waits_for_the_complete_owner_decision_snapshot() {
             let early = result_rx.recv_timeout(Duration::from_millis(200));
             let resolved = resolve_locked(
                 &id, Outcome::Approved, Some(GrantDuration::Once),
-                Some("uid:0".into()), None, Some(1000),
+                Some("uid:0".into()), None, Some(1000), false,
             );
             Ok((reader, started, early, resolved))
         }).unwrap();

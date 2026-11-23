@@ -16,6 +16,7 @@ use zbus::{Connection, Proxy};
 use super::{Failure, Session, AUTHORIZATION_TIMEOUT};
 
 const ACTION: &str = "org.yuos.approval.decide";
+const ADMIN_ACTION: &str = "org.yuos.approval.administrator";
 const AUTHORITY: &str = "org.freedesktop.PolicyKit1";
 const OBJECT_PATH: &str = "/org/yuos/AgentWeb/Authentication";
 const BUS_TIMEOUT: Duration = Duration::from_secs(5);
@@ -23,6 +24,8 @@ const BUS_TIMEOUT: Duration = Duration::from_secs(5);
 struct Agent {
     session: Arc<Session>,
     authority: OwnedUniqueName,
+    /// The one polkit action this agent answers for.
+    action: &'static str,
 }
 
 #[zbus::interface(name = "org.freedesktop.PolicyKit1.AuthenticationAgent")]
@@ -37,8 +40,10 @@ impl Agent {
         identities: Vec<(String, HashMap<String, OwnedValue>)>,
         #[zbus(header)] header: zbus::message::Header<'_>,
     ) -> zbus::fdo::Result<()> {
+        // An administrator action is answered only when the owner is an
+        // administrator; Web sign-in never offers another account.
         if header.sender().map(|sender| sender.as_str()) != Some(self.authority.as_str())
-            || action_id != ACTION
+            || action_id != self.action
             || cookie.len() > 4096
             || cookie
                 .bytes()
@@ -82,7 +87,8 @@ pub(super) async fn authorize(
     review: &SystemReview,
     decision: &ReviewSubmission,
 ) -> Result<(), Failure> {
-    let registered = tokio::time::timeout(BUS_TIMEOUT, register(session.clone()))
+    let action = if review.requires_administrator { ADMIN_ACTION } else { ACTION };
+    let registered = tokio::time::timeout(BUS_TIMEOUT, register(session.clone(), action))
         .await
         .map_err(|_| Failure::Unavailable("The OS authentication service did not respond."))??;
     let (connection, authority) = registered;
@@ -106,7 +112,10 @@ pub(super) async fn authorize(
     result
 }
 
-async fn register(session: Arc<Session>) -> Result<(Connection, Proxy<'static>), Failure> {
+async fn register(
+    session: Arc<Session>,
+    action: &'static str,
+) -> Result<(Connection, Proxy<'static>), Failure> {
     let stream = tokio::net::UnixStream::connect("/run/dbus/system_bus_socket")
         .await
         .map_err(|_| Failure::Unavailable("The OS system bus is unavailable."))?;
@@ -163,6 +172,7 @@ async fn register(session: Arc<Session>) -> Result<(Connection, Proxy<'static>),
             Agent {
                 session,
                 authority: owner.clone(),
+                action,
             },
         )
         .await
@@ -216,7 +226,7 @@ async fn run_helper(
         .map_err(|_| Failure::Unavailable("The displayed OS review is no longer valid."))?;
     let mut child = tokio::process::Command::new("/usr/bin/pkexec")
         .arg("--disable-internal-agent")
-        .arg("/usr/local/bin/yuos-approval-helper")
+        .arg(review.helper())
         .arg("--system-review-json")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

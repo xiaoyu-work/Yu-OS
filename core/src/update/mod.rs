@@ -173,6 +173,12 @@ pub const COMPONENTS: &[Component] = &[
         critical: true,
     },
     Component {
+        name: "yuos-admin-approval-helper",
+        path: "/usr/local/bin/yuos-admin-approval-helper",
+        package: "yuos-agent",
+        critical: true,
+    },
+    Component {
         name: "yuos-app-runner",
         path: "/usr/local/bin/yuos-app-runner",
         package: "yuos-agent",

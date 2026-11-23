@@ -2386,18 +2386,28 @@ fn authorize_plan(
             missing.push(cap.clone());
         }
     }
-    if missing.is_empty() {
+    // A third-party App never inherits a system permission from its
+    // launcher: an administrator approves each use.
+    let administrator: Vec<Cap> = caps
+        .iter()
+        .filter(|cap| ceiling.requires_administrator(cap))
+        .cloned()
+        .collect();
+    missing.retain(|cap| !administrator.contains(cap));
+    if missing.is_empty() && administrator.is_empty() {
         return Ok(caps);
     }
-    match crate::approvals::consume_grant_set_once_for_owner(
+    match crate::approvals::consume_app_grant_set_once_for_owner(
         &delegation.grant_session,
         &missing,
+        &administrator,
         Some(delegation.uid),
     ) {
         Ok(true) => Ok(caps),
         Ok(false) => Err(request_approvals(
             delegation,
             &missing,
+            &administrator,
             plan.app_name.as_deref().filter(|name| !name.is_empty()).unwrap_or(app_id),
         )),
         Err(error) => Err(format!("could not settle approved permission grants: {error}").into()),
@@ -2405,21 +2415,32 @@ fn authorize_plan(
 }
 
 /// File (or reuse) one pending request per missing capability and tell
-/// the launcher which decisions it is waiting on.
+/// the launcher which decisions it is waiting on. A third-party App's
+/// system permissions are filed for administrator approval.
 ///
 /// The returned ids are not authority: a sibling that reads them still
 /// cannot make the daemon derive this launcher's identity, and the
 /// grants are matched on that identity plus the exact verb and scope.
-fn request_approvals(delegation: &Delegation, missing: &[Cap], app_name: &str) -> BrokerError {
+fn request_approvals(
+    delegation: &Delegation,
+    missing: &[Cap],
+    administrator: &[Cap],
+    app_name: &str,
+) -> BrokerError {
     let pending = crate::approvals::list_pending_for_owner(Some(delegation.uid));
-    let mut ids = Vec::with_capacity(missing.len());
+    let elevated = crate::approvals::administrator_session(&delegation.grant_session);
+    let mut ids = Vec::with_capacity(missing.len() + administrator.len());
     let mut failures = Vec::new();
-    for cap in missing {
+    let requests = missing
+        .iter()
+        .map(|cap| (&delegation.grant_session, cap))
+        .chain(administrator.iter().map(|cap| (&elevated, cap)));
+    for (session, cap) in requests {
         // A capability the user already approved is settled at retry
         // time; asking again would queue a second prompt for the same
         // decision.
         match crate::approvals::has_approved_grant_for_owner(
-            &delegation.grant_session,
+            session,
             cap,
             Some(delegation.uid),
         ) {
@@ -2431,7 +2452,7 @@ fn request_approvals(delegation: &Delegation, missing: &[Cap], app_name: &str) -
             }
         }
         let existing = pending.iter().find(|request| {
-            request.session == delegation.grant_session
+            request.session == *session
                 && request.verb == cap.verb.as_str()
                 && request.scope == cap.scope
         });
@@ -2440,7 +2461,7 @@ fn request_approvals(delegation: &Delegation, missing: &[Cap], app_name: &str) -
             None => crate::approvals::submit_owned(
                 cap.verb,
                 cap.scope.clone(),
-                delegation.grant_session.clone(),
+                session.clone(),
                 format!("{app_name} needs this permission to continue."),
                 Some(delegation.requester.clone()),
                 Some(delegation.uid),
@@ -2454,6 +2475,7 @@ fn request_approvals(delegation: &Delegation, missing: &[Cap], app_name: &str) -
 
     let summary = missing
         .iter()
+        .chain(administrator)
         .map(|cap| format!("{}:{}", cap.verb.as_str(), cap.scope))
         .collect::<Vec<_>>()
         .join(", ");
@@ -2670,6 +2692,7 @@ fn authorize_optional_gui_needs(
             let mut prospective = granted.clone();
             prospective.insert(cap.clone());
             let allowed = ceiling.clamp(&caps).0.covers(&cap)
+                && !ceiling.requires_administrator(&cap)
                 && !policy.denies(&cap)
                 && crate::approvals::app_policy::require(delegation.uid, &app.manifest.id, &caps).is_ok()
                 && delegation.activity.as_ref().is_none_or(|boundary|

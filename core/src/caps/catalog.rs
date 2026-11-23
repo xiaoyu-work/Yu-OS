@@ -21,8 +21,9 @@
 
 use crate::i18n::LocalizedStr;
 
+use super::cap::Cap;
 use super::risk::Risk;
-use super::scope::ScopeKind;
+use super::scope::{Scope, ScopeKind};
 use super::verb::{Verb, ALL_VERBS};
 
 /// Per-verb UI and policy metadata.
@@ -910,6 +911,67 @@ pub const CATALOG: &[CapMeta] = &[
         Risk::Critical,
     ),
 ];
+
+/// App permissions: the privacy, device and everyday App capabilities that
+/// macOS and Windows let any App request. Any signed App may declare them,
+/// and the owner approves them as usual. Every other verb is a system
+/// permission: official Apps keep it, and any other App may use it only
+/// after an administrator approves (see `provenance::Ceiling`).
+pub const APP_PERMISSIONS: &[Verb] = &[
+    Verb::FS_READ,
+    Verb::FS_WRITE,
+    Verb::FS_DELETE,
+    Verb::FS_WATCH,
+    Verb::FS_META,
+    Verb::NET_DIAL,
+    Verb::NET_LISTEN,
+    Verb::NET_RESOLVE,
+    Verb::NET_PROBE,
+    Verb::DATA_KV_READ,
+    Verb::DATA_KV_WRITE,
+    Verb::DATA_KV_DELETE,
+    Verb::DATA_LOG_READ,
+    Verb::DATA_LOG_WRITE,
+    Verb::MEMORY_WRITE,
+    Verb::MEMORY_READ,
+    Verb::UI_NOTIFY,
+    Verb::UI_PROMPT,
+    Verb::UI_WINDOW,
+    Verb::CLIPBOARD_READ,
+    Verb::CLIPBOARD_WRITE,
+    Verb::DEVICE_AUDIO,
+    Verb::DEVICE_BLUETOOTH,
+    Verb::DEVICE_PRINTER,
+    Verb::DEVICE_CAMERA,
+    Verb::DEVICE_MICROPHONE,
+    Verb::DEVICE_LOCATION,
+    Verb::DEVICE_SENSOR,
+    Verb::TIME_CRON,
+    Verb::TIME_DELAY,
+    Verb::AI_CHAT,
+    Verb::AI_CHAT_UNTRUSTED,
+    Verb::AI_EMBED,
+    Verb::AI_DECIDE,
+    Verb::AI_IMAGE_GENERATE,
+    Verb::AI_IMAGE_ANALYZE,
+    Verb::AI_AUDIO_TTS,
+    Verb::AI_AUDIO_STT,
+    Verb::AI_VISION_ANALYZE,
+    Verb::AI_VIDEO_GENERATE,
+    Verb::AI_VIDEO_ANALYZE,
+    Verb::DESKTOP_CAPTURE,
+    Verb::DESKTOP_MEDIA_OBSERVE,
+    Verb::DESKTOP_MEDIA_CONTROL,
+];
+
+/// Is `cap` an App permission for the App `app_id`? Publishing the App's
+/// own events (`ipc.publish` on `app:<id>`) counts; other topics do not.
+pub fn is_app_permission(cap: &Cap, app_id: Option<&str>) -> bool {
+    APP_PERMISSIONS.contains(&cap.verb)
+        || app_id.is_some_and(|id| {
+            cap.verb == Verb::IPC_PUBLISH && cap.scope == Scope::name(format!("app:{id}"))
+        })
+}
 
 /// Look up the metadata for a verb. Returns `None` only if the verb
 /// list and the catalog have drifted — see [`self_check`].

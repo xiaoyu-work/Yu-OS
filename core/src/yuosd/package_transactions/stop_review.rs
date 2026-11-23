@@ -169,6 +169,7 @@ fn view(review: &Review) -> Result<SystemReview, String> {
         actions: if status == ReviewStatus::Pending {
             vec![ReviewAction::Cancel, ReviewAction::ConfirmGlobalAppStop]
         } else { Vec::new() },
+        requires_administrator: false,
     };
     result.validate().map_err(|error| error.to_string())?;
     let fingerprint =

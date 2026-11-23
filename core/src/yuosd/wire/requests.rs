@@ -1144,6 +1144,10 @@ pub struct PermissionDecide {
     pub duration: Option<Token>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<Text<LABEL_BYTES>>,
+    /// Set only by the administrator copy of the root approval helper; a
+    /// non-root peer may not supply it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub administrator: bool,
 }
 
 /// Retire reusable approvals for an owner or one of their grant
@@ -1196,6 +1200,9 @@ impl<'de> Deserialize<'de> for SystemReviewDecision {
 pub struct TypedSystemReviewDecide {
     pub owner_uid: u32,
     pub review: SystemReviewSubmission,
+    /// Set only by the administrator copy of the root approval helper.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub administrator: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]

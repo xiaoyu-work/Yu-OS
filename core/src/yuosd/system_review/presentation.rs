@@ -38,7 +38,7 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
     let tier = [TrustTier::Vendor, TrustTier::System, TrustTier::User, TrustTier::Developer]
         .into_iter().find(|tier| tier.as_str() == record.package.tier)
         .ok_or("unknown App review trust tier")?;
-    let ceiling = crate::provenance::Ceiling::for_tier(tier);
+    let ceiling = crate::provenance::Ceiling::for_package(tier, false, &record.package.id);
     let status = match record.effective_state()? {
         ReviewState::Pending => ReviewStatus::Pending,
         ReviewState::Approved => ReviewStatus::Confirmed,
@@ -57,9 +57,18 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
             Some((id, _)) => id.clone(),
             None => permission.decision_id()?,
         };
+        // A third-party App's system permission is never a saved choice: an
+        // administrator approves each use.
+        let administrator = ceiling.requires_administrator(&crate::caps::Cap::new(
+            permission.verb,
+            match &permission.scope {
+                ScopeBinding::Fixed { scope } => scope.clone(),
+                _ => crate::caps::Scope::Wild,
+            },
+        ));
         let current = record.permission_choices.get(&id).or_else(|| {
             ai_choice.is_none().then(|| previous.get(&id)).flatten()
-        }).map(|choice| {
+        }).filter(|_| !administrator).map(|choice| {
             if *choice && !record.is_revoked_ai_choice(&id) { PermissionChoice::AllowAlways } else { PermissionChoice::Deny }
         });
         let selectable = status == ReviewStatus::Pending && current.is_none()
@@ -102,7 +111,9 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
             }).collect(),
             current,
             supported_choices: if selectable { vec![PermissionChoice::AllowAlways, PermissionChoice::Deny] } else { Vec::new() },
-            unsupported_reason: (!selectable).then(|| if current.is_some() {
+            unsupported_reason: (!selectable).then(|| if administrator {
+                "This is a system permission. An administrator must approve it each time this third-party app uses it.".into()
+            } else if current.is_some() {
                 if ai_choice.is_some() {
                     "This choice takes effect only after verified installation. You can turn it off in Settings → Applications.".into()
                 } else {
@@ -234,6 +245,7 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
             changes: None,
             contract_digest: Some(record.contract_digest.clone()),
             actions,
+            requires_administrator: false,
         },
     )
 }
@@ -258,6 +270,7 @@ pub(super) fn legacy(owner: u32, review: LegacyReview) -> Result<SystemReview, S
     let restoration = request
         .session
         .starts_with(approvals::app_policy::SESSION_PREFIX);
+    let administrator = approvals::requires_administrator(&request);
     let mut subject = ReviewSubject {
         app_id: None,
         name: if restoration {
@@ -424,6 +437,12 @@ pub(super) fn legacy(owner: u32, review: LegacyReview) -> Result<SystemReview, S
                 }
             }).collect()
     };
+    if administrator {
+        context.push(ReviewDetail {
+            label: "Administrator approval".into(),
+            value: "A third-party App is asking for a system permission. Only an administrator can approve it.".into(),
+        });
+    }
     stamped(
         owner,
         SystemReview {
@@ -461,6 +480,7 @@ pub(super) fn legacy(owner: u32, review: LegacyReview) -> Result<SystemReview, S
             changes: None,
             contract_digest: None,
             actions,
+            requires_administrator: administrator,
         },
     )
 }

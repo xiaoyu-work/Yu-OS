@@ -169,7 +169,9 @@ pub async fn decide(params: Value, client: &ClientIdentity) -> Result<Value, Bro
         use super::wire::requests::SystemReviewDecide;
         let review = match body {
             SystemReviewDecide::Typed(body) => match body.review.0 {
-                ReviewSubmission::Ordinary(decision) => apply_decision(body.owner_uid, &decision)?,
+                ReviewSubmission::Ordinary(decision) => {
+                    apply_decision(body.owner_uid, &decision, body.administrator)?
+                }
                 ReviewSubmission::App(decision) => {
                     let id = &decision.confirmation.id;
                     let current = presentation::get(body.owner_uid, id)?;
@@ -224,7 +226,11 @@ fn decide_app_permissions(
     presentation::app(&store::decide_with_permissions(owner, id, approve, verified.as_ref(), choices)?)
 }
 
-fn apply_decision(owner: u32, decision: &ReviewDecision) -> Result<SystemReview, String> {
+fn apply_decision(
+    owner: u32,
+    decision: &ReviewDecision,
+    administrator: bool,
+) -> Result<SystemReview, String> {
     let current = presentation::get(owner, &decision.id)?;
     decision
         .validate_for(&current)
@@ -268,10 +274,13 @@ fn apply_decision(owner: u32, decision: &ReviewDecision) -> Result<SystemReview,
         }
     };
     let by = Some(format!("uid:{owner}"));
+    let approve = if administrator {
+        approvals::approve_for_owner_as_administrator
+    } else {
+        approvals::approve_for_owner
+    };
     let resolved = match duration {
-        Some(duration) => {
-            approvals::approve_for_owner(&decision.id, duration, by, None, Some(owner))?
-        }
+        Some(duration) => approve(&decision.id, duration, by, None, Some(owner))?,
         None => approvals::deny_for_owner(&decision.id, by, None, Some(owner))?,
     };
     presentation::legacy(
@@ -319,7 +328,7 @@ pub async fn cancel(params: Value, client: &ClientIdentity) -> Result<Value, Bro
                             .into(),
                     );
                 }
-                apply_decision(owner, &body.review.0)?
+                apply_decision(owner, &body.review.0, false)?
             }
             SystemReviewCancel::Legacy(body) => decide_app(owner, body.id.as_str(), false)?,
         };

@@ -54,6 +54,8 @@ pub(super) struct IntentLedger {
     pub target_count: usize,
     pub closing: bool,
     pub retired: bool,
+    /// A third-party App: its package decisions need an administrator.
+    pub administrator: bool,
 }
 
 impl IntentLedger {
@@ -89,10 +91,15 @@ impl IntentLedger {
         let digest = crate::crypto::sha256_hex(&serde_json::to_vec(&(
             "gui-package-intent-v2", binding, invocation, &operation,
         )).map_err(|error| error.to_string())?);
+        let session = format!("package-intent:{digest}");
         self.target_count += required.len();
         self.entries.insert(invocation.to_string(), IntentEntry {
             operation,
-            session: format!("package-intent:{digest}"),
+            session: if self.administrator {
+                crate::approvals::administrator_session(&session)
+            } else {
+                session
+            },
             digest,
             targets: required.into_iter().map(|capability| ReviewTarget {
                 capability, identity: ReviewIdentity::Unattempted, retired: false,
@@ -126,9 +133,12 @@ pub(crate) struct WindowIntents {
 
 impl WindowIntents {
     pub(crate) fn new(registration: Arc<Registration>) -> Arc<Self> {
+        let administrator = registration.launch.package().ceiling()
+            .requires_administrator(&Cap::new(Verb::SYS_PACKAGE, Scope::Wild));
         Arc::new(Self {
             registration, process: OnceLock::new(), stopped: AtomicBool::new(false),
-            serial: tokio::sync::Mutex::new(()), ledger: Mutex::new(IntentLedger::default()),
+            serial: tokio::sync::Mutex::new(()),
+            ledger: Mutex::new(IntentLedger { administrator, ..IntentLedger::default() }),
             retirement: Mutex::new(()),
         })
     }

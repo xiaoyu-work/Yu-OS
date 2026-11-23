@@ -45,6 +45,8 @@ impl RequestedPermission {
     pub(crate) fn persistent_cap(&self, ceiling: &Ceiling) -> Option<Cap> {
         // Dynamic scopes, credential access, OS administration and delegating
         // effects retain their independent invocation-specific authorization.
+        // So do a third-party App's system permissions: an administrator
+        // approves each use.
         if self.when.is_some()
             || !self.uses.iter().any(|usage| usage.entry == "gui" || usage.entry.starts_with("gui:"))
             || !matches!(self.verb,
@@ -70,7 +72,7 @@ impl RequestedPermission {
             return None;
         }
         let (cap, _) = super::canonical_capability(self.verb, scope).ok()?;
-        ceiling.allows_cap(&cap).then_some(cap)
+        (ceiling.allows_cap(&cap) && !ceiling.requires_administrator(&cap)).then_some(cap)
     }
 }
 

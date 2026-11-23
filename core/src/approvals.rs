@@ -1002,6 +1002,17 @@ fn authorization_for_request(request: &Request) -> Result<ApprovalAuthorization,
 
 pub(crate) const DESKTOP_LAUNCH_APPROVAL: &str = "desktop-launch:";
 pub(crate) const DESKTOP_POWER_APPROVAL: &str = "desktop-power:";
+const ADMINISTRATOR_APPROVAL: &str = "#administrator";
+
+/// The approval session for a third-party App's system permissions.
+/// Only an administrator-authenticated decision approves a request in it.
+pub fn administrator_session(session: &str) -> String {
+    format!("{session}{ADMINISTRATOR_APPROVAL}")
+}
+
+pub fn requires_administrator(request: &Request) -> bool {
+    request.session.ends_with(ADMINISTRATOR_APPROVAL)
+}
 
 pub(crate) fn is_desktop_visual_approval(capability: &Cap, operation_digest: Option<&str>) -> bool {
     capability.verb == Verb::DESKTOP_WINDOW
@@ -1289,6 +1300,7 @@ pub fn approve(
         decided_by,
         note,
         None,
+        false,
     )
 }
 
@@ -1297,7 +1309,7 @@ pub fn deny(
     decided_by: Option<String>,
     note: Option<String>,
 ) -> Result<Resolved, String> {
-    resolve(id, Outcome::Denied, None, decided_by, note, None)
+    resolve(id, Outcome::Denied, None, decided_by, note, None, false)
 }
 
 pub fn approve_for_owner(
@@ -1314,6 +1326,27 @@ pub fn approve_for_owner(
         decided_by,
         note,
         owner_uid,
+        false,
+    )
+}
+
+/// Approval authenticated by an administrator through the OS helper; the
+/// only decision that approves a request in an [`administrator_session`].
+pub fn approve_for_owner_as_administrator(
+    id: &str,
+    duration: GrantDuration,
+    decided_by: Option<String>,
+    note: Option<String>,
+    owner_uid: Option<u32>,
+) -> Result<Resolved, String> {
+    resolve(
+        id,
+        Outcome::Approved,
+        Some(duration),
+        decided_by,
+        note,
+        owner_uid,
+        true,
     )
 }
 
@@ -1323,7 +1356,7 @@ pub fn deny_for_owner(
     note: Option<String>,
     owner_uid: Option<u32>,
 ) -> Result<Resolved, String> {
-    resolve(id, Outcome::Denied, None, decided_by, note, owner_uid)
+    resolve(id, Outcome::Denied, None, decided_by, note, owner_uid, false)
 }
 
 pub fn deny_if_pending_for_owner(
@@ -1337,7 +1370,7 @@ pub fn deny_if_pending_for_owner(
     crate::filelock::with_exclusive_path_lock(&grant_lock_path(), || {
         match status_for_owner_locked(id, owner_uid) {
             RequestStatus::Pending => {
-                resolve_locked(id, Outcome::Denied, None, decided_by, note, owner_uid)?;
+                resolve_locked(id, Outcome::Denied, None, decided_by, note, owner_uid, false)?;
                 Ok(RequestStatus::Denied)
             }
             status => Ok(status),
@@ -1352,10 +1385,11 @@ fn resolve(
     decided_by: Option<String>,
     note: Option<String>,
     owner_uid: Option<u32>,
+    administrator: bool,
 ) -> Result<Resolved, String> {
     ensure_dirs().map_err(|e| format!("approvals dir: {e}"))?;
     crate::filelock::with_exclusive_path_lock(&grant_lock_path(), || {
-        resolve_locked(id, outcome, duration, decided_by, note, owner_uid)
+        resolve_locked(id, outcome, duration, decided_by, note, owner_uid, administrator)
     })
 }
 
@@ -1366,6 +1400,7 @@ fn resolve_locked(
     decided_by: Option<String>,
     note: Option<String>,
     owner_uid: Option<u32>,
+    administrator: bool,
 ) -> Result<Resolved, String> {
     validate_approval_id(id)?;
     let pending = pending_dir().join(format!("{id}.json"));
@@ -1415,6 +1450,13 @@ fn resolve_locked(
         return Err(format!(
             "permission request is not owned by uid {}",
             owner_uid.expect("owner filter is set when visibility fails")
+        ));
+    }
+    if outcome == Outcome::Approved && requires_administrator(&request) && !administrator {
+        fs::rename(&scratch, &pending)
+            .map_err(|e| format!("restore pending {id}: {e}"))?;
+        return Err(format!(
+            "request {id} lets a third-party App use a system permission; an administrator must approve it with `yu review approve {id}`"
         ));
     }
 
@@ -2395,9 +2437,36 @@ pub fn consume_grant_set_once_for_owner(
         .map(|evidence| evidence.is_some())
 }
 
+/// Settle one App launch like [`consume_grant_set_once_for_owner`]. The
+/// `administrator` capabilities, a third-party App's system permissions,
+/// match only decisions in the launcher's [`administrator_session`].
+pub fn consume_app_grant_set_once_for_owner(
+    session: &str,
+    required: &[Cap],
+    administrator: &[Cap],
+    owner_uid: Option<u32>,
+) -> Result<bool, String> {
+    let elevated = administrator_session(session);
+    let required: Vec<_> = required
+        .iter()
+        .map(|cap| (session, cap))
+        .chain(administrator.iter().map(|cap| (elevated.as_str(), cap)))
+        .collect();
+    consume_grants_once(&required, owner_uid, None).map(|evidence| evidence.is_some())
+}
+
 pub(crate) fn consume_grant_set_once_for_owner_operation_evidence(
     session: &str,
     required: &[Cap],
+    owner_uid: Option<u32>,
+    operation_digest: Option<&str>,
+) -> Result<Option<Vec<ConsumedGrant>>, String> {
+    let required: Vec<_> = required.iter().map(|cap| (session, cap)).collect();
+    consume_grants_once(&required, owner_uid, operation_digest)
+}
+
+fn consume_grants_once(
+    required: &[(&str, &Cap)],
     owner_uid: Option<u32>,
     operation_digest: Option<&str>,
 ) -> Result<Option<Vec<ConsumedGrant>>, String> {
@@ -2409,7 +2478,7 @@ pub(crate) fn consume_grant_set_once_for_owner_operation_evidence(
     crate::filelock::with_exclusive_path_lock(&grant_lock_path(), || {
         let mut claimed: Vec<PathBuf> = Vec::new();
         let mut evidence = Vec::with_capacity(required.len());
-        for cap in required {
+        for (session, cap) in required {
             let (capability, risk) = canonical_capability(cap.verb, cap.scope.clone())?;
             let expected = ApprovalAuthorization {
                 owner_uid,

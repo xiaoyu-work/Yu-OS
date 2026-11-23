@@ -57,11 +57,13 @@ fn system_review_shared_app_view_preserves_purpose_scope_arguments_and_non_grant
             "Inspect the domain selected by the user"
         );
         assert!(view.permissions[0].supported_choices.is_empty());
+        // The test publisher is third-party: its system permission needs an
+        // administrator each time instead of an install choice.
         assert!(view.permissions[0]
             .unsupported_reason
             .as_ref()
             .unwrap()
-            .contains("does not grant"));
+            .contains("administrator"));
         assert!(view
             .disclosures
             .iter()
@@ -96,8 +98,8 @@ fn system_review_named_gui_targets_require_fresh_protected_confirmation() {
             "id":"review-gui","version":"1.0.0","name":{"en":"Independent GUI"},
             "entry":"command.py","desktop":{"entry":"window.py","exec":"open","needs":[],"entries":{
                 "applet":{"entry":"widget.py","exec":"panel","name":{"en":"Independent widget"},"needs":[{
-                    "verb":"sys.observe","scope":{"kind":"fixed","scope":{"kind":"name","value":"audio"}},
-                    "why":{"en":"Show the widget's own audio status"}
+                    "verb":"device.audio","scope":{"kind":"fixed","scope":{"kind":"name","value":"output"}},
+                    "why":{"en":"Change the widget's own audio volume"}
                 },{
                     "verb":"fs.read","scope":{"kind":"from-arg","arg":"path"},"why":{"en":"Unbound widget file"}
                 }],"optional_needs":[{
@@ -126,14 +128,14 @@ fn system_review_named_gui_targets_require_fresh_protected_confirmation() {
         let view = app(&record).unwrap();
         assert!(view.disclosures.iter().any(|detail|
             detail.label.contains("applet") && detail.value.contains("widget.py")
-                && detail.value.contains("Show the widget's own audio status")));
+                && detail.value.contains("Change the widget's own audio volume")));
         assert!(view.disclosures.iter().any(|detail| detail.label.contains("unsupported/unbound")));
         assert!(view.disclosures.iter().any(|detail| detail.label.contains("optional feature")));
         assert!(view.permissions.iter().any(|permission| permission.uses.iter().any(|usage|
             usage.function == "gui:applet:optional" && usage.purpose == "Optional widget account management")));
-        let permission = view.permissions.iter().find(|permission| permission.verb == "sys.observe").unwrap();
+        let permission = view.permissions.iter().find(|permission| permission.verb == "device.audio").unwrap();
         assert_eq!(permission.supported_choices, vec![PermissionChoice::AllowAlways, PermissionChoice::Deny]);
-        assert!(view.permissions.iter().filter(|permission| permission.verb != "sys.observe")
+        assert!(view.permissions.iter().filter(|permission| permission.verb != "device.audio")
             .all(|permission| permission.supported_choices.is_empty()));
         assert!(approvals::system_review::decide(1001, &record.id, true, Some(&package)).is_err());
         assert!(approvals::system_review::decide(1000, &record.id, true, Some(&package)).is_err());

@@ -21,7 +21,7 @@ separate description from system authority.
 
 | Path | Role |
 | --- | --- |
-| `catalog.rs` | Known capability verbs and metadata |
+| `catalog.rs` | Known capability verbs and metadata; the App permission list |
 | `consent.rs` | Attended versus unattended consent context |
 | `scope.rs` | Scope kinds, normalization, containment |
 | `manifest.rs` | `app.json` schema and validation |
@@ -61,6 +61,13 @@ decides is `yuosd::authority`, which holds grants bound to an authenticated
 process and hands each broker route one decision. A serialized `CapSet` found on
 disk, in a request body, or in a session row is a description to be re-derived
 and clamped — never promoted.
+
+`catalog::APP_PERMISSIONS` is the one list of App permissions: the privacy,
+device and everyday App capabilities macOS and Windows let any App request,
+plus an App publishing its own events. Every other verb is a system
+permission. `provenance::Ceiling::requires_administrator` applies the split:
+official packages keep system permissions, and any other package needs an
+administrator-authenticated approval for each use.
 
 For Agent consent, `caps::require` receives the exact verb and canonical scope
 only after the owning operation validates its arguments. A primitive may also

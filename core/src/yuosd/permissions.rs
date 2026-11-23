@@ -103,8 +103,8 @@ pub fn decide(params: Value, client: &ClientIdentity) -> Result<Value, String> {
         .map(ToOwned::to_owned);
 
     if peer_uid != 0 {
-        if params.get("owner_uid").is_some() {
-            return Err("owner decision cannot select another owner".to_string());
+        if params.get("owner_uid").is_some() || params.get("administrator").is_some() {
+            return Err("owner decision cannot select another owner or claim administrator authentication".to_string());
         }
         let decided_by = format!("uid:{peer_uid}");
         return match decision.as_str() {
@@ -132,6 +132,7 @@ pub fn decide(params: Value, client: &ClientIdentity) -> Result<Value, String> {
                     decided_by,
                     note,
                     Some(peer_uid),
+                    false,
                 )
             }
             other => Err(format!("unknown permission decision: {other}")),
@@ -146,6 +147,8 @@ pub fn decide(params: Value, client: &ClientIdentity) -> Result<Value, String> {
     let decided_by = owner_uid
         .map(|uid| format!("uid:{uid}"))
         .unwrap_or_else(|| "uid:0".to_string());
+    // Set only by the administrator copy of the root approval helper.
+    let administrator = params.get("administrator").and_then(Value::as_bool) == Some(true);
 
     match decision.as_str() {
         "approve" | "allow" => approve_request(
@@ -154,6 +157,7 @@ pub fn decide(params: Value, client: &ClientIdentity) -> Result<Value, String> {
             decided_by,
             note,
             owner_uid,
+            administrator,
         ),
         "deny" | "reject" => deny_request(&id, decided_by, note, owner_uid),
         other => Err(format!("unknown permission decision: {other}")),
@@ -166,14 +170,19 @@ fn approve_request(
     decided_by: String,
     note: Option<String>,
     owner_uid: Option<u32>,
+    administrator: bool,
 ) -> Result<Value, String> {
     if let Some(request) = approvals::lookup_pending(id) {
         if request.session.starts_with(approvals::app_policy::SESSION_PREFIX) {
             super::app_permissions::validate_approval(&request)?;
         }
     }
-    let resolved =
-        approvals::approve_for_owner(id, duration, Some(decided_by), note, owner_uid)?;
+    let approve = if administrator {
+        approvals::approve_for_owner_as_administrator
+    } else {
+        approvals::approve_for_owner
+    };
+    let resolved = approve(id, duration, Some(decided_by), note, owner_uid)?;
     Ok(json!({
         "id": resolved.request.id,
         "decision": "approved",

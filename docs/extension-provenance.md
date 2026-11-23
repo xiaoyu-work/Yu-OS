@@ -536,8 +536,18 @@ capabilities are derived — not a label.
 
 | Tier | Ceiling |
 | --- | --- |
-| `vendor`, `system`, `user` | The manifest-declared surface, as before |
+| `vendor` | The manifest-declared surface, as before |
+| `system`, `user` | The manifest-declared surface; each system permission needs an administrator's approval when used |
 | `developer` | The closed allow-list below, and nothing else |
+
+Like macOS and Windows, the catalog separates App permissions from system
+permissions ([SDK permissions](../yuos-sdk/REFERENCE.md#permissions)).
+Official packages — vendor-signed Apps and the OS desktop Shell — keep
+system permissions. For any other package, `yuosd` never delegates one from
+the launcher, saves one as an install or Settings choice, or grants one to
+an optional GUI need. It files the request in an administrator-only approval
+session; only the administrator copy of the approval helper, reached through
+polkit `auth_admin`, can approve it, and one use spends the approval.
 
 Unsigned developer content may hold only `fs.read`, `fs.write`,
 `fs.meta`, `data.kv.read`, `data.kv.write`, `data.log.read`,

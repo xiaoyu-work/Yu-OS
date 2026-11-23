@@ -40,6 +40,7 @@ fn review() -> SystemReview {
         }),
         contract_digest: Some("sha256:comparison-only".into()),
         actions: vec![ReviewAction::Cancel, ReviewAction::ConfirmInstall],
+        requires_administrator: false,
     }
 }
 

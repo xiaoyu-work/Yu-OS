@@ -402,6 +402,9 @@ and sessionless callers. WSL processes can have a terminal but no local logind
 seat/session; rejecting that category prevented even a password prompt.
 This permits authentication, not automatic approval: the helper still binds
 the decision to `PKEXEC_UID`, and the broker rejects another owner's request.
+A third-party App's system permission instead uses the administrator copy,
+`yuos-admin-approval-helper`, whose separate polkit action requires
+`auth_admin`; the broker accepts only that copy's decision for it.
 Authorization is not cached (`auth_self_keep` and unconditional `yes` are not
 used). Web review authentication now appears in a password dialog in the
 page, not the terminal that launched `yu agent serve`. The serving process

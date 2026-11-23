@@ -121,7 +121,8 @@ extension ID when Desktop is present. Agent-only installs retain browser
 control without requiring the chat client or a Desktop dependency.
 
 Agent depends on `pkexec` and `polkitd`, which provide the polkit runtime and
-password verifier used by the installed `yuos-approval-helper`. Headless/WSL Web
+password verifier used by the installed `yuos-approval-helper` and its
+administrator copy, `yuos-admin-approval-helper`. Headless/WSL Web
 review and the protected `yu review` path need these without a Desktop package.
 The Web process supplies a process-bound authentication dialog, not permission
 authority; ordinary attended TUI one-shot decisions stay inline.

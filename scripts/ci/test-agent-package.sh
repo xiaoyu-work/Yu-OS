@@ -71,6 +71,7 @@ installed() {
     test -x /usr/bin/pkexec
     test -x /usr/bin/pkttyagent
     test -x /usr/local/bin/yuos-approval-helper
+    test -x /usr/local/bin/yuos-admin-approval-helper
     sudo /usr/lib/yuos/bin/yuos-security-floor verify-installed
     original_mount="$(readlink /proc/self/ns/mnt)"
     original_pid="$(readlink /proc/self/ns/pid)"

@@ -1,6 +1,8 @@
 use std::io::Read;
 
-use yuosd_client::system_review::{ReviewSubmission, SystemReview, MAX_DECISION_BYTES};
+use yuosd_client::system_review::{
+    ReviewSubmission, SystemReview, ADMIN_APPROVAL_HELPER, MAX_DECISION_BYTES,
+};
 use yu::yuosd::protocol::Request;
 use yu::yuosd::routes::Command;
 use yu::yuosd::{client, config};
@@ -22,6 +24,10 @@ fn main() {
         .ok()
         .and_then(|value| value.parse::<u32>().ok())
         .unwrap_or_else(|| fail("pkexec did not provide PKEXEC_UID"));
+    // The administrator copy of this binary is reachable only through the
+    // `auth_admin` polkit action, so its path is the administrator's proof.
+    let administrator = std::env::current_exe()
+        .is_ok_and(|path| path == std::path::Path::new(ADMIN_APPROVAL_HELPER));
 
     let mut id = None;
     let mut decision = None;
@@ -67,10 +73,11 @@ fn main() {
         }
         let review =
             read_review_decision(std::io::stdin().lock()).unwrap_or_else(|error| fail(&error));
-        Request::build(
-            Command::SystemReviewDecide,
-            json!({"owner_uid": owner_uid, "review": review}),
-        )
+        let mut params = json!({"owner_uid": owner_uid, "review": review});
+        if administrator {
+            params["administrator"] = json!(true);
+        }
+        Request::build(Command::SystemReviewDecide, params)
     } else {
         let id = id.unwrap_or_else(|| fail("--id is required"));
         let decision = decision.unwrap_or_else(|| fail("--decision is required"));
@@ -90,6 +97,9 @@ fn main() {
         }
         if let Some(note) = note {
             params["note"] = json!(note);
+        }
+        if administrator && !system_review {
+            params["administrator"] = json!(true);
         }
         Request::build(
             if system_review {

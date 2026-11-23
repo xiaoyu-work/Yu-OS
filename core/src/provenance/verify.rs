@@ -517,7 +517,7 @@ impl VerifiedPackage {
 
     /// The capability ceiling this package's tier and identity imply.
     pub fn ceiling(&self) -> super::Ceiling {
-        super::Ceiling::for_tier(self.tier)
+        super::Ceiling::for_package(self.tier, self.source.is_system_desktop(), &self.id)
     }
 
     /// Bind this package for execution.
@@ -662,7 +662,11 @@ impl LaunchBinding {
     }
 
     pub fn ceiling(&self) -> super::Ceiling {
-        super::Ceiling::for_tier(self.tier)
+        super::Ceiling::for_package(
+            self.tier,
+            self.package.tier == "system-desktop",
+            &self.package.id,
+        )
     }
 
     /// The revocable identity of the snapshot this binding pins.

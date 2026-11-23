@@ -111,18 +111,22 @@ python3 - "$PROJECT_DIR/rootfs/overlay/usr/share/polkit-1/actions/org.yuos.appro
 import sys
 import xml.etree.ElementTree as ET
 
-actions = ET.parse(sys.argv[1]).getroot().findall("action")
-assert len(actions) == 1
-action = actions[0]
-assert action.attrib["id"] == "org.yuos.approval.decide"
-for audience in ("allow_any", "allow_inactive", "allow_active"):
-    assert action.findtext(f"defaults/{audience}") == "auth_self", audience
-assert {
-    annotation.attrib["key"]: annotation.text
-    for annotation in action.findall("annotate")
-} == {
-    "org.freedesktop.policykit.exec.path": "/usr/local/bin/yuos-approval-helper",
+expected = {
+    "org.yuos.approval.decide": ("auth_self", "/usr/local/bin/yuos-approval-helper"),
+    "org.yuos.approval.administrator": ("auth_admin", "/usr/local/bin/yuos-admin-approval-helper"),
 }
+actions = ET.parse(sys.argv[1]).getroot().findall("action")
+assert [action.attrib["id"] for action in actions] == list(expected)
+for action in actions:
+    authentication, helper = expected[action.attrib["id"]]
+    for audience in ("allow_any", "allow_inactive", "allow_active"):
+        assert action.findtext(f"defaults/{audience}") == authentication, audience
+    assert {
+        annotation.attrib["key"]: annotation.text
+        for annotation in action.findall("annotate")
+    } == {
+        "org.freedesktop.policykit.exec.path": helper,
+    }
 PY
 assert_contains "$RELEASE_WORKFLOW" \
     'cargo build --release --locked -p yuos-display-login --target "${RUST_TARGET/-musl/-gnu}"' \

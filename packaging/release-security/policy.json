@@ -27,6 +27,12 @@
     },
     {
       "critical": true,
+      "name": "yuos-admin-approval-helper",
+      "package": "yuos-agent",
+      "path": "/usr/local/bin/yuos-admin-approval-helper"
+    },
+    {
+      "critical": true,
       "name": "yuos-app-runner",
       "package": "yuos-agent",
       "path": "/usr/local/bin/yuos-app-runner"

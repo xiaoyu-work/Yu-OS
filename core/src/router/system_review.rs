@@ -148,7 +148,7 @@ fn helper_decision(
         .encode_for(review)
         .map_err(|error| error.to_string())?;
     let mut child = std::process::Command::new("/usr/bin/pkexec")
-        .arg("/usr/local/bin/yuos-approval-helper")
+        .arg(review.helper())
         .arg("--system-review-json")
         .stdin(Stdio::piped())
         .stderr(Stdio::inherit())

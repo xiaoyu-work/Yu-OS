@@ -55,6 +55,7 @@ fn review(status: ReviewStatus, revision: u64) -> SystemReview {
         } else {
             Vec::new()
         },
+        requires_administrator: false,
     }
 }
 

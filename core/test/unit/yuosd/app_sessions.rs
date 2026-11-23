@@ -457,11 +457,11 @@ fn gui_caps(app: &App, exec: &str, delegation: &Delegation) -> Result<CapSet, Br
     authorize_plan(delegation, plan, &publisher_ceiling(), &app.manifest.id)
 }
 
-/// The ceiling a normally signed package runs under: unrestricted, so
-/// these tests exercise the delegation rules rather than the tier. The
+/// The ceiling an official package runs under: the full manifest surface,
+/// so these tests exercise the delegation rules rather than the tier. The
 /// developer tier has its own dedicated coverage below.
 fn publisher_ceiling() -> Ceiling {
-    Ceiling::for_tier(crate::provenance::TrustTier::User)
+    Ceiling::for_tier(crate::provenance::TrustTier::Vendor)
 }
 
 #[test]
@@ -4476,6 +4476,8 @@ fn the_daemon_resolves_a_dev_trusted_package_to_the_developer_ceiling() {
 #[test]
 fn a_signed_package_keeps_its_privileged_audiences_end_to_end() {
     let _lock = crate::caps::test_env_lock::env_lock();
+    let approvals = tempfile::tempdir().expect("approvals dir");
+    let _approvals = crate::test_env::TestEnvVarGuard::set("YUOS_CAPS_DATA_DIR", approvals.path());
     let previous_apps = std::env::var_os("YUOS_APPS_DIR");
     let root = crate::test_env::secure_scratch_dir("yuosd-signed-app");
     let apps = root.join("apps");
@@ -4491,15 +4493,29 @@ fn a_signed_package_keeps_its_privileged_audiences_end_to_end() {
     assert!(!ceiling.is_developer());
     assert!(ceiling.allows_relay());
 
+    // A third-party package gets each system permission only through an
+    // administrator's approval, never from the launcher's delegation.
     let delegation = omnipotent_delegation();
-    let plan = operation_plan(&app, "run", &[], &delegation, &ceiling).expect("plan");
-    let granted = authorize_plan(&delegation, plan, &ceiling, "scratch").expect("authorize");
+    let plan = || operation_plan(&app, "run", &[], &delegation, &ceiling).expect("plan");
+    let denied = authorize_plan(&delegation, plan(), &ceiling, "scratch").unwrap_err();
+    let requests = approval_requests(&denied);
+    assert!(!requests.is_empty());
+    for id in &requests {
+        assert!(crate::approvals::approve_for_owner(
+            id, crate::approvals::GrantDuration::Once, None, None, Some(delegation.uid),
+        ).is_err(), "an owner's own password cannot approve a third-party system permission");
+        crate::approvals::approve_for_owner_as_administrator(
+            id, crate::approvals::GrantDuration::Once, None, None, Some(delegation.uid),
+        ).expect("administrator approval");
+    }
+    let granted = authorize_plan(&delegation, plan(), &ceiling, "scratch").expect("authorize");
     for (verb, name) in FORBIDDEN_FOR_DEVELOPER {
         assert!(
             granted.iter().any(|cap| cap.verb == *verb),
             "`{name}` must survive for signed content"
         );
     }
+    assert!(authorize_plan(&delegation, plan(), &ceiling, "scratch").is_err());
 
     crate::provenance::reload_trust();
     match previous_apps {

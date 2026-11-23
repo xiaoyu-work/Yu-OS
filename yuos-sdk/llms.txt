@@ -10,6 +10,7 @@
 - The built-in System Agent calls enabled MCP tools declared in the signed `app.json`. Set `schema_version: 2` and bind handlers to `mcp.tools`. Name a tool `<app-id>.<command>` to expose `yu app <app-id> <command>`.
 - Read caller identity from the Gateway's call context. Use MCP stdout for protocol messages and stderr for logs.
 - Apps get their own data directory. Ordinary signed Apps launched by the owner get a public outbound TCP proxy. The system Open dialog gives a signed GUI read access to the selected file in that window.
+- Like macOS and Windows, any signed App may declare App permissions in `needs`: files, network, camera, microphone, location, Bluetooth, printing, screen capture, media control, clipboard, notifications, timers, AI and its own data. The owner allows them. Other capabilities, such as `sys.*`, `secret.*`, `proc.*` and `browser.*`, are system permissions: a third-party App gets one only after an administrator enters their password, each time. See Permissions in the SDK reference.
 
 ## Start
 

@@ -149,7 +149,9 @@ polkit service can start the fixed approval action, and only the serving
 account's offered identity is accepted. OS-password responses use the standard
 polkit verifier socket/SUID helper; they never replace polkit's proof or the
 Root helper's protected review validation. `pkexec`'s internal terminal agent
-is disabled. Failed, cancelled and uncertain outcomes require a broker refresh,
+is disabled. A review that requires an administrator uses the administrator
+helper's polkit action; the Web accepts it only when the serving account is
+itself an administrator. Failed, cancelled and uncertain outcomes require a broker refresh,
 never automatic grant replay. Auth sessions are process-local and expire; no
 new daemon, portable authority or desktop runtime dependency is introduced.
 

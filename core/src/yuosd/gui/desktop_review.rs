@@ -368,7 +368,10 @@ impl Window {
                     ))
                     .map_err(|error| error.to_string())?,
                 );
-                let session = format!("{prefix}{nonce}");
+                let mut session = format!("{prefix}{nonce}");
+                if self.registration.launch.ceiling().requires_administrator(&cap) {
+                    session = approvals::administrator_session(&session);
+                }
                 let id = approvals::submit_owned_with_context_for_operation(
                     cap.verb,
                     cap.scope,
