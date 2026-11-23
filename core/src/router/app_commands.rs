@@ -1032,7 +1032,7 @@ fn scaffold_main_py(id: &str, want_ops: bool, want_desktop: bool) -> String {
     let mut out = format!("\"\"\"{id} — a Yu OS app.\"\"\"\n\nfrom yuos_sdk.app import {imports}\n");
 
     if want_ops {
-        out.push_str("\n\n@command(\"greet\")\n");
+        out.push_str("\n\n@command\n");
         out.push_str("def greet(args):\n");
         out.push_str(&format!("    \"\"\"Runs for `yu app {id} greet [name]`.\"\"\"\n"));
         out.push_str("    name = args[0] if args else \"world\"\n");
@@ -1041,12 +1041,12 @@ fn scaffold_main_py(id: &str, want_ops: bool, want_desktop: bool) -> String {
 
     if want_desktop {
         out.push_str("\n\n@desktop\n");
-        out.push_str("def open_window(files):\n");
+        out.push_str("def main():\n");
         out.push_str(&format!(
             "    \"\"\"Runs from the App launcher or `yu app {id} --gui`.\"\"\"\n"
         ));
         out.push_str("    # Open your window here with any GUI toolkit.\n");
-        out.push_str("    print(f\"Opened with {files}\")\n");
+        out.push_str("    print(\"Window opened\")\n");
     }
     out
 }

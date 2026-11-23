@@ -21,8 +21,8 @@ import (
 // CommandFunc receives a command's validated arguments and returns a JSON value.
 type CommandFunc func(args []string) (any, error)
 
-// DesktopFunc receives the files the user opened with the App.
-type DesktopFunc func(files []string) error
+// DesktopFunc opens the App's desktop window.
+type DesktopFunc func() error
 
 var (
 	commandFuncs = map[string]CommandFunc{}
@@ -67,9 +67,9 @@ func defaultUnavailable(surface, commandName string) map[string]any {
 	return out
 }
 
-func runDesktop(args []string) error {
+func runDesktop() error {
 	if desktopFunc != nil {
-		return desktopFunc(args)
+		return desktopFunc()
 	}
 	if len(commandFuncs) > 0 {
 		return json.NewEncoder(os.Stdout).Encode(defaultUnavailable("desktop", ""))
@@ -89,16 +89,13 @@ func RunApp() error {
 		hasEnvArgs = true
 	}
 	if os.Getenv("YUOS_APP_GUI") == "1" {
-		return runDesktop(args)
+		return runDesktop()
 	}
 	name := os.Getenv("YUOS_COMMAND")
 	if name == "" {
 		cliArgs := os.Args[1:]
 		if len(cliArgs) > 0 && cliArgs[0] == "--gui" {
-			if !hasEnvArgs {
-				args = cliArgs[1:]
-			}
-			return runDesktop(args)
+			return runDesktop()
 		}
 		if len(cliArgs) > 0 {
 			name = cliArgs[0]

@@ -1,24 +1,25 @@
 """Mark the functions Yu OS starts for an App's command line and desktop.
 
 Declare operations once under ``operations`` in ``app.json``; command-line and
-desktop launches share that declaration. If an operation only implements
+desktop launches share that declaration. If an App only implements
 ``@command`` or only implements ``@desktop``, the SDK returns a default
 unavailable-surface response when the other surface is launched::
 
     from yuos_sdk.app import command, desktop
 
-    @command("summarize")      # yu app <id> summarize "text"
+    @command                   # yu app <id> summarize "text"
     def summarize(args):
         return {"summary": args[0]}
 
     @desktop                   # App launcher or yu app <id> --gui
-    def open_window(files):
+    def main():
         ...                    # Open your window with any GUI toolkit.
 """
 
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import json
 import os
 import sys
@@ -26,19 +27,39 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, overload
 
 __all__ = ["command", "desktop", "run"]
 
-Handler = TypeVar("Handler", bound=Callable[[List[str]], Any])
+Handler = TypeVar("Handler", bound=Callable[..., Any])
 
 _commands: Dict[str, Callable[[List[str]], Any]] = {}
-_desktop_commands: Dict[str, Callable[[List[str]], Any]] = {}
-_desktop: Optional[Callable[[List[str]], Any]] = None
+_desktop_commands: Dict[str, Callable[..., Any]] = {}
+_desktop: Optional[Callable[..., Any]] = None
 _dispatched: bool = False
 
 
-def command(name: str) -> Callable[[Handler], Handler]:
+@overload
+def command(name: Handler) -> Handler: ...
+
+
+@overload
+def command(name: str) -> Callable[[Handler], Handler]: ...
+
+
+def command(name: Union[Handler, str]) -> Any:
     """Run the decorated function for ``yu app <id> <name>``.
 
-    It receives the command's validated arguments and returns a JSON value.
+    Can be used as ``@command`` (uses the function name) or
+    ``@command("name")``. It receives the command's validated arguments and
+    returns a JSON value.
     """
+    if callable(name):
+        fn = name
+        cmd_name = getattr(fn, "__name__", "")
+        if not cmd_name:
+            raise ValueError("command function must have a name")
+        if cmd_name in _commands:
+            raise ValueError(f"command {cmd_name!r} already has a function")
+        _commands[cmd_name] = fn
+        return fn
+
     if not isinstance(name, str) or not name:
         raise ValueError("command name must be a nonempty string")
 
@@ -60,10 +81,7 @@ def desktop(handler: str) -> Callable[[Handler], Handler]: ...
 
 
 def desktop(handler: Union[Handler, str]) -> Any:
-    """Run the decorated function to open the App's desktop window.
-
-    Can be used as ``@desktop`` or ``@desktop("operation_name")``.
-    """
+    """Run the decorated function to open the App's desktop window."""
     global _desktop
     if isinstance(handler, str):
         name = handler
@@ -82,6 +100,22 @@ def desktop(handler: Union[Handler, str]) -> Any:
         raise ValueError("the desktop window already has a function")
     _desktop = handler
     return handler
+
+
+def _call_desktop_fn(fn: Callable[..., Any], resolved_args: List[str]) -> Any:
+    try:
+        sig = inspect.signature(fn)
+        params = [
+            p
+            for p in sig.parameters.values()
+            if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+            or p.kind == inspect.Parameter.VAR_POSITIONAL
+        ]
+        if not params:
+            return fn()
+    except (TypeError, ValueError):
+        pass
+    return fn(resolved_args)
 
 
 def _default_unavailable(surface: str, command_name: Optional[str] = None) -> Dict[str, Any]:
@@ -117,12 +151,12 @@ def _parse_env_args() -> Optional[List[str]]:
 
 def _run_desktop(resolved_args: List[str], cli_invoked: bool) -> Any:
     if resolved_args and resolved_args[0] in _desktop_commands:
-        result = _desktop_commands[resolved_args[0]](resolved_args[1:])
+        result = _call_desktop_fn(_desktop_commands[resolved_args[0]], resolved_args[1:])
     elif _desktop is not None:
-        result = _desktop(resolved_args)
+        result = _call_desktop_fn(_desktop, resolved_args)
     elif len(_desktop_commands) == 1:
         only_fn = next(iter(_desktop_commands.values()))
-        result = only_fn(resolved_args)
+        result = _call_desktop_fn(only_fn, resolved_args)
     elif _commands:
         result = _default_unavailable("desktop")
     else:

@@ -3,31 +3,34 @@
 //   const { app } = require("@yuos/sdk");
 //
 //   app.command("summarize", (args) => ({ summary: args[0] })); // yu app <id> summarize "text"
-//   app.desktop((files) => { /* open your window */ });         // App launcher or yu app <id> --gui
+//   app.desktop(() => { /* open your window */ });              // App launcher or yu app <id> --gui
 //
 //   app.run().catch((error) => {
 //     console.error(error);
 //     process.exitCode = 1;
 //   });
 //
-// Declare the command under `operations` and the window under `desktop` in
-// app.json.
+// Declare the command under `operations` in app.json.
 
-/** Receives a command's validated arguments, or the files opened with the App. */
+/** Receives a command's validated arguments. */
 export type Handler = (args: string[]) => unknown;
+/** Opens the App's desktop window. */
+export type DesktopHandler = (files?: string[]) => unknown;
 
 const commands = new Map<string, Handler>();
-let desktopHandler: Handler | undefined;
+let desktopHandler: DesktopHandler | undefined;
 
 /** Run `handler` for `yu app <id> <name>`. Its return value is printed as JSON. */
-export function command(name: string, handler: Handler): void {
-  if (!name) throw new Error("command name must be nonempty");
+export function command(nameOrHandler: string | Handler, maybeHandler?: Handler): void {
+  const name = typeof nameOrHandler === "function" ? nameOrHandler.name : nameOrHandler;
+  const handler = typeof nameOrHandler === "function" ? nameOrHandler : maybeHandler;
+  if (!name || !handler) throw new Error("command name and function must be nonempty");
   if (commands.has(name)) throw new Error(`command "${name}" already has a function`);
   commands.set(name, handler);
 }
 
 /** Run `handler` to open the App's desktop window. */
-export function desktop(handler: Handler): void {
+export function desktop(handler: DesktopHandler): void {
   if (desktopHandler) throw new Error("the desktop window already has a function");
   desktopHandler = handler;
 }

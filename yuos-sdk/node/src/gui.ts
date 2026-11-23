@@ -15,8 +15,8 @@
 //
 //   const { app, gui } = require("@yuos/sdk");
 //
-//   app.desktop((files) => {
-//     startMyWindow(gui.context(files)); // your toolkit, your loop
+//   app.desktop(() => {
+//     startMyWindow(gui.context()); // your toolkit, your loop
 //   });
 //   app.run();
 

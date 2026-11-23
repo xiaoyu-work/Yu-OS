@@ -26,8 +26,8 @@ Mark the function that opens your window with ``@desktop``::
     from yuos_sdk.app import desktop
 
     @desktop
-    def open_window(files):
-        ctx = gui.context(files=files)
+    def main():
+        ctx = gui.context()
         start_my_window(ctx)        # your toolkit, your loop
 
 ``ctx`` exposes:

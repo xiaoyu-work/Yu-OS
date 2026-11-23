@@ -43,7 +43,7 @@ declares in `app.json`:
 const { app, chat } = require("@yuos/sdk");
 
 app.command("summarize", async (args) => ({ summary: (await chat(args[0])).output.text }));
-app.desktop((files) => { /* open your window */ });
+app.desktop(() => { /* open your window */ });
 
 app.run().catch((error) => {
   console.error(error);

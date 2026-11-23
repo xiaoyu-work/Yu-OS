@@ -8,13 +8,12 @@
 //!         // yu app <id> summarize "text"
 //!         .command("summarize", |args| Ok(serde_json::json!({"summary": args[0]})))
 //!         // App launcher or yu app <id> --gui
-//!         .desktop(|_files| Ok(()))
+//!         .desktop(|| Ok(()))
 //!         .run()
 //! }
 //! ```
 //!
-//! Declare the command under `operations` and the window under `desktop` in
-//! `app.json`.
+//! Declare the command under `operations` in `app.json`.
 
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -23,7 +22,7 @@ use std::io::Write;
 pub type FunctionError = Box<dyn std::error::Error + Send + Sync>;
 
 type CommandFn = Box<dyn FnOnce(Vec<String>) -> Result<serde_json::Value, FunctionError>>;
-type DesktopFn = Box<dyn FnOnce(Vec<String>) -> Result<(), FunctionError>>;
+type DesktopFn = Box<dyn FnOnce() -> Result<(), FunctionError>>;
 
 /// The App's command-line and desktop functions.
 #[derive(Default)]
@@ -62,10 +61,10 @@ impl App {
         self
     }
 
-    /// Run `function` with the opened files to open the App's desktop window.
+    /// Run `function` to open the App's desktop window.
     pub fn desktop<F>(mut self, function: F) -> Self
     where
-        F: FnOnce(Vec<String>) -> Result<(), FunctionError> + 'static,
+        F: FnOnce() -> Result<(), FunctionError> + 'static,
     {
         let previous = self.desktop.replace(Box::new(function));
         assert!(previous.is_none(), "the desktop window already has a function");
@@ -83,18 +82,13 @@ impl App {
             Err(error) => return Err(AppError::Args(error.to_string())),
         };
         if crate::gui::is_gui_launch() {
-            return self.run_desktop(args);
+            return self.run_desktop();
         }
         let mut name = std::env::var("YUOS_COMMAND").unwrap_or_default();
         if name.is_empty() {
             let cli_args: Vec<String> = std::env::args().skip(1).collect();
             if cli_args.first().map(String::as_str) == Some("--gui") {
-                let gui_args = if has_env_args {
-                    args
-                } else {
-                    cli_args.into_iter().skip(1).collect()
-                };
-                return self.run_desktop(gui_args);
+                return self.run_desktop();
             }
             if let Some((first, rest)) = cli_args.split_first() {
                 name = first.clone();
@@ -123,9 +117,9 @@ impl App {
         writeln!(std::io::stdout(), "{result}").map_err(AppError::Output)
     }
 
-    fn run_desktop(self, args: Vec<String>) -> Result<(), AppError> {
+    fn run_desktop(self) -> Result<(), AppError> {
         if let Some(function) = self.desktop {
-            return function(args).map_err(AppError::Function);
+            return function().map_err(AppError::Function);
         }
         if !self.commands.is_empty() {
             let fallback = serde_json::json!({

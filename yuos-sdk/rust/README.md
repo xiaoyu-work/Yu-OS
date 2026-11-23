@@ -137,7 +137,7 @@ fn main() -> Result<(), yuos_sdk::app::AppError> {
             let reply = ai::chat(&args[0], ai::ChatOpts::default())?;
             Ok(serde_json::json!({"summary": reply.output.text}))
         })
-        .desktop(|_files| Ok(())) // Open your window with any GUI toolkit.
+        .desktop(|| Ok(())) // Open your window with any GUI toolkit.
         .run()
 }
 ```

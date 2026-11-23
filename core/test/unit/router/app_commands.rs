@@ -884,7 +884,7 @@ fn dev_and_pack_run_and_package_unsigned_app_with_string_needs() {
     .unwrap();
     std::fs::write(
         app_dir.join("main.py"),
-        "from yuos_sdk.app import command\n\n@command('echo')\ndef echo(args):\n    return {'echo': args[0]}\n",
+        "from yuos_sdk.app import command\n\n@command\ndef echo(args):\n    return {'echo': args[0]}\n",
     )
     .unwrap();
 

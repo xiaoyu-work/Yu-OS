@@ -31,7 +31,7 @@ desktop function with `@desktop`:
 
 | Surface | Started by | Python | If omitted in code |
 |---|---|---|---|
-| Command line | `yu app <id> <command> [args]` | `@command("<command>")` | Returns `{"available": false, "surface": "cli", ...}` |
+| Command line | `yu app <id> <command> [args]` | `@command` | Returns `{"available": false, "surface": "cli", ...}` |
 | Desktop | The App launcher or `yu app <id> --gui` | `@desktop` | Returns `{"available": false, "surface": "desktop", ...}` |
 
 ```json
@@ -54,20 +54,24 @@ desktop function with `@desktop`:
 from yuos_sdk.ai import chat
 from yuos_sdk.app import command, desktop
 
-@command("summarize")
+def summarize_text(text: str) -> str:
+    return chat(text, system="Summarize in one short sentence.").output.text
+
+@command
 def summarize(args):
-    return {"summary": chat(args[0]).output.text}
+    return {"summary": summarize_text(args[0])}
 
 @desktop
-def open_window(files):
-    ...  # Open your window with any GUI toolkit.
+def main():
+    ...  # Open your window with any GUI toolkit and call summarize_text(...).
 ```
 
-A command function receives the validated arguments after the command name
-and returns a JSON value. The desktop function receives the files the user
-opened with the App. If an App only implements `@command` or only implements
-`@desktop`, launching the other surface returns the built-in unavailable-surface
-response automatically.
+`@command` uses the function name as the command name (or pass `@command("name")`
+to customize it). A command function receives the validated arguments after the
+command name and returns a JSON value. `@desktop` marks the desktop main entry
+(file-viewer Apps that open associated files can read `gui.context().files`). If
+an App only implements `@command` or only implements `@desktop`, launching the
+other surface returns the built-in unavailable-surface response automatically.
 
 Node uses `app.command(name, fn)`, `app.desktop(fn)`, and `app.run()`. Go uses
 `HandleCommand`, `HandleDesktop`, and `RunApp()`. Rust uses

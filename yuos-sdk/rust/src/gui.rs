@@ -23,7 +23,7 @@
 //!
 //! fn main() -> Result<(), yuos_sdk::app::AppError> {
 //!     App::new()
-//!         .desktop(|_files| {
+//!         .desktop(|| {
 //!             let ctx = gui::Context::from_env()?;
 //!             // Draw your own window using ctx.app_id / ctx.files,
 //!             // and call ctx.open_agent_overlay(None) to summon "Ask Yu OS".

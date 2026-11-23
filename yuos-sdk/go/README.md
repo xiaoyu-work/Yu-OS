@@ -76,7 +76,7 @@ func main() {
 		}
 		return map[string]string{"summary": reply.Output.Text}, nil
 	})
-	yuossdk.HandleDesktop(func(files []string) error {
+	yuossdk.HandleDesktop(func() error {
 		return nil // Open your window with any GUI toolkit.
 	})
 	if err := yuossdk.RunApp(); err != nil {

@@ -996,7 +996,7 @@ fn create_scaffolds_cli_app_without_desktop() {
     assert!(parsed.desktop.is_none(), "cli kind must omit desktop");
 
     let entry = std::fs::read_to_string(app_dir.join("main.py")).unwrap();
-    assert!(entry.contains("@command(\"greet\")"));
+    assert!(entry.contains("@command"));
     assert!(!entry.contains("@desktop"), "cli stub has no desktop window");
 
     let _ = std::fs::remove_dir_all(&parent);
@@ -1031,7 +1031,7 @@ fn create_scaffolds_both_surfaces() {
 
     let entry = std::fs::read_to_string(app_dir.join("main.py")).unwrap();
     assert!(entry.contains("from yuos_sdk.app import command, desktop"));
-    assert!(entry.contains("@command(\"greet\")") && entry.contains("@desktop"));
+    assert!(entry.contains("@command") && entry.contains("@desktop"));
 
     let _ = std::fs::remove_dir_all(&parent);
 }

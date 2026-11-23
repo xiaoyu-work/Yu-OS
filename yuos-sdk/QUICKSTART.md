@@ -5,24 +5,26 @@ Save these two files in `hello-ai/`:
 
 **`main.py`**
 
-`@command("summarize")` implements the command-line entry (`yu app hello-ai summarize`).
-`@desktop` implements the desktop entry (`yu app hello-ai --gui`). If you only
-implement one of the two, Yu OS returns a built-in unavailable response when the
-other is launched.
+`@command` marks a command-line entry by function name (`yu app hello-ai summarize`).
+`@desktop` marks the desktop entry (`yu app hello-ai --gui`). Both call the same
+`summarize_text` function. If you only implement one of the two, Yu OS returns a
+built-in unavailable response when the other is launched.
 
 ```python
 from yuos_sdk.ai import chat
 from yuos_sdk.app import command, desktop
 
-@command("summarize")
+def summarize_text(text: str) -> str:
+    return chat(text, system="Summarize in one short sentence.").output.text
+
+@command
 def summarize(args):
-    reply = chat(args[0], system="Summarize in one short sentence.")
-    return {"summary": reply.output.text}
+    return {"summary": summarize_text(args[0])}
 
 @desktop
-def open_window(files):
-    reply = chat("Give a one-sentence welcome.")
-    print(reply.output.text)  # Or open your window with any GUI toolkit.
+def main():
+    # Open your window with any GUI toolkit and call summarize_text(...) from the UI.
+    print(summarize_text("We moved the launch to Friday because the tests aren't ready."))
 ```
 
 **`app.json`**
