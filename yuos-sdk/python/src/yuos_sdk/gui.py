@@ -267,18 +267,26 @@ def _validate_launcher() -> None:
         raise PermissionError("untrusted Ask Yu OS launcher")
 
 
-def open_file(title: str = "Open file") -> Optional[str]:
-    """Open the system file picker and return the selected file path, or ``None`` if cancelled."""
+def _run_picker(
+    mode: str,
+    title: str,
+    dev_env: str,
+    name: Optional[str] = None,
+) -> Optional[str]:
     if not os.environ.get("YUOS_SESSION"):
-        dev_file = os.environ.get("YUOS_DEV_OPEN_FILE")
-        if dev_file is not None:
-            return dev_file or None
+        dev_val = os.environ.get(dev_env)
+        if dev_val is not None:
+            return dev_val or None
     request_id = os.urandom(16).hex()
-    _selected_file_call(
-        "__gui-file-picker",
-        "open",
-        {"request_id": request_id, "title": title, "modal": True},
-    )
+    payload: dict[str, Any] = {
+        "request_id": request_id,
+        "title": title,
+        "modal": True,
+        "mode": mode,
+    }
+    if name is not None:
+        payload["name"] = name
+    _selected_file_call("__gui-file-picker", "open", payload)
     while True:
         res = _selected_file_call("__gui-file-picker", "status", {"request_id": request_id})
         status = res.get("status") if isinstance(res, dict) else None
@@ -294,6 +302,23 @@ def open_file(title: str = "Open file") -> Optional[str]:
             return None
         error = res.get("error") if isinstance(res, dict) else None
         raise RuntimeError(str(error or "file picker failed"))
+
+
+def open_file(title: str = "Open file") -> Optional[str]:
+    """Open the system file picker and return the selected file path, or ``None`` if cancelled."""
+    return _run_picker("file", title, "YUOS_DEV_OPEN_FILE")
+
+
+def save_file(default_name: str, title: str = "Save file") -> Optional[str]:
+    """Open the system Save dialog and return the chosen path, or ``None`` if cancelled."""
+    if not isinstance(default_name, str) or not default_name.strip():
+        raise ValueError("save_file: default_name must be a non-empty filename")
+    return _run_picker("save", title, "YUOS_DEV_SAVE_FILE", name=default_name)
+
+
+def select_folder(title: str = "Select folder") -> Optional[str]:
+    """Open the system folder picker and return the selected directory path, or ``None`` if cancelled."""
+    return _run_picker("folder", title, "YUOS_DEV_SELECT_FOLDER")
 
 
 def context(files: Optional[List[str]] = None) -> GuiContext:

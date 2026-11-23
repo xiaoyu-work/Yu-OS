@@ -221,21 +221,28 @@ fn selected_read_response(
 }
 
 /// The kernel context handed to a desktop app at launch.
-/// Open the system file picker and return the selected file path, or `None` if cancelled.
-pub fn open_file(title: &str) -> Result<Option<String>, String> {
+fn run_picker(
+    mode: &str,
+    title: &str,
+    dev_env: &str,
+    name: Option<&str>,
+) -> Result<Option<String>, String> {
     if std::env::var_os("YUOS_SESSION").is_none() {
-        if let Ok(dev_file) = std::env::var("YUOS_DEV_OPEN_FILE") {
+        if let Ok(dev_file) = std::env::var(dev_env) {
             return Ok((!dev_file.is_empty()).then_some(dev_file));
         }
     }
-    let title = if title.is_empty() { "Open file" } else { title };
     let request_id = format!("{:032x}", std::process::id());
-    selected_file_call(
-        "__gui-file-picker",
-        "open",
-        serde_json::json!({"request_id": request_id, "title": title, "modal": true}),
-    )
-    .map_err(|e| e.to_string())?;
+    let mut payload = serde_json::json!({
+        "request_id": request_id,
+        "title": title,
+        "modal": true,
+        "mode": mode,
+    });
+    if let Some(n) = name {
+        payload["name"] = serde_json::json!(n);
+    }
+    selected_file_call("__gui-file-picker", "open", payload).map_err(|e| e.to_string())?;
     loop {
         let res = selected_file_call(
             "__gui-file-picker",
@@ -262,6 +269,27 @@ pub fn open_file(title: &str) -> Result<Option<String>, String> {
             }
         }
     }
+}
+
+/// Open the system file picker and return the selected file path, or `None` if cancelled.
+pub fn open_file(title: &str) -> Result<Option<String>, String> {
+    let title = if title.is_empty() { "Open file" } else { title };
+    run_picker("file", title, "YUOS_DEV_OPEN_FILE", None)
+}
+
+/// Open the system Save dialog and return the chosen path, or `None` if cancelled.
+pub fn save_file(default_name: &str, title: &str) -> Result<Option<String>, String> {
+    if default_name.trim().is_empty() {
+        return Err("save_file: default_name must be non-empty".into());
+    }
+    let title = if title.is_empty() { "Save file" } else { title };
+    run_picker("save", title, "YUOS_DEV_SAVE_FILE", Some(default_name))
+}
+
+/// Open the system folder picker and return the selected directory path, or `None` if cancelled.
+pub fn select_folder(title: &str) -> Result<Option<String>, String> {
+    let title = if title.is_empty() { "Select folder" } else { title };
+    run_picker("folder", title, "YUOS_DEV_SELECT_FOLDER", None)
 }
 
 #[derive(Debug, Clone)]

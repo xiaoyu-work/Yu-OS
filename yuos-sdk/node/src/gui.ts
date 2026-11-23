@@ -302,13 +302,14 @@ function validateAskYuLauncher(): void {
  * the GUI). `files` defaults to the launcher's file arguments, decoded
  * from `YUOS_ARGS_JSON` when not supplied explicitly.
  */
-/** Open the system file picker and return the selected file path, or `null` if cancelled. */
-export function openFile(title = "Open file"): string | null {
-  if (!process.env.YUOS_SESSION && process.env.YUOS_DEV_OPEN_FILE !== undefined) {
-    return process.env.YUOS_DEV_OPEN_FILE || null;
+function runPicker(mode: "file" | "save" | "folder", title: string, devEnv: string, name?: string): string | null {
+  if (!process.env.YUOS_SESSION && process.env[devEnv] !== undefined) {
+    return process.env[devEnv] || null;
   }
   const requestId = Array.from({ length: 16 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, "0")).join("");
-  selectedFileCall("__gui-file-picker", "open", { request_id: requestId, title, modal: true });
+  const payload: Record<string, unknown> = { request_id: requestId, title, modal: true, mode };
+  if (name !== undefined) payload.name = name;
+  selectedFileCall("__gui-file-picker", "open", payload);
   for (;;) {
     const res = selectedFileCall("__gui-file-picker", "status", { request_id: requestId }) as Record<string, unknown>;
     const status = res?.status;
@@ -320,6 +321,22 @@ export function openFile(title = "Open file"): string | null {
     if (status === "cancelled") return null;
     throw new Error(String(res?.error || "file picker failed"));
   }
+}
+
+/** Open the system file picker and return the selected file path, or `null` if cancelled. */
+export function openFile(title = "Open file"): string | null {
+  return runPicker("file", title, "YUOS_DEV_OPEN_FILE");
+}
+
+/** Open the system Save dialog and return the chosen path, or `null` if cancelled. */
+export function saveFile(defaultName: string, title = "Save file"): string | null {
+  if (!defaultName || !defaultName.trim()) throw new Error("saveFile: defaultName must be non-empty");
+  return runPicker("save", title, "YUOS_DEV_SAVE_FILE", defaultName);
+}
+
+/** Open the system folder picker and return the selected directory path, or `null` if cancelled. */
+export function selectFolder(title = "Select folder"): string | null {
+  return runPicker("folder", title, "YUOS_DEV_SELECT_FOLDER");
 }
 
 export function context(files?: string[]): GuiContext {

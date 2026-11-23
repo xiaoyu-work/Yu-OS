@@ -221,6 +221,44 @@ export async function* chatStream(
   prompt: string,
   opts: ChatOptions = {},
 ): AsyncGenerator<string, void, unknown> {
+  const baseUrl = devAiUrl();
+  if (baseUrl !== undefined) {
+    if (!prompt || !prompt.trim()) throw new AiInvalidArgs("chatStream: prompt must be non-empty");
+    const messages: Array<Record<string, unknown>> = [];
+    if (opts.system != null) messages.push({ role: "system", content: opts.system });
+    if (opts.images?.length) {
+      const parts: Array<Record<string, unknown>> = [{ type: "text", text: prompt }];
+      for (const img of opts.images) {
+        parts.push({ type: "image_url", image_url: { url: `data:image/png;base64,${encodeMedia(img, "chatStream: images")}` } });
+      }
+      messages.push({ role: "user", content: parts });
+    } else {
+      messages.push({ role: "user", content: prompt });
+    }
+    const body: Record<string, unknown> = { model: devAiModel(), messages, stream: true };
+    if (opts.maxUnits != null) body.max_tokens = Number(opts.maxUnits);
+    const raw = (await devPostBytes(`${baseUrl}/chat/completions`, body, opts.signal)).toString("utf8");
+    if (raw.trimStart().startsWith("data:")) {
+      for (const line of raw.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const dataStr = trimmed.slice(5).trim();
+        if (!dataStr || dataStr === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(dataStr) as { choices?: Array<{ delta?: { content?: string }; message?: { content?: string } }> };
+          const piece = parsed.choices?.[0]?.delta?.content ?? parsed.choices?.[0]?.message?.content;
+          if (typeof piece === "string" && piece) yield piece;
+        } catch {
+          // ignore malformed SSE line
+        }
+      }
+      return;
+    }
+    const parsed = JSON.parse(raw) as { choices?: Array<{ message?: { content?: string } }> };
+    const text = parsed.choices?.[0]?.message?.content;
+    if (typeof text === "string" && text) yield text;
+    return;
+  }
   const reply = await chat(prompt, opts);
   if (reply.output.text) {
     yield reply.output.text;

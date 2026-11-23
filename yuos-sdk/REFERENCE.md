@@ -3,6 +3,68 @@
 New to the SDK? Start with the [Quickstart](QUICKSTART.md), or see
 [Integrating an Existing Linux App](../docs/linux-app-integration.md).
 
+**Contents**
+- [Installation](#installation)
+- [Modules overview](#modules-overview)
+- [Command line and desktop (`app`)](#command-line-and-desktop)
+- [Desktop dialogs and context (`gui`)](#gui-api-yuos_sdkgui)
+- [System Agent tools (`mcp`)](#mcp-api-yuos_sdkmcp)
+- [Permissions](#permissions)
+- [AI models (`ai`)](#ai-support)
+- [Object references, file plans, and effects](#app-object-references)
+- [CLI commands](#cli-commands)
+
+## Installation
+
+On Yu OS, all SDK runtimes and the `yu` CLI are preinstalled. For standalone
+development on macOS, Windows, or Linux:
+
+<details open>
+<summary><b>Python</b> (3.10+)</summary>
+
+```sh
+pip install yuos-sdk
+```
+
+</details>
+
+<details>
+<summary><b>Node.js / TypeScript</b> (Node 18+)</summary>
+
+```sh
+npm install @yuos/sdk
+```
+
+</details>
+
+<details>
+<summary><b>Go</b> (Go 1.21+)</summary>
+
+```sh
+go get github.com/xiaoyu-work/Yu-OS/yuos-sdk/go@v0.1.0
+```
+
+</details>
+
+<details>
+<summary><b>Rust</b> (Edition 2021)</summary>
+
+```sh
+cargo add yuos-sdk
+```
+
+</details>
+
+### Environment variables
+
+| Variable | Scope | Description |
+|---|---|---|
+| `YUOS_APP_ID` | Runtime | App identity set automatically by `yuosd` or `yu app dev`. |
+| `YUOS_DATA_DIR` | Runtime | Private per-App storage path returned by `app.data_dir()`. |
+| `YUOS_DEV_AI_URL` | Local dev | OpenAI-compatible `/v1` base URL (e.g. `http://localhost:11434/v1`) used when outside a `YUOS_SESSION`. |
+| `YUOS_DEV_AI_MODEL` | Local dev | Model name for `YUOS_DEV_AI_URL` (default `llama3.2`). |
+| `YUOS_DEV_AI_KEY` | Local dev | Optional Bearer token for `YUOS_DEV_AI_URL`. |
+
 ## Modules overview
 
 | Module | Python | Node.js | Go | Rust | Purpose |
@@ -167,12 +229,16 @@ Node uses `app.command(fn)`, `app.desktop(fn)`, and `app.run()`. Go uses
 | `run()` | `await app.run()` | `RunApp()` | `App::run()` | Dispatch the current launch (or return the built-in unavailable-surface fallback). |
 | `data_dir() -> Path` | `app.dataDir(): string` | `DataDir() (string, error)` | `app::data_dir() -> io::Result<PathBuf>` | Return (and create) this App's private data directory. |
 | `notify(summary, body="")` | `app.notify(summary, body)` | `Notify(summary, body)` | `app::notify(summary, body)` | Post a system notification (`ui.notify`). |
+| `clipboard_read() -> str` | `app.clipboardRead(): string` | `ClipboardRead() (string, error)` | `app::clipboard_read() -> Result<String, BridgeError>` | Read text from the system clipboard (`clipboard.read`). |
+| `clipboard_write(text)` | `app.clipboardWrite(text)` | `ClipboardWrite(text) error` | `app::clipboard_write(text) -> Result<(), BridgeError>` | Write text to the system clipboard (`clipboard.write`). |
 
 ### GUI API (`yuos_sdk.gui`)
 
 | Python | Node.js | Go | Rust | Description |
 |---|---|---|---|---|
 | `gui.open_file(title="Open file") -> str \| None` | `gui.openFile(title): string \| null` | `OpenFile(title) (string, error)` | `gui::open_file(title) -> Result<Option<String>, String>` | Open the system file picker and return the selected file path (or `None` if cancelled). |
+| `gui.save_file(default_name, title="Save file") -> str \| None` | `gui.saveFile(defaultName, title): string \| null` | `SaveFile(defaultName, title) (string, error)` | `gui::save_file(default_name, title) -> Result<Option<String>, String>` | Open the system Save dialog (`ui.prompt`) and return the chosen path. |
+| `gui.select_folder(title="Select folder") -> str \| None` | `gui.selectFolder(title): string \| null` | `SelectFolder(title) (string, error)` | `gui::select_folder(title) -> Result<Option<String>, String>` | Open the system folder picker (`ui.prompt`) and return the selected directory. |
 | `gui.context() -> GuiContext` | `gui.context(): GuiContext` | `Context(nil) (*GuiContext, error)` | `gui::Context::from_env()` | Read `app_id`, associated `files`, and `open_agent_overlay(hint)`. |
 | `gui.is_gui_launch() -> bool` | `gui.isGuiLaunch(): boolean` | `IsGuiLaunch() bool` | `gui::is_gui_launch() -> bool` | Return `True` when started as a desktop GUI (`YUOS_APP_GUI=1`). |
 
@@ -478,6 +544,16 @@ print(reply.text)
 Keep prior `tool_turns` in order if the model asks for another call.
 Pass one result per call ID and echo optional `provider_state` unchanged.
 Each request counts toward the App AI budget.
+
+## CLI commands
+
+| Command | Description |
+|---|---|
+| `yu app create <id> [--kind cli\|desktop\|both]` | Scaffold a new App directory (`app.json` + entrypoint). |
+| `yu app dev <dir> <command> [args…]` | Run a local App directory during development (`--gui` starts the desktop entry). |
+| `yu app lint [<id>]` | Validate `app.json`, declared entrypoints, and SDK usage rules. |
+| `yu app pack <dir> [--out <file.deb>] [--arch all\|amd64\|arm64]` | Package an App directory into a compliant `.deb` archive. |
+| `yu app submit <file.deb> [--repo <owner/repo>]` | Submit a packaged `.deb` to the Store review queue (`submissions/incoming/`). |
 
 ## SDK source and code generation
 

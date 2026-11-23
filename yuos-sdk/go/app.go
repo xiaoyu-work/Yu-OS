@@ -29,6 +29,7 @@ type DesktopFunc func() error
 var (
 	commandFuncs = map[string]CommandFunc{}
 	desktopFunc  DesktopFunc
+	devClipboard string
 )
 
 // HandleCommand runs fn for `yu app <id> <name>`.
@@ -87,6 +88,45 @@ func Notify(summary, body string) error {
 		return err
 	}
 	_, err = yuCallJSON("yu __notifications", []string{"__notifications", "request", "--request-stdin", "--deadline", "9999999999999"}, payload)
+	return err
+}
+
+// ClipboardRead reads text from the system clipboard (`clipboard.read`).
+func ClipboardRead() (string, error) {
+	if os.Getenv("YUOS_SESSION") == "" {
+		if v, ok := os.LookupEnv("YUOS_DEV_CLIPBOARD"); ok {
+			return v, nil
+		}
+		return devClipboard, nil
+	}
+	out, err := yuCallJSON("yu __clipboard", []string{"__clipboard", "read"}, nil)
+	if err != nil {
+		return "", err
+	}
+	if m, ok := out.Data.(map[string]any); ok {
+		if t, ok := m["text"].(string); ok {
+			return t, nil
+		}
+	}
+	return "", nil
+}
+
+// ClipboardWrite writes text to the system clipboard (`clipboard.write`).
+func ClipboardWrite(text string) error {
+	if os.Getenv("YUOS_SESSION") == "" {
+		devClipboard = text
+		return nil
+	}
+	dir, err := DataDir()
+	if err != nil {
+		return err
+	}
+	scratch := filepath.Join(dir, ".clipboard-tmp")
+	if err := os.WriteFile(scratch, []byte(text), 0o600); err != nil {
+		return err
+	}
+	defer os.Remove(scratch)
+	_, err = yuCallJSON("yu __clipboard", []string{"__clipboard", "write", "--source", scratch, "--confirm"}, nil)
 	return err
 }
 

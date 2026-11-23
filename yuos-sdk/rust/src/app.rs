@@ -84,6 +84,38 @@ pub fn notify(summary: &str, body: &str) -> Result<serde_json::Value, crate::Bri
     )
 }
 
+/// Read text from the system clipboard (`clipboard.read`).
+pub fn clipboard_read() -> Result<String, crate::BridgeError> {
+    if std::env::var_os("YUOS_SESSION").is_none() {
+        return Ok(std::env::var("YUOS_DEV_CLIPBOARD").unwrap_or_default());
+    }
+    let res = crate::yu_call_json("__clipboard", "read", ["__clipboard", "read"])?;
+    Ok(res
+        .get("text")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("")
+        .to_string())
+}
+
+/// Write text to the system clipboard (`clipboard.write`).
+pub fn clipboard_write(text: &str) -> Result<(), crate::BridgeError> {
+    if std::env::var_os("YUOS_SESSION").is_none() {
+        return Ok(());
+    }
+    let scratch = data_dir()
+        .map_err(crate::BridgeError::BinaryNotFound)?
+        .join(".clipboard-tmp");
+    std::fs::write(&scratch, text).map_err(crate::BridgeError::BinaryNotFound)?;
+    let path_str = scratch.to_string_lossy().to_string();
+    let res = crate::yu_call_json(
+        "__clipboard",
+        "write",
+        ["__clipboard", "write", "--source", &path_str, "--confirm"],
+    );
+    let _ = std::fs::remove_file(&scratch);
+    res.map(|_| ())
+}
+
 /// Error returned by an App function.
 pub type FunctionError = Box<dyn std::error::Error + Send + Sync>;
 

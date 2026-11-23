@@ -29,7 +29,15 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, overload
 
 from .kernel import call_json_with_stdin_binary
 
-__all__ = ["command", "data_dir", "desktop", "notify", "run"]
+__all__ = [
+    "clipboard_read",
+    "clipboard_write",
+    "command",
+    "data_dir",
+    "desktop",
+    "notify",
+    "run",
+]
 
 Handler = TypeVar("Handler", bound=Callable[..., Any])
 
@@ -37,6 +45,7 @@ _commands: Dict[str, Callable[[List[str]], Any]] = {}
 _desktop_commands: Dict[str, Callable[..., Any]] = {}
 _desktop: Optional[Callable[..., Any]] = None
 _dispatched: bool = False
+_dev_clipboard: str = ""
 
 
 @overload
@@ -142,6 +151,52 @@ def notify(summary: str, body: str = "") -> Dict[str, Any]:
         json.dumps(payload).encode("utf-8"),
         deadline_unix_ms=deadline,
     )
+
+
+def clipboard_read() -> str:
+    """Read text from the system clipboard (`clipboard.read`)."""
+    if not os.environ.get("YUOS_SESSION"):
+        return os.environ.get("YUOS_DEV_CLIPBOARD", _dev_clipboard)
+    deadline = time.time_ns() // 1_000_000 + 10_000
+    res = call_json_with_stdin_binary(
+        os.environ.get("YUOS_KERNEL_BIN", "/usr/local/bin/yu"),
+        ["__clipboard", "read"],
+        b"",
+        deadline_unix_ms=deadline,
+    )
+    if isinstance(res, dict):
+        if isinstance(res.get("text"), str):
+            return res["text"]
+        if isinstance(res.get("content_base64"), str):
+            from base64 import b64decode
+
+            return b64decode(res["content_base64"]).decode("utf-8", errors="replace")
+    return ""
+
+
+def clipboard_write(text: str) -> None:
+    """Write text to the system clipboard (`clipboard.write`)."""
+    global _dev_clipboard
+    if not isinstance(text, str):
+        raise ValueError("clipboard_write: text must be a string")
+    if not os.environ.get("YUOS_SESSION"):
+        _dev_clipboard = text
+        return
+    scratch = data_dir() / ".clipboard-tmp"
+    scratch.write_text(text, encoding="utf-8")
+    try:
+        deadline = time.time_ns() // 1_000_000 + 10_000
+        call_json_with_stdin_binary(
+            os.environ.get("YUOS_KERNEL_BIN", "/usr/local/bin/yu"),
+            ["__clipboard", "write", "--source", str(scratch), "--confirm"],
+            b"",
+            deadline_unix_ms=deadline,
+        )
+    finally:
+        try:
+            scratch.unlink()
+        except OSError:
+            pass
 
 
 def _call_desktop_fn(fn: Callable[..., Any], resolved_args: List[str]) -> Any:

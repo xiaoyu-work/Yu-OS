@@ -795,6 +795,36 @@ class McpEffectBindingTests(unittest.TestCase):
         self.assertNotIn("recovery", minimal)
         self.assertNotIn("target_arg", minimal)
 
+    def test_app_and_gui_helpers_work_in_local_dev_mode(self) -> None:
+        from . import app as app_mod, gui as gui_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            old_data = os.environ.get("YUOS_DATA_DIR")
+            os.environ["YUOS_DATA_DIR"] = tmp
+            try:
+                self.assertEqual(app_mod.data_dir(), Path(tmp))
+            finally:
+                if old_data is None:
+                    os.environ.pop("YUOS_DATA_DIR", None)
+                else:
+                    os.environ["YUOS_DATA_DIR"] = old_data
+
+        app_mod.clipboard_write("hello clipboard")
+        self.assertEqual(app_mod.clipboard_read(), "hello clipboard")
+        self.assertEqual(app_mod.notify("Done", "ok")["status"], "dev")
+
+        os.environ["YUOS_DEV_OPEN_FILE"] = "/tmp/open.txt"
+        os.environ["YUOS_DEV_SAVE_FILE"] = "/tmp/save.txt"
+        os.environ["YUOS_DEV_SELECT_FOLDER"] = "/tmp/folder"
+        try:
+            self.assertEqual(gui_mod.open_file(), "/tmp/open.txt")
+            self.assertEqual(gui_mod.save_file("out.txt"), "/tmp/save.txt")
+            self.assertEqual(gui_mod.select_folder(), "/tmp/folder")
+        finally:
+            os.environ.pop("YUOS_DEV_OPEN_FILE", None)
+            os.environ.pop("YUOS_DEV_SAVE_FILE", None)
+            os.environ.pop("YUOS_DEV_SELECT_FOLDER", None)
+
 
 if __name__ == "__main__":
     unittest.main()

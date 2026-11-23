@@ -12,7 +12,7 @@
 //
 // Declare the command under `operations` in app.json.
 
-import { mkdirSync } from "node:fs";
+import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { yuCallJson } from "./transport";
@@ -24,6 +24,7 @@ export type DesktopHandler = (files?: string[]) => unknown;
 
 const commands = new Map<string, Handler>();
 let desktopHandler: DesktopHandler | undefined;
+let devClipboard = "";
 
 /** Return the App's private data directory, creating it if needed. */
 export function dataDir(): string {
@@ -62,6 +63,39 @@ export function notify(summary: string, body = ""): Record<string, unknown> {
     10_000,
     payload,
   ) as Record<string, unknown>;
+}
+
+/** Read text from the system clipboard (`clipboard.read`). */
+export function clipboardRead(): string {
+  if (!process.env.YUOS_SESSION) {
+    return process.env.YUOS_DEV_CLIPBOARD ?? devClipboard;
+  }
+  const res = yuCallJson("yu __clipboard", ["__clipboard", "read"], 10_000) as Record<string, unknown>;
+  if (typeof res?.text === "string") return res.text;
+  if (typeof res?.content_base64 === "string") {
+    return Buffer.from(res.content_base64, "base64").toString("utf8");
+  }
+  return "";
+}
+
+/** Write text to the system clipboard (`clipboard.write`). */
+export function clipboardWrite(text: string): void {
+  if (typeof text !== "string") throw new Error("clipboardWrite: text must be a string");
+  if (!process.env.YUOS_SESSION) {
+    devClipboard = text;
+    return;
+  }
+  const scratch = join(dataDir(), ".clipboard-tmp");
+  writeFileSync(scratch, text, "utf8");
+  try {
+    yuCallJson("yu __clipboard", ["__clipboard", "write", "--source", scratch, "--confirm"], 10_000);
+  } finally {
+    try {
+      unlinkSync(scratch);
+    } catch {
+      // ignore cleanup error
+    }
+  }
 }
 
 /** Run `handler` for `yu app <id> <name>`. Its return value is printed as JSON. */

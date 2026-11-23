@@ -199,18 +199,18 @@ type GuiContext struct {
 // Context builds the GuiContext for the current GUI launch. It rejects
 // missing App identity and malformed host arguments. Files defaults to
 // the launcher's YUOS_ARGS_JSON array when nil.
-// OpenFile opens the system file picker and returns the selected file path, or "" if cancelled.
-func OpenFile(title string) (string, error) {
+func runPicker(mode, title, devEnv, name string) (string, error) {
 	if os.Getenv("YUOS_SESSION") == "" {
-		if devFile, ok := os.LookupEnv("YUOS_DEV_OPEN_FILE"); ok {
+		if devFile, ok := os.LookupEnv(devEnv); ok {
 			return devFile, nil
 		}
 	}
-	if title == "" {
-		title = "Open file"
-	}
 	reqID := fmt.Sprintf("%032x", time.Now().UnixNano())
-	if _, err := selectedFileCall("__gui-file-picker", "open", map[string]any{"request_id": reqID, "title": title, "modal": true}); err != nil {
+	payload := map[string]any{"request_id": reqID, "title": title, "modal": true, "mode": mode}
+	if name != "" {
+		payload["name"] = name
+	}
+	if _, err := selectedFileCall("__gui-file-picker", "open", payload); err != nil {
 		return "", err
 	}
 	for {
@@ -237,6 +237,33 @@ func OpenFile(title string) (string, error) {
 		}
 		return "", fmt.Errorf("%s", errMsg)
 	}
+}
+
+// OpenFile opens the system file picker and returns the selected file path, or "" if cancelled.
+func OpenFile(title string) (string, error) {
+	if title == "" {
+		title = "Open file"
+	}
+	return runPicker("file", title, "YUOS_DEV_OPEN_FILE", "")
+}
+
+// SaveFile opens the system Save dialog and returns the chosen path, or "" if cancelled.
+func SaveFile(defaultName, title string) (string, error) {
+	if strings.TrimSpace(defaultName) == "" {
+		return "", fmt.Errorf("SaveFile: defaultName must be non-empty")
+	}
+	if title == "" {
+		title = "Save file"
+	}
+	return runPicker("save", title, "YUOS_DEV_SAVE_FILE", defaultName)
+}
+
+// SelectFolder opens the system folder picker and returns the selected directory path, or "" if cancelled.
+func SelectFolder(title string) (string, error) {
+	if title == "" {
+		title = "Select folder"
+	}
+	return runPicker("folder", title, "YUOS_DEV_SELECT_FOLDER", "")
 }
 
 func Context(files []string) (*GuiContext, error) {
