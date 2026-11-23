@@ -24,6 +24,7 @@
 //!
 //! | Module        | Wire family | Equivalent CLI                  |
 //! |---------------|-------------|---------------------------------|
+//! | [`app`]       | —           | `yu app <id> <command>` and `--gui` |
 //! | [`ai`]        | `ai`        | stable `yu ai chat`            |
 //! | [`applet`]    | data v1     | public OS App data services      |
 //! | [`mcp`]       | MCP         | App-hosted tools over JSON-RPC  |
@@ -61,6 +62,7 @@ use std::process::{Command, Stdio};
 use serde::de::DeserializeOwned;
 
 pub mod ai;
+pub mod app;
 pub mod applet;
 pub mod channels;
 pub mod envelope;

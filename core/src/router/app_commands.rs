@@ -959,9 +959,9 @@ fn scaffold_app_json(id: &str, want_ops: bool, want_desktop: bool) -> String {
         blocks.push(
             r#"  "operations": {
     "greet": {
-      "label": { "en": "Print a friendly greeting (--name)" },
+      "label": { "en": "Print a friendly greeting" },
       "args": [
-        { "name": "--name", "kind": "text", "required": false }
+        { "name": "name", "kind": "text", "required": false }
       ],
       "needs": []
     }
@@ -974,6 +974,7 @@ fn scaffold_app_json(id: &str, want_ops: bool, want_desktop: bool) -> String {
         blocks.push(
             r#"  "desktop": {
     "exec": "--gui",
+    "needs": [],
     "categories": ["Utility"],
     "single_instance": true
   }"#
@@ -984,42 +985,33 @@ fn scaffold_app_json(id: &str, want_ops: bool, want_desktop: bool) -> String {
     format!("{{\n{}\n}}\n", blocks.join(",\n"))
 }
 
-/// Build a `main.py` entry stub exposing `run(command, args)`. When a
-/// desktop surface is requested the stub branches on the GUI launch
-/// signal so the same entry serves both the headless op and the window.
+/// Build a `main.py` that marks the command-line function with
+/// `@command` and the desktop window with `@desktop`.
 fn scaffold_main_py(id: &str, want_ops: bool, want_desktop: bool) -> String {
-    let mut out = String::new();
-    out.push_str(&format!("\"\"\"{id} — a Yu OS app.\n\n"));
-    out.push_str("The kernel calls run(command, args) for each invocation.\n");
-    out.push_str("\"\"\"\n\n");
-
-    if want_desktop {
-        out.push_str("from yuos_sdk import gui\n\n\n");
-        out.push_str("def run_gui(ctx):\n");
-        out.push_str("    \"\"\"Draw your own window here (any toolkit). World A:\n");
-        out.push_str("    the OS does not own the UI. Use ctx.files for any file\n");
-        out.push_str("    arguments, and ctx.open_agent_overlay() to summon Yu OS.\n");
-        out.push_str("    \"\"\"\n");
-        out.push_str("    print(f\"[{ctx.app_id}] GUI launch; files={ctx.files}\")\n\n\n");
-    }
+    let imports = match (want_ops, want_desktop) {
+        (true, true) => "command, desktop",
+        (true, false) => "command",
+        _ => "desktop",
+    };
+    let mut out = format!("\"\"\"{id} — a Yu OS app.\"\"\"\n\nfrom yuos_sdk.app import {imports}\n");
 
     if want_ops {
+        out.push_str("\n\n@command(\"greet\")\n");
         out.push_str("def greet(args):\n");
-        out.push_str("    name = args.get(\"--name\", \"world\")\n");
-        out.push_str("    return {\"message\": f\"Hello, {name}!\"}\n\n\n");
+        out.push_str(&format!("    \"\"\"Runs for `yu app {id} greet [name]`.\"\"\"\n"));
+        out.push_str("    name = args[0] if args else \"world\"\n");
+        out.push_str("    return {\"message\": f\"Hello, {name}!\"}\n");
     }
 
-    out.push_str("def run(command, args):\n");
-    out.push_str("    \"\"\"Entry point called by yu.\"\"\"\n");
     if want_desktop {
-        out.push_str("    if gui.is_gui_launch():\n");
-        out.push_str("        return run_gui(gui.context())\n");
+        out.push_str("\n\n@desktop\n");
+        out.push_str("def open_window(files):\n");
+        out.push_str(&format!(
+            "    \"\"\"Runs from the App launcher or `yu app {id} --gui`.\"\"\"\n"
+        ));
+        out.push_str("    # Open your window here with any GUI toolkit.\n");
+        out.push_str("    print(f\"Opened with {files}\")\n");
     }
-    if want_ops {
-        out.push_str("    if command == \"greet\":\n");
-        out.push_str("        return greet(args)\n");
-    }
-    out.push_str("    return {\"error\": f\"unknown command: {command}\"}\n");
     out
 }
 

@@ -7,18 +7,21 @@ configured in Settings. Save these two files in `hello-ai/`:
 
 **`main.py`**
 
-`summarize(text)` calls the SDK. `run` passes the CLI argument to it.
+`@command("summarize")` marks the function that `yu app hello-ai summarize`
+runs. `args` holds the text after the command name.
 
 ```python
 from yuos_sdk.ai import chat
+from yuos_sdk.app import command
 
-def summarize(text):
-    reply = chat(text, system="Summarize in one short sentence.")
-    return reply.output.text
-
-def run(_command, args):
-    return {"summary": summarize(args[0])}
+@command("summarize")
+def summarize(args):
+    reply = chat(args[0], system="Summarize in one short sentence.")
+    return {"summary": reply.output.text}
 ```
+
+This App has a command-line version. Mark a function with `@desktop` to add
+a [desktop version](REFERENCE.md#command-line-and-desktop).
 
 **`app.json`**
 

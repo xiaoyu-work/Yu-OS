@@ -18,6 +18,7 @@ Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
 
 | Module      | Purpose                                                                         |
 |-------------|---------------------------------------------------------------------------------|
+| `app`       | Command-line and desktop functions for the App.                                  |
 | `ai`        | `chat`, `embed`, `tts`, `stt`, `imagegen`, and `decide`. |
 | `mcp`       | Manifest-bound App MCP runtime, call context, and stdio transport.                |
 | `applet`    | Versioned OS Calendar/task/telemetry client and separate history-permission preflight. |
@@ -121,6 +122,27 @@ fn summarise_email(body: &str) -> Result<String, Box<dyn std::error::Error>> {
     Ok(response.output.text)
 }
 ```
+
+## Command line and desktop
+
+Set `"runtime": "binary"` and register the function for each version the App
+declares in `app.json`:
+
+```rust
+use yuos_sdk::{ai, app::App};
+
+fn main() -> Result<(), yuos_sdk::app::AppError> {
+    App::new()
+        .command("summarize", |args| {
+            let reply = ai::chat(&args[0], ai::ChatOpts::default())?;
+            Ok(serde_json::json!({"summary": reply.output.text}))
+        })
+        .desktop(|_files| Ok(())) // Open your window with any GUI toolkit.
+        .run()
+}
+```
+
+See [Command line and desktop](../REFERENCE.md#command-line-and-desktop).
 
 ## App object references
 

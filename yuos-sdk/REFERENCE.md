@@ -5,8 +5,8 @@ New to the SDK? Start with the [Quickstart](QUICKSTART.md).
 ## The model
 
 The built-in System Agent discovers and calls enabled App MCP tools.
-Owners can use an App from its UI or CLI. Each App runs with its own
-capabilities.
+Owners use an App's [command line or desktop window](#command-line-and-desktop).
+Each App runs with its own capabilities.
 
 AI and catalog calls use `yu --wire=1`. The OS authenticates the registered
 workload and checks its capabilities. App MCP tools run over private stdio
@@ -22,6 +22,55 @@ For other capabilities, see [App events](wire/v1/app-events.md),
 [managed channels](wire/v1/channel-ingress.md), and
 [App data services](wire/v1/applet-services.md). Each requires the applicable
 OS service and grant.
+
+## Command line and desktop
+
+An App can have a command-line version, a desktop version, or both. Declare
+each in `app.json` and mark the function Yu OS starts for it:
+
+| Version | `app.json` | Started by | Python |
+|---|---|---|---|
+| Command line | `operations` | `yu app <id> <command> [args]` | `@command("<command>")` |
+| Desktop | `desktop` | The App launcher or `yu app <id> --gui` | `@desktop` |
+
+```json
+{
+  "id": "hello-ai",
+  "version": "0.1.0",
+  "name": {"en": "Hello AI"},
+  "ai": {},
+  "operations": {
+    "summarize": {
+      "label": {"en": "Summarize text"},
+      "args": [{"name": "text", "kind": "text", "required": true}],
+      "needs": [{"verb": "ai.chat"}]
+    }
+  },
+  "desktop": {"needs": [{"verb": "ai.chat"}]}
+}
+```
+
+```python
+from yuos_sdk.ai import chat
+from yuos_sdk.app import command, desktop
+
+@command("summarize")
+def summarize(args):
+    return {"summary": chat(args[0]).output.text}
+
+@desktop
+def open_window(files):
+    ...  # Open your window with any GUI toolkit.
+```
+
+A command function receives the validated arguments after the command name
+and returns a JSON value. The desktop function receives the files the user
+opened with the App. Each version declares its own `needs`.
+
+Node uses `app.command(name, fn)`, `app.desktop(fn)`, and `app.run()`. Go uses
+`HandleCommand`, `HandleDesktop`, and `RunApp()`. Rust uses
+`app::App::new().command(name, fn).desktop(fn).run()`.
+`yu app create <id> --kind both` creates an App with both versions.
 
 ## Desktop defaults
 

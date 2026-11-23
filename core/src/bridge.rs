@@ -2170,9 +2170,11 @@ pub(crate) fn apply_routed_identity(_command: &mut Command) -> Result<(), String
 /// shot operations) and [`launch_gui`] (long-lived desktop surface).
 ///
 /// The script makes the `yuos_sdk` + `yuos_runtime` packages
-/// importable, loads the app's `main.py`, and calls `run(command,
-/// args)`. The GUI path passes the manifest's `desktop.exec` value as
-/// `command`; an op invocation passes the operation name.
+/// importable, loads the app's `main.py`, and calls its `run(command,
+/// args)`. Without `run`, it calls the `yuos_sdk.app` `@command` or
+/// `@desktop` function. The GUI path passes the manifest's
+/// `desktop.exec` value as `command`; an op invocation passes the
+/// operation name.
 fn python_wrapper(
     main_py: &Path,
     command: &str,
@@ -2218,7 +2220,13 @@ for _cand in _sdk_candidates:
 spec = importlib.util.spec_from_file_location("app", {main_py})
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
-result = mod.run({command}, {args})
+_entry = getattr(mod, "run", None)
+if _entry is None:
+    _handlers = sys.modules.get("yuos_sdk.app")
+    if _handlers is None:
+        raise SystemExit("main.py has no @command or @desktop function")
+    _entry = _handlers.run
+result = _entry({command}, {args})
 if result is not None:
     json.dump(result, sys.stdout)
     print()

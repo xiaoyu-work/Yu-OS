@@ -13,15 +13,12 @@
 // YUOS_APP_GUI=1 and YUOS_APP_ID set, so identity/audit/consent apply to
 // the GUI exactly as to the headless path.
 //
-//   import { gui } from "@yuos/sdk";
-//   export function run(command, args) {
-//     if (gui.isGuiLaunch()) {
-//       const ctx = gui.context(args);
-//       startMyWindow(ctx);   // your toolkit, your loop
-//       return;
-//     }
-//     // ... handle one-shot operations here ...
-//   }
+//   const { app, gui } = require("@yuos/sdk");
+//
+//   app.desktop((files) => {
+//     startMyWindow(gui.context(files)); // your toolkit, your loop
+//   });
+//   app.run();
 
 import { spawn } from "node:child_process";
 import { lstatSync } from "node:fs";

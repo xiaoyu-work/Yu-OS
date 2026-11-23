@@ -20,17 +20,15 @@ to the headless operation path.
 
 ## Author surface
 
-A Python desktop app keeps the same ``run(command, args)`` entry point
-it uses for one-shot operations and branches on the GUI launch::
+Mark the function that opens your window with ``@desktop``::
 
     from yuos_sdk import gui
+    from yuos_sdk.app import desktop
 
-    def run(command, args):
-        if gui.is_gui_launch():
-            ctx = gui.context(files=args)
-            start_my_window(ctx)        # your toolkit, your loop
-            return None
-        # ... handle one-shot operations here ...
+    @desktop
+    def open_window(files):
+        ctx = gui.context(files=files)
+        start_my_window(ctx)        # your toolkit, your loop
 
 ``ctx`` exposes:
 

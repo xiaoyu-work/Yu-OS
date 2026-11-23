@@ -172,14 +172,15 @@ broker request envelope. Canonical arguments must also fit this budget.
 
 ## 1. What is a Yu OS app?
 
-A Yu OS App ships `app.json` and the entrypoints for its declared surfaces.
-An MCP-only App needs just its service entrypoint; a human-only one-shot
-App does not need an MCP service. An App with both could look like this:
+A Yu OS App ships `app.json` and the entrypoints for its declared surfaces:
+a command-line version (`operations`), a desktop version (`desktop`), and MCP
+tools for the System Agent (`mcp`). Declare only the ones the App needs. An
+App with a command line and MCP tools could look like this:
 
 ```
 my-app/
 ├── app.json        ← required manifest
-├── main.py         ← default Python entry point
+├── main.py         ← command-line and desktop functions
 ├── server.py       ← authenticated MCP App service
 └── assets/         ← optional app-owned files
 ```
@@ -256,21 +257,24 @@ Entry point:
 
 ```python
 # main.py
-def run(command, args):
-    return {"command": command, "args": args, "msg": "hello"}
+from yuos_sdk.app import command
+
+@command("say")
+def say(args):
+    return {"args": args, "msg": "hello"}
 ```
 
-The bridge calls `mod.run(command, args)` exactly once per invocation
-([`bridge.rs:64`](../core/src/bridge.rs)). Two crucial details:
+`yu app hello say "Hi"` calls the `@command("say")` function once
+([`bridge.rs`](../core/src/bridge.rs)). The kernel rejects undeclared
+operations before starting the App. A desktop window uses `@desktop`; see
+[Command line and desktop](../yuos-sdk/REFERENCE.md#command-line-and-desktop).
 
-* `command` is a **string** — the manifest-declared operation name, such as
-  `"say"`. The kernel rejects undeclared operations before starting the app.
-* `args` is a **list of strings**, not a dict — the bridge validates every
-  declared positional and `--flag` value, rejects undeclared flags, and then
-  passes the effective argv (including manifest defaults) to the handler. Apps
-  parse the already validated values with App-owned
-  [`canonical_argv`](https://github.com/xiaoyu-work/yuos-app/blob/main/shared/python/canonical_argv.py),
-  preserving inline flag values and the `--` delimiter.
+`args` is a **list of strings**, not a dict — the bridge validates every
+declared positional and `--flag` value, rejects undeclared flags, and then
+passes the effective argv (including manifest defaults) to the function. Apps
+parse the already validated values with App-owned
+[`canonical_argv`](https://github.com/xiaoyu-work/yuos-app/blob/main/shared/python/canonical_argv.py),
+preserving inline flag values and the `--` delimiter.
 
 Both operation and MCP tool arguments use a manifest `kind`: `path`, `host`,
 `name`, `text`, `number`, `integer`, or `bool`. They do not accept arbitrary
@@ -585,8 +589,10 @@ Check it at runtime by importing the internal runtime:
 
 ```python
 from yuos_runtime import policy
+from yuos_sdk.app import command
 
-def run(command, args):
+@command("notify")
+def notify(args):
     try:
         policy.require("ui.notify", wild=True)
     except policy.PermissionDenied as denied:
@@ -675,8 +681,10 @@ entry. From an App with `ai.chat` and approved access to the file:
 from pathlib import Path
 
 from yuos_sdk.ai import chat
+from yuos_sdk.app import command
 
-def run(command, args):
+@command("summarize")
+def summarize(args):
     body = Path(args[0]).read_text(encoding="utf-8")
     reply = chat(body, system="Summarize the document.")
     return {"summary": reply.output.text, "units": reply.units}

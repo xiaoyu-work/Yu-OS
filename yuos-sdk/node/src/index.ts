@@ -11,6 +11,7 @@
 
 export * as ai from "./ai";
 export { chat, embed, tts, stt, imagegen, decide } from "./ai";
+export * as app from "./app";
 export * as channels from "./channels";
 export * as events from "./events";
 export * as tools from "./tools";

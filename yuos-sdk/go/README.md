@@ -24,10 +24,11 @@ Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
 
 | Area          | Functions                                                          | Equivalent CLI                    |
 |---------------|--------------------------------------------------------------------|-----------------------------------|
+| App           | `HandleCommand`, `HandleDesktop`, `RunApp`                         | `yu app <id> <command>` / `--gui` |
 | AI            | `Chat`, `ChatContext`, `Infer`; `Budget` and `BudgetContext` (usage only) | `yu ai chat` / `yu ai infer` |
 | Tools         | `CallTool`, `Catalog`, their `Context` variants, and `ForChat`     | `yu ai tool <name> --app <id>`   |
 | MCP service   | `LoadMCPApp`, `(*MCPApp).Bind`, `Serve`, `ServeStdio`               | App Host private stdio transport  |
-| GUI           | `IsGUILaunch`, `Context`, `(*GuiContext).OpenAgentOverlay`         | launched via `yu app <id> --gui` |
+| GUI           | `Context`, `(*GuiContext).OpenAgentOverlay`                        | launched via `yu app <id> --gui` |
 | Objects       | `FormatReference`, `ParseReference`                               | Pure identifiers; no transport |
 | Manifest, events, and channels | Manifest path helpers, `PublishEvent`, and channel controls | —                   |
 | Transport     | `YuBinary`, error types (advanced)                                | —                                 |
@@ -45,16 +46,46 @@ import (
 )
 
 func summarize(ctx context.Context, body string) (string, error) {
-	res, err := yuossdk.ChatContext(ctx, body, yuossdk.ChatOptions{
-		Origin:   "external-content",
-		MaxUnits: 2000,
-	})
+	res, err := yuossdk.ChatContext(ctx, body, yuossdk.ChatOptions{})
 	if err != nil {
 		return "", err
 	}
-	return res.Text, nil
+	return res.Output.Text, nil
 }
 ```
+
+## Command line and desktop
+
+Set `"runtime": "binary"` and register the function for each version the App
+declares in `app.json`:
+
+```go
+package main
+
+import (
+	"log"
+
+	yuossdk "github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
+)
+
+func main() {
+	yuossdk.HandleCommand("summarize", func(args []string) (any, error) {
+		reply, err := yuossdk.Chat(args[0], yuossdk.ChatOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return map[string]string{"summary": reply.Output.Text}, nil
+	})
+	yuossdk.HandleDesktop(func(files []string) error {
+		return nil // Open your window with any GUI toolkit.
+	})
+	if err := yuossdk.RunApp(); err != nil {
+		log.Fatal(err)
+	}
+}
+```
+
+See [Command line and desktop](../REFERENCE.md#command-line-and-desktop).
 
 ## MCP App service
 

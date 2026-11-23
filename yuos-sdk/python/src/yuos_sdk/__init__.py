@@ -7,7 +7,9 @@ and is generated or hand-written to satisfy that contract.
 
 Public modules
 --------------
-- :mod:`yuos_sdk.ai`       — text chat through ``yu ai chat``.
+- :mod:`yuos_sdk.app`      — mark the ``@command`` and ``@desktop``
+  functions Yu OS starts for the App's command line and desktop window.
+- :mod:`yuos_sdk.ai`       — the user's configured models.
 - :mod:`yuos_sdk.tools`    — call fixed kernel catalog tools
   (``tools.call``, ``tools.catalog``, ``tools.for_chat``), not other Apps.
 - :mod:`yuos_sdk.gui`      — desktop GUI bootstrap: the kernel context
@@ -24,11 +26,12 @@ Public modules
 
 Typical usage::
 
-    from yuos_sdk import ai, tools
+    from yuos_sdk.ai import chat
+    from yuos_sdk.app import command
 
-    def cmd_summarise(args):
-        text = open(args["path"]).read()
-        return ai.chat(f"Summarise: {text}", origin="external-content")
+    @command("summarize")
+    def summarize(args):
+        return {"summary": chat(args[0]).output.text}
 
 Capability gating (``policy.require``) and the COW snapshot helper
 live in the **internal** ``yuos_runtime`` package — they are
@@ -36,7 +39,7 @@ implementation details of the yuos bundled apps, not part of the
 public SDK surface.
 """
 
-from . import ai, channels, events, gui, kernel, manifest, mcp, objects, tools
+from . import ai, app, channels, events, gui, kernel, manifest, mcp, objects, tools
 
-__all__ = ["ai", "channels", "events", "gui", "kernel", "manifest", "mcp", "objects", "tools"]
+__all__ = ["ai", "app", "channels", "events", "gui", "kernel", "manifest", "mcp", "objects", "tools"]
 __version__ = "0.1.0"

@@ -23,6 +23,7 @@ Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
 
 | Module       | What                                                          | Equivalent CLI                       |
 |--------------|---------------------------------------------------------------|--------------------------------------|
+| `app`        | Command-line and desktop functions (`command`, `desktop`, `run`) | `yu app <id> <command>` / `--gui` |
 | `mcp`        | Manifest-bound MCP App service runtime over private stdio      | launched by the Yu OS App Host        |
 | `ai`         | `chat`, `embed`, `tts`, `stt`, `imagegen`, and `decide` | `yu ai chat` / `yu ai infer` |
 | `tools`      | Explicit catalog operations (`call`, `catalog`)               | `yu ai tool <name> --app <id>`      |
@@ -32,6 +33,25 @@ Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
 | `events`, `channels` | Report App events and control authorized App-owned channels | —                               |
 | `transport`  | The subprocess transport + error types (advanced)              | —                                    |
 | (root)       | Typed structs generated from `wire/v1/*.schema.json`           | —                                    |
+
+## Command line and desktop
+
+Set `"runtime": "node"` and register the function for each version the App
+declares in `app.json`:
+
+```js
+const { app, chat } = require("@yuos/sdk");
+
+app.command("summarize", async (args) => ({ summary: (await chat(args[0])).output.text }));
+app.desktop((files) => { /* open your window */ });
+
+app.run().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
+```
+
+See [Command line and desktop](../REFERENCE.md#command-line-and-desktop).
 
 ## MCP App service
 

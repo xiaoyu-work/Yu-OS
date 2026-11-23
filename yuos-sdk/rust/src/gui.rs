@@ -19,15 +19,17 @@
 //! # Usage
 //!
 //! ```no_run
-//! use yuos_sdk::gui;
+//! use yuos_sdk::{app::App, gui};
 //!
-//! fn main() {
-//!     if gui::is_gui_launch() {
-//!         let ctx = gui::Context::from_env().expect("authenticated GUI context");
-//!         // draw your own window using ctx.app_id / ctx.files,
-//!         // call crate::ai / crate::tools for kernel-mediated work,
-//!         // and ctx.open_agent_overlay(None) to summon "Ask Yu OS".
-//!     }
+//! fn main() -> Result<(), yuos_sdk::app::AppError> {
+//!     App::new()
+//!         .desktop(|_files| {
+//!             let ctx = gui::Context::from_env()?;
+//!             // Draw your own window using ctx.app_id / ctx.files,
+//!             // and call ctx.open_agent_overlay(None) to summon "Ask Yu OS".
+//!             Ok(())
+//!         })
+//!         .run()
 //! }
 //! ```
 

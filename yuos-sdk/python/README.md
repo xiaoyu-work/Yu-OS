@@ -19,9 +19,11 @@ From an authenticated App with the [matching AI capability and consent](../../do
 
 ```python
 from yuos_sdk.ai import chat
+from yuos_sdk.app import command
 
-def summarize(body: str) -> dict:
-    result = chat(body)
+@command("summarize")
+def summarize(args):
+    result = chat(args[0])
     return {"summary": result.output.text, "units": result.units}
 ```
 
@@ -29,6 +31,7 @@ def summarize(body: str) -> dict:
 
 | Module                  | Purpose                                                                |
 |-------------------------|------------------------------------------------------------------------|
+| `yuos_sdk.app`       | Mark the [`@command` and `@desktop`](../REFERENCE.md#command-line-and-desktop) functions Yu OS starts. |
 | `yuos_sdk.ai`        | `chat`, `embed`, `tts`, `stt`, `imagegen`, and `decide`. |
 | `yuos_sdk.tools`     | `yu ai tool <name>` — explicitly call a catalog operation.           |
 | `yuos_sdk.gui`       | Desktop GUI bootstrap and kernel-provided launch context.              |
