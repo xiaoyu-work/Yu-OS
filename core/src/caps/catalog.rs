@@ -930,7 +930,6 @@ pub const APP_PERMISSIONS: &[Verb] = &[
     Verb::DATA_KV_READ,
     Verb::DATA_KV_WRITE,
     Verb::DATA_KV_DELETE,
-    Verb::DATA_LOG_READ,
     Verb::DATA_LOG_WRITE,
     Verb::MEMORY_WRITE,
     Verb::MEMORY_READ,

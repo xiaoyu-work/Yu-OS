@@ -107,14 +107,15 @@ Any signed App may declare App permissions. The owner allows or denies them.
 | `ui.notify` | Notifications | — |
 | `ui.window`, `time.cron`, `time.delay` | — | — |
 | `ai.*` except `ai.bypass` | — | — |
-| The App's own data: `data.kv.*`, `data.log.read`, `data.log.write`, `memory.read`, `memory.write`, and `ipc.publish` on `app:<app-id>` for [App events](wire/v1/app-events.md) | — | — |
+| The App's own data: `data.kv.*`, `data.log.write`, `memory.read`, `memory.write`, and `ipc.publish` on `app:<app-id>` for [App events](wire/v1/app-events.md) | — | — |
 
 A dash means that platform has no separate permission for it.
 
 Every other capability is a system permission, for example `sys.*`,
 `secret.*`, `agent.*`, `browser.*`, `proc.*`, `fs.exec`, `net.manage`,
 `net.firewall`, `device.display`, `device.usb`, `ui.input`,
-`ui.accessibility`, `ui.panel` and other Apps' data. Official Yu OS Apps
+`ui.accessibility`, `ui.panel`, `data.log.read` (every App's and the
+Agent's logs) and other Apps' data. Official Yu OS Apps
 keep them. A third-party App may declare them, but like Windows UAC, an
 administrator must enter their password each time the App uses one.
 Yu OS refuses the permission otherwise and never saves it as a lasting
