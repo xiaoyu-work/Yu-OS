@@ -30,13 +30,16 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, overload
 from .kernel import call_json_with_stdin_binary
 
 __all__ = [
+    "check_permission",
     "clipboard_read",
     "clipboard_write",
     "command",
     "data_dir",
     "desktop",
     "notify",
+    "require_permission",
     "run",
+    "secret",
 ]
 
 Handler = TypeVar("Handler", bound=Callable[..., Any])
@@ -197,6 +200,96 @@ def clipboard_write(text: str) -> None:
             scratch.unlink()
         except OSError:
             pass
+
+
+def secret(name: str, namespace: str = "default") -> str:
+    """Load a secret from the Yu OS credential store (`secret.use`)."""
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("secret: name must be a non-empty string")
+    if not isinstance(namespace, str) or not namespace.strip():
+        raise ValueError("secret: namespace must be a non-empty string")
+    if not os.environ.get("YUOS_SESSION"):
+        env_key = "YUOS_DEV_SECRET_" + "".join(
+            ch if ch.isalnum() else "_" for ch in name.strip().upper()
+        )
+        return os.environ.get(env_key, os.environ.get("YUOS_DEV_SECRET", ""))
+    deadline = time.time_ns() // 1_000_000 + 10_000
+    res = call_json_with_stdin_binary(
+        os.environ.get("YUOS_KERNEL_BIN", "/usr/local/bin/yu"),
+        ["credential", "load", name.strip(), "--namespace", namespace.strip()],
+        b"",
+        deadline_unix_ms=deadline,
+    )
+    if isinstance(res, dict) and isinstance(res.get("value"), str):
+        return res["value"]
+    raise RuntimeError(f"credential {namespace}/{name} has no value")
+
+
+def check_permission(
+    verb: str,
+    *,
+    path: Optional[str] = None,
+    host: Optional[str] = None,
+    name: Optional[str] = None,
+    self_ref: Optional[str] = None,
+    wild: bool = False,
+) -> Dict[str, Any]:
+    """Check whether the current session may exercise ``verb`` on a dynamic scope."""
+    if not isinstance(verb, str) or not verb.strip():
+        raise ValueError("check_permission: verb must be a non-empty string")
+    supplied = [
+        ("--path", path),
+        ("--host", host),
+        ("--name", name),
+        ("--self", self_ref),
+    ]
+    supplied = [(flag, val) for flag, val in supplied if val is not None]
+    if wild:
+        supplied.append(("--wild", None))
+    if len(supplied) > 1:
+        raise ValueError(
+            "check_permission accepts at most one of path / host / name / self_ref / wild"
+        )
+    if not os.environ.get("YUOS_SESSION"):
+        return {"decision": "allow", "verb": verb, "granted": True}
+    argv = ["__policy", "check", verb]
+    if supplied:
+        flag, val = supplied[0]
+        argv.append(flag)
+        if val is not None:
+            argv.append(val)
+    deadline = time.time_ns() // 1_000_000 + 10_000
+    res = call_json_with_stdin_binary(
+        os.environ.get("YUOS_KERNEL_BIN", "/usr/local/bin/yu"),
+        argv,
+        b"",
+        deadline_unix_ms=deadline,
+    )
+    if not isinstance(res, dict) or "decision" not in res:
+        raise RuntimeError("policy check response omitted `decision`")
+    return res
+
+
+def require_permission(
+    verb: str,
+    *,
+    path: Optional[str] = None,
+    host: Optional[str] = None,
+    name: Optional[str] = None,
+    self_ref: Optional[str] = None,
+    wild: bool = False,
+) -> None:
+    """Require that the current session may exercise ``verb`` on a dynamic scope."""
+    decision = check_permission(
+        verb,
+        path=path,
+        host=host,
+        name=name,
+        self_ref=self_ref,
+        wild=wild,
+    )
+    if decision.get("decision") != "allow":
+        raise PermissionError(decision.get("summary") or f"permission denied: {verb}")
 
 
 def _call_desktop_fn(fn: Callable[..., Any], resolved_args: List[str]) -> Any:

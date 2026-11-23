@@ -67,6 +67,7 @@ pub mod applet;
 pub mod channels;
 pub mod envelope;
 pub mod events;
+pub mod files;
 pub mod generated;
 pub mod gui;
 pub mod manifest;

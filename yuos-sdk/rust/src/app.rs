@@ -116,6 +116,137 @@ pub fn clipboard_write(text: &str) -> Result<(), crate::BridgeError> {
     res.map(|_| ())
 }
 
+/// Load a secret from the Yu OS credential store (`secret.use`).
+pub fn secret(name: &str, namespace: &str) -> Result<String, crate::BridgeError> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err(crate::BridgeError::Decode {
+            app: "credential".into(),
+            verb: "load".into(),
+            message: "secret: name must be non-empty".into(),
+        });
+    }
+    let namespace = if namespace.trim().is_empty() {
+        "default"
+    } else {
+        namespace.trim()
+    };
+    if std::env::var_os("YUOS_SESSION").is_none() {
+        let env_key = format!(
+            "YUOS_DEV_SECRET_{}",
+            name.chars()
+                .map(|c| if c.is_ascii_alphanumeric() {
+                    c.to_ascii_uppercase()
+                } else {
+                    '_'
+                })
+                .collect::<String>()
+        );
+        return Ok(std::env::var(&env_key)
+            .or_else(|_| std::env::var("YUOS_DEV_SECRET"))
+            .unwrap_or_default());
+    }
+    let res = crate::yu_call_json(
+        "credential",
+        "load",
+        ["credential", "load", name, "--namespace", namespace],
+    )?;
+    res.get("value")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned)
+        .ok_or_else(|| crate::BridgeError::Decode {
+            app: "credential".into(),
+            verb: "load".into(),
+            message: format!("credential {namespace}/{name} has no value"),
+        })
+}
+
+/// Dynamic scope passed to [`check_permission`] or [`require_permission`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PermissionScope {
+    Path(String),
+    Host(String),
+    Name(String),
+    SelfRef(String),
+    Wild,
+    Unscoped,
+}
+
+impl PermissionScope {
+    pub fn path(p: impl Into<String>) -> Self {
+        Self::Path(p.into())
+    }
+    pub fn host(h: impl Into<String>) -> Self {
+        Self::Host(h.into())
+    }
+    pub fn name(n: impl Into<String>) -> Self {
+        Self::Name(n.into())
+    }
+    pub fn self_ref(s: impl Into<String>) -> Self {
+        Self::SelfRef(s.into())
+    }
+}
+
+/// Check whether the current session may exercise `verb` on `scope`.
+pub fn check_permission(
+    verb: &str,
+    scope: PermissionScope,
+) -> Result<serde_json::Value, crate::BridgeError> {
+    let verb = verb.trim();
+    if verb.is_empty() {
+        return Err(crate::BridgeError::Decode {
+            app: "__policy".into(),
+            verb: "check".into(),
+            message: "check_permission: verb must be non-empty".into(),
+        });
+    }
+    if std::env::var_os("YUOS_SESSION").is_none() {
+        return Ok(serde_json::json!({
+            "decision": "allow",
+            "verb": verb,
+            "granted": true,
+        }));
+    }
+    let mut argv = vec!["__policy".to_owned(), "check".to_owned(), verb.to_owned()];
+    match scope {
+        PermissionScope::Path(p) => argv.extend(["--path".into(), p]),
+        PermissionScope::Host(h) => argv.extend(["--host".into(), h]),
+        PermissionScope::Name(n) => argv.extend(["--name".into(), n]),
+        PermissionScope::SelfRef(s) => argv.extend(["--self".into(), s]),
+        PermissionScope::Wild => argv.push("--wild".into()),
+        PermissionScope::Unscoped => {}
+    }
+    let res = crate::yu_call_json("__policy", verb, argv)?;
+    if res.get("decision").is_none() {
+        return Err(crate::BridgeError::Decode {
+            app: "__policy".into(),
+            verb: verb.into(),
+            message: "policy check response omitted `decision`".into(),
+        });
+    }
+    Ok(res)
+}
+
+/// Require that the current session may exercise `verb` on `scope`.
+pub fn require_permission(verb: &str, scope: PermissionScope) -> Result<(), crate::BridgeError> {
+    let decision = check_permission(verb, scope)?;
+    if decision.get("decision").and_then(serde_json::Value::as_str) == Some("allow") {
+        Ok(())
+    } else {
+        let message = decision
+            .get("summary")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("permission denied")
+            .to_owned();
+        Err(crate::BridgeError::AppError {
+            app: "__policy".into(),
+            verb: verb.into(),
+            code: "PERMISSION_DENIED".into(),
+            message,
+        })
+    }
+}
+
 /// Error returned by an App function.
 pub type FunctionError = Box<dyn std::error::Error + Send + Sync>;
 

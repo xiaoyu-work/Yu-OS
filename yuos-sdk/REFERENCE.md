@@ -69,9 +69,10 @@ cargo add yuos-sdk
 
 | Module | Python | Node.js | Go | Rust | Purpose |
 |---|---|---|---|---|---|
-| **App** | `yuos_sdk.app` | `app` | `yuossdk` | `yuos_sdk::app` | `@command`, `@desktop`, `run()`, `data_dir()`, `notify()` |
+| **App** | `yuos_sdk.app` | `app` | `yuossdk` | `yuos_sdk::app` | `@command`, `@desktop`, `run()`, `data_dir()`, `notify()`, `secret()`, `require_permission()` |
 | **AI** | `yuos_sdk.ai` | `ai` | `yuossdk` | `yuos_sdk::ai` | `chat`, `chat_stream`, `embed`, `tts`, `stt`, `imagegen`, `decide`, `budget` |
-| **GUI** | `yuos_sdk.gui` | `gui` | `yuossdk` | `yuos_sdk::gui` | `open_file()`, `context()`, `open_agent_overlay()`, `is_gui_launch()` |
+| **GUI** | `yuos_sdk.gui` | `gui` | `yuossdk` | `yuos_sdk::gui` | `open_file()`, `save_file()`, `select_folder()`, `context()`, `open_agent_overlay()` |
+| **Files** | `yuos_sdk.files` | `files` | `yuossdk` | `yuos_sdk::files` | `read_file()`, `replace_file()` (`brokered-file` snapshots) |
 | **MCP** | `yuos_sdk.mcp` | `mcp` | `yuossdk` | `yuos_sdk::mcp` | Expose App tools to the built-in System Agent |
 | **Objects** | `yuos_sdk.objects` | `objects` | `yuossdk` | `yuos_sdk::objects` | Canonical `app://` object references (`ObjectRef`) |
 | **Events** | `yuos_sdk.events` | `events` | `yuossdk` | `yuos_sdk::events` | Publish App events (`ipc.publish` on `app:<id>`) |
@@ -231,6 +232,16 @@ Node uses `app.command(fn)`, `app.desktop(fn)`, and `app.run()`. Go uses
 | `notify(summary, body="")` | `app.notify(summary, body)` | `Notify(summary, body)` | `app::notify(summary, body)` | Post a system notification (`ui.notify`). |
 | `clipboard_read() -> str` | `app.clipboardRead(): string` | `ClipboardRead() (string, error)` | `app::clipboard_read() -> Result<String, BridgeError>` | Read text from the system clipboard (`clipboard.read`). |
 | `clipboard_write(text)` | `app.clipboardWrite(text)` | `ClipboardWrite(text) error` | `app::clipboard_write(text) -> Result<(), BridgeError>` | Write text to the system clipboard (`clipboard.write`). |
+| `secret(name, namespace="default") -> str` | `app.secret(name, namespace): string` | `Secret(name, namespace) (string, error)` | `app::secret(name, namespace) -> Result<String, BridgeError>` | Load a secret from the Yu OS credential store (`secret.use`). |
+| `check_permission(verb, *, path=..., host=...)` | `app.checkPermission(verb, scope)` | `CheckPermission(verb, scope)` | `app::check_permission(verb, scope)` | Check whether the current session may exercise `verb` on a dynamic scope. |
+| `require_permission(verb, *, path=..., host=...)` | `app.requirePermission(verb, scope)` | `RequirePermission(verb, scope)` | `app::require_permission(verb, scope)` | Require that the current session may exercise `verb` on a dynamic scope. |
+
+### Files API (`yuos_sdk.files`)
+
+| Python | Node.js | Go | Rust | Description |
+|---|---|---|---|---|
+| `files.read_file(path, ...) -> FileSnapshot` | `files.readFile(path, opts): FileSnapshot` | `ReadFile(path) (*FileSnapshot, error)` | `files::read_file(path) -> Result<FileSnapshot, BridgeError>` | Read an existing file snapshot (`content`, `revision`) in a `brokered-file` MCP tool. |
+| `files.replace_file(path, revision, content, ...)` | `files.replaceFile(path, revision, content, opts)` | `ReplaceFile(path, revision, content) error` | `files::replace_file(path, revision, content)` | Atomically replace the file read earlier in the same invocation if `revision` matches. |
 
 ### GUI API (`yuos_sdk.gui`)
 

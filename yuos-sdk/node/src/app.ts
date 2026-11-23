@@ -98,6 +98,70 @@ export function clipboardWrite(text: string): void {
   }
 }
 
+/** Load a secret from the Yu OS credential store (`secret.use`). */
+export function secret(name: string, namespace = "default"): string {
+  if (typeof name !== "string" || !name.trim()) throw new Error("secret: name must be non-empty");
+  if (typeof namespace !== "string" || !namespace.trim()) {
+    throw new Error("secret: namespace must be non-empty");
+  }
+  if (!process.env.YUOS_SESSION) {
+    const envKey = `YUOS_DEV_SECRET_${name.trim().toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
+    return process.env[envKey] ?? process.env.YUOS_DEV_SECRET ?? "";
+  }
+  const res = yuCallJson(
+    "yu credential load",
+    ["credential", "load", name.trim(), "--namespace", namespace.trim()],
+    10_000,
+  ) as Record<string, unknown>;
+  if (typeof res?.value === "string") return res.value;
+  throw new Error(`credential ${namespace}/${name} has no value`);
+}
+
+export interface PermissionScope {
+  path?: string;
+  host?: string;
+  name?: string;
+  selfRef?: string;
+  wild?: boolean;
+}
+
+/** Check whether the current session may exercise `verb` on a dynamic scope. */
+export function checkPermission(verb: string, scope: PermissionScope = {}): Record<string, unknown> {
+  if (typeof verb !== "string" || !verb.trim()) {
+    throw new Error("checkPermission: verb must be non-empty");
+  }
+  const supplied: [string, string | undefined][] = [];
+  if (scope.path !== undefined) supplied.push(["--path", scope.path]);
+  if (scope.host !== undefined) supplied.push(["--host", scope.host]);
+  if (scope.name !== undefined) supplied.push(["--name", scope.name]);
+  if (scope.selfRef !== undefined) supplied.push(["--self", scope.selfRef]);
+  if (scope.wild) supplied.push(["--wild", undefined]);
+  if (supplied.length > 1) {
+    throw new Error("checkPermission accepts at most one of path / host / name / selfRef / wild");
+  }
+  if (!process.env.YUOS_SESSION) {
+    return { decision: "allow", verb, granted: true };
+  }
+  const argv = ["__policy", "check", verb];
+  if (supplied.length === 1) {
+    argv.push(supplied[0][0]);
+    if (supplied[0][1] !== undefined) argv.push(supplied[0][1]);
+  }
+  const res = yuCallJson("yu __policy check", argv, 10_000) as Record<string, unknown>;
+  if (!res || typeof res.decision !== "string") {
+    throw new Error("policy check response omitted `decision`");
+  }
+  return res;
+}
+
+/** Require that the current session may exercise `verb` on a dynamic scope. */
+export function requirePermission(verb: string, scope: PermissionScope = {}): void {
+  const decision = checkPermission(verb, scope);
+  if (decision.decision !== "allow") {
+    throw new Error(typeof decision.summary === "string" ? decision.summary : `permission denied: ${verb}`);
+  }
+}
+
 /** Run `handler` for `yu app <id> <name>`. Its return value is printed as JSON. */
 export function command(nameOrHandler: string | Handler, maybeHandler?: Handler): void {
   const name = typeof nameOrHandler === "function" ? nameOrHandler.name : nameOrHandler;

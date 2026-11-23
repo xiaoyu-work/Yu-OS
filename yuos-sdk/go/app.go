@@ -130,6 +130,111 @@ func ClipboardWrite(text string) error {
 	return err
 }
 
+// Secret loads a secret from the Yu OS credential store (`secret.use`).
+func Secret(name, namespace string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", errors.New("secret: name must be non-empty")
+	}
+	namespace = strings.TrimSpace(namespace)
+	if namespace == "" {
+		namespace = "default"
+	}
+	if os.Getenv("YUOS_SESSION") == "" {
+		var b strings.Builder
+		b.WriteString("YUOS_DEV_SECRET_")
+		for _, r := range strings.ToUpper(name) {
+			if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+				b.WriteRune(r)
+			} else {
+				b.WriteRune('_')
+			}
+		}
+		if v, ok := os.LookupEnv(b.String()); ok {
+			return v, nil
+		}
+		return os.Getenv("YUOS_DEV_SECRET"), nil
+	}
+	out, err := yuCallJSON("yu credential load", []string{"credential", "load", name, "--namespace", namespace}, nil)
+	if err != nil {
+		return "", err
+	}
+	if m, ok := out.Data.(map[string]any); ok {
+		if val, ok := m["value"].(string); ok {
+			return val, nil
+		}
+	}
+	return "", fmt.Errorf("credential %s/%s has no value", namespace, name)
+}
+
+// PermissionScope specifies the dynamic scope for CheckPermission or RequirePermission.
+type PermissionScope struct {
+	Path    string
+	Host    string
+	Name    string
+	SelfRef string
+	Wild    bool
+}
+
+// CheckPermission checks whether the current session may exercise verb on scope.
+func CheckPermission(verb string, scope PermissionScope) (map[string]any, error) {
+	verb = strings.TrimSpace(verb)
+	if verb == "" {
+		return nil, errors.New("checkPermission: verb must be non-empty")
+	}
+	var flags [][]string
+	if scope.Path != "" {
+		flags = append(flags, []string{"--path", scope.Path})
+	}
+	if scope.Host != "" {
+		flags = append(flags, []string{"--host", scope.Host})
+	}
+	if scope.Name != "" {
+		flags = append(flags, []string{"--name", scope.Name})
+	}
+	if scope.SelfRef != "" {
+		flags = append(flags, []string{"--self", scope.SelfRef})
+	}
+	if scope.Wild {
+		flags = append(flags, []string{"--wild"})
+	}
+	if len(flags) > 1 {
+		return nil, errors.New("checkPermission accepts at most one of Path / Host / Name / SelfRef / Wild")
+	}
+	if os.Getenv("YUOS_SESSION") == "" {
+		return map[string]any{"decision": "allow", "verb": verb, "granted": true}, nil
+	}
+	argv := []string{"__policy", "check", verb}
+	if len(flags) == 1 {
+		argv = append(argv, flags[0]...)
+	}
+	out, err := yuCallJSON("yu __policy check", argv, nil)
+	if err != nil {
+		return nil, err
+	}
+	if m, ok := out.Data.(map[string]any); ok {
+		if _, has := m["decision"].(string); has {
+			return m, nil
+		}
+	}
+	return nil, errors.New("policy check response omitted `decision`")
+}
+
+// RequirePermission requires that the current session may exercise verb on scope.
+func RequirePermission(verb string, scope PermissionScope) error {
+	decision, err := CheckPermission(verb, scope)
+	if err != nil {
+		return err
+	}
+	if decision["decision"] != "allow" {
+		if summary, ok := decision["summary"].(string); ok && summary != "" {
+			return errors.New(summary)
+		}
+		return fmt.Errorf("permission denied: %s", verb)
+	}
+	return nil
+}
+
 // HandleDesktop runs fn to open the App's desktop window.
 func HandleDesktop(fn DesktopFunc) {
 	if fn == nil {

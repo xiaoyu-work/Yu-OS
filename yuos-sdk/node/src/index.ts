@@ -14,6 +14,7 @@ export { chat, embed, tts, stt, imagegen, decide } from "./ai";
 export * as app from "./app";
 export * as channels from "./channels";
 export * as events from "./events";
+export * as files from "./files";
 export * as tools from "./tools";
 export * as gui from "./gui";
 export * as manifest from "./manifest";
