@@ -58,19 +58,15 @@ fn canonical_prompt_never_snapshots_profile_or_working_memory() {
 }
 
 #[test]
-fn scaffold_steers_gui_launches_through_launcher() {
+fn scaffold_leaves_gui_launches_to_the_owner() {
     let p = build_system_prompt(None);
     assert!(
-        p.contains("`yu_tool_search` with `server=\"launcher\"`"),
-        "scaffold should route launch discovery through the MCP App Mesh"
+        p.contains("Graphical App launch is an owner action"),
+        "scaffold should leave GUI launches to the owner"
     );
     assert!(
-        p.contains("Never use the `exec` App for GUI binaries"),
-        "scaffold should explicitly contrast with the exec app"
-    );
-    assert!(
-        p.contains("desktop.launch"),
-        "scaffold should name the cap that gates the launcher path"
+        p.contains("do not launch GUI binaries through App tools or shell commands"),
+        "scaffold should forbid model-initiated GUI launches"
     );
 }
 

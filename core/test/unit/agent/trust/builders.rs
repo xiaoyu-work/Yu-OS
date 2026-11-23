@@ -34,8 +34,10 @@ const LABELLED_OR_REVIEWED: &[&str] = &[
     "agent/llm/auxiliary.rs",
     "agent/media/vision/analyze.rs",
     // The App AI gate builds its own bounded request from an App
-    // prompt; the gate, not the trust module, owns that contract.
+    // prompt and the App's own function turns; the gate, not the trust
+    // module, owns that contract.
     "ai/gate.rs",
+    "ai/app_tools.rs",
     // Type definitions and provider adapters project what they are
     // given; they never originate content.
     "agent/llm/types.rs",

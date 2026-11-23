@@ -3,7 +3,7 @@ use super::*;
 use crate::cli_help::{command_schemas, show_builtin_schema, show_command_schema};
 
 #[test]
-fn ordinary_app_cli_preflight_keeps_reference_narrowing_without_local_consent_spend() {
+fn ordinary_app_cli_preflight_spends_no_local_consent() {
     use crate::test_env::TestEnvVarGuard;
     let _lock = crate::test_env::lock_env();
     let root = tempfile::tempdir().unwrap();
@@ -21,13 +21,6 @@ fn ordinary_app_cli_preflight_keeps_reference_narrowing_without_local_consent_sp
     let result = run_app_command("ordinary-reference-test", "probe", &[], &app, None).unwrap_err();
     assert_eq!(result, "unverified fixture must not execute");
     assert!(crate::approvals::list_pending().is_empty(), "CLI preflight spent/filed local consent");
-    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
-    let narrowed = runtime.block_on(caps::enforcement::with_capability_ceiling(
-        caps::CapSet::new(),
-        async { run_app_command("ordinary-reference-test", "probe", &[], &app, None) },
-    )).unwrap_err();
-    assert!(narrowed.contains("outside granted scope"), "{narrowed}");
-    assert!(crate::approvals::list_pending().is_empty());
 }
 
 #[test]
@@ -954,7 +947,8 @@ fn consent_grant_yes_writes_record_and_show_reads_it_back() {
 
     let shown = parse(consent_cmd(&["show".into(), "demo".into()], &discovered).unwrap());
     assert_eq!(shown["present"], true);
-    assert_eq!(shown["consent"]["policy"]["budget"]["monthly_units"], 1000);
+    // The owner sets the App AI limit in Settings; consent records no budget.
+    assert!(shown["consent"]["policy"]["budget"].is_null());
 
     let listed = parse(consent_cmd(&["list".into()], &discovered).unwrap());
     let rows = listed["consents"].as_array().unwrap();

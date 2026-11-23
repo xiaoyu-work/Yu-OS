@@ -524,10 +524,8 @@ fn install_no_consent_defers_consent_for_ai_app() {
     assert_eq!(v["consent"]["granted"], false);
     assert_eq!(v["consent"]["deferred"], true);
     assert_eq!(v["permission_review"]["permissions_granted"], false);
-    assert_eq!(
-        v["permission_review"]["ai_policy"]["budget"]["monthly_units"],
-        100
-    );
+    // The owner sets the App AI limit in Settings; the manifest budget is ignored.
+    assert!(v["permission_review"]["ai_policy"]["budget"].is_null());
     assert!(dst.join("summ").join("app.json").is_file());
 
     let _ = std::fs::remove_dir_all(&src);
