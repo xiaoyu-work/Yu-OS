@@ -74,18 +74,37 @@ impl App {
 
     /// Call the function Yu OS started this process for.
     pub fn run(mut self) -> Result<(), AppError> {
-        let args = match std::env::var("YUOS_ARGS_JSON") {
-            Ok(raw) => {
-                serde_json::from_str(&raw).map_err(|error| AppError::Args(error.to_string()))?
-            }
-            Err(std::env::VarError::NotPresent) => Vec::new(),
+        let (mut args, has_env_args) = match std::env::var("YUOS_ARGS_JSON") {
+            Ok(raw) if !raw.is_empty() => (
+                serde_json::from_str(&raw).map_err(|error| AppError::Args(error.to_string()))?,
+                true,
+            ),
+            Ok(_) | Err(std::env::VarError::NotPresent) => (Vec::new(), false),
             Err(error) => return Err(AppError::Args(error.to_string())),
         };
         if crate::gui::is_gui_launch() {
             let function = self.desktop.ok_or(AppError::NoDesktop)?;
             return function(args).map_err(AppError::Function);
         }
-        let name = std::env::var("YUOS_COMMAND").unwrap_or_default();
+        let mut name = std::env::var("YUOS_COMMAND").unwrap_or_default();
+        if name.is_empty() {
+            let cli_args: Vec<String> = std::env::args().skip(1).collect();
+            if cli_args.first().map(String::as_str) == Some("--gui") {
+                let function = self.desktop.ok_or(AppError::NoDesktop)?;
+                let gui_args = if has_env_args {
+                    args
+                } else {
+                    cli_args.into_iter().skip(1).collect()
+                };
+                return function(gui_args).map_err(AppError::Function);
+            }
+            if let Some((first, rest)) = cli_args.split_first() {
+                name = first.clone();
+                if !has_env_args {
+                    args = rest.to_vec();
+                }
+            }
+        }
         let function = self
             .commands
             .remove(&name)

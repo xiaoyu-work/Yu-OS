@@ -6,6 +6,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"slices"
@@ -262,5 +265,73 @@ func TestBudgetAcceptsProducerShape(t *testing.T) {
 	}
 	if *budget != (BudgetShow{App: "notes", Period: "2026-08", UnitsUsed: 7}) {
 		t.Fatalf("budget = %+v", budget)
+	}
+}
+
+func TestDevAIModeAndSessionOverride(t *testing.T) {
+	var paths []string
+	var authHeader string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		authHeader = r.Header.Get("Authorization")
+		_, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/chat/completions":
+			_, _ = w.Write([]byte(`{"model":"llama3.2","choices":[{"message":{"role":"assistant","content":"dev go reply"}}],"usage":{"prompt_tokens":2,"completion_tokens":3,"total_tokens":5}}`))
+		case "/v1/embeddings":
+			_, _ = w.Write([]byte(`{"model":"llama3.2","data":[{"embedding":[0.5,1.5]}],"usage":{"total_tokens":4}}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	bin, _ := fakeYu(t, wireSuccess(okChat), 0)
+	withCos(t, bin, map[string]string{
+		"YUOS_DEV_AI_URL": server.URL + "/v1/",
+		"YUOS_DEV_AI_KEY": "go-dev-key",
+		"YUOS_SESSION":    "",
+		"YUOS_APP_ID":     "",
+	}, func() {
+		chatRes, err := Chat("hello dev", ChatOptions{})
+		if err != nil {
+			t.Fatalf("Chat in dev mode failed: %v", err)
+		}
+		if chatRes.Text != "dev go reply" || chatRes.Provider != "dev" || chatRes.Model != "llama3.2" || chatRes.Units != 5 {
+			t.Fatalf("unexpected dev Chat response: %+v", chatRes)
+		}
+		embedRes, err := Embed(context.Background(), "embed this", ModelOptions{})
+		if err != nil {
+			t.Fatalf("Embed in dev mode failed: %v", err)
+		}
+		if embedRes.Provider != "dev" || !reflect.DeepEqual(embedRes.Output.Vector, []float64{0.5, 1.5}) {
+			t.Fatalf("unexpected dev Embed response: %+v", embedRes)
+		}
+	})
+	if !reflect.DeepEqual(paths, []string{"/v1/chat/completions", "/v1/embeddings"}) {
+		t.Fatalf("paths = %v", paths)
+	}
+	if authHeader != "Bearer go-dev-key" {
+		t.Fatalf("authHeader = %q", authHeader)
+	}
+
+	// When YUOS_SESSION is set, YUOS_DEV_AI_URL must be ignored and the `yu` binary used.
+	paths = nil
+	withCos(t, bin, map[string]string{
+		"YUOS_DEV_AI_URL": server.URL + "/v1",
+		"YUOS_SESSION":    "sandbox-session-1",
+		"YUOS_APP_ID":     "notes",
+	}, func() {
+		res, err := Chat("hello sandbox", ChatOptions{})
+		if err != nil {
+			t.Fatalf("Chat in sandbox mode failed: %v", err)
+		}
+		if res.Text != "hello there" || res.Provider != "p" {
+			t.Fatalf("expected yu binary response, got %+v", res)
+		}
+	})
+	if len(paths) != 0 {
+		t.Fatalf("expected dev server not to be called when YUOS_SESSION is set, got %v", paths)
 	}
 }

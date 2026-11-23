@@ -7,10 +7,13 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
 import tempfile
+import urllib.error
+import urllib.request
 from base64 import b64decode, b64encode
 from dataclasses import dataclass, field
 from typing import (
@@ -221,10 +224,11 @@ def chat(
         raise AiInvalidArgs("chat: prompt must be non-empty")
     if origin is not None and (not isinstance(origin, str) or not origin.strip()):
         raise AiInvalidArgs("chat: invalid origin")
-    if origin is None or images or functions or tool_turns:
-        if tools:
+    if origin is None or images or functions or tool_turns or _dev_ai_url() is not None:
+        if tools and (origin is None or images or functions or tool_turns):
             raise AiInvalidArgs("chat: supply App functions in functions")
-        if app_id and app_id != os.environ.get("YUOS_APP_ID"):
+        env_app = os.environ.get("YUOS_APP_ID")
+        if app_id and (env_app or _dev_ai_url() is None) and app_id != env_app:
             raise AiDenied({"code": "PERMISSION_DENIED", "error": "chat: App identity does not match the session"})
         request: AiChatRequest = {"prompt": prompt, "origin": origin or "app"}
         if system is not None:
@@ -252,13 +256,18 @@ def chat(
 def chat_request(request: AiChatRequest) -> AiResponse:
     """Call the configured chat model with optional App functions and prior results."""
     data = _encode_request(request, validate_ai_chat_request)
+    if _dev_ai_url() is not None:
+        return _dev_chat(request)
     return _parse_response(_model_call("chat", "--request-stdin", data=data))
 
 
 def infer(request: AiInferenceRequest) -> AiInference:
     """Run the owner's configured embedding, speech, image, or decision model."""
     data = _encode_request(request, validate_ai_inference_request)
-    reply = _model_call("infer", "--request-stdin", data=data)
+    if _dev_ai_url() is not None:
+        reply = _dev_infer(request)
+    else:
+        reply = _model_call("infer", "--request-stdin", data=data)
     try:
         validate_ai_inference(reply)
     except WireDecodeError as error:
@@ -417,7 +426,7 @@ def _dispatch(
     tools: Optional[List[str]] = None,
 ) -> AiResponse:
     """Build the stable ``yu ai chat`` command and parse its envelope."""
-    app = app_id or os.environ.get("YUOS_APP_ID")
+    app = app_id or os.environ.get("YUOS_APP_ID") or ("dev" if _dev_ai_url() is not None else None)
     if not app:
         raise AiDenied({"code": "PERMISSION_DENIED", "error": f"{modality}: App identity is required"})
 
@@ -545,3 +554,263 @@ def _yu_binary() -> str:
             "the `yu` binary is not on PATH; cannot reach the AI gate"
         )
     return found
+
+
+def _dev_ai_url() -> Optional[str]:
+    if os.environ.get("YUOS_SESSION", "").strip():
+        return None
+    url = os.environ.get("YUOS_DEV_AI_URL", "").strip()
+    return url.rstrip("/") if url else None
+
+
+def _dev_ai_model() -> str:
+    model = os.environ.get("YUOS_DEV_AI_MODEL", "").strip()
+    return model or "llama3.2"
+
+
+def _dev_ai_key() -> Optional[str]:
+    key = os.environ.get("YUOS_DEV_AI_KEY", "").strip()
+    return key or None
+
+
+def _dev_post_bytes(path: str, payload: Mapping[str, Any]) -> bytes:
+    base_url = _dev_ai_url()
+    if not base_url:
+        raise AiUnavailable("local dev AI URL is not configured")
+    headers = {"Content-Type": "application/json"}
+    key = _dev_ai_key()
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+    req = urllib.request.Request(
+        f"{base_url}{path}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=_DEFAULT_TIMEOUT_S) as resp:
+            status = getattr(resp, "status", 200)
+            if status < 200 or status >= 300:
+                raise AiUnavailable(f"dev AI HTTP {status}")
+            return resp.read()
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as error:
+        raise AiUnavailable(f"dev AI request failed: {error}") from error
+
+
+def _dev_post_json(path: str, payload: Mapping[str, Any]) -> Dict[str, Any]:
+    raw = _dev_post_bytes(path, payload)
+    try:
+        parsed = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise AiUnavailable(f"dev AI returned invalid JSON: {error}") from error
+    if not isinstance(parsed, dict):
+        raise AiUnavailable("dev AI response must be a JSON object")
+    return parsed
+
+
+def _dev_chat(request: AiChatRequest) -> AiResponse:
+    model = _dev_ai_model()
+    messages: List[Dict[str, Any]] = []
+    if "system" in request and request["system"] is not None:
+        messages.append({"role": "system", "content": request["system"]})
+    images = request.get("images")
+    if images:
+        content_parts: List[Dict[str, Any]] = [{"type": "text", "text": request["prompt"]}]
+        for b64 in images:
+            content_parts.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}})
+        messages.append({"role": "user", "content": content_parts})
+    else:
+        messages.append({"role": "user", "content": request["prompt"]})
+    for turn in request.get("tool_turns") or ():
+        tool_calls_out: List[Dict[str, Any]] = []
+        for c in turn.get("calls") or ():
+            raw_args = c.get("input", c.get("arguments", {}))
+            args_str = raw_args if isinstance(raw_args, str) else encode_wire_json(raw_args)
+            tool_calls_out.append({
+                "id": c["id"],
+                "type": "function",
+                "function": {"name": c["name"], "arguments": args_str},
+            })
+        assistant_msg: Dict[str, Any] = {"role": "assistant", "tool_calls": tool_calls_out}
+        if "text" in turn and turn["text"] is not None:
+            assistant_msg["content"] = turn["text"]
+        messages.append(assistant_msg)
+        for r in turn.get("results") or ():
+            call_id = r.get("id") or r.get("call_id")
+            if "content" in r and isinstance(r["content"], str):
+                res_content = r["content"]
+            else:
+                res_content = encode_wire_json(r.get("output", r.get("content")))
+            messages.append({"role": "tool", "tool_call_id": call_id, "content": res_content})
+    body: Dict[str, Any] = {"model": model, "messages": messages}
+    if request.get("tools"):
+        body["tools"] = [
+            {
+                "type": "function",
+                "function": {
+                    "name": t["name"],
+                    "description": t["description"],
+                    "parameters": t["parameters"],
+                },
+            }
+            for t in request["tools"]
+        ]
+    if "max_units" in request and request["max_units"] is not None:
+        body["max_tokens"] = wire_integer_to_int(request["max_units"])
+    resp = _dev_post_json("/chat/completions", body)
+    choices = resp.get("choices")
+    msg: Dict[str, Any] = {}
+    if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+        raw_msg = choices[0].get("message")
+        if isinstance(raw_msg, dict):
+            msg = raw_msg
+    content = msg.get("content")
+    text = content if isinstance(content, str) else ""
+    parsed_tool_calls: List[Dict[str, Any]] = []
+    raw_tool_calls = msg.get("tool_calls")
+    if isinstance(raw_tool_calls, list):
+        for idx, tc in enumerate(raw_tool_calls):
+            if not isinstance(tc, dict):
+                raise AiUnavailable("dev AI tool_call must be an object")
+            fn = tc.get("function")
+            if not isinstance(fn, dict) or not isinstance(fn.get("name"), str):
+                raise AiUnavailable("dev AI tool_call missing function name")
+            raw_arguments = fn.get("arguments", "{}")
+            if isinstance(raw_arguments, str):
+                try:
+                    decoded_args = json.loads(raw_arguments) if raw_arguments.strip() else {}
+                except json.JSONDecodeError as error:
+                    raise AiUnavailable(f"dev AI tool_call arguments invalid JSON: {error}") from error
+            else:
+                decoded_args = raw_arguments
+            tc_id = tc.get("id")
+            parsed_tool_calls.append({
+                "id": tc_id if isinstance(tc_id, str) and tc_id else f"call_{idx}",
+                "name": fn["name"],
+                "input": decoded_args,
+            })
+    usage_obj = resp.get("usage") if isinstance(resp.get("usage"), dict) else {}
+    total_tokens = usage_obj.get("total_tokens", 1)
+    if not isinstance(total_tokens, int) or isinstance(total_tokens, bool) or total_tokens < 0:
+        total_tokens = 1
+    prompt_tokens = usage_obj.get("prompt_tokens", 0)
+    if not isinstance(prompt_tokens, int) or isinstance(prompt_tokens, bool) or prompt_tokens < 0:
+        prompt_tokens = 0
+    completion_tokens = usage_obj.get("completion_tokens", 0)
+    if not isinstance(completion_tokens, int) or isinstance(completion_tokens, bool) or completion_tokens < 0:
+        completion_tokens = 0
+    resp_model = resp.get("model")
+    actual_model = resp_model if isinstance(resp_model, str) and resp_model.strip() else model
+    env: Dict[str, Any] = {
+        "text": text,
+        "model": actual_model,
+        "provider": "dev",
+        "verb": "ai.chat",
+        "usage": {
+            "input_tokens": prompt_tokens,
+            "output_tokens": completion_tokens,
+            "units": total_tokens,
+        },
+        "budget": {"period": "dev", "units_used": 0, "units_cap": 0},
+        "review": {"safety": "strict", "prompt_redacted": False},
+    }
+    if parsed_tool_calls:
+        env["tool_calls"] = parsed_tool_calls
+    return _parse_response(env)
+
+
+def _dev_infer(request: AiInferenceRequest) -> Dict[str, Any]:
+    model = _dev_ai_model()
+    inp = request["input"]
+    kind = inp["kind"]
+    units = 1
+    actual_model = model
+    if kind == "embed":
+        resp = _dev_post_json("/embeddings", {"model": model, "input": inp["text"]})
+        data = resp.get("data")
+        if not isinstance(data, list) or not data or not isinstance(data[0], dict):
+            raise AiUnavailable("dev AI embeddings response missing data[0]")
+        embedding = data[0].get("embedding")
+        if not isinstance(embedding, list):
+            raise AiUnavailable("dev AI embeddings response missing embedding vector")
+        output: Dict[str, Any] = {"kind": "embed", "vector": embedding}
+        if isinstance(resp.get("model"), str) and resp["model"].strip():
+            actual_model = resp["model"]
+        usage = resp.get("usage")
+        if isinstance(usage, dict) and isinstance(usage.get("total_tokens"), int) and usage["total_tokens"] >= 1:
+            units = usage["total_tokens"]
+    elif kind == "tts":
+        raw = _dev_post_bytes(
+            "/audio/speech",
+            {"model": model, "input": inp["text"], "voice": "alloy", "response_format": "wav"},
+        )
+        audio_b64: Optional[str] = None
+        fmt = "wav"
+        try:
+            parsed = json.loads(raw.decode("utf-8"))
+            if isinstance(parsed, dict) and isinstance(parsed.get("audio_base64"), str):
+                audio_b64 = parsed["audio_base64"]
+                if isinstance(parsed.get("format"), str):
+                    fmt = parsed["format"]
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            pass
+        if audio_b64 is None:
+            if not raw:
+                raise AiUnavailable("dev AI speech response is empty")
+            audio_b64 = b64encode(raw).decode("ascii")
+        output = {"kind": "tts", "format": fmt, "audio_base64": audio_b64}
+    elif kind == "stt":
+        resp = _dev_post_json(
+            "/audio/transcriptions",
+            {"model": model, "audio_base64": inp["audio_base64"]},
+        )
+        text = resp.get("text")
+        if not isinstance(text, str):
+            raise AiUnavailable("dev AI transcription response missing text")
+        output = {"kind": "stt", "text": text}
+    elif kind == "imagegen":
+        resp = _dev_post_json(
+            "/images/generations",
+            {"model": model, "prompt": inp["prompt"], "response_format": "b64_json"},
+        )
+        data = resp.get("data")
+        if not isinstance(data, list) or not data or not isinstance(data[0], dict):
+            raise AiUnavailable("dev AI imagegen response missing data[0]")
+        b64_json = data[0].get("b64_json")
+        if not isinstance(b64_json, str):
+            raise AiUnavailable("dev AI imagegen response missing b64_json")
+        output = {"kind": "imagegen", "format": "png", "image_base64": b64_json}
+    elif kind in ("decision", "decide"):
+        user_payload = encode_wire_json({"state": inp["state"], "questions": inp["questions"]})
+        resp = _dev_post_json(
+            "/chat/completions",
+            {
+                "model": model,
+                "response_format": {"type": "json_object"},
+                "messages": [
+                    {"role": "system", "content": 'Return JSON {"answers": {...}} answering each question.'},
+                    {"role": "user", "content": user_payload},
+                ],
+            },
+        )
+        choices = resp.get("choices")
+        if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+            raise AiUnavailable("dev AI decision response missing choices[0]")
+        msg = choices[0].get("message")
+        if not isinstance(msg, dict) or not isinstance(msg.get("content"), str):
+            raise AiUnavailable("dev AI decision response missing message content")
+        try:
+            parsed_content = json.loads(msg["content"])
+        except json.JSONDecodeError as error:
+            raise AiUnavailable(f"dev AI decision content is not valid JSON: {error}") from error
+        if not isinstance(parsed_content, dict) or not isinstance(parsed_content.get("answers"), dict):
+            raise AiUnavailable("dev AI decision content missing answers object")
+        output = {"kind": kind, "answers": parsed_content["answers"]}
+    else:
+        raise AiInvalidArgs(f"unsupported inference kind: {kind}")
+    return {
+        "provider": "dev",
+        "model": actual_model,
+        "units": units,
+        "output": output,
+    }

@@ -34,16 +34,32 @@ export function desktop(handler: Handler): void {
 
 /** Call the function Yu OS started this process for. */
 export async function run(): Promise<void> {
-  const args: unknown = JSON.parse(process.env.YUOS_ARGS_JSON ?? "[]");
-  if (!Array.isArray(args) || args.some((arg) => typeof arg !== "string")) {
+  const hasEnvArgs = process.env.YUOS_ARGS_JSON !== undefined && process.env.YUOS_ARGS_JSON !== "";
+  const rawArgs: unknown = JSON.parse(hasEnvArgs ? process.env.YUOS_ARGS_JSON! : "[]");
+  if (!Array.isArray(rawArgs) || rawArgs.some((arg) => typeof arg !== "string")) {
     throw new Error("YUOS_ARGS_JSON must be an array of strings");
   }
+  let args: string[] = rawArgs;
   if (process.env.YUOS_APP_GUI === "1") {
     if (!desktopHandler) throw new Error("the App has no desktop function");
     await desktopHandler(args);
     return;
   }
-  const name = process.env.YUOS_COMMAND ?? "";
+  let name = process.env.YUOS_COMMAND ?? "";
+  if (!name) {
+    const cliArgs = process.argv.slice(2);
+    if (cliArgs[0] === "--gui") {
+      if (!desktopHandler) throw new Error("the App has no desktop function");
+      await desktopHandler(hasEnvArgs ? args : cliArgs.slice(1));
+      return;
+    }
+    if (cliArgs.length > 0) {
+      name = cliArgs[0];
+      if (!hasEnvArgs) {
+        args = cliArgs.slice(1);
+      }
+    }
+  }
   const handler = commands.get(name);
   if (!handler) throw new Error(`the App has no function for command "${name}"`);
   const result = await handler(args);

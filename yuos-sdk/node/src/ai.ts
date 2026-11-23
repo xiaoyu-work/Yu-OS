@@ -148,14 +148,18 @@ export async function chat(prompt: string, opts: ChatOptions = {}): Promise<AiRe
   if (origin !== undefined && (typeof origin !== "string" || !origin.trim())) {
     throw new AiInvalidArgs("chat: invalid origin");
   }
-  const app = opts.appId || process.env.YUOS_APP_ID;
+  const envApp = process.env.YUOS_APP_ID;
+  const isDev = devAiUrl() !== undefined;
+  const app = opts.appId || envApp || (isDev ? "dev" : undefined);
   if (!app) {
     throw new AiDenied({ code: "PERMISSION_DENIED", error: "chat: App identity is required" });
   }
   signal?.throwIfAborted();
-  if (origin === undefined || images?.length || functions?.length || toolTurns?.length) {
-    if (tools?.length) throw new AiInvalidArgs("chat: supply App functions in functions");
-    if (app !== process.env.YUOS_APP_ID) {
+  if (origin === undefined || images?.length || functions?.length || toolTurns?.length || isDev) {
+    if (tools?.length && (origin === undefined || images?.length || functions?.length || toolTurns?.length)) {
+      throw new AiInvalidArgs("chat: supply App functions in functions");
+    }
+    if (opts.appId && (envApp || !isDev) && opts.appId !== envApp) {
       throw new AiDenied({ code: "PERMISSION_DENIED", error: "chat: App identity does not match the session" });
     }
     const request: AiChatRequest = { origin: origin ?? "app", prompt };
@@ -200,6 +204,9 @@ export async function chatRequest(
   { signal }: { signal?: AbortSignal } = {},
 ): Promise<AiResponse> {
   const input = encodeRequest(request, validateAiChatRequest);
+  if (devAiUrl() !== undefined) {
+    return devChat(request, signal);
+  }
   try {
     return parseResponse(await yuCallJsonAsync("yu ai chat", ["ai", "chat", "--request-stdin"], signal, input));
   } catch (error) {
@@ -216,12 +223,16 @@ export async function infer(
 ): Promise<AiInference> {
   const input = encodeRequest(request, validateAiInferenceRequest);
   let data: unknown;
-  try {
-    data = await yuCallJsonAsync("yu ai infer", ["ai", "infer", "--request-stdin"], signal, input);
-  } catch (error) {
-    if (error instanceof Denied) raiseForError(error.payload);
-    if (error instanceof Unavailable) throw new AiUnavailable(error.message);
-    throw error;
+  if (devAiUrl() !== undefined) {
+    data = await devInfer(request, signal);
+  } else {
+    try {
+      data = await yuCallJsonAsync("yu ai infer", ["ai", "infer", "--request-stdin"], signal, input);
+    } catch (error) {
+      if (error instanceof Denied) raiseForError(error.payload);
+      if (error instanceof Unavailable) throw new AiUnavailable(error.message);
+      throw error;
+    }
   }
   try {
     validateAiInference(data);
@@ -399,5 +410,318 @@ function parseResponse(env: unknown): AiResponse {
     toolCalls,
     providerState: env.provider_state,
     raw: materializeWireValue(env) as Record<string, WireJsonValue>,
+  };
+}
+
+function devAiUrl(): string | undefined {
+  if (process.env.YUOS_SESSION?.trim()) return undefined;
+  const url = process.env.YUOS_DEV_AI_URL?.trim();
+  return url ? url.replace(/\/+$/, "") : undefined;
+}
+
+function devAiModel(): string {
+  return process.env.YUOS_DEV_AI_MODEL?.trim() || "llama3.2";
+}
+
+function devAiKey(): string | undefined {
+  return process.env.YUOS_DEV_AI_KEY?.trim() || undefined;
+}
+
+async function devPostBytes(
+  path: string,
+  payload: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<Uint8Array> {
+  signal?.throwIfAborted();
+  const baseUrl = devAiUrl();
+  if (!baseUrl) throw new AiUnavailable("local dev AI URL is not configured");
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const key = devAiKey();
+  if (key) headers["Authorization"] = `Bearer ${key}`;
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+      signal,
+    });
+  } catch (error) {
+    if (signal?.aborted) throw signal.reason;
+    throw new AiUnavailable(`dev AI request failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!response.ok) {
+    throw new AiUnavailable(`dev AI HTTP ${response.status}`);
+  }
+  try {
+    return new Uint8Array(await response.arrayBuffer());
+  } catch (error) {
+    if (signal?.aborted) throw signal.reason;
+    throw new AiUnavailable(`dev AI read failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+async function devPostJson(
+  path: string,
+  payload: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<Record<string, unknown>> {
+  const bytes = await devPostBytes(path, payload, signal);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(Buffer.from(bytes).toString("utf8"));
+  } catch (error) {
+    throw new AiUnavailable(`dev AI returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new AiUnavailable("dev AI response must be a JSON object");
+  }
+  return parsed as Record<string, unknown>;
+}
+
+async function devChat(request: AiChatRequest, signal?: AbortSignal): Promise<AiResponse> {
+  const model = devAiModel();
+  const messages: Array<Record<string, unknown>> = [];
+  if (request.system !== undefined) {
+    messages.push({ role: "system", content: request.system });
+  }
+  if (request.images?.length) {
+    messages.push({
+      role: "user",
+      content: [
+        { type: "text", text: request.prompt },
+        ...request.images.map((b64) => ({
+          type: "image_url",
+          image_url: { url: `data:image/png;base64,${b64}` },
+        })),
+      ],
+    });
+  } else {
+    messages.push({ role: "user", content: request.prompt });
+  }
+  for (const turn of request.tool_turns ?? []) {
+    const toolCallsOut = turn.calls.map((c) => {
+      const rawArgs = (c as unknown as Record<string, unknown>).input ?? (c as unknown as Record<string, unknown>).arguments ?? {};
+      const argsStr = typeof rawArgs === "string" ? rawArgs : stringifyWireJson(materializeWireValue(rawArgs));
+      return {
+        id: c.id,
+        type: "function",
+        function: { name: c.name, arguments: argsStr },
+      };
+    });
+    const assistantMsg: Record<string, unknown> = { role: "assistant", tool_calls: toolCallsOut };
+    if (turn.text !== undefined) assistantMsg.content = turn.text;
+    messages.push(assistantMsg);
+    for (const r of turn.results) {
+      const raw = r as unknown as Record<string, unknown>;
+      const callId = String(raw.id ?? raw.call_id ?? "");
+      const content = typeof raw.content === "string"
+        ? raw.content
+        : stringifyWireJson(materializeWireValue(raw.output ?? raw.content));
+      messages.push({ role: "tool", tool_call_id: callId, content });
+    }
+  }
+  const body: Record<string, unknown> = { model, messages };
+  if (request.tools?.length) {
+    body.tools = request.tools.map((t) => ({
+      type: "function",
+      function: {
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters,
+      },
+    }));
+  }
+  if (request.max_units !== undefined) {
+    body.max_tokens = Number(request.max_units);
+  }
+  const resp = await devPostJson("/chat/completions", body, signal);
+  const choices = Array.isArray(resp.choices) ? resp.choices : [];
+  const firstChoice = choices[0] && typeof choices[0] === "object" ? (choices[0] as Record<string, unknown>) : {};
+  const msg = firstChoice.message && typeof firstChoice.message === "object"
+    ? (firstChoice.message as Record<string, unknown>)
+    : {};
+  const text = typeof msg.content === "string" ? msg.content : "";
+  const parsedToolCalls: Array<Record<string, unknown>> = [];
+  if (Array.isArray(msg.tool_calls)) {
+    for (let i = 0; i < msg.tool_calls.length; i++) {
+      const tc = msg.tool_calls[i];
+      if (!tc || typeof tc !== "object") throw new AiUnavailable("dev AI tool_call must be an object");
+      const tcObj = tc as Record<string, unknown>;
+      const fn = tcObj.function;
+      if (!fn || typeof fn !== "object" || typeof (fn as Record<string, unknown>).name !== "string") {
+        throw new AiUnavailable("dev AI tool_call missing function name");
+      }
+      const fnObj = fn as Record<string, unknown>;
+      const rawArguments = fnObj.arguments ?? "{}";
+      let decodedArgs: unknown;
+      if (typeof rawArguments === "string") {
+        try {
+          decodedArgs = rawArguments.trim() ? JSON.parse(rawArguments) : {};
+        } catch (error) {
+          throw new AiUnavailable(`dev AI tool_call arguments invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      } else {
+        decodedArgs = rawArguments;
+      }
+      parsedToolCalls.push({
+        id: typeof tcObj.id === "string" && tcObj.id ? tcObj.id : `call_${i}`,
+        name: fnObj.name,
+        input: decodedArgs,
+      });
+    }
+  }
+  const usageObj = resp.usage && typeof resp.usage === "object" ? (resp.usage as Record<string, unknown>) : {};
+  const totalTokens = typeof usageObj.total_tokens === "number" && Number.isInteger(usageObj.total_tokens) && usageObj.total_tokens >= 0
+    ? usageObj.total_tokens
+    : 1;
+  const promptTokens = typeof usageObj.prompt_tokens === "number" && Number.isInteger(usageObj.prompt_tokens) && usageObj.prompt_tokens >= 0
+    ? usageObj.prompt_tokens
+    : 0;
+  const completionTokens = typeof usageObj.completion_tokens === "number" && Number.isInteger(usageObj.completion_tokens) && usageObj.completion_tokens >= 0
+    ? usageObj.completion_tokens
+    : 0;
+  const actualModel = typeof resp.model === "string" && resp.model.trim() ? resp.model : model;
+  const env: Record<string, unknown> = {
+    text,
+    model: actualModel,
+    provider: "dev",
+    verb: "ai.chat",
+    usage: {
+      input_tokens: promptTokens,
+      output_tokens: completionTokens,
+      units: totalTokens,
+    },
+    budget: { period: "dev", units_used: 0, units_cap: 0 },
+    review: { safety: "strict", prompt_redacted: false },
+  };
+  if (parsedToolCalls.length > 0) {
+    env.tool_calls = parsedToolCalls;
+  }
+  return parseResponse(env);
+}
+
+async function devInfer(
+  request: AiInferenceRequest,
+  signal?: AbortSignal,
+): Promise<Record<string, unknown>> {
+  const model = devAiModel();
+  const inp = request.input;
+  const kind = inp.kind as string;
+  let units = 1;
+  let actualModel = model;
+  let output: Record<string, unknown>;
+  if (kind === "embed") {
+    const embedInp = inp as Extract<AiInferenceRequest["input"], { kind: "embed" }>;
+    const resp = await devPostJson("/embeddings", { model, input: embedInp.text }, signal);
+    const data = Array.isArray(resp.data) ? resp.data : [];
+    const first = data[0] && typeof data[0] === "object" ? (data[0] as Record<string, unknown>) : undefined;
+    if (!first || !Array.isArray(first.embedding)) {
+      throw new AiUnavailable("dev AI embeddings response missing data[0].embedding");
+    }
+    output = { kind: "embed", vector: first.embedding };
+    if (typeof resp.model === "string" && resp.model.trim()) actualModel = resp.model;
+    const usage = resp.usage && typeof resp.usage === "object" ? (resp.usage as Record<string, unknown>) : undefined;
+    if (usage && typeof usage.total_tokens === "number" && Number.isInteger(usage.total_tokens) && usage.total_tokens >= 1) {
+      units = usage.total_tokens;
+    }
+  } else if (kind === "tts") {
+    const ttsInp = inp as Extract<AiInferenceRequest["input"], { kind: "tts" }>;
+    const raw = await devPostBytes(
+      "/audio/speech",
+      { model, input: ttsInp.text, voice: "alloy", response_format: "wav" },
+      signal,
+    );
+    let audioB64: string | undefined;
+    let format = "wav";
+    try {
+      const parsed = JSON.parse(Buffer.from(raw).toString("utf8")) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const obj = parsed as Record<string, unknown>;
+        if (typeof obj.audio_base64 === "string") {
+          audioB64 = obj.audio_base64;
+          if (typeof obj.format === "string") format = obj.format;
+        }
+      }
+    } catch {
+      // Raw audio bytes
+    }
+    if (audioB64 === undefined) {
+      if (raw.byteLength === 0) throw new AiUnavailable("dev AI speech response is empty");
+      audioB64 = Buffer.from(raw).toString("base64");
+    }
+    output = { kind: "tts", format, audio_base64: audioB64 };
+  } else if (kind === "stt") {
+    const sttInp = inp as Extract<AiInferenceRequest["input"], { kind: "stt" }>;
+    const resp = await devPostJson(
+      "/audio/transcriptions",
+      { model, audio_base64: sttInp.audio_base64 },
+      signal,
+    );
+    if (typeof resp.text !== "string") {
+      throw new AiUnavailable("dev AI transcription response missing text");
+    }
+    output = { kind: "stt", text: resp.text };
+  } else if (kind === "imagegen") {
+    const imgInp = inp as Extract<AiInferenceRequest["input"], { kind: "imagegen" }>;
+    const resp = await devPostJson(
+      "/images/generations",
+      { model, prompt: imgInp.prompt, response_format: "b64_json" },
+      signal,
+    );
+    const data = Array.isArray(resp.data) ? resp.data : [];
+    const first = data[0] && typeof data[0] === "object" ? (data[0] as Record<string, unknown>) : undefined;
+    if (!first || typeof first.b64_json !== "string") {
+      throw new AiUnavailable("dev AI imagegen response missing data[0].b64_json");
+    }
+    output = { kind: "imagegen", format: "png", image_base64: first.b64_json };
+  } else if (kind === "decision" || kind === "decide") {
+    const decInp = inp as Extract<AiInferenceRequest["input"], { kind: "decision" }>;
+    const userPayload = stringifyWireJson(
+      materializeWireValue({ state: decInp.state, questions: decInp.questions }),
+    );
+    const resp = await devPostJson(
+      "/chat/completions",
+      {
+        model,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: 'Return JSON {"answers": {...}} answering each question.' },
+          { role: "user", content: userPayload },
+        ],
+      },
+      signal,
+    );
+    const choices = Array.isArray(resp.choices) ? resp.choices : [];
+    const first = choices[0] && typeof choices[0] === "object" ? (choices[0] as Record<string, unknown>) : undefined;
+    const msg = first?.message && typeof first.message === "object" ? (first.message as Record<string, unknown>) : undefined;
+    if (!msg || typeof msg.content !== "string") {
+      throw new AiUnavailable("dev AI decision response missing message content");
+    }
+    let parsedContent: unknown;
+    try {
+      parsedContent = JSON.parse(msg.content);
+    } catch (error) {
+      throw new AiUnavailable(`dev AI decision content is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (
+      !parsedContent ||
+      typeof parsedContent !== "object" ||
+      Array.isArray(parsedContent) ||
+      !(parsedContent as Record<string, unknown>).answers ||
+      typeof (parsedContent as Record<string, unknown>).answers !== "object" ||
+      Array.isArray((parsedContent as Record<string, unknown>).answers)
+    ) {
+      throw new AiUnavailable("dev AI decision content missing answers object");
+    }
+    output = { kind, answers: (parsedContent as Record<string, unknown>).answers };
+  } else {
+    throw new AiInvalidArgs(`unsupported inference kind: ${kind}`);
+  }
+  return {
+    provider: "dev",
+    model: actualModel,
+    units,
+    output,
   };
 }

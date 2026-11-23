@@ -469,7 +469,7 @@ type Operation struct {
 	Summary *Localizedtext `json:"summary,omitempty"`
 	Stdin bool `json:"stdin,omitempty"`
 	Args []Arg `json:"args,omitempty"`
-	Needs []Need `json:"needs,omitempty"`
+	Needs []interface{} `json:"needs,omitempty"`
 	Effects *[]Operationeffect `json:"effects,omitempty"`
 }
 
@@ -582,7 +582,7 @@ type Mcptool struct {
 	Name string `json:"name"`
 	Summary Localizedtext `json:"summary"`
 	Args []Arg `json:"args,omitempty"`
-	Needs []Need `json:"needs,omitempty"`
+	Needs []interface{} `json:"needs,omitempty"`
 	Effects *[]Operationeffect `json:"effects,omitempty"`
 }
 
@@ -592,8 +592,8 @@ type Mcptool struct {
 type Desktop struct {
 	Exec string `json:"exec,omitempty"`
 	Entry string `json:"entry,omitempty"`
-	Needs *[]Need `json:"needs,omitempty"`
-	OptionalNeeds *[]Need `json:"optional_needs,omitempty"`
+	Needs *[]interface{} `json:"needs,omitempty"`
+	OptionalNeeds *[]interface{} `json:"optional_needs,omitempty"`
 	Entries map[string]DesktopEntry `json:"entries,omitempty"`
 	Name *Localizedtext `json:"name,omitempty"`
 	Icon string `json:"icon,omitempty"`
@@ -611,8 +611,8 @@ type DesktopEntry struct {
 	Entry string `json:"entry"`
 	Exec string `json:"exec"`
 	Name Localizedtext `json:"name"`
-	Needs []Need `json:"needs"`
-	OptionalNeeds *[]Need `json:"optional_needs,omitempty"`
+	Needs []interface{} `json:"needs"`
+	OptionalNeeds *[]interface{} `json:"optional_needs,omitempty"`
 	PanelApplet bool `json:"panel_applet,omitempty"`
 }
 

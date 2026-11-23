@@ -86,6 +86,30 @@ pub(super) fn dispatch_app(
         return consent_cmd(&args[1..], &discovered);
     }
 
+    // Special: `yu app pack <dir> [--out <file.deb>] [--arch all|amd64|arm64]` —
+    // package an App directory into a clean `.deb` for Store review.
+    if app_name == "pack" {
+        return pack_cmd(&args[1..]);
+    }
+
+    // Special: `yu app dev <dir> <command> [args...]` — run an unsigned local
+    // App directory directly during development.
+    if app_name == "dev" {
+        return dev_cmd(&args[1..], stdin_data);
+    }
+
+    // Also allow `yu app ./<dir> <command> [args...]` directly when the first
+    // argument is a path to an App directory containing `app.json`.
+    if !discovered.contains_key(app_name.as_str())
+        && (app_name.starts_with("./")
+            || app_name.starts_with("../")
+            || app_name.contains('/')
+            || app_name.contains('\\'))
+        && Path::new(app_name).join("app.json").is_file()
+    {
+        return dev_cmd(args, stdin_data);
+    }
+
     // Check if it's a known app
     if !discovered.contains_key(app_name.as_str()) {
         let names: Vec<&String> = discovered.keys().collect();
@@ -1274,6 +1298,200 @@ pub(super) fn consent_cmd(
             "unknown consent subcommand: {other}. try: list | show | path | grant | revoke"
         )),
     }
+}
+
+/// `yu app pack <dir> [--out <file.deb>] [--arch all|amd64|arm64]` —
+/// validate and package an App directory into a clean `.deb` for Store submission.
+pub(super) fn pack_cmd(args: &[String]) -> Result<Option<String>, String> {
+    let mut source: Option<PathBuf> = None;
+    let mut out: Option<PathBuf> = None;
+    let mut arch = "all".to_string();
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--out" | "-o" => {
+                let val = args
+                    .get(i + 1)
+                    .ok_or_else(|| "usage: yu app pack <dir> [--out <file.deb>] [--arch all|amd64|arm64]".to_string())?;
+                out = Some(PathBuf::from(val));
+                i += 2;
+            }
+            "--arch" => {
+                let val = args
+                    .get(i + 1)
+                    .ok_or_else(|| "usage: yu app pack <dir> [--out <file.deb>] [--arch all|amd64|arm64]".to_string())?;
+                arch = val.clone();
+                i += 2;
+            }
+            flag if flag.starts_with('-') => {
+                return Err(format!("unknown flag `{flag}` for `yu app pack`"));
+            }
+            positional => {
+                if source.is_some() {
+                    return Err("usage: yu app pack <dir> [--out <file.deb>] [--arch all|amd64|arm64]".to_string());
+                }
+                source = Some(PathBuf::from(positional));
+                i += 1;
+            }
+        }
+    }
+    let source = source.ok_or_else(|| {
+        "usage: yu app pack <dir> [--out <file.deb>] [--arch all|amd64|arm64]".to_string()
+    })?;
+    let result = apps::pack::pack_app_deb(&source, out.as_deref(), &arch)?;
+    Ok(Some(result.to_string()))
+}
+
+/// `yu app dev <dir> <command> [args...]` (or `yu app ./<dir> <command> [args...]`) —
+/// run an unsigned local App directory directly during development without signing
+/// or global installation.
+pub(super) fn dev_cmd(args: &[String], stdin_data: Option<Vec<u8>>) -> Result<Option<String>, String> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let (Some(dir_arg), Some(command)) = (args.first(), args.get(1)) else {
+        return Err("usage: yu app dev <dir> <command> [args...]".to_string());
+    };
+    let cmd_args = &args[2..];
+    let dir = Path::new(dir_arg);
+    if !dir.is_dir() {
+        return Err(format!("App directory `{}` does not exist", dir.display()));
+    }
+    let manifest_path = dir.join("app.json");
+    if !manifest_path.is_file() {
+        return Err(format!("App directory `{}` has no app.json", dir.display()));
+    }
+    let body = std::fs::read_to_string(&manifest_path)
+        .map_err(|e| format!("read {}: {e}", manifest_path.display()))?;
+    let manifest = apps::AppManifest::from_json(&body)
+        .map_err(|e| format!("parse {}: {e}", manifest_path.display()))?;
+    let catalog = crate::ai::tools::list_names();
+    manifest
+        .validate_tools_against_catalog(&catalog)
+        .map_err(|e| format!("manifest catalog check: {e}"))?;
+    let app_probe = apps::App {
+        manifest: manifest.clone(),
+        dir: dir.to_path_buf(),
+        provenance: Err("unverified local development source".into()),
+    };
+    let violations = apps::lint::app_lint_violations(&app_probe);
+    if !violations.is_empty() {
+        return Err(format!(
+            "App failed lint checks: {}",
+            serde_json::to_string(&violations).unwrap_or_default()
+        ));
+    }
+
+    let (is_gui, entry_rel, bound_args) = if let Some(gui) = manifest.gui_entry_for_cli(command)? {
+        (true, gui.entry.to_string(), cmd_args.to_vec())
+    } else if let Some(op) = manifest.operations.get(command.as_str()) {
+        let bound = crate::bridge::bind_dev_operation_argv(op, cmd_args)?;
+        let entry = manifest
+            .entry
+            .clone()
+            .unwrap_or_else(|| manifest.runtime.default_entry().to_string());
+        (false, entry, bound)
+    } else {
+        let valid: Vec<&String> = manifest.operations.keys().collect();
+        return Err(format!(
+            "unknown command `{command}` for `{}`. available: {valid:?}",
+            manifest.id
+        ));
+    };
+
+    let entry_path = dir
+        .canonicalize()
+        .unwrap_or_else(|_| dir.to_path_buf())
+        .join(&entry_rel);
+    if !entry_path.is_file() {
+        return Err(format!(
+            "declared entrypoint `{entry_rel}` does not exist in {}",
+            dir.display()
+        ));
+    }
+
+    let app_data = Path::new(&super::data_dir()).join("apps").join(&manifest.id);
+    std::fs::create_dir_all(&app_data)
+        .map_err(|e| format!("create {}: {e}", app_data.display()))?;
+    let data_dir_str = app_data.to_string_lossy().to_string();
+    let apps_dir_str = apps_dir().to_string_lossy().to_string();
+    let args_json = serde_json::to_string(&bound_args)
+        .map_err(|e| format!("serialize args: {e}"))?;
+
+    let mut proc = match manifest.runtime {
+        crate::caps::manifest::Runtime::Python => {
+            let python = if cfg!(windows) { "python" } else { "python3" };
+            let wrapper = crate::bridge::python_wrapper(
+                &entry_path,
+                command,
+                &bound_args,
+                &data_dir_str,
+                &apps_dir_str,
+            )?;
+            let mut cmd = Command::new(python);
+            cmd.arg("-c").arg(wrapper);
+            cmd
+        }
+        crate::caps::manifest::Runtime::Node => {
+            let mut cmd = Command::new("node");
+            cmd.arg(&entry_path);
+            cmd
+        }
+        crate::caps::manifest::Runtime::Shell => {
+            let mut cmd = Command::new("sh");
+            cmd.arg(&entry_path);
+            cmd
+        }
+        crate::caps::manifest::Runtime::Binary => Command::new(&entry_path),
+    };
+
+    proc.current_dir(dir)
+        .env("YUOS_APP_ID", &manifest.id)
+        .env("YUOS_COMMAND", command)
+        .env("YUOS_ARGS_JSON", &args_json)
+        .env("YUOS_DATA_DIR", &data_dir_str)
+        .env("YUOS_APPS_DIR", &apps_dir_str);
+    if manifest.ai.is_some() && env::var_os("YUOS_DEV_AI_URL").is_none() {
+        proc.env("YUOS_DEV_AI_URL", "http://127.0.0.1:11434/v1");
+    }
+    if env::var_os("YUOS_SDK_PYTHON_DIR").is_none() {
+        let repo_sdk = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|root| root.join("yuos-sdk").join("python").join("src"));
+        if let Some(sdk) = repo_sdk.filter(|p| p.is_dir()) {
+            proc.env("YUOS_SDK_PYTHON_DIR", sdk);
+        }
+    }
+    if is_gui {
+        proc.env("YUOS_APP_GUI", "1").arg(command).args(&bound_args);
+    }
+
+    if stdin_data.is_some() {
+        proc.stdin(Stdio::piped());
+    }
+    proc.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+    let mut child = proc
+        .spawn()
+        .map_err(|e| format!("spawn {}: {e}", entry_path.display()))?;
+    if let (Some(data), Some(mut stdin)) = (stdin_data, child.stdin.take()) {
+        stdin
+            .write_all(&data)
+            .map_err(|e| format!("write stdin: {e}"))?;
+    }
+    let output = child
+        .wait_with_output()
+        .map_err(|e| format!("wait for App: {e}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(if stderr.is_empty() {
+            format!("App exited with status {}", output.status)
+        } else {
+            stderr
+        });
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    Ok(if stdout.is_empty() { None } else { Some(stdout) })
 }
 
 #[cfg(test)]

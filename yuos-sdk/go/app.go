@@ -55,10 +55,12 @@ func HandleDesktop(fn DesktopFunc) {
 // command's result as JSON.
 func RunApp() error {
 	var args []string
+	hasEnvArgs := false
 	if raw := os.Getenv("YUOS_ARGS_JSON"); raw != "" {
 		if err := json.Unmarshal([]byte(raw), &args); err != nil {
 			return fmt.Errorf("YUOS_ARGS_JSON must be an array of strings: %w", err)
 		}
+		hasEnvArgs = true
 	}
 	if os.Getenv("YUOS_APP_GUI") == "1" {
 		if desktopFunc == nil {
@@ -67,6 +69,24 @@ func RunApp() error {
 		return desktopFunc(args)
 	}
 	name := os.Getenv("YUOS_COMMAND")
+	if name == "" {
+		cliArgs := os.Args[1:]
+		if len(cliArgs) > 0 && cliArgs[0] == "--gui" {
+			if desktopFunc == nil {
+				return errors.New("the App has no desktop function")
+			}
+			if !hasEnvArgs {
+				args = cliArgs[1:]
+			}
+			return desktopFunc(args)
+		}
+		if len(cliArgs) > 0 {
+			name = cliArgs[0]
+			if !hasEnvArgs {
+				args = cliArgs[1:]
+			}
+		}
+	}
 	fn := commandFuncs[name]
 	if fn == nil {
 		return fmt.Errorf("the App has no function for command %q", name)

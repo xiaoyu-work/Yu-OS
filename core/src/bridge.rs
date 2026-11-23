@@ -1753,6 +1753,13 @@ struct BoundOperationArgs {
     argv: Vec<String>,
 }
 
+pub(crate) fn bind_dev_operation_argv(
+    operation: &Operation,
+    args: &[String],
+) -> Result<Vec<String>, String> {
+    Ok(bind_operation_args(operation, args)?.argv)
+}
+
 fn bind_operation_args(
     operation: &Operation,
     args: &[String],
@@ -2177,7 +2184,7 @@ pub(crate) fn apply_routed_identity(_command: &mut Command) -> Result<(), String
 /// `@desktop` function. The GUI path passes the manifest's
 /// `desktop.exec` value as `command`; an op invocation passes the
 /// operation name.
-fn python_wrapper(
+pub(crate) fn python_wrapper(
     main_py: &Path,
     command: &str,
     args: &[String],

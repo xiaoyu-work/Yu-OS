@@ -35,30 +35,46 @@ a [desktop version](REFERENCE.md#command-line-and-desktop).
     "summarize": {
       "label": {"en": "Summarize text"},
       "args": [{"name": "text", "kind": "text", "required": true}],
-      "needs": [{"verb": "ai.chat"}]
+      "needs": ["ai.chat"]
     }
   }
 }
 ```
 
-From the parent directory, sign with your
-[system-trusted App key](../docs/extension-provenance.md#trust-roots).
-Confirm the admin install, then grant AI consent and run as your normal user.
+### 1. Test locally (no signing required)
+
+Point `YUOS_DEV_AI_URL` at any local or OpenAI-compatible model endpoint (such
+as Ollama at `http://localhost:11434/v1`, with optional `YUOS_DEV_AI_MODEL` and
+`YUOS_DEV_AI_KEY`) and run the App directory directly:
 
 ```sh
-yu provenance sign --kind app --id hello-ai --version 0.1.0 \
-    --path ./hello-ai --key "$HOME/.secrets/my-publisher.json" --entrypoint main.py
-yu app install ./hello-ai --review
-sudo yu app install ./hello-ai --no-consent
-yu app consent grant hello-ai
-yu app hello-ai summarize "We moved the launch to Friday because the tests aren't ready."
+export YUOS_DEV_AI_URL="http://localhost:11434/v1"
+yu app dev ./hello-ai summarize "We moved the launch to Friday because the tests aren't ready."
 ```
 
-Approve any capability prompt. The model generates the text in `summary`, for example:
+Without the `yu` CLI installed, you can also run `main.py` directly through the SDK:
+
+```sh
+YUOS_DEV_AI_URL="http://localhost:11434/v1" \
+  python3 -m yuos_sdk.app ./hello-ai/main.py summarize "We moved the launch to Friday because the tests aren't ready."
+```
 
 ```json
 {"summary": "The launch moved to Friday because testing isn't finished."}
 ```
+
+### 2. Package `.deb` for Store review
+
+When ready to publish, pack the directory into a `.deb` archive (no signing key
+needed) and submit it to [`xiaoyu-work/yuos-app`](https://github.com/xiaoyu-work/yuos-app)
+(`submissions/incoming/`) for Store review:
+
+```sh
+yu app pack ./hello-ai
+```
+
+After the Store owner reviews the package, the Store signs and publishes it to
+the official Yu OS APT repository.
 
 [All model slots](REFERENCE.md#ai-support) ·
 [Handle AI errors](REFERENCE.md#handle-ai-errors) ·

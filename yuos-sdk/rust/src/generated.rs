@@ -573,7 +573,7 @@ pub struct Operation {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub args: Option<Vec<Arg>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub needs: Option<Vec<Need>>,
+    pub needs: Option<Vec<serde_json::Value>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effects: Option<Vec<Operationeffect>>,
 }
@@ -731,7 +731,7 @@ pub struct Mcptool {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub args: Option<Vec<Arg>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub needs: Option<Vec<Need>>,
+    pub needs: Option<Vec<serde_json::Value>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effects: Option<Vec<Operationeffect>>,
 }
@@ -746,9 +746,9 @@ pub struct Desktop {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entry: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub needs: Option<Vec<Need>>,
+    pub needs: Option<Vec<serde_json::Value>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub optional_needs: Option<Vec<Need>>,
+    pub optional_needs: Option<Vec<serde_json::Value>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entries: Option<std::collections::BTreeMap<String, DesktopEntry>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -774,9 +774,9 @@ pub struct DesktopEntry {
     pub entry: String,
     pub exec: String,
     pub name: Localizedtext,
-    pub needs: Vec<Need>,
+    pub needs: Vec<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub optional_needs: Option<Vec<Need>>,
+    pub optional_needs: Option<Vec<serde_json::Value>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub panel_applet: Option<bool>,
 }

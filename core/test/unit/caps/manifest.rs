@@ -1218,13 +1218,17 @@ fn ai_block_with_valid_policy_parses() {
         "ai.decide",
     ] {
         let short: Need = serde_json::from_value(serde_json::json!({"verb": verb})).unwrap();
+        let bare: Need = serde_json::from_value(serde_json::json!(verb)).unwrap();
         let explicit = serde_json::json!({
             "verb": verb,
             "scope": {"kind": "fixed", "scope": {"kind": "name", "value": "$configured-ai-model"}},
         });
         assert_eq!(serde_json::to_value(short).unwrap(), explicit);
+        assert_eq!(serde_json::to_value(bare).unwrap(), explicit);
     }
     for invalid in [
+        serde_json::json!("fs.read"),
+        serde_json::json!("ai.video.generate"),
         serde_json::json!({"verb": "fs.read", "why": {"en": "Read a file"}}),
         serde_json::json!({"verb": "ai.video.generate"}),
         serde_json::json!({"verb": "ai.chat", "scope": null}),

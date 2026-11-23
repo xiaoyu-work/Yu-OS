@@ -548,7 +548,7 @@ export interface Operation {
   summary?: Localizedtext;
   stdin?: boolean;
   args?: Arg[];
-  needs?: Need[];
+  needs?: unknown[];
   effects?: Operationeffect[];
 }
 
@@ -687,7 +687,7 @@ export interface Mcptool {
   name: string;
   summary: Localizedtext;
   args?: Arg[];
-  needs?: Need[];
+  needs?: unknown[];
   effects?: Operationeffect[];
 }
 
@@ -699,8 +699,8 @@ export interface Mcptool {
 export interface Desktop {
   exec?: string;
   entry?: string;
-  needs?: Need[];
-  optional_needs?: Need[];
+  needs?: unknown[];
+  optional_needs?: unknown[];
   entries?: Record<string, DesktopEntry>;
   name?: Localizedtext;
   icon?: string;
@@ -720,8 +720,8 @@ export interface DesktopEntry {
   entry: string;
   exec: string;
   name: Localizedtext;
-  needs: Need[];
-  optional_needs?: Need[];
+  needs: unknown[];
+  optional_needs?: unknown[];
   panel_applet?: boolean;
 }
 

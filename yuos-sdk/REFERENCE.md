@@ -43,10 +43,10 @@ each in `app.json` and mark the function Yu OS starts for it:
     "summarize": {
       "label": {"en": "Summarize text"},
       "args": [{"name": "text", "kind": "text", "required": true}],
-      "needs": [{"verb": "ai.chat"}]
+      "needs": ["ai.chat"]
     }
   },
-  "desktop": {"needs": [{"verb": "ai.chat"}]}
+  "desktop": {"needs": ["ai.chat"]}
 }
 ```
 
@@ -84,7 +84,9 @@ The selection is the user's approval.
 ## Permissions
 
 Like macOS and Windows, Yu OS separates **App permissions** from **system
-permissions**. Declare both in `needs`.
+permissions**. Declare both in `needs`. AI permissions need no extra fields and
+can be written directly as strings (`"needs": ["ai.chat"]`); permissions that
+take a `scope` or `why` use an object (`{"verb": "fs.read", "scope": ..., "why": ...}`).
 
 Any signed App may declare App permissions. The owner allows or denies them.
 

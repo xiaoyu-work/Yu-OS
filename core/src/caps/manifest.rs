@@ -790,7 +790,22 @@ impl<'de> Deserialize<'de> for Need {
             why: LocalizedText,
         }
 
-        let Declaration { verb, scope, when, why } = Declaration::deserialize(deserializer)?;
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum RawNeed {
+            Verb(Verb),
+            Object(Declaration),
+        }
+
+        let Declaration { verb, scope, when, why } = match RawNeed::deserialize(deserializer)? {
+            RawNeed::Verb(verb) => Declaration {
+                verb,
+                scope: None,
+                when: None,
+                why: LocalizedText::default(),
+            },
+            RawNeed::Object(declaration) => declaration,
+        };
         // Normalize the shorthand to the existing owner-resolved scope.
         // This keeps signed review and permission comparison data unchanged.
         let scope = match scope {

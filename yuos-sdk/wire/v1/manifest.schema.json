@@ -92,7 +92,16 @@
             ]
           }
         },
-        "needs": { "type": "array", "items": { "$ref": "#/$defs/need" }, "description": "Capability requirements checked before dispatch." },
+        "needs": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string", "enum": ["ai.chat", "ai.chat.untrusted", "ai.embed", "ai.audio.tts", "ai.audio.stt", "ai.image.generate", "ai.decide"] },
+              { "$ref": "#/$defs/need" }
+            ]
+          },
+          "description": "Capability requirements checked before dispatch."
+        },
         "effects": {
           "type": "array",
           "x-go-type": "*[]Operationeffect",
@@ -450,7 +459,15 @@
           "items": { "$ref": "#/$defs/arg" },
           "description": "Declared input parameters. Same shape as an operation arg. An optional `binding` (positional/flag) is one-shot CLI metadata only: it keeps `yu app <id> <command>` syntax stable when the App has no operations and is never surfaced in the model-facing MCP inputSchema."
         },
-        "needs": { "type": "array", "items": { "$ref": "#/$defs/need" } },
+        "needs": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string", "enum": ["ai.chat", "ai.chat.untrusted", "ai.embed", "ai.audio.tts", "ai.audio.stt", "ai.image.generate", "ai.decide"] },
+              { "$ref": "#/$defs/need" }
+            ]
+          }
+        },
         "effects": {
           "type": "array",
           "x-go-type": "*[]Operationeffect",
@@ -475,14 +492,24 @@
         },
         "needs": {
           "type": "array",
-          "x-go-type": "*[]Need",
-          "items": { "$ref": "#/$defs/need" },
+          "x-go-type": "*[]interface{}",
+          "items": {
+            "oneOf": [
+              { "type": "string", "enum": ["ai.chat", "ai.chat.untrusted", "ai.embed", "ai.audio.tts", "ai.audio.stt", "ai.image.generate", "ai.decide"] },
+              { "$ref": "#/$defs/need" }
+            ]
+          },
           "description": "Default GUI's own needs. Present [] means no needs; omission retains legacy constrained fixed/wild operation needs, never MCP needs. Explicit argument-bound/conditional needs remain unsupported and unbound at GUI startup."
         },
         "optional_needs": {
           "type": "array",
-          "x-go-type": "*[]Need",
-          "items": { "$ref": "#/$defs/need" },
+          "x-go-type": "*[]interface{}",
+          "items": {
+            "oneOf": [
+              { "type": "string", "enum": ["ai.chat", "ai.chat.untrusted", "ai.embed", "ai.audio.tts", "ai.audio.stt", "ai.image.generate", "ai.decide"] },
+              { "$ref": "#/$defs/need" }
+            ]
+          },
           "default": [],
           "description": "Best-effort default-GUI features, empty when omitted. Only existing authenticated parent or reusable exact-owner approval may authorize them; absent/denied/unapproved rights do not block startup or prompt. Never subtracts from mandatory needs or the legacy operation union, and never inherits optional needs from other surfaces."
         },
@@ -520,11 +547,25 @@
         },
         "exec": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]+$(?![\\s\\S])", "description": "One exact literal selector passed to this entry, not a command line. Core enforces 1024 UTF-8 bytes." },
         "name": { "$ref": "#/$defs/localizedText", "description": "Localized presentation name, English required; never authority." },
-        "needs": { "type": "array", "items": { "$ref": "#/$defs/need" }, "description": "This GUI's own needs, explicitly [] for none. Fixed needs use existing owner authorization; wild needs inherit bounded same-verb delegation. Argument-bound/conditional needs remain unsupported/unbound." },
+        "needs": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string", "enum": ["ai.chat", "ai.chat.untrusted", "ai.embed", "ai.audio.tts", "ai.audio.stt", "ai.image.generate", "ai.decide"] },
+              { "$ref": "#/$defs/need" }
+            ]
+          },
+          "description": "This GUI's own needs, explicitly [] for none. Fixed needs use existing owner authorization; wild needs inherit bounded same-verb delegation. Argument-bound/conditional needs remain unsupported/unbound."
+        },
         "optional_needs": {
           "type": "array",
-          "x-go-type": "*[]Need",
-          "items": { "$ref": "#/$defs/need" },
+          "x-go-type": "*[]interface{}",
+          "items": {
+            "oneOf": [
+              { "type": "string", "enum": ["ai.chat", "ai.chat.untrusted", "ai.embed", "ai.audio.tts", "ai.audio.stt", "ai.image.generate", "ai.decide"] },
+              { "$ref": "#/$defs/need" }
+            ]
+          },
           "default": [],
           "description": "This GUI's own best-effort feature needs, empty when omitted. Missing/denied/ask-unapproved permissions neither block startup nor mint rights. Required panel-display authority must remain in needs. No default-GUI, operation, MCP or other-entry union; no on-demand widening is implied."
         },

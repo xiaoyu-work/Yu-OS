@@ -8,6 +8,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -154,11 +156,13 @@ func ChatContext(ctx context.Context, prompt string, opts ChatOptions) (*AiRespo
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if opts.Origin == "" || len(opts.Images) != 0 || len(opts.Functions) != 0 || len(opts.ToolTurns) != 0 {
-		if len(opts.Tools) != 0 {
+	isDev := devAiURL() != ""
+	if opts.Origin == "" || len(opts.Images) != 0 || len(opts.Functions) != 0 || len(opts.ToolTurns) != 0 || isDev {
+		if len(opts.Tools) != 0 && (opts.Origin == "" || len(opts.Images) != 0 || len(opts.Functions) != 0 || len(opts.ToolTurns) != 0) {
 			return nil, &AiInvalidArgsError{Msg: "chat: supply App functions in Functions"}
 		}
-		if opts.AppID != "" && opts.AppID != os.Getenv("YUOS_APP_ID") {
+		envApp := os.Getenv("YUOS_APP_ID")
+		if opts.AppID != "" && (envApp != "" || !isDev) && opts.AppID != envApp {
 			return nil, &AiDeniedError{Payload: map[string]any{
 				"code": "PERMISSION_DENIED", "error": "chat: App identity does not match the session",
 			}}
@@ -185,6 +189,9 @@ func ChatRequest(ctx context.Context, request AiChatRequest) (*AiResponse, error
 	if err != nil {
 		return nil, err
 	}
+	if devAiURL() != "" {
+		return devChat(ctx, request)
+	}
 	out, err := yuCallJSONContext(ctx, "yu ai chat", []string{"ai", "chat", "--request-stdin"}, payload)
 	if denied, ok := err.(*DeniedError); ok {
 		return nil, classifyError(denied.Payload)
@@ -204,20 +211,29 @@ func Infer(ctx context.Context, request AiInferenceRequest) (*AiInference, error
 	if err != nil {
 		return nil, err
 	}
-	out, err := yuCallJSONContext(ctx, "yu ai infer", []string{"ai", "infer", "--request-stdin"}, payload)
-	if err != nil {
-		if denied, ok := err.(*DeniedError); ok {
-			return nil, classifyError(denied.Payload)
+	var replyData any
+	if devAiURL() != "" {
+		replyData, err = devInfer(ctx, body)
+		if err != nil {
+			return nil, err
 		}
-		if unavailable, ok := err.(*UnavailableError); ok {
-			return nil, &AiUnavailableError{Msg: unavailable.Msg}
+	} else {
+		out, err := yuCallJSONContext(ctx, "yu ai infer", []string{"ai", "infer", "--request-stdin"}, payload)
+		if err != nil {
+			if denied, ok := err.(*DeniedError); ok {
+				return nil, classifyError(denied.Payload)
+			}
+			if unavailable, ok := err.(*UnavailableError); ok {
+				return nil, &AiUnavailableError{Msg: unavailable.Msg}
+			}
+			return nil, err
 		}
-		return nil, err
+		replyData = out.Data
 	}
-	if err := ValidateAiInference(out.Data); err != nil {
+	if err := ValidateAiInference(replyData); err != nil {
 		return nil, &AiUnavailableError{Msg: err.Error()}
 	}
-	reply := asMap(out.Data)
+	reply := asMap(replyData)
 	if asMap(reply["output"])["kind"] != asMap(body["input"])["kind"] {
 		return nil, &AiUnavailableError{Msg: "AI inference reply does not match the request"}
 	}
@@ -355,6 +371,9 @@ func resolveApp(modality, appID string) (string, error) {
 	app := appID
 	if app == "" {
 		app = os.Getenv("YUOS_APP_ID")
+	}
+	if app == "" && devAiURL() != "" {
+		app = "dev"
 	}
 	if app == "" {
 		return "", &AiDeniedError{Payload: map[string]any{
@@ -508,5 +527,358 @@ func parseResponse(value any) (*AiResponse, error) {
 		ToolCalls:     calls,
 		ProviderState: providerState,
 		Raw:           env,
+	}, nil
+}
+
+func devAiURL() string {
+	if strings.TrimSpace(os.Getenv("YUOS_SESSION")) != "" {
+		return ""
+	}
+	return strings.TrimRight(strings.TrimSpace(os.Getenv("YUOS_DEV_AI_URL")), "/")
+}
+
+func devAiModel() string {
+	if m := strings.TrimSpace(os.Getenv("YUOS_DEV_AI_MODEL")); m != "" {
+		return m
+	}
+	return "llama3.2"
+}
+
+func devAiKey() string {
+	return strings.TrimSpace(os.Getenv("YUOS_DEV_AI_KEY"))
+}
+
+func devPostBytes(ctx context.Context, path string, payload map[string]any) ([]byte, error) {
+	baseURL := devAiURL()
+	if baseURL == "" {
+		return nil, &AiUnavailableError{Msg: "local dev AI URL is not configured"}
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, &AiUnavailableError{Msg: err.Error()}
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, DefaultTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, baseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, &AiUnavailableError{Msg: err.Error()}
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if key := devAiKey(); key != "" {
+		req.Header.Set("Authorization", "Bearer "+key)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, &AiUnavailableError{Msg: fmt.Sprintf("dev AI request failed: %v", err)}
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, &AiUnavailableError{Msg: fmt.Sprintf("dev AI HTTP %d", resp.StatusCode)}
+	}
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, &AiUnavailableError{Msg: fmt.Sprintf("dev AI read failed: %v", err)}
+	}
+	return raw, nil
+}
+
+func devPostJSON(ctx context.Context, path string, payload map[string]any) (map[string]any, error) {
+	raw, err := devPostBytes(ctx, path, payload)
+	if err != nil {
+		return nil, err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	var parsed map[string]any
+	if err := decoder.Decode(&parsed); err != nil || parsed == nil {
+		return nil, &AiUnavailableError{Msg: fmt.Sprintf("dev AI returned invalid JSON: %v", err)}
+	}
+	return parsed, nil
+}
+
+func devChat(ctx context.Context, request AiChatRequest) (*AiResponse, error) {
+	model := devAiModel()
+	var messages []map[string]any
+	if request.System != "" {
+		messages = append(messages, map[string]any{"role": "system", "content": request.System})
+	}
+	if len(request.Images) > 0 {
+		parts := []map[string]any{{"type": "text", "text": request.Prompt}}
+		for _, b64 := range request.Images {
+			parts = append(parts, map[string]any{
+				"type":      "image_url",
+				"image_url": map[string]any{"url": "data:image/png;base64," + b64},
+			})
+		}
+		messages = append(messages, map[string]any{"role": "user", "content": parts})
+	} else {
+		messages = append(messages, map[string]any{"role": "user", "content": request.Prompt})
+	}
+	for _, turn := range request.ToolTurns {
+		toolCallsOut := make([]map[string]any, 0, len(turn.Calls))
+		for _, c := range turn.Calls {
+			argBytes, err := json.Marshal(c.Input)
+			if err != nil {
+				return nil, &AiInvalidArgsError{Msg: err.Error()}
+			}
+			toolCallsOut = append(toolCallsOut, map[string]any{
+				"id":       c.Id,
+				"type":     "function",
+				"function": map[string]any{"name": c.Name, "arguments": string(argBytes)},
+			})
+		}
+		assistantMsg := map[string]any{"role": "assistant", "tool_calls": toolCallsOut}
+		if turn.Text != "" {
+			assistantMsg["content"] = turn.Text
+		}
+		messages = append(messages, assistantMsg)
+		for _, r := range turn.Results {
+			messages = append(messages, map[string]any{
+				"role":         "tool",
+				"tool_call_id": r.Id,
+				"content":      r.Content,
+			})
+		}
+	}
+	body := map[string]any{"model": model, "messages": messages}
+	if len(request.Tools) > 0 {
+		toolsOut := make([]map[string]any, 0, len(request.Tools))
+		for _, t := range request.Tools {
+			toolsOut = append(toolsOut, map[string]any{
+				"type": "function",
+				"function": map[string]any{
+					"name":        t.Name,
+					"description": t.Description,
+					"parameters":  t.Parameters,
+				},
+			})
+		}
+		body["tools"] = toolsOut
+	}
+	if request.MaxUnits > 0 {
+		body["max_tokens"] = request.MaxUnits
+	}
+	resp, err := devPostJSON(ctx, "/chat/completions", body)
+	if err != nil {
+		return nil, err
+	}
+	var msg map[string]any
+	if choices, ok := resp["choices"].([]any); ok && len(choices) > 0 {
+		msg = asMap(asMap(choices[0])["message"])
+	}
+	text := asString(msg["content"])
+	var parsedToolCalls []any
+	if rawCalls, ok := msg["tool_calls"].([]any); ok {
+		for i, item := range rawCalls {
+			tc := asMap(item)
+			fn := asMap(tc["function"])
+			name := asString(fn["name"])
+			if name == "" {
+				return nil, &AiUnavailableError{Msg: "dev AI tool_call missing function name"}
+			}
+			var decodedArgs any = map[string]any{}
+			switch rawArgs := fn["arguments"].(type) {
+			case string:
+				if strings.TrimSpace(rawArgs) != "" {
+					dec := json.NewDecoder(strings.NewReader(rawArgs))
+					dec.UseNumber()
+					if err := dec.Decode(&decodedArgs); err != nil {
+						return nil, &AiUnavailableError{Msg: fmt.Sprintf("dev AI tool_call arguments invalid JSON: %v", err)}
+					}
+				}
+			case nil:
+			default:
+				decodedArgs = rawArgs
+			}
+			id := asString(tc["id"])
+			if id == "" {
+				id = fmt.Sprintf("call_%d", i)
+			}
+			parsedToolCalls = append(parsedToolCalls, map[string]any{
+				"id":    id,
+				"name":  name,
+				"input": decodedArgs,
+			})
+		}
+	}
+	usageObj := asMap(resp["usage"])
+	units := uint64(1)
+	if _, present := usageObj["total_tokens"]; present {
+		units = asUint64(usageObj["total_tokens"])
+	}
+	promptTokens := asUint32(usageObj["prompt_tokens"])
+	completionTokens := asUint32(usageObj["completion_tokens"])
+	actualModel := asString(resp["model"])
+	if strings.TrimSpace(actualModel) == "" {
+		actualModel = model
+	}
+	env := map[string]any{
+		"text":     text,
+		"model":    actualModel,
+		"provider": "dev",
+		"verb":     "ai.chat",
+		"usage": map[string]any{
+			"input_tokens":  json.Number(strconv.FormatUint(uint64(promptTokens), 10)),
+			"output_tokens": json.Number(strconv.FormatUint(uint64(completionTokens), 10)),
+			"units":         json.Number(strconv.FormatUint(units, 10)),
+		},
+		"budget": map[string]any{
+			"period":     "dev",
+			"units_used": json.Number("0"),
+			"units_cap":  json.Number("0"),
+		},
+		"review": map[string]any{
+			"safety":          "strict",
+			"prompt_redacted": false,
+		},
+	}
+	if len(parsedToolCalls) > 0 {
+		env["tool_calls"] = parsedToolCalls
+	}
+	return parseResponse(env)
+}
+
+func devInfer(ctx context.Context, body map[string]any) (map[string]any, error) {
+	model := devAiModel()
+	inp := asMap(body["input"])
+	kind := asString(inp["kind"])
+	units := uint32(1)
+	actualModel := model
+	var output map[string]any
+	switch kind {
+	case "embed":
+		resp, err := devPostJSON(ctx, "/embeddings", map[string]any{
+			"model": model,
+			"input": asString(inp["text"]),
+		})
+		if err != nil {
+			return nil, err
+		}
+		data, ok := resp["data"].([]any)
+		if !ok || len(data) == 0 {
+			return nil, &AiUnavailableError{Msg: "dev AI embeddings response missing data[0]"}
+		}
+		embedding, ok := asMap(data[0])["embedding"].([]any)
+		if !ok {
+			return nil, &AiUnavailableError{Msg: "dev AI embeddings response missing embedding vector"}
+		}
+		output = map[string]any{"kind": "embed", "vector": embedding}
+		if m := strings.TrimSpace(asString(resp["model"])); m != "" {
+			actualModel = m
+		}
+		if u := asUint32(asMap(resp["usage"])["total_tokens"]); u >= 1 {
+			units = u
+		}
+	case "tts":
+		raw, err := devPostBytes(ctx, "/audio/speech", map[string]any{
+			"model":           model,
+			"input":           asString(inp["text"]),
+			"voice":           "alloy",
+			"response_format": "wav",
+		})
+		if err != nil {
+			return nil, err
+		}
+		var audioB64 string
+		format := "wav"
+		var parsed map[string]any
+		if err := json.Unmarshal(raw, &parsed); err == nil && parsed != nil {
+			if s, ok := parsed["audio_base64"].(string); ok {
+				audioB64 = s
+				if f, ok := parsed["format"].(string); ok && f != "" {
+					format = f
+				}
+			}
+		}
+		if audioB64 == "" {
+			if len(raw) == 0 {
+				return nil, &AiUnavailableError{Msg: "dev AI speech response is empty"}
+			}
+			audioB64 = base64.StdEncoding.EncodeToString(raw)
+		}
+		output = map[string]any{"kind": "tts", "format": format, "audio_base64": audioB64}
+	case "stt":
+		resp, err := devPostJSON(ctx, "/audio/transcriptions", map[string]any{
+			"model":        model,
+			"audio_base64": asString(inp["audio_base64"]),
+		})
+		if err != nil {
+			return nil, err
+		}
+		text, ok := resp["text"].(string)
+		if !ok {
+			return nil, &AiUnavailableError{Msg: "dev AI transcription response missing text"}
+		}
+		output = map[string]any{"kind": "stt", "text": text}
+	case "imagegen":
+		resp, err := devPostJSON(ctx, "/images/generations", map[string]any{
+			"model":           model,
+			"prompt":          asString(inp["prompt"]),
+			"response_format": "b64_json",
+		})
+		if err != nil {
+			return nil, err
+		}
+		data, ok := resp["data"].([]any)
+		if !ok || len(data) == 0 {
+			return nil, &AiUnavailableError{Msg: "dev AI imagegen response missing data[0]"}
+		}
+		b64JSON, ok := asMap(data[0])["b64_json"].(string)
+		if !ok {
+			return nil, &AiUnavailableError{Msg: "dev AI imagegen response missing b64_json"}
+		}
+		output = map[string]any{"kind": "imagegen", "format": "png", "image_base64": b64JSON}
+	case "decision", "decide":
+		userPayload, err := json.Marshal(map[string]any{
+			"state":     inp["state"],
+			"questions": inp["questions"],
+		})
+		if err != nil {
+			return nil, &AiInvalidArgsError{Msg: err.Error()}
+		}
+		resp, err := devPostJSON(ctx, "/chat/completions", map[string]any{
+			"model":           model,
+			"response_format": map[string]any{"type": "json_object"},
+			"messages": []map[string]any{
+				{"role": "system", "content": `Return JSON {"answers": {...}} answering each question.`},
+				{"role": "user", "content": string(userPayload)},
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		choices, ok := resp["choices"].([]any)
+		if !ok || len(choices) == 0 {
+			return nil, &AiUnavailableError{Msg: "dev AI decision response missing choices[0]"}
+		}
+		content, ok := asMap(asMap(choices[0])["message"])["content"].(string)
+		if !ok {
+			return nil, &AiUnavailableError{Msg: "dev AI decision response missing message content"}
+		}
+		dec := json.NewDecoder(strings.NewReader(content))
+		dec.UseNumber()
+		var parsedContent map[string]any
+		if err := dec.Decode(&parsedContent); err != nil || parsedContent == nil {
+			return nil, &AiUnavailableError{Msg: fmt.Sprintf("dev AI decision content is not valid JSON: %v", err)}
+		}
+		answers, ok := parsedContent["answers"].(map[string]any)
+		if !ok {
+			return nil, &AiUnavailableError{Msg: "dev AI decision content missing answers object"}
+		}
+		output = map[string]any{"kind": kind, "answers": answers}
+	default:
+		return nil, &AiInvalidArgsError{Msg: "unsupported inference kind: " + kind}
+	}
+	return map[string]any{
+		"provider": "dev",
+		"model":    actualModel,
+		"units":    json.Number(strconv.FormatUint(uint64(units), 10)),
+		"output":   output,
 	}, nil
 }

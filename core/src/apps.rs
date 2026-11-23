@@ -10,6 +10,7 @@ use crate::provenance::{self, PackageKind, VerifiedPackage, VerifyOptions};
 
 pub(crate) mod installation;
 pub(crate) mod lint;
+pub(crate) mod pack;
 pub mod permission_review;
 pub(crate) mod store;
 #[cfg(target_os = "linux")]

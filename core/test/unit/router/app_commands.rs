@@ -859,3 +859,61 @@ fn install_rejects_symlink_in_source_tree() {
     let _ = std::fs::remove_dir_all(&dst);
     let _ = std::fs::remove_file(&outside);
 }
+
+#[test]
+fn dev_and_pack_run_and_package_unsigned_app_with_string_needs() {
+    let dir = tempfile::tempdir().unwrap();
+    let app_dir = dir.path().join("hello-dev");
+    std::fs::create_dir_all(&app_dir).unwrap();
+    std::fs::write(
+        app_dir.join("app.json"),
+        r#"{
+  "id": "hello-dev",
+  "version": "0.1.0",
+  "name": {"en": "Hello Dev"},
+  "ai": {},
+  "operations": {
+    "echo": {
+      "label": {"en": "Echo text"},
+      "args": [{"name": "text", "kind": "text", "required": true}],
+      "needs": ["ai.chat"]
+    }
+  }
+}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        app_dir.join("main.py"),
+        "from yuos_sdk.app import command\n\n@command('echo')\ndef echo(args):\n    return {'echo': args[0]}\n",
+    )
+    .unwrap();
+
+    let dev_out = parse(
+        dev_cmd(
+            &[
+                app_dir.display().to_string(),
+                "echo".into(),
+                "hello world".into(),
+            ],
+            None,
+        )
+        .unwrap(),
+    );
+    assert_eq!(dev_out["echo"], "hello world");
+
+    let deb_path = dir.path().join("hello-dev.deb");
+    let packed = parse(
+        pack_cmd(&[
+            app_dir.display().to_string(),
+            "--out".into(),
+            deb_path.display().to_string(),
+        ])
+        .unwrap(),
+    );
+    assert_eq!(packed["app"], "hello-dev");
+    assert_eq!(packed["package"], "yuos-app-hello-dev");
+    assert_eq!(packed["version"], "0.1.0");
+    assert_eq!(packed["architecture"], "all");
+    let bytes = std::fs::read(&deb_path).unwrap();
+    assert!(bytes.starts_with(b"!<arch>\n"));
+}

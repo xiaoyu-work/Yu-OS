@@ -527,7 +527,7 @@ class Operation(_OperationRequired, total=False):
     summary: "Localizedtext"
     stdin: bool
     args: List["Arg"]
-    needs: List["Need"]
+    needs: List[Any]
     effects: List["Operationeffect"]
 
 class _OperationeffectRequired(TypedDict):
@@ -667,7 +667,7 @@ class Mcptool(_McptoolRequired, total=False):
     authority or confirmed outcomes.
     """
     args: List["Arg"]
-    needs: List["Need"]
+    needs: List[Any]
     effects: List["Operationeffect"]
 
 class Desktop(TypedDict, total=False):
@@ -678,8 +678,8 @@ class Desktop(TypedDict, total=False):
     """
     exec: str
     entry: str
-    needs: List["Need"]
-    optional_needs: List["Need"]
+    needs: List[Any]
+    optional_needs: List[Any]
     entries: Dict[str, "DesktopEntry"]
     name: "Localizedtext"
     icon: str
@@ -692,7 +692,7 @@ class _DesktopEntryRequired(TypedDict):
     entry: str
     exec: str
     name: "Localizedtext"
-    needs: List["Need"]
+    needs: List[Any]
 
 class DesktopEntry(_DesktopEntryRequired, total=False):
     """DesktopEntry.
@@ -701,7 +701,7 @@ class DesktopEntry(_DesktopEntryRequired, total=False):
     authenticated App identity. Required needs are exclusive to this surface; no
     default-GUI, operation or MCP union.
     """
-    optional_needs: List["Need"]
+    optional_needs: List[Any]
     panel_applet: bool
 
 class _McpCallContextRequired(TypedDict):

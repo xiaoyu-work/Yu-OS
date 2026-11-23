@@ -207,3 +207,86 @@ test("proposed lossless input round-trips directly through tools.call", async ()
   const argv = readFileSync(toolFake.argvOut, "utf8").split("\n");
   assert.equal(argv[argv.indexOf("--args") + 1], lexeme);
 });
+
+test("dev AI mode calls local HTTP endpoint when YUOS_SESSION is unset and ignores it when YUOS_SESSION is set", async () => {
+  const { createServer } = await import("node:http");
+  const seen: Array<{ url: string; auth?: string; body: Record<string, unknown> }> = [];
+  const server = createServer((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => {
+      const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
+      seen.push({
+        url: req.url ?? "",
+        auth: req.headers.authorization,
+        body,
+      });
+      res.setHeader("Content-Type", "application/json");
+      if (req.url === "/v1/chat/completions") {
+        res.end(
+          JSON.stringify({
+            model: "llama3.2",
+            choices: [{ message: { role: "assistant", content: "dev reply" } }],
+            usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 },
+          }),
+        );
+      } else if (req.url === "/v1/embeddings") {
+        res.end(
+          JSON.stringify({
+            model: "llama3.2",
+            data: [{ embedding: [0.1, 0.2, 0.3] }],
+            usage: { total_tokens: 3 },
+          }),
+        );
+      } else {
+        res.statusCode = 404;
+        res.end();
+      }
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : 0;
+  const devUrl = `http://127.0.0.1:${port}/v1/`;
+
+  const savedEnv = {
+    YUOS_DEV_AI_URL: process.env.YUOS_DEV_AI_URL,
+    YUOS_DEV_AI_KEY: process.env.YUOS_DEV_AI_KEY,
+    YUOS_SESSION: process.env.YUOS_SESSION,
+  };
+  try {
+    const fake = installFakeYu(OK_CHAT);
+    process.env.YUOS_DEV_AI_URL = devUrl;
+    process.env.YUOS_DEV_AI_KEY = "dev-token";
+    delete process.env.YUOS_SESSION;
+
+    const chatRes = await withCos(fake, { YUOS_APP_ID: undefined }, () => ai.chat("hello dev"));
+    assert.equal(chatRes.text, "dev reply");
+    assert.equal(chatRes.provider, "dev");
+    assert.equal(chatRes.model, "llama3.2");
+    assert.equal(chatRes.units, 5);
+
+    const embedRes = await withCos(fake, { YUOS_APP_ID: undefined }, () => ai.embed("embed text"));
+    assert.equal(embedRes.provider, "dev");
+    assert.deepEqual(embedRes.output.vector, [0.1, 0.2, 0.3]);
+
+    assert.equal(seen.length, 2);
+    assert.equal(seen[0].url, "/v1/chat/completions");
+    assert.equal(seen[0].auth, "Bearer dev-token");
+    assert.equal(seen[1].url, "/v1/embeddings");
+
+    // When YUOS_SESSION is set, YUOS_DEV_AI_URL must be ignored and `yu` binary used.
+    seen.length = 0;
+    process.env.YUOS_SESSION = "sandbox-session-1";
+    const sandboxRes = await withCos(fake, { YUOS_APP_ID: "notes" }, () => ai.chat("hello sandbox"));
+    assert.equal(sandboxRes.text, "hello there");
+    assert.equal(sandboxRes.provider, "p");
+    assert.equal(seen.length, 0);
+  } finally {
+    for (const [k, v] of Object.entries(savedEnv)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});

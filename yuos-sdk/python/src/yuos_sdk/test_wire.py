@@ -482,6 +482,93 @@ class WireValidationTests(unittest.TestCase):
         with self.assertRaises(ai.AiInvalidArgs):
             ai.stt(b64encode(wav).decode())  # type: ignore[arg-type]
 
+    def test_dev_ai_url_and_session_override(self) -> None:
+        import http.server
+        import os
+        import threading
+
+        requests_seen: list[tuple[str, Optional[str], dict]] = []
+
+        class DevHandler(http.server.BaseHTTPRequestHandler):
+            def do_POST(self) -> None:  # noqa: N802
+                length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+                requests_seen.append((self.path, self.headers.get("Authorization"), body))
+                if self.path == "/v1/chat/completions":
+                    payload = {
+                        "model": "llama3.2",
+                        "choices": [{"message": {"role": "assistant", "content": "dev chat reply"}}],
+                        "usage": {"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5},
+                    }
+                elif self.path == "/v1/embeddings":
+                    payload = {
+                        "model": "llama3.2",
+                        "data": [{"embedding": [0.25, -0.5, 0.75]}],
+                        "usage": {"total_tokens": 4},
+                    }
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+                    return
+                raw = json.dumps(payload).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = http.server.HTTPServer(("127.0.0.1", 0), DevHandler)
+        port = server.server_port
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            dev_env = {
+                "YUOS_DEV_AI_URL": f"http://127.0.0.1:{port}/v1/",
+                "YUOS_DEV_AI_KEY": "secret-dev-key",
+            }
+            with mock.patch.dict(os.environ, dev_env, clear=False):
+                os.environ.pop("YUOS_SESSION", None)
+                os.environ.pop("YUOS_APP_ID", None)
+                chat_res = ai.chat("hello dev", system="be brief")
+                embed_res = ai.embed("embed this")
+
+            self.assertEqual(chat_res.text, "dev chat reply")
+            self.assertEqual(chat_res.output.text, "dev chat reply")
+            self.assertEqual(chat_res.provider, "dev")
+            self.assertEqual(chat_res.model, "llama3.2")
+            self.assertEqual(chat_res.units, 5)
+            self.assertEqual(embed_res.provider, "dev")
+            self.assertEqual(embed_res.output.vector, [0.25, -0.5, 0.75])
+            self.assertEqual(len(requests_seen), 2)
+            self.assertEqual(requests_seen[0][0], "/v1/chat/completions")
+            self.assertEqual(requests_seen[0][1], "Bearer secret-dev-key")
+            self.assertEqual(requests_seen[1][0], "/v1/embeddings")
+
+            # When YUOS_SESSION is set, YUOS_DEV_AI_URL must be ignored and `yu` binary used.
+            requests_seen.clear()
+            session_env = {
+                "YUOS_DEV_AI_URL": f"http://127.0.0.1:{port}/v1",
+                "YUOS_SESSION": "sandbox-session-1",
+                "YUOS_APP_ID": "notes",
+            }
+            completed = subprocess.CompletedProcess(
+                ["yu"], 0, _wire_success_json(json.dumps(_valid_ai())).encode("utf-8"), b""
+            )
+            with mock.patch.dict(os.environ, session_env, clear=False), mock.patch.object(
+                ai, "_yu_binary", return_value="yu"
+            ), mock.patch.object(subprocess, "run", return_value=completed) as run_mock:
+                res = ai.chat("hello sandbox")
+            self.assertEqual(res.text, "hello")
+            self.assertEqual(res.provider, "p")
+            self.assertEqual(len(requests_seen), 0)
+            self.assertTrue(run_mock.called)
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_transport_rejects_flat_and_incoherent_wire_replies(self) -> None:
         for completed in (
             subprocess.CompletedProcess(["yu"], 0, '{"value":1}', ""),
