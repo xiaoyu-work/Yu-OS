@@ -916,4 +916,21 @@ fn dev_and_pack_run_and_package_unsigned_app_with_string_needs() {
     assert_eq!(packed["architecture"], "all");
     let bytes = std::fs::read(&deb_path).unwrap();
     assert!(bytes.starts_with(b"!<arch>\n"));
+
+    let store_dir = dir.path().join("store");
+    let submitted = parse(
+        submit_cmd(&[
+            deb_path.display().to_string(),
+            "--dir".into(),
+            store_dir.display().to_string(),
+        ])
+        .unwrap(),
+    );
+    assert_eq!(submitted["submitted"], true);
+    assert_eq!(submitted["app"], "hello-dev");
+    assert!(store_dir
+        .join("submissions")
+        .join("incoming")
+        .join("yuos-app-hello-dev_0.1.0_all.deb")
+        .is_file());
 }

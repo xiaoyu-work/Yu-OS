@@ -5,21 +5,26 @@ Save these two files in `hello-ai/`:
 
 **`main.py`**
 
-`@command("summarize")` marks the function that `yu app hello-ai summarize`
-runs. `args` holds the text after the command name.
+`@command("summarize")` marks the command-line entry (`yu app hello-ai summarize`).
+`@desktop` marks the desktop window entry (App launcher or `yu app hello-ai --gui`).
 
 ```python
 from yuos_sdk.ai import chat
-from yuos_sdk.app import command
+from yuos_sdk.app import command, desktop
 
 @command("summarize")
 def summarize(args):
     reply = chat(args[0], system="Summarize in one short sentence.")
     return {"summary": reply.output.text}
+
+@desktop
+def open_window(files):
+    reply = chat("Give a one-sentence welcome.")
+    print(reply.output.text)  # Or open your window with any GUI toolkit.
 ```
 
-This App has a command-line version. Mark a function with `@desktop` to add
-a [desktop version](REFERENCE.md#command-line-and-desktop).
+See [Command line and desktop](REFERENCE.md#command-line-and-desktop) if your App
+only needs one of the two.
 
 **`app.json`**
 
@@ -35,6 +40,9 @@ a [desktop version](REFERENCE.md#command-line-and-desktop).
       "args": [{"name": "text", "kind": "text", "required": true}],
       "needs": ["ai.chat"]
     }
+  },
+  "desktop": {
+    "needs": ["ai.chat"]
   }
 }
 ```
@@ -43,11 +51,12 @@ a [desktop version](REFERENCE.md#command-line-and-desktop).
 
 Point `YUOS_DEV_AI_URL` at a local or OpenAI-compatible model endpoint (such as
 Ollama at `http://localhost:11434/v1`, with optional `YUOS_DEV_AI_MODEL` and
-`YUOS_DEV_AI_KEY`) and run the App directory:
+`YUOS_DEV_AI_KEY`) and run the command-line or desktop entry:
 
 ```sh
 export YUOS_DEV_AI_URL="http://localhost:11434/v1"
 yu app dev ./hello-ai summarize "We moved the launch to Friday because the tests aren't ready."
+yu app dev ./hello-ai --gui
 ```
 
 Or run `main.py` directly through the SDK:
@@ -61,14 +70,21 @@ YUOS_DEV_AI_URL="http://localhost:11434/v1" \
 {"summary": "The launch moved to Friday because testing isn't finished."}
 ```
 
-### 2. Package `.deb` for Store review
+### 2. Package
 
-Pack the directory into a `.deb` archive and submit it to
-[`xiaoyu-work/yuos-app`](https://github.com/xiaoyu-work/yuos-app)
-(`submissions/incoming/`):
+Build `yuos-app-hello-ai_0.1.0_all.deb`:
 
 ```sh
 yu app pack ./hello-ai
+```
+
+### 3. Submit
+
+Submit the `.deb` to [`xiaoyu-work/yuos-app`](https://github.com/xiaoyu-work/yuos-app)
+for Store review:
+
+```sh
+yu app submit yuos-app-hello-ai_0.1.0_all.deb
 ```
 
 After review, the Store publishes it to the Yu OS APT repository.

@@ -87,9 +87,15 @@ pub(super) fn dispatch_app(
     }
 
     // Special: `yu app pack <dir> [--out <file.deb>] [--arch all|amd64|arm64]` —
-    // package an App directory into a clean `.deb` for Store review.
+    // package an App directory into a `.deb` archive.
     if app_name == "pack" {
         return pack_cmd(&args[1..]);
+    }
+
+    // Special: `yu app submit <file.deb> [--repo <owner/repo>] [--dir <path>]` —
+    // submit a packaged `.deb` to the Store review queue.
+    if app_name == "submit" {
+        return submit_cmd(&args[1..]);
     }
 
     // Special: `yu app dev <dir> <command> [args...]` — run a local
@@ -1339,6 +1345,48 @@ pub(super) fn pack_cmd(args: &[String]) -> Result<Option<String>, String> {
         "usage: yu app pack <dir> [--out <file.deb>] [--arch all|amd64|arm64]".to_string()
     })?;
     let result = apps::pack::pack_app_deb(&source, out.as_deref(), &arch)?;
+    Ok(Some(result.to_string()))
+}
+
+/// `yu app submit <file.deb> [--repo <owner/repo>] [--dir <path>]` —
+/// submit a packaged `.deb` archive to the Store review queue.
+pub(super) fn submit_cmd(args: &[String]) -> Result<Option<String>, String> {
+    let mut deb: Option<PathBuf> = None;
+    let mut repo = apps::pack::DEFAULT_STORE_REPO.to_string();
+    let mut dir: Option<PathBuf> = None;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--repo" => {
+                let val = args
+                    .get(i + 1)
+                    .ok_or_else(|| "usage: yu app submit <file.deb> [--repo <owner/repo>] [--dir <path>]".to_string())?;
+                repo = val.clone();
+                i += 2;
+            }
+            "--dir" => {
+                let val = args
+                    .get(i + 1)
+                    .ok_or_else(|| "usage: yu app submit <file.deb> [--repo <owner/repo>] [--dir <path>]".to_string())?;
+                dir = Some(PathBuf::from(val));
+                i += 2;
+            }
+            flag if flag.starts_with('-') => {
+                return Err(format!("unknown flag `{flag}` for `yu app submit`"));
+            }
+            positional => {
+                if deb.is_some() {
+                    return Err("usage: yu app submit <file.deb> [--repo <owner/repo>] [--dir <path>]".to_string());
+                }
+                deb = Some(PathBuf::from(positional));
+                i += 1;
+            }
+        }
+    }
+    let deb = deb.ok_or_else(|| {
+        "usage: yu app submit <file.deb> [--repo <owner/repo>] [--dir <path>]".to_string()
+    })?;
+    let result = apps::pack::submit_app_deb(&deb, &repo, dir.as_deref())?;
     Ok(Some(result.to_string()))
 }
 

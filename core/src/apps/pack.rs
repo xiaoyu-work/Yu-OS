@@ -130,6 +130,200 @@ pub(crate) fn pack_app_deb(
     }))
 }
 
+pub(crate) const DEFAULT_STORE_REPO: &str = "xiaoyu-work/yuos-app";
+
+/// Inspect a `.deb` created by `yu app pack` and submit it to the Store review queue.
+pub(crate) fn submit_app_deb(
+    deb_path: &Path,
+    repo: &str,
+    local_dir: Option<&Path>,
+) -> Result<Value, String> {
+    if !deb_path.is_file() {
+        return Err(format!("deb file `{}` does not exist", deb_path.display()));
+    }
+    let bytes = fs::read(deb_path).map_err(|e| format!("read {}: {e}", deb_path.display()))?;
+    let (package, app_id, version, architecture) = inspect_packed_deb(&bytes)?;
+    let filename = format!("{package}_{version}_{architecture}.deb");
+    let sha256 = hex::encode(Sha256::digest(&bytes));
+
+    let env_dir = std::env::var_os("YUOS_STORE_SUBMISSIONS_DIR").map(PathBuf::from);
+    if let Some(target_root) = local_dir.or(env_dir.as_deref()) {
+        let incoming = if target_root.ends_with("incoming") {
+            target_root.to_path_buf()
+        } else {
+            target_root.join("submissions").join("incoming")
+        };
+        fs::create_dir_all(&incoming)
+            .map_err(|e| format!("create {}: {e}", incoming.display()))?;
+        let dest = incoming.join(&filename);
+        fs::write(&dest, &bytes).map_err(|e| format!("write {}: {e}", dest.display()))?;
+        return Ok(json!({
+            "submitted": true,
+            "app": app_id,
+            "package": package,
+            "version": version,
+            "architecture": architecture,
+            "sha256": sha256,
+            "destination": dest.display().to_string(),
+        }));
+    }
+
+    let pr_url = submit_deb_pr(&bytes, &filename, &app_id, &version, repo)?;
+    Ok(json!({
+        "submitted": true,
+        "app": app_id,
+        "package": package,
+        "version": version,
+        "architecture": architecture,
+        "sha256": sha256,
+        "repository": repo,
+        "path": format!("submissions/incoming/{filename}"),
+        "pull_request": pr_url,
+    }))
+}
+
+fn inspect_packed_deb(bytes: &[u8]) -> Result<(String, String, String, String), String> {
+    use flate2::read::GzDecoder;
+    use std::io::Read;
+
+    if !bytes.starts_with(b"!<arch>\n") {
+        return Err("not a valid Debian .deb archive".into());
+    }
+    let mut pos = 8usize;
+    let mut control_tar_gz: Option<&[u8]> = None;
+    let mut has_data = false;
+    while pos + 60 <= bytes.len() {
+        let header = std::str::from_utf8(&bytes[pos..pos + 60])
+            .map_err(|_| "invalid ar member header".to_string())?;
+        let name = header[0..16].trim().trim_end_matches('/');
+        let size: usize = header[48..58]
+            .trim()
+            .parse()
+            .map_err(|_| format!("invalid ar member size for {name}"))?;
+        let start = pos + 60;
+        let end = start
+            .checked_add(size)
+            .filter(|&e| e <= bytes.len())
+            .ok_or_else(|| format!("truncated ar member {name}"))?;
+        let data = &bytes[start..end];
+        if name == "control.tar.gz" {
+            control_tar_gz = Some(data);
+        } else if name == "data.tar.gz" {
+            has_data = true;
+        }
+        pos = end + (size % 2);
+    }
+    let control_gz = control_tar_gz.ok_or("deb archive is missing control.tar.gz")?;
+    if !has_data {
+        return Err("deb archive is missing data.tar.gz".into());
+    }
+    let decoder = GzDecoder::new(control_gz);
+    let mut archive = tar::Archive::new(decoder);
+    let mut control_text = None;
+    for entry in archive.entries().map_err(|e| e.to_string())? {
+        let mut entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path().map_err(|e| e.to_string())?.to_string_lossy().into_owned();
+        if path.trim_start_matches("./") == "control" {
+            let mut s = String::new();
+            entry.read_to_string(&mut s).map_err(|e| e.to_string())?;
+            control_text = Some(s);
+            break;
+        }
+    }
+    let control = control_text.ok_or("control.tar.gz is missing control")?;
+    let mut package = None;
+    let mut version = None;
+    let mut arch = None;
+    let mut app_id = None;
+    for line in control.lines() {
+        if let Some((k, v)) = line.split_once(':') {
+            let v = v.trim().to_string();
+            match k.trim() {
+                "Package" => package = Some(v),
+                "Version" => version = Some(v),
+                "Architecture" => arch = Some(v),
+                "X-YuOS-App-Ids" => app_id = Some(v),
+                _ => {}
+            }
+        }
+    }
+    let package = package.ok_or("control is missing Package")?;
+    let version = version.ok_or("control is missing Version")?;
+    let arch = arch.ok_or("control is missing Architecture")?;
+    let app_id = app_id.ok_or("control is missing X-YuOS-App-Ids")?;
+    if package != format!("yuos-app-{app_id}") {
+        return Err(format!(
+            "Package `{package}` does not match X-YuOS-App-Ids `{app_id}`"
+        ));
+    }
+    Ok((package, app_id, version, arch))
+}
+
+fn submit_deb_pr(
+    bytes: &[u8],
+    filename: &str,
+    app_id: &str,
+    version: &str,
+    repo: &str,
+) -> Result<String, String> {
+    use std::process::Command;
+
+    let tmp = tempfile::tempdir().map_err(|e| format!("create tempdir: {e}"))?;
+    let clone_dir = tmp.path().join("store");
+    let status = Command::new("gh")
+        .args(["repo", "clone", repo, &clone_dir.display().to_string(), "--", "--depth=1"])
+        .status()
+        .map_err(|e| format!("run `gh repo clone {repo}`: {e}"))?;
+    if !status.success() {
+        return Err(format!("`gh repo clone {repo}` failed; sign in with `gh auth login` first"));
+    }
+    let branch = format!("submit-{app_id}-{version}");
+    let run_git = |args: &[&str]| -> Result<(), String> {
+        let out = Command::new("git")
+            .current_dir(&clone_dir)
+            .args(args)
+            .output()
+            .map_err(|e| format!("git {}: {e}", args.join(" ")))?;
+        if !out.status.success() {
+            return Err(format!(
+                "git {} failed: {}",
+                args.join(" "),
+                String::from_utf8_lossy(&out.stderr).trim()
+            ));
+        }
+        Ok(())
+    };
+    run_git(&["checkout", "-b", &branch])?;
+    let incoming = clone_dir.join("submissions").join("incoming");
+    fs::create_dir_all(&incoming).map_err(|e| e.to_string())?;
+    let rel_path = format!("submissions/incoming/{filename}");
+    fs::write(clone_dir.join(&rel_path), bytes).map_err(|e| e.to_string())?;
+    run_git(&["add", "--", &rel_path])?;
+    let title = format!("Submit {app_id} {version}");
+    run_git(&["commit", "-m", &title])?;
+    let out = Command::new("gh")
+        .current_dir(&clone_dir)
+        .args([
+            "pr",
+            "create",
+            "--repo",
+            repo,
+            "--title",
+            &title,
+            "--body",
+            &format!("Submit `{filename}` for Store review (`python3 tools/store_submission.py review {rel_path}`)."),
+        ])
+        .output()
+        .map_err(|e| format!("gh pr create: {e}"))?;
+    if !out.status.success() {
+        return Err(format!(
+            "gh pr create failed: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
 fn declared_entrypoints(manifest: &AppManifest) -> BTreeSet<String> {
     let mut entries = BTreeSet::new();
     if !manifest.operations.is_empty() || manifest.desktop.is_some() {
