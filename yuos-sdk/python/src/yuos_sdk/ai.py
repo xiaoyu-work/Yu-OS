@@ -17,7 +17,7 @@ import urllib.request
 from base64 import b64decode, b64encode
 from dataclasses import dataclass, field
 from typing import (
-    Any, Callable, Dict, Generic, List, Literal, Mapping, NoReturn, Optional,
+    Any, Callable, Dict, Generic, Iterator, List, Literal, Mapping, NoReturn, Optional,
     Sequence, TypeVar, cast,
 )
 
@@ -259,6 +259,35 @@ def chat_request(request: AiChatRequest) -> AiResponse:
     if _dev_ai_url() is not None:
         return _dev_chat(request)
     return _parse_response(_model_call("chat", "--request-stdin", data=data))
+
+
+def chat_stream(
+    prompt: str,
+    *,
+    origin: Optional[Origin] = None,
+    max_units: Optional[int] = None,
+    system: Optional[str] = None,
+    images: Sequence[bytes] = (),
+) -> Iterator[str]:
+    """Stream text chunks from the configured chat model."""
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise AiInvalidArgs("chat_stream: prompt must be non-empty")
+    if origin is not None and (not isinstance(origin, str) or not origin.strip()):
+        raise AiInvalidArgs("chat_stream: invalid origin")
+    request: AiChatRequest = {"prompt": prompt, "origin": origin or "app"}
+    if system is not None:
+        request["system"] = system
+    if max_units is not None:
+        request["max_units"] = max_units
+    if images:
+        request["images"] = [_encode_media(image, "chat_stream: images") for image in images]
+    _encode_request(request, validate_ai_chat_request)
+    if _dev_ai_url() is not None:
+        yield from _dev_chat_stream(request)
+        return
+    reply = chat_request(request)
+    if reply.output.text:
+        yield reply.output.text
 
 
 def infer(request: AiInferenceRequest) -> AiInference:
@@ -717,6 +746,71 @@ def _dev_chat(request: AiChatRequest) -> AiResponse:
     if parsed_tool_calls:
         env["tool_calls"] = parsed_tool_calls
     return _parse_response(env)
+
+
+def _dev_chat_stream(request: AiChatRequest) -> Iterator[str]:
+    base_url = _dev_ai_url()
+    assert base_url is not None
+    model = _dev_ai_model()
+    messages: List[Dict[str, Any]] = []
+    if "system" in request and request["system"] is not None:
+        messages.append({"role": "system", "content": request["system"]})
+    images = request.get("images")
+    if images:
+        content_parts: List[Dict[str, Any]] = [{"type": "text", "text": request["prompt"]}]
+        for b64 in images:
+            content_parts.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}})
+        messages.append({"role": "user", "content": content_parts})
+    else:
+        messages.append({"role": "user", "content": request["prompt"]})
+    body: Dict[str, Any] = {"model": model, "messages": messages, "stream": True}
+    if "max_units" in request and request["max_units"] is not None:
+        body["max_tokens"] = wire_integer_to_int(request["max_units"])
+    headers = {"Content-Type": "application/json"}
+    key = _dev_ai_key()
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+    req = urllib.request.Request(
+        f"{base_url}/chat/completions",
+        data=json.dumps(body).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=_DEFAULT_TIMEOUT_S) as resp:
+            ctype = (resp.headers.get("Content-Type") or "").lower()
+            raw = resp.read().decode("utf-8")
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as error:
+        raise AiUnavailable(f"dev AI stream failed: {error}") from error
+    if "text/event-stream" in ctype or raw.lstrip().startswith("data:"):
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line.startswith("data:"):
+                continue
+            data_str = line[5:].strip()
+            if data_str == "[DONE]" or not data_str:
+                continue
+            try:
+                chunk_obj = json.loads(data_str)
+            except json.JSONDecodeError:
+                continue
+            choices = chunk_obj.get("choices") if isinstance(chunk_obj, dict) else None
+            if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+                delta = choices[0].get("delta") or choices[0].get("message") or {}
+                if isinstance(delta, dict):
+                    piece = delta.get("content")
+                    if isinstance(piece, str) and piece:
+                        yield piece
+        return
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise AiUnavailable(f"dev AI stream returned invalid JSON: {error}") from error
+    choices = parsed.get("choices") if isinstance(parsed, dict) else None
+    if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+        msg = choices[0].get("message") or {}
+        if isinstance(msg, dict) and isinstance(msg.get("content"), str) and msg["content"]:
+            yield msg["content"]
 
 
 def _dev_infer(request: AiInferenceRequest) -> Dict[str, Any]:

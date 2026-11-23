@@ -16,6 +16,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 // CommandFunc receives a command's validated arguments and returns a JSON value.
@@ -38,6 +40,54 @@ func HandleCommand(name string, fn CommandFunc) {
 		panic(fmt.Sprintf("yuossdk: command %q already has a function", name))
 	}
 	commandFuncs[name] = fn
+}
+
+// DataDir returns the App's private data directory, creating it if needed.
+func DataDir() (string, error) {
+	dir := os.Getenv("YUOS_DATA_DIR")
+	if dir == "" {
+		base := os.Getenv("XDG_DATA_HOME")
+		if base == "" {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return "", err
+			}
+			base = filepath.Join(home, ".local", "share")
+		}
+		appID := os.Getenv("YUOS_APP_ID")
+		if appID == "" {
+			appID = "dev"
+		}
+		dir = filepath.Join(base, "yuos-dev", "apps", appID)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
+// Notify posts a system notification from this App (`ui.notify`).
+func Notify(summary, body string) error {
+	if strings.TrimSpace(summary) == "" {
+		return errors.New("notify: summary must be non-empty")
+	}
+	if os.Getenv("YUOS_SESSION") == "" {
+		return nil
+	}
+	payload, err := json.Marshal(map[string]any{
+		"action":    "post",
+		"summary":   summary,
+		"body":      body,
+		"app_name":  os.Getenv("YUOS_APP_ID"),
+		"icon":      "",
+		"expire_ms": 0,
+		"transient": false,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = yuCallJSON("yu __notifications", []string{"__notifications", "request", "--request-stdin", "--deadline", "9999999999999"}, payload)
+	return err
 }
 
 // HandleDesktop runs fn to open the App's desktop window.

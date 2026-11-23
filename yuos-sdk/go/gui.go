@@ -199,6 +199,46 @@ type GuiContext struct {
 // Context builds the GuiContext for the current GUI launch. It rejects
 // missing App identity and malformed host arguments. Files defaults to
 // the launcher's YUOS_ARGS_JSON array when nil.
+// OpenFile opens the system file picker and returns the selected file path, or "" if cancelled.
+func OpenFile(title string) (string, error) {
+	if os.Getenv("YUOS_SESSION") == "" {
+		if devFile, ok := os.LookupEnv("YUOS_DEV_OPEN_FILE"); ok {
+			return devFile, nil
+		}
+	}
+	if title == "" {
+		title = "Open file"
+	}
+	reqID := fmt.Sprintf("%032x", time.Now().UnixNano())
+	if _, err := selectedFileCall("__gui-file-picker", "open", map[string]any{"request_id": reqID, "title": title, "modal": true}); err != nil {
+		return "", err
+	}
+	for {
+		raw, err := selectedFileCall("__gui-file-picker", "status", map[string]any{"request_id": reqID})
+		if err != nil {
+			return "", err
+		}
+		res, _ := raw.(map[string]any)
+		status, _ := res["status"].(string)
+		if status == "pending" || status == "cleanup_pending" {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		if status == "selected" {
+			uri, _ := res["uri"].(string)
+			return strings.TrimPrefix(uri, "file://"), nil
+		}
+		if status == "cancelled" {
+			return "", nil
+		}
+		errMsg, _ := res["error"].(string)
+		if errMsg == "" {
+			errMsg = "file picker failed"
+		}
+		return "", fmt.Errorf("%s", errMsg)
+	}
+}
+
 func Context(files []string) (*GuiContext, error) {
 	appID := os.Getenv("YUOS_APP_ID")
 	if appID == "" {

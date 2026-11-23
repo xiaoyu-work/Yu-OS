@@ -12,6 +12,11 @@
 //
 // Declare the command under `operations` in app.json.
 
+import { mkdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { yuCallJson } from "./transport";
+
 /** Receives a command's validated arguments. */
 export type Handler = (args: string[]) => unknown;
 /** Opens the App's desktop window. */
@@ -19,6 +24,45 @@ export type DesktopHandler = (files?: string[]) => unknown;
 
 const commands = new Map<string, Handler>();
 let desktopHandler: DesktopHandler | undefined;
+
+/** Return the App's private data directory, creating it if needed. */
+export function dataDir(): string {
+  const envDir = process.env.YUOS_DATA_DIR;
+  const dir = envDir
+    ? envDir
+    : join(
+        process.env.XDG_DATA_HOME || join(homedir(), ".local", "share"),
+        "yuos-dev",
+        "apps",
+        process.env.YUOS_APP_ID || "dev",
+      );
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+/** Post a system notification from this App (`ui.notify`). */
+export function notify(summary: string, body = ""): Record<string, unknown> {
+  if (!summary || !summary.trim()) throw new Error("notify: summary must be non-empty");
+  if (!process.env.YUOS_SESSION) {
+    return { status: "dev", summary, body };
+  }
+  const deadline = String(Date.now() + 10_000);
+  const payload = JSON.stringify({
+    action: "post",
+    summary,
+    body,
+    app_name: process.env.YUOS_APP_ID || "",
+    icon: "",
+    expire_ms: 0,
+    transient: false,
+  });
+  return yuCallJson(
+    "yu __notifications",
+    ["__notifications", "request", "--request-stdin", "--deadline", deadline],
+    10_000,
+    payload,
+  ) as Record<string, unknown>;
+}
 
 /** Run `handler` for `yu app <id> <name>`. Its return value is printed as JSON. */
 export function command(nameOrHandler: string | Handler, maybeHandler?: Handler): void {

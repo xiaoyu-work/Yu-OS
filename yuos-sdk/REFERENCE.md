@@ -1,6 +1,18 @@
 # Yu OS SDK Reference
 
-New to the SDK? Start with the [Quickstart](QUICKSTART.md).
+New to the SDK? Start with the [Quickstart](QUICKSTART.md), or see
+[Integrating an Existing Linux App](../docs/linux-app-integration.md).
+
+## Modules overview
+
+| Module | Python | Node.js | Go | Rust | Purpose |
+|---|---|---|---|---|---|
+| **App** | `yuos_sdk.app` | `app` | `yuossdk` | `yuos_sdk::app` | `@command`, `@desktop`, `run()`, `data_dir()`, `notify()` |
+| **AI** | `yuos_sdk.ai` | `ai` | `yuossdk` | `yuos_sdk::ai` | `chat`, `chat_stream`, `embed`, `tts`, `stt`, `imagegen`, `decide`, `budget` |
+| **GUI** | `yuos_sdk.gui` | `gui` | `yuossdk` | `yuos_sdk::gui` | `open_file()`, `context()`, `open_agent_overlay()`, `is_gui_launch()` |
+| **MCP** | `yuos_sdk.mcp` | `mcp` | `yuossdk` | `yuos_sdk::mcp` | Expose App tools to the built-in System Agent |
+| **Objects** | `yuos_sdk.objects` | `objects` | `yuossdk` | `yuos_sdk::objects` | Canonical `app://` object references (`ObjectRef`) |
+| **Events** | `yuos_sdk.events` | `events` | `yuossdk` | `yuos_sdk::events` | Publish App events (`ipc.publish` on `app:<id>`) |
 
 ## The model
 
@@ -50,6 +62,9 @@ desktop function with `@desktop`:
 }
 ```
 
+<details open>
+<summary><b>Python</b></summary>
+
 ```python
 from yuos_sdk.ai import chat
 from yuos_sdk.app import command, desktop
@@ -66,6 +81,71 @@ def main():
     ...  # Open your window with any GUI toolkit and call summarize_text(...).
 ```
 
+</details>
+
+<details>
+<summary><b>Node.js / TypeScript</b></summary>
+
+```ts
+import { ai, app } from "@yuos/sdk";
+
+async function summarizeText(text: string): Promise<string> {
+  return (await ai.chat(text, { system: "Summarize in one short sentence." })).output.text;
+}
+
+app.command(async function summarize(args) {
+  return { summary: await summarizeText(args[0]) };
+});
+
+app.desktop(async () => {
+  // Open your window with any GUI toolkit and call summarizeText(...).
+});
+
+app.run();
+```
+
+</details>
+
+<details>
+<summary><b>Go</b></summary>
+
+```go
+yuossdk.HandleCommand("summarize", func(args []string) (any, error) {
+	reply, err := yuossdk.Chat(args[0], yuossdk.ChatOptions{System: "Summarize in one short sentence."})
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"summary": reply.Output.Text}, nil
+})
+yuossdk.HandleDesktop(func() error {
+	// Open your window with any GUI toolkit.
+	return nil
+})
+_ = yuossdk.RunApp()
+```
+
+</details>
+
+<details>
+<summary><b>Rust</b></summary>
+
+```rust
+use yuos_sdk::{ai, app};
+
+app::App::new()
+    .command("summarize", |args| {
+        let reply = ai::chat(&args[0], ai::ChatOpts::new().system("Summarize in one short sentence."))?;
+        Ok(serde_json::json!({ "summary": reply.output.text }))
+    })
+    .desktop(|| {
+        // Open your window with any GUI toolkit.
+        Ok(())
+    })
+    .run()?;
+```
+
+</details>
+
 `@command` uses the function name as the command name (or pass `@command("name")`
 to customize it). A command function receives the validated arguments after the
 command name and returns a JSON value. `@desktop` marks the desktop main entry
@@ -73,10 +153,37 @@ command name and returns a JSON value. `@desktop` marks the desktop main entry
 an App only implements `@command` or only implements `@desktop`, launching the
 other surface returns the built-in unavailable-surface response automatically.
 
-Node uses `app.command(name, fn)`, `app.desktop(fn)`, and `app.run()`. Go uses
+Node uses `app.command(fn)`, `app.desktop(fn)`, and `app.run()`. Go uses
 `HandleCommand`, `HandleDesktop`, and `RunApp()`. Rust uses
 `app::App::new().command(name, fn).desktop(fn).run()`.
 `yu app create <id> --kind both` creates an App with both versions.
+
+### App API (`yuos_sdk.app`)
+
+| Python | Node.js | Go | Rust | Description |
+|---|---|---|---|---|
+| `@command` / `@command(name)` | `app.command(fn)` / `app.command(name, fn)` | `HandleCommand(name, fn)` | `App::command(name, fn)` | Register a CLI command handler (`args -> dict`). |
+| `@desktop` | `app.desktop(fn)` | `HandleDesktop(fn)` | `App::desktop(fn)` | Register the zero-argument desktop entry (`() -> None`). |
+| `run()` | `await app.run()` | `RunApp()` | `App::run()` | Dispatch the current launch (or return the built-in unavailable-surface fallback). |
+| `data_dir() -> Path` | `app.dataDir(): string` | `DataDir() (string, error)` | `app::data_dir() -> io::Result<PathBuf>` | Return (and create) this App's private data directory. |
+| `notify(summary, body="")` | `app.notify(summary, body)` | `Notify(summary, body)` | `app::notify(summary, body)` | Post a system notification (`ui.notify`). |
+
+### GUI API (`yuos_sdk.gui`)
+
+| Python | Node.js | Go | Rust | Description |
+|---|---|---|---|---|
+| `gui.open_file(title="Open file") -> str \| None` | `gui.openFile(title): string \| null` | `OpenFile(title) (string, error)` | `gui::open_file(title) -> Result<Option<String>, String>` | Open the system file picker and return the selected file path (or `None` if cancelled). |
+| `gui.context() -> GuiContext` | `gui.context(): GuiContext` | `Context(nil) (*GuiContext, error)` | `gui::Context::from_env()` | Read `app_id`, associated `files`, and `open_agent_overlay(hint)`. |
+| `gui.is_gui_launch() -> bool` | `gui.isGuiLaunch(): boolean` | `IsGuiLaunch() bool` | `gui::is_gui_launch() -> bool` | Return `True` when started as a desktop GUI (`YUOS_APP_GUI=1`). |
+
+### MCP API (`yuos_sdk.mcp`)
+
+| Python | Node.js | Go | Rust | Description |
+|---|---|---|---|---|
+| `App.from_manifest()` | `mcp.App.fromManifest()` | `LoadMCPApp()` | `mcp::App::from_environment()` | Load `app.json` and initialize the MCP service runtime. |
+| `@app.tool(name)` | `app.tool(name, fn)` | `app.Bind(name, fn)` | `app.bind(tool)` | Bind a handler to a tool declared in `mcp.tools`. |
+| `app.serve()` | `await app.serve()` | `app.ServeStdio()` | `app.serve_stdio().await` | Run the JSON-RPC stdio server loop for the App Host. |
+| `ToolResult.text(s)` / `ToolResult.json(v)` | `mcp.ToolResult.text(s)` | `TextResult(s)` | `ToolResult::text(s)` | Construct a structured tool reply. |
 
 ## Desktop defaults
 
@@ -177,22 +284,80 @@ and notifies the owner near or at the limit.
 | SDK call | Model input | App capability | `output` |
 |---|---|---|---|
 | `chat` | Prompt, optional images and App functions | `ai.chat` | `text`, optional function calls |
-| `embed` | Text | `ai.embed` | `vector` |
+| `chat_stream` | Prompt and optional images | `ai.chat` | Iterator / stream of `str` text chunks |
+| `embed` | Text | `ai.embed` | `vector` (`list[float]`) |
 | `tts` | Text | `ai.audio.tts` | `format`, `audio` bytes, optional `sample_rate_hz` |
 | `stt` | WAV, MP3, or Ogg audio bytes | `ai.audio.stt` | `text` |
 | `imagegen` | Prompt | `ai.image.generate` | `format`, `image` bytes |
 | `decide` | `state` and [questions](../docs/decision-model.md) | `ai.decide` | `answers` |
 
-Each call returns `provider`, `model`, `units`, and `output`. Import the
-function you want:
+Each `chat`, `embed`, `tts`, `stt`, `imagegen`, and `decide` call returns
+`provider`, `model`, `units`, and `output`. `chat_stream` yields text chunks as
+they arrive:
+
+<details open>
+<summary><b>Python</b></summary>
 
 ```python
-from yuos_sdk.ai import chat, embed
+from yuos_sdk.ai import chat, chat_stream, embed
 
 reply = chat("Summarize this sentence.")
+for chunk in chat_stream("Write a two-sentence summary."):
+    print(chunk, end="", flush=True)
 vector = embed("Text to index.").output.vector
-print(reply.output.text)
 ```
+
+</details>
+
+<details>
+<summary><b>Node.js / TypeScript</b></summary>
+
+```ts
+import { ai } from "@yuos/sdk";
+
+const reply = await ai.chat("Summarize this sentence.");
+for await (const chunk of ai.chatStream("Write a two-sentence summary.")) {
+  process.stdout.write(chunk);
+}
+const vector = (await ai.embed("Text to index.")).output.vector;
+```
+
+</details>
+
+<details>
+<summary><b>Go</b></summary>
+
+```go
+reply, err := yuossdk.Chat("Summarize this sentence.", yuossdk.ChatOptions{})
+_, err = yuossdk.ChatStream(ctx, "Write a two-sentence summary.", yuossdk.ChatOptions{}, func(chunk string) error {
+	fmt.Print(chunk)
+	return nil
+})
+emb, err := yuossdk.Embed(ctx, "Text to index.", yuossdk.ModelOptions{})
+```
+
+</details>
+
+<details>
+<summary><b>Rust</b></summary>
+
+```rust
+use yuos_sdk::ai;
+
+let reply = ai::chat("Summarize this sentence.", ai::ChatOpts::new())?;
+ai::chat_stream("Write a two-sentence summary.", ai::ChatOpts::new(), |chunk| {
+    print!("{chunk}");
+})?;
+let vector = ai::embed("Text to index.", ai::ModelOpts::default())?.output.vector;
+```
+
+</details>
+
+For local development outside a Yu OS session, set `YUOS_DEV_AI_URL` (for
+example `http://localhost:11434/v1` for Ollama or any OpenAI-compatible `/v1`
+endpoint), plus optional `YUOS_DEV_AI_MODEL` and `YUOS_DEV_AI_KEY`. Inside an
+authenticated Yu OS session (`YUOS_SESSION`), the SDK ignores `YUOS_DEV_AI_*`
+and routes through `yuosd`.
 
 [Node](node/README.md#ai-and-catalog-tools), [Go](go/README.md#ai-support),
 and [Rust](rust/README.md#ai-support) expose the same six calls.
@@ -218,12 +383,59 @@ work. Let the user decide whether to submit another call.
 Use a chat model that supports images. Pass the image bytes; Yu OS detects
 PNG, JPEG, or WebP automatically. Send up to four images, 512 KiB combined.
 
+<details open>
+<summary><b>Python</b></summary>
+
 ```python
 from yuos_sdk.ai import chat
 
 def describe_image(png_bytes: bytes) -> str:
     return chat("Describe this image.", images=[png_bytes]).output.text
 ```
+
+</details>
+
+<details>
+<summary><b>Node.js / TypeScript</b></summary>
+
+```ts
+import { ai } from "@yuos/sdk";
+
+async function describeImage(pngBytes: Uint8Array): Promise<string> {
+  return (await ai.chat("Describe this image.", { images: [pngBytes] })).output.text;
+}
+```
+
+</details>
+
+<details>
+<summary><b>Go</b></summary>
+
+```go
+func describeImage(pngBytes []byte) (string, error) {
+	reply, err := yuossdk.Chat("Describe this image.", yuossdk.ChatOptions{Images: [][]byte{pngBytes}})
+	if err != nil {
+		return "", err
+	}
+	return reply.Output.Text, nil
+}
+```
+
+</details>
+
+<details>
+<summary><b>Rust</b></summary>
+
+```rust
+use yuos_sdk::ai;
+
+fn describe_image(png_bytes: Vec<u8>) -> Result<String, ai::AiError> {
+    let opts = ai::ChatOpts::new().images(vec![png_bytes]);
+    Ok(ai::chat("Describe this image.", opts)?.output.text)
+}
+```
+
+</details>
 
 ### App-owned tools
 

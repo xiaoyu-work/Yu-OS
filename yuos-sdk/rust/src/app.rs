@@ -17,6 +17,72 @@
 
 use std::collections::BTreeMap;
 use std::io::Write;
+use std::path::PathBuf;
+
+/// Return the App's private data directory, creating it if needed.
+pub fn data_dir() -> std::io::Result<PathBuf> {
+    let path = match std::env::var("YUOS_DATA_DIR") {
+        Ok(dir) if !dir.is_empty() => PathBuf::from(dir),
+        _ => {
+            let base = std::env::var("XDG_DATA_HOME")
+                .ok()
+                .filter(|s| !s.is_empty())
+                .map(PathBuf::from)
+                .unwrap_or_else(|| {
+                    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+                    PathBuf::from(home).join(".local").join("share")
+                });
+            let app_id = std::env::var("YUOS_APP_ID")
+                .ok()
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "dev".into());
+            base.join("yuos-dev").join("apps").join(app_id)
+        }
+    };
+    std::fs::create_dir_all(&path)?;
+    Ok(path)
+}
+
+/// Post a system notification from this App (`ui.notify`).
+pub fn notify(summary: &str, body: &str) -> Result<serde_json::Value, crate::BridgeError> {
+    if summary.trim().is_empty() {
+        return Err(crate::BridgeError::Decode {
+            app: "__notifications".into(),
+            verb: "request".into(),
+            message: "notify: summary must be non-empty".into(),
+        });
+    }
+    if std::env::var_os("YUOS_SESSION").is_none() {
+        return Ok(serde_json::json!({ "status": "dev", "summary": summary, "body": body }));
+    }
+    let payload = serde_json::to_vec(&serde_json::json!({
+        "action": "post",
+        "summary": summary,
+        "body": body,
+        "app_name": std::env::var("YUOS_APP_ID").unwrap_or_default(),
+        "icon": "",
+        "expire_ms": 0,
+        "transient": false,
+    }))
+    .map_err(|e| crate::BridgeError::Decode {
+        app: "__notifications".into(),
+        verb: "request".into(),
+        message: e.to_string(),
+    })?;
+    crate::yu_call_json_stdin(
+        "__notifications",
+        "request",
+        [
+            "__notifications",
+            "request",
+            "--request-stdin",
+            "--deadline",
+            "9999999999999",
+        ],
+        &payload,
+        false,
+    )
+}
 
 /// Error returned by an App function.
 pub type FunctionError = Box<dyn std::error::Error + Send + Sync>;

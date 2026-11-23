@@ -54,6 +54,7 @@ import struct
 import subprocess
 import threading
 import time
+import urllib.parse
 from dataclasses import dataclass, field
 from typing import Any, List, Optional
 
@@ -264,6 +265,35 @@ def _validate_launcher() -> None:
         or info.st_mode & 0o022
     ):
         raise PermissionError("untrusted Ask Yu OS launcher")
+
+
+def open_file(title: str = "Open file") -> Optional[str]:
+    """Open the system file picker and return the selected file path, or ``None`` if cancelled."""
+    if not os.environ.get("YUOS_SESSION"):
+        dev_file = os.environ.get("YUOS_DEV_OPEN_FILE")
+        if dev_file is not None:
+            return dev_file or None
+    request_id = os.urandom(16).hex()
+    _selected_file_call(
+        "__gui-file-picker",
+        "open",
+        {"request_id": request_id, "title": title, "modal": True},
+    )
+    while True:
+        res = _selected_file_call("__gui-file-picker", "status", {"request_id": request_id})
+        status = res.get("status") if isinstance(res, dict) else None
+        if status in ("pending", "cleanup_pending"):
+            time.sleep(0.1)
+            continue
+        if status == "selected":
+            uri = str(res.get("uri") or "")
+            if uri.startswith("file://"):
+                return urllib.parse.unquote(urllib.parse.urlparse(uri).path)
+            return uri
+        if status == "cancelled":
+            return None
+        error = res.get("error") if isinstance(res, dict) else None
+        raise RuntimeError(str(error or "file picker failed"))
 
 
 def context(files: Optional[List[str]] = None) -> GuiContext:

@@ -276,6 +276,19 @@ pub fn chat(prompt: &str, opts: ChatOpts) -> Result<AiResponse, AiError> {
     dispatch(prompt, &opts)
 }
 
+/// Stream text chunks from the configured chat model to `on_chunk`.
+pub fn chat_stream<F: FnMut(&str)>(
+    prompt: &str,
+    opts: ChatOpts,
+    mut on_chunk: F,
+) -> Result<AiResponse, AiError> {
+    let reply = chat(prompt, opts)?;
+    if !reply.output.text.is_empty() {
+        on_chunk(&reply.output.text);
+    }
+    Ok(reply)
+}
+
 /// Call the configured chat model with optional App functions and prior results.
 pub fn chat_request(request: &AiChatRequest) -> Result<AiResponse, AiError> {
     let value = serde_json::to_value(request)

@@ -23,9 +23,13 @@ import inspect
 import json
 import os
 import sys
+import time
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, overload
 
-__all__ = ["command", "desktop", "run"]
+from .kernel import call_json_with_stdin_binary
+
+__all__ = ["command", "data_dir", "desktop", "notify", "run"]
 
 Handler = TypeVar("Handler", bound=Callable[..., Any])
 
@@ -100,6 +104,44 @@ def desktop(handler: Union[Handler, str]) -> Any:
         raise ValueError("the desktop window already has a function")
     _desktop = handler
     return handler
+
+
+def data_dir() -> Path:
+    """Return the App's private data directory, creating it if needed."""
+    env_dir = os.environ.get("YUOS_DATA_DIR")
+    if env_dir:
+        path = Path(env_dir)
+    else:
+        xdg = os.environ.get("XDG_DATA_HOME")
+        base = Path(xdg) if xdg else (Path.home() / ".local" / "share")
+        app_id = os.environ.get("YUOS_APP_ID") or "dev"
+        path = base / "yuos-dev" / "apps" / app_id
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def notify(summary: str, body: str = "") -> Dict[str, Any]:
+    """Post a system notification from this App (`ui.notify`)."""
+    if not isinstance(summary, str) or not summary.strip():
+        raise ValueError("notify: summary must be a non-empty string")
+    if not os.environ.get("YUOS_SESSION"):
+        return {"status": "dev", "summary": summary, "body": body}
+    payload = {
+        "action": "post",
+        "summary": summary,
+        "body": body,
+        "app_name": os.environ.get("YUOS_APP_ID") or "",
+        "icon": "",
+        "expire_ms": 0,
+        "transient": False,
+    }
+    deadline = time.time_ns() // 1_000_000 + 10_000
+    return call_json_with_stdin_binary(
+        os.environ.get("YUOS_KERNEL_BIN", "/usr/local/bin/yu"),
+        ["__notifications", "request", "--request-stdin", "--deadline", str(deadline)],
+        json.dumps(payload).encode("utf-8"),
+        deadline_unix_ms=deadline,
+    )
 
 
 def _call_desktop_fn(fn: Callable[..., Any], resolved_args: List[str]) -> Any:

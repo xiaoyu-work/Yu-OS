@@ -183,6 +183,20 @@ func encodeImages(images [][]byte) []string {
 	return encoded
 }
 
+// ChatStream streams text chunks from the configured chat model to onChunk.
+func ChatStream(ctx context.Context, prompt string, opts ChatOptions, onChunk func(string) error) (*AiResponse, error) {
+	resp, err := ChatContext(ctx, prompt, opts)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Output.Text != "" && onChunk != nil {
+		if err := onChunk(resp.Output.Text); err != nil {
+			return nil, err
+		}
+	}
+	return resp, nil
+}
+
 // ChatRequest calls the configured chat model with optional App functions and prior results.
 func ChatRequest(ctx context.Context, request AiChatRequest) (*AiResponse, error) {
 	payload, _, err := encodeModelRequest(request, ValidateAiChatRequest)

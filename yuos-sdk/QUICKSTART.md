@@ -10,6 +10,9 @@ Save these two files in `hello-ai/`:
 `summarize_text` function. If you only implement one of the two, Yu OS returns a
 built-in unavailable response when the other is launched.
 
+<details open>
+<summary><b>Python</b> (<code>main.py</code>)</summary>
+
 ```python
 from yuos_sdk.ai import chat
 from yuos_sdk.app import command, desktop
@@ -26,6 +29,94 @@ def main():
     # Open your window with any GUI toolkit and call summarize_text(...) from the UI.
     print(summarize_text("We moved the launch to Friday because the tests aren't ready."))
 ```
+
+</details>
+
+<details>
+<summary><b>Node.js / TypeScript</b> (<code>main.ts</code>)</summary>
+
+```ts
+import { ai, app } from "@yuos/sdk";
+
+async function summarizeText(text: string): Promise<string> {
+  const reply = await ai.chat(text, { system: "Summarize in one short sentence." });
+  return reply.output.text;
+}
+
+app.command(async function summarize(args) {
+  return { summary: await summarizeText(args[0]) };
+});
+
+app.desktop(async () => {
+  console.log(await summarizeText("We moved the launch to Friday because the tests aren't ready."));
+});
+
+app.run();
+```
+
+</details>
+
+<details>
+<summary><b>Go</b> (<code>main.go</code>)</summary>
+
+```go
+package main
+
+import (
+	"log"
+	yuossdk "github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
+)
+
+func summarizeText(text string) (string, error) {
+	reply, err := yuossdk.Chat(text, yuossdk.ChatOptions{System: "Summarize in one short sentence."})
+	if err != nil {
+		return "", err
+	}
+	return reply.Output.Text, nil
+}
+
+func main() {
+	yuossdk.HandleCommand("summarize", func(args []string) (any, error) {
+		summary, err := summarizeText(args[0])
+		return map[string]any{"summary": summary}, err
+	})
+	yuossdk.HandleDesktop(func() error {
+		_, err := summarizeText("We moved the launch to Friday because the tests aren't ready.")
+		return err
+	})
+	if err := yuossdk.RunApp(); err != nil {
+		log.Fatal(err)
+	}
+}
+```
+
+</details>
+
+<details>
+<summary><b>Rust</b> (<code>src/main.rs</code>)</summary>
+
+```rust
+use yuos_sdk::{ai, app};
+
+fn summarize_text(text: &str) -> Result<String, ai::AiError> {
+    let opts = ai::ChatOpts::new().system("Summarize in one short sentence.");
+    Ok(ai::chat(text, opts)?.output.text)
+}
+
+fn main() -> Result<(), app::AppError> {
+    app::App::new()
+        .command("summarize", |args| {
+            Ok(serde_json::json!({ "summary": summarize_text(&args[0])? }))
+        })
+        .desktop(|| {
+            println!("{}", summarize_text("We moved the launch to Friday because the tests aren't ready.")?);
+            Ok(())
+        })
+        .run()
+}
+```
+
+</details>
 
 **`app.json`**
 
@@ -92,5 +183,5 @@ After review, the Store publishes it to the Yu OS APT repository.
 [All model slots](REFERENCE.md#ai-support) ·
 [Handle AI errors](REFERENCE.md#handle-ai-errors) ·
 [Give the model your own tools](REFERENCE.md#app-owned-tools) ·
-[Model permissions in Settings](../docs/app-development.md#model-permissions-in-settings) ·
+[Integrate an existing Linux App](../docs/linux-app-integration.md) ·
 [Expose App tools over MCP](../docs/app-development.md#quickstart-an-mcp-only-app)

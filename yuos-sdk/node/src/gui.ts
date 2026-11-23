@@ -125,11 +125,10 @@ function selectedCreateCall(
 function selectedFileCall(
   bridge: string,
   action: string,
-  request: { node: number; selection_id?: string }
-    | { parent_node: number; name?: string; selection_id?: string },
+  request: Record<string, unknown>,
 ): unknown {
   return yuCallJson("GUI selected file", [bridge, action, "--request-stdin"],
-    30_000, stringifyWireJson(request));
+    30_000, stringifyWireJson(request as never));
 }
 
 /**
@@ -303,6 +302,26 @@ function validateAskYuLauncher(): void {
  * the GUI). `files` defaults to the launcher's file arguments, decoded
  * from `YUOS_ARGS_JSON` when not supplied explicitly.
  */
+/** Open the system file picker and return the selected file path, or `null` if cancelled. */
+export function openFile(title = "Open file"): string | null {
+  if (!process.env.YUOS_SESSION && process.env.YUOS_DEV_OPEN_FILE !== undefined) {
+    return process.env.YUOS_DEV_OPEN_FILE || null;
+  }
+  const requestId = Array.from({ length: 16 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, "0")).join("");
+  selectedFileCall("__gui-file-picker", "open", { request_id: requestId, title, modal: true });
+  for (;;) {
+    const res = selectedFileCall("__gui-file-picker", "status", { request_id: requestId }) as Record<string, unknown>;
+    const status = res?.status;
+    if (status === "pending" || status === "cleanup_pending") continue;
+    if (status === "selected") {
+      const uri = String(res.uri ?? "");
+      return uri.startsWith("file://") ? decodeURIComponent(new URL(uri).pathname) : uri;
+    }
+    if (status === "cancelled") return null;
+    throw new Error(String(res?.error || "file picker failed"));
+  }
+}
+
 export function context(files?: string[]): GuiContext {
   const appId = process.env.YUOS_APP_ID;
   if (!appId) throw new Error("YUOS_APP_ID is required for a GUI launch");

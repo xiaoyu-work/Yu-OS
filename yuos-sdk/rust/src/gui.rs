@@ -221,6 +221,49 @@ fn selected_read_response(
 }
 
 /// The kernel context handed to a desktop app at launch.
+/// Open the system file picker and return the selected file path, or `None` if cancelled.
+pub fn open_file(title: &str) -> Result<Option<String>, String> {
+    if std::env::var_os("YUOS_SESSION").is_none() {
+        if let Ok(dev_file) = std::env::var("YUOS_DEV_OPEN_FILE") {
+            return Ok((!dev_file.is_empty()).then_some(dev_file));
+        }
+    }
+    let title = if title.is_empty() { "Open file" } else { title };
+    let request_id = format!("{:032x}", std::process::id());
+    selected_file_call(
+        "__gui-file-picker",
+        "open",
+        serde_json::json!({"request_id": request_id, "title": title, "modal": true}),
+    )
+    .map_err(|e| e.to_string())?;
+    loop {
+        let res = selected_file_call(
+            "__gui-file-picker",
+            "status",
+            serde_json::json!({"request_id": request_id}),
+        )
+        .map_err(|e| e.to_string())?;
+        match res.get("status").and_then(serde_json::Value::as_str) {
+            Some("pending" | "cleanup_pending") => {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            Some("selected") => {
+                let uri = res.get("uri").and_then(serde_json::Value::as_str).unwrap_or("");
+                let path = uri.strip_prefix("file://").unwrap_or(uri);
+                return Ok(Some(path.to_string()));
+            }
+            Some("cancelled") => return Ok(None),
+            _ => {
+                let err = res
+                    .get("error")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("file picker failed");
+                return Err(err.to_string());
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Context {
     /// The kernel-assigned app identity (`YUOS_APP_ID`).

@@ -3,7 +3,8 @@
 > Build Yu OS Apps in Python, Node.js, Go, or Rust. Call the user's configured AI model through Yu OS, or expose App tools to the system Agent via MCP.
 
 - Declare `operations` once in `app.json`; command-line (`yu app <id> <command>`) and desktop (`yu app <id> --gui`) launches share it. In Python, mark functions with `@command` and `@desktop` from `yuos_sdk.app` (Node, Go, and Rust register them and call `run`); if only one surface is implemented in code, the SDK returns a built-in unavailable-surface response for the other.
-- Add `"ai": {}` in `app.json` and declare the matching capability, e.g. `"needs": ["ai.chat"]`. Import `chat`, `embed`, `tts`, `stt`, `imagegen`, or `decide`. Each result has `provider`, `model`, `units`, and `output`. Settings selects the model and monthly App AI limit. For local development, set `YUOS_DEV_AI_URL` (plus optional `YUOS_DEV_AI_MODEL` and `YUOS_DEV_AI_KEY`) and run with `yu app dev ./<dir> <command>`. Build a `.deb` with `yu app pack ./<dir>` and submit it with `yu app submit <file.deb>`.
+- Add `"ai": {}` in `app.json` and declare the matching capability, e.g. `"needs": ["ai.chat"]`. Import `chat`, `chat_stream`, `embed`, `tts`, `stt`, `imagegen`, or `decide`. Each result has `provider`, `model`, `units`, and `output`. Settings selects the model and monthly App AI limit. For local development, set `YUOS_DEV_AI_URL` (plus optional `YUOS_DEV_AI_MODEL` and `YUOS_DEV_AI_KEY`) and run with `yu app dev ./<dir> <command>`. Build a `.deb` with `yu app pack ./<dir>` and submit it with `yu app submit <file.deb>`.
+- Use `app.data_dir()` for the App's private data directory, `app.notify(summary, body)` to post notifications (`ui.notify`), and `gui.open_file(title)` to open a user-selected file in the system dialog.
 - Call `chat(prompt)` for text or pass `images` as raw PNG, JPEG, or WebP bytes with an image-capable chat model; Yu OS detects the format. `stt` takes WAV, MP3, or Ogg bytes, and `tts` and `imagegen` return `audio` or `image` bytes. Pass schemas in `functions`, validate and run proposals in App code, and return results by call ID in `tool_turns`.
 - Handle authorization, exhausted budget, service unavailable, and invalid input using the SDK's typed errors.
 - Declare optional GUI model capabilities in `optional_needs`. On `model_permission_required`, show an App-written message and let the user open Settings → Applications.
@@ -24,6 +25,7 @@
 ## Reference
 
 - [App guide](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/docs/app-development.md): manifest arguments, permissions, AI consent, and installation.
+- [Linux App integration](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/docs/linux-app-integration.md): adapt an existing Linux binary or GUI app to Yu OS.
 - [Manifest schema](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/wire/v1/manifest.schema.json): supported fields and types.
 - [SDK reference](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/REFERENCE.md): compatibility, binding coverage, and releases.
 - [Wire v1](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/wire/v1/README.md): CLI envelopes, call context, and errors.

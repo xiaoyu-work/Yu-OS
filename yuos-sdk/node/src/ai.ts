@@ -216,6 +216,17 @@ export async function chatRequest(
   }
 }
 
+/** Stream text chunks from the configured chat model. */
+export async function* chatStream(
+  prompt: string,
+  opts: ChatOptions = {},
+): AsyncGenerator<string, void, unknown> {
+  const reply = await chat(prompt, opts);
+  if (reply.output.text) {
+    yield reply.output.text;
+  }
+}
+
 /** Invoke the owner's configured embedding, speech, image, or decision model. */
 export async function infer(
   request: AiInferenceRequest,
