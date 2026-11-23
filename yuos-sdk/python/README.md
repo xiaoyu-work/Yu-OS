@@ -118,8 +118,9 @@ the optional App manifest `objects` resolver declaration.
 
 ## AI support
 
-`chat` takes optional images and App functions. All six model calls return
-`provider`, `model`, `units`, and `output`. See the
+`chat` takes optional image bytes and App functions, and `stt` takes audio
+bytes. `tts` and `imagegen` return `audio` or `image` bytes. All six model
+calls return `provider`, `model`, `units`, and `output`. See the
 [model capabilities](../REFERENCE.md#ai-support) and
 [typed errors](../REFERENCE.md#handle-ai-errors).
 

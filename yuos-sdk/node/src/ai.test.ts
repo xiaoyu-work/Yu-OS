@@ -8,6 +8,7 @@ import { WireDecimal, stringifyWireJson } from "./generated";
 import {
   installFakeYu,
   wireError,
+  wireSuccess,
   wireSuccessJson,
   withCos,
 } from "./testutil";
@@ -55,6 +56,32 @@ test("chat builds the right argv and parses the envelope", async () => {
 
 test("chat rejects an empty prompt", async () => {
   await assert.rejects(() => ai.chat("  ", trusted), /prompt must be non-empty/);
+});
+
+test("model calls take and return media bytes", async () => {
+  const png = Uint8Array.from(Buffer.from("\x89PNG\r\n\x1a\nfixture", "latin1"));
+  const wav = Uint8Array.from(Buffer.from("RIFF\x24\0\0\0WAVEfmt ", "latin1"));
+  const base64 = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64");
+  const inference = (output: object) => wireSuccess({ provider: "p", model: "m", units: 50, output });
+  const sentRequest = (path: string) => JSON.parse(readFileSync(path, "utf8"));
+
+  const chatFake = installFakeYu(OK_CHAT, 0, { recordStdin: true });
+  await withCos(chatFake, { YUOS_APP_ID: "notes" }, () => ai.chat("Describe this image.", { images: [png] }));
+  assert.deepEqual(sentRequest(chatFake.stdinOut).images, [base64(png)]);
+
+  const sttFake = installFakeYu(inference({ kind: "stt", text: "hello" }), 0, { recordStdin: true });
+  assert.equal((await withCos(sttFake, {}, () => ai.stt(wav))).output.text, "hello");
+  assert.deepEqual(sentRequest(sttFake.stdinOut).input, { kind: "stt", audio_base64: base64(wav) });
+
+  const speech = await withCos(
+    installFakeYu(inference({ kind: "tts", format: "wav", audio_base64: base64(wav) })), {}, () => ai.tts("Hello"),
+  );
+  assert.deepEqual(speech.output, { format: "wav", audio: wav });
+  const image = await withCos(
+    installFakeYu(inference({ kind: "imagegen", format: "png", image_base64: base64(png) })), {}, () => ai.imagegen("A cat"),
+  );
+  assert.deepEqual(image.output, { format: "png", image: png });
+  await assert.rejects(() => ai.stt(base64(wav) as unknown as Uint8Array), ai.AiInvalidArgs);
 });
 
 test("chat requires an app id", async () => {

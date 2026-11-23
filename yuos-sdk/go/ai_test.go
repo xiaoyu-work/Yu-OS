@@ -1,6 +1,13 @@
 package yuossdk
 
 import (
+	"bytes"
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"os"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -59,6 +66,76 @@ func TestChatBuildsArgvAndParses(t *testing.T) {
 func TestChatEmptyPrompt(t *testing.T) {
 	if _, err := Chat("   ", ChatOptions{AppID: "x", Origin: "trusted"}); err == nil {
 		t.Fatal("expected error for empty prompt")
+	}
+}
+
+// fakeYuCapturingStdin is fakeYu that also records the request on its stdin.
+func fakeYuCapturingStdin(t *testing.T, stdout string) (bin, stdinOut string) {
+	t.Helper()
+	bin, _ = fakeYu(t, stdout, 0)
+	stdinOut = bin + ".stdin"
+	script := "#!/bin/sh\ncat > " + stdinOut + "\nprintf '%s\\n' '" + stdout + "'\n"
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return bin, stdinOut
+}
+
+func TestModelCallsTakeAndReturnMediaBytes(t *testing.T) {
+	png, wav := []byte("\x89PNG\r\n\x1a\nfixture"), []byte("RIFF\x24\x00\x00\x00WAVEfmt ")
+	b64 := base64.StdEncoding.EncodeToString
+	inference := func(output string) string {
+		return wireSuccess(`{"provider":"p","model":"m","units":50,"output":` + output + `}`)
+	}
+	sent := func(path string) map[string]any {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var request map[string]any
+		if err := json.Unmarshal(data, &request); err != nil {
+			t.Fatal(err)
+		}
+		return request
+	}
+	ctx := context.Background()
+
+	bin, stdin := fakeYuCapturingStdin(t, wireSuccess(okChat))
+	withCos(t, bin, nil, func() {
+		if _, err := Chat("Describe this image.", ChatOptions{Images: [][]byte{png}}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if images := sent(stdin)["images"]; !reflect.DeepEqual(images, []any{b64(png)}) {
+		t.Fatalf("images = %#v", images)
+	}
+	bin, stdin = fakeYuCapturingStdin(t, inference(`{"kind":"stt","text":"hello"}`))
+	withCos(t, bin, nil, func() {
+		if reply, err := STT(ctx, wav, ModelOptions{}); err != nil || reply.Output.Text != "hello" {
+			t.Fatalf("STT = %+v, %v", reply, err)
+		}
+	})
+	if input := sent(stdin)["input"]; !reflect.DeepEqual(input, map[string]any{"kind": "stt", "audio_base64": b64(wav)}) {
+		t.Fatalf("STT input = %#v", input)
+	}
+
+	bin, _ = fakeYu(t, inference(`{"kind":"tts","format":"wav","audio_base64":"`+b64(wav)+`"}`), 0)
+	withCos(t, bin, nil, func() {
+		speech, err := TTS(ctx, "Hello", ModelOptions{})
+		if err != nil || speech.Output.Format != "wav" || !bytes.Equal(speech.Output.Audio, wav) {
+			t.Fatalf("TTS = %+v, %v", speech, err)
+		}
+	})
+	bin, _ = fakeYu(t, inference(`{"kind":"imagegen","format":"png","image_base64":"`+b64(png)+`"}`), 0)
+	withCos(t, bin, nil, func() {
+		image, err := ImageGen(ctx, "A cat", ModelOptions{})
+		if err != nil || image.Output.Format != "png" || !bytes.Equal(image.Output.Image, png) {
+			t.Fatalf("ImageGen = %+v, %v", image, err)
+		}
+	})
+	var invalid *AiInvalidArgsError
+	if _, err := STT(ctx, nil, ModelOptions{}); !errors.As(err, &invalid) {
+		t.Fatalf("empty audio: want AiInvalidArgsError, got %T %v", err, err)
 	}
 }
 

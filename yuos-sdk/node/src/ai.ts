@@ -25,13 +25,13 @@ import {
   validateBudgetShow,
   type AiAppTool,
   type AiBudget,
-  type AiChatImage,
   type AiChatRequest,
   type AiInference,
   type AiInferenceRequest,
   type AiToolTurn,
   type DecisionInput,
-  type TranscriptionInput,
+  type ImageOutput,
+  type SpeechOutput,
 } from "./generated";
 
 /** Base class for every error this module raises. */
@@ -106,6 +106,17 @@ export interface ChatOutput {
   provider_state?: string;
 }
 
+export interface Speech {
+  format: SpeechOutput["format"];
+  audio: Uint8Array;
+  sample_rate_hz?: number;
+}
+
+export interface Image {
+  format: ImageOutput["format"];
+  image: Uint8Array;
+}
+
 export interface AiResponse extends ModelResponse<ChatOutput> {
   text: string;
   verb: string;
@@ -124,7 +135,8 @@ export interface ChatOptions extends ModelOptions {
   appId?: string;
   /** @deprecated Catalog names are not accepted. Use {@link chatRequest} for App functions. */
   tools?: string[];
-  images?: AiChatImage[];
+  /** PNG, JPEG or WebP image bytes; Yu OS detects each format. */
+  images?: Uint8Array[];
   functions?: AiAppTool[];
   toolTurns?: AiToolTurn[];
 }
@@ -149,7 +161,7 @@ export async function chat(prompt: string, opts: ChatOptions = {}): Promise<AiRe
     const request: AiChatRequest = { origin: origin ?? "app", prompt };
     if (system != null) request.system = system;
     if (maxUnits != null) request.max_units = maxUnits;
-    if (images?.length) request.images = images;
+    if (images?.length) request.images = images.map((image) => encodeMedia(image, "chat: images"));
     if (functions?.length) request.tools = functions;
     if (toolTurns?.length) request.tool_turns = toolTurns;
     return chatRequest(request, { signal });
@@ -237,6 +249,17 @@ function encodeRequest(request: unknown, validate: (value: unknown) => void): st
   }
 }
 
+function encodeMedia(data: Uint8Array, label: string): string {
+  if (!(data instanceof Uint8Array)) throw new AiInvalidArgs(`${label} must be a Uint8Array`);
+  return Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString("base64");
+}
+
+function decodeMedia(value: string): Uint8Array {
+  const bytes = Buffer.from(value, "base64");
+  if (bytes.toString("base64") !== value) throw new AiUnavailable("AI inference reply has invalid media");
+  return new Uint8Array(bytes);
+}
+
 type ModelInput = AiInferenceRequest["input"];
 type ModelKind = ModelInput["kind"];
 type TaggedOutput<K extends ModelKind> = Extract<AiInference["output"], { kind: K }>;
@@ -264,16 +287,19 @@ export function embed(text: string, opts: ModelOptions = {}) {
   return runModel({ kind: "embed", text }, opts);
 }
 
-export function tts(text: string, opts: ModelOptions = {}) {
-  return runModel({ kind: "tts", text }, opts);
+export async function tts(text: string, opts: ModelOptions = {}): Promise<ModelResponse<Speech>> {
+  const { output: { audio_base64, ...output }, ...reply } = await runModel({ kind: "tts", text }, opts);
+  return { ...reply, output: { ...output, audio: decodeMedia(audio_base64) } };
 }
 
-export function stt(audioBase64: string, opts: ModelOptions & { format: TranscriptionInput["format"] }) {
-  return runModel({ kind: "stt", audio_base64: audioBase64, format: opts.format }, opts);
+/** Transcribe WAV, MP3 or Ogg audio bytes; Yu OS detects the format. */
+export async function stt(audio: Uint8Array, opts: ModelOptions = {}) {
+  return runModel({ kind: "stt", audio_base64: encodeMedia(audio, "stt: audio") }, opts);
 }
 
-export function imagegen(prompt: string, opts: ModelOptions = {}) {
-  return runModel({ kind: "imagegen", prompt }, opts);
+export async function imagegen(prompt: string, opts: ModelOptions = {}): Promise<ModelResponse<Image>> {
+  const { output: { image_base64, ...output }, ...reply } = await runModel({ kind: "imagegen", prompt }, opts);
+  return { ...reply, output: { ...output, image: decodeMedia(image_base64) } };
 }
 
 export function decide(state: DecisionInput["state"], questions: DecisionInput["questions"], opts: ModelOptions = {}) {

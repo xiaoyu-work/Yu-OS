@@ -130,9 +130,9 @@ and notifies the owner near or at the limit.
 |---|---|---|---|
 | `chat` | Prompt, optional images and App functions | `ai.chat` | `text`, optional function calls |
 | `embed` | Text | `ai.embed` | `vector` |
-| `tts` | Text | `ai.audio.tts` | `format`, `audio_base64`, optional `sample_rate_hz` |
-| `stt` | `audio_base64` and `format` | `ai.audio.stt` | `text` |
-| `imagegen` | Prompt | `ai.image.generate` | `format`, `image_base64` |
+| `tts` | Text | `ai.audio.tts` | `format`, `audio` bytes, optional `sample_rate_hz` |
+| `stt` | WAV, MP3, or Ogg audio bytes | `ai.audio.stt` | `text` |
+| `imagegen` | Prompt | `ai.image.generate` | `format`, `image` bytes |
 | `decide` | `state` and [questions](../docs/decision-model.md) | `ai.decide` | `answers` |
 
 Each call returns `provider`, `model`, `units`, and `output`. Import the
@@ -167,20 +167,14 @@ work. Let the user decide whether to submit another call.
 
 ### Image input
 
-Use a chat model that supports images. Each image takes `format` (`png`,
-`jpg`, or `webp`) and `image_base64`. Send up to four images, 512 KiB combined
-before encoding.
+Use a chat model that supports images. Pass the image bytes; Yu OS detects
+PNG, JPEG, or WebP automatically. Send up to four images, 512 KiB combined.
 
 ```python
-from base64 import b64encode
 from yuos_sdk.ai import chat
 
 def describe_image(png_bytes: bytes) -> str:
-    reply = chat(
-        "Describe this image.",
-        images=[{"format": "png", "image_base64": b64encode(png_bytes).decode("ascii")}],
-    )
-    return reply.output.text
+    return chat("Describe this image.", images=[png_bytes]).output.text
 ```
 
 ### App-owned tools

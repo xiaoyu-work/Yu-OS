@@ -167,7 +167,7 @@ fn validate_name(name: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub(crate) fn validate_magic(media_type: &str, bytes: &[u8]) -> Result<(), String> {
+fn validate_magic(media_type: &str, bytes: &[u8]) -> Result<(), String> {
     let valid = match media_type {
         "image/png" => bytes.starts_with(b"\x89PNG\r\n\x1a\n"),
         "image/jpeg" => bytes.starts_with(&[0xff, 0xd8, 0xff]) && bytes.ends_with(&[0xff, 0xd9]),
@@ -180,6 +180,17 @@ pub(crate) fn validate_magic(media_type: &str, bytes: &[u8]) -> Result<(), Strin
     } else {
         Err(format!("does not match declared media type `{media_type}`"))
     }
+}
+
+/// Return the first of `media_types` whose signature `bytes` carries.
+pub(crate) fn detect_media_type(
+    bytes: &[u8],
+    media_types: &[&'static str],
+) -> Option<&'static str> {
+    media_types
+        .iter()
+        .copied()
+        .find(|media_type| validate_magic(media_type, bytes).is_ok())
 }
 
 #[cfg(test)]

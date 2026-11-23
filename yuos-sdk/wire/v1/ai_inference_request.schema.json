@@ -35,11 +35,13 @@
       }
     },
     "TranscriptionInput": {
-      "type": "object", "additionalProperties": false, "required": ["kind", "audio_base64", "format"],
+      "type": "object", "additionalProperties": false, "required": ["kind", "audio_base64"],
       "properties": {
         "kind": { "type": "string", "const": "stt" },
-        "audio_base64": { "type": "string", "minLength": 4, "maxLength": 699052 },
-        "format": { "type": "string", "enum": ["wav", "mp3", "ogg"] }
+        "audio_base64": {
+          "type": "string", "minLength": 4, "maxLength": 699052,
+          "description": "Standard padded base64 WAV, MP3 or Ogg bytes; Yu OS detects the format from the bytes."
+        }
       }
     },
     "ImageInput": {

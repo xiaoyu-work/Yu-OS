@@ -134,7 +134,7 @@ pub struct ChatRequest {
 
     /// Legacy input carried by older clients. The gate rejects nonempty lists.
     pub tools: Vec<String>,
-    pub(crate) images: Vec<yuos_sdk::generated::AiChatImage>,
+    pub(crate) images: Vec<String>,
     pub(crate) app_tools: AppTools,
 }
 
@@ -1021,7 +1021,7 @@ pub(super) fn apply_safety(prompt: &str, safety: AiSafety) -> (String, bool) {
 }
 
 fn chat_images(
-    images: &[yuos_sdk::generated::AiChatImage],
+    images: &[String],
     allowed: bool,
 ) -> Result<Vec<ContentBlock>, AiError> {
     use base64::{engine::general_purpose::STANDARD, Engine};
@@ -1034,23 +1034,20 @@ fn chat_images(
     }
     let mut total = 0;
     images.iter().map(|image| {
-        let media_type = match image.format.as_str() {
-            "png" => "image/png",
-            "jpg" => "image/jpeg",
-            "webp" => "image/webp",
-            _ => return Err(AiError::InvalidInference("unsupported chat image format")),
-        };
-        let bytes = STANDARD.decode(&image.image_base64)
+        let bytes = STANDARD.decode(image)
             .map_err(|_| AiError::InvalidInference("image must be standard padded base64"))?;
         total += bytes.len();
         if total > 512 * 1024 {
             return Err(AiError::InvalidInference("chat images exceed 512 KiB combined"));
         }
-        crate::agent::attachments::validate_magic(media_type, &bytes)
-            .map_err(|_| AiError::InvalidInference("image data does not match its format"))?;
+        let media_type = crate::agent::attachments::detect_media_type(
+            &bytes,
+            &["image/png", "image/jpeg", "image/webp"],
+        )
+        .ok_or(AiError::InvalidInference("unsupported image format; send PNG, JPEG or WebP"))?;
         Ok(ContentBlock::Image {
             media_type: media_type.into(),
-            data: image.image_base64.clone(),
+            data: image.clone(),
         })
     }).collect()
 }

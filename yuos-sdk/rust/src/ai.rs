@@ -15,11 +15,12 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
 
 use crate::{yu_call_json_structured, BridgeError, StructuredCosError};
 pub use crate::generated::{
-    AiAppTool, AiChatImage, AiChatRequest, AiChatToolCall, AiChatToolResult, AiInference, AiInferenceRequest,
+    AiAppTool, AiChatRequest, AiChatToolCall, AiChatToolResult, AiInference, AiInferenceRequest,
     AiToolTurn,
 };
 
@@ -77,7 +78,8 @@ pub struct Embedding {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Speech {
     pub format: String,
-    pub audio_base64: String,
+    #[serde(rename = "audio_base64", with = "base64_bytes")]
+    pub audio: Vec<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sample_rate_hz: Option<u32>,
 }
@@ -90,7 +92,22 @@ pub struct Transcription {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Image {
     pub format: String,
-    pub image_base64: String,
+    #[serde(rename = "image_base64", with = "base64_bytes")]
+    pub image: Vec<u8>,
+}
+
+/// Media bytes carried as standard padded base64 on the wire.
+mod base64_bytes {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    use serde::{de::Error, Deserialize, Deserializer, Serializer};
+
+    pub(super) fn serialize<S: Serializer>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&STANDARD.encode(bytes))
+    }
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
+        STANDARD.decode(String::deserialize(deserializer)?).map_err(D::Error::custom)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -167,7 +184,7 @@ pub struct ChatOpts {
     system: Option<String>,
     app_id: Option<String>,
     tools: Option<Vec<String>>,
-    images: Option<Vec<AiChatImage>>,
+    images: Option<Vec<Vec<u8>>>,
     functions: Option<Vec<AiAppTool>>,
     tool_turns: Option<Vec<AiToolTurn>>,
 }
@@ -191,7 +208,8 @@ impl ChatOpts {
         self.app_id = Some(id.into());
         self
     }
-    pub fn images(mut self, images: Vec<AiChatImage>) -> Self {
+    /// Attach PNG, JPEG or WebP image bytes; Yu OS detects each format.
+    pub fn images(mut self, images: Vec<Vec<u8>>) -> Self {
         self.images = (!images.is_empty()).then_some(images);
         self
     }
@@ -241,7 +259,7 @@ pub fn chat(prompt: &str, opts: ChatOpts) -> Result<AiResponse, AiError> {
             origin: opts.origin.unwrap_or_else(|| "app".into()),
             prompt: prompt.into(),
             system: opts.system,
-            images: opts.images,
+            images: opts.images.map(|images| images.iter().map(|image| STANDARD.encode(image)).collect()),
             max_units: opts.max_units,
             tools: opts.functions,
             tool_turns: opts.tool_turns,
@@ -333,8 +351,9 @@ pub fn tts(text: &str, opts: ModelOpts) -> Result<ModelResponse<Speech>, AiError
     run_model(serde_json::json!({"kind": "tts", "text": text}), opts)
 }
 
-pub fn stt(audio_base64: &str, format: &str, opts: ModelOpts) -> Result<ModelResponse<Transcription>, AiError> {
-    run_model(serde_json::json!({"kind": "stt", "audio_base64": audio_base64, "format": format}), opts)
+/// Transcribe WAV, MP3 or Ogg audio bytes; Yu OS detects the format.
+pub fn stt(audio: &[u8], opts: ModelOpts) -> Result<ModelResponse<Transcription>, AiError> {
+    run_model(serde_json::json!({"kind": "stt", "audio_base64": STANDARD.encode(audio)}), opts)
 }
 
 pub fn imagegen(prompt: &str, opts: ModelOpts) -> Result<ModelResponse<Image>, AiError> {

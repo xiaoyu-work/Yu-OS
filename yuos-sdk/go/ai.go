@@ -5,6 +5,7 @@ package yuossdk
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -84,7 +85,7 @@ type Embedding struct {
 
 type Speech struct {
 	Format       string  `json:"format"`
-	AudioBase64  string  `json:"audio_base64"`
+	Audio        []byte  `json:"audio_base64"`
 	SampleRateHz *uint32 `json:"sample_rate_hz,omitempty"`
 }
 
@@ -93,8 +94,8 @@ type Transcription struct {
 }
 
 type Image struct {
-	Format      string `json:"format"`
-	ImageBase64 string `json:"image_base64"`
+	Format string `json:"format"`
+	Image  []byte `json:"image_base64"`
 }
 
 type Decision struct {
@@ -129,8 +130,9 @@ type ChatOptions struct {
 	// AppID is the app identity; defaults to $YUOS_APP_ID.
 	AppID string
 	// Deprecated: Catalog names are not accepted. Use ChatRequest for App functions.
-	Tools     []string
-	Images    []AiChatImage
+	Tools []string
+	// Images are PNG, JPEG or WebP bytes; Yu OS detects each format.
+	Images    [][]byte
 	Functions []AiAppTool
 	ToolTurns []AiToolTurn
 }
@@ -163,10 +165,18 @@ func ChatContext(ctx context.Context, prompt string, opts ChatOptions) (*AiRespo
 		}
 		return ChatRequest(ctx, AiChatRequest{
 			Origin: appInput(opts.Origin), Prompt: prompt, System: opts.System, MaxUnits: uint64(opts.MaxUnits),
-			Images: opts.Images, Tools: opts.Functions, ToolTurns: opts.ToolTurns,
+			Images: encodeImages(opts.Images), Tools: opts.Functions, ToolTurns: opts.ToolTurns,
 		})
 	}
 	return dispatch(ctx, prompt, opts)
+}
+
+func encodeImages(images [][]byte) []string {
+	encoded := make([]string, len(images))
+	for i, image := range images {
+		encoded[i] = base64.StdEncoding.EncodeToString(image)
+	}
+	return encoded
 }
 
 // ChatRequest calls the configured chat model with optional App functions and prior results.
@@ -281,8 +291,10 @@ func TTS(ctx context.Context, text string, opts ModelOptions) (*ModelResponse[Sp
 	return runModel[Speech](ctx, SpeechInput{Kind: "tts", Text: text}, opts)
 }
 
-func STT(ctx context.Context, audioBase64, format string, opts ModelOptions) (*ModelResponse[Transcription], error) {
-	return runModel[Transcription](ctx, TranscriptionInput{Kind: "stt", AudioBase64: audioBase64, Format: format}, opts)
+// STT transcribes WAV, MP3 or Ogg audio bytes; Yu OS detects the format.
+func STT(ctx context.Context, audio []byte, opts ModelOptions) (*ModelResponse[Transcription], error) {
+	input := TranscriptionInput{Kind: "stt", AudioBase64: base64.StdEncoding.EncodeToString(audio)}
+	return runModel[Transcription](ctx, input, opts)
 }
 
 func ImageGen(ctx context.Context, prompt string, opts ModelOptions) (*ModelResponse[Image], error) {

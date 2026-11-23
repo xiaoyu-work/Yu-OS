@@ -57,7 +57,6 @@ enum Input {
     },
     Stt {
         audio_base64: String,
-        format: InputAudio,
     },
     Imagegen {
         prompt: String,
@@ -68,21 +67,18 @@ enum Input {
     },
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum InputAudio {
-    Wav,
-    Mp3,
-    Ogg,
-}
-
-impl From<InputAudio> for AudioFormat {
-    fn from(format: InputAudio) -> Self {
-        match format {
-            InputAudio::Wav => Self::Wav,
-            InputAudio::Mp3 => Self::Mp3,
-            InputAudio::Ogg => Self::Ogg,
+/// Detect the audio container from its leading bytes.
+fn audio_format(audio: &[u8]) -> Option<AudioFormat> {
+    match audio {
+        [b'R', b'I', b'F', b'F', _, _, _, _, b'W', b'A', b'V', b'E', ..] => Some(AudioFormat::Wav),
+        [b'O', b'g', b'g', b'S', ..] => Some(AudioFormat::Ogg),
+        // An ID3 tag, or an MPEG audio frame sync (11 set bits) with a defined
+        // layer. AAC ADTS uses the reserved layer 00.
+        [b'I', b'D', b'3', ..] => Some(AudioFormat::Mp3),
+        [0xff, second, ..] if *second & 0xe0 == 0xe0 && *second & 0x06 != 0 => {
+            Some(AudioFormat::Mp3)
         }
+        _ => None,
     }
 }
 
@@ -116,10 +112,7 @@ impl Input {
             Self::Embed { text: data } => Prepared::Embed(text(data, safety)?),
             Self::Tts { text: data } => Prepared::Tts(text(data, safety)?),
             Self::Imagegen { prompt } => Prepared::Imagegen(text(prompt, safety)?),
-            Self::Stt {
-                audio_base64,
-                format,
-            } => {
+            Self::Stt { audio_base64 } => {
                 let audio = STANDARD.decode(audio_base64).map_err(|_| {
                     AiError::InvalidInference("audio must be standard padded base64")
                 })?;
@@ -128,7 +121,10 @@ impl Input {
                         "audio must contain 1 to 524288 bytes",
                     ));
                 }
-                Prepared::Stt(audio, format.into())
+                let format = audio_format(&audio).ok_or(AiError::InvalidInference(
+                    "unsupported audio format; send WAV, MP3 or Ogg",
+                ))?;
+                Prepared::Stt(audio, format)
             }
             Self::Decision { state, questions } => {
                 let request = DecisionRequest { state, questions };
@@ -292,4 +288,9 @@ async fn run_inner(
     yuos_sdk::generated::validate_ai_inference(&result)
         .map_err(|_| AiError::Provider("model returned an invalid inference result".into()))?;
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/test/unit/ai/inference.rs"));
 }

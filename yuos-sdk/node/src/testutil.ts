@@ -11,6 +11,8 @@ export interface FakeYu {
   bin: string;
   /** Path the fake writes its received argv to (one arg per line). */
   argvOut: string;
+  /** Path the fake writes its received stdin to when `recordStdin` is set. */
+  stdinOut: string;
 }
 
 export function wireSuccess(data: unknown): string {
@@ -30,19 +32,22 @@ export function wireError(error: string, code: string): string {
  * `exitCode`, recording the argv it received to a sidecar file. The
  * script is a Node program with a shebang so it can run directly on Linux.
  */
-export function installFakeYu(stdout: string, exitCode = 0): FakeYu {
+export function installFakeYu(stdout: string, exitCode = 0, { recordStdin = false } = {}): FakeYu {
   const dir = mkdtempSync(join(tmpdir(), "yuos-fakecos-"));
   const bin = join(dir, "yu");
   const argvOut = join(dir, "argv.txt");
+  const stdinOut = join(dir, "stdin.txt");
+  const readStdin = recordStdin ? `fs.writeFileSync(${JSON.stringify(stdinOut)}, fs.readFileSync(0));` : "";
   const script = `#!/usr/bin/env node
 const fs = require("fs");
 fs.writeFileSync(${JSON.stringify(argvOut)}, process.argv.slice(2).join("\\n"));
+${readStdin}
 process.stdout.write(${JSON.stringify(stdout)});
 process.exit(${exitCode});
 `;
   writeFileSync(bin, script);
   chmodSync(bin, 0o755);
-  return { bin, argvOut };
+  return { bin, argvOut, stdinOut };
 }
 
 /** Run `fn` with YUOS_KERNEL_BIN (and optionally YUOS_APP_ID) set, then

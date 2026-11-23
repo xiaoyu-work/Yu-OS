@@ -178,7 +178,9 @@ optional App manifest `objects` resolver declaration.
 Use `ai::embed`, `ai::tts`, `ai::stt`, `ai::imagegen`, or `ai::decide` with
 `ModelOpts::default()`. All six calls expose `provider`, `model`, `units`, and
 `output`. See the [model capabilities](../REFERENCE.md#ai-support).
-`ChatOpts` takes `.images(...)` and `.functions(...)`.
+`ai::stt` takes audio bytes; `Speech::audio` and `Image::image` hold the
+returned bytes. `ChatOpts` takes `.images(...)` with image bytes and
+`.functions(...)`.
 `ai::open_permission_settings()`
 opens the [model permission page](../../docs/app-development.md#model-permissions-in-settings)
 after a user action and with the separate desktop launcher permission.

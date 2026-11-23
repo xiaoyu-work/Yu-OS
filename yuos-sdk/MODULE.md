@@ -20,9 +20,11 @@ Rust, Python, Node, and Go bindings.
 - Expose `chat`, `embed`, `tts`, `stt`, `imagegen`, and `decide` as named SDK
   functions. Each exposes provider, model, units, and its typed output; dispatch
   stays in the binding.
-- The configured chat model accepts text and bounded images under `ai.chat`.
-  Apps supply function schemas, execute
-  proposals, and return results. The other five slots use `yu ai infer`.
+- The configured chat model accepts text and bounded image bytes under
+  `ai.chat`; Yu OS detects PNG, JPEG, or WebP. Apps supply function schemas,
+  execute proposals, and return results. The other five slots use
+  `yu ai infer`; `stt` takes WAV, MP3, or Ogg bytes, and `tts` and `imagegen`
+  return bytes. Bindings carry media as base64 on the wire.
   Optional GUI permission failures carry a Settings recovery reason.
 - App operations, MCP tools, and GUI entries can declare a supported AI verb
   without a scope. Root resolves the owner's exact model; the SDK and App do

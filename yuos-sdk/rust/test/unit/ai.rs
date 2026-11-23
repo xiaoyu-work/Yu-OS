@@ -103,6 +103,53 @@ fn scalar_root_has_stable_decode_error() {
     ));
 }
 
+#[test]
+fn media_outputs_decode_to_bytes() {
+    let speech: Speech = serde_json::from_value(serde_json::json!({
+        "kind": "tts", "format": "wav", "audio_base64": "UklGRg==", "sample_rate_hz": 24000
+    }))
+    .unwrap();
+    assert_eq!((speech.audio, speech.sample_rate_hz), (b"RIFF".to_vec(), Some(24000)));
+    let image: Image = serde_json::from_value(serde_json::json!({
+        "kind": "imagegen", "format": "png", "image_base64": "iVBORw=="
+    }))
+    .unwrap();
+    assert_eq!(image.image, b"\x89PNG");
+    assert!(serde_json::from_value::<Image>(serde_json::json!({
+        "format": "png", "image_base64": "not base64"
+    }))
+    .is_err());
+}
+
+#[test]
+#[cfg(unix)]
+fn stt_sends_audio_bytes_as_base64() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("yu");
+    let request = dir.path().join("request.json");
+    let reply = r#"{"ok":true,"wire_version":1,"data":{"provider":"p","model":"m","units":50,"output":{"kind":"stt","text":"hello"}}}"#;
+    std::fs::write(
+        &bin,
+        format!("#!/bin/sh\ncat > '{}'\nprintf '%s\\n' '{reply}'\n", request.display()),
+    )
+    .unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let wav = b"RIFF\x24\0\0\0WAVEfmt ";
+    std::env::set_var("YUOS_KERNEL_BIN", &bin);
+    let transcript = stt(wav, ModelOpts::default());
+    std::env::remove_var("YUOS_KERNEL_BIN");
+
+    assert_eq!(transcript.unwrap().output.text, "hello");
+    let sent: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(request).unwrap()).unwrap();
+    assert_eq!(
+        sent["input"],
+        serde_json::json!({"kind": "stt", "audio_base64": STANDARD.encode(wav)})
+    );
+}
+
 // Silence unused-import warnings for HashMap when feature combos
 // exclude every consumer (current code-shape doesn't use it, but
 // we leave the import to keep the module ready for future per-call

@@ -175,7 +175,9 @@ Use `Chat(prompt, ChatOptions{})` or pass an MCP call as the context to
 
 Use `Embed`, `TTS`, `STT`, `ImageGen`, or `Decide` with `ModelOptions{}`. Every
 model reply exposes `Provider`, `Model`, `Units`, and `Output`.
-`ChatOptions.Images` and `ChatOptions.Functions` extend a chat request.
+`STT` takes audio bytes; `Speech.Audio` and `Image.Image` hold the returned
+bytes. `ChatOptions.Images` (image bytes) and `ChatOptions.Functions` extend a
+chat request.
 `OpenAiPermissionSettings(ctx)` opens the [model permission page](../../docs/app-development.md#model-permissions-in-settings)
 after a user action and with the separate desktop launcher permission.
 

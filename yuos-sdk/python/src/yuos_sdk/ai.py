@@ -11,6 +11,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from base64 import b64decode, b64encode
 from dataclasses import dataclass, field
 from typing import (
     Any, Callable, Dict, Generic, List, Literal, Mapping, NoReturn, Optional,
@@ -20,7 +21,6 @@ from typing import (
 from ._transport import WIRE_ARG, WireDenied, WireUnavailable, decode_response
 from .generated import (
     AiAppTool,
-    AiChatImage,
     AiChatRequest,
     AiInference,
     AiInferenceRequest,
@@ -154,7 +154,7 @@ class Embedding:
 @dataclass(frozen=True)
 class Speech:
     format: str
-    audio_base64: str
+    audio: bytes
     sample_rate_hz: Optional[int] = None
 
 
@@ -166,7 +166,7 @@ class Transcription:
 @dataclass(frozen=True)
 class Image:
     format: str
-    image_base64: str
+    image: bytes
 
 
 @dataclass(frozen=True)
@@ -209,11 +209,14 @@ def chat(
     system: Optional[str] = None,
     app_id: Optional[str] = None,
     tools: Optional[List[str]] = None,
-    images: Sequence[AiChatImage] = (),
+    images: Sequence[bytes] = (),
     functions: Sequence[AiAppTool] = (),
     tool_turns: Sequence[AiToolTurn] = (),
 ) -> AiResponse:
-    """Call the configured chat model with text, optional images and App functions."""
+    """Call the configured chat model with text, optional images and App functions.
+
+    Pass PNG, JPEG or WebP image bytes; Yu OS detects each format.
+    """
     if not isinstance(prompt, str) or not prompt.strip():
         raise AiInvalidArgs("chat: prompt must be non-empty")
     if origin is not None and (not isinstance(origin, str) or not origin.strip()):
@@ -229,7 +232,7 @@ def chat(
         if max_units is not None:
             request["max_units"] = max_units
         if images:
-            request["images"] = list(images)
+            request["images"] = [_encode_media(image, "chat: images") for image in images]
         if functions:
             request["tools"] = list(functions)
         if tool_turns:
@@ -277,6 +280,19 @@ def _encode_request(request: Any, validate: Callable[[Any], Any]) -> bytes:
     return data
 
 
+def _encode_media(data: Any, label: str) -> str:
+    if not isinstance(data, (bytes, bytearray, memoryview)):
+        raise AiInvalidArgs(f"{label} must be bytes")
+    return b64encode(data).decode("ascii")
+
+
+def _decode_media(value: str) -> bytes:
+    try:
+        return b64decode(value, validate=True)
+    except ValueError as error:
+        raise AiUnavailable(f"AI inference reply has invalid media: {error}") from error
+
+
 def _run_model(
     input: EmbedInput | SpeechInput | TranscriptionInput | ImageInput | DecisionInput,
     origin: Optional[Origin],
@@ -287,7 +303,7 @@ def _run_model(
     if max_units is not None:
         request["max_units"] = max_units
     reply = infer(request)
-    output = {key: value for key, value in reply["output"].items() if key != "kind"}
+    output: Dict[str, Any] = {key: value for key, value in reply["output"].items() if key != "kind"}
     if "vector" in output:
         output["vector"] = [
             float(value.lexeme if isinstance(value, WireDecimal) else value)
@@ -295,6 +311,9 @@ def _run_model(
         ]
     if "sample_rate_hz" in output:
         output["sample_rate_hz"] = wire_integer_to_int(output["sample_rate_hz"])
+    for wire_key, key in (("audio_base64", "audio"), ("image_base64", "image")):
+        if wire_key in output:
+            output[key] = _decode_media(output.pop(wire_key))
     return ModelResponse(reply["provider"], reply["model"], reply["units"], output_type(**output))
 
 
@@ -307,11 +326,11 @@ def tts(text: str, *, origin: Optional[Origin] = None, max_units: Optional[int] 
 
 
 def stt(
-    audio_base64: str, *, format: Literal["wav", "mp3", "ogg"],
-    origin: Optional[Origin] = None, max_units: Optional[int] = None,
+    audio: bytes, *, origin: Optional[Origin] = None, max_units: Optional[int] = None,
 ) -> ModelResponse[Transcription]:
+    """Transcribe WAV, MP3 or Ogg audio bytes; Yu OS detects the format."""
     return _run_model(
-        {"kind": "stt", "audio_base64": audio_base64, "format": format},
+        {"kind": "stt", "audio_base64": _encode_media(audio, "stt: audio")},
         origin, max_units, Transcription,
     )
 

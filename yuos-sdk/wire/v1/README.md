@@ -16,8 +16,8 @@ or local decision slot.
 
 [`chat --request-stdin`](ai_chat_request.schema.json) accepts up to 720 KiB
 of JSON, with up to four images, 16 App-owned functions and 16 prior tool
-rounds. Send standard padded base64
-with `format` set to `png`, `jpg`, or `webp`. Images may total 512 KiB decoded.
+rounds. Send each image as standard padded base64 of its PNG, JPEG, or WebP
+bytes; Yu OS detects the format from the bytes. Images may total 512 KiB decoded.
 The App executes proposed calls. Include the same functions on follow-up calls, one result
 for every prior call ID, and optional `provider_state` from the reply
 unchanged.
@@ -28,8 +28,12 @@ effective App policy controls redaction of text prompts.
 Inference stdin accepts up to 720 KiB of JSON. `embed` text is limited to
 16 KiB, TTS and image prompts to 4 KiB, STT input bytes to 512 KiB, and
 decision requests to the local decision model's 16 KiB request envelope.
+STT `audio_base64` is standard padded base64 of WAV, MP3, or Ogg bytes; Yu OS
+detects the format from the bytes.
 An output is one vector (at most 8192 values), one transcript (at most
 64 KiB), one image or audio result (less than 3 MiB), or one decision reply.
+Image and audio results are standard padded base64 with their `format`; the
+named SDK calls return the decoded bytes.
 Oversized replies fail; the broker does not silently truncate them.
 
 All slots count toward the owner's monthly App inference limit. Non-chat calls reserve and

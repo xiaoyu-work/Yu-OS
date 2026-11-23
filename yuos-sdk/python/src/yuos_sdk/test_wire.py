@@ -6,6 +6,7 @@ import copy
 import json
 import subprocess
 import unittest
+from base64 import b64encode
 from decimal import Decimal
 from pathlib import Path
 from unittest import mock
@@ -447,6 +448,39 @@ class WireValidationTests(unittest.TestCase):
         self.assertEqual(unavailable.exception.code, "KERNEL_UNAVAILABLE")
         with self.assertRaises(ai.AiInvalidArgs):
             ai._raise_for_error({"error": "opaque", "code": "INVALID_ARGS"})
+
+    def test_model_calls_take_and_return_media_bytes(self) -> None:
+        png, wav = b"\x89PNG\r\n\x1a\nfixture", b"RIFF\x24\0\0\0WAVEfmt "
+
+        def reply(data: dict) -> subprocess.CompletedProcess:
+            return subprocess.CompletedProcess(
+                ["yu"], 0, _wire_success_json(json.dumps(data)).encode(), b""
+            )
+
+        def inference(output: dict) -> subprocess.CompletedProcess:
+            return reply({"provider": "p", "model": "m", "units": 50, "output": output})
+
+        with mock.patch.object(ai, "_yu_binary", return_value="yu"), mock.patch.object(
+            subprocess,
+            "run",
+            side_effect=[
+                reply(_valid_ai()),
+                inference({"kind": "stt", "text": "hello"}),
+                inference({"kind": "tts", "format": "wav", "audio_base64": b64encode(wav).decode()}),
+                inference({"kind": "imagegen", "format": "png", "image_base64": b64encode(png).decode()}),
+            ],
+        ) as run:
+            ai.chat("Describe this image.", images=[png])
+            self.assertEqual(ai.stt(wav).output.text, "hello")
+            speech = ai.tts("Hello").output
+            image = ai.imagegen("A cat").output
+        sent = [json.loads(call.kwargs["input"]) for call in run.call_args_list[:2]]
+        self.assertEqual(sent[0]["images"], [b64encode(png).decode()])
+        self.assertEqual(sent[1]["input"], {"kind": "stt", "audio_base64": b64encode(wav).decode()})
+        self.assertEqual((speech.format, speech.audio), ("wav", wav))
+        self.assertEqual((image.format, image.image), ("png", png))
+        with self.assertRaises(ai.AiInvalidArgs):
+            ai.stt(b64encode(wav).decode())  # type: ignore[arg-type]
 
     def test_transport_rejects_flat_and_incoherent_wire_replies(self) -> None:
         for completed in (

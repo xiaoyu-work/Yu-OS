@@ -100,6 +100,9 @@ const reply = await ai.chat(body, { signal: call.signal });
 in their options. `ai.budget()` reports the App, period, and units used.
 Check the outcome of an accepted mutation before retrying it.
 
+Pass `ai.chat` images and `ai.stt` audio as `Uint8Array` bytes. `ai.tts` and
+`ai.imagegen` return `output.audio` or `output.image` as a `Uint8Array`.
+
 ## App object references
 
 ```ts

@@ -216,6 +216,30 @@ fn app_provider_error_does_not_forward_upstream_body() {
     assert_eq!(app_provider_error(error), "chat model API returned HTTP 401");
 }
 
+#[test]
+fn chat_images_detect_their_format_from_bytes() {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+
+    let images: [&[u8]; 3] = [
+        b"\x89PNG\r\n\x1a\nfixture",
+        b"\xff\xd8\xff\xe0fixture\xff\xd9",
+        b"RIFF\x0c\0\0\0WEBPVP8 ",
+    ];
+    let blocks = chat_images(&images.map(|bytes| STANDARD.encode(bytes)), true).unwrap();
+    let media_types: Vec<_> = blocks
+        .iter()
+        .map(|block| match block {
+            ContentBlock::Image { media_type, .. } => media_type.as_str(),
+            other => panic!("unexpected block {other:?}"),
+        })
+        .collect();
+    assert_eq!(media_types, ["image/png", "image/jpeg", "image/webp"]);
+    assert!(matches!(
+        chat_images(&[STANDARD.encode(b"GIF89a fixture")], true),
+        Err(AiError::InvalidInference("unsupported image format; send PNG, JPEG or WebP"))
+    ));
+}
+
 // ---------- Model service budget hold ----------
 
 /// Build a `Store` backed by a private on-disk SQLite file under

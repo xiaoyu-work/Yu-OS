@@ -445,7 +445,7 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
     let mut app_chat = json!({
         "session":sid,"app_id":"yuos-edit","request":{
             "prompt":"Convert two meters","origin":"app","max_units":4000,
-            "images":[{"format":"png","image_base64":IMAGE}],
+            "images":[IMAGE],
             "tools":[{"name":"convert_units","description":"Convert meters to centimeters.",
                 "parameters":{"type":"object","properties":{"meters":{"type":"number"}},"required":["meters"]}}]
         }
@@ -455,7 +455,8 @@ async fn authenticated_socket_chat_runs_gate_without_app_registry_or_credentials
     authority::authority().revoke(grant.id);
     let grant = issue(vec![legacy, embedding, Cap::new(Verb::AI_CHAT, Scope::name("test-model"))]);
     let mut invalid = app_chat.clone();
-    invalid["request"]["images"][0]["format"] = json!("jpg");
+    // GIF bytes are not a supported chat image format.
+    invalid["request"]["images"][0] = json!("R0lGODlh");
     let refused = dispatch(invalid, &identity, &state, &admission).await;
     assert_eq!(refused.error.unwrap().data.unwrap()["ai_error"]["code"], "INVALID_ARGS");
     assert_eq!(seen.load(std::sync::atomic::Ordering::SeqCst), 0);
