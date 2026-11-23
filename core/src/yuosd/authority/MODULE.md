@@ -48,6 +48,12 @@ Peer-scoped task routes additionally authenticate non-App process/session
 ancestry. An App or App-owned agent cannot turn a task request into fresh
 system-Agent authority.
 
+`gui.file.picker` has no descriptor-level capability requirement. It still
+resolves the live `GuiResource` session grant for the exact window and
+cannot trigger a broker approval prompt.
+For signed-App Open, the [system chooser](../gui/MODULE.md) supplies exact file
+consent; the provider still checks `ui.prompt` for Save and Folder.
+
 Agent approval redemption uses the same store without exposing another broker
 route. After a durable exact consent record is spent, `yuosd` issues an
 `AgentWorker`-audience grant with `Issuer::Approval`, bound to the verified

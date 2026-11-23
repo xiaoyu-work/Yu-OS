@@ -37,6 +37,18 @@ fn every_route_declares_an_authorization_descriptor() {
     // coherent rather than merely present.
     for route in ROUTES {
         let descriptor = &route.authority;
+        if route.command == Command::GuiFilePicker {
+            // The live GUI grant authenticates the window; the trusted Open
+            // dialog's exact file selection supplies consent, not a startup cap.
+            assert_eq!(descriptor.subject, SubjectSource::Session);
+            assert_eq!(descriptor.audience, Audience::GuiResource);
+            assert_eq!(descriptor.approval, Approval::Ineligible);
+            assert_eq!(
+                (descriptor.requirement)(&serde_json::json!({})).unwrap(),
+                Requirement::None
+            );
+            continue;
+        }
         match descriptor.subject {
             SubjectSource::Peer => {
                 let requirement = (descriptor.requirement)(&serde_json::json!({}))
