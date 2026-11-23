@@ -796,6 +796,7 @@ class McpEffectBindingTests(unittest.TestCase):
         self.assertNotIn("target_arg", minimal)
 
     def test_app_and_gui_helpers_work_in_local_dev_mode(self) -> None:
+        import os
         import tempfile
         from . import app as app_mod, gui as gui_mod
 
