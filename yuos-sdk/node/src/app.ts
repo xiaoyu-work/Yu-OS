@@ -32,6 +32,32 @@ export function desktop(handler: Handler): void {
   desktopHandler = handler;
 }
 
+function defaultUnavailable(surface: "cli" | "desktop", commandName?: string): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    available: false,
+    surface,
+    message:
+      surface === "desktop"
+        ? "This feature is only available on the command line."
+        : "This feature is only available in the desktop app.",
+  };
+  if (commandName) payload.command = commandName;
+  return payload;
+}
+
+async function runDesktop(args: string[]): Promise<void> {
+  if (desktopHandler) {
+    const result = await desktopHandler(args);
+    if (result !== undefined) process.stdout.write(`${JSON.stringify(result)}\n`);
+    return;
+  }
+  if (commands.size > 0) {
+    process.stdout.write(`${JSON.stringify(defaultUnavailable("desktop"))}\n`);
+    return;
+  }
+  throw new Error("the App has no desktop function");
+}
+
 /** Call the function Yu OS started this process for. */
 export async function run(): Promise<void> {
   const hasEnvArgs = process.env.YUOS_ARGS_JSON !== undefined && process.env.YUOS_ARGS_JSON !== "";
@@ -41,16 +67,14 @@ export async function run(): Promise<void> {
   }
   let args: string[] = rawArgs;
   if (process.env.YUOS_APP_GUI === "1") {
-    if (!desktopHandler) throw new Error("the App has no desktop function");
-    await desktopHandler(args);
+    await runDesktop(args);
     return;
   }
   let name = process.env.YUOS_COMMAND ?? "";
   if (!name) {
     const cliArgs = process.argv.slice(2);
     if (cliArgs[0] === "--gui") {
-      if (!desktopHandler) throw new Error("the App has no desktop function");
-      await desktopHandler(hasEnvArgs ? args : cliArgs.slice(1));
+      await runDesktop(hasEnvArgs ? args : cliArgs.slice(1));
       return;
     }
     if (cliArgs.length > 0) {
@@ -61,7 +85,13 @@ export async function run(): Promise<void> {
     }
   }
   const handler = commands.get(name);
-  if (!handler) throw new Error(`the App has no function for command "${name}"`);
+  if (!handler) {
+    if (desktopHandler) {
+      process.stdout.write(`${JSON.stringify(defaultUnavailable("cli", name || undefined))}\n`);
+      return;
+    }
+    throw new Error(`the App has no function for command "${name}"`);
+  }
   const result = await handler(args);
   if (result !== undefined) process.stdout.write(`${JSON.stringify(result)}\n`);
 }

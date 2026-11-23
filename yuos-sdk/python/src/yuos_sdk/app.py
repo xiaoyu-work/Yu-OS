@@ -1,6 +1,9 @@
 """Mark the functions Yu OS starts for an App's command line and desktop.
 
-An App can have a command-line version, a desktop version, or both::
+Declare operations once under ``operations`` in ``app.json``; command-line and
+desktop launches share that declaration. If an operation only implements
+``@command`` or only implements ``@desktop``, the SDK returns a default
+unavailable-surface response when the other surface is launched::
 
     from yuos_sdk.app import command, desktop
 
@@ -11,9 +14,6 @@ An App can have a command-line version, a desktop version, or both::
     @desktop                   # App launcher or yu app <id> --gui
     def open_window(files):
         ...                    # Open your window with any GUI toolkit.
-
-Declare the command under ``operations`` and the window under ``desktop``
-in ``app.json``.
 """
 
 from __future__ import annotations
@@ -22,13 +22,14 @@ import importlib.util
 import json
 import os
 import sys
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, overload
 
 __all__ = ["command", "desktop", "run"]
 
 Handler = TypeVar("Handler", bound=Callable[[List[str]], Any])
 
 _commands: Dict[str, Callable[[List[str]], Any]] = {}
+_desktop_commands: Dict[str, Callable[[List[str]], Any]] = {}
 _desktop: Optional[Callable[[List[str]], Any]] = None
 _dispatched: bool = False
 
@@ -50,16 +51,55 @@ def command(name: str) -> Callable[[Handler], Handler]:
     return register
 
 
-def desktop(handler: Handler) -> Handler:
+@overload
+def desktop(handler: Handler) -> Handler: ...
+
+
+@overload
+def desktop(handler: str) -> Callable[[Handler], Handler]: ...
+
+
+def desktop(handler: Union[Handler, str]) -> Any:
     """Run the decorated function to open the App's desktop window.
 
-    It receives the files the user opened with the App.
+    Can be used as ``@desktop`` or ``@desktop("operation_name")``.
     """
     global _desktop
+    if isinstance(handler, str):
+        name = handler
+        if not name:
+            raise ValueError("desktop operation name must be a nonempty string")
+
+        def register(fn: Handler) -> Handler:
+            if name in _desktop_commands:
+                raise ValueError(f"desktop operation {name!r} already has a function")
+            _desktop_commands[name] = fn
+            return fn
+
+        return register
+
     if _desktop is not None:
         raise ValueError("the desktop window already has a function")
     _desktop = handler
     return handler
+
+
+def _default_unavailable(surface: str, command_name: Optional[str] = None) -> Dict[str, Any]:
+    if surface == "desktop":
+        payload: Dict[str, Any] = {
+            "available": False,
+            "surface": "desktop",
+            "message": "This feature is only available on the command line.",
+        }
+    else:
+        payload = {
+            "available": False,
+            "surface": "cli",
+            "message": "This feature is only available in the desktop app.",
+        }
+    if command_name:
+        payload["command"] = command_name
+    return payload
 
 
 def _parse_env_args() -> Optional[List[str]]:
@@ -75,6 +115,23 @@ def _parse_env_args() -> Optional[List[str]]:
     return list(parsed)
 
 
+def _run_desktop(resolved_args: List[str], cli_invoked: bool) -> Any:
+    if resolved_args and resolved_args[0] in _desktop_commands:
+        result = _desktop_commands[resolved_args[0]](resolved_args[1:])
+    elif _desktop is not None:
+        result = _desktop(resolved_args)
+    elif len(_desktop_commands) == 1:
+        only_fn = next(iter(_desktop_commands.values()))
+        result = only_fn(resolved_args)
+    elif _commands:
+        result = _default_unavailable("desktop")
+    else:
+        raise RuntimeError("main.py has no @desktop function")
+    if cli_invoked and result is not None:
+        print(json.dumps(result))
+    return result
+
+
 def run(name: Optional[str] = None, args: Optional[List[str]] = None) -> Any:
     """Call the function for this launch. Yu OS calls this for ``main.py``."""
     global _dispatched
@@ -83,10 +140,8 @@ def run(name: Optional[str] = None, args: Optional[List[str]] = None) -> Any:
     env_args = _parse_env_args()
 
     if os.environ.get("YUOS_APP_GUI") == "1":
-        if _desktop is None:
-            raise RuntimeError("main.py has no @desktop function")
         resolved_args = list(args) if args is not None else (env_args if env_args is not None else [])
-        return _desktop(resolved_args)
+        return _run_desktop(resolved_args, cli_invoked)
 
     if name is None:
         env_cmd = os.environ.get("YUOS_COMMAND")
@@ -96,9 +151,7 @@ def run(name: Optional[str] = None, args: Optional[List[str]] = None) -> Any:
         else:
             cli_args = list(args) if args is not None else list(sys.argv[1:])
             if cli_args and cli_args[0] == "--gui":
-                if _desktop is None:
-                    raise RuntimeError("main.py has no @desktop function")
-                return _desktop(cli_args[1:])
+                return _run_desktop(cli_args[1:], cli_invoked)
             name = cli_args[0] if cli_args else ""
             resolved_args = env_args if env_args is not None else cli_args[1:]
     else:
@@ -106,6 +159,11 @@ def run(name: Optional[str] = None, args: Optional[List[str]] = None) -> Any:
 
     handler = _commands.get(name)
     if handler is None:
+        if _desktop is not None or _desktop_commands:
+            result = _default_unavailable("cli", name or None)
+            if cli_invoked:
+                print(json.dumps(result))
+            return result
         raise RuntimeError(f"main.py has no @command({name!r}) function")
     result = handler(resolved_args)
     if cli_invoked and result is not None:

@@ -25,13 +25,14 @@ OS service and grant.
 
 ## Command line and desktop
 
-An App can have a command-line version, a desktop version, or both. Declare
-each in `app.json` and mark the function Yu OS starts for it:
+Declare `operations` once in `app.json`; command-line and desktop launches share
+its permissions. In code, mark the command-line function with `@command` and the
+desktop function with `@desktop`:
 
-| Version | `app.json` | Started by | Python |
+| Surface | Started by | Python | If omitted in code |
 |---|---|---|---|
-| Command line | `operations` | `yu app <id> <command> [args]` | `@command("<command>")` |
-| Desktop | `desktop` | The App launcher or `yu app <id> --gui` | `@desktop` |
+| Command line | `yu app <id> <command> [args]` | `@command("<command>")` | Returns `{"available": false, "surface": "cli", ...}` |
+| Desktop | The App launcher or `yu app <id> --gui` | `@desktop` | Returns `{"available": false, "surface": "desktop", ...}` |
 
 ```json
 {
@@ -45,8 +46,7 @@ each in `app.json` and mark the function Yu OS starts for it:
       "args": [{"name": "text", "kind": "text", "required": true}],
       "needs": ["ai.chat"]
     }
-  },
-  "desktop": {"needs": ["ai.chat"]}
+  }
 }
 ```
 
@@ -65,7 +65,9 @@ def open_window(files):
 
 A command function receives the validated arguments after the command name
 and returns a JSON value. The desktop function receives the files the user
-opened with the App. Each version declares its own `needs`.
+opened with the App. If an App only implements `@command` or only implements
+`@desktop`, launching the other surface returns the built-in unavailable-surface
+response automatically.
 
 Node uses `app.command(name, fn)`, `app.desktop(fn)`, and `app.run()`. Go uses
 `HandleCommand`, `HandleDesktop`, and `RunApp()`. Rust uses

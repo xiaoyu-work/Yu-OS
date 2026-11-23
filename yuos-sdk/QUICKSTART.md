@@ -5,8 +5,10 @@ Save these two files in `hello-ai/`:
 
 **`main.py`**
 
-`@command("summarize")` marks the command-line entry (`yu app hello-ai summarize`).
-`@desktop` marks the desktop window entry (App launcher or `yu app hello-ai --gui`).
+`@command("summarize")` implements the command-line entry (`yu app hello-ai summarize`).
+`@desktop` implements the desktop entry (`yu app hello-ai --gui`). If you only
+implement one of the two, Yu OS returns a built-in unavailable response when the
+other is launched.
 
 ```python
 from yuos_sdk.ai import chat
@@ -23,10 +25,9 @@ def open_window(files):
     print(reply.output.text)  # Or open your window with any GUI toolkit.
 ```
 
-See [Command line and desktop](REFERENCE.md#command-line-and-desktop) if your App
-only needs one of the two.
-
 **`app.json`**
+
+Declare `operations` once; command-line and desktop launches share it:
 
 ```json
 {
@@ -40,9 +41,6 @@ only needs one of the two.
       "args": [{"name": "text", "kind": "text", "required": true}],
       "needs": ["ai.chat"]
     }
-  },
-  "desktop": {
-    "needs": ["ai.chat"]
   }
 }
 ```

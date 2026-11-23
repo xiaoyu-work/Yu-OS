@@ -578,7 +578,11 @@ fn find_signed_target(desktop_id: &str) -> Result<Option<(LaunchTarget, String)>
             .manifest_text()
             .ok()
             .and_then(|text| crate::caps::manifest::Manifest::from_json(&text).ok())
-            .filter(|manifest| manifest.id == id && manifest.gui_entry(None).is_ok())
+            .filter(|manifest| {
+                manifest.id == id
+                    && manifest.desktop.is_some()
+                    && manifest.gui_entry(None).is_ok()
+            })
         else {
             return Err("the selected signed App has no authenticated default GUI".into());
         };

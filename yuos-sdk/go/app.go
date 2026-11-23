@@ -51,6 +51,32 @@ func HandleDesktop(fn DesktopFunc) {
 	desktopFunc = fn
 }
 
+func defaultUnavailable(surface, commandName string) map[string]any {
+	msg := "This feature is only available in the desktop app."
+	if surface == "desktop" {
+		msg = "This feature is only available on the command line."
+	}
+	out := map[string]any{
+		"available": false,
+		"surface":   surface,
+		"message":   msg,
+	}
+	if commandName != "" {
+		out["command"] = commandName
+	}
+	return out
+}
+
+func runDesktop(args []string) error {
+	if desktopFunc != nil {
+		return desktopFunc(args)
+	}
+	if len(commandFuncs) > 0 {
+		return json.NewEncoder(os.Stdout).Encode(defaultUnavailable("desktop", ""))
+	}
+	return errors.New("the App has no desktop function")
+}
+
 // RunApp calls the function Yu OS started this process for and prints a
 // command's result as JSON.
 func RunApp() error {
@@ -63,22 +89,16 @@ func RunApp() error {
 		hasEnvArgs = true
 	}
 	if os.Getenv("YUOS_APP_GUI") == "1" {
-		if desktopFunc == nil {
-			return errors.New("the App has no desktop function")
-		}
-		return desktopFunc(args)
+		return runDesktop(args)
 	}
 	name := os.Getenv("YUOS_COMMAND")
 	if name == "" {
 		cliArgs := os.Args[1:]
 		if len(cliArgs) > 0 && cliArgs[0] == "--gui" {
-			if desktopFunc == nil {
-				return errors.New("the App has no desktop function")
-			}
 			if !hasEnvArgs {
 				args = cliArgs[1:]
 			}
-			return desktopFunc(args)
+			return runDesktop(args)
 		}
 		if len(cliArgs) > 0 {
 			name = cliArgs[0]
@@ -89,6 +109,9 @@ func RunApp() error {
 	}
 	fn := commandFuncs[name]
 	if fn == nil {
+		if desktopFunc != nil {
+			return json.NewEncoder(os.Stdout).Encode(defaultUnavailable("cli", name))
+		}
 		return fmt.Errorf("the App has no function for command %q", name)
 	}
 	result, err := fn(args)

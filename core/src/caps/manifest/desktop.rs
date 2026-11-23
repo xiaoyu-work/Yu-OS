@@ -74,10 +74,28 @@ impl Manifest {
     /// Resolve only authenticated manifest data. A name is never a path,
     /// executable or selector supplied by the caller.
     pub fn gui_entry(&self, name: Option<&str>) -> Result<GuiEntry<'_>, String> {
-        let desktop = self
-            .desktop
-            .as_ref()
-            .ok_or_else(|| format!("App `{}` declares no desktop surface", self.id))?;
+        let Some(desktop) = self.desktop.as_ref() else {
+            if name.is_none() && !self.operations.is_empty() {
+                return Ok(GuiEntry {
+                    name: None,
+                    entry: self
+                        .entry
+                        .as_deref()
+                        .unwrap_or_else(|| self.runtime.default_entry()),
+                    exec: "--gui",
+                    label: &self.name,
+                    needs: self
+                        .operations
+                        .values()
+                        .flat_map(|operation| &operation.needs)
+                        .collect(),
+                    optional_needs: Vec::new(),
+                    legacy_needs: true,
+                    panel_applet: false,
+                });
+            }
+            return Err(format!("App `{}` declares no desktop surface", self.id));
+        };
         if let Some(name) = name {
             if !is_valid_gui_entry_name(name) {
                 return Err("GUI entry name must match [a-z][a-z0-9_-]* and fit 64 bytes".into());
@@ -126,6 +144,7 @@ impl Manifest {
             .desktop
             .as_ref()
             .is_some_and(|desktop| selector == desktop.exec || selector == "--gui")
+            || (self.desktop.is_none() && !self.operations.is_empty() && selector == "--gui")
         {
             return self.gui_entry(None).map(Some);
         }

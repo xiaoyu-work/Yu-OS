@@ -901,6 +901,14 @@ fn dev_and_pack_run_and_package_unsigned_app_with_string_needs() {
     );
     assert_eq!(dev_out["echo"], "hello world");
 
+    // Launching `--gui` when only `@command` is implemented returns the built-in
+    // unavailable-surface fallback without needing a `desktop` block in app.json.
+    let gui_fallback = parse(
+        dev_cmd(&[app_dir.display().to_string(), "--gui".into()], None).unwrap(),
+    );
+    assert_eq!(gui_fallback["available"], false);
+    assert_eq!(gui_fallback["surface"], "desktop");
+
     let deb_path = dir.path().join("hello-dev.deb");
     let packed = parse(
         pack_cmd(&[

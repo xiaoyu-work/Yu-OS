@@ -83,20 +83,18 @@ impl App {
             Err(error) => return Err(AppError::Args(error.to_string())),
         };
         if crate::gui::is_gui_launch() {
-            let function = self.desktop.ok_or(AppError::NoDesktop)?;
-            return function(args).map_err(AppError::Function);
+            return self.run_desktop(args);
         }
         let mut name = std::env::var("YUOS_COMMAND").unwrap_or_default();
         if name.is_empty() {
             let cli_args: Vec<String> = std::env::args().skip(1).collect();
             if cli_args.first().map(String::as_str) == Some("--gui") {
-                let function = self.desktop.ok_or(AppError::NoDesktop)?;
                 let gui_args = if has_env_args {
                     args
                 } else {
                     cli_args.into_iter().skip(1).collect()
                 };
-                return function(gui_args).map_err(AppError::Function);
+                return self.run_desktop(gui_args);
             }
             if let Some((first, rest)) = cli_args.split_first() {
                 name = first.clone();
@@ -105,14 +103,38 @@ impl App {
                 }
             }
         }
-        let function = self
-            .commands
-            .remove(&name)
-            .ok_or(AppError::NoCommand(name))?;
+        let has_desktop = self.desktop.is_some();
+        let Some(function) = self.commands.remove(&name) else {
+            if has_desktop {
+                let fallback = serde_json::json!({
+                    "available": false,
+                    "surface": "cli",
+                    "command": name,
+                    "message": "This feature is only available in the desktop app.",
+                });
+                return writeln!(std::io::stdout(), "{fallback}").map_err(AppError::Output);
+            }
+            return Err(AppError::NoCommand(name));
+        };
         let result = function(args).map_err(AppError::Function)?;
         if result.is_null() {
             return Ok(());
         }
         writeln!(std::io::stdout(), "{result}").map_err(AppError::Output)
+    }
+
+    fn run_desktop(self, args: Vec<String>) -> Result<(), AppError> {
+        if let Some(function) = self.desktop {
+            return function(args).map_err(AppError::Function);
+        }
+        if !self.commands.is_empty() {
+            let fallback = serde_json::json!({
+                "available": false,
+                "surface": "desktop",
+                "message": "This feature is only available on the command line.",
+            });
+            return writeln!(std::io::stdout(), "{fallback}").map_err(AppError::Output);
+        }
+        Err(AppError::NoDesktop)
     }
 }

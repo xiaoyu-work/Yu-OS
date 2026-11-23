@@ -1001,15 +1001,21 @@ fn scaffold_app_json(id: &str, want_ops: bool, want_desktop: bool) -> String {
     }
 
     if want_desktop {
-        blocks.push(
+        let desktop_block = if want_ops {
+            r#"  "desktop": {
+    "exec": "--gui",
+    "categories": ["Utility"],
+    "single_instance": true
+  }"#
+        } else {
             r#"  "desktop": {
     "exec": "--gui",
     "needs": [],
     "categories": ["Utility"],
     "single_instance": true
   }"#
-            .to_string(),
-        );
+        };
+        blocks.push(desktop_block.to_string());
     }
 
     format!("{{\n{}\n}}\n", blocks.join(",\n"))
