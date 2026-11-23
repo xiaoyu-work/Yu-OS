@@ -2,8 +2,8 @@
 //!
 //! The generated `.deb` installs the App tree under `usr/lib/yuos/apps/<id>` with
 //! `uid=0, gid=0`, safe file modes, and a `control` file—never maintainer scripts
-//! (`postinst`/`prerm`), setuid bits, or developer signing keys. Store review
-//! inspects and signs the package before publication.
+//! (`postinst`/`prerm`) or setuid bits. Store review inspects and signs the
+//! package before publication.
 
 use std::collections::BTreeSet;
 use std::fs;

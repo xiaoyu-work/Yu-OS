@@ -737,8 +737,8 @@ and ship an app
 | `yu app <id> <op> [args…]` | Run an op. |
 | `yu app <id> --schema` | Full manifest-derived schema for the app. |
 | `yu app <id> <op> --schema` | Schema for one op. |
-| `yu app dev <dir> <op> [args…]` | Run an unsigned local App directory directly during development (use `YUOS_DEV_AI_URL` for a local or OpenAI-compatible AI endpoint). |
-| `yu app pack <dir> [--out <file.deb>] [--arch all\|amd64\|arm64]` | Validate and package an App directory into a `.deb` archive for Store submission (`xiaoyu-work/yuos-app/submissions/incoming/`), without requiring a developer signing key. |
+| `yu app dev <dir> <op> [args…]` | Run a local App directory during development (use `YUOS_DEV_AI_URL` for a local or OpenAI-compatible AI endpoint). |
+| `yu app pack <dir> [--out <file.deb>] [--arch all\|amd64\|arm64]` | Validate and package an App directory into a `.deb` archive for Store submission (`xiaoyu-work/yuos-app/submissions/incoming/`). |
 | `yu app lint [<id>]` | Check declared MCP entrypoints and look for blocked model-provider imports in Python files. Run on every discovered App if no ID is given. |
 | `yu app tool list [<id>]` | Show the manifest-declared MCP tools this App exposes through the private Gateway. |
 | `yu app install <dir> --review` | Verify the package and return its requested permissions, scopes, conditions, AI policy and execution surfaces as JSON, without installing or granting anything. |

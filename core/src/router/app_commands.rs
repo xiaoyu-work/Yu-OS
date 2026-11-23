@@ -92,8 +92,8 @@ pub(super) fn dispatch_app(
         return pack_cmd(&args[1..]);
     }
 
-    // Special: `yu app dev <dir> <command> [args...]` — run an unsigned local
-    // App directory directly during development.
+    // Special: `yu app dev <dir> <command> [args...]` — run a local
+    // App directory during development.
     if app_name == "dev" {
         return dev_cmd(&args[1..], stdin_data);
     }
@@ -1343,8 +1343,7 @@ pub(super) fn pack_cmd(args: &[String]) -> Result<Option<String>, String> {
 }
 
 /// `yu app dev <dir> <command> [args...]` (or `yu app ./<dir> <command> [args...]`) —
-/// run an unsigned local App directory directly during development without signing
-/// or global installation.
+/// run a local App directory during development.
 pub(super) fn dev_cmd(args: &[String], stdin_data: Option<Vec<u8>>) -> Result<Option<String>, String> {
     use std::io::Write;
     use std::process::{Command, Stdio};

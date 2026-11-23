@@ -1,9 +1,7 @@
 # Quickstart: Call a model from your App
 
 Build a text summarizer with `ai.chat` and the user's configured model.
-
-Use the current Yu OS Agent package with `yuosd` running and a chat model
-configured in Settings. Save these two files in `hello-ai/`:
+Save these two files in `hello-ai/`:
 
 **`main.py`**
 
@@ -41,18 +39,18 @@ a [desktop version](REFERENCE.md#command-line-and-desktop).
 }
 ```
 
-### 1. Test locally (no signing required)
+### 1. Test locally
 
-Point `YUOS_DEV_AI_URL` at any local or OpenAI-compatible model endpoint (such
-as Ollama at `http://localhost:11434/v1`, with optional `YUOS_DEV_AI_MODEL` and
-`YUOS_DEV_AI_KEY`) and run the App directory directly:
+Point `YUOS_DEV_AI_URL` at a local or OpenAI-compatible model endpoint (such as
+Ollama at `http://localhost:11434/v1`, with optional `YUOS_DEV_AI_MODEL` and
+`YUOS_DEV_AI_KEY`) and run the App directory:
 
 ```sh
 export YUOS_DEV_AI_URL="http://localhost:11434/v1"
 yu app dev ./hello-ai summarize "We moved the launch to Friday because the tests aren't ready."
 ```
 
-Without the `yu` CLI installed, you can also run `main.py` directly through the SDK:
+Or run `main.py` directly through the SDK:
 
 ```sh
 YUOS_DEV_AI_URL="http://localhost:11434/v1" \
@@ -65,16 +63,15 @@ YUOS_DEV_AI_URL="http://localhost:11434/v1" \
 
 ### 2. Package `.deb` for Store review
 
-When ready to publish, pack the directory into a `.deb` archive (no signing key
-needed) and submit it to [`xiaoyu-work/yuos-app`](https://github.com/xiaoyu-work/yuos-app)
-(`submissions/incoming/`) for Store review:
+Pack the directory into a `.deb` archive and submit it to
+[`xiaoyu-work/yuos-app`](https://github.com/xiaoyu-work/yuos-app)
+(`submissions/incoming/`):
 
 ```sh
 yu app pack ./hello-ai
 ```
 
-After the Store owner reviews the package, the Store signs and publishes it to
-the official Yu OS APT repository.
+After review, the Store publishes it to the Yu OS APT repository.
 
 [All model slots](REFERENCE.md#ai-support) ·
 [Handle AI errors](REFERENCE.md#handle-ai-errors) ·
