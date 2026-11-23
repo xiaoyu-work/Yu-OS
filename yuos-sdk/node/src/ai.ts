@@ -237,7 +237,7 @@ export async function* chatStream(
     }
     const body: Record<string, unknown> = { model: devAiModel(), messages, stream: true };
     if (opts.maxUnits != null) body.max_tokens = Number(opts.maxUnits);
-    const raw = (await devPostBytes(`${baseUrl}/chat/completions`, body, opts.signal)).toString("utf8");
+    const raw = Buffer.from(await devPostBytes("/chat/completions", body, opts.signal)).toString("utf8");
     if (raw.trimStart().startsWith("data:")) {
       for (const line of raw.split(/\r?\n/)) {
         const trimmed = line.trim();
