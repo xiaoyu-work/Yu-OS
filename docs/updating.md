@@ -1163,9 +1163,10 @@ does not reset the system, erase `/home`, or relax the release security floor.
 
 ### First-run system update
 
-The last setup page processes drivers first and then checks the same signed
-Yu OS APT channel as Settings. Drivers satisfied by the installer do not need
-another download. **Finish setup** is unavailable while either step is active.
+The last setup page shows one status, first for drivers and then for updates
+from the same signed Yu OS APT channel as Settings. Drivers satisfied by the
+installer do not need another download. **Finish setup** is unavailable while
+either step is active.
 Without internet, or if only optional updates fail, you can finish on the
 working system and update later. If a driver is known to be required to start
 the desktop, setup requires it before continuing; it does not treat every

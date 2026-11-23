@@ -13,47 +13,36 @@ Column {
     spacing: 12
 
     readonly property bool requiredDriver: driverPhase.startsWith("required-")
-    readonly property bool driverBusy: ["checking", "installing"].includes(driverPhase) && !unavailable
-    readonly property bool softwareBusy: ["checking", "downloading", "restarting"].includes(softwarePhase) && !unavailable
+    readonly property bool showingDrivers: softwarePhase === "waiting" || (requiredDriver && softwarePhase !== "repair")
+    readonly property bool statusUnavailable: unavailable && !requiredDriver && softwarePhase !== "repair"
     readonly property bool driverError: requiredDriver || ["offline", "failed"].includes(driverPhase)
-    readonly property bool softwareError: unavailable || ["offline", "failed", "restart-failed", "repair"].includes(softwarePhase)
+    readonly property bool softwareError: ["offline", "failed", "restart-failed", "repair"].includes(softwarePhase)
 
     SetupGroup {
         width: parent.width
-        height: rows.implicitHeight
-        Column {
-            id: rows
+        height: status.implicitHeight
+        SetupRow {
+            id: status
+            objectName: "updateStatus"
             width: parent.width
-            SetupRow {
-                objectName: "driverStatus"
-                width: parent.width
-                interactive: false
-                strong: true
-                minHeight: 64
-                inset: 48
-                divided: true
-                text: ({
-                    checking: qsTr("Checking drivers…"),
-                    installing: qsTr("Installing drivers…"),
-                    ready: qsTr("Drivers ready"),
-                    offline: qsTr("Driver updates not installed"),
-                    failed: qsTr("Couldn't install driver updates"),
-                    "required-offline": qsTr("Required drivers aren't installed"),
-                    "required-failed": qsTr("Couldn't install required drivers")
-                })[updates.driverPhase]
-                symbol: updates.driverError ? "alert" : updates.driverBusy ? "spinner" : updates.driverPhase === "ready" ? "check" : ""
-                symbolInk: updates.driverError ? "#c0321f" : updates.driverBusy ? "#005cfe" : "#0d7a53"
-                spinning: updates.driverBusy && !updates.reduceMotion
-            }
-            SetupRow {
-                objectName: "softwareStatus"
-                width: parent.width
-                interactive: false
-                strong: true
-                minHeight: 64
-                inset: 48
-                text: ({
-                    waiting: qsTr("Update software"),
+            interactive: false
+            strong: true
+            minHeight: 64
+            inset: 48
+            text: {
+                if (updates.statusUnavailable)
+                    return qsTr("Couldn't check update status. Try again.");
+                if (updates.showingDrivers)
+                    return ({
+                        checking: qsTr("Checking drivers…"),
+                        installing: qsTr("Installing drivers…"),
+                        ready: qsTr("Drivers ready"),
+                        offline: qsTr("Driver updates not installed"),
+                        failed: qsTr("Couldn't install driver updates"),
+                        "required-offline": qsTr("Required drivers aren't installed"),
+                        "required-failed": qsTr("Couldn't install required drivers")
+                    })[updates.driverPhase];
+                return ({
                     checking: qsTr("Checking for software updates…"),
                     downloading: qsTr("Downloading software updates…"),
                     restart: qsTr("Software updates ready to install"),
@@ -64,12 +53,19 @@ Column {
                     failed: qsTr("Couldn't update software"),
                     "restart-failed": qsTr("Couldn't restart to install updates"),
                     repair: qsTr("System update needs attention")
-                })[updates.softwarePhase]
-                symbol: updates.softwareError ? "alert" : updates.softwareBusy ? "spinner"
-                    : ["installed", "current"].includes(updates.softwarePhase) ? "check" : ""
-                symbolInk: updates.softwareError ? "#c0321f" : updates.softwareBusy ? "#005cfe" : "#0d7a53"
-                spinning: updates.softwareBusy && !updates.reduceMotion
+                })[updates.softwarePhase];
             }
+            symbol: {
+                if (updates.statusUnavailable || (updates.showingDrivers ? updates.driverError : updates.softwareError))
+                    return "alert";
+                if (updates.showingDrivers)
+                    return updates.driverPhase === "ready" ? "check" : "spinner";
+                if (["checking", "downloading", "restarting"].includes(updates.softwarePhase))
+                    return "spinner";
+                return ["installed", "current"].includes(updates.softwarePhase) ? "check" : "";
+            }
+            symbolInk: symbol === "alert" ? "#c0321f" : symbol === "spinner" ? "#005cfe" : "#0d7a53"
+            spinning: symbol === "spinner" && !updates.reduceMotion
         }
     }
 
@@ -84,7 +80,7 @@ Column {
             if (updates.driverPhase === "required-failed")
                 return qsTr("Install the required drivers before continuing.")
             if (updates.unavailable)
-                return qsTr("Couldn't check update status. Try again.")
+                return "";
             if (updates.softwarePhase === "restart")
                 return qsTr("Restart to install the updates. Your setup choices will be saved.")
             if (updates.softwarePhase === "offline")
@@ -93,8 +89,8 @@ Column {
                 return qsTr("You can finish setup and update later.")
             if (updates.driverError)
                 return updates.driverPhase === "offline"
-                    ? qsTr("No internet connection. Yu OS will try these driver updates when you reconnect.")
-                    : qsTr("These driver updates aren't needed to start the desktop.")
+                    ? qsTr("Yu OS will retry optional driver updates when you reconnect.")
+                    : qsTr("Optional driver updates weren't installed.")
             return "";
         }
     }
