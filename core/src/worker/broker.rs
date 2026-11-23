@@ -508,9 +508,8 @@ fn admit(command: Command, authority: &BrokerAuthority) -> Result<(), String> {
             command.as_str()
         ));
     }
-    if command == Command::PrivateMailExchange {
-        // The Root private proxy and Mail provider authenticate the
-        // Host and active signed child. This only forwards the frame.
+    if command == Command::PrivateMailExchange && authority.can_relay_mail() {
+        // Root still authenticates the Host and the active call.
         return Ok(());
     }
     if matches!(command, Command::SystemAppFileTransfer | Command::SystemAppFileCommit) {

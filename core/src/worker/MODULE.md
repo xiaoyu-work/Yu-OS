@@ -524,7 +524,7 @@ per-launch broker endpoint bind-mounted at that path, which:
   `yuos_runtime.policy`, needs inside the sandbox;
 - refuses identity, consent, journal and scheduler routes outright;
 - refuses every route with no admission rule, and prechecks the rest
-  against a verb the launch actually holds;
+  against a verb the launch actually holds or an explicit private relay rule;
 - relays what is left through `yuosd`'s `app_session.relay` route, one
   request per connection, with the shared current broker envelope, a bounded
   frame, explicit deadlines, and the inner route's error classification intact.
@@ -547,6 +547,11 @@ and recursive calls. The handle never enters the sandbox, never appears
 in a response and never reaches an audit record; a same-uid sibling, a
 process that received it over a socket, and the worker itself all fail
 its `Process` binding.
+
+The worker forwards `private.mail.exchange` only for the Root-registered MCP
+launch of the canonical, publisher-signed Mail package. A capability or an
+ordinary App relay handle does not qualify. Root still verifies the live Mail
+call before dispatching to Thunderbird.
 
 ## Dependencies
 

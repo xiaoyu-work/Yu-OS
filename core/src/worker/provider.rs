@@ -10,6 +10,7 @@
 //! anything: a host that cannot enforce the policy does not get to run
 //! the worker.
 
+use std::path::Path;
 use std::process::Command;
 
 use super::policy::LaunchPolicy;
@@ -45,6 +46,7 @@ pub struct BrokerAuthority {
     package: Option<crate::provenance::runtime::PackageRef>,
     relay: RelayHandle,
     root_liveness: bool,
+    mail_service_relay: bool,
 }
 
 /// Shared slot holding the launcher-bound relay grant.
@@ -76,18 +78,39 @@ impl BrokerAuthority {
             package: None,
             relay,
             root_liveness: false,
+            mail_service_relay: false,
         }
     }
 
     /// Bind this endpoint to the package the launch verified.
     pub fn with_package(mut self, package: Option<crate::provenance::runtime::PackageRef>) -> Self {
         self.package = package;
+        self.mail_service_relay = false;
         self
     }
 
     pub(crate) fn with_root_liveness(mut self, required: bool) -> Self {
         self.root_liveness = required;
         self
+    }
+
+    /// Only the MCP launch path uses this. A Root MCP registration already
+    /// required the exact AppService Host; the local fallback may not relay Mail.
+    pub(crate) fn with_app_service_package(
+        self,
+        root: &Path,
+        package: Option<crate::provenance::runtime::PackageRef>,
+    ) -> Self {
+        let mut authority = self.with_package(package);
+        authority.mail_service_relay = authority.package.as_ref().is_some_and(|package| {
+            authority.app_id.as_deref() == Some(package.id.as_str())
+                && crate::yuosd::mail::is_installed_mail_package(root, package)
+        });
+        authority
+    }
+
+    pub(crate) fn can_relay_mail(&self) -> bool {
+        self.root_liveness && self.mail_service_relay
     }
 
     /// Re-check the launch's provenance against the *current* trust

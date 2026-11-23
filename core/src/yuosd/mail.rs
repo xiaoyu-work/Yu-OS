@@ -56,6 +56,10 @@ pub(crate) fn is_mail_package(package: &PackageRef) -> bool {
         && package.developer_path.is_none()
 }
 
+pub(crate) fn is_installed_mail_package(root: &Path, package: &PackageRef) -> bool {
+    root == Path::new(MAIL_ROOT) && is_mail_package(package)
+}
+
 pub(super) fn require_service_host(
     client: &ClientIdentity,
     relay: &Decision,
@@ -145,7 +149,7 @@ fn mailbox_command(command: &str) -> Option<&str> {
 
 pub(crate) fn cli_uses_service(app: &crate::apps::App, command: &str) -> bool {
     mailbox_command(command).is_some() && app.require_verified().is_ok_and(|package| {
-        package.dir() == Path::new(MAIL_ROOT) && is_mail_package(&PackageRef::of(package))
+        is_installed_mail_package(package.dir(), &PackageRef::of(package))
     })
 }
 

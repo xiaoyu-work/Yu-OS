@@ -1250,7 +1250,7 @@ pub(crate) fn prepare_app_session_worker(
     let launch = crate::worker::WorkerLaunch::new(policy).with_root_custody(session.root_custody).with_authority(
         session
             .broker_authority(app_id)
-            .with_package(binding.package_ref()),
+            .with_app_service_package(app_dir, binding.package_ref()),
     );
     let prepared = crate::worker::prepare(&launch).inspect_err(|error| {
         crate::worker::audit::refused(&label, tier.as_str(), error);

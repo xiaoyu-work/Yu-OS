@@ -49,6 +49,18 @@ fn every_route_declares_an_authorization_descriptor() {
             );
             continue;
         }
+        if route.command == Command::PrivateMailExchange {
+            // Only the private relay presents this session. The provider
+            // checks the verified Mail workload, not a mailbox capability.
+            assert_eq!(route.access, Access::AppRelayOnly);
+            assert_eq!(descriptor.subject, SubjectSource::Session);
+            assert_eq!(descriptor.approval, Approval::Ineligible);
+            assert_eq!(
+                (descriptor.requirement)(&serde_json::json!({})).unwrap(),
+                Requirement::None
+            );
+            continue;
+        }
         match descriptor.subject {
             SubjectSource::Peer => {
                 let requirement = (descriptor.requirement)(&serde_json::json!({}))
@@ -154,6 +166,7 @@ fn route_audiences_match_their_families() {
                 Audience::Credential
             }
             "system.app-file.transfer" | "system.app-file.commit" => Audience::AppFile,
+            "private.mail.exchange" => Audience::SystemService,
             name if name.starts_with("system.")
                 || name.starts_with("nearby.")
                 || matches!(name, "ai.chat" | "ai.infer") =>

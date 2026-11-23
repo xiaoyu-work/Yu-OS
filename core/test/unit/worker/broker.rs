@@ -70,6 +70,34 @@ fn a_route_family_the_launch_cannot_justify_is_refused() {
             "{command:?} admitted on fs.read alone"
         );
     }
+
+    let root = Path::new("/usr/lib/yuos/apps/email");
+    let official = crate::provenance::runtime::PackageRef {
+        kind: crate::provenance::PackageKind::App,
+        id: "email".into(),
+        content_digest: format!("sha256:{}", "a".repeat(64)),
+        publisher_key_id: Some(
+            "sha256:446530c9189e8aff4a5db3871f3ac8ed82b2f06e1c0423c4bfb28babd81f5ed1".into(),
+        ),
+        tier: "publisher".into(),
+        developer_path: None,
+        system_desktop: None,
+    };
+    let command = Command::PrivateMailExchange;
+    let mut local = relaying_authority(Vec::new());
+    local.app_id = Some("email".into());
+    let mail = local.clone().with_root_liveness(true);
+    assert!(admit(command, &mail.clone().with_package(Some(official.clone()))).is_err());
+    assert!(admit(command, &local.with_app_service_package(root, Some(official.clone()))).is_err());
+    assert!(admit(
+        command,
+        &mail.clone().with_app_service_package(Path::new("/tmp/email"), Some(official.clone()))
+    ).is_err());
+    let mut other = official.clone();
+    other.publisher_key_id = None;
+    assert!(admit(command, &mail.clone().with_app_service_package(root, Some(other))).is_err());
+    admit(command, &mail.with_app_service_package(root, Some(official)))
+        .expect("the Root-bound installed Mail MCP launch can relay without public capabilities");
 }
 
 #[test]
