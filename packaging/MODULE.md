@@ -82,11 +82,10 @@ The APT publisher merges the three OS packages once and refuses to replace
 equal or newer authenticated candidates.
 
 The coordinated first transfer is strictly below `1:0.2.1`; runtime ABI stays
-1. Agent's versioned `yuos-app-runtime-v1` Provides is rendered from
-`app-platform.json` (0.2.1 implementation), and App packages require `>= 0.2.1`.
+1. Agent's `yuos-app-runtime-v1` Provides uses the implementation version
+reported by `scripts/app_packages.py runtime-version`.
 Agent recommends `yuos-apps-agent`. Desktop requires that headless set, the
 independently owned graphical App packages and Mail's Thunderbird integration.
-Desktop requires runtime-v1 implementation 0.2.1 for its actual SDK consumer.
 No Agent → App hard dependency prevents publishing independent App APT
 packages before the new Agent. SDK/runtime Python and Root authority stay
 OS-owned; `_shared`, `gateway`, `canonical_argv` and `yuos_files` do not.

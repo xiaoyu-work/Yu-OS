@@ -158,7 +158,7 @@ with the authenticated previous release, and non-expiring indexes require no
 weekly refresh. See [the publication contract](packaging/README.md#independent-publication).
 
 See [the workflow module](.github/workflows/MODULE.md) for the separate
-website, system, SDK and App platform publication entry points.
+website, system and SDK publication entry points.
 
 Run manual validation with `gh workflow run test.yml --ref main`. Do not push
 a temporary branch to dispatch it. GitHub blocks creating branches under `ci/`.

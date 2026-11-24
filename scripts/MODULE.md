@@ -23,14 +23,13 @@ shared build helpers.
 | `lib/git-readonly.sh` | Read-only Git wrapper for privileged builds |
 | `ci/check-provisioning.sh` | Shell syntax and LF checks shared with the test workflow |
 | `ci/test-boundaries.sh` | App bind, Calendar, capture portal, extension/owner-memory isolation, authenticated display and Applet kernel checks; invoked as separate visible CI steps |
-| `ci/native_editor_payload.py` | Private native product acceptance inputs, including Settings: resolve one immutable App snapshot and invoke its public-pin, original-installer native build; no local platform, signing, installation or publication |
+| `ci/native_editor_payload.py` | Private native product acceptance inputs: resolve one immutable App snapshot and invoke its native build, without signing, installing or publishing it |
 | `ci/prepare-release.sh` | Freeze the release's UTC day and daily sequence from Actions run metadata and prepare authenticated App inputs |
 | `ci/import-signing-key.sh` | Require the configured signing identity and export its exact verification keyring through `GITHUB_ENV` |
 | `ci/pages_files.py` | Record and preserve exact published website and APT files; require the archive key's signature before restoring APT |
 | `ci/verify-package.sh` | Check package identity, payload-free OS ownership, authenticated App APT inputs and signed release manifest before upload or images |
 | `ci/test-agent-package.sh` | Agent TUI and Ubuntu install/reinstall, terminal/Web polkit/PAM, broker and cgroup checks; `installed-core` validates the exact Agent/Base pair in one transaction |
 | `ci/verify_official_app_store.py` | Disposable hosted-CI-only actual public signed Store/APT installation, protected exact-revision review, installed product Web/browser and Root MCP, using the newly installed Agent and a synthetic owner |
-| `app_platform.py` | Reproducible, versioned SDK/runtime/toolkit development artifact; excludes App helpers and OS providers |
 | `app_packages.py` | Reauthenticate official fresh App APT indexes and final `.deb` bytes; select independent package closure and enforce one-owner OS staging |
 | `app_sources.py` | Prepare explicit immutable App test/development fixtures; never a production package fallback |
 | `app_sources.py --write-lock <path>` | Record the selected SHA for later build steps through `YUOS_APP_SOURCE_LOCK`; never changes the repository selection |
@@ -69,22 +68,20 @@ clipboard results, deferred human responses and checked Close. No App executable
 or live display is used; this does not establish full GUI acceptance.
 
 The separate `native-capture` selection prepares the real App-owned Capture
-ELF and all original icons/licenses with the public pin. Cases34-39 enter actual
-PAM/common Host/private broker, settle the independent screen/notification/Home
+ELF and all original icons/licenses from the resolved App snapshot. Cases 34–39
+enter actual PAM/common Host/private broker, settle the independent screen/notification/Home
 metadata and exact creation reviews, and require the actual protected
 `/usr/local/bin/yuosd` helper at the private portal. File metadata, clipboard,
 user cancellation, delayed-Close revocation/logout, original non-interactive
 selected output and no-clobber refusal have separate observations. Capture has
 no App-owned pixel surface; a synthetic frame/title cannot satisfy this gate.
 The backend portal and PNG input remain synthetic and do not establish physical
-screen capture or hardware UI acceptance. This lane neither publishes nor
-changes the SDK/platform selection.
+screen capture or hardware UI acceptance.
 
 ## Tests
 
 ```bash
 bash -n scripts/*.sh scripts/lib/*.sh
-python3 -m pytest -q scripts/tests/test_app_platform.py
 python3 -m pytest -q packaging/deb/tests/test_app_sources.py
 python3 -B -m pytest -q scripts/tests/test_native_editor_payload.py
 ```
@@ -92,8 +89,8 @@ python3 -B -m pytest -q scripts/tests/test_native_editor_payload.py
 Also run the narrowest consuming target/package command.
 
 `test-boundaries.sh native-settings` prepares the original Settings ELF,
-manifest, licenses and installer resources using the same immutable/public-pin
-path. It requires a real managed window and checked retirement with empty
+manifest, licenses and installer resources from the same immutable App snapshot.
+It requires a real managed window and checked retirement with empty
 mandatory GUI capabilities and every declared optional right ungranted. Public XKB
 data comes from the existing read-only `/usr` runtime, not an owner-file grant.
 Startup acceptance does not prove system-wide Settings writes or hardware.
@@ -101,8 +98,8 @@ Startup acceptance does not prove system-wide Settings writes or hardware.
 The proposed `test-boundaries.sh native-editor` selection is a separate real
 product lane, not another native probe. Its preparation calls the resolved App
 snapshot's `tools/native_build.py editor build --release --app-root` as an
-ordinary build user. The complete payload inventory, source SHA, public platform
-pin and original licenses/resources remain bound to the private fixture receipt.
+ordinary build user. The private fixture receipt binds the complete payload
+inventory, including original licenses and resources, to the App source SHA.
 Only the existing isolated PAM/display bootstrap signs and runs that payload.
 Run its Root acceptance only on a clean disposable GHA runner, never a shared
 developer host. Parser tests, compilation and ELF preparation alone are not a

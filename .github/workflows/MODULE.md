@@ -66,7 +66,6 @@ dispatched and reusable test/publication pipelines.
 | `release.yml` | Manual OS release on `main`; publishes the signed Agent, Base and Desktop updates together |
 | `publish-website.yml` | Manual static website publication on `main`, independent of App and OS builds |
 | `publish-sdk-release.yml` | GitHub SDK artifacts and synchronized language tags |
-| `publish-app-platform.yml` | Manually published versioned SDK/runtime/toolkit development artifact for independent App builds |
 | `../actionlint.yaml` | Compatibility with GitHub's queued concurrency |
 | `../../scripts/ci/` | Release planning, signing-key import, package checks and installed Agent/privileged test scripts |
 
@@ -99,18 +98,9 @@ See [Website publication](../../web/MODULE.md#publication) for first use.
 Non-expiring indexes need no scheduled refresh. The OS release does not
 build installer, Docker or WSL images.
 
-SDK publication also builds tested portable `yu` signing executables for amd64
-and arm64 from that same commit, after its full Root validation succeeds.
-For an initial App publication, validate the exact `main` commit with
-`test.yml`, publish the App platform and SDK artifacts, then publish the
-signed App APT repository. `release.yml` consumes that repository; it cannot
-create the upstream App index.
-The SDK Release binds those bounded assets, dependency source pins and upstream
-notices to its checksums. This lets the first App channel authenticate snapshots
-before the coordinated Agent ownership cutover, without a circular dependency
-on an already-published Agent APT package. App publication pins an individual
-immutable executable URL and digest, never OS source or a mutable CI artifact.
-Publishing a signing tool does not install or activate an Agent or App.
+SDK publication uploads the language packages, source archive and checksums
+to GitHub Releases. It does not publish App packages. `release.yml` consumes
+the separately published signed App APT repository; it cannot create that index.
 
 ## Dependencies
 

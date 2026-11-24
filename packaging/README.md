@@ -58,9 +58,9 @@ The separately signed App channel owns product/capability packages, native
 ELFs/resources, Browser assets, Mail's XPI, `yuos-app-support` and named Python
 libraries. Support provides `yuos-app-support-v1`; Files alone provides
 `yuos-app-python-yuos-files-v1`. App packages cannot provide OS/package/authority
-ABIs. Agent retains `yuos_sdk`, `yuos_sdk`, toolkit/system services and
-Root helpers. Its `yuos-app-runtime-v1 (= 0.2.1)` implementation version
-comes from `app-platform.json`; App packages require `>= 0.2.1`, still ABI 1.
+ABIs. Agent retains `yuos_sdk`, toolkit/system services and Root helpers.
+`scripts/app_packages.py runtime-version` supplies the implementation version
+for Agent's `yuos-app-runtime-v1` interface.
 
 `scripts/app_packages.py prepare` authenticates the official App APT release,
 bounded freshness and package index, downloads the selected dependency closure,
@@ -137,15 +137,11 @@ presentation records/proxy/FD constants instead of private config/util or
 direct product preference writes. Grouping, styles, actions, bounded decoded
 icons and confirmed popup mute are retained without merging renderer graphs.
 `native-boundary` still rejects reintroduced App source links.
-`desktop/justfile` keeps source-only `build-source-fixtures` and
-`install-source-fixtures` with an explicit immutable `YUOS_APP_SOURCE_LOCK`;
-production no longer fetches/mounts native App sources or copies manifests.
-Desktop requires runtime-v1 implementation 0.2.1 through the normal template.
+Native acceptance fixtures use the resolved App source snapshot; production
+does not mount native App sources or copy their manifests.
 Actual Linux native builds and installed native/GUI acceptance remain
-required. Public [SDK 0.2.1](https://github.com/xiaoyu-work/Yu-OS/releases/tag/sdk-v0.2.1)
-and [App platform 0.2.1](https://github.com/xiaoyu-work/Yu-OS/releases/tag/app-platform-v0.2.1)
-artifacts are published. Their publication alone does not establish independent
-App APT delivery or installed native/GUI acceptance.
+required. Publishing the [SDK](https://github.com/xiaoyu-work/Yu-OS/releases)
+does not publish the separate App APT packages or verify an installed desktop.
 
 The Desktop source also installs `/usr/libexec/yuos-applet-provider` and
 provides `yuos-applet-services-v1 (= 1)`. Assembly refuses a missing,

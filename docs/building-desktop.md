@@ -16,7 +16,7 @@ image tools. On amd64:
 ```bash
 sudo apt install git git-lfs build-essential musl-tools debootstrap qemu-utils \
   parted dosfstools mtools rsync util-linux e2fsprogs grub-efi-amd64-bin \
-  grub-pc-bin dpkg-dev curl gnupg ca-certificates python3 bubblewrap
+  grub-pc-bin dpkg-dev curl gnupg ca-certificates python3
 arch=amd64
 rust_target=x86_64-unknown-linux-musl
 rustup target add --toolchain stable "$rust_target"
@@ -28,9 +28,6 @@ On arm64, use `arch=arm64`, `rust_target=aarch64-unknown-linux-musl`, and
 From the OS checkout, prepare the signed independent App inputs:
 
 ```bash
-cargo +stable build --release --locked -p yu --bin yu --target "$rust_target"
-install -D -m 0755 "target/$rust_target/release/yu" \
-  "build/app-packages/yu-provenance-linux-$arch"
 python3 scripts/app_packages.py prepare --variant agent --architecture "$arch"
 python3 scripts/app_packages.py prepare --variant desktop --architecture "$arch"
 ```
@@ -39,9 +36,9 @@ Build with `sudo ./presets/desktop.sh` after configuring the
 [OS package signer](../packaging/README.md#update-downgrade-protection)
 and [archive keyring](../packaging/README.md#apt-repo-url).
 The Shell is built inside the target Debian 13 staging environment and signed
-with the OS release, not an App publisher key. The App signature check uses
-Bubblewrap and only the packaged publisher; it does not read or modify the
-build host's trust store. The default output is
+with the OS release, not an App publisher key. App package preparation verifies
+the APT index with the pinned App archive key and checks each downloaded package
+against that index. The default output is
 `build/yuos-vm-amd64.vmdk`; import it into VMware.
 See [the Azure build](building-azure.md) for a generalized Gen2 VHD.
 

@@ -58,7 +58,7 @@ CLI or Agent
   -> authenticated App Gateway / App Service Host
   -> browser-attached MCP handler
   -> local policy check
-  -> yuos_runtime.browser_bridge
+  -> yuos_sdk.browser_bridge
        sensitive request body on stdin, never argv
   -> hidden yu __browser bridge
   -> typed system.browser.control route

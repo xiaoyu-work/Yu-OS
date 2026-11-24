@@ -12,11 +12,9 @@ import stat
 import struct
 import subprocess
 import sys
-import tarfile
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PLATFORM_PIN = ROOT / "packaging/app-platform-release.lock.json"
 SPEC = importlib.util.spec_from_file_location("app_sources", ROOT / "scripts/app_sources.py")
 app_sources = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(app_sources)

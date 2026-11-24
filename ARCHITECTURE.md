@@ -2497,7 +2497,7 @@ new static website + live signed APT archive -> GitHub Pages
 `test.yml` runs on pull requests and remains manually dispatchable/reusable.
 `release.yml` is manually dispatched on `main` and always publishes Agent,
 Base and Desktop together. It does not produce downloadable OS images.
-SDK and App development platform releases retain independent entry points.
+SDK releases use the separate `publish-sdk-release.yml` workflow.
 OS releases queue without cancellation. The publisher uses same-run artifacts
 and checks protocol compatibility against both the new pool and authenticated
 previous manifests before signing. APT indexes intentionally have no expiry or
