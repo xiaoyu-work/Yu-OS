@@ -607,12 +607,12 @@ fn dev_ai_url() -> Option<String> {
 
 fn dev_ai_model(kind: &str) -> String {
     let (env_var, default_model) = match kind {
-        "embed" => ("YUOS_DEV_AI_EMBED_MODEL", "nomic-embed-text"),
+        "embed" => ("YUOS_DEV_AI_EMBED_MODEL", "text-embedding-3-small"),
         "tts" => ("YUOS_DEV_AI_TTS_MODEL", "tts-1"),
         "stt" => ("YUOS_DEV_AI_STT_MODEL", "whisper-1"),
         "imagegen" => ("YUOS_DEV_AI_IMAGEGEN_MODEL", "dall-e-3"),
-        "decision" | "decide" => ("YUOS_DEV_AI_DECIDE_MODEL", "llama3.2"),
-        _ => ("YUOS_DEV_AI_CHAT_MODEL", "llama3.2"),
+        "decision" | "decide" => ("YUOS_DEV_AI_DECIDE_MODEL", "gpt-6-sol"),
+        _ => ("YUOS_DEV_AI_CHAT_MODEL", "gpt-6-sol"),
     };
     std::env::var(env_var)
         .ok()

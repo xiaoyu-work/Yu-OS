@@ -82,6 +82,25 @@ def command(name: Handler) -> Handler: ...
 def command(name: str) -> Callable[[Handler], Handler]: ...
 
 
+def _is_same_module_duplicate(existing: Optional[Callable[..., Any]], new_fn: Callable[..., Any]) -> bool:
+    if existing is None:
+        return False
+    if existing is new_fn:
+        return True
+    mod_a = getattr(existing, "__module__", None)
+    mod_b = getattr(new_fn, "__module__", None)
+    file_a = getattr(getattr(existing, "__code__", None), "co_filename", None)
+    file_b = getattr(getattr(new_fn, "__code__", None), "co_filename", None)
+    name_a = getattr(existing, "__name__", None)
+    name_b = getattr(new_fn, "__name__", None)
+    if file_a and file_b and file_a != file_b:
+        return False
+    if file_a and file_a == file_b and name_a == name_b:
+        # Module reload in tests: same file and same function name.
+        return False
+    return mod_a == mod_b
+
+
 def command(name: Union[Handler, str]) -> Any:
     """Run the decorated function for ``yu app <id> <name>``.
 
@@ -94,7 +113,7 @@ def command(name: Union[Handler, str]) -> Any:
         cmd_name = getattr(fn, "__name__", "")
         if not cmd_name:
             raise ValueError("command function must have a name")
-        if cmd_name in _commands:
+        if _is_same_module_duplicate(_commands.get(cmd_name), fn):
             raise ValueError(f"command {cmd_name!r} already has a function")
         _commands[cmd_name] = fn
         return fn
@@ -103,7 +122,7 @@ def command(name: Union[Handler, str]) -> Any:
         raise ValueError("command name must be a nonempty string")
 
     def register(handler: Handler) -> Handler:
-        if name in _commands:
+        if _is_same_module_duplicate(_commands.get(name), handler):
             raise ValueError(f"command {name!r} already has a function")
         _commands[name] = handler
         return handler
@@ -548,7 +567,7 @@ def _main(argv: Optional[List[str]] = None) -> None:
     old_argv = sys.argv
     sys.argv = [script_path, *cli[1:]]
     try:
-        spec = importlib.util.spec_from_file_location("__main__", script_path)
+        spec = importlib.util.spec_from_file_location("__yuos_app_main__", script_path)
         if spec is None or spec.loader is None:
             raise RuntimeError(f"cannot load {script_path!r}")
         module = importlib.util.module_from_spec(spec)

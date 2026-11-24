@@ -594,15 +594,15 @@ def _dev_ai_url() -> Optional[str]:
 
 def _dev_ai_model(kind: str = "chat") -> str:
     slot_vars = {
-        "chat": ("YUOS_DEV_AI_CHAT_MODEL", "llama3.2"),
-        "embed": ("YUOS_DEV_AI_EMBED_MODEL", "nomic-embed-text"),
+        "chat": ("YUOS_DEV_AI_CHAT_MODEL", "gpt-6-sol"),
+        "embed": ("YUOS_DEV_AI_EMBED_MODEL", "text-embedding-3-small"),
         "tts": ("YUOS_DEV_AI_TTS_MODEL", "tts-1"),
         "stt": ("YUOS_DEV_AI_STT_MODEL", "whisper-1"),
         "imagegen": ("YUOS_DEV_AI_IMAGEGEN_MODEL", "dall-e-3"),
-        "decision": ("YUOS_DEV_AI_DECIDE_MODEL", "llama3.2"),
-        "decide": ("YUOS_DEV_AI_DECIDE_MODEL", "llama3.2"),
+        "decision": ("YUOS_DEV_AI_DECIDE_MODEL", "gpt-6-sol"),
+        "decide": ("YUOS_DEV_AI_DECIDE_MODEL", "gpt-6-sol"),
     }
-    env_var, default_model = slot_vars.get(kind, ("YUOS_DEV_AI_CHAT_MODEL", "llama3.2"))
+    env_var, default_model = slot_vars.get(kind, ("YUOS_DEV_AI_CHAT_MODEL", "gpt-6-sol"))
     specific = os.environ.get(env_var, "").strip()
     if specific:
         return specific

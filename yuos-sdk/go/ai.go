@@ -557,10 +557,10 @@ func devAiModel(kind ...string) string {
 		k = kind[0]
 	}
 	envVar := "YUOS_DEV_AI_CHAT_MODEL"
-	defaultModel := "llama3.2"
+	defaultModel := "gpt-6-sol"
 	switch k {
 	case "embed":
-		envVar, defaultModel = "YUOS_DEV_AI_EMBED_MODEL", "nomic-embed-text"
+		envVar, defaultModel = "YUOS_DEV_AI_EMBED_MODEL", "text-embedding-3-small"
 	case "tts":
 		envVar, defaultModel = "YUOS_DEV_AI_TTS_MODEL", "tts-1"
 	case "stt":
@@ -568,7 +568,7 @@ func devAiModel(kind ...string) string {
 	case "imagegen":
 		envVar, defaultModel = "YUOS_DEV_AI_IMAGEGEN_MODEL", "dall-e-3"
 	case "decision", "decide":
-		envVar, defaultModel = "YUOS_DEV_AI_DECIDE_MODEL", "llama3.2"
+		envVar, defaultModel = "YUOS_DEV_AI_DECIDE_MODEL", "gpt-6-sol"
 	}
 	if m := strings.TrimSpace(os.Getenv(envVar)); m != "" {
 		return m

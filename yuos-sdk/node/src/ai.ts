@@ -470,15 +470,15 @@ function devAiUrl(): string | undefined {
 
 function devAiModel(kind = "chat"): string {
   const slots: Record<string, [string, string]> = {
-    chat: ["YUOS_DEV_AI_CHAT_MODEL", "llama3.2"],
-    embed: ["YUOS_DEV_AI_EMBED_MODEL", "nomic-embed-text"],
+    chat: ["YUOS_DEV_AI_CHAT_MODEL", "gpt-6-sol"],
+    embed: ["YUOS_DEV_AI_EMBED_MODEL", "text-embedding-3-small"],
     tts: ["YUOS_DEV_AI_TTS_MODEL", "tts-1"],
     stt: ["YUOS_DEV_AI_STT_MODEL", "whisper-1"],
     imagegen: ["YUOS_DEV_AI_IMAGEGEN_MODEL", "dall-e-3"],
-    decision: ["YUOS_DEV_AI_DECIDE_MODEL", "llama3.2"],
-    decide: ["YUOS_DEV_AI_DECIDE_MODEL", "llama3.2"],
+    decision: ["YUOS_DEV_AI_DECIDE_MODEL", "gpt-6-sol"],
+    decide: ["YUOS_DEV_AI_DECIDE_MODEL", "gpt-6-sol"],
   };
-  const [envVar, defaultModel] = slots[kind] ?? ["YUOS_DEV_AI_CHAT_MODEL", "llama3.2"];
+  const [envVar, defaultModel] = slots[kind] ?? ["YUOS_DEV_AI_CHAT_MODEL", "gpt-6-sol"];
   return process.env[envVar]?.trim() || process.env.YUOS_DEV_AI_MODEL?.trim() || defaultModel;
 }
 
