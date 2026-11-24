@@ -97,6 +97,8 @@ Controls.ItemDelegate {
         }
     }
     background: Rectangle {
+        // Qt's software renderer uses the shared radius to determine opacity.
+        radius: Math.max(topLeftRadius, bottomLeftRadius)
         topLeftRadius: row.visualFocus || row.roundTop ? 12 : 0
         topRightRadius: topLeftRadius
         bottomLeftRadius: row.visualFocus || row.roundBottom ? 12 : 0
