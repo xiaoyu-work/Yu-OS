@@ -170,7 +170,6 @@ async fn file_plan_real_app_worker_cli_and_broker_round_trip() {
         .to_path_buf();
     let sdk = root.join("python");
     for (source, package) in [
-        ("yuos-runtime", "yuos_runtime"),
         ("yuos-sdk", "yuos_sdk"),
     ] {
         copy_python_package(

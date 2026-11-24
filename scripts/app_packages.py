@@ -375,7 +375,7 @@ def verify_packages(directory, selected, preinstalled=None):
             if name in owners:
                 raise ValueError(f"Multiple dpkg owners for {name}")
             if any(name == root or name.startswith(root + "/") for root in (
-                "usr/lib/yuos/python/yuos_sdk", "usr/lib/yuos/python/yuos_runtime",
+                "usr/lib/yuos/python/yuos_sdk",
                 DESKTOP_SHELL_ROOT, SYSTEM_DESKTOP_ROOT, PREINSTALLED_DIR,
             )):
                 raise ValueError("App package contains OS-owned SDK/runtime or Desktop Shell")
@@ -446,7 +446,7 @@ def check_stage(stage, owners):
             continue
         if name in owners or name.startswith("usr/lib/yuos/apps/") or (
             name.startswith("usr/lib/yuos/python/")
-            and name.split("/")[4] not in ("yuos_sdk", "yuos_runtime")
+            and name.split("/")[4] not in ("yuos_sdk",)
         ):
             raise ValueError(f"OS package still owns an App/support/library payload: {name}")
 

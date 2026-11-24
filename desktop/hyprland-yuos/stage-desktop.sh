@@ -12,7 +12,7 @@ rustup toolchain install stable --profile minimal
 
 cargo +stable build --manifest-path "$project/Cargo.toml" --locked --release -p yuos-compositor
 cargo +stable build --manifest-path "$project/desktop/agent/Cargo.toml" --locked --release --workspace
-cargo +stable build --manifest-path "$project/yuos-runtime/rust/Cargo.toml" --locked --release \
+cargo +stable build --manifest-path "$project/yuos-sdk/rust/Cargo.toml" --locked --release \
     --bin yuos-ask-launcher
 cargo +stable build --manifest-path "$project/desktop/services/yuos-applet-services/Cargo.toml" \
     --locked --release --features provider --bin yuos-applet-provider

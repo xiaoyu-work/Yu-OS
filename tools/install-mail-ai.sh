@@ -26,7 +26,6 @@ fi
 EXT_ID="yu-mail-ai@yuos.io"
 APP_DEST="/usr/lib/yuos/apps/mail-ai"
 SDK_DEST="/usr/lib/yuos/python/yuos_sdk"
-RUNTIME_DEST="/usr/lib/yuos/python/yuos_runtime"
 HOST_LAUNCHER="/usr/lib/yuos/yuos-mail-ai-host"
 NM_MANIFEST="/etc/thunderbird/native-messaging-hosts/os.yuos.mail_ai.json"
 POLICY_FILE="/etc/thunderbird/policies/policies.json"
@@ -34,7 +33,7 @@ XPI_DEST_DIR="/usr/lib/thunderbird/distribution/extensions"
 XPI_DEST="${XPI_DEST_DIR}/${EXT_ID}.xpi"
 
 # Sanity checks.
-for d in "${APP_DEST}" "${SDK_DEST}" "${RUNTIME_DEST}"; do
+for d in "${APP_DEST}" "${SDK_DEST}"; do
   if [[ ! -d "$d" ]]; then
     echo "error: required extension/package directory missing: $d; install yuos-agent first" >&2
     exit 1

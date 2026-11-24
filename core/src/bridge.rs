@@ -2219,12 +2219,7 @@ if _apps_root:
             os.path.join(_apps_root, os.pardir, "yuos-sdk", "python", "src")
         )
     )
-    _sdk_candidates.append(
-        os.path.normpath(
-            os.path.join(_apps_root, os.pardir, "yuos-runtime", "python", "src")
-        )
-    )
-_wanted = ("yuos_sdk", "yuos_runtime")
+_wanted = ("yuos_sdk",)
 for _cand in _sdk_candidates:
     if not _cand or not os.path.isdir(_cand):
         continue

@@ -1472,17 +1472,14 @@ fn python3_available() -> bool {
 }
 
 fn apps_lib_dir() -> std::path::PathBuf {
-    // tests run from the package dir (`core/`); the runtime helper
-    // lives at `<repo>/yuos-runtime/python/src/yuos_runtime`, two
-    // levels up.
     let manifest = env!("CARGO_MANIFEST_DIR");
     std::path::PathBuf::from(manifest)
         .parent()
         .unwrap()
-        .join("yuos-runtime")
+        .join("yuos-sdk")
         .join("python")
         .join("src")
-        .join("yuos_runtime")
+        .join("yuos_sdk")
 }
 
 fn sdk_lib_dir() -> std::path::PathBuf {

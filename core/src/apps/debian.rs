@@ -117,7 +117,6 @@ fn data_path_allowed(path: &Path, directory: bool) -> bool {
         "usr/lib/yuos/preinstalled-apps",
         "usr/lib/yuos/apt",
         "usr/lib/yuos/python/yuos_sdk",
-        "usr/lib/yuos/python/yuos_runtime",
         "usr/lib/yuos/browser-native-host.py",
         "usr/lib/yuos/app-apt-metadata.py",
         "usr/lib/yuos/yuos-mail-ai-host",

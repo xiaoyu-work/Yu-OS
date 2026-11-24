@@ -1824,9 +1824,8 @@ fn resolve_python_pkg_dirs(apps_dir: &std::path::Path) -> Vec<PathBuf> {
     candidates.push(PathBuf::from("/usr/lib/yuos/python"));
     if let Some(parent) = apps_dir.parent() {
         candidates.push(parent.join("yuos-sdk").join("python").join("src"));
-        candidates.push(parent.join("yuos-runtime").join("python").join("src"));
     }
-    let wanted = ["yuos_sdk", "yuos_runtime"];
+    let wanted = ["yuos_sdk"];
     let mut out: Vec<PathBuf> = Vec::new();
     for c in candidates {
         if !wanted.iter().any(|p| c.join(p).is_dir()) {

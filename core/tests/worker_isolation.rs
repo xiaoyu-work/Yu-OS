@@ -771,7 +771,6 @@ fn source_python_dirs() -> Vec<PathBuf> {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     [
         root.join("yuos-sdk").join("python").join("src"),
-        root.join("yuos-runtime").join("python").join("src"),
     ]
     .into_iter()
     .map(|path| path.canonicalize().expect("Python SDK tree"))
@@ -846,7 +845,7 @@ fn https_flows_through_the_broker_and_tls_still_names_the_host() {
     let output = run_with_egress(
         r#"
 import ssl
-from yuos_runtime import egress
+from yuos_sdk import egress
 sock = egress.create_connection('example.com', 443, 20)
 tls = ssl.create_default_context().wrap_socket(sock, server_hostname='example.com')
 tls.sendall(b'GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n')
@@ -873,7 +872,7 @@ fn plain_http_flows_through_the_broker() {
     }
     let output = run_with_egress(
         r#"
-from yuos_runtime import egress
+from yuos_sdk import egress
 sock = egress.create_connection('example.com', 80, 20)
 sock.sendall(b'GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n')
 print('status', sock.recv(64).split(b' ')[1].decode())
@@ -892,7 +891,7 @@ fn the_broker_refuses_every_endpoint_outside_the_grant() {
     require_sandbox!();
     let output = run_with_egress(
         r#"
-from yuos_runtime import egress
+from yuos_sdk import egress
 for host, port in (
     ('evil.example', 443),
     ('example.com', 8443),
@@ -922,7 +921,7 @@ fn a_trailing_dot_or_idna_form_cannot_evade_the_grant() {
     require_sandbox!();
     let output = run_with_egress(
         r#"
-from yuos_runtime import egress
+from yuos_sdk import egress
 for host in ('example.com.', 'EXAMPLE.COM', 'ex\u00e4mple.com'):
     try:
         egress.create_connection(host, 8443, 5)
@@ -943,7 +942,7 @@ fn a_worker_without_an_egress_grant_has_no_broker_at_all() {
     let dir = workspace();
     std::env::set_var("YUOS_SDK_PYTHON_DIR", source_python_path());
     let script = r#"python3 - <<'PY' 2>&1
-from yuos_runtime import egress
+from yuos_sdk import egress
 print('available', egress.available())
 try:
     egress.create_connection('example.com', 443, 5)
@@ -1078,7 +1077,7 @@ fn app_memory_is_brokered_to_the_owner_store_and_scoped_to_its_source() {
     let script = format!(
         r#"
 import os, pathlib
-from yuos_runtime import memory
+from yuos_sdk import memory
 
 data = pathlib.Path(os.environ['YUOS_DATA_DIR'])
 print('data_dir', data.name, data.parent.name)
@@ -1533,7 +1532,7 @@ import json
 import os
 import pathlib
 import sys
-from yuos_runtime import policy
+from yuos_sdk import policy
 
 args = sys.argv[1:]
 if args[:2] == ["--wire=1", "__policy"]:

@@ -26,8 +26,7 @@ XPI_DEST="$ROOTFS/usr/lib/thunderbird/distribution/extensions/${EXT_ID}.xpi"
 # 0. Sanity — require the installed package, not product source trees.
 # ---------------------------------------------------------------------------
 for d in "$APP_DEST" \
-    "$ROOTFS/usr/lib/yuos/python/yuos_sdk" \
-    "$ROOTFS/usr/lib/yuos/python/yuos_runtime"; do
+    "$ROOTFS/usr/lib/yuos/python/yuos_sdk"; do
     if [ ! -d "$d" ]; then
         echo "  error: required Mail package directory missing: $d" >&2
         exit 1
