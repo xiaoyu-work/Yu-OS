@@ -9,7 +9,7 @@ fn python_arguments(
     }
     Ok(vec![
         std::ffi::OsString::from("-I"),
-        std::ffi::OsString::from("/usr/lib/yuos/apps/mail-ai/native_host.py"),
+        std::ffi::OsString::from("/usr/lib/yuos/apps/email/native_host.py"),
     ])
 }
 
@@ -22,8 +22,8 @@ fn main() {
         }
     };
     if let Err(error) = yu::bridge::run_native_app_host_with_stdio(
-        "mail-ai",
-        std::path::Path::new("/usr/lib/yuos/apps/mail-ai"),
+        "email",
+        std::path::Path::new("/usr/lib/yuos/apps/email"),
         std::ffi::OsStr::new("/usr/bin/python3"),
         &args,
         yu::mail_native::run,

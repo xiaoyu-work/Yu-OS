@@ -1291,15 +1291,17 @@ fn run_native_app_host_inner(
     args: &[std::ffi::OsString],
     proxy: Option<fn(&mut std::process::Child) -> Result<(), String>>,
 ) -> Result<(), String> {
-    if app_id != "mail-ai" {
-        return Err("native App host is restricted to mail-ai".to_string());
+    if !matches!(app_id, "email" | "mail-ai") {
+        return Err("native App host is restricted to email".to_string());
     }
     let app_dir = app_dir
         .canonicalize()
         .map_err(|error| format!("canonicalize native App directory: {error}"))?;
-    if app_dir != Path::new("/usr/lib/yuos/apps/mail-ai") {
+    if app_dir != Path::new("/usr/lib/yuos/apps/email")
+        && app_dir != Path::new("/usr/lib/yuos/apps/mail-ai")
+    {
         return Err(format!(
-            "native mail-ai host must run from /usr/lib/yuos/apps/mail-ai, got {}",
+            "native email host must run from /usr/lib/yuos/apps/email, got {}",
             app_dir.display()
         ));
     }
@@ -1342,7 +1344,10 @@ fn run_native_app_host_inner(
     .map_err(|error| format!("verify Native Messaging App: {error}"))?;
     let launch = AppLaunch::new(std::sync::Arc::new(package))?;
     if launch.manifest().runtime != Runtime::Python
-        || launch.manifest().entry.as_deref() != Some("native_host.py")
+        || !matches!(
+            launch.manifest().entry.as_deref().unwrap_or("main.py"),
+            "native_host.py" | "main.py"
+        )
     {
         return Err("Native Messaging App must declare its authenticated Python entry".into());
     }

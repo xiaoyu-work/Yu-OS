@@ -24,7 +24,7 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 EXT_ID="yu-mail-ai@yuos.io"
-APP_DEST="/usr/lib/yuos/apps/mail-ai"
+APP_DEST="/usr/lib/yuos/apps/email"
 SDK_DEST="/usr/lib/yuos/python/yuos_sdk"
 HOST_LAUNCHER="/usr/lib/yuos/yuos-mail-ai-host"
 NM_MANIFEST="/etc/thunderbird/native-messaging-hosts/os.yuos.mail_ai.json"

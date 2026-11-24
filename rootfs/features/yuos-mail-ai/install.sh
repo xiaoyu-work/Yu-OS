@@ -17,7 +17,7 @@
 set -euo pipefail
 
 FEATURE_DIR="$SCRIPT_DIR/features/yuos-mail-ai"
-APP_DEST="$ROOTFS/usr/lib/yuos/apps/mail-ai"
+APP_DEST="$ROOTFS/usr/lib/yuos/apps/email"
 
 EXT_ID="yu-mail-ai@yuos.io"
 XPI_DEST="$ROOTFS/usr/lib/thunderbird/distribution/extensions/${EXT_ID}.xpi"

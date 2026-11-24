@@ -8,7 +8,7 @@ fn native_identity_is_consumed_not_forwarded_to_python() {
         args,
         [
             OsString::from("-I"),
-            OsString::from("/usr/lib/yuos/apps/mail-ai/native_host.py")
+            OsString::from("/usr/lib/yuos/apps/email/native_host.py")
         ]
     );
 }

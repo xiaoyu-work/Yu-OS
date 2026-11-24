@@ -20,7 +20,7 @@ def _fixture(tmp_path):
     rootfs = tmp_path / "rootfs"
     project = tmp_path / "project"
     for name in ("app.json", "main.py", "server.py", "native_host.py", "README.md"):
-        _write(rootfs / "usr/lib/yuos/apps/mail-ai" / name, f"installed {name}")
+        _write(rootfs / "usr/lib/yuos/apps/email" / name, f"installed {name}")
     for package in ("yuos_sdk",):
         _write(rootfs / "usr/lib/yuos/python" / package / "__init__.py", "installed")
     _write(rootfs / "usr/lib/yuos/yuos-mail-ai-host", "#!/bin/sh\nexit 0\n", 0o755)
