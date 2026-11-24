@@ -50,7 +50,7 @@ uses the same signed OS channel. Source pushes alone do not supply packages to i
 
 The approved source boundary is **`1:0.2.1`**, not `1:0.3.0`. App packages
 bound `Breaks`/`Replaces` to the former Agent/Desktop owners strictly below
-that boundary. For the 62 retained App identities (51 headless and 11 native),
+that boundary. For the 61 retained App identities (50 headless and 11 native),
 installed paths, data and grants are unchanged. No updater, identity migration
 or new privilege is introduced.
 
@@ -78,7 +78,7 @@ of the fixed tree, including file content, modes and directories. Root requires
 the exact installed Desktop release, authorized signer, private security floor
 and a fresh tree match before admitting the fixed supervisor launch through the
 common GUI Host. Ordinary Apps retain their separate signed App identity and
-permission checks. The 62 retained App identities and Mail's Thunderbird
+permission checks. The 61 retained App identities and Mail's Thunderbird
 integration are separately owned packages
 required by Desktop, not an installed `yuos-apps-desktop` metapackage.
 The historical immutable metapackage remains in the App archive for retention.
@@ -241,8 +241,8 @@ Co-staging never merges conflicting library trees. Agent still owns
 `/usr/lib/yuos/apps/doc`, `/usr/lib/yuos/python/yuos_files`, SDK/runtime and the
 canonical argument module. All six operations, manifest needs/AI declarations,
 outputs, memory identity and user state remain unchanged. The source lock now
-selects 62 retained identities after the original 75-identity source relocation:
-23 business products plus four capability groups, with 51 Agent and 11 desktop
+selects 61 retained identities after the original 75-identity source relocation:
+23 business products plus four capability groups, with 50 Agent and 11 desktop
 identities. The retired connectors, Email Gateway and Widget Rail are not fallbacks.
 Native preparation stays product-only.
 

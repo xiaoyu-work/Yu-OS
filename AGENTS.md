@@ -141,8 +141,8 @@ native preparation retain business-product ownership. Never recreate a local
 `apps/doc`, `apps/db`, `apps/kv`, `apps/net` or `apps/summarize` fallback or count a shared-capability
 group as a business product. Cross-repository runtime fixtures stage complete payloads
 and invoke manifest-selected entrypoints over public MCP, not private App modules.
-The 62 retained App sources belong to `yuos-app`: 23 business groups and
-four shared-capability groups, with 51 Agent and 11 desktop identities.
+The 61 retained App sources belong to `yuos-app`: 23 business groups and
+four shared-capability groups, with 50 Agent and 11 desktop identities.
 Eleven messaging connectors, `gateway-email` and `widget-rail` are retired;
 do not restore OS-local copies or source fallbacks.
 App-owned helpers live in external `shared/python`, with tests/vectors in

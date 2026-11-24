@@ -31,8 +31,8 @@ explicit contracts and release coupling; see
 [`packaging/README.md`](../packaging/README.md).
 
 Source migration covered all original 75 identities. The current selection
-retains **62 identities** across **23 business product groups** plus
-**4 shared-capability source groups**: 51 Agent-package identities and
+retains **61 identities** across **23 business product groups** plus
+**4 shared-capability source groups**: 50 Agent-package identities and
 11 desktop identities. Eleven unselected messaging connectors, the legacy
 `gateway-email` App and Widget Rail were retired; their previous credentials
 and installed data are not deleted or migrated here.

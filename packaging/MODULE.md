@@ -218,8 +218,8 @@ or provider source is packaged. Native history/settings and legacy `notify`
 JSON are not migrated. Binary-only hot-swap is refused.
 The `notify` Python source/descriptor/client comes from the same product pin
 but stays exclusively in Agent. It uses that package's SDK/service, not the
-native App. The retained partition is 51 Agent identities plus 11 desktop
-identities; all 62 belong to 23 business product groups plus four explicitly
+native App. The retained partition is 50 Agent identities plus 11 desktop
+identities; all 61 belong to 23 business product groups plus four explicitly
 shared-capability source groups. Historical JSON is preserved in its
 old namespace and excluded from new service lists, never copied into payloads
 or automatically imported at installation/launch.
