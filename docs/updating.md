@@ -608,7 +608,7 @@ and other products cannot borrow its identity, budget or consent.
 This last move completes source ownership of all 75 original App identities,
 not full boot/upgrade/native-visual acceptance, backend/state/identity
 consolidation or independent distribution. Declared source exports, bundled
-`yuos_runtime` and App-pin/OS-package delivery remain explicit coupling.
+`yuos_sdk` and App-pin/OS-package delivery remain explicit coupling.
 
 ### Activity receipt storage
 
@@ -912,7 +912,7 @@ the agent's memory, approvals and the journal — does not move and is never
 inside a sandbox. The `exec` App wrote a file of the same name in the same
 directory; the per-App directory is what finally separates the two, and the
 App's own process registry starts empty there. Apps still write to the shared
-agent memory through `yuos_runtime.memory`, which the launcher carries out on
+agent memory through `yuos_sdk.memory`, which the launcher carries out on
 their behalf.
 
 ## Capability-based package clients

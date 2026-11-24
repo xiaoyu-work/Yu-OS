@@ -11,5 +11,5 @@ applyTo: "yuos-sdk/wire/**/*,yuos-sdk/node/**/*,yuos-sdk/go/**/*"
   unless introducing an explicitly versioned protocol change.
 - Regenerate bindings after wire changes instead of editing generated files.
 - Update conformance tests and all affected language SDKs in the same change.
-- Public SDK code must not expose internal `yuos-runtime` policy helpers or
+- Public SDK code must not expose internal `yuos-sdk` policy helpers or
   broker implementation details.

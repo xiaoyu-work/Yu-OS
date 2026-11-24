@@ -46,90 +46,8 @@ jobs:
           echo "semver_version=$semver_version" >> "$GITHUB_OUTPUT"
           echo "Computed SDK version: $display_version (SemVer: $semver_version)"
 
-  provenance-tools:
-    needs: prepare
-    if: github.ref == 'refs/heads/main'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-24.04
-            target: x86_64-unknown-linux-musl
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-musl
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      actions: read
-      contents: read
-    env:
-      ARCH: ${{ matrix.arch }}
-      RUST_TARGET: ${{ matrix.target }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-      - name: Install portable CLI build tools
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends musl-tools
-      - name: Test and build the public provenance CLI
-        run: |
-          set -euo pipefail
-          cargo test -p yu --lib --locked provenance:: -- --test-threads=1
-          cargo build --release --locked -p yu --bin yu --target "$RUST_TARGET"
-          mkdir -p dist
-          install -m 0755 "target/$RUST_TARGET/release/yu" "dist/yu-provenance-linux-$ARCH"
-          test "$(stat -c %s "dist/yu-provenance-linux-$ARCH")" -le 134217728
-          "dist/yu-provenance-linux-$ARCH" --version
-          cargo metadata --locked --format-version 1 --filter-platform "$RUST_TARGET" > "$RUNNER_TEMP/tool-metadata.json"
-      - name: Retain tool source pins and upstream notices
-        run: |
-          python3 - <<'PY'
-          import io, json, os, pathlib, tarfile
-          metadata = json.loads((pathlib.Path(os.environ["RUNNER_TEMP"]) / "tool-metadata.json").read_text())
-          packages = {package["id"]: package for package in metadata["packages"]}
-          nodes = {node["id"]: node for node in metadata["resolve"]["nodes"]}
-          root = next(package["id"] for package in packages.values()
-                      if pathlib.Path(package["manifest_path"]).resolve() == pathlib.Path("core/Cargo.toml").resolve())
-          selected, pending = set(), [root]
-          while pending:
-              identity = pending.pop()
-              if identity in selected:
-                  continue
-              selected.add(identity)
-              pending.extend(dependency["pkg"] for dependency in nodes[identity]["deps"])
-          records = []
-          archive = pathlib.Path("dist") / f'yu-provenance-linux-{os.environ["ARCH"]}-notices.tar.gz'
-          with tarfile.open(archive, "w:gz") as stream:
-              stream.add("LICENSE", arcname="LICENSE", recursive=False)
-              for identity in sorted(selected):
-                  package = packages[identity]
-                  directory = pathlib.Path(package["manifest_path"]).parent
-                  paths = {path for path in directory.iterdir() if path.is_file()
-                           and path.name.upper().startswith(("LICENSE", "LICENCE", "COPYING", "NOTICE"))}
-                  if package.get("license_file"):
-                      paths.add(directory / package["license_file"])
-                  for path in sorted(paths):
-                      content = path.read_bytes()
-                      info = tarfile.TarInfo(f'{package["name"]}-{package["version"]}/{path.name}')
-                      info.size, info.mode = len(content), 0o644
-                      stream.addfile(info, io.BytesIO(content))
-                  records.append({name: package.get(name) for name in ("name", "version", "source", "license")})
-              content = json.dumps({"revision": os.environ["GITHUB_SHA"], "packages": records},
-                                   sort_keys=True, indent=2).encode()
-              info = tarfile.TarInfo("sources.json")
-              info.size, info.mode = len(content), 0o644
-              stream.addfile(info, io.BytesIO(content))
-          PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: yu-provenance-tool-${{ matrix.arch }}
-          path: dist/*
-          if-no-files-found: error
-
   release:
-    needs: [prepare, provenance-tools]
+    needs: [prepare]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
@@ -207,10 +125,9 @@ jobs:
 
           git config user.name "Xiaoyu"
           git config user.email "zxiaoyu.work@gmail.com"
-          git checkout -- yuos-sdk/python/pyproject.toml yuos-sdk/python/src/yuos_sdk/__init__.py yuos-sdk/node/package.json yuos-sdk/node/package-lock.json yuos-sdk/rust/Cargo.toml Cargo.lock
-          git add yuos-sdk/quickstart.html yuos-sdk/api.html yuos-sdk/reference.html yuos-sdk/linux-app-integration.html yuos-sdk/README.md yuos-sdk/llms.txt yuos-sdk/python/README.md yuos-sdk/node/README.md yuos-sdk/go/README.md yuos-sdk/rust/README.md
+          git add yuos-sdk/python/pyproject.toml yuos-sdk/python/src/yuos_sdk/__init__.py yuos-sdk/node/package.json yuos-sdk/node/package-lock.json yuos-sdk/rust/Cargo.toml Cargo.lock yuos-sdk/quickstart.html yuos-sdk/api.html yuos-sdk/reference.html yuos-sdk/linux-app-integration.html yuos-sdk/README.md yuos-sdk/llms.txt yuos-sdk/python/README.md yuos-sdk/node/README.md yuos-sdk/go/README.md yuos-sdk/rust/README.md
           if ! git diff --cached --quiet; then
-            git commit -m "Update SDK documentation version to v$DISPLAY_VERSION"
+            git commit -m "Release Yu OS SDK v$DISPLAY_VERSION"
             git pull --rebase origin main
             git push origin HEAD:main
           fi
@@ -225,13 +142,6 @@ jobs:
             --prefix="yuos-sdk-$DISPLAY_VERSION/" \
             --output="dist/yuos-sdk-$DISPLAY_VERSION-source.tar.gz" \
             HEAD:yuos-sdk
-
-      - name: Collect the tested public signing tools
-        uses: actions/download-artifact@v4
-        with:
-          pattern: yu-provenance-tool-*
-          path: dist
-          merge-multiple: true
 
       - name: Bind all release artifacts to checksums
         run: |

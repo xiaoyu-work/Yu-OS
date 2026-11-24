@@ -83,7 +83,6 @@ editing additional surfaces.
 | Adapter | `adapters/<id>/app.json`, `adapters/<id>/main.py` | adapter tests and external binary dependency |
 | App/SDK wire contract | `yuos-sdk/wire/`, language SDK package | generated bindings, conformance tests, `publish-sdk-release.yml` |
 | App chat streaming or typed MCP bindings | `core/src/ai/`, `core/src/yuosd/ai_stream.rs`, `yuos-sdk/node/src/mcp.ts`, `yuos-sdk/rust/src/mcp/manifest.rs` | Shared App AI gate and broker transports, generated wire delta types, SDK type generators and handler adapters |
-| App development platform release | `packaging/app-platform.json`, `scripts/app_platform.py`, `docs/app-platform.md` | Versioned SDK/runtime/toolkit exports; `publish-app-platform.yml`; never App helpers or private OS providers |
 | Rootfs composition | `scripts/lib/image-profiles.sh`, `rootfs/build.sh`, `rootfs/features/` | target build script and package contents |
 | WSL or Docker image | `targets/wsl/`, `targets/docker/`, `CONTRIBUTING.md` | local builds from the shared rootfs profile; not part of publication CI |
 | Debian/APT package | `packaging/deb/`, `packaging/apt-repo/` | `release.yml` publishes Agent/Base/Desktop together, `scripts/ci/`, rootfs package-install features |
@@ -191,8 +190,8 @@ cargo test --manifest-path desktop/services/yuos-applet-services/Cargo.toml --li
 cargo test --manifest-path desktop/services/yuos-applet-services/Cargo.toml --features provider --locked -- --test-threads=1
 
 # OS-owned Python suite; external App tests run in yuos-app
-PYTHONPATH=yuos-sdk/python/src:yuos-runtime/python/src \
-  python3 -m pytest -q adapters yuos-sdk/python/src yuos-runtime/python/src \
+PYTHONPATH=yuos-sdk/python/src \
+  python3 -m pytest -q adapters yuos-sdk/python/src \
     packaging/deb/tests/test_app_sources.py
 ```
 
@@ -204,8 +203,7 @@ Documentation-only changes do not require code tests.
   push feature or temporary CI branches. Dispatch manual CI on `main`.
 - Preserve unrelated dirty-worktree changes. Stage explicit paths rather than
   using `git add -A`.
-- Keep public SDK code in `yuos-sdk`; `yuos-runtime` is for bundled apps and
-  internal policy helpers.
+- All public and bundled App SDK modules live in `yuos-sdk`.
 - Apps declare operations/MCP tools and scopes in `app.json`; implementation
   belongs in the declared entrypoint and its modules. MCP-only Apps such as KV
   need neither `main.py` nor legacy operations. Schema inspection must not

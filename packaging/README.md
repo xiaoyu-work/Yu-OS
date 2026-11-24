@@ -58,7 +58,7 @@ The separately signed App channel owns product/capability packages, native
 ELFs/resources, Browser assets, Mail's XPI, `yuos-app-support` and named Python
 libraries. Support provides `yuos-app-support-v1`; Files alone provides
 `yuos-app-python-yuos-files-v1`. App packages cannot provide OS/package/authority
-ABIs. Agent retains `yuos_sdk`, `yuos_runtime`, toolkit/system services and
+ABIs. Agent retains `yuos_sdk`, `yuos_sdk`, toolkit/system services and
 Root helpers. Its `yuos-app-runtime-v1 (= 0.2.1)` implementation version
 comes from `app-platform.json`; App packages require `>= 0.2.1`, still ABI 1.
 
@@ -223,7 +223,7 @@ The remaining coupling is explicit source composition and release delivery:
 package metadata and the staging CLI are build contracts, development selects
 the versioned SDK/runtime/toolkit platform artifact, and
 installed changes still require a package release here. Bundled
-`yuos_runtime` is not an independently published third-party SDK. Paired
+`yuos_sdk` is not an independently published third-party SDK. Paired
 migration commits are cutover choreography, not a requirement to edit both
 implementations for every future feature. Pins alone do not prove complete
 decoupling.

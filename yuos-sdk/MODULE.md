@@ -87,9 +87,8 @@ Rust, Python, Node, and Go bindings.
 | `python/src/yuos_sdk/mcp.py` | Manifest-bound MCP server, progress, and cooperative cancellation |
 | `python/src/yuos_sdk/kernel.py` | Explicit installed-binary stdin transport, inherited broker session, strict shared wire errors, deadlines and cancellation/reaping |
 | `../.github/workflows/publish-sdk-release.yml` | GitHub-only multi-language SDK release |
-| `../docs/app-platform.md` | Versioned App development artifact containing SDK/runtime/native library exports, never App support or private OS providers |
 
-`yuos-runtime/` is a separate internal package for bundled apps; public apps
+Public apps
 must not depend on its policy/runtime internals.
 
 There are no public mailbox grants. The verified Mail product uses its own
@@ -267,7 +266,7 @@ PYTHONPATH=python/src python3 -m pytest -q python/src/yuos_sdk/test_wire.py -k f
 For broader affected-language checks, from the repository root:
 
 ```bash
-PYTHONPATH=yuos-sdk/python/src:yuos-runtime/python/src \
+PYTHONPATH=yuos-sdk/python/src \
   python3 -m pytest -q yuos-sdk/python/src
 cargo test -p yuos-sdk
 ```

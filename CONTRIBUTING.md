@@ -235,8 +235,8 @@ GITHUB_WORKSPACE="$PWD" RUNNER_TEMP="$PWD/build" \
   bash scripts/ci/test-boundaries.sh capture
 
 # OS-owned Python tests, from the repository root. App tests live in yuos-app.
-PYTHONPATH=yuos-sdk/python/src:yuos-runtime/python/src \
-  python3 -m pytest -q adapters yuos-sdk/python/src yuos-runtime/python/src \
+PYTHONPATH=yuos-sdk/python/src \
+  python3 -m pytest -q adapters yuos-sdk/python/src \
     packaging/deb/tests/test_app_sources.py
 
 # Browser broker.

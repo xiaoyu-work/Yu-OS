@@ -149,7 +149,7 @@ its App-owned tests are explicitly selected as `test_server.py`. See the
 [source composition contract](../packaging/README.md).
 AI Helpers owns the Summarize client, not the OS AI gate. It takes explicit
 text and calls SDK AI under `summarize` consent/budget, then requests bounded
-summary memory through the bundled `yuos_runtime.memory.remember` export under
+summary memory through the bundled `yuos_sdk.memory.remember` export under
 `self:summarize`. Other products use SDK AI directly, not this App or its
 consent. App sources and their common support are external.
 App `shared/python` owns `_shared`, `gateway._shared` and `canonical_argv`;
@@ -260,7 +260,7 @@ The Yu OS Agent package supplies the Python SDK at `/usr/lib/yuos/python/`.
 On a development machine, install the [Python wheel](../yuos-sdk/python/README.md#install),
 or use `python3 -m pip install -e yuos-sdk/python/` from the root of a Yu OS
 source checkout in your Python environment. You do not need the first-party
-`yuos_runtime` package. Use the SDK's pure helpers and test business logic
+`yuos_sdk` package. Use the SDK's pure helpers and test business logic
 locally; run live App calls on a system with the matching Yu OS runtime.
 
 For Node, Go, and Rust, use the [language SDK guides](../yuos-sdk/README.md).
@@ -456,7 +456,7 @@ Binary and line caps are lower than the legacy operation limits so the
 duplicated MCP text/structured response fits the 16 MiB MCP frame and the
 text result fits the 8 MiB Host frame. Continue larger reads with byte offsets
 or narrower line ranges.
-The Rust `yuos_runtime::fs::read_bytes` convenience wrapper rejects a truncated
+The Rust `yuos_sdk::fs::read_bytes` convenience wrapper rejects a truncated
 response rather than returning a prefix as a complete file. Text `read` retains
 its explicit `ReadResult.truncated` field.
 
@@ -635,7 +635,7 @@ inverse comparison when one mode must omit authority.
 Check it at runtime by importing the internal runtime:
 
 ```python
-from yuos_runtime import policy
+from yuos_sdk import policy
 from yuos_sdk.app import command
 
 @command("notify")
@@ -651,7 +651,7 @@ def notify(args):
 
 `policy.require(verb, *, path=..., host=..., name=..., self_ref=..., wild=False)`
 uses the hidden kernel policy bridge and raises `PermissionDenied` on deny
-([`yuos-runtime/python/src/yuos_runtime/policy.py:79-106`](../yuos-runtime/python/src/yuos_runtime/policy.py)).
+([`yuos-sdk/python/src/yuos_sdk/policy.py:79-106`](../yuos-sdk/python/src/yuos_sdk/policy.py)).
 Pass exactly one scope keyword (or `wild=True` for unscoped verbs).
 
 Use `policy.check(...)` (same signature, returns the raw decision
@@ -984,7 +984,7 @@ this while writing the manifest:
   wrote to the data root before isolation is moved into that partition
   once, automatically, before its first sandboxed run
   ([`docs/updating.md`](updating.md) covers the cases that stop and ask).
-* **Agent memory.** `yuos_runtime.memory` still writes into the owner's
+* **Agent memory.** `yuos_sdk.memory` still writes into the owner's
   cross-app agent memory; the database is not mounted, and the call is
   carried out by the launcher after checking `memory.write` scoped
   `self:<your-app-id>`. Writing to another app's source is refused, and
@@ -1014,7 +1014,7 @@ this while writing the manifest:
   CPU, wall clock and captured output. A worker cannot daemonize: the
   whole process group and cgroup are killed when the operation ends, is
   cancelled or times out.
-* **Authority.** `yuos_runtime.policy` and every `yu` call the app makes
+* **Authority.** `yuos_sdk.policy` and every `yu` call the app makes
   go through a private broker endpoint bound to that one launch, which
   relays them to `yuosd` under a launcher-held grant. `yuosd` still
   decodes, authorizes and spends the exact capability against the live

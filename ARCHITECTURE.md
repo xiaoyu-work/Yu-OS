@@ -87,8 +87,7 @@ route.
 | App permission disclosure and directory installation | OS-catalog review of authenticated manifest needs and execution surfaces, with a permission-contract digest; Root-only signed directory publication shares checked retirement/admission and never grants capabilities | `core/src/apps/permission_review.rs`, `core/src/apps/installation.rs`, `core/src/yuosd/app_install.rs`, `core/src/router/app_commands.rs` |
 | Extension provenance | Publisher signing, trust roots, package verification, and the shared bounded installer for Apps, Skills, MCP/adapter packages, and Agent extensions | `core/src/provenance/` |
 | Update freshness | Signed release-security manifest, monotonic local security floor, one-use recovery authorizations, and the install/activation/runtime gates that refuse a superseded release | `core/src/update/`, `packaging/release-security/`, `packaging/deb/common/` |
-| SDK/runtime | One public multi-language App SDK, including MCP service APIs, plus internal bundled-App policy helpers | `yuos-sdk/`, `yuos-runtime/` |
-| App development platform | Versioned, digest-pinned SDK/runtime/toolkit library artifact, independent of App releases and OS implementation checkouts | `packaging/app-platform.json`, `scripts/app_platform.py`, `docs/app-platform.md` |
+| SDK/runtime | One public multi-language App SDK, including MCP service APIs, plus internal bundled-App policy helpers | `yuos-sdk/` |
 | Browser and semantic services | Brokered Helium rendering and signed-in tab operations, embedding and semantic-search services | `core/src/yuosd/browser/`, `crates/yuos-*` |
 | Personal-file vector index | Existing owner daemon, fixed local Qwen3 CPU inference pipe, atomic source-revision SQLite corpus and live-root reconciliation; Workspace read visibility stays broker-owned | `crates/yuos-semantic/`, `crates/yuos-embed/`, `core/src/model/local_embedding.rs` |
 | Desktop | Product desktop fork and native UI clients communicating through stable OS boundaries; the Agent UI and bridge share a versioned presentation protocol | `desktop/`, `desktop/agent/protocol/` |
@@ -832,7 +831,7 @@ stored grants do not change. Other products call SDK AI directly, never this App
 See [the compatibility note](docs/updating.md#summarize-source-and-ai-scope-binding).
 
 DB, KV, Net and Summarize evolve through their manifest/MCP contracts, public SDK API and
-[bundled policy export](yuos-runtime/README.md#bundled-client-contract), not
+[bundled policy export](yuos-sdk/README.md), not
 cross-repository imports of private source. OS core builds do not require an
 App checkout; package composition and integration fixtures deliberately use
 the immutable App pin. Client fixtures consume full staged payloads and the
@@ -880,7 +879,7 @@ This keeps local, sandboxed, and remote implementations interchangeable.
   enforcement.
 - Runtime dispatch runs guardrails and pre/post hooks around tool calls.
 - App manifests declare capability needs; bundled apps enforce them through
-  `yuos_runtime.policy`.
+  `yuos_sdk.policy`.
 - The authenticated built-in System Agent discovers and calls only enabled MCP
   tools declared by verified installed Apps. The target receives only the
   independently derived needs of that signed tool.
@@ -917,7 +916,7 @@ supplementary groups from the system account database, never from an isolated
 extension's execution GID. Synchronous filesystem guards change only the
 provider thread's credentials and restore them before yielding or returning.
 
-Bundled desktop apps launch Ask Yu OS through `yuos_runtime::ask_yu`. Their
+Bundled desktop apps launch Ask Yu OS through `yuos_sdk::ask_yu`. Their
 thin `yuos_glue` adapters define only typed, app-specific context fields; the
 runtime owns bounded JSON serialization, anonymous process-bound stdin
 handoff, executable selection, readiness and write deadlines, exact-child
@@ -2217,7 +2216,7 @@ declared parent-directory capabilities. See the
 [filesystem MCP contract](docs/app-development.md#filesystem-mcp-contract).
 
 The editor's **App handlers** do not use that human App-dispatch bridge.
-`yuos_runtime::filesystem` carries bounded text requests on stdin through
+`yuos_sdk::filesystem` carries bounded text requests on stdin through
 `yu __filesystem` to `system.filesystem.read` / `system.filesystem.write`.
 The broker spends exact canonical `fs.read` / `fs.write` scopes, rejects
 worker-forbidden paths, pins directory descriptors against symlink swaps,
@@ -2571,7 +2570,7 @@ Settings broker to the greeter. See [first-run updates](docs/updating.md#first-r
   overlay activation. There is no Python App manifest or proxy launcher for
   the Agent UI.
 - Desktop Ask Yu OS launchers and the Agent UI share the
-  `yuos_runtime::ask_yu` activation contract; host reducers never name the
+  `yuos_sdk::ask_yu` activation contract; host reducers never name the
   Agent UI executable or hand-build context JSON. The runtime directly spawns
   a transient UI with an inherited AF_UNIX socketpair and withholds the bounded payload until
   the child signals that Yama isolation, non-dumpable state, and private

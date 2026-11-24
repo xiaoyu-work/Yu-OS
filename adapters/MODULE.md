@@ -51,6 +51,6 @@ declare both the binary dependency and the exact `proc.spawn` need.
 ## Tests
 
 ```bash
-PYTHONPATH=yuos-sdk/python/src:yuos-runtime/python/src \
+PYTHONPATH=yuos-sdk/python/src \
   python3 -m pytest -q adapters
 ```

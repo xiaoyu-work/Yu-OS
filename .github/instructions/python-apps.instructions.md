@@ -1,5 +1,5 @@
 ---
-applyTo: "adapters/**/*.py,adapters/**/app.json,yuos-sdk/python/**/*.py,yuos-runtime/python/**/*.py"
+applyTo: "adapters/**/*.py,adapters/**/app.json,yuos-sdk/python/**/*.py"
 ---
 
 # Python Apps, Adapters, and SDK
@@ -8,7 +8,7 @@ applyTo: "adapters/**/*.py,adapters/**/app.json,yuos-sdk/python/**/*.py,yuos-run
   the owning guides in the external `yuos-app` repository.
 - Keep `app.json` operation args, dependencies, AI declaration, and `needs`
   aligned with `main.py` behavior.
-- Validate untrusted input before calling `yuos_runtime.policy.require`.
+- Validate untrusted input before calling `yuos_sdk.policy.require`.
 - Request the narrowest exact capability scope; do not replace validation with
   wildcard authority.
 - Apps do not import provider SDKs or own model credentials. Use the Yu OS
@@ -22,6 +22,6 @@ applyTo: "adapters/**/*.py,adapters/**/app.json,yuos-sdk/python/**/*.py,yuos-run
 Validation:
 
 ```bash
-PYTHONPATH=yuos-sdk/python/src:yuos-runtime/python/src \
+PYTHONPATH=yuos-sdk/python/src \
   python3 -m pytest -q <affected-test-paths>
 ```

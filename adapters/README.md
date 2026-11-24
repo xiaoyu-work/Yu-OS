@@ -50,6 +50,6 @@ Production packages require publisher provenance; see
 From the repository root:
 
 ```bash
-PYTHONPATH=yuos-sdk/python/src:yuos-runtime/python/src \
+PYTHONPATH=yuos-sdk/python/src \
   python3 -m pytest -q adapters
 ```
