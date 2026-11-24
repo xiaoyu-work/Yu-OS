@@ -1,31 +1,85 @@
-# Yu OS SDK
+# Yu OS SDK — Progressive Instructions for AI Coding Agents
 
-> Build Yu OS Apps in Python, Node.js, Go, or Rust. Call the user's configured AI model through Yu OS, or expose App tools to the system Agent via MCP.
+You are building or wrapping a **Yu OS App** using `yuos-sdk` (supported in **Python**, **Node.js / TypeScript**, **Go**, and **Rust**).
+Read the **Core Rules** and **Minimal Template** below first, then use the **Task Routing Table** to read only the specific document section your task requires.
 
-- Declare `operations` once in `app.json`; command-line (`yu app <id> <command>`) and desktop (`yu app <id> --gui`) launches share it. In Python, mark functions with `@command` and `@desktop` from `yuos_sdk.app` (Node, Go, and Rust register them and call `run`); if only one surface is implemented in code, the SDK returns a built-in unavailable-surface response for the other.
-- Add `"ai": {}` in `app.json` and declare the matching capability, e.g. `"needs": ["ai.chat"]`. Import `chat`, `chat_stream`, `embed`, `tts`, `stt`, `imagegen`, or `decide`. Each result has `provider`, `model`, `units`, and `output`. Settings selects the model and monthly App AI limit. For local development, set `YUOS_DEV_AI_URL` (plus optional `YUOS_DEV_AI_MODEL` and `YUOS_DEV_AI_KEY`) and run with `yu app dev ./<dir> <command>`. Build a `.deb` with `yu app pack ./<dir>` and submit it with `yu app submit <file.deb>`.
-- Use `app.data_dir()` for the App's private data directory, `app.notify(summary, body)` to post notifications (`ui.notify`), `app.clipboard_read()` / `app.clipboard_write(text)` for the clipboard, and `gui.open_file()`, `gui.save_file()`, and `gui.select_folder()` for system file and folder dialogs.
-- Call `chat(prompt)` for text or pass `images` as raw PNG, JPEG, or WebP bytes with an image-capable chat model; Yu OS detects the format. `stt` takes WAV, MP3, or Ogg bytes, and `tts` and `imagegen` return `audio` or `image` bytes. Pass schemas in `functions`, validate and run proposals in App code, and return results by call ID in `tool_turns`.
-- Handle authorization, exhausted budget, service unavailable, and invalid input using the SDK's typed errors.
-- Declare optional GUI model capabilities in `optional_needs`. On `model_permission_required`, show an App-written message and let the user open Settings → Applications.
-- The built-in System Agent calls enabled MCP tools declared in the signed `app.json`. Set `schema_version: 2` and bind handlers to `mcp.tools`. Name a tool `<app-id>.<command>` to expose `yu app <app-id> <command>`.
-- Read caller identity from the Gateway's call context. Use MCP stdout for protocol messages and stderr for logs.
-- Apps get their own data directory. Ordinary signed Apps launched by the owner get a public outbound TCP proxy. The system Open dialog gives a signed GUI read access to the selected file in that window.
-- Like macOS and Windows, any signed App may declare App permissions in `needs`: files, network, camera, microphone, location, Bluetooth, printing, screen capture, media control, clipboard, notifications, timers, AI and its own data. The owner allows them. Other capabilities, such as `sys.*`, `secret.*`, `proc.*` and `browser.*`, are system permissions: a third-party App gets one only after an administrator approves that use. In a terminal, `yu` asks for the password in place, like sudo, and reuses it in that terminal session for five minutes. See Permissions in the SDK reference.
+---
 
-## Start
+## 1. Core Rules (Always Follow)
 
-- [Model Quickstart](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/QUICKSTART.md): call `ai.chat` in a two-file App, declare permission, and run it.
-- [MCP example](https://github.com/xiaoyu-work/Yu-OS/blob/main/docs/app-development.md#quickstart-an-mcp-only-app): expose a tool to the CLI and System Agent.
-- [Python](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/python/README.md): `App.from_manifest()`, `@app.tool`, `ai.chat`.
-- [Node.js](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/node/README.md): `mcp.App.fromManifest()`, `app.tool`, `await ai.chat`; pass the MCP `signal`.
-- [Go](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/go/README.md): `LoadMCPApp`, `Bind`, `ServeStdio`; pass `MCPCall` to `ChatContext`.
-- [Rust](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/rust/README.md): `mcp::App::from_environment`, `Tool`, `serve_stdio`, `ai::chat`.
+1. **Single `operations` declaration**: Declare commands once under `operations` in `app.json`. Command-line (`yu app <id> <cmd>`) and desktop (`yu app <id> --gui`) launches share that declaration. Omit `desktop` in `app.json` unless customizing `.desktop` icon/categories/MIME types.
+2. **Entrypoints**:
+   - Mark CLI handlers with `@command` (defaults to the function name; takes `args: list[str]` and returns a JSON-serializable value).
+   - Mark the desktop entry with zero-argument `@desktop` (`def main():`).
+   - If an App only implements `@command` or only implements `@desktop`, the SDK automatically returns an unavailable-surface JSON response when the other surface is launched.
+3. **User-intent file access (macOS / Windows model)**:
+   - On the CLI, declaring an argument with `"kind": "path"` **automatically grants `fs.read`** on the file passed by the user. Do **not** add a `from-arg` `fs.read` entry to `needs`.
+   - In a desktop GUI, `gui.open_file()` **automatically grants `fs.read`** on the user-selected file.
+   - Always store App-private state in `app.data_dir()` (requires no permissions).
+4. **System AI gate**:
+   - Never import OpenAI / Anthropic / provider SDKs directly. Always call `yuos_sdk.ai` (`chat`, `chat_stream`, `embed`, `tts`, `stt`, `imagegen`, `decide`).
+   - Add `"ai": {}` at the top level of `app.json` and use string shorthand in `needs` (e.g. `"needs": ["ai.chat"]`).
+   - Pass raw `bytes` to `chat(..., images=[...])` and `stt(audio_bytes)` (Yu OS auto-detects PNG/JPEG/WebP and WAV/MP3/Ogg). `tts` and `imagegen` return raw bytes in `.output.audio` and `.output.image`.
+5. **Local testing & packaging**:
+   - Test locally with `yu app dev ./<dir> <command>` (and `yu app dev ./<dir> --gui`).
+   - For local AI testing outside a Yu OS session, set `YUOS_DEV_AI_URL=http://localhost:11434/v1` (plus optional per-slot `YUOS_DEV_AI_CHAT_MODEL`, `YUOS_DEV_AI_EMBED_MODEL`, `YUOS_DEV_AI_TTS_MODEL`, `YUOS_DEV_AI_STT_MODEL`, `YUOS_DEV_AI_IMAGEGEN_MODEL`, `YUOS_DEV_AI_DECIDE_MODEL`, or fallback `YUOS_DEV_AI_MODEL`).
+   - Validate with `yu app lint <id>`, package with `yu app pack ./<dir>`, and submit with `yu app submit <file.deb>`.
 
-## Reference
+---
 
-- [App guide](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/docs/app-development.md): manifest arguments, permissions, AI consent, and installation.
-- [Linux App integration](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/docs/linux-app-integration.md): adapt an existing Linux binary or GUI app to Yu OS.
-- [Manifest schema](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/wire/v1/manifest.schema.json): supported fields and types.
-- [SDK reference](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/REFERENCE.md): compatibility, binding coverage, and releases.
-- [Wire v1](https://raw.githubusercontent.com/xiaoyu-work/Yu-OS/main/yuos-sdk/wire/v1/README.md): CLI envelopes, call context, and errors.
+## 2. Minimal Copy-Paste Template
+
+**`app.json`**
+```json
+{
+  "id": "my-app",
+  "version": "0.1.0",
+  "name": {"en": "My App"},
+  "runtime": "python",
+  "ai": {},
+  "operations": {
+    "summarize": {
+      "label": {"en": "Summarize a file"},
+      "args": [{"name": "file", "kind": "path", "required": true}],
+      "needs": ["ai.chat"]
+    }
+  }
+}
+```
+
+**`main.py` (Python)** *(For Node.js, Go, or Rust templates, read `yuos-sdk/QUICKSTART.md`)*
+```python
+from pathlib import Path
+from yuos_sdk.ai import chat
+from yuos_sdk.app import command, desktop
+
+@command
+def summarize(args: list[str]) -> dict:
+    text = Path(args[0]).read_text(encoding="utf-8")
+    reply = chat(text, system="Summarize in one sentence.")
+    return {"summary": reply.output.text}
+
+@desktop
+def main() -> None:
+    ...  # Launch your Qt / GTK / Tkinter window
+```
+
+---
+
+## 3. Progressive Lookup — Read Only What Your Task Needs
+
+Do **not** guess API parameters or manifest fields. Open the exact file and section below that matches your current task:
+
+| Task / Feature Needed | Read This File & Section | What You Will Find There |
+|---|---|---|
+| **Install SDK & 4-language starter templates** (Python, Node.js/TS, Go, Rust) | [`yuos-sdk/QUICKSTART.md`](QUICKSTART.md) (or [`yuos-sdk/quickstart.html`](quickstart.html)) | Per-language install commands (`pip`, `npm`, `go get`, `cargo add`), complete `main.py` / `index.ts` / `main.go` / `main.rs` templates, and dev/pack/submit commands. |
+| **`app.json` manifest fields & `args` / `kind` types** | [`yuos-sdk/API.md#1-appjson-manifest-reference`](API.md#1-appjson-manifest-reference) | All top-level `app.json` fields, `operations` fields, `args[]` schema (`kind`: `text`, `path`, `integer`, `number`, `bool`, `host`, `name`, `default`, `choices`, `binding`, `repeatable`), and `needs` syntax. |
+| **App entry & OS helpers** (`@command`, `@desktop`, `run`, `data_dir`, `notify`, `clipboard_read/write`, `secret`, `require_permission`) | [`yuos-sdk/API.md#2-app-entry--system-helpers-yuos_sdkapp`](API.md#2-app-entry--system-helpers-yuos_sdkapp) | Exact signatures, parameter types, return types, and examples across Python, Node.js, Go, and Rust. |
+| **AI model calls** (`chat`, `chat_stream`, `embed`, `tts`, `stt`, `imagegen`, `decide`, `budget`, tool calling, and AI error types) | [`yuos-sdk/API.md#3-ai-models-yuos_sdkai`](API.md#3-ai-models-yuos_sdkai) and [`yuos-sdk/REFERENCE.md#ai-support`](REFERENCE.md#ai-support) | Every AI function's parameters (`prompt`, `system`, `images`, `max_units`, `functions`, `tool_turns`), `ModelResponse` output fields, streaming usage, and typed error handling (`AiDenied`, `AiBudgetExceeded`, etc.). |
+| **Desktop file/folder dialogs & Agent overlay** (`open_file`, `save_file`, `select_folder`, `context`, `open_agent_overlay`) | [`yuos-sdk/API.md#4-desktop-dialogs--window-context-yuos_sdkgui`](API.md#4-desktop-dialogs--window-context-yuos_sdkgui) | Native portal file/folder pickers, file-association launch arguments (`gui.context().files`), and triggering the "Ask Yu OS" overlay. |
+| **Expose App tools to the Yu OS System Agent (MCP)** | [`yuos-sdk/API.md#5-system-agent-mcp-service-yuos_sdkmcp`](API.md#5-system-agent-mcp-service-yuos_sdkmcp) and [`docs/app-development.md#quickstart-an-mcp-only-app`](../docs/app-development.md#quickstart-an-mcp-only-app) | Setting `schema_version: 2`, declaring `mcp.tools` in `app.json`, binding `@app.tool("<app-id>.<tool>")` in `server.py`, and reading `current_context()`. |
+| **Wrap an existing C/C++ binary or adapt an existing Linux GUI app** (Qt, GTK, Electron) | [`docs/linux-app-integration.md`](../docs/linux-app-integration.md) (or [`yuos-sdk/linux-app-integration.html`](linux-app-integration.html)) | Step-by-step patterns for wrapping compiled C/C++ binaries with Python/Rust SDK or integrating `yuos-sdk` into an existing Linux desktop app. |
+| **App permissions vs. System permissions** (macOS / Windows mapping) | [`yuos-sdk/REFERENCE.md#permissions`](REFERENCE.md#permissions) | Complete table of user-approvable App permissions (`fs.*`, `net.*`, `device.*`, `ui.*`, `clipboard.*`, `ai.*`) vs. administrator-gated system permissions (`sys.*`, `secret.*`, `proc.*`). |
+| **Brokered single-file snapshots (`read_file`, `replace_file`)** | [`yuos-sdk/API.md#6-brokered-file-snapshots-yuos_sdkfiles`](API.md#6-brokered-file-snapshots-yuos_sdkfiles) and [`yuos-sdk/wire/v1/brokered-files.md`](wire/v1/brokered-files.md) | Reading and atomically replacing an existing user file (up to 32 MiB) inside an MCP tool with `transform: "brokered-file"`. |
+| **App events, object references (`app://`), and staged file plans** | [`yuos-sdk/API.md#7-events--object-references-events-objects`](API.md#7-events--object-references-events-objects) and [`yuos-sdk/wire/v1/object-references.md`](wire/v1/object-references.md) | Publishing domain events (`events.publish`) and formatting/parsing canonical `ObjectRef` URIs. |
+
