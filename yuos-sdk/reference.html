@@ -32,6 +32,9 @@
     <aside class="sidebar">
       <div class="sidebar-group">
         <div class="sidebar-title">Overview &amp; Reference</div>
+        <a href="#manifest-ref" class="nav-text">app.json Manifest &amp; kind</a>
+        <a href="#logs" class="nav-text">Logs &amp; Private App Data</a>
+        <a href="#env-ref" class="nav-text">Environment Variables</a>
         <a href="#permissions" class="nav-text">App vs. System Permissions</a>
         <a href="#handle-ai-errors" class="nav-text">AI Error Codes</a>
         <a href="#app-owned-tools" class="nav-text">App-Owned AI Functions</a>
@@ -41,8 +44,76 @@
     </aside>
 
     <main class="content">
-      <h1>Permissions, Error Codes &amp; CLI Reference</h1>
-      <p class="lead">How Yu OS isolates Apps, maps permissions to macOS and Windows, handles AI error codes, and packages Apps for the Store.</p>
+      <h1>Permissions, Manifest &amp; General Reference</h1>
+      <p class="lead">General reference for <code>app.json</code> manifest fields, log and private data directories, environment variables, macOS/Windows permission mapping, AI error codes, and developer CLI commands.</p>
+
+      <h2 id="manifest-ref"><code>app.json</code> Manifest &amp; Parameter <code>kind</code> Reference</h2>
+      <p>Every Yu OS App declares its metadata, parameters, and permissions in <code>app.json</code>. Command-line and desktop launches share <code>operations</code>.</p>
+      <table class="summary-table">
+        <thead><tr><th>Top-Level Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td><code>string</code></td><td>Yes</td><td>Unique App ID matching <code>[a-z][a-z0-9_-]*</code>.</td></tr>
+          <tr><td><code>version</code></td><td><code>string</code></td><td>Yes</td><td>SemVer version string (e.g. <code>"0.1.0"</code>).</td></tr>
+          <tr><td><code>name</code></td><td><code>{"en": string, ...}</code></td><td>Yes</td><td>Localized display name.</td></tr>
+          <tr><td><code>runtime</code></td><td><code>"python" | "node" | "binary" | "shell"</code></td><td>No (default <code>"python"</code>)</td><td>How Yu OS launches the App entry point.</td></tr>
+          <tr><td><code>entry</code></td><td><code>string</code></td><td>No</td><td>Entry file relative to the App directory.</td></tr>
+          <tr><td><code>ai</code></td><td><code>object ({})</code></td><td>When using <code>ai.*</code></td><td>Enables system AI access for this App.</td></tr>
+          <tr><td><code>operations</code></td><td><code>Record&lt;string, Operation&gt;</code></td><td>For CLI / Desktop</td><td>Commands shared by CLI and Desktop (<code>--gui</code>).</td></tr>
+          <tr><td><code>mcp</code></td><td><code>McpService</code></td><td>For Agent tools</td><td>Tools exposed to the built-in Yu OS System Agent (<code>schema_version: 2</code>).</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Parameter <code>args[]</code> &amp; <code>kind</code> Types</h3>
+      <table class="summary-table">
+        <thead><tr><th>Arg <code>kind</code></th><th>Value Type</th><th>Behavior</th></tr></thead>
+        <tbody>
+          <tr><td><code>"text"</code></td><td><code>string</code></td><td>Free-form UTF-8 string.</td></tr>
+          <tr><td><code>"path"</code></td><td><code>string</code> (file path)</td><td>Expands <code>./</code> and <code>~/</code> and <strong>automatically grants read access (<code>fs.read</code>)</strong> to the user-supplied file in the sandbox without needing a <code>needs</code> entry.</td></tr>
+          <tr><td><code>"integer"</code></td><td><code>int</code></td><td>Whole number; non-integers are rejected before launch.</td></tr>
+          <tr><td><code>"number"</code></td><td><code>float</code></td><td>Integer or decimal number.</td></tr>
+          <tr><td><code>"bool"</code></td><td><code>boolean</code></td><td>Boolean flag (defaults to <code>--name</code> CLI flag).</td></tr>
+          <tr><td><code>"host"</code></td><td><code>string</code></td><td>Network <code>host</code> or <code>host:port</code>.</td></tr>
+          <tr><td><code>"name"</code></td><td><code>string</code></td><td>Identifier token.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="logs">Where to View Logs &amp; Private App Data</h2>
+      <p>When your App calls <code>app.log(message, level="info")</code> (or accesses <code>app.data_dir()</code>), logs are both printed live and persisted to disk:</p>
+      <table class="summary-table">
+        <thead><tr><th>Mode</th><th>Live Terminal Output</th><th>Persistent Log File Path</th><th>App Private Data Directory (<code>data_dir()</code>)</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Local Dev (<code>yu app dev</code>)</strong></td>
+            <td>Printed live to your current terminal via <code>stderr</code> (<code>[INFO] ...</code>) without polluting <code>stdout</code> JSON.</td>
+            <td><code>~/.local/share/yuos-dev/apps/&lt;app-id&gt;/logs/app.jsonl</code><br><small>(or <code>$XDG_DATA_HOME/yuos-dev/apps/&lt;app-id&gt;/logs/app.jsonl</code>)</small></td>
+            <td><code>~/.local/share/yuos-dev/apps/&lt;app-id&gt;/</code></td>
+          </tr>
+          <tr>
+            <td><strong>Installed on Yu OS</strong></td>
+            <td>Captured on <code>stderr</code> (safe inside MCP tools where <code>stdout</code> is reserved for JSON-RPC).</td>
+            <td><code>$YUOS_DATA_DIR/logs/app.jsonl</code></td>
+            <td><code>$YUOS_DATA_DIR/</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p>To tail your App's persistent JSONL log file during local development:</p>
+      <pre><code>tail -f ~/.local/share/yuos-dev/apps/&lt;app-id&gt;/logs/app.jsonl</code></pre>
+
+      <h2 id="env-ref">Environment Variables</h2>
+      <table class="summary-table">
+        <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>YUOS_DEV_AI_URL</code></td><td>&mdash;</td><td>OpenAI-compatible <code>/v1</code> endpoint (e.g. <code>http://localhost:11434/v1</code>) used outside <code>YUOS_SESSION</code>.</td></tr>
+          <tr><td><code>YUOS_DEV_AI_CHAT_MODEL</code></td><td><code>llama3.2</code></td><td>Model for <code>chat</code> and <code>chat_stream</code>.</td></tr>
+          <tr><td><code>YUOS_DEV_AI_EMBED_MODEL</code></td><td><code>nomic-embed-text</code></td><td>Model for <code>embed</code>.</td></tr>
+          <tr><td><code>YUOS_DEV_AI_TTS_MODEL</code></td><td><code>tts-1</code></td><td>Model for <code>tts</code>.</td></tr>
+          <tr><td><code>YUOS_DEV_AI_STT_MODEL</code></td><td><code>whisper-1</code></td><td>Model for <code>stt</code>.</td></tr>
+          <tr><td><code>YUOS_DEV_AI_IMAGEGEN_MODEL</code></td><td><code>dall-e-3</code></td><td>Model for <code>imagegen</code>.</td></tr>
+          <tr><td><code>YUOS_DEV_AI_DECIDE_MODEL</code></td><td><code>llama3.2</code></td><td>Model for <code>decide</code>.</td></tr>
+          <tr><td><code>YUOS_DEV_AI_MODEL</code></td><td><code>llama3.2</code></td><td>Fallback model when a slot-specific variable above is unset.</td></tr>
+          <tr><td><code>YUOS_DEV_AI_KEY</code></td><td>&mdash;</td><td>Optional Bearer API key for <code>YUOS_DEV_AI_URL</code>.</td></tr>
+        </tbody>
+      </table>
 
       <h2 id="permissions">App Permissions vs. System Permissions</h2>
       <p>Like macOS and Windows, Yu OS separates <strong>App permissions</strong> from <strong>system permissions</strong>. AI permissions need no extra fields and can be written as strings (<code>"needs": ["ai.chat"]</code>). User-supplied files (CLI <code>"kind": "path"</code> arguments and <code>gui.open_file()</code> selections) automatically receive read access by user intent without needing a <code>needs</code> entry.</p>

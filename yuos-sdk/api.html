@@ -172,51 +172,6 @@ let speech = ai::tts(&quot;hello&quot;, ModelOpts::default())?;</code></pre></dd
     let data = std::fs::read(path)?;
 }</code></pre></dd></dl><dl class="api-item" id="rust-files-rs"><dt class="sig-object"><div><span class="sig-qual">yuos_sdk::files::</span><span class="sig-name">read_file / replace_file</span><span class="sig-param">(path: &amp;str, ...)</span> <span class="sig-ret">-&gt; Result&lt;FileSnapshot, BridgeError&gt;</span></div><a class="headerlink" href="#rust-files-rs" title="Link to this definition">#</a></dt><dd class="sig-body"><p>Brokered single-file binary snapshot and atomic replacement for MCP tools.</p><dl class="field-list"><dt>Parameters:</dt><dd><ul><li><span class="param-name">read_file(path: &amp;str)</span> (<span class="param-type">-&gt; Result&lt;FileSnapshot, BridgeError&gt;</span>) &ndash; Returns FileSnapshot { content: Vec&lt;u8&gt;, revision: String }.</li><li><span class="param-name">replace_file(path: &amp;str, revision: &amp;str, content: &amp;[u8])</span> (<span class="param-type">-&gt; Result&lt;(), BridgeError&gt;</span>) &ndash; Atomically replace the file if revision matches.</li></ul></dd><dt>Returns:</dt><dd>Result&lt;FileSnapshot / (), BridgeError&gt;</dd><dt>Return type:</dt><dd><span class="param-type">Result&lt;..., BridgeError&gt;</span></dd><dt>Raises / Errors:</dt><dd>BridgeError</dd></dl><div class="example-label">Example:</div><pre><code>let snap = yuos_sdk::files::read_file(&amp;path)?;
 yuos_sdk::files::replace_file(&amp;path, &amp;snap.revision, &amp;new_bytes)?;</code></pre></dd></dl></div>
-      <h2 id="manifest-ref">app.json Manifest &amp; Parameter <code>kind</code> Reference</h2>
-      <p>Every Yu OS App declares its metadata, parameters, and permissions in <code>app.json</code>. Command-line and desktop launches share <code>operations</code>.</p>
-      <table class="summary-table">
-        <thead><tr><th>Top-Level Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
-        <tbody>
-          <tr><td><code>id</code></td><td><code>string</code></td><td>Yes</td><td>Unique App ID matching <code>[a-z][a-z0-9_-]*</code>.</td></tr>
-          <tr><td><code>version</code></td><td><code>string</code></td><td>Yes</td><td>SemVer version string (e.g. <code>"0.1.0"</code>).</td></tr>
-          <tr><td><code>name</code></td><td><code>{"en": string, ...}</code></td><td>Yes</td><td>Localized display name.</td></tr>
-          <tr><td><code>runtime</code></td><td><code>"python" | "node" | "binary" | "shell"</code></td><td>No (default <code>"python"</code>)</td><td>How Yu OS launches the App entry point.</td></tr>
-          <tr><td><code>entry</code></td><td><code>string</code></td><td>No</td><td>Entry file relative to the App directory.</td></tr>
-          <tr><td><code>ai</code></td><td><code>object ({})</code></td><td>When using <code>ai.*</code></td><td>Enables system AI access for this App.</td></tr>
-          <tr><td><code>operations</code></td><td><code>Record&lt;string, Operation&gt;</code></td><td>For CLI / Desktop</td><td>Commands shared by CLI and Desktop (<code>--gui</code>).</td></tr>
-          <tr><td><code>mcp</code></td><td><code>McpService</code></td><td>For Agent tools</td><td>Tools exposed to the built-in Yu OS System Agent (<code>schema_version: 2</code>).</td></tr>
-        </tbody>
-      </table>
-
-      <h3>Parameter <code>args[]</code> &amp; <code>kind</code> Types</h3>
-      <table class="summary-table">
-        <thead><tr><th>Arg <code>kind</code></th><th>Value Type</th><th>Behavior</th></tr></thead>
-        <tbody>
-          <tr><td><code>"text"</code></td><td><code>string</code></td><td>Free-form UTF-8 string.</td></tr>
-          <tr><td><code>"path"</code></td><td><code>string</code> (file path)</td><td>Expands <code>./</code> and <code>~/</code> and <strong>automatically grants read access (<code>fs.read</code>)</strong> to the user-supplied file in the sandbox without needing a <code>needs</code> entry.</td></tr>
-          <tr><td><code>"integer"</code></td><td><code>int</code></td><td>Whole number; non-integers are rejected before launch.</td></tr>
-          <tr><td><code>"number"</code></td><td><code>float</code></td><td>Integer or decimal number.</td></tr>
-          <tr><td><code>"bool"</code></td><td><code>boolean</code></td><td>Boolean flag (defaults to <code>--name</code> CLI flag).</td></tr>
-          <tr><td><code>"host"</code></td><td><code>string</code></td><td>Network <code>host</code> or <code>host:port</code>.</td></tr>
-          <tr><td><code>"name"</code></td><td><code>string</code></td><td>Identifier token.</td></tr>
-        </tbody>
-      </table>
-
-      <h2 id="env-ref">Environment Variables</h2>
-      <table class="summary-table">
-        <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
-        <tbody>
-          <tr><td><code>YUOS_DEV_AI_URL</code></td><td>&mdash;</td><td>OpenAI-compatible <code>/v1</code> endpoint (e.g. <code>http://localhost:11434/v1</code>) used outside <code>YUOS_SESSION</code>.</td></tr>
-          <tr><td><code>YUOS_DEV_AI_CHAT_MODEL</code></td><td><code>llama3.2</code></td><td>Model for <code>chat</code> and <code>chat_stream</code>.</td></tr>
-          <tr><td><code>YUOS_DEV_AI_EMBED_MODEL</code></td><td><code>nomic-embed-text</code></td><td>Model for <code>embed</code>.</td></tr>
-          <tr><td><code>YUOS_DEV_AI_TTS_MODEL</code></td><td><code>tts-1</code></td><td>Model for <code>tts</code>.</td></tr>
-          <tr><td><code>YUOS_DEV_AI_STT_MODEL</code></td><td><code>whisper-1</code></td><td>Model for <code>stt</code>.</td></tr>
-          <tr><td><code>YUOS_DEV_AI_IMAGEGEN_MODEL</code></td><td><code>dall-e-3</code></td><td>Model for <code>imagegen</code>.</td></tr>
-          <tr><td><code>YUOS_DEV_AI_DECIDE_MODEL</code></td><td><code>llama3.2</code></td><td>Model for <code>decide</code>.</td></tr>
-          <tr><td><code>YUOS_DEV_AI_MODEL</code></td><td><code>llama3.2</code></td><td>Fallback model when a slot-specific variable above is unset.</td></tr>
-          <tr><td><code>YUOS_DEV_AI_KEY</code></td><td>&mdash;</td><td>Optional Bearer API key for <code>YUOS_DEV_AI_URL</code>.</td></tr>
-        </tbody>
-      </table>
     </main>
   </div>
 

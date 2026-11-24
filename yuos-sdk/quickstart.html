@@ -36,8 +36,7 @@
         <a href="#manifest" class="nav-text">2. Create app.json</a>
         <a href="#code" class="nav-text">3. Write CLI &amp; Desktop Code</a>
         <a href="#dev" class="nav-text">4. Test Locally</a>
-        <a href="#logs" class="nav-text">5. Where to View Logs &amp; Data</a>
-        <a href="#ship" class="nav-text">6. Package &amp; Submit</a>
+        <a href="#ship" class="nav-text">5. Package &amp; Submit</a>
       </div>
     </aside>
 
@@ -231,29 +230,7 @@ fn main() -&gt; Result&lt;(), app::AppError&gt; {
       <pre><code>YUOS_DEV_AI_URL=http://localhost:11434/v1 yu app dev ./hello-ai summarize "Yu OS lets Apps call the user's configured model."
 YUOS_DEV_AI_URL=http://localhost:11434/v1 yu app dev ./hello-ai --gui</code></pre>
 
-      <h2 id="logs">5. Where to View Logs &amp; Private App Data</h2>
-      <p>When your App calls <code>app.log(message, level="info")</code> (or accesses <code>app.data_dir()</code>), logs are both printed live and persisted to disk:</p>
-      <table class="summary-table">
-        <thead><tr><th>Mode</th><th>Live Terminal Output</th><th>Persistent Log File Path</th><th>App Private Data Directory (<code>data_dir()</code>)</th></tr></thead>
-        <tbody>
-          <tr>
-            <td><strong>Local Dev (<code>yu app dev</code>)</strong></td>
-            <td>Printed live to your current terminal via <code>stderr</code> (<code>[INFO] ...</code>) without polluting <code>stdout</code> JSON.</td>
-            <td><code>~/.local/share/yuos-dev/apps/&lt;app-id&gt;/logs/app.jsonl</code><br><small>(or <code>$XDG_DATA_HOME/yuos-dev/apps/&lt;app-id&gt;/logs/app.jsonl</code>)</small></td>
-            <td><code>~/.local/share/yuos-dev/apps/&lt;app-id&gt;/</code></td>
-          </tr>
-          <tr>
-            <td><strong>Installed on Yu OS</strong></td>
-            <td>Captured on <code>stderr</code> (safe inside MCP tools where <code>stdout</code> is reserved for JSON-RPC).</td>
-            <td><code>$YUOS_DATA_DIR/logs/app.jsonl</code></td>
-            <td><code>$YUOS_DATA_DIR/</code></td>
-          </tr>
-        </tbody>
-      </table>
-      <p>To tail your App's persistent JSONL log file during local development:</p>
-      <pre><code>tail -f ~/.local/share/yuos-dev/apps/hello-ai/logs/app.jsonl</code></pre>
-
-      <h2 id="ship">6. Package into <code>.deb</code> &amp; Submit to the Store</h2>
+      <h2 id="ship">5. Package into <code>.deb</code> &amp; Submit to the Store</h2>
       <pre><code>yu app pack ./hello-ai
 yu app submit yuos-app-hello-ai_0.1.0_all.deb</code></pre>
     </main>
