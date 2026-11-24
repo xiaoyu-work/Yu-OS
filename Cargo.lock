@@ -363,106 +363,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
-name = "yuos-compositor"
-version = "0.1.0"
-dependencies = [
- "yuos-display-control",
- "libc",
-]
-
-[[package]]
-name = "yuos-display-control"
-version = "0.1.0"
-dependencies = [
- "libc",
- "serde",
- "serde_json",
- "tempfile",
-]
-
-[[package]]
-name = "yuos-display-login"
-version = "0.1.0"
-dependencies = [
- "yuos-display-control",
- "libc",
-]
-
-[[package]]
-name = "yuos-embed"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "dirs",
- "libc",
- "notify",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "yuos-notification-presentation"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "zbus",
-]
-
-[[package]]
-name = "yuos-sdk"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64",
- "libc",
- "num-bigint",
- "num-traits",
- "regex",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "yuos-semantic"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "yuos-embed",
- "dirs",
- "serde",
- "serde_json",
- "sha2",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "yuosd-client"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "uuid",
-]
-
-[[package]]
 name = "colorchoice"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -493,88 +393,6 @@ name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
-
-[[package]]
-name = "yu"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "axum",
- "axum-server",
- "base64",
- "bytes",
- "chrono",
- "yuos-display-control",
- "yuos-embed",
- "yuos-notification-presentation",
- "yuos-sdk",
- "yuosd-client",
- "crc32fast",
- "crossterm",
- "ed25519-dalek",
- "flate2",
- "fuser",
- "futures-util",
- "goblin",
- "hex",
- "hmac",
- "http",
- "include_dir",
- "libc",
- "libloading",
- "ratatui",
- "regex",
- "reqwest",
- "rusqlite",
- "rustls",
- "semver",
- "serde",
- "serde_json",
- "sha2",
- "socket2",
- "tar",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tokio-tungstenite",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "unicode-width 0.2.0",
- "url",
- "uuid",
- "wayland-client",
- "wayland-protocols",
- "zbus",
- "zeroize",
- "zip",
-]
-
-[[package]]
-name = "yuos-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "serde",
- "serde_json",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "yuos-runtime"
-version = "0.1.0"
-dependencies = [
- "base64",
- "yuos-sdk",
- "libc",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
-]
 
 [[package]]
 name = "cpufeatures"
@@ -3860,6 +3678,175 @@ dependencies = [
  "quote",
  "syn 2.0.117",
  "synstructure",
+]
+
+[[package]]
+name = "yu"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "axum-server",
+ "base64",
+ "bytes",
+ "chrono",
+ "crc32fast",
+ "crossterm",
+ "ed25519-dalek",
+ "flate2",
+ "fuser",
+ "futures-util",
+ "goblin",
+ "hex",
+ "hmac",
+ "http",
+ "include_dir",
+ "libc",
+ "libloading",
+ "ratatui",
+ "regex",
+ "reqwest",
+ "rusqlite",
+ "rustls",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2",
+ "socket2",
+ "tar",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-tungstenite",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "unicode-width 0.2.0",
+ "url",
+ "uuid",
+ "wayland-client",
+ "wayland-protocols",
+ "yuos-display-control",
+ "yuos-embed",
+ "yuos-notification-presentation",
+ "yuos-sdk",
+ "yuosd-client",
+ "zbus",
+ "zeroize",
+ "zip",
+]
+
+[[package]]
+name = "yuos-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde",
+ "serde_json",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "yuos-compositor"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "yuos-display-control",
+]
+
+[[package]]
+name = "yuos-display-control"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "yuos-display-login"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "yuos-display-control",
+]
+
+[[package]]
+name = "yuos-embed"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "dirs",
+ "libc",
+ "notify",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "yuos-notification-presentation"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "zbus",
+]
+
+[[package]]
+name = "yuos-sdk"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "libc",
+ "num-bigint",
+ "num-traits",
+ "regex",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "yuos-semantic"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "dirs",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "yuos-embed",
+]
+
+[[package]]
+name = "yuosd-client"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]

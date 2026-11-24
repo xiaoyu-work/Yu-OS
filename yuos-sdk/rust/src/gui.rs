@@ -220,20 +220,22 @@ fn selected_read_response(
     serde_json::from_value(response).map_err(|error| selected_read_decode(verb, error))
 }
 
+fn hex_nibble(byte: u8) -> Option<u8> {
+    (byte as char).to_digit(16).map(|d| d as u8)
+}
+
 fn percent_decode_path(input: &str) -> String {
     let bytes = input.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let (Some(hi), Some(lo)) = (
-                (bytes[i + 1] as char).to_digit(16),
-                (bytes[i + 2] as char).to_digit(16),
-            ) {
-                out.push(((hi << 4) | lo) as u8);
-                i += 3;
-                continue;
-            }
+        if let Some((hi, lo)) = (bytes[i] == b'%' && i + 2 < bytes.len())
+            .then(|| hex_nibble(bytes[i + 1]).zip(hex_nibble(bytes[i + 2])))
+            .flatten()
+        {
+            out.push((hi << 4) | lo);
+            i += 3;
+            continue;
         }
         out.push(bytes[i]);
         i += 1;
@@ -261,10 +263,8 @@ fn run_picker(
     dev_env: &str,
     name: Option<&str>,
 ) -> Result<Option<String>, String> {
-    if std::env::var_os("YUOS_SESSION").is_none() {
-        if let Ok(dev_file) = std::env::var(dev_env) {
-            return Ok((!dev_file.is_empty()).then_some(dev_file));
-        }
+    if let (None, Ok(dev_file)) = (std::env::var_os("YUOS_SESSION"), std::env::var(dev_env)) {
+        return Ok((!dev_file.is_empty()).then_some(dev_file));
     }
     let request_id = next_picker_request_id();
     let mut payload = serde_json::json!({
