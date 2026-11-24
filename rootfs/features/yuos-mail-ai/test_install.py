@@ -62,13 +62,13 @@ def test_feature_preserves_the_canonical_package_and_sdk(tmp_path):
 @pytest.mark.parametrize("missing", ["app.json", "main.py", "server.py", "native_host.py", "README.md"])
 def test_feature_refuses_incomplete_installed_mail_package(tmp_path, missing):
     rootfs, env = _fixture(tmp_path)
-    (rootfs / "usr/lib/yuos/apps/mail-ai" / missing).unlink()
+    (rootfs / "usr/lib/yuos/apps/email" / missing).unlink()
     result = subprocess.run(
         ["bash", str(FEATURE / "install.sh")],
         env=env, text=True, capture_output=True, timeout=30,
     )
     assert result.returncode != 0
-    assert f"Mail package is incomplete: {rootfs}/usr/lib/yuos/apps/mail-ai/{missing}" in result.stderr
+    assert f"Mail package is incomplete: {rootfs}/usr/lib/yuos/apps/email/{missing}" in result.stderr
     assert not (rootfs / "usr/lib/yuos/mail-ai").exists()
     assert not (rootfs / "etc/thunderbird").exists()
 
