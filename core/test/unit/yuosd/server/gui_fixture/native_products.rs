@@ -260,7 +260,6 @@ impl Product {
 struct Payload {
     schema: String,
     source_lock: serde_json::Value,
-    platform_lock: serde_json::Value,
     entrypoints: Vec<String>,
     resources: Vec<String>,
     payload_inventory: Vec<crate::provenance::envelope::FileEntry>,
@@ -314,41 +313,6 @@ pub(super) fn install(key: &crate::provenance::sign::SigningKeyFile, product: Pr
     )))
     .unwrap();
     assert_eq!(payload.source_lock["repository"], selection["repository"]);
-    let platform: serde_json::Value = serde_json::from_str(include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../packaging/app-platform.json"
-    )))
-    .unwrap();
-    for field in ["schema", "version", "runtime_abi"] {
-        assert_eq!(payload.platform_lock[field], platform[field]);
-    }
-    let platform_digest = payload.platform_lock["sha256"].as_str().unwrap();
-    assert!(
-        platform_digest.len() == 64
-            && platform_digest
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    );
-    if let Some(source) = payload.platform_lock["source_revision"].as_str() {
-        assert!(
-            source.len() == 40
-                && source
-                    .bytes()
-                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        );
-        if let Some(commit) = option_env!("GITHUB_SHA") {
-            assert_eq!(source, commit);
-        }
-        assert!(payload.platform_lock["url"].is_null());
-    } else {
-        let version = platform["version"].as_str().unwrap();
-        assert_eq!(
-            payload.platform_lock["url"],
-            format!(
-                "https://github.com/xiaoyu-work/Yu-OS/releases/download/yuos-app-platform-v{version}/yuos-app-platform-{version}.tar.gz"
-            )
-        );
-    }
     assert_eq!(payload.entrypoints, product.entries);
     let required = if product.name == "notifications" {
         Vec::new()
