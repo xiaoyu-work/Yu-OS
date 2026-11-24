@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import tarfile
+import tomllib
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,21 +52,17 @@ def settings():
     return value
 
 
-def platform():
-    legacy = ROOT / "packaging/app-platform.json"
-    if legacy.is_file():
-        value = json.loads(legacy.read_text())
-        if value["schema"] != "yuos.app-platform/v1" or value["runtime_abi"] != 1 or (
-            not re.fullmatch(r"0|[1-9][0-9]*", str(value["runtime_abi"]))
-            or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", value["version"])
-        ):
-            raise ValueError("Invalid App runtime implementation version/ABI")
-        return value
-    import tomllib
-    version = tomllib.loads((ROOT / "yuos-sdk/rust/Cargo.toml").read_text())["package"]["version"]
-    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
-        raise ValueError("Invalid App runtime implementation version/ABI")
-    return {"version": version, "runtime_abi": 1}
+def runtime_version():
+    with (ROOT / "yuos-sdk/rust/Cargo.toml").open("rb") as manifest:
+        version = tomllib.load(manifest)["package"]["version"]
+    # The dated SDK build suffix does not change the Debian runtime interface.
+    match = re.fullmatch(
+        r"([0-9]+\.[0-9]+\.[0-9]+)(?:-dev\.[0-9]{10,})?",
+        version if isinstance(version, str) else "",
+    )
+    if not match:
+        raise ValueError("Invalid SDK version for the App runtime interface")
+    return match[1]
 
 
 def fields(text):
@@ -302,14 +299,15 @@ def selection(records, variant, configuration):
         reachable.add(owner)
         pending.extend(name for name, _, _ in dependencies(selected[owner]))
     selected = {name: record for name, record in selected.items() if name in reachable}
-    minimum = configuration.get("runtime_minimum", platform()["version"])
+    provided_runtime = runtime_version()
+    minimum = configuration.get("runtime_minimum", provided_runtime)
     for record in selected.values():
         if record["Package"] == configuration["headless_set"]:
             continue
         runtime = re.findall(r"(?:^|,\s*)yuos-app-runtime-v1 \(>= ([^\s()]+)\)(?:,|$)",
                              record.get("Depends", "").replace("\n", " "))
         if len(runtime) != 1 or not compare(runtime[0], "ge", minimum) or not compare(
-            platform()["version"], "ge", runtime[0],
+            provided_runtime, "ge", runtime[0],
         ):
             raise ValueError(f"Official App package lacks the coordinated runtime floor: {record['Package']}")
     expected = set(json.loads((ROOT / "packaging/apps.lock.json").read_text())["apps"])
@@ -469,7 +467,7 @@ def main():
     parser.add_argument("--preinstall-policy", choices=("stage", "verify"))
     options = parser.parse_args()
     if options.command == "runtime-version":
-        print(platform()["version"])
+        print(runtime_version())
         return
     if options.command == "check-version":
         if not options.version:

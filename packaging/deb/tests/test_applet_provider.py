@@ -55,6 +55,9 @@ def test_native_provider_passes_abi_guard_without_bypassing_other_package_requir
     compositor = tmp_path / "usr/libexec/yuos-hyprland/Hyprland"
     compositor.parent.mkdir()
     shutil.copy2("/bin/true", compositor)
+    shell = tmp_path / "usr/lib/yuos/system-desktop/bin/yuos-desktop-shell"
+    shell.parent.mkdir(parents=True)
+    shutil.copy2("/bin/true", shell)
     missing_locker = package_attempt(tmp_path)
     assert missing_locker.returncode != 0
     assert "yuos-lockscreen" in missing_locker.stderr

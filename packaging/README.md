@@ -59,8 +59,9 @@ ELFs/resources, Browser assets, Mail's XPI, `yuos-app-support` and named Python
 libraries. Support provides `yuos-app-support-v1`; Files alone provides
 `yuos-app-python-yuos-files-v1`. App packages cannot provide OS/package/authority
 ABIs. Agent retains `yuos_sdk`, toolkit/system services and Root helpers.
-`scripts/app_packages.py runtime-version` supplies the implementation version
-for Agent's `yuos-app-runtime-v1` interface.
+`scripts/app_packages.py runtime-version` uses the Rust SDK's base version for
+`yuos-app-runtime-v1`. A dated SDK build such as `0.1.0-dev.2026112401`
+still provides runtime version `0.1.0` in the Debian package metadata.
 
 `scripts/app_packages.py prepare` authenticates the official App APT release,
 bounded freshness and package index, downloads the selected dependency closure,

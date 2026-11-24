@@ -36,10 +36,10 @@ SDK/runtime Python and OS toolkit/services, PAM, initial setup, keyboard and
 policy stay OS-owned. Identities, installed App paths, data, credentials and
 existing grants do not migrate.
 
-The existing runtime ABI remains 1, but Agent provides
-`yuos-app-runtime-v1 (= 0.2.1)` from platform metadata, and App packages
-require `yuos-app-runtime-v1 (>= 0.2.1)`. Old/unversioned Provides cannot
-satisfy that dependency. Agent recommends only `yuos-apps-agent`; native
+The runtime ABI remains 1. Agent's versioned `yuos-app-runtime-v1` uses
+[the SDK's base version](../packaging/README.md#coordinated-021-source-ownership-cutover),
+not its dated build suffix. An unversioned Provides cannot satisfy the
+Apps' versioned dependencies. Agent recommends only `yuos-apps-agent`; native
 packages can be selected independently on Ubuntu/WSL without the full OS
 Desktop. `apt install yuos-desktop` installs all Yu OS Apps, including the
 headless set and the individually packaged graphical Apps and Thunderbird

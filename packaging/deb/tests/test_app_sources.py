@@ -683,9 +683,9 @@ def apt_selection(tmp_path, monkeypatch):
     (root / "packaging/deb/yuos-desktop").mkdir(parents=True)
     (root / "packaging/apps.lock.json").write_text(json.dumps({"apps": ["alpha", "beta", "native"]}))
     (root / "packaging/deb/yuos-desktop/apps.list").write_text("native\n")
-    (root / "packaging/app-platform.json").write_text(json.dumps({
-        "schema": "yuos.app-platform/v1", "version": "0.2.1", "runtime_abi": 1,
-    }))
+    sdk = root / "yuos-sdk/rust"
+    sdk.mkdir(parents=True)
+    (sdk / "Cargo.toml").write_text('[package]\nversion = "0.2.1-dev.2026112401"\n')
     monkeypatch.setattr(packages, "ROOT", root)
     configuration = {"headless_set": "yuos-apps-agent", "desktop_extras": ["yuos-app-mail-desktop"]}
     runtime = "yuos-app-runtime-v1 (>= 0.2.1)"
@@ -857,16 +857,19 @@ def test_official_package_bytes_have_one_dpkg_owner_and_never_own_the_os_sdk(tmp
         packages.verify_packages(tmp_path, [first])
 
 
-def test_runtime_provides_uses_the_platform_implementation_version(tmp_path):
+def test_runtime_dependencies_use_the_sdk_compatibility_version(tmp_path):
     script = (ROOT / "packaging/deb/build-debs.sh").read_text()
     function = script[script.index("render_control() {"):script.index(
         "###############################################################################\n# Release-security metadata.",
     )]
     rendered = tmp_path / "control"
+    runtime_version = subprocess.check_output(
+        [sys.executable, "-B", str(ROOT / "scripts/app_packages.py"), "runtime-version"], text=True,
+    ).strip()
     subprocess.run(["bash", "-euc", function + '\nrender_control "$CONTROL" "$OUTPUT"'], check=True, env={
         **os.environ, "CONTROL": str(ROOT / "packaging/deb/yuos-agent/control"),
         "OUTPUT": str(rendered), "VERSION": "1:0.1.0", "DEB_ARCH": "amd64",
-        "APP_RUNTIME_VERSION": packages.platform()["version"], "SECURITY_ABI": "1",
+        "APP_RUNTIME_VERSION": runtime_version, "SECURITY_ABI": "1",
         "SECURITY_EPOCH": "1", "MIN_AGENT_VERSION": "1:0.1.0",
         "MIN_BASE_VERSION": "1:0.1.0", "MIN_DESKTOP_VERSION": "1:0.1.0",
     })
@@ -878,7 +881,7 @@ def test_runtime_provides_uses_the_platform_implementation_version(tmp_path):
     assert "yuos-apps-desktop" not in control["Depends"]
     assert "Replaces" not in control
     desktop = (ROOT / "packaging/deb/yuos-desktop/control").read_text()
-    desktop = desktop.replace("__APP_RUNTIME_VERSION__", packages.platform()["version"])
+    desktop = desktop.replace("__APP_RUNTIME_VERSION__", runtime_version)
     assert "yuos-app-runtime-v1 (>= 0.1.0)" in packages.fields(desktop)["Depends"]
 
     spec = importlib.util.spec_from_file_location(
