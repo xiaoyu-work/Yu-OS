@@ -1470,7 +1470,7 @@ fn mcp_first_service_bundled_access_contract() {
     )
     .unwrap();
     let apps = lock["apps"].as_array().unwrap();
-    assert_eq!(apps.len(), 62);
+    assert_eq!(apps.len(), 61);
     let mut checked = 0;
     for id in apps {
         let path = app_sources::app_dir(id.as_str().unwrap()).join("app.json");
