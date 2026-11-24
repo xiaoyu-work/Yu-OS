@@ -592,9 +592,22 @@ def _dev_ai_url() -> Optional[str]:
     return url.rstrip("/") if url else None
 
 
-def _dev_ai_model() -> str:
-    model = os.environ.get("YUOS_DEV_AI_MODEL", "").strip()
-    return model or "llama3.2"
+def _dev_ai_model(kind: str = "chat") -> str:
+    slot_vars = {
+        "chat": ("YUOS_DEV_AI_CHAT_MODEL", "llama3.2"),
+        "embed": ("YUOS_DEV_AI_EMBED_MODEL", "nomic-embed-text"),
+        "tts": ("YUOS_DEV_AI_TTS_MODEL", "tts-1"),
+        "stt": ("YUOS_DEV_AI_STT_MODEL", "whisper-1"),
+        "imagegen": ("YUOS_DEV_AI_IMAGEGEN_MODEL", "dall-e-3"),
+        "decision": ("YUOS_DEV_AI_DECIDE_MODEL", "llama3.2"),
+        "decide": ("YUOS_DEV_AI_DECIDE_MODEL", "llama3.2"),
+    }
+    env_var, default_model = slot_vars.get(kind, ("YUOS_DEV_AI_CHAT_MODEL", "llama3.2"))
+    specific = os.environ.get(env_var, "").strip()
+    if specific:
+        return specific
+    shared = os.environ.get("YUOS_DEV_AI_MODEL", "").strip()
+    return shared or default_model
 
 
 def _dev_ai_key() -> Optional[str]:
@@ -814,9 +827,9 @@ def _dev_chat_stream(request: AiChatRequest) -> Iterator[str]:
 
 
 def _dev_infer(request: AiInferenceRequest) -> Dict[str, Any]:
-    model = _dev_ai_model()
     inp = request["input"]
     kind = inp["kind"]
+    model = _dev_ai_model(kind)
     units = 1
     actual_model = model
     if kind == "embed":

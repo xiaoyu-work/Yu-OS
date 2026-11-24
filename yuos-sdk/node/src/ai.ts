@@ -468,8 +468,18 @@ function devAiUrl(): string | undefined {
   return url ? url.replace(/\/+$/, "") : undefined;
 }
 
-function devAiModel(): string {
-  return process.env.YUOS_DEV_AI_MODEL?.trim() || "llama3.2";
+function devAiModel(kind = "chat"): string {
+  const slots: Record<string, [string, string]> = {
+    chat: ["YUOS_DEV_AI_CHAT_MODEL", "llama3.2"],
+    embed: ["YUOS_DEV_AI_EMBED_MODEL", "nomic-embed-text"],
+    tts: ["YUOS_DEV_AI_TTS_MODEL", "tts-1"],
+    stt: ["YUOS_DEV_AI_STT_MODEL", "whisper-1"],
+    imagegen: ["YUOS_DEV_AI_IMAGEGEN_MODEL", "dall-e-3"],
+    decision: ["YUOS_DEV_AI_DECIDE_MODEL", "llama3.2"],
+    decide: ["YUOS_DEV_AI_DECIDE_MODEL", "llama3.2"],
+  };
+  const [envVar, defaultModel] = slots[kind] ?? ["YUOS_DEV_AI_CHAT_MODEL", "llama3.2"];
+  return process.env[envVar]?.trim() || process.env.YUOS_DEV_AI_MODEL?.trim() || defaultModel;
 }
 
 function devAiKey(): string | undefined {
@@ -654,9 +664,9 @@ async function devInfer(
   request: AiInferenceRequest,
   signal?: AbortSignal,
 ): Promise<Record<string, unknown>> {
-  const model = devAiModel();
   const inp = request.input;
   const kind = inp.kind as string;
+  const model = devAiModel(kind);
   let units = 1;
   let actualModel = model;
   let output: Record<string, unknown>;

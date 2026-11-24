@@ -551,11 +551,32 @@ func devAiURL() string {
 	return strings.TrimRight(strings.TrimSpace(os.Getenv("YUOS_DEV_AI_URL")), "/")
 }
 
-func devAiModel() string {
+func devAiModel(kind ...string) string {
+	k := "chat"
+	if len(kind) > 0 && kind[0] != "" {
+		k = kind[0]
+	}
+	envVar := "YUOS_DEV_AI_CHAT_MODEL"
+	defaultModel := "llama3.2"
+	switch k {
+	case "embed":
+		envVar, defaultModel = "YUOS_DEV_AI_EMBED_MODEL", "nomic-embed-text"
+	case "tts":
+		envVar, defaultModel = "YUOS_DEV_AI_TTS_MODEL", "tts-1"
+	case "stt":
+		envVar, defaultModel = "YUOS_DEV_AI_STT_MODEL", "whisper-1"
+	case "imagegen":
+		envVar, defaultModel = "YUOS_DEV_AI_IMAGEGEN_MODEL", "dall-e-3"
+	case "decision", "decide":
+		envVar, defaultModel = "YUOS_DEV_AI_DECIDE_MODEL", "llama3.2"
+	}
+	if m := strings.TrimSpace(os.Getenv(envVar)); m != "" {
+		return m
+	}
 	if m := strings.TrimSpace(os.Getenv("YUOS_DEV_AI_MODEL")); m != "" {
 		return m
 	}
-	return "llama3.2"
+	return defaultModel
 }
 
 func devAiKey() string {
@@ -759,9 +780,9 @@ func devChat(ctx context.Context, request AiChatRequest) (*AiResponse, error) {
 }
 
 func devInfer(ctx context.Context, body map[string]any) (map[string]any, error) {
-	model := devAiModel()
 	inp := asMap(body["input"])
 	kind := asString(inp["kind"])
+	model := devAiModel(kind)
 	units := uint32(1)
 	actualModel := model
 	var output map[string]any

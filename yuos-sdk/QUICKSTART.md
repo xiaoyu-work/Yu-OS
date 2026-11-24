@@ -258,6 +258,7 @@ After review, the Store publishes it to the Yu OS APT repository.
 
 ## Next steps
 
-- [SDK API Reference](REFERENCE.md) — complete module, function, manifest, and error reference.
+- [Complete API & Manifest Reference (`API.md`)](API.md) — per-function parameters, return types, and `app.json` (`args` / `kind`) dictionary.
+- [SDK Overview & Permissions (`REFERENCE.md`)](REFERENCE.md) — permissions table, error codes, and architecture overview.
 - [Integrate an Existing Linux App](../docs/linux-app-integration.md) — wrap C/C++ binaries or adapt Qt/GTK/Electron apps.
 - [Expose App Tools over MCP](REFERENCE.md#mcp-api-yuos_sdkmcp) — let the Yu OS System Agent invoke your App.

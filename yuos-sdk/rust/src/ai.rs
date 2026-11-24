@@ -605,12 +605,26 @@ fn dev_ai_url() -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-fn dev_ai_model() -> String {
-    std::env::var("YUOS_DEV_AI_MODEL")
+fn dev_ai_model(kind: &str) -> String {
+    let (env_var, default_model) = match kind {
+        "embed" => ("YUOS_DEV_AI_EMBED_MODEL", "nomic-embed-text"),
+        "tts" => ("YUOS_DEV_AI_TTS_MODEL", "tts-1"),
+        "stt" => ("YUOS_DEV_AI_STT_MODEL", "whisper-1"),
+        "imagegen" => ("YUOS_DEV_AI_IMAGEGEN_MODEL", "dall-e-3"),
+        "decision" | "decide" => ("YUOS_DEV_AI_DECIDE_MODEL", "llama3.2"),
+        _ => ("YUOS_DEV_AI_CHAT_MODEL", "llama3.2"),
+    };
+    std::env::var(env_var)
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "llama3.2".to_string())
+        .or_else(|| {
+            std::env::var("YUOS_DEV_AI_MODEL")
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+        })
+        .unwrap_or_else(|| default_model.to_string())
 }
 
 fn dev_ai_key() -> Option<String> {
@@ -784,7 +798,7 @@ fn dev_post_json(path: &str, payload: &serde_json::Value) -> Result<serde_json::
 }
 
 fn dev_chat(request: &AiChatRequest) -> Result<AiResponse, AiError> {
-    let model = dev_ai_model();
+    let model = dev_ai_model("chat");
     let mut messages = Vec::new();
     if let Some(system) = &request.system {
         messages.push(serde_json::json!({"role": "system", "content": system}));
@@ -951,7 +965,6 @@ fn dev_chat(request: &AiChatRequest) -> Result<AiResponse, AiError> {
 }
 
 fn dev_infer(request: &serde_json::Value) -> Result<serde_json::Value, AiError> {
-    let model = dev_ai_model();
     let inp = request
         .get("input")
         .ok_or_else(|| AiError::InvalidArg("missing inference input".into()))?;
@@ -959,6 +972,7 @@ fn dev_infer(request: &serde_json::Value) -> Result<serde_json::Value, AiError> 
         .get("kind")
         .and_then(|k| k.as_str())
         .ok_or_else(|| AiError::InvalidArg("missing inference input kind".into()))?;
+    let model = dev_ai_model(kind);
     let mut units: u64 = 1;
     let mut actual_model = model.clone();
 

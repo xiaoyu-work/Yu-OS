@@ -1,17 +1,18 @@
 # Yu OS SDK Reference
 
-New to the SDK? Start with the [Quickstart](QUICKSTART.md), or see
+New to the SDK? Start with the [Quickstart](QUICKSTART.md), browse the
+**[Complete API & Manifest Reference (`API.md`)](API.md)**, or see
 [Integrating an Existing Linux App](../docs/linux-app-integration.md).
 
 **Contents**
 - [Installation](#installation)
 - [Modules overview](#modules-overview)
+- [`app.json` manifest & `args` / `kind` reference](#appjson-manifest-and-args)
 - [Command line and desktop (`app`)](#command-line-and-desktop)
 - [Desktop dialogs and context (`gui`)](#gui-api-yuos_sdkgui)
 - [System Agent tools (`mcp`)](#mcp-api-yuos_sdkmcp)
 - [Permissions](#permissions)
 - [AI models (`ai`)](#ai-support)
-- [Object references, file plans, and effects](#app-object-references)
 - [CLI commands](#cli-commands)
 
 ## Installation
@@ -57,13 +58,33 @@ cargo add yuos-sdk
 
 ### Environment variables
 
-| Variable | Scope | Description |
-|---|---|---|
-| `YUOS_APP_ID` | Runtime | App identity set automatically by `yuosd` or `yu app dev`. |
-| `YUOS_DATA_DIR` | Runtime | Private per-App storage path returned by `app.data_dir()`. |
-| `YUOS_DEV_AI_URL` | Local dev | OpenAI-compatible `/v1` base URL (e.g. `http://localhost:11434/v1`) used when outside a `YUOS_SESSION`. |
-| `YUOS_DEV_AI_MODEL` | Local dev | Model name for `YUOS_DEV_AI_URL` (default `llama3.2`). |
-| `YUOS_DEV_AI_KEY` | Local dev | Optional Bearer token for `YUOS_DEV_AI_URL`. |
+| Variable | Scope | Default | Description |
+|---|---|---|---|
+| `YUOS_APP_ID` | Runtime | — | App identity set automatically by `yuosd` or `yu app dev`. |
+| `YUOS_DATA_DIR` | Runtime | `~/.local/share/yuos-dev/apps/<id>` | Private per-App storage path returned by `app.data_dir()`. |
+| `YUOS_DEV_AI_URL` | Local dev | — | OpenAI-compatible `/v1` base URL (e.g. `http://localhost:11434/v1`) used outside `YUOS_SESSION`. |
+| `YUOS_DEV_AI_MODEL` | Local dev | `llama3.2` | Shared fallback model name for `YUOS_DEV_AI_URL` when a slot-specific variable is unset. |
+| `YUOS_DEV_AI_CHAT_MODEL` | Local dev | `llama3.2` | Model for `ai.chat` and `ai.chat_stream`. |
+| `YUOS_DEV_AI_EMBED_MODEL` | Local dev | `nomic-embed-text` | Model for `ai.embed`. |
+| `YUOS_DEV_AI_TTS_MODEL` | Local dev | `tts-1` | Model for `ai.tts`. |
+| `YUOS_DEV_AI_STT_MODEL` | Local dev | `whisper-1` | Model for `ai.stt`. |
+| `YUOS_DEV_AI_IMAGEGEN_MODEL` | Local dev | `dall-e-3` | Model for `ai.imagegen`. |
+| `YUOS_DEV_AI_DECIDE_MODEL` | Local dev | `llama3.2` | Model for `ai.decide`. |
+| `YUOS_DEV_AI_KEY` | Local dev | — | Optional Bearer token for `YUOS_DEV_AI_URL`. |
+
+## `app.json` manifest and `args`
+
+See **[`API.md` — `app.json` Manifest Reference](API.md#1-appjson-manifest-reference)** for the full schema. Each parameter in `operations.<name>.args[]` or `mcp.tools[].args[]` accepts:
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `name` | `string` | **Yes** | — | Parameter name (`[a-z][a-z0-9_-]*`). |
+| `kind` | `"text" \| "path" \| "integer" \| "number" \| "bool" \| "host" \| "name"` | **Yes** | — | Data type: `"path"` expands `./` and `~/` and automatically grants `fs.read` to the user-supplied file; `"bool"` defaults to `--flag`; `"integer"` / `"number"` validate numeric input before launch. |
+| `required` | `boolean` | No | `false` | Reject the call before launch if omitted. |
+| `default` | `string \| number \| boolean` | No | — | Literal default value when omitted. |
+| `binding` | `"positional" \| "flag"` | No | `"flag"` for `bool`, `"positional"` for others | CLI binding style. |
+| `choices` | `Array<string \| number \| boolean>` | No | `[]` | Restrict input to a closed set of allowed values. |
+| `repeatable` | `boolean` | No | `false` | Accept multiple values as a list/array. |
 
 ## Modules overview
 
