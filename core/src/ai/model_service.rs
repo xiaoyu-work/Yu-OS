@@ -24,8 +24,6 @@ use crate::yuosd::authority::Decision;
 use super::budget::{BudgetError, Meter, Snapshot, Store};
 use super::{gate::AiError, user_budget};
 
-static APP_IN_FLIGHT: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
-
 pub(crate) fn configured_tts(config: &YuConfig) -> Option<Arc<dyn TtsProvider>> {
     let alias = config.tts.provider.trim().to_ascii_lowercase();
     factory::tts_registry_from_cfg(config).get(match alias.as_str() {
@@ -83,7 +81,6 @@ pub(super) fn build_chat(
 }
 
 pub(super) struct AppCall<'a> {
-    _permit: tokio::sync::SemaphorePermit<'static>,
     meter: Meter,
     authority: Option<&'a Decision>,
 }
@@ -95,9 +92,6 @@ pub(super) fn begin_app_call<'a>(
     cap: u64,
     input: &impl serde::Serialize,
 ) -> Result<AppCall<'a>, AiError> {
-    let permit = APP_IN_FLIGHT
-        .try_acquire()
-        .map_err(|_| AiError::Provider("AI service is busy".into()))?;
     let owner = authority.map(Decision::owner_uid);
     let store = match owner {
         Some(uid) => Store::open_for_owner(uid),
@@ -128,7 +122,6 @@ pub(super) fn begin_app_call<'a>(
             .map_err(AiError::Internal)?;
     }
     Ok(AppCall {
-        _permit: permit,
         meter,
         authority,
     })

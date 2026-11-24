@@ -8,7 +8,7 @@ use crate::ai::{gate, inference};
 
 const MODEL_PERMISSION_REQUIRED: &str = "model_permission_required";
 
-const INFERENCE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+const INFERENCE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 
 pub async fn chat(
     params: Value,

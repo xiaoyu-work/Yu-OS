@@ -223,8 +223,7 @@ pub async fn run(options: ServerOptions) -> Result<(), DaemonError> {
             let state = state.clone();
             let admission = Arc::clone(&admission);
             tokio::spawn(async move {
-                serve_connection(stream, state, admission).await;
-                drop(permit);
+                serve_accepted_connection(stream, state, admission, Some(permit)).await;
             });
         }
         #[allow(unreachable_code)]
@@ -391,7 +390,17 @@ fn accounting_bucket(stream: &UnixStream) -> u32 {
         .unwrap_or(u32::MAX)
 }
 
+#[cfg(test)]
 async fn serve_connection(stream: UnixStream, state: DaemonState, admission: Arc<Admission>) {
+    serve_accepted_connection(stream, state, admission, None).await;
+}
+
+async fn serve_accepted_connection(
+    stream: UnixStream,
+    state: DaemonState,
+    admission: Arc<Admission>,
+    mut permit: Option<super::transport::limits::ConnectionPermit>,
+) {
     let started = Instant::now();
     let mut peer_stream = match PeerStream::new(stream) {
         Ok(peer_stream) => peer_stream,
@@ -443,6 +452,9 @@ async fn serve_connection(stream: UnixStream, state: DaemonState, admission: Arc
 
     let response = match admit(&frame.body, &client, &admission).await {
         Ok(admitted) => {
+            if matches!(admitted.route.command, Command::AiChat | Command::AiInference) {
+                permit.take();
+            }
             let facts = audit_policy::request_facts_for_route(
                 admitted.route.name,
                 admitted.route.audit_fields,
@@ -596,8 +608,8 @@ pub(crate) struct Admitted {
     pub(crate) decision: Option<super::authority::Decision>,
     /// Held for the lifetime of the request; dropping them returns the
     /// global, per-principal and per-route slots.
-    _request_permit: super::transport::limits::RequestPermit,
-    _route_permit: super::transport::limits::RoutePermit,
+    _request_permit: Option<super::transport::limits::RequestPermit>,
+    _route_permit: Option<super::transport::limits::RoutePermit>,
 }
 
 pub(crate) struct Refusal {
@@ -703,13 +715,14 @@ pub(crate) async fn admit(
         .await
         .map_err(|fault| refuse(fault, envelope.id.clone(), Some(route.name)))?;
 
+    let unthrottled = matches!(command, Command::AiChat | Command::AiInference);
     Ok(Admitted {
         route,
         id: envelope.id,
         params,
         decision,
-        _request_permit: request_permit,
-        _route_permit: route_permit,
+        _request_permit: (!unthrottled).then_some(request_permit),
+        _route_permit: (!unthrottled).then_some(route_permit),
     })
 }
 

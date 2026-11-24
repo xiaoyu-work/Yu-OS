@@ -144,7 +144,7 @@ pub struct AgentConfig {
     #[serde(default)]
     pub extra_headers: std::collections::HashMap<String, String>,
 
-    /// Per-request HTTP timeout in seconds. 0 = no timeout. Default 120s.
+    /// Per-request HTTP timeout in seconds. 0 = no timeout. Default 300s.
     #[serde(default = "default_agent_request_timeout")]
     pub request_timeout: u64,
 
@@ -740,7 +740,7 @@ fn default_agent_temperature() -> f32 {
     0.7
 }
 fn default_agent_request_timeout() -> u64 {
-    120
+    300
 }
 fn default_progressive_tools_enabled() -> bool {
     true

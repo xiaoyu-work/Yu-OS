@@ -52,7 +52,7 @@ and agent tasks.
 | `routes.rs` | The route registry: wire name, typed decode, access class, budget, audit fields, authorization descriptor, handler |
 | `authority/` | The capability authority: grants, opaque handles, attenuation, the route middleware and its audit facts |
 | `agent_client.rs` | Client RPC for agent task submit/result/cancel/status |
-| `ai.rs`, `../ai/` | Authenticated App model calls; owner configuration, live capabilities, exact optional GUI AI choices, shared budget and bounded concurrency/deadline |
+| `ai.rs`, `../ai/` | Authenticated App model calls; owner configuration, live capabilities, exact optional GUI AI choices, shared budget and unthrottled dispatch |
 | `tasks.rs` | Task queue, summary/list, cancel, retry, and session continuity |
 | `conversations.rs`, `conversations/` | Owner-scoped Agent conversation create/get/list/update/fork/revert, stable frontend UUID projection, verified task/message annotations, bounded actual Job metadata, owner-identity snapshots, and non-destructive replay exclusions; no task execution or authority |
 | `memory.rs` | Shared owner-identity/read-only history opening and legacy session views; missing stores stay absent and existing ownership is never changed |

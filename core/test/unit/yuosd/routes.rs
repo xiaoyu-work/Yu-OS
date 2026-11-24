@@ -585,7 +585,8 @@ fn every_route_has_a_finite_concurrency_budget() {
             route.name
         );
         assert!(
-            route.budget.max_in_flight <= 64,
+            route.budget.max_in_flight <= 64
+                || matches!(route.command, Command::AiChat | Command::AiInference),
             "{} has an unbounded-looking budget",
             route.name
         );

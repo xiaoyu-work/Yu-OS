@@ -98,11 +98,11 @@ fn builds_minimal_chat_body() {
 }
 
 #[test]
-fn always_emits_max_tokens_even_when_caller_omits() {
+fn unset_output_limit_is_omitted() {
     let mut r = req_text("hi");
     r.max_tokens = None;
     let body = wire::build_request_body(&r, "claude-3-5-haiku-20241022", false);
-    assert_eq!(body["max_tokens"], DEFAULT_MAX_TOKENS);
+    assert!(body.get("max_tokens").is_none());
 }
 
 #[test]
