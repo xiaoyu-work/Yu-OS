@@ -47,7 +47,7 @@ Read the **Core Rules** and **Minimal Template** below first, then use the **Tas
 }
 ```
 
-**`main.py` (Python)** *(For Node.js, Go, or Rust templates, read `yuos-sdk/QUICKSTART.md`)*
+**main.py (Python)** *(For Node.js, Go, or Rust templates, read `yuos-sdk/quickstart.html`)*
 ```python
 from pathlib import Path
 from yuos_sdk.ai import chat
@@ -66,20 +66,20 @@ def main() -> None:
 
 ---
 
-## 3. Progressive Lookup — Read Only What Your Task Needs
+## 3. Progressive Lookup — Read Only What Your Task Needs (HTML Docs)
 
-Do **not** guess API parameters or manifest fields. Open the exact file and section below that matches your current task:
+Do **not** guess API parameters or manifest fields. Open the exact HTML doc file and `#anchor` section below that matches your current task:
 
-| Task / Feature Needed | Read This File & Section | What You Will Find There |
+| Task / Feature Needed | Read This HTML File & Anchor | What You Will Find There |
 |---|---|---|
-| **Install SDK & 4-language starter templates** (Python, Node.js/TS, Go, Rust) | [`yuos-sdk/QUICKSTART.md`](QUICKSTART.md) (or [`yuos-sdk/quickstart.html`](quickstart.html)) | Per-language install commands (`pip`, `npm`, `go get`, `cargo add`), complete `main.py` / `index.ts` / `main.go` / `main.rs` templates, and dev/pack/submit commands. |
-| **`app.json` manifest fields & `args` / `kind` types** | [`yuos-sdk/API.md#1-appjson-manifest-reference`](API.md#1-appjson-manifest-reference) | All top-level `app.json` fields, `operations` fields, `args[]` schema (`kind`: `text`, `path`, `integer`, `number`, `bool`, `host`, `name`, `default`, `choices`, `binding`, `repeatable`), and `needs` syntax. |
-| **App entry & OS helpers** (`@command`, `@desktop`, `run`, `data_dir`, `notify`, `clipboard_read/write`, `secret`, `require_permission`) | [`yuos-sdk/API.md#2-app-entry--system-helpers-yuos_sdkapp`](API.md#2-app-entry--system-helpers-yuos_sdkapp) | Exact signatures, parameter types, return types, and examples across Python, Node.js, Go, and Rust. |
-| **AI model calls** (`chat`, `chat_stream`, `embed`, `tts`, `stt`, `imagegen`, `decide`, `budget`, tool calling, and AI error types) | [`yuos-sdk/API.md#3-ai-models-yuos_sdkai`](API.md#3-ai-models-yuos_sdkai) and [`yuos-sdk/REFERENCE.md#ai-support`](REFERENCE.md#ai-support) | Every AI function's parameters (`prompt`, `system`, `images`, `max_units`, `functions`, `tool_turns`), `ModelResponse` output fields, streaming usage, and typed error handling (`AiDenied`, `AiBudgetExceeded`, etc.). |
-| **Desktop file/folder dialogs & Agent overlay** (`open_file`, `save_file`, `select_folder`, `context`, `open_agent_overlay`) | [`yuos-sdk/API.md#4-desktop-dialogs--window-context-yuos_sdkgui`](API.md#4-desktop-dialogs--window-context-yuos_sdkgui) | Native portal file/folder pickers, file-association launch arguments (`gui.context().files`), and triggering the "Ask Yu OS" overlay. |
-| **Expose App tools to the Yu OS System Agent (MCP)** | [`yuos-sdk/API.md#5-system-agent-mcp-service-yuos_sdkmcp`](API.md#5-system-agent-mcp-service-yuos_sdkmcp) and [`docs/app-development.md#quickstart-an-mcp-only-app`](../docs/app-development.md#quickstart-an-mcp-only-app) | Setting `schema_version: 2`, declaring `mcp.tools` in `app.json`, binding `@app.tool("<app-id>.<tool>")` in `server.py`, and reading `current_context()`. |
-| **Wrap an existing C/C++ binary or adapt an existing Linux GUI app** (Qt, GTK, Electron) | [`docs/linux-app-integration.md`](../docs/linux-app-integration.md) (or [`yuos-sdk/linux-app-integration.html`](linux-app-integration.html)) | Step-by-step patterns for wrapping compiled C/C++ binaries with Python/Rust SDK or integrating `yuos-sdk` into an existing Linux desktop app. |
-| **App permissions vs. System permissions** (macOS / Windows mapping) | [`yuos-sdk/REFERENCE.md#permissions`](REFERENCE.md#permissions) | Complete table of user-approvable App permissions (`fs.*`, `net.*`, `device.*`, `ui.*`, `clipboard.*`, `ai.*`) vs. administrator-gated system permissions (`sys.*`, `secret.*`, `proc.*`). |
-| **Brokered single-file snapshots (`read_file`, `replace_file`)** | [`yuos-sdk/API.md#6-brokered-file-snapshots-yuos_sdkfiles`](API.md#6-brokered-file-snapshots-yuos_sdkfiles) and [`yuos-sdk/wire/v1/brokered-files.md`](wire/v1/brokered-files.md) | Reading and atomically replacing an existing user file (up to 32 MiB) inside an MCP tool with `transform: "brokered-file"`. |
-| **App events, object references (`app://`), and staged file plans** | [`yuos-sdk/API.md#7-events--object-references-events-objects`](API.md#7-events--object-references-events-objects) and [`yuos-sdk/wire/v1/object-references.md`](wire/v1/object-references.md) | Publishing domain events (`events.publish`) and formatting/parsing canonical `ObjectRef` URIs. |
+| **Install SDK & 4-language starter templates** (Python, Node.js/TS, Go, Rust) | [`yuos-sdk/quickstart.html`](quickstart.html) (`#install`, `#manifest`, `#code`, `#dev`, `#ship`) | Per-language install commands (`pip`, `npm`, `go get`, `cargo add`), complete `main.py` / `index.ts` / `main.go` / `main.rs` templates, and dev/pack/submit commands. |
+| **`app.json` manifest fields & `args` / `kind` types** | [`yuos-sdk/api.html#manifest-ref`](api.html#manifest-ref) | All top-level `app.json` fields, `operations` fields, `args[]` schema (`kind`: `text`, `path`, `integer`, `number`, `bool`, `host`, `name`), and `needs` syntax. |
+| **Environment variables (`YUOS_DEV_AI_*`)** | [`yuos-sdk/api.html#env-ref`](api.html#env-ref) | Local dev AI endpoints and per-slot model overrides (`YUOS_DEV_AI_CHAT_MODEL`, `YUOS_DEV_AI_EMBED_MODEL`, `YUOS_DEV_AI_TTS_MODEL`, `YUOS_DEV_AI_STT_MODEL`, `YUOS_DEV_AI_IMAGEGEN_MODEL`, `YUOS_DEV_AI_DECIDE_MODEL`). |
+| **App entry & OS helpers** (`@command`, `@desktop`, `run`, `data_dir`, `notify`, `clipboard_read/write`, `secret`, `require_permission`) | [`yuos-sdk/api.html#python-mod-app`](api.html#python-mod-app) (or `#node-mod-app`, `#go-mod-app`, `#rust-mod-app`) | PyTorch-style `<dl>` API definitions with exact signatures, `Parameters:`, `Returns:`, `Return type:`, `Raises:`, and examples for each language. |
+| **AI model calls** (`chat`, `chat_stream`, `embed`, `tts`, `stt`, `imagegen`, `decide`, `budget`) | [`yuos-sdk/api.html#python-mod-ai`](api.html#python-mod-ai) (or `#node-mod-ai`, `#go-mod-ai`, `#rust-mod-ai`) | Every AI function's parameters (`prompt`, `system`, `images`, `max_units`, `functions`, `tool_turns`), `ModelResponse` output fields, and streaming usage. |
+| **Desktop file/folder dialogs & Agent overlay** (`open_file`, `save_file`, `select_folder`, `context`, `open_agent_overlay`) | [`yuos-sdk/api.html#python-mod-gui`](api.html#python-mod-gui) (or `#node-mod-gui`, `#go-mod-gui`, `#rust-mod-gui`) | Native portal file/folder pickers, file-association launch arguments (`gui.context().files`), and triggering the "Ask Yu OS" overlay. |
+| **Expose App tools to the Yu OS System Agent (MCP)** | [`yuos-sdk/api.html#python-mod-mcp`](api.html#python-mod-mcp) (or `#node-mod-mcp`) | Setting `schema_version: 2`, declaring `mcp.tools` in `app.json`, binding `@app.tool("<app-id>.<tool>")`, and reading `current_context()`. |
+| **Brokered single-file snapshots (`read_file`, `replace_file`)** | [`yuos-sdk/api.html#python-mod-files`](api.html#python-mod-files) (or `#node-mod-files`, `#go-files-go`, `#rust-files-rs`) | Reading and atomically replacing an existing user file (up to 32 MiB) inside an MCP tool with `transform: "brokered-file"`. |
+| **Wrap an existing C/C++ binary or adapt an existing Linux GUI app** (Qt, GTK, Electron) | [`yuos-sdk/linux-app-integration.html`](linux-app-integration.html) (`#wrap-binary`, `#gui-app`, `#mcp-agent`, `#pack-submit`) | Step-by-step patterns for wrapping compiled C/C++ binaries with Python/Node/Go/Rust SDK or integrating `yuos-sdk` into an existing Linux desktop app. |
+| **App permissions vs. System permissions & AI error codes** | [`yuos-sdk/reference.html`](reference.html) (`#permissions`, `#handle-ai-errors`, `#app-owned-tools`, `#cli-commands`) | Complete table of user-approvable App permissions vs. administrator-gated system permissions, wire error codes, and CLI commands. |
 
