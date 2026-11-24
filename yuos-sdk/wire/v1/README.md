@@ -31,8 +31,10 @@ opts into newline-delimited JSON on stdout. Zero or more
 envelope. Text is provisional until the terminal success envelope and exit
 status 0. No function proposals or provider state are released as deltas;
 they are validated in the final reply. A missing terminal envelope is an
-error. Each delta is at most 16 KiB of UTF-8, the stream at most 512 KiB
-of delta text, and each stdout line at most 8 MiB including its newline.
+error. Each delta is at most 16 KiB of UTF-8 and each stdout line at most
+8 MiB including its newline. Output length is not capped unless the App sets
+`max_units`, and the SDKs set no total deadline; Yu OS stops a provider that
+stays silent for the configured request timeout.
 
 Inference stdin accepts up to 720 KiB of JSON. `embed` text is limited to
 16 KiB, TTS and image prompts to 4 KiB, STT input bytes to 512 KiB, and
@@ -45,13 +47,15 @@ Image and audio results are standard padded base64 with their `format`; the
 named SDK calls return the decoded bytes.
 Oversized replies fail; the broker does not silently truncate them.
 
-All slots count toward the owner's monthly App inference limit. Non-chat calls reserve and
-charge operation units: sanitized UTF-8 bytes for embedding, at least 50
+All slots count toward the owner's monthly App inference limit. Chat charges
+the usage its provider reports. Non-chat calls charge operation units after
+they succeed: sanitized UTF-8 bytes for embedding, at least 50
 units or one per sanitized text byte for TTS (whichever is higher), 50 units
 per started KiB of STT audio, 1000 per image, and one unit per serialized byte
 of decision input. These are policy weights, not a provider invoice. Optional
-`max_units` can lower the per-call ceiling. Once dispatched, an incomplete
-request may still use its reserved units.
+`max_units` can lower the per-call ceiling. Calls are admitted while recorded
+usage is below the limit, so concurrent calls can finish slightly over it. A
+call that ends without reported usage records none.
 
 The v1 chat `budget` snapshot is App-scoped. `units_cap` is zero unless a
 legacy owner-set per-App override applies. The owner aggregate and its limit

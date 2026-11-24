@@ -65,15 +65,15 @@ provide an authenticated Gateway call context.
 ### Typed MCP handlers
 
 TypeScript and Rust Apps can generate handler argument types from their
-manifest. Regenerate after editing `app.json` so the compiler catches stale
-argument names and types. The generator reads the manifest without running the
-App. Runtime validation, including conditions and choices, still uses the
-signed manifest.
+manifest with the SDK; Yu OS does not need to be installed. Regenerate after
+editing `app.json` so the compiler catches stale argument names and types.
+The generator reads the manifest without running the App. Runtime validation,
+including conditions and choices, still uses the signed manifest.
 
 For the `hello-mcp.say` example, generate a TypeScript binding:
 
 ```sh
-yu app tool types ./hello-mcp/app.json --lang ts > ./hello-mcp/tools.generated.ts
+npx yuos-tool-types ./hello-mcp/app.json > ./hello-mcp/tools.generated.ts
 ```
 
 ```ts
@@ -83,15 +83,22 @@ import { bind_say } from "./tools.generated";
 bind_say(app, ({ message }) => mcp.ToolResult.text(message));
 ```
 
-For Rust, generate `src/tools.rs` in your App crate:
+For Rust, add `yuos-sdk` to `[build-dependencies]` and generate the bindings
+in `build.rs`:
 
-```sh
-cd hello-mcp
-yu app tool types app.json --lang rust > src/tools.rs
+```rust
+fn main() {
+    println!("cargo:rerun-if-changed=app.json");
+    let tools = yuos_sdk::mcp::rust_tool_bindings("app.json").expect("app.json tools");
+    let out = std::path::Path::new(&std::env::var("OUT_DIR").unwrap()).join("tools.rs");
+    std::fs::write(out, tools).unwrap();
+}
 ```
 
 ```rust
-mod tools;
+mod tools {
+    include!(concat!(env!("OUT_DIR"), "/tools.rs"));
+}
 
 tools::say::bind(&mut app, |args, _context| async move {
     yuos_sdk::mcp::ToolResult::text(args.message)
@@ -782,7 +789,6 @@ and ship an app
 | `yu app submit <file.deb> [--repo <owner/repo>]` | Submit a packaged `.deb` archive to the Store review queue (`xiaoyu-work/yuos-app/submissions/incoming/`). |
 | `yu app lint [<id>]` | Check declared MCP entrypoints and look for blocked model-provider imports in Python files. Run on every discovered App if no ID is given. |
 | `yu app tool list [<id>]` | Show the manifest-declared MCP tools this App exposes through the private Gateway. |
-| `yu app tool types <app.json> --lang ts\|rust` | Generate [typed MCP handlers](#typed-mcp-handlers) from a source manifest. |
 | `yu app install <dir> --review` | Verify the package and return its requested permissions, scopes, conditions, AI policy and execution surfaces as JSON, without installing or granting anything. |
 | `sudo yu app install <dir> [--force] [--no-consent] [--yes]` | Ask Root to publish a signed App into its configured App root after protected review. `--yes` cannot replace first review. `--no-consent` defers the separate legacy AI prompt. Installing an unsigned directory with `--dev-trust` is not supported. |
 | `yu review pending` | List and present the current user's App reviews and existing capability requests using the shared OS review contract. |

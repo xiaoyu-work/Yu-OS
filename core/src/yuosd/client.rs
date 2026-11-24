@@ -1,7 +1,8 @@
 //! The in-repo broker client.
 //!
-//! One connection carries one request and one terminal response, then closes.
-//! Only opt-in App chat streams can precede their result with text deltas.
+//! Most exchanges carry one request and one response, then close. Desktop
+//! event streams and opt-in App chat streams send several correlated
+//! responses on the same connection before closing.
 //!
 //! The response is still checked against the request: same protocol
 //! version, same correlation id. A daemon that answered something else
@@ -276,7 +277,6 @@ fn request_blocking_inner(
     frame::write_request_blocking(&mut stream, &body).map_err(|err| {
         ClientError::after_dispatch(format!("failed to write yuosd request: {err}"))
     })?;
-    let mut total = 0usize;
     loop {
         let body = frame::read_response_blocking(&mut stream, MAX_RESPONSE_BYTES)
             .map_err(transport_error)
@@ -290,10 +290,6 @@ fn request_blocking_inner(
                 .ok_or_else(|| ClientError::after_dispatch("invalid App chat delta"))?;
             if !response.ok || response.error.is_some() {
                 return Err(ClientError::after_dispatch("invalid App chat delta response"));
-            }
-            total += text.len();
-            if total > super::ai_stream::MAX_TEXT_BYTES {
-                return Err(ClientError::after_dispatch("App chat stream exceeded its text limit"));
             }
             sink(text).map_err(|error| ClientError::after_dispatch(error.to_string()))?;
             continue;

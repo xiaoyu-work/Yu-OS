@@ -178,13 +178,17 @@ yuos_sdk::files::replace_file(&amp;path, &amp;snap.revision, &amp;new_bytes)?;</
         <p>On Yu OS, the chat streaming APIs emit text as the configured model produces it.
           A model without native streaming can return a single piece. Treat text as provisional
           until the call completes successfully. Go and Rust also return the final chat response.
-          With <code>YUOS_DEV_AI_URL</code>, Python and Node consume OpenAI-compatible SSE;
-          Go and Rust local development continue to use a buffered response.</p>
+          Model calls have no SDK deadline; Yu OS stops a provider that stays silent for the
+          configured request timeout.
+          With <code>YUOS_DEV_AI_URL</code>, every SDK consumes OpenAI-compatible SSE (Rust through
+          <code>curl</code>). Node <code>chatStream</code> rejects App functions; use <code>chat</code>.
+          In local development, Go and Rust return a streamed request with App functions in one piece.</p>
         <p>In Node MCP handlers, use <code>await files.readFileAsync(path, context)</code> and
           <code>await files.replaceFileAsync(path, revision, content, context)</code> to pass the
           MCP signal and deadline without blocking the event loop. Do not retry an interrupted commit
           automatically: cancellation cannot undo an accepted replacement.</p>
-        <p>Use <code>yu app tool types app.json --lang ts</code> or <code>--lang rust</code> to
+        <p>Run <code>npx yuos-tool-types app.json</code> (Node) or call
+          <code>yuos_sdk::mcp::rust_tool_bindings</code> from <code>build.rs</code> (Rust) to
           <a href="../docs/app-development.md#typed-mcp-handlers">generate typed MCP handlers</a>.
           Regenerate after manifest edits; runtime validation still uses the signed manifest.</p>
       </section>

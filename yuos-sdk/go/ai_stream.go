@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"os/exec"
+	"strings"
 	"time"
 	"unicode/utf8"
 )
@@ -30,9 +31,7 @@ func ChatStream(parent context.Context, prompt string, opts ChatOptions, onChunk
 		return devStreamChat(parent, request, onChunk)
 	}
 
-	ctx, cancel := context.WithTimeout(parent, DefaultTimeout)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, YuBinary(), "--wire=1", "ai", "chat", "--request-stdin", "--stream")
+	cmd := exec.CommandContext(parent, YuBinary(), "--wire=1", "ai", "chat", "--request-stdin", "--stream")
 	cmd.Stdin = bytes.NewReader(payload)
 	cmd.WaitDelay = time.Second
 	stdout, err := cmd.StdoutPipe()
@@ -55,7 +54,6 @@ func ChatStream(parent context.Context, prompt string, opts ChatOptions, onChunk
 
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 4096), maxOutput)
-	total := 0
 	var final any
 	for scanner.Scan() {
 		if final != nil || !utf8.Valid(scanner.Bytes()) {
@@ -72,10 +70,6 @@ func ChatStream(parent context.Context, prompt string, opts ChatOptions, onChunk
 				return nil, &AiUnavailableError{Msg: err.Error()}
 			}
 			text := asString(record["text"])
-			total += len(text)
-			if total > 512*1024 {
-				return nil, &AiUnavailableError{Msg: "App chat stream exceeded its text limit"}
-			}
 			if onChunk != nil {
 				if err := onChunk(text); err != nil {
 					return nil, err
@@ -88,11 +82,8 @@ func ChatStream(parent context.Context, prompt string, opts ChatOptions, onChunk
 			final = event
 		}
 	}
-	if ctx.Err() != nil {
-		if parent.Err() != nil {
-			return nil, parent.Err()
-		}
-		return nil, &AiUnavailableError{Msg: "App chat stream timed out"}
+	if parent.Err() != nil {
+		return nil, parent.Err()
 	}
 	if scanner.Err() != nil || final == nil {
 		return nil, &AiUnavailableError{Msg: "App chat stream ended without a final response"}
@@ -101,9 +92,6 @@ func ChatStream(parent context.Context, prompt string, opts ChatOptions, onChunk
 	waited = true
 	if parent.Err() != nil {
 		return nil, parent.Err()
-	}
-	if ctx.Err() != nil {
-		return nil, &AiUnavailableError{Msg: "App chat stream timed out"}
 	}
 	status := 0
 	if runErr != nil {
@@ -123,15 +111,80 @@ func ChatStream(parent context.Context, prompt string, opts ChatOptions, onChunk
 	return parseResponse(result.Data)
 }
 
+// devStreamChat reads the dev server's SSE text deltas. Requests with App
+// functions return the whole reply so tool calls keep one decoder.
 func devStreamChat(ctx context.Context, request AiChatRequest, onChunk func(string) error) (*AiResponse, error) {
-	reply, err := devChat(ctx, request)
+	if len(request.Tools) != 0 || len(request.ToolTurns) != 0 {
+		reply, err := devChat(ctx, request)
+		if err != nil {
+			return nil, err
+		}
+		if onChunk != nil && reply.Output.Text != "" {
+			if err := onChunk(reply.Output.Text); err != nil {
+				return nil, err
+			}
+		}
+		return reply, nil
+	}
+	body, err := devChatBody(request)
 	if err != nil {
 		return nil, err
 	}
-	if onChunk != nil && reply.Output.Text != "" {
-		if err := onChunk(reply.Output.Text); err != nil {
-			return nil, err
+	body["stream"] = true
+	resp, err := devPost(ctx, "/chat/completions", body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream") {
+		return nil, &AiUnavailableError{Msg: "dev AI endpoint did not return a streaming response"}
+	}
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 4096), maxOutput)
+	var text strings.Builder
+	var model string
+	var usage map[string]any
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "[DONE]" {
+			return devChatReply(model, text.String(), usage, nil)
+		}
+		if data == "" {
+			continue
+		}
+		decoder := json.NewDecoder(strings.NewReader(data))
+		decoder.UseNumber()
+		var chunk map[string]any
+		if err := decoder.Decode(&chunk); err != nil {
+			return nil, &AiUnavailableError{Msg: "dev AI stream could not be decoded"}
+		}
+		if name := asString(chunk["model"]); name != "" {
+			model = name
+		}
+		if reported := asMap(chunk["usage"]); reported != nil {
+			usage = reported
+		}
+		choices, _ := chunk["choices"].([]any)
+		if len(choices) == 0 {
+			continue
+		}
+		piece := asString(asMap(asMap(choices[0])["delta"])["content"])
+		if piece == "" {
+			continue
+		}
+		text.WriteString(piece)
+		if onChunk != nil {
+			if err := onChunk(piece); err != nil {
+				return nil, err
+			}
 		}
 	}
-	return reply, nil
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return nil, &AiUnavailableError{Msg: "dev AI stream ended without a final event"}
 }

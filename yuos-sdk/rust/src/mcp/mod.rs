@@ -58,3 +58,12 @@ pub use transport::{
     in_memory_pair, Frame, InMemoryTransport, StdioTransport, Transport, TransportError,
     MAX_FRAME_BYTES,
 };
+
+/// Typed `bind` helpers for the MCP tools declared in an App manifest.
+///
+/// Write the result to `OUT_DIR` from `build.rs`, then
+/// `include!(concat!(env!("OUT_DIR"), "/tools.rs"))`. Each tool gets a module
+/// with an `Args` struct and `bind(&mut app, handler)`.
+pub fn rust_tool_bindings(manifest: impl AsRef<std::path::Path>) -> Result<String, AppError> {
+    manifest::load(manifest.as_ref())?.rust_bindings()
+}

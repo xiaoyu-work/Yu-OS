@@ -82,7 +82,7 @@ editing additional surfaces.
 | Bundled App product boundary or source fork | `docs/app-product-redesign.md`, external `yuos-app` guides, `packaging/MODULE.md` | Product UI/backend, App-owned common support, manifests, provenance/licenses, native launchers, account/state migration, compatibility packaging |
 | Adapter | `adapters/<id>/app.json`, `adapters/<id>/main.py` | adapter tests and external binary dependency |
 | App/SDK wire contract | `yuos-sdk/wire/`, language SDK package | generated bindings, conformance tests, `publish-sdk-release.yml` |
-| App chat streaming or typed MCP bindings | `core/src/ai/`, `core/src/yuosd/ai_stream.rs`, `core/src/router/mcp_types.rs` | Shared App AI gate and broker transports, generated wire delta types, SDK handler adapters |
+| App chat streaming or typed MCP bindings | `core/src/ai/`, `core/src/yuosd/ai_stream.rs`, `yuos-sdk/node/src/mcp.ts`, `yuos-sdk/rust/src/mcp/manifest.rs` | Shared App AI gate and broker transports, generated wire delta types, SDK type generators and handler adapters |
 | App development platform release | `packaging/app-platform.json`, `scripts/app_platform.py`, `docs/app-platform.md` | Versioned SDK/runtime/toolkit exports; `publish-app-platform.yml`; never App helpers or private OS providers |
 | Rootfs composition | `scripts/lib/image-profiles.sh`, `rootfs/build.sh`, `rootfs/features/` | target build script and package contents |
 | WSL or Docker image | `targets/wsl/`, `targets/docker/`, `CONTRIBUTING.md` | local builds from the shared rootfs profile; not part of publication CI |

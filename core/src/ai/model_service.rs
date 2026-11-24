@@ -21,7 +21,7 @@ use crate::config::{EmbedConfig, YuConfig};
 use crate::model::tasks::{decision, embed};
 use crate::yuosd::authority::Decision;
 
-use super::budget::{BudgetError, Reservation, Snapshot, Store};
+use super::budget::{BudgetError, Meter, Snapshot, Store};
 use super::{gate::AiError, user_budget};
 
 static APP_IN_FLIGHT: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
@@ -84,7 +84,7 @@ pub(super) fn build_chat(
 
 pub(super) struct AppCall<'a> {
     _permit: tokio::sync::SemaphorePermit<'static>,
-    reservation: Reservation,
+    meter: Meter,
     authority: Option<&'a Decision>,
 }
 
@@ -93,7 +93,6 @@ pub(super) fn begin_app_call<'a>(
     app: &str,
     origin: &str,
     cap: u64,
-    estimate: u64,
     input: &impl serde::Serialize,
 ) -> Result<AppCall<'a>, AiError> {
     let permit = APP_IN_FLIGHT
@@ -105,9 +104,7 @@ pub(super) fn begin_app_call<'a>(
         None => Store::open(),
     }
     .map_err(AiError::Internal)?;
-    let reservation = Reservation::app(store, app, owner, estimate, cap, || {
-        user_budget::limit(owner)
-    })
+    let meter = Meter::app(store, app, owner, cap, || user_budget::limit(owner))
     .map_err(|error| match error {
         BudgetError::OwnerLimit { period, cap } => {
             if let Some(owner) = owner {
@@ -126,47 +123,44 @@ pub(super) fn begin_app_call<'a>(
         let session = authority
             .session_id()
             .ok_or_else(|| AiError::Internal("missing App session".into()))?;
-        reservation
+        meter
             .record_input(session, origin, input)
             .map_err(AiError::Internal)?;
     }
     Ok(AppCall {
         _permit: permit,
-        reservation,
+        meter,
         authority,
     })
 }
 
 impl AppCall<'_> {
     pub(super) async fn run<T, E: std::fmt::Display>(
-        mut self,
+        self,
         pending: impl Future<Output = Result<T, E>>,
         usage: impl FnOnce(&T) -> u64,
     ) -> Result<(T, u64, Snapshot), AiError> {
         if let Some(authority) = self.authority {
             check_live(authority)?;
         }
-        // Once dispatch starts, cancellation cannot prove the provider spent nothing.
-        self.reservation.retain_estimate_on_drop();
         let authorized = async {
             match self.authority {
                 Some(authority) => await_live(authority, pending).await,
                 None => pending.await.map_err(|e| AiError::Provider(e.to_string())),
             }
         };
-        complete(self.reservation, authorized, usage, AiError::Budget).await
+        complete(self.meter, authorized, usage, AiError::Budget).await
     }
 }
 
 async fn complete<T, E>(
-    mut reservation: Reservation,
+    meter: Meter,
     pending: impl Future<Output = Result<T, E>>,
     usage: impl FnOnce(&T) -> u64,
     budget_error: impl FnOnce(BudgetError) -> E,
 ) -> Result<(T, u64, Snapshot), E> {
     let value = pending.await?;
-    reservation.retain_estimate_on_drop();
-    let (units, snapshot) = reservation.finish(usage(&value)).map_err(budget_error)?;
+    let (units, snapshot) = meter.finish(usage(&value)).map_err(budget_error)?;
     Ok((value, units, snapshot))
 }
 
@@ -193,13 +187,13 @@ pub(crate) async fn await_live<T, E: std::fmt::Display>(
     }
 }
 
-fn system_hold(estimate: u64, cap: u64, owner: Option<u32>) -> llm::Result<Reservation> {
+fn system_meter(cap: u64, owner: Option<u32>) -> llm::Result<Meter> {
     let store = match owner {
         Some(uid) => Store::open_for_owner(uid),
         None => Store::open(),
     }
     .map_err(|e| llm::LlmError::Internal(format!("system-agent budget store: {e}")))?;
-    Reservation::system(store, estimate, cap)
+    Meter::system(store, cap)
         .map_err(|e| llm::LlmError::InvalidRequest(format!("system-agent budget: {e}")))
 }
 
@@ -225,21 +219,15 @@ async fn system_inference<T, E: std::fmt::Display>(
     cap: u64,
     pending: impl Future<Output = Result<T, E>>,
 ) -> Result<T, String> {
-    let hold = dispatched_system_hold(units, cap, owner).map_err(|error| error.to_string())?;
+    let meter = system_meter(cap, owner).map_err(|error| error.to_string())?;
     let (value, _, _) = complete(
-        hold,
+        meter,
         async { pending.await.map_err(|error| error.to_string()) },
         |_| units,
         |error| settlement_error(error).to_string(),
     )
     .await?;
     Ok(value)
-}
-
-fn dispatched_system_hold(units: u64, cap: u64, owner: Option<u32>) -> llm::Result<Reservation> {
-    let mut hold = system_hold(units, cap, owner)?;
-    hold.retain_estimate_on_drop();
-    Ok(hold)
 }
 
 pub(crate) async fn system_decide(
@@ -295,10 +283,10 @@ impl embed::Embedder for SystemEmbedder {
         request: embed::EmbedRequest,
     ) -> Result<embed::EmbedResponse, embed::EmbedError> {
         let units = request.inputs.iter().map(|text| text.len() as u64).sum();
-        let hold = dispatched_system_hold(units, self.cap, self.owner)
+        let meter = system_meter(self.cap, self.owner)
             .map_err(|error| embed::EmbedError::Transport(error.to_string()))?;
         let (reply, _, _) = complete(
-            hold,
+            meter,
             self.provider.embed(request),
             |_| units,
             |error| embed::EmbedError::Transport(settlement_error(error).to_string()),
@@ -312,16 +300,15 @@ fn settlement_error(error: BudgetError) -> llm::LlmError {
     llm::LlmError::InvalidRequest(format!("system-agent budget settlement: {error}"))
 }
 
-fn admit_system_chat(request: &mut ChatRequest) -> llm::Result<Reservation> {
-    normalize_output_limit(request)?;
+fn admit_system_chat(request: &ChatRequest) -> llm::Result<Meter> {
+    check_output_overrides(request)?;
     caps::require(Verb::AI_CHAT, Scope::name(&request.model)).map_err(|denial| {
         llm::LlmError::InvalidRequest(format!(
             "system-agent caps denied for ai.chat: {}",
             denial.to_json()
         ))
     })?;
-    system_hold(
-        estimate_chat_request(request),
+    system_meter(
         crate::config::current_snapshot()
             .agent
             .system_budget_monthly_units,
@@ -331,11 +318,11 @@ fn admit_system_chat(request: &mut ChatRequest) -> llm::Result<Reservation> {
 
 pub(super) async fn system_chat(
     provider: &dyn Provider,
-    mut request: ChatRequest,
+    request: ChatRequest,
 ) -> llm::Result<ChatResponse> {
-    let reservation = admit_system_chat(&mut request)?;
+    let meter = admit_system_chat(&request)?;
     let (response, _, _) = complete(
-        reservation,
+        meter,
         provider.chat(request),
         |response| chat_units(&response.usage),
         settlement_error,
@@ -346,23 +333,22 @@ pub(super) async fn system_chat(
 
 pub(super) async fn system_chat_stream(
     provider: &dyn Provider,
-    mut request: ChatRequest,
+    request: ChatRequest,
 ) -> llm::Result<BoxStream<'static, llm::Result<StreamEvent>>> {
-    let reservation = admit_system_chat(&mut request)?;
+    let meter = admit_system_chat(&request)?;
     let stream = provider.chat_stream(request).await?;
-    Ok(settle_stream(stream, reservation))
+    Ok(settle_stream(stream, meter))
 }
 
 pub(super) fn settle_stream(
     stream: BoxStream<'static, llm::Result<StreamEvent>>,
-    mut reservation: Reservation,
+    meter: Meter,
 ) -> BoxStream<'static, llm::Result<StreamEvent>> {
-    reservation.retain_estimate_on_drop();
-    let mut reservation = Some(reservation);
+    let mut meter = Some(meter);
     Box::pin(stream.map(move |item| {
         if let Ok(StreamEvent::Done { ref usage, .. }) = item {
-            if let Some(hold) = reservation.take() {
-                hold.finish(chat_units(usage)).map_err(settlement_error)?;
+            if let Some(meter) = meter.take() {
+                meter.finish(chat_units(usage)).map_err(settlement_error)?;
             }
         }
         item
@@ -373,10 +359,9 @@ pub(super) fn chat_units(usage: &Usage) -> u64 {
     u64::from(usage.input_tokens) + u64::from(usage.output_tokens)
 }
 
-const DEFAULT_SYSTEM_MAX_OUTPUT_TOKENS: u32 = 4096;
 const REQUEST_TOKEN_OVERHEAD: u64 = 512;
 
-fn normalize_output_limit(req: &mut ChatRequest) -> llm::Result<()> {
+fn check_output_overrides(req: &ChatRequest) -> llm::Result<()> {
     if let serde_json::Value::Object(extra) = &req.extra {
         const RESERVED_OUTPUT_KEYS: &[&str] = &[
             "max_tokens",
@@ -391,20 +376,16 @@ fn normalize_output_limit(req: &mut ChatRequest) -> llm::Result<()> {
             .find(|key| extra.contains_key(**key))
         {
             return Err(llm::LlmError::InvalidRequest(format!(
-                "provider extra field `{key}` cannot override the budgeted output limit"
+                "provider extra field `{key}` cannot override the requested output limit"
             )));
         }
     }
-    match req.max_tokens {
-        Some(0) => Err(llm::LlmError::InvalidRequest(
+    if req.max_tokens == Some(0) {
+        return Err(llm::LlmError::InvalidRequest(
             "max_tokens must be greater than zero".into(),
-        )),
-        Some(_) => Ok(()),
-        None => {
-            req.max_tokens = Some(DEFAULT_SYSTEM_MAX_OUTPUT_TOKENS);
-            Ok(())
-        }
+        ));
     }
+    Ok(())
 }
 
 pub(super) fn estimate_chat_input(req: &ChatRequest) -> u64 {
@@ -413,10 +394,4 @@ pub(super) fn estimate_chat_input(req: &ChatRequest) -> u64 {
     serde_json::to_vec(&input_only)
         .map(|encoded| (encoded.len() as u64).saturating_add(REQUEST_TOKEN_OVERHEAD))
         .unwrap_or(u64::MAX)
-}
-
-pub(super) fn estimate_chat_request(req: &ChatRequest) -> u64 {
-    estimate_chat_input(req).saturating_add(u64::from(
-        req.max_tokens.unwrap_or(DEFAULT_SYSTEM_MAX_OUTPUT_TOKENS),
-    ))
 }

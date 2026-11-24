@@ -12,8 +12,8 @@
 import { execFile, spawn, spawnSync } from "node:child_process";
 import { WireDecodeError, decodeWireJson, validateAiChatDelta, validateEnvelope } from "./generated";
 
-/** Default per-call timeout. Bounded so a wedged child never blocks
- * the calling app forever, but long enough for slow providers. */
+/** Default timeout for short calls. Model calls pass `timeoutMs: 0` (no
+ * SDK deadline); Yu OS applies the provider's idle timeout instead. */
 export const DEFAULT_TIMEOUT_MS = 60_000;
 
 /** Max bytes captured from a child's stdout/stderr (8 MiB). Generous
@@ -218,22 +218,15 @@ export async function* yuChatStream(input: string, signal?: AbortSignal): AsyncG
     }
   });
   const closed = new Promise<number | null>((resolve) => child.once("close", resolve));
-  const timeout = setTimeout(() => {
-    failure = new Unavailable("App chat stream timed out");
-    child.kill("SIGKILL");
-  }, DEFAULT_TIMEOUT_MS);
   child.stdin.end(input);
   try {
     let final: string | undefined;
-    let total = 0;
     for await (const line of boundedLines(child.stdout)) {
       signal?.throwIfAborted();
       if (final !== undefined) throw new Unavailable("unexpected data after the App chat result");
       const record = decodeWireJson(line);
       if (typeof record === "object" && record !== null && "event" in record) {
         validateAiChatDelta(record);
-        total += Buffer.byteLength(record.text);
-        if (total > 512 * 1024) throw new Unavailable("App chat stream exceeded its text limit");
         yield record.text;
       } else {
         validateEnvelope(record);
@@ -255,7 +248,6 @@ export async function* yuChatStream(input: string, signal?: AbortSignal): AsyncG
     if (failure) throw new Unavailable(failure.message);
     throw error;
   } finally {
-    clearTimeout(timeout);
     if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
     await closed;
   }

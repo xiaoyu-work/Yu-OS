@@ -728,7 +728,7 @@ fn dev_post_bytes(path: &str, payload: &serde_json::Value) -> Result<Vec<u8>, Ai
 
     let mut stream = TcpStream::connect(&connect_addr)
         .map_err(|error| AiError::Unavailable(format!("dev AI connect failed: {error}")))?;
-    let _ = stream.set_read_timeout(Some(Duration::from_secs(60)));
+    // Model replies have no SDK deadline.
     let _ = stream.set_write_timeout(Some(Duration::from_secs(60)));
 
     let mut req_head = format!(
@@ -801,8 +801,7 @@ fn dev_post_json(path: &str, payload: &serde_json::Value) -> Result<serde_json::
     Ok(parsed)
 }
 
-fn dev_chat(request: &AiChatRequest) -> Result<AiResponse, AiError> {
-    let model = dev_ai_model("chat");
+fn dev_chat_body(request: &AiChatRequest) -> Result<serde_json::Value, AiError> {
     let mut messages = Vec::new();
     if let Some(system) = &request.system {
         messages.push(serde_json::json!({"role": "system", "content": system}));
@@ -849,7 +848,7 @@ fn dev_chat(request: &AiChatRequest) -> Result<AiResponse, AiError> {
             }
         }
     }
-    let mut body = serde_json::json!({"model": model, "messages": messages});
+    let mut body = serde_json::json!({"model": dev_ai_model("chat"), "messages": messages});
     if let Some(tools) = &request.tools {
         if !tools.is_empty() {
             let tools_out: Vec<serde_json::Value> = tools
@@ -871,8 +870,11 @@ fn dev_chat(request: &AiChatRequest) -> Result<AiResponse, AiError> {
     if let Some(max_units) = request.max_units {
         body["max_tokens"] = serde_json::json!(max_units);
     }
+    Ok(body)
+}
 
-    let resp = dev_post_json("/chat/completions", &body)?;
+fn dev_chat(request: &AiChatRequest) -> Result<AiResponse, AiError> {
+    let resp = dev_post_json("/chat/completions", &dev_chat_body(request)?)?;
     let msg = resp
         .get("choices")
         .and_then(|c| c.as_array())
@@ -922,7 +924,20 @@ fn dev_chat(request: &AiChatRequest) -> Result<AiResponse, AiError> {
         }
     }
 
-    let usage = resp.get("usage");
+    dev_chat_reply(
+        resp.get("model").and_then(|m| m.as_str()),
+        text,
+        resp.get("usage"),
+        parsed_tool_calls,
+    )
+}
+
+fn dev_chat_reply(
+    model: Option<&str>,
+    text: String,
+    usage: Option<&serde_json::Value>,
+    tool_calls: Vec<serde_json::Value>,
+) -> Result<AiResponse, AiError> {
     let total_tokens = usage
         .and_then(|u| u.get("total_tokens"))
         .and_then(|v| v.as_u64())
@@ -935,12 +950,11 @@ fn dev_chat(request: &AiChatRequest) -> Result<AiResponse, AiError> {
         .and_then(|u| u.get("completion_tokens"))
         .and_then(|v| v.as_u64())
         .unwrap_or(0);
-    let actual_model = resp
-        .get("model")
-        .and_then(|m| m.as_str())
+    let actual_model = model
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .unwrap_or(&model);
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| dev_ai_model("chat"));
 
     let mut env = serde_json::json!({
         "text": text,
@@ -962,8 +976,8 @@ fn dev_chat(request: &AiChatRequest) -> Result<AiResponse, AiError> {
             "prompt_redacted": false
         }
     });
-    if !parsed_tool_calls.is_empty() {
-        env["tool_calls"] = serde_json::Value::Array(parsed_tool_calls);
+    if !tool_calls.is_empty() {
+        env["tool_calls"] = serde_json::Value::Array(tool_calls);
     }
     parse_response(env)
 }

@@ -205,7 +205,7 @@ func ChatRequest(ctx context.Context, request AiChatRequest) (*AiResponse, error
 	if devAiURL() != "" {
 		return devChat(ctx, request)
 	}
-	out, err := yuCallJSONContext(ctx, "yu ai chat", []string{"ai", "chat", "--request-stdin"}, payload)
+	out, err := yuCallJSONTimeout(ctx, 0, "yu ai chat", []string{"ai", "chat", "--request-stdin"}, payload)
 	if denied, ok := err.(*DeniedError); ok {
 		return nil, classifyError(denied.Payload)
 	}
@@ -231,7 +231,7 @@ func Infer(ctx context.Context, request AiInferenceRequest) (*AiInference, error
 			return nil, err
 		}
 	} else {
-		out, err := yuCallJSONContext(ctx, "yu ai infer", []string{"ai", "infer", "--request-stdin"}, payload)
+		out, err := yuCallJSONTimeout(ctx, 0, "yu ai infer", []string{"ai", "infer", "--request-stdin"}, payload)
 		if err != nil {
 			if denied, ok := err.(*DeniedError); ok {
 				return nil, classifyError(denied.Payload)
@@ -452,7 +452,7 @@ func dispatch(ctx context.Context, prompt string, opts ChatOptions) (*AiResponse
 		argv = append(argv, "--tools", strings.Join(opts.Tools, ","))
 	}
 
-	out, err := yuCallJSONContext(ctx, "yu ai chat", argv)
+	out, err := yuCallJSONTimeout(ctx, 0, "yu ai chat", argv)
 	if err != nil {
 		if denied, ok := err.(*DeniedError); ok {
 			return nil, classifyError(denied.Payload)
@@ -582,7 +582,9 @@ func devAiKey() string {
 	return strings.TrimSpace(os.Getenv("YUOS_DEV_AI_KEY"))
 }
 
-func devPostBytes(ctx context.Context, path string, payload map[string]any) ([]byte, error) {
+// devPost sends one request to the local dev server. Model replies have no
+// SDK deadline; ctx controls cancellation.
+func devPost(ctx context.Context, path string, payload map[string]any) (*http.Response, error) {
 	baseURL := devAiURL()
 	if baseURL == "" {
 		return nil, &AiUnavailableError{Msg: "local dev AI URL is not configured"}
@@ -591,9 +593,7 @@ func devPostBytes(ctx context.Context, path string, payload map[string]any) ([]b
 	if err != nil {
 		return nil, &AiUnavailableError{Msg: err.Error()}
 	}
-	reqCtx, cancel := context.WithTimeout(ctx, DefaultTimeout)
-	defer cancel()
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, baseURL+path, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+path, bytes.NewReader(body))
 	if err != nil {
 		return nil, &AiUnavailableError{Msg: err.Error()}
 	}
@@ -608,10 +608,19 @@ func devPostBytes(ctx context.Context, path string, payload map[string]any) ([]b
 		}
 		return nil, &AiUnavailableError{Msg: fmt.Sprintf("dev AI request failed: %v", err)}
 	}
-	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		resp.Body.Close()
 		return nil, &AiUnavailableError{Msg: fmt.Sprintf("dev AI HTTP %d", resp.StatusCode)}
 	}
+	return resp, nil
+}
+
+func devPostBytes(ctx context.Context, path string, payload map[string]any) ([]byte, error) {
+	resp, err := devPost(ctx, path, payload)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -636,8 +645,7 @@ func devPostJSON(ctx context.Context, path string, payload map[string]any) (map[
 	return parsed, nil
 }
 
-func devChat(ctx context.Context, request AiChatRequest) (*AiResponse, error) {
-	model := devAiModel()
+func devChatBody(request AiChatRequest) (map[string]any, error) {
 	var messages []map[string]any
 	if request.System != "" {
 		messages = append(messages, map[string]any{"role": "system", "content": request.System})
@@ -680,7 +688,7 @@ func devChat(ctx context.Context, request AiChatRequest) (*AiResponse, error) {
 			})
 		}
 	}
-	body := map[string]any{"model": model, "messages": messages}
+	body := map[string]any{"model": devAiModel(), "messages": messages}
 	if len(request.Tools) > 0 {
 		toolsOut := make([]map[string]any, 0, len(request.Tools))
 		for _, t := range request.Tools {
@@ -697,6 +705,14 @@ func devChat(ctx context.Context, request AiChatRequest) (*AiResponse, error) {
 	}
 	if request.MaxUnits > 0 {
 		body["max_tokens"] = request.MaxUnits
+	}
+	return body, nil
+}
+
+func devChat(ctx context.Context, request AiChatRequest) (*AiResponse, error) {
+	body, err := devChatBody(request)
+	if err != nil {
+		return nil, err
 	}
 	resp, err := devPostJSON(ctx, "/chat/completions", body)
 	if err != nil {
@@ -741,16 +757,19 @@ func devChat(ctx context.Context, request AiChatRequest) (*AiResponse, error) {
 			})
 		}
 	}
-	usageObj := asMap(resp["usage"])
+	return devChatReply(asString(resp["model"]), text, asMap(resp["usage"]), parsedToolCalls)
+}
+
+func devChatReply(model, text string, usageObj map[string]any, toolCalls []any) (*AiResponse, error) {
 	units := uint64(1)
 	if _, present := usageObj["total_tokens"]; present {
 		units = asUint64(usageObj["total_tokens"])
 	}
 	promptTokens := asUint32(usageObj["prompt_tokens"])
 	completionTokens := asUint32(usageObj["completion_tokens"])
-	actualModel := asString(resp["model"])
+	actualModel := model
 	if strings.TrimSpace(actualModel) == "" {
-		actualModel = model
+		actualModel = devAiModel()
 	}
 	env := map[string]any{
 		"text":     text,
@@ -772,8 +791,8 @@ func devChat(ctx context.Context, request AiChatRequest) (*AiResponse, error) {
 			"prompt_redacted": false,
 		},
 	}
-	if len(parsedToolCalls) > 0 {
-		env["tool_calls"] = parsedToolCalls
+	if len(toolCalls) > 0 {
+		env["tool_calls"] = toolCalls
 	}
 	return parseResponse(env)
 }

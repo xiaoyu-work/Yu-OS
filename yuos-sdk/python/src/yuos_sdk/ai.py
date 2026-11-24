@@ -21,7 +21,6 @@ from typing import (
     Sequence, TypeVar, cast,
 )
 
-from threading import Timer
 
 from ._transport import WIRE_ARG, WireDenied, WireUnavailable, decode_response
 from .generated import (
@@ -51,9 +50,8 @@ from .generated import (
 )
 
 
-# Subprocess timeout — covers every shell-out to the `yu` binary. The
-# default is long enough for slow providers but bounded so a hung child
-# never blocks the calling app forever.
+# Timeout for short non-model calls. Model calls have no SDK deadline; Yu OS
+# applies the provider's idle timeout instead.
 _DEFAULT_TIMEOUT_S = 60
 
 
@@ -301,9 +299,6 @@ def _model_stream(data: bytes) -> Iterator[str]:
         )
     except OSError as error:
         raise AiUnavailable(str(error)) from error
-    timer = Timer(_DEFAULT_TIMEOUT_S, process.kill)
-    timer.daemon = True
-    timer.start()
     try:
         assert process.stdin is not None and process.stdout is not None
         try:
@@ -313,7 +308,6 @@ def _model_stream(data: bytes) -> Iterator[str]:
             # The CLI can send a structured refusal without reading the request.
             pass
         final = None
-        total_bytes = 0
         while raw := process.stdout.readline(8 * 1024 * 1024 + 1):
             if final is not None or len(raw) > 8 * 1024 * 1024 or not raw.endswith(b"\n"):
                 raise AiUnavailable("invalid App chat stream framing")
@@ -321,11 +315,7 @@ def _model_stream(data: bytes) -> Iterator[str]:
             record = decode_wire_json(text)
             if isinstance(record, dict) and "event" in record:
                 validate_ai_chat_delta(record)
-                chunk = record["text"]
-                total_bytes += len(chunk.encode("utf-8"))
-                if total_bytes > 512 * 1024:
-                    raise AiUnavailable("App chat stream exceeded its text limit")
-                yield chunk
+                yield record["text"]
             else:
                 validate_envelope(record)
                 final = text
@@ -338,7 +328,6 @@ def _model_stream(data: bytes) -> Iterator[str]:
     except (WireDecodeError, WireUnavailable, OSError, UnicodeError, ValueError) as error:
         raise AiUnavailable(str(error)) from error
     finally:
-        timer.cancel()
         if process.poll() is None:
             process.kill()
         process.wait()
@@ -445,14 +434,16 @@ def decide(
 
 def open_permission_settings() -> None:
     """Open Applications settings after a user action; this does not authorize AI."""
-    _model_call("settings")
+    _model_call("settings", timeout=_DEFAULT_TIMEOUT_S)
 
 
-def _model_call(command: str, *args: str, data: bytes = b"") -> Dict[str, Any]:
+def _model_call(
+    command: str, *args: str, data: bytes = b"", timeout: Optional[float] = None,
+) -> Dict[str, Any]:
     try:
         proc = subprocess.run(
             [_yu_binary(), WIRE_ARG, "ai", command, *args],
-            input=data, capture_output=True, check=False, timeout=_DEFAULT_TIMEOUT_S,
+            input=data, capture_output=True, check=False, timeout=timeout,
         )
         return decode_response(proc.stdout.decode("utf-8"), proc.returncode, f"yu ai {command}")
     except WireDenied as error:
@@ -546,17 +537,7 @@ def _dispatch(
             cmd.extend(["--tools", ",".join(tools)])
 
         try:
-            proc = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=_DEFAULT_TIMEOUT_S,
-            )
-        except subprocess.TimeoutExpired as exc:
-            raise AiUnavailable(
-                f"yu ai {modality} timed out after {_DEFAULT_TIMEOUT_S}s"
-            ) from exc
+            proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
         except (OSError, UnicodeError) as exc:
             raise AiUnavailable(str(exc)) from exc
     payload_text = (proc.stdout or "").strip()
@@ -672,6 +653,7 @@ def _dev_ai_key() -> Optional[str]:
 
 
 def _dev_post_bytes(path: str, payload: Mapping[str, Any]) -> bytes:
+    """POST to the local dev server; model replies have no SDK deadline."""
     base_url = _dev_ai_url()
     if not base_url:
         raise AiUnavailable("local dev AI URL is not configured")
@@ -686,7 +668,7 @@ def _dev_post_bytes(path: str, payload: Mapping[str, Any]) -> bytes:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=_DEFAULT_TIMEOUT_S) as resp:
+        with urllib.request.urlopen(req) as resp:
             status = getattr(resp, "status", 200)
             if status < 200 or status >= 300:
                 raise AiUnavailable(f"dev AI HTTP {status}")
@@ -849,7 +831,6 @@ def _dev_chat_stream(request: AiChatRequest) -> Iterator[str]:
         with urllib.request.urlopen(req, timeout=_DEFAULT_TIMEOUT_S) as resp:
             if resp.headers.get_content_type() != "text/event-stream":
                 raise AiUnavailable("dev AI endpoint did not return a streaming response")
-            total = 0
             while raw := resp.readline(8 * 1024 * 1024 + 1):
                 if len(raw) > 8 * 1024 * 1024:
                     raise AiUnavailable("dev AI stream line exceeds the transport limit")
@@ -867,9 +848,6 @@ def _dev_chat_stream(request: AiChatRequest) -> Iterator[str]:
                     delta = choices[0].get("delta")
                     piece = delta.get("content") if isinstance(delta, dict) else None
                     if isinstance(piece, str) and piece:
-                        total += len(piece.encode("utf-8"))
-                        if total > 512 * 1024:
-                            raise AiUnavailable("dev AI stream exceeded its text limit")
                         yield piece
     except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as error:
         raise AiUnavailable(f"dev AI stream failed: {error}") from error

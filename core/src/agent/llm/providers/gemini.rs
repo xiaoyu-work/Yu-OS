@@ -52,11 +52,6 @@ const DEFAULT_BASE: &str = "https://generativelanguage.googleapis.com";
 /// long-lived feature track).
 pub const API_VERSION: &str = "v1beta";
 
-/// Fallback `maxOutputTokens` when caller didn't specify. Gemini will
-/// happily generate without it (the cap is server-side default), but
-/// pinning a sensible default keeps cost predictable.
-pub const DEFAULT_MAX_TOKENS: u32 = 4096;
-
 /// Marker we splice into our internal call IDs so we can recover the function
 /// name later. The suffix is a UUID because Gemini omits call IDs; restarting
 /// a numeric sequence for every response or process overwrites
@@ -379,10 +374,9 @@ pub(crate) mod wire {
 
             // Generation knobs go under generationConfig, not body root.
             let mut gen_cfg = serde_json::Map::new();
-            gen_cfg.insert(
-                "maxOutputTokens".into(),
-                serde_json::json!(request.max_tokens.unwrap_or(DEFAULT_MAX_TOKENS)),
-            );
+            if let Some(max_tokens) = request.max_tokens {
+                gen_cfg.insert("maxOutputTokens".into(), serde_json::json!(max_tokens));
+            }
             if let Some(v) = request.temperature {
                 gen_cfg.insert("temperature".into(), serde_json::json!(v));
             }

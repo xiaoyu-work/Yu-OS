@@ -692,7 +692,7 @@ fn compatibility_alias_streams_omit_unsupported_stream_options() {
     for alias in PROVIDER_ALIASES
         .iter()
         .copied()
-        .filter(|alias| *alias != "openai")
+        .filter(|alias| !matches!(*alias, "openai" | "azure"))
     {
         let mut request = req_text("hi");
         request.extra = serde_json::json!({
@@ -723,7 +723,7 @@ fn responses_requests_do_not_inherit_chat_stream_options() {
         "gpt-5.6-sol",
         true,
         crate::agent::llm::providers::copilot_auth::CopilotWireApi::Responses,
-        AliasCompatibility::OFFICIAL_OPENAI,
+        AliasCompatibility::STREAM_USAGE,
     )
     .unwrap();
     assert_eq!(body["stream"], true);

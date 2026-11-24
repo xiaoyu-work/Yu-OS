@@ -99,14 +99,11 @@ fn builds_minimal_chat_body() {
 }
 
 #[test]
-fn always_emits_max_output_tokens_under_generation_config() {
+fn unset_output_limit_is_omitted_under_generation_config() {
     let mut r = req_text("hi");
     r.max_tokens = None;
     let body = wire::build_request_body(&r, false);
-    assert_eq!(
-        body["generationConfig"]["maxOutputTokens"],
-        DEFAULT_MAX_TOKENS
-    );
+    assert!(body["generationConfig"].get("maxOutputTokens").is_none());
 }
 
 #[test]

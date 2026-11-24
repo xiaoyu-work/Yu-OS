@@ -9,14 +9,14 @@
 - Authorize AI verbs/scopes and app identity.
 - Apply consent and budget decisions.
 - Enforce the owner's monthly App inference limit across all six slots.
-  The UTC ledger counts settled usage and in-flight reservations even
-  when unlimited. Settings displays settled usage; provider dispatch
-  uses both. Legacy manifest budgets are not enforcement inputs.
+  A call is admitted while recorded usage is below the limit and charged
+  afterward from provider-reported usage, so concurrent calls can finish
+  slightly over it. Legacy manifest budgets are not enforcement inputs.
 - Charge System Agent inference to `system.agent`, with its own configured
-  cap and the same reservation and settlement mechanism.
-- Notify the owner at 80% and when the limit is reached or a reservation
-  cannot fit, at most once per threshold and UTC month. Notification
-  delivery does not determine budget enforcement.
+  cap and the same post-call recording.
+- Notify the owner at 80% and when the limit is reached, at most once per
+  threshold and UTC month. Notification delivery does not determine budget
+  enforcement.
 - Call the owner's configured model without Agent prompts, history, memory,
   system tools, or tool execution. The App supplies custom function schemas
   and returns the results; the gate rejects undeclared proposals.
@@ -28,7 +28,9 @@
   capability.
 - Forward opt-in text deltas from the configured provider through the same
   consent, liveness, budget and audit path. The ordinary reply follows
-  successful settlement; partial text never carries an App function proposal.
+  recording; partial text never carries an App function proposal.
+- App chat output is unlimited unless the App sets `max_units`. The configured
+  request timeout bounds silence between provider events, not total duration.
 - Serve SDK `yu ai infer` through the same App authority and budget. The owner
   configures the destination; binary data is bounded stdin/reply data. STT
   detects WAV, MP3, or Ogg from the audio bytes.
@@ -38,14 +40,14 @@
   Optional GUI choices use protected Settings and do not admit Agent-to-App calls.
 - Persist safety-filtered provider requests in the owner's AI budget database
   (`ai_inputs`), correlated to the authenticated App session. This history is
-  not App or agent memory. Cancellation retains the dispatched reservation's
-  conservative estimate; completed calls settle actual usage.
+  not App or agent memory. A call that ends without reported usage, including
+  a cancelled one, records none.
 
 ## Key Files
 
 | Path | Role |
 | --- | --- |
-| `model_service.rs` | Metered model calls, shared configured provider selection, and streaming settlement |
+| `model_service.rs` | Metered model calls, shared configured provider selection, and streaming usage |
 | `gate.rs` | Chat input, App policy and consent, and System Agent chat provider chain |
 | `budget.rs`, `user_budget.rs` | Separate Agent and App accounts in the owner ledger, App settings and alerts |
 | `consent.rs` | Persisted consent decisions |

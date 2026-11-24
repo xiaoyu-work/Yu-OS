@@ -24,8 +24,8 @@ import (
 	"time"
 )
 
-// DefaultTimeout bounds every shell-out to `yu` so a wedged child
-// never blocks the calling app forever.
+// DefaultTimeout bounds short shell-outs to `yu`. Model calls have no SDK
+// deadline; Yu OS applies the provider's idle timeout instead.
 const DefaultTimeout = 60 * time.Second
 
 // maxOutput caps captured stdout+stderr (8 MiB) — generous for
@@ -73,8 +73,16 @@ func yuCallJSON(label string, args []string, input ...[]byte) (*yuOutcome, error
 }
 
 func yuCallJSONContext(parent context.Context, label string, args []string, input ...[]byte) (*yuOutcome, error) {
+	return yuCallJSONTimeout(parent, DefaultTimeout, label, args, input...)
+}
+
+// yuCallJSONTimeout is yuCallJSONContext with an explicit deadline; zero means none.
+func yuCallJSONTimeout(parent context.Context, timeout time.Duration, label string, args []string, input ...[]byte) (*yuOutcome, error) {
 	bin := YuBinary()
-	ctx, cancel := context.WithTimeout(parent, DefaultTimeout)
+	ctx, cancel := parent, context.CancelFunc(func() {})
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(parent, timeout)
+	}
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, bin, append([]string{"--wire=1"}, args...)...)
@@ -96,7 +104,7 @@ func yuCallJSONContext(parent context.Context, label string, args []string, inpu
 	}
 	if runErr != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			return nil, &UnavailableError{Msg: fmt.Sprintf("%s timed out after %s", label, DefaultTimeout)}
+			return nil, &UnavailableError{Msg: fmt.Sprintf("%s timed out after %s", label, timeout)}
 		}
 		var exitErr *exec.ExitError
 		if errors.As(runErr, &exitErr) {

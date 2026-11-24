@@ -7,7 +7,8 @@
 //! - Auth header is `x-api-key: <key>`, not bearer
 //! - Required `anthropic-version: 2023-06-01` header
 //! - `system` is a top-level string, NOT a message in `messages[]`
-//! - `max_tokens` is **required** (we default to 4096 if the caller omits)
+//! - `max_tokens` is **required**. Without a caller value we use the model's
+//!   maximum from the Models API or the built-in model table, else 4096.
 //! - Tool result is a content block inside a `user` message, not a separate
 //!   `tool` role
 //! - Tools are flat objects (`{name, description, input_schema}`), no
@@ -174,6 +175,75 @@ impl AnthropicProvider {
         format!("{}/v1/messages", self.cfg.base_url)
     }
 
+    /// Anthropic requires `max_tokens`. An unset limit means the model's own
+    /// maximum from the Models API, then the built-in model table; a model
+    /// known to neither keeps the wire default.
+    async fn with_model_output_limit(&self, mut request: ChatRequest) -> ChatRequest {
+        static LIMITS: std::sync::OnceLock<std::sync::Mutex<HashMap<String, u32>>> =
+            std::sync::OnceLock::new();
+        if request.max_tokens.is_some() {
+            return request;
+        }
+        let key = format!("{}\n{}", self.cfg.base_url, self.cfg.model);
+        let limits = LIMITS.get_or_init(Default::default);
+        let mut limit = limits.lock().ok().and_then(|limits| limits.get(&key).copied());
+        if limit.is_none() {
+            match self.model_output_limit().await {
+                Ok(Some(value)) => {
+                    if let Ok(mut limits) = limits.lock() {
+                        limits.insert(key, value);
+                    }
+                    limit = Some(value);
+                }
+                Ok(None) => {}
+                // Some Anthropic-compatible gateways have no Models API.
+                Err(error) => tracing::debug!(%error, "Anthropic Models API unavailable"),
+            }
+        }
+        request.max_tokens = limit.or_else(|| {
+            crate::agent::llm::metadata::lookup(&self.cfg.model)
+                .map(|model| model.max_output_tokens)
+        });
+        request
+    }
+
+    async fn model_output_limit(&self) -> Result<Option<u32>> {
+        #[derive(Deserialize)]
+        struct ModelInfo {
+            max_tokens: Option<u32>,
+        }
+        let lease = match &self.cfg.pool {
+            Some(pool) => Some(pool.acquire()?),
+            None => None,
+        };
+        let mut http = self
+            .transport()?
+            .get(
+                format!("{}/v1/models/{}", self.cfg.base_url, self.cfg.model),
+                self.cfg.request_timeout,
+            )
+            .header("anthropic-version", ANTHROPIC_VERSION);
+        if let Some(key) = lease.as_ref().map(|lease| lease.value()).or(self.cfg.api_key.as_deref()) {
+            http = http.header("x-api-key", key);
+        }
+        for (k, v) in &self.cfg.extra_headers {
+            http = http.header(k.as_str(), v.as_str());
+        }
+        let response = http.send().await.map_err(LlmError::Transport)?;
+        let status = response.status();
+        let bytes = crate::agent::llm::read_body_capped(
+            response,
+            crate::agent::llm::MAX_NONSTREAM_BODY_BYTES,
+        )
+        .await?;
+        if !status.is_success() {
+            return Err(wire::classify_http_error(status, &bytes, None));
+        }
+        let info: ModelInfo = serde_json::from_slice(&bytes)
+            .map_err(|e| LlmError::UpstreamMalformed(format!("anthropic model info: {e}")))?;
+        Ok(info.max_tokens.filter(|limit| *limit > 0))
+    }
+
     fn transport(&self) -> Result<&HttpTransport> {
         match &self.initialization_error {
             Some(error) => Err(crate::agent::llm::deferred_initialization_error(error)),
@@ -210,6 +280,7 @@ impl Provider for AnthropicProvider {
 
     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse> {
         let transport = self.transport()?;
+        let request = self.with_model_output_limit(request).await;
         let body = wire::build_request_body(&request, &self.cfg.model, false);
 
         let lease = if let Some(pool) = &self.cfg.pool {
@@ -318,6 +389,7 @@ impl Provider for AnthropicProvider {
         // the HTTP status synchronously (so 401/429/etc surface
         // immediately), then wrap the bytes stream in our SSE
         // parser + Anthropic event converter.
+        let request = self.with_model_output_limit(request).await;
         let body = wire::build_request_body(&request, &self.cfg.model, true);
 
         let lease = if let Some(pool) = &self.cfg.pool {

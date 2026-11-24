@@ -897,11 +897,11 @@ broker session. App usage is pooled under the owner's App AI limit.
 The App gate checks the exact capability, verified manifest policy, and owner
 consent. It sends the App's input without Agent conversation or tools and
 records the safety-filtered request against the owner and App session.
-Revoking the live grant cancels a call; the ledger conservatively charges
-dispatched work. Apps can send function schemas and prior tool results.
+Revoking the live grant cancels a call. Usage is recorded after each call from
+the provider's report. Apps can send function schemas and prior tool results.
 App code alone decides whether to execute a proposed function.
 Opt-in App chat streaming forwards provisional text over the same authorized
-broker connection. Budget settlement and the audited terminal reply remain
+broker connection. Usage recording and the audited terminal reply remain
 in the existing gate.
 
 Mail's UI Native Messaging host and Agent MCP server use the same installed

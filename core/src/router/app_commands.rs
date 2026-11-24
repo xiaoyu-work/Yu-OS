@@ -33,9 +33,6 @@ pub(super) fn dispatch_app(
     if args.first().map(String::as_str) == Some("stdio") {
         return stdio_schema(&args[1..]);
     }
-    if args.get(..2).is_some_and(|head| head == ["tool", "types"]) {
-        return super::mcp_types::generate(&args[2..]).map(Some);
-    }
     let apps_dir = apps_dir();
     // Listing includes quarantined installs on purpose: an operator has
     // to be able to see that an App exists and why it will not run.

@@ -1,5 +1,5 @@
 use super::*;
-use crate::ai::budget::{Reservation, Store};
+use crate::ai::budget::{Meter, Store};
 
 #[test]
 fn wire_codes_follow_error_semantics() {
@@ -253,73 +253,28 @@ fn ephemeral_budget_store_via_tempdir() -> (tempfile::TempDir, Store) {
     (dir, store)
 }
 
-#[tokio::test]
-async fn dispatched_app_request_timeout_retains_its_budget_reservation() {
+#[test]
+fn app_meter_admits_until_recorded_usage_reaches_the_limit() {
     let _lock = crate::test_env::lock_env();
     let dir = tempfile::tempdir().unwrap();
     let _data = crate::test_env::TestEnvVarGuard::set("YUOS_DATA_DIR", dir.path());
-    let store = Store::open().unwrap();
-    let call = async move {
-        let mut reservation =
-            Reservation::app(store, "yuos-edit", None, 500, 1000, || Ok(0)).unwrap();
-        reservation.retain_estimate_on_drop();
-        std::future::pending::<()>().await;
-        drop(reservation);
-    };
-    assert!(
-        tokio::time::timeout(std::time::Duration::from_millis(1), call)
-            .await
-            .is_err()
-    );
-    let store = Store::open().unwrap();
-    assert_eq!(store.current("yuos-edit").unwrap().units_used, 500);
-    assert!(Reservation::app(store, "yuos-edit", None, 501, 1000, || Ok(0)).is_err());
+    let meter = Meter::app(Store::open().unwrap(), "yuos-edit", None, 1000, || Ok(0)).unwrap();
+    meter.finish(999).unwrap();
+    let meter = Meter::app(Store::open().unwrap(), "yuos-edit", None, 1000, || Ok(0)).unwrap();
+    // The last admitted call may finish over the limit.
+    meter.finish(50).unwrap();
+    assert_eq!(Store::open().unwrap().current("yuos-edit").unwrap().units_used, 1049);
+    assert!(Meter::app(Store::open().unwrap(), "yuos-edit", None, 1000, || Ok(0)).is_err());
 }
 
-/// Dropping the hold before dispatch releases the reserved units.
+/// A call that ends without reported usage records nothing.
 #[test]
-fn budget_refunded_on_provider_error() {
+fn unfinished_meter_records_nothing() {
     let (_dir, store) = ephemeral_budget_store_via_tempdir();
-
-    // Take a snapshot of the starting balance so the assertion
-    // is independent of any leftover rows in the in-tempdir DB.
-    let before = {
-        let s = Store::open().unwrap();
-        s.current("test.app").unwrap().units_used
-    };
-
-    // Reserve 500 units, then drop without committing — mimics
-    // a provider error path between `reserve` and `commit`.
-    {
-        let _r = Reservation::app(
-            store,
-            "test.app",
-            None,
-            500,
-            10_000,
-            || Ok(0),
-        )
-        .expect("reserve");
-        // Reservation is alive here; the row should reflect the debit.
-        let probe = Store::open().unwrap();
-        let mid = probe.current("test.app").unwrap().units_used;
-        assert_eq!(
-            mid,
-            before + 500,
-            "reservation should debit `units_used` while alive"
-        );
-        // Falling out of scope drops `_r` without calling `commit`.
-    }
-
-    // After Drop, the row must be refunded back to `before`.
-    let after_store = Store::open().unwrap();
-    let after = after_store.current("test.app").unwrap().units_used;
-    assert_eq!(
-        after, before,
-        "a call stopped before dispatch must release reserved units"
-    );
-
+    drop(Meter::app(store, "test.app", None, 10_000, || Ok(0)).expect("admit"));
+    let after = Store::open().unwrap().current("test.app").unwrap().units_used;
     std::env::remove_var("YUOS_DATA_DIR");
+    assert_eq!(after, 0);
 }
 
 #[tokio::test]
@@ -327,8 +282,7 @@ async fn system_stream_settles_reported_openai_usage_to_actuals() {
     use futures_util::StreamExt;
 
     let (_dir, store) = ephemeral_budget_store_via_tempdir();
-    let reservation =
-        Reservation::system(store, 500, 10_000).expect("reserve estimate");
+    let meter = Meter::system(store, 10_000).expect("admit");
     let inner: futures_util::stream::BoxStream<'static, crate::agent::llm::Result<StreamEvent>> =
         Box::pin(futures_util::stream::iter(vec![Ok(StreamEvent::Done {
             finish: FinishReason::Stop,
@@ -339,7 +293,7 @@ async fn system_stream_settles_reported_openai_usage_to_actuals() {
             },
         })]));
 
-    let events: Vec<_> = model_service::settle_stream(inner, reservation).collect().await;
+    let events: Vec<_> = model_service::settle_stream(inner, meter).collect().await;
     let charged = Store::open()
         .unwrap()
         .current(SYSTEM_AGENT_BUCKET)
@@ -354,24 +308,23 @@ async fn system_stream_settles_reported_openai_usage_to_actuals() {
     ));
     assert_eq!(
         charged, 20,
-        "reported streaming usage must replace the conservative reservation"
+        "streaming usage must be recorded as reported"
     );
 }
 
 #[tokio::test]
-async fn system_stream_without_compat_usage_keeps_conservative_estimate() {
+async fn system_stream_without_usage_records_nothing() {
     use futures_util::StreamExt;
 
     let (_dir, store) = ephemeral_budget_store_via_tempdir();
-    let reservation =
-        Reservation::system(store, 500, 10_000).expect("reserve estimate");
+    let meter = Meter::system(store, 10_000).expect("admit");
     let inner: futures_util::stream::BoxStream<'static, crate::agent::llm::Result<StreamEvent>> =
         Box::pin(futures_util::stream::iter(vec![Ok(StreamEvent::Done {
             finish: FinishReason::Stop,
             usage: Default::default(),
         })]));
 
-    let events: Vec<_> = model_service::settle_stream(inner, reservation).collect().await;
+    let events: Vec<_> = model_service::settle_stream(inner, meter).collect().await;
     let charged = Store::open()
         .unwrap()
         .current(SYSTEM_AGENT_BUCKET)
@@ -380,8 +333,5 @@ async fn system_stream_without_compat_usage_keeps_conservative_estimate() {
     std::env::remove_var("YUOS_DATA_DIR");
 
     assert!(events.last().is_some_and(Result::is_ok));
-    assert_eq!(
-        charged, 500,
-        "strict compatibility providers without usage must retain the safe estimate"
-    );
+    assert_eq!(charged, 0);
 }

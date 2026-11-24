@@ -11,7 +11,6 @@ use super::{
 };
 
 pub(crate) const MAX_DELTA_BYTES: usize = 16 * 1024;
-pub(crate) const MAX_TEXT_BYTES: usize = 512 * 1024;
 
 tokio::task_local! {
     pub(crate) static OUTPUT: mpsc::Sender<String>;

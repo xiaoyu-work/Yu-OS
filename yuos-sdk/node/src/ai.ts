@@ -182,7 +182,7 @@ export async function chat(prompt: string, opts: ChatOptions = {}): Promise<AiRe
 
     let data: unknown;
     try {
-      data = await yuCallJsonAsync("yu ai chat", argv, signal);
+      data = await yuCallJsonAsync("yu ai chat", argv, signal, undefined, { timeoutMs: 0 });
     } catch (e) {
       if (e instanceof Denied) raiseForError(e.payload);
       if (e instanceof Unavailable) throw new AiUnavailable(e.message);
@@ -215,7 +215,9 @@ export async function chatRequest(
     return devChat(request, signal);
   }
   try {
-    return parseResponse(await yuCallJsonAsync("yu ai chat", ["ai", "chat", "--request-stdin"], signal, input));
+    return parseResponse(
+      await yuCallJsonAsync("yu ai chat", ["ai", "chat", "--request-stdin"], signal, input, { timeoutMs: 0 }),
+    );
   } catch (error) {
     if (error instanceof Denied) raiseForError(error.payload);
     if (error instanceof Unavailable) throw new AiUnavailable(error.message);
@@ -232,6 +234,10 @@ export async function* chatStream(
     throw new AiInvalidArgs("chat: prompt must be non-empty");
   }
   if (opts.tools?.length) throw new AiInvalidArgs("chat: supply App functions in functions");
+  // The stream yields text only; tool calls need the final response from chat().
+  if (opts.functions?.length || opts.toolTurns?.length) {
+    throw new AiInvalidArgs("chatStream: use chat for App functions");
+  }
   const request = structuredChatRequest(prompt, opts);
   const input = encodeRequest(request, validateAiChatRequest);
   const envApp = process.env.YUOS_APP_ID;
@@ -279,7 +285,6 @@ async function* devChatDeltas(body: Record<string, unknown>, signal?: AbortSigna
       yield next.value;
     }
   }
-  let total = 0;
   try {
     for await (const line of boundedLines(chunks())) {
       if (!line.startsWith("data:")) continue;
@@ -288,11 +293,7 @@ async function* devChatDeltas(body: Record<string, unknown>, signal?: AbortSigna
       if (!data) continue;
       const parsed = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
       const piece = parsed.choices?.[0]?.delta?.content;
-      if (typeof piece === "string" && piece) {
-        total += Buffer.byteLength(piece);
-        if (total > 512 * 1024) throw new AiUnavailable("dev AI stream exceeded its text limit");
-        yield piece;
-      }
+      if (typeof piece === "string" && piece) yield piece;
     }
     throw new AiUnavailable("dev AI stream ended without a final event");
   } catch (error) {
@@ -317,7 +318,7 @@ export async function infer(
     data = await devInfer(request, signal);
   } else {
     try {
-      data = await yuCallJsonAsync("yu ai infer", ["ai", "infer", "--request-stdin"], signal, input);
+      data = await yuCallJsonAsync("yu ai infer", ["ai", "infer", "--request-stdin"], signal, input, { timeoutMs: 0 });
     } catch (error) {
       if (error instanceof Denied) raiseForError(error.payload);
       if (error instanceof Unavailable) throw new AiUnavailable(error.message);

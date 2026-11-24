@@ -81,7 +81,7 @@ struct AliasCompatibility {
 }
 
 impl AliasCompatibility {
-    const OFFICIAL_OPENAI: Self = Self {
+    const STREAM_USAGE: Self = Self {
         chat_stream_usage: true,
     };
     const STRICT: Self = Self {
@@ -90,11 +90,11 @@ impl AliasCompatibility {
 }
 
 /// Resolve optional wire extensions by the explicitly selected provider
-/// alias. Unknown and compatibility aliases fail safe to the baseline
-/// Chat Completions schema; only the official OpenAI alias opts in.
+/// alias. OpenAI and Azure accept stream usage; other aliases keep the
+/// baseline Chat Completions schema because some compatible servers reject it.
 fn compatibility_for_alias(alias: &str) -> AliasCompatibility {
-    if alias == PROVIDER_NAME {
-        AliasCompatibility::OFFICIAL_OPENAI
+    if matches!(alias, PROVIDER_NAME | "azure") {
+        AliasCompatibility::STREAM_USAGE
     } else {
         AliasCompatibility::STRICT
     }

@@ -186,14 +186,14 @@ fn session_token_is_optional_and_picked_up_when_present() {
 
 #[test]
 fn body_strips_model_field() {
-    let body_bytes = build_bedrock_body_bytes(&req_text("hello")).unwrap();
+    let body_bytes = build_bedrock_body_bytes(&req_text("hello"), "anthropic.claude-test").unwrap();
     let v: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
     assert!(v.get("model").is_none(), "model field must be stripped");
 }
 
 #[test]
 fn body_includes_bedrock_anthropic_version() {
-    let body_bytes = build_bedrock_body_bytes(&req_text("hello")).unwrap();
+    let body_bytes = build_bedrock_body_bytes(&req_text("hello"), "anthropic.claude-test").unwrap();
     let v: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
     assert_eq!(
         v.get("anthropic_version").and_then(|x| x.as_str()),
@@ -203,7 +203,7 @@ fn body_includes_bedrock_anthropic_version() {
 
 #[test]
 fn body_keeps_anthropic_messages_shape() {
-    let body_bytes = build_bedrock_body_bytes(&req_text("hello")).unwrap();
+    let body_bytes = build_bedrock_body_bytes(&req_text("hello"), "anthropic.claude-test").unwrap();
     let v: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
     // System hoisted to top-level (Anthropic shape).
     assert_eq!(
@@ -229,7 +229,7 @@ fn body_filters_reserved_extras_and_preserves_provider_cache_fields() {
     });
     caching::mark_system_cached(&mut request);
 
-    let body_bytes = build_bedrock_body_bytes(&request).unwrap();
+    let body_bytes = build_bedrock_body_bytes(&request, "anthropic.claude-test").unwrap();
     let body: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
     assert_eq!(body["top_k"], 32);
     assert_eq!(body["system"][0]["cache_control"]["type"], "ephemeral");

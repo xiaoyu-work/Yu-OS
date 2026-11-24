@@ -1,10 +1,11 @@
-//! Per-app monthly AI token ledger.
+//! Per-app monthly AI usage ledger.
 //!
-//! Each row records committed and in-flight abstract billing units for
-//! an app in a calendar month UTC (`YYYY-MM`). The gate reserves before
-//! each upstream call and atomically converts that reservation to actual
-//! usage afterward. Cap checks always use `used + reserved`, so concurrent
-//! calls cannot oversell the same remaining capacity.
+//! Each row records the abstract billing units an app used in a calendar
+//! month UTC (`YYYY-MM`). A call is admitted while recorded usage is below
+//! its limits; the provider-reported usage is added after it completes.
+//! The last admitted calls can therefore finish over a limit, and the next
+//! call is refused. `units_reserved` is kept for legacy and administrative
+//! rows and still counts as used.
 //!
 //! The store lives at `${YUOS_DATA_DIR}/ai_budget.db`. Writing is
 //! serialised through SQLite's own locking; readers see consistent
@@ -347,67 +348,51 @@ impl Store {
         Ok(result)
     }
 
-    /// Reserve both rows even when the owner has not set a limit.
-    pub(super) fn reserve_app(
+    /// Admit an App call while both its own and the owner's recorded usage
+    /// are below their limits. Nothing is reserved.
+    pub(super) fn admit_app(
         &mut self,
         app: &str,
-        units: u64,
         app_cap: u64,
         read_limit: impl FnOnce() -> Result<u64, String>,
-    ) -> Result<Snapshot, BudgetError> {
+    ) -> Result<String, BudgetError> {
         let tx = self
             .conn
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let period = current_period_utc();
         let owner_cap = read_limit().map_err(BudgetError::Settings)?;
         ensure_owner_app_row(&tx, &period)?;
-        let mut app_total = 0;
         // Check the App restriction first so it cannot produce a user-budget
         // notification for a request that was independently barred.
         for (app, cap_units) in [(app, app_cap), (OWNER_APP_BUCKET, owner_cap)] {
-            let row: Option<(i64, i64)> = tx
-                .query_row(
-                    "SELECT units_used, units_reserved FROM ai_budget \
-                     WHERE app_id = ?1 AND period = ?2",
-                    params![app, period],
-                    |r| Ok((r.get(0)?, r.get(1)?)),
-                )
-                .optional()?;
-            let (used, reserved) = row.unwrap_or((0, 0));
-            let used = used.max(0) as u64;
-            let reserved = reserved.max(0) as u64;
-            let total = used
-                .checked_add(reserved)
-                .and_then(|value| value.checked_add(units))
-                .unwrap_or(u64::MAX);
-            if cap_units > 0 && total > cap_units {
+            let used = recorded_units(&tx, app, &period)?;
+            if cap_units > 0 && used >= cap_units {
                 if app == OWNER_APP_BUCKET {
                     return Err(BudgetError::OwnerLimit { period, cap: cap_units });
                 }
                 return Err(BudgetError::OverUnitCap {
                     app: app.to_string(),
-                    used: total,
+                    used,
                     cap: cap_units,
                 });
             }
-            let new_reserved = reserved
-                .checked_add(units)
-                .ok_or(BudgetError::StorageRange)?;
-            let stored_reserved =
-                i64::try_from(new_reserved).map_err(|_| BudgetError::StorageRange)?;
-            tx.execute(
-                "INSERT INTO ai_budget(app_id, period, units_used, units_reserved) \
-                 VALUES (?1, ?2, 0, ?3) \
-                 ON CONFLICT(app_id, period) DO UPDATE SET \
-                     units_reserved = excluded.units_reserved",
-                params![app, period, stored_reserved],
-            )?;
-            if app != OWNER_APP_BUCKET {
-                app_total = total;
-            }
         }
         tx.commit()?;
-        Ok(Snapshot { period, units_used: app_total })
+        Ok(period)
+    }
+
+    /// Admit a call while `app`'s recorded usage is below `cap_units`.
+    pub(super) fn admit(&mut self, app: &str, cap_units: u64) -> Result<String, BudgetError> {
+        let period = current_period_utc();
+        let used = recorded_units(&self.conn, app, &period)?;
+        if cap_units > 0 && used >= cap_units {
+            return Err(BudgetError::OverUnitCap {
+                app: app.to_string(),
+                used,
+                cap: cap_units,
+            });
+        }
+        Ok(period)
     }
 
     /// Apply a legacy signed adjustment. Hot-path callers should use
@@ -601,8 +586,10 @@ impl Store {
         }
         for (app, stored_used, stored_reserved, _) in &updates {
             tx.execute(
-                "UPDATE ai_budget SET units_used = ?3, units_reserved = ?4 \
-                 WHERE app_id = ?1 AND period = ?2",
+                "INSERT INTO ai_budget(app_id, period, units_used, units_reserved) \
+                 VALUES (?1, ?2, ?3, ?4) \
+                 ON CONFLICT(app_id, period) DO UPDATE SET \
+                 units_used = excluded.units_used, units_reserved = excluded.units_reserved",
                 params![app, period, stored_used, stored_reserved],
             )?;
         }
@@ -669,56 +656,51 @@ impl Store {
     }
 }
 
-enum Account {
-    App {
-        id: String,
-        cap: u64,
-        owner: Option<u32>,
-    },
-    SystemAgent {
-        cap: u64,
-    },
+fn recorded_units(conn: &Connection, app: &str, period: &str) -> Result<u64, BudgetError> {
+    let row: Option<(i64, i64)> = conn
+        .query_row(
+            "SELECT units_used, units_reserved FROM ai_budget \
+             WHERE app_id = ?1 AND period = ?2",
+            params![app, period],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?;
+    let (used, reserved) = row.unwrap_or((0, 0));
+    Ok((used.max(0) as u64).saturating_add(reserved.max(0) as u64))
 }
 
-/// A budget hold against the UTC month in which the service admitted the call.
-pub(super) struct Reservation {
+enum Account {
+    App { id: String, owner: Option<u32> },
+    SystemAgent,
+}
+
+/// One admitted model call, recorded against the UTC month in which the
+/// service admitted it.
+pub(super) struct Meter {
     store: Store,
     account: Account,
     period: String,
-    estimate: u64,
-    charge_on_drop: bool,
-    finished: bool,
 }
 
-impl Reservation {
+impl Meter {
     pub(super) fn app(
         mut store: Store,
         id: &str,
         owner: Option<u32>,
-        estimate: u64,
         cap: u64,
         owner_limit: impl FnOnce() -> Result<u64, String>,
     ) -> Result<Self, BudgetError> {
-        let snapshot = store.reserve_app(id, estimate, cap, owner_limit)?;
-        Ok(Self::new(
+        let period = store.admit_app(id, cap, owner_limit)?;
+        Ok(Self {
             store,
-            Account::App { id: id.into(), cap, owner },
-            snapshot.period,
-            estimate,
-        ))
+            account: Account::App { id: id.into(), owner },
+            period,
+        })
     }
 
-    pub(super) fn system(
-        mut store: Store,
-        estimate: u64,
-        cap: u64,
-    ) -> Result<Self, BudgetError> {
-        let snapshot = store.reserve(SYSTEM_AGENT_BUCKET, estimate, cap)?;
-        Ok(Self::new(store, Account::SystemAgent { cap }, snapshot.period, estimate))
-    }
-
-    fn new(store: Store, account: Account, period: String, estimate: u64) -> Self {
-        Self { store, account, period, estimate, charge_on_drop: false, finished: false }
+    pub(super) fn system(mut store: Store, cap: u64) -> Result<Self, BudgetError> {
+        let period = store.admit(SYSTEM_AGENT_BUCKET, cap)?;
+        Ok(Self { store, account: Account::SystemAgent, period })
     }
 
     pub(super) fn record_input(
@@ -729,55 +711,32 @@ impl Reservation {
     ) -> Result<(), String> {
         match &self.account {
             Account::App { id, .. } => self.store.record_input(session, id, origin, input),
-            Account::SystemAgent { .. } => Err("System Agent input is recorded in its session".into()),
+            Account::SystemAgent => Err("System Agent input is recorded in its session".into()),
         }
     }
 
-    pub(super) fn retain_estimate_on_drop(&mut self) {
-        self.charge_on_drop = true;
-    }
-
-    pub(super) fn finish(mut self, reported: u64) -> Result<(u64, Snapshot), BudgetError> {
-        let units = if reported == 0 { self.estimate } else { reported };
-        let result = self.settle(units);
-        // The estimate is still reserved if settlement failed before it could commit.
-        self.finished = true;
-        result.map(|snapshot| (units, snapshot))
-    }
-
-    fn settle(&mut self, units: u64) -> Result<Snapshot, BudgetError> {
-        match &self.account {
-            Account::App { id, cap, owner } => {
-                let result = self.store.settle_reservations(
+    /// Record the provider-reported usage. A call that ends without a
+    /// report, including a cancelled one, records nothing.
+    pub(super) fn finish(mut self, units: u64) -> Result<(u64, Snapshot), BudgetError> {
+        let snapshot = match &self.account {
+            Account::App { id, owner } => {
+                let snapshot = self.store.settle_reservations(
                     &self.period,
-                    &[
-                        (id.as_str(), self.estimate, units, *cap),
-                        (OWNER_APP_BUCKET, self.estimate, units, 0),
-                    ],
-                );
-                if units > 0 && (result.is_ok() || matches!(&result, Err(BudgetError::OverUnitCap { .. }))) {
+                    &[(id.as_str(), 0, units, 0), (OWNER_APP_BUCKET, 0, units, 0)],
+                )?;
+                if units > 0 {
                     if let Some(owner) = owner {
                         super::user_budget::notify(*owner, &self.period, None);
                     }
                 }
-                result
+                snapshot
             }
-            Account::SystemAgent { cap } => self.store.settle_reservation(
-                SYSTEM_AGENT_BUCKET, &self.period, self.estimate, units,
-                if units == 0 { 0 } else { *cap },
-            ),
-        }
-    }
-}
-
-impl Drop for Reservation {
-    fn drop(&mut self) {
-        if !self.finished {
-            let units = if self.charge_on_drop { self.estimate } else { 0 };
-            if let Err(error) = self.settle(units) {
-                tracing::warn!(%error, "model reservation settlement failed");
+            Account::SystemAgent => {
+                self.store
+                    .settle_reservation(SYSTEM_AGENT_BUCKET, &self.period, 0, units, 0)?
             }
-        }
+        };
+        Ok((units, snapshot))
     }
 }
 

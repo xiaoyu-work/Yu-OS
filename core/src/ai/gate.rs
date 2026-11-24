@@ -25,7 +25,7 @@
 //!          │                  OS-level model from agent.toml
 //!          │                          │
 //!          │                          ▼
-//!          │                  budget::reserve (hard-deny overcap)
+//!          │                  budget admission (refused once the limit is reached)
 //!          │                          │   owner limit from
 //!          │                          │   $HOME/.config/yuos/ai/budget.json
 //!          │                          │   (0 = unlimited)
@@ -33,10 +33,10 @@
 //!          │                  safety::redact (Strict / Standard)
 //!          │                          │
 //!          │                          ▼
-//!          └──────►  llm::registry::build(provider).chat(ChatRequest)
+//!          └──────►  llm::registry::build(provider).chat_stream(ChatRequest)
 //!                                       │
 //!                                       ▼
-//!                              budget::settle (actual usage)
+//!                              budget::settle (reported usage)
 //! ```
 //!
 //! Strict-mode is on by default for the OS; an app whose manifest has
@@ -141,12 +141,8 @@ pub struct ChatRequest {
 async fn send_chat_text(
     output: &tokio::sync::mpsc::Sender<String>,
     mut text: &str,
-    total: usize,
 ) -> Result<(), String> {
-    use crate::yuosd::ai_stream::{MAX_DELTA_BYTES, MAX_TEXT_BYTES};
-    if total > MAX_TEXT_BYTES {
-        return Err("App chat stream exceeded its text limit".into());
-    }
+    use crate::yuosd::ai_stream::MAX_DELTA_BYTES;
     while !text.is_empty() {
         let mut end = text.len().min(MAX_DELTA_BYTES);
         while !text.is_char_boundary(end) {
@@ -781,16 +777,9 @@ async fn chat_inner(
         field: "prompt",
     })?;
 
-    // 8. Build the exact provider request, then reserve its conservative
-    // maximum (serialized input bytes + provider output limit). Reserving
-    // the maximum rather than a 4-chars/token guess prevents concurrent
-    // calls from collectively overselling the monthly cap.
-    let mut llm_req = build_chat_request(
-        &model,
-        &prompt,
-        req.system.as_deref(),
-        DEFAULT_APP_MAX_OUTPUT_TOKENS,
-    );
+    // 8. Build the exact provider request. Output is unlimited unless the
+    // App sets its own `max_units`; usage is recorded after the call.
+    let mut llm_req = build_chat_request(&model, &prompt, req.system.as_deref());
     llm_req.messages[0].content.extend(images);
     llm_req.tools = req.app_tools.project(
         &cfg.provider, &model, policy.safety, &mut llm_req.messages, &mut prompt_redacted,
@@ -798,56 +787,34 @@ async fn chat_inner(
     if !llm_req.tools.is_empty() {
         llm_req.tool_choice = ToolChoice::Auto;
     }
-    let input_units = model_service::estimate_chat_input(&llm_req);
     if let Some(limit) = req.max_units {
-        let minimum = input_units.saturating_add(1);
-        let available_output = limit.checked_sub(input_units).filter(|units| *units > 0);
-        let Some(available_output) = available_output else {
-            return Err(AiError::RequestBudgetExceeded {
-                required: minimum,
+        let input_units = model_service::estimate_chat_input(&llm_req);
+        let available_output = limit
+            .checked_sub(input_units)
+            .filter(|units| *units > 0)
+            .ok_or(AiError::RequestBudgetExceeded {
+                required: input_units.saturating_add(1),
                 limit,
-            });
-        };
-        llm_req.max_tokens =
-            Some(available_output.min(DEFAULT_APP_MAX_OUTPUT_TOKENS as u64) as u32);
-    }
-    let estimated_units = model_service::estimate_chat_request(&llm_req);
-    if let Some(limit) = req.max_units {
-        if estimated_units > limit {
-            return Err(AiError::RequestBudgetExceeded {
-                required: estimated_units,
-                limit,
-            });
-        }
+            })?;
+        llm_req.max_tokens = Some(u32::try_from(available_output).unwrap_or(u32::MAX));
     }
 
-    let provider = model_service::build_chat(&cfg.provider, &model, cfg, None)
+    // A long answer can take any amount of time, so the configured request
+    // timeout only bounds silence between model events.
+    let idle = std::time::Duration::from_secs(cfg.request_timeout);
+    let unbounded = config::AgentConfig { request_timeout: 0, ..cfg.clone() };
+    let provider = model_service::build_chat(&cfg.provider, &model, &unbounded, None)
         .map_err(|error| AiError::Provider(app_provider_error(error)))?;
     let call = model_service::begin_app_call(
         authority,
         &req.app_id,
         &req.origin,
         app_cap,
-        estimated_units,
         &llm_req,
     )?;
     let (llm_resp, actual_units, snapshot) = call.run(
-        async {
-            match output {
-                Some(output) => stream_chat(provider.as_ref(), llm_req, output).await,
-                None => provider.chat(llm_req).await.map_err(app_provider_error),
-            }
-        },
-        |response| {
-            let reported = model_service::chat_units(&response.usage);
-            if output.is_some() && response.usage.input_tokens == 0 {
-                // Some streaming providers omit usage. Do not refund the
-                // reservation simply because the transport changed.
-                estimated_units.max(reported)
-            } else {
-                reported
-            }
-        },
+        stream_chat(provider.as_ref(), llm_req, output, idle),
+        |response| model_service::chat_units(&response.usage),
     ).await?;
     if let Some(limit) = req.max_units {
         if actual_units > limit {
@@ -855,41 +822,6 @@ async fn chat_inner(
                 required: actual_units,
                 limit,
             });
-        }
-    }
-
-    async fn stream_chat(
-        provider: &dyn LlmProvider,
-        request: llm::types::ChatRequest,
-        output: &tokio::sync::mpsc::Sender<String>,
-    ) -> Result<llm::types::ChatResponse, String> {
-        use futures_util::StreamExt;
-
-        tokio::select! {
-            biased;
-            _ = output.closed() => Err("App chat stream closed".into()),
-            result = async {
-                let mut accumulator = llm::accumulate::Accumulator::new(&request.model);
-                let mut events = provider.chat_stream(request).await.map_err(app_provider_error)?;
-                let mut total = 0usize;
-                while let Some(event) = events.next().await {
-                    let event = event.map_err(app_provider_error)?;
-                    if let StreamEvent::TextDelta { text } = &event {
-                        total = total.saturating_add(text.len());
-                        send_chat_text(output, text, total).await?;
-                    }
-                    if accumulator.feed(event) {
-                        let reply = accumulator.finish();
-                        // Some providers only supply a complete Message, not text deltas.
-                        if total == 0 {
-                            let text = chat_text(&reply);
-                            send_chat_text(output, &text, text.len()).await?;
-                        }
-                        return Ok(reply);
-                    }
-                }
-                Err("configured chat model did not finish its stream".into())
-            } => result,
         }
     }
 
@@ -922,6 +854,64 @@ async fn chat_inner(
         tool_calls,
         provider_state,
     })
+}
+
+/// Read the provider stream for every App chat. Text deltas are forwarded
+/// only when the App asked to stream.
+async fn stream_chat(
+    provider: &dyn LlmProvider,
+    request: LlmChatRequest,
+    output: Option<&tokio::sync::mpsc::Sender<String>>,
+    idle: std::time::Duration,
+) -> Result<LlmChatResponse, String> {
+    use futures_util::StreamExt;
+
+    async fn within<T>(
+        idle: std::time::Duration,
+        pending: impl std::future::Future<Output = T>,
+    ) -> Result<T, String> {
+        if idle.is_zero() {
+            return Ok(pending.await);
+        }
+        tokio::time::timeout(idle, pending)
+            .await
+            .map_err(|_| "configured chat model stopped responding".to_string())
+    }
+
+    let closed = async {
+        match output {
+            Some(output) => output.closed().await,
+            None => std::future::pending::<()>().await,
+        }
+    };
+    let streamed = async {
+        let mut accumulator = llm::accumulate::Accumulator::new(&request.model);
+        let mut events = within(idle, provider.chat_stream(request))
+            .await?
+            .map_err(app_provider_error)?;
+        let mut forwarded = false;
+        while let Some(event) = within(idle, events.next()).await? {
+            let event = event.map_err(app_provider_error)?;
+            if let (Some(output), StreamEvent::TextDelta { text }) = (output, &event) {
+                forwarded |= !text.is_empty();
+                send_chat_text(output, text).await?;
+            }
+            if accumulator.feed(event) {
+                let reply = accumulator.finish();
+                // Some providers only supply a complete Message, not text deltas.
+                if let Some(output) = output.filter(|_| !forwarded) {
+                    send_chat_text(output, &chat_text(&reply)).await?;
+                }
+                return Ok(reply);
+            }
+        }
+        Err("configured chat model did not finish its stream".into())
+    };
+    tokio::select! {
+        biased;
+        _ = closed => Err("App chat stream closed".into()),
+        result = streamed => result,
+    }
 }
 
 fn chat_text(response: &llm::types::ChatResponse) -> String {
@@ -1133,7 +1123,6 @@ fn build_chat_request(
     model: &str,
     user: &str,
     system: Option<&str>,
-    max_tokens: u32,
 ) -> LlmChatRequest {
     LlmChatRequest {
         model: model.to_string(),
@@ -1146,7 +1135,7 @@ fn build_chat_request(
         system: system.map(|s| s.to_string()),
         tools: Vec::new(),
         tool_choice: ToolChoice::None,
-        max_tokens: Some(max_tokens),
+        max_tokens: None,
         temperature: None,
         top_p: None,
         stop_sequences: Vec::new(),
@@ -1171,7 +1160,7 @@ fn _ensure_arc_send<T: ?Sized + Send + Sync>(_: &Arc<T>) {}
 //
 //   * `caps::require(Verb::AI_CHAT, name(model))` — defence-in-depth
 //     check AND structured audit emission to `caps.jsonl`.
-//   * `budget::reserve/settle` against the stable pseudo-app id
+//   * budget admission and settlement against the stable pseudo-app id
 //     `system.agent`, capped by `agent.system_budget_monthly_units`
 //     in `~/.config/yuos/config.json`.
 //
@@ -1338,8 +1327,6 @@ impl LlmProvider for SystemGatedProvider {
         model_service::system_chat_stream(self.inner.as_ref(), request).await
     }
 }
-
-const DEFAULT_APP_MAX_OUTPUT_TOKENS: u32 = 1024;
 
 // ---------------------------------------------------------------------------
 // Tests

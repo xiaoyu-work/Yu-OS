@@ -312,7 +312,7 @@ impl Provider for BedrockProvider {
             )
         })?;
 
-        let body_bytes = build_bedrock_body_bytes(&request)?;
+        let body_bytes = build_bedrock_body_bytes(&request, &self.cfg.model)?;
 
         let amz_date =
             current_amz_date().map_err(|e| LlmError::InvalidRequest(format!("clock: {e}")))?;
@@ -396,7 +396,7 @@ impl Provider for BedrockProvider {
             )
         })?;
 
-        let body_bytes = build_bedrock_body_bytes(&request)?;
+        let body_bytes = build_bedrock_body_bytes(&request, &self.cfg.model)?;
 
         let amz_date =
             current_amz_date().map_err(|e| LlmError::InvalidRequest(format!("clock: {e}")))?;
@@ -485,7 +485,7 @@ impl Provider for BedrockProvider {
 ///   1. Strip the `model` field — Bedrock takes it from the URL.
 ///   2. Insert `anthropic_version: "bedrock-2023-05-31"` —
 ///      required by the Bedrock runtime.
-fn build_bedrock_body_bytes(request: &ChatRequest) -> Result<Vec<u8>> {
+fn build_bedrock_body_bytes(request: &ChatRequest, model_id: &str) -> Result<Vec<u8>> {
     // The model name we pass in here is irrelevant — we strip it.
     let mut body = anthropic_wire::build_request_body(request, "_unused_", false);
     if let Some(obj) = body.as_object_mut() {
@@ -494,6 +494,16 @@ fn build_bedrock_body_bytes(request: &ChatRequest) -> Result<Vec<u8>> {
             "anthropic_version".into(),
             serde_json::Value::String(BEDROCK_ANTHROPIC_VERSION.to_string()),
         );
+        // Bedrock also requires `max_tokens`; use the known model maximum
+        // when the caller set none.
+        let known = request.max_tokens.is_none().then(|| {
+            model_id
+                .find("claude")
+                .and_then(|start| crate::agent::llm::metadata::lookup(&model_id[start..]))
+        });
+        if let Some(model) = known.flatten() {
+            obj.insert("max_tokens".into(), model.max_output_tokens.into());
+        }
     } else {
         return Err(LlmError::InvalidRequest(
             "anthropic body builder did not produce a JSON object".into(),

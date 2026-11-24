@@ -32,11 +32,12 @@ Rust, Python, Node, and Go bindings.
 - The owner configures the monthly App inference limit in Settings, not in the
   manifest. v1 usage replies remain App-scoped.
 - Keep language bindings behaviorally compatible.
-- Read bounded App chat deltas from the opt-in CLI stream; keep the existing
-  terminal response schema and errors. The Node file client exposes
-  cancellable async transfers alongside the synchronous facade.
-- Support opt-in TypeScript/Rust handler types emitted by
-  `yu app tool types`; the MCP runtime still validates the live manifest.
+- Read App chat deltas from the opt-in CLI stream; keep the existing
+  terminal response schema and errors. Model calls have no SDK deadline or
+  total text cap. The Node file client exposes cancellable async transfers
+  alongside the synchronous facade.
+- Generate opt-in TypeScript/Rust handler types in the SDK (`yuos-tool-types`,
+  `mcp::rust_tool_bindings`); the MCP runtime still validates the live manifest.
 - Publish bounded App-owned events through the same live session and named IPC
   capability. Root derives identity/source; reported events never delegate work.
 - Define pure, canonical App object references without discovery, authority,

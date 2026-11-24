@@ -82,13 +82,15 @@ fn reset_clears_period() {
     s.settle_now("app1", 20).unwrap();
     s.settle_now(LEGACY_USER_BUCKET, 15).unwrap();
     s.settle_now(crate::ai::gate::SYSTEM_AGENT_BUCKET, 300).unwrap();
-    let pending = s.reserve_app("app1", 80, 0, || Ok(0)).unwrap();
+    s.admit_app("app1", 0, || Ok(0)).unwrap();
+    let pending = s.reserve("app1", 80, 0).unwrap();
+    s.reserve(OWNER_APP_BUCKET, 80, 0).unwrap();
     let projected = s.current(OWNER_APP_BUCKET).unwrap();
     assert_eq!(projected.units_used, 100);
     s.reset("app1").unwrap();
     assert_eq!(s.current("app1").unwrap().units_used, 80);
     assert!(matches!(
-        s.reserve_app("app2", 1, 0, || Ok(100)),
+        s.admit_app("app2", 0, || Ok(100)),
         Err(BudgetError::OwnerLimit { cap: 100, .. })
     ));
     assert_eq!(s.current("app2").unwrap().units_used, 0);
@@ -98,7 +100,7 @@ fn reset_clears_period() {
     ).unwrap();
     let committed = s.owner_app_status(Ok).unwrap();
     assert_eq!(committed.units_used, 80);
-    assert!(s.reserve_app("app2", 20, 0, || Ok(100)).is_ok());
+    assert!(s.admit_app("app2", 0, || Ok(100)).is_ok());
 }
 
 #[test]

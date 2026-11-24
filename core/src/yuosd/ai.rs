@@ -8,7 +8,7 @@ use crate::ai::{gate, inference};
 
 const MODEL_PERMISSION_REQUIRED: &str = "model_permission_required";
 
-const CHAT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+const INFERENCE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 
 pub async fn chat(
     params: Value,
@@ -44,10 +44,10 @@ pub async fn chat(
     crate::paths::with_user_override(authority.owner_uid(), home, async {
         // Only daemon configuration is consulted. Client environment fields
         // are neither transported nor installed in this request scope.
+        // Chat output is unlimited; the gate detects a silent model instead.
         crate::config::with_snapshot(crate::config::load_user_config(), async {
-            tokio::time::timeout(CHAT_TIMEOUT, gate::chat_authorized(req, authority, output.as_ref()))
+            gate::chat_authorized(req, authority, output.as_ref())
                 .await
-                .map_err(|_| BrokerError::unavailable("AI request deadline exceeded"))?
                 .map_err(|error| error_reply(&app_id, error))
                 .and_then(|result| {
                     serde_json::to_value(result)
@@ -71,7 +71,7 @@ pub async fn infer(
     crate::paths::with_user_override(authority.owner_uid(), home.clone(), async {
         crate::config::with_snapshot(crate::config::load_user_config(), async {
             tokio::time::timeout(
-                CHAT_TIMEOUT,
+                INFERENCE_TIMEOUT,
                 inference::run(body.app_id.as_str(), body.request, authority, &home),
             )
             .await

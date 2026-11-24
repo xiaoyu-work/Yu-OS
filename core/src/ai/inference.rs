@@ -275,7 +275,6 @@ async fn run_inner(
         app,
         origin,
         app_cap,
-        units.into(),
         &json!({
             "provider": target.provider, "model": target.model, "input": input.audit_input(),
         }),
