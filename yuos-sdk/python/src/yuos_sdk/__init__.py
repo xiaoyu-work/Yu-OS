@@ -39,7 +39,47 @@ implementation details of the yuos bundled apps, not part of the
 public SDK surface.
 """
 
-from . import ai, app, channels, events, files, gui, kernel, manifest, mcp, objects, tools
+from . import (
+    ai,
+    app,
+    browser_bridge,
+    channels,
+    egress,
+    events,
+    file_changes,
+    files,
+    gui,
+    kernel,
+    manifest,
+    mcp,
+    memory,
+    network_diagnostics,
+    objects,
+    policy,
+    smtp,
+    snapshot,
+    tools,
+)
 
-__all__ = ["ai", "app", "channels", "events", "files", "gui", "kernel", "manifest", "mcp", "objects", "tools"]
+__all__ = [
+    "ai",
+    "app",
+    "browser_bridge",
+    "channels",
+    "egress",
+    "events",
+    "file_changes",
+    "files",
+    "gui",
+    "kernel",
+    "manifest",
+    "mcp",
+    "memory",
+    "network_diagnostics",
+    "objects",
+    "policy",
+    "smtp",
+    "snapshot",
+    "tools",
+]
 __version__ = "0.1.0"
