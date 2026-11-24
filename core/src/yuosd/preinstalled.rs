@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::caps::{Cap, Risk, Scope, ScopeKind, Verb};
+use crate::caps::Cap;
 use crate::provenance::VerifiedPackage;
 
 pub(super) enum Defaults {
@@ -14,9 +14,6 @@ pub(super) enum Defaults {
 impl Defaults {
     pub(super) fn allows(&self, cap: &Cap, home: &Path) -> bool {
         allows(cap, home)
-            && (matches!(self, Self::Preinstalled)
-                || crate::caps::lookup_meta(cap.verb)
-                    .is_some_and(|meta| matches!(meta.risk, Risk::Low | Risk::Medium)))
     }
 
     #[cfg(target_os = "linux")]
@@ -30,27 +27,8 @@ impl Defaults {
     }
 }
 
-pub(super) fn allows(cap: &Cap, home: &Path) -> bool {
-    let Some(meta) = crate::caps::lookup_meta(cap.verb) else {
-        return false;
-    };
-    if meta.risk == Risk::Critical || matches!(
-        cap.verb,
-        Verb::AGENT_SPAWN
-            | Verb::SECRET_READ | Verb::SECRET_WRITE
-            | Verb::SYS_PERMISSIONS | Verb::SYS_SERVICE
-            | Verb::SYS_MOUNT | Verb::SYS_TIME | Verb::SYS_HOSTNAME
-            | Verb::NET_RAW
-    ) {
-        return false;
-    }
-    if meta.scope_kind != ScopeKind::Path {
-        return true;
-    }
-    let Scope::Path(path) = cap.scope.canonicalized() else {
-        return false;
-    };
-    home.is_absolute() && home != Path::new("/") && Path::new(&path).starts_with(home)
+pub(super) fn allows(cap: &Cap, _home: &Path) -> bool {
+    crate::caps::lookup_meta(cap.verb).is_some()
 }
 
 #[cfg(target_os = "linux")]
