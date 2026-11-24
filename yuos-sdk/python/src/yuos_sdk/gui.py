@@ -162,6 +162,14 @@ def is_gui_launch() -> bool:
     return os.environ.get("YUOS_APP_GUI") == "1"
 
 
+def owner_home() -> Optional[str]:
+    """Return the authenticated owner's home directory (`YUOS_OWNER_HOME`) when set."""
+    raw = os.environ.get("YUOS_OWNER_HOME")
+    if not raw or not os.path.isabs(raw):
+        return None
+    return os.path.realpath(raw)
+
+
 @dataclass
 class GuiContext:
     """The kernel context handed to a desktop app at launch.
@@ -272,6 +280,7 @@ def _run_picker(
     title: str,
     dev_env: str,
     name: Optional[str] = None,
+    file_filter: Optional[str] = None,
 ) -> Optional[str]:
     if not os.environ.get("YUOS_SESSION"):
         dev_val = os.environ.get(dev_env)
@@ -282,17 +291,22 @@ def _run_picker(
         "request_id": request_id,
         "title": title,
         "modal": True,
-        "mode": mode,
     }
+    if mode != "file":
+        payload["mode"] = mode
     if name is not None:
         payload["name"] = name
+    if file_filter is not None:
+        payload["filter"] = file_filter
     _selected_file_call("__gui-file-picker", "open", payload)
     while True:
         res = _selected_file_call("__gui-file-picker", "status", {"request_id": request_id})
         status = res.get("status") if isinstance(res, dict) else None
-        if status in ("pending", "cleanup_pending"):
+        if status == "pending":
             time.sleep(0.1)
             continue
+        if status == "cleanup_pending":
+            raise RuntimeError("OS file picker cleanup is unconfirmed; do not replay")
         if status == "selected":
             uri = str(res.get("uri") or "")
             if uri.startswith("file://"):
@@ -304,16 +318,21 @@ def _run_picker(
         raise RuntimeError(str(error or "file picker failed"))
 
 
-def open_file(title: str = "Open file") -> Optional[str]:
+def open_file(title: str = "Open file", *, file_filter: Optional[str] = None) -> Optional[str]:
     """Open the system file picker and return the selected file path, or ``None`` if cancelled."""
-    return _run_picker("file", title, "YUOS_DEV_OPEN_FILE")
+    return _run_picker("file", title, "YUOS_DEV_OPEN_FILE", file_filter=file_filter)
 
 
-def save_file(default_name: str, title: str = "Save file") -> Optional[str]:
+def save_file(
+    default_name: str,
+    title: str = "Save file",
+    *,
+    file_filter: Optional[str] = None,
+) -> Optional[str]:
     """Open the system Save dialog and return the chosen path, or ``None`` if cancelled."""
     if not isinstance(default_name, str) or not default_name.strip():
         raise ValueError("save_file: default_name must be a non-empty filename")
-    return _run_picker("save", title, "YUOS_DEV_SAVE_FILE", name=default_name)
+    return _run_picker("save", title, "YUOS_DEV_SAVE_FILE", name=default_name, file_filter=file_filter)
 
 
 def select_folder(title: str = "Select folder") -> Optional[str]:

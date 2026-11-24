@@ -220,6 +220,40 @@ fn selected_read_response(
     serde_json::from_value(response).map_err(|error| selected_read_decode(verb, error))
 }
 
+fn percent_decode_path(input: &str) -> String {
+    let bytes = input.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let (Some(hi), Some(lo)) = (
+                (bytes[i + 1] as char).to_digit(16),
+                (bytes[i + 2] as char).to_digit(16),
+            ) {
+                out.push(((hi << 4) | lo) as u8);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+fn next_picker_request_id() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+    static COUNTER: AtomicU64 = AtomicU64::new(1);
+    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0);
+    let high = nanos ^ ((std::process::id() as u64) << 32);
+    format!("{high:016x}{seq:016x}")
+}
+
 /// The kernel context handed to a desktop app at launch.
 fn run_picker(
     mode: &str,
@@ -232,13 +266,15 @@ fn run_picker(
             return Ok((!dev_file.is_empty()).then_some(dev_file));
         }
     }
-    let request_id = format!("{:032x}", std::process::id());
+    let request_id = next_picker_request_id();
     let mut payload = serde_json::json!({
         "request_id": request_id,
         "title": title,
         "modal": true,
-        "mode": mode,
     });
+    if mode != "file" {
+        payload["mode"] = serde_json::json!(mode);
+    }
     if let Some(n) = name {
         payload["name"] = serde_json::json!(n);
     }
@@ -251,13 +287,19 @@ fn run_picker(
         )
         .map_err(|e| e.to_string())?;
         match res.get("status").and_then(serde_json::Value::as_str) {
-            Some("pending" | "cleanup_pending") => {
+            Some("pending") => {
                 std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            Some("cleanup_pending") => {
+                return Err("OS file picker cleanup is unconfirmed; do not replay".into());
             }
             Some("selected") => {
                 let uri = res.get("uri").and_then(serde_json::Value::as_str).unwrap_or("");
-                let path = uri.strip_prefix("file://").unwrap_or(uri);
-                return Ok(Some(path.to_string()));
+                let path = match uri.strip_prefix("file://") {
+                    Some(raw) => percent_decode_path(raw),
+                    None => uri.to_string(),
+                };
+                return Ok(Some(path));
             }
             Some("cancelled") => return Ok(None),
             _ => {

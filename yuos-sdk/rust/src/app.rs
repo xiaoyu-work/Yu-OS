@@ -116,7 +116,7 @@ pub fn clipboard_write(text: &str) -> Result<(), crate::BridgeError> {
     res.map(|_| ())
 }
 
-/// Load a secret from the Yu OS credential store (`secret.use`).
+/// Load a secret from the Yu OS credential store (`secret.read`).
 pub fn secret(name: &str, namespace: &str) -> Result<String, crate::BridgeError> {
     let name = name.trim();
     if name.is_empty() {
@@ -131,20 +131,21 @@ pub fn secret(name: &str, namespace: &str) -> Result<String, crate::BridgeError>
     } else {
         namespace.trim()
     };
-    if std::env::var_os("YUOS_SESSION").is_none() {
-        let env_key = format!(
-            "YUOS_DEV_SECRET_{}",
-            name.chars()
-                .map(|c| if c.is_ascii_alphanumeric() {
-                    c.to_ascii_uppercase()
-                } else {
-                    '_'
-                })
-                .collect::<String>()
-        );
-        return Ok(std::env::var(&env_key)
-            .or_else(|_| std::env::var("YUOS_DEV_SECRET"))
-            .unwrap_or_default());
+    let env_key = format!(
+        "YUOS_DEV_SECRET_{}",
+        name.chars()
+            .map(|c| if c.is_ascii_alphanumeric() {
+                c.to_ascii_uppercase()
+            } else {
+                '_'
+            })
+            .collect::<String>()
+    );
+    if let Ok(v) = std::env::var(&env_key).or_else(|_| std::env::var("YUOS_DEV_SECRET")) {
+        return Ok(v);
+    }
+    if std::env::var("YUOS_DEV_MODE").as_deref() == Ok("1") {
+        return Ok(String::new());
     }
     let res = crate::yu_call_json(
         "credential",
@@ -200,7 +201,7 @@ pub fn check_permission(
             message: "check_permission: verb must be non-empty".into(),
         });
     }
-    if std::env::var_os("YUOS_SESSION").is_none() {
+    if std::env::var("YUOS_DEV_MODE").as_deref() == Ok("1") {
         return Ok(serde_json::json!({
             "decision": "allow",
             "verb": verb,

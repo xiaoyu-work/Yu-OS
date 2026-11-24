@@ -30,6 +30,7 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, overload
 from .kernel import call_json_with_stdin_binary
 
 __all__ = [
+    "PermissionDenied",
     "check_permission",
     "clipboard_read",
     "clipboard_write",
@@ -52,6 +53,25 @@ _desktop_commands: Dict[str, Callable[..., Any]] = {}
 _desktop: Optional[Callable[..., Any]] = None
 _dispatched: bool = False
 _dev_clipboard: str = ""
+
+
+class PermissionDenied(PermissionError):
+    """Raised when the Yu OS policy gate denies a requested capability."""
+
+    def __init__(self, decision: Dict[str, Any]) -> None:
+        self.denial = dict(decision)
+        super().__init__(self.denial.get("summary") or f"permission denied: {self.denial.get('verb', '')}")
+
+
+def _resolve_yu_binary() -> str:
+    import shutil
+
+    return (
+        os.environ.get("YUOS_KERNEL_BIN")
+        or os.environ.get("YUOS_BIN")
+        or shutil.which("yu")
+        or "/usr/local/bin/yu"
+    )
 
 
 @overload
@@ -131,7 +151,7 @@ def data_dir() -> Path:
         base = Path(xdg) if xdg else (Path.home() / ".local" / "share")
         app_id = os.environ.get("YUOS_APP_ID") or "dev"
         path = base / "yuos-dev" / "apps" / app_id
-    path.mkdir(parents=True, exist_ok=True)
+    path.mkdir(mode=0o700, parents=True, exist_ok=True)
     return path
 
 
@@ -206,19 +226,19 @@ def clipboard_write(text: str) -> None:
 
 
 def secret(name: str, namespace: str = "default") -> str:
-    """Load a secret from the Yu OS credential store (`secret.use`)."""
+    """Load a secret from the Yu OS credential store (`secret.read`)."""
     if not isinstance(name, str) or not name.strip():
         raise ValueError("secret: name must be a non-empty string")
     if not isinstance(namespace, str) or not namespace.strip():
         raise ValueError("secret: namespace must be a non-empty string")
-    if not os.environ.get("YUOS_SESSION"):
-        env_key = "YUOS_DEV_SECRET_" + "".join(
-            ch if ch.isalnum() else "_" for ch in name.strip().upper()
-        )
+    env_key = "YUOS_DEV_SECRET_" + "".join(
+        ch if ch.isalnum() else "_" for ch in name.strip().upper()
+    )
+    if os.environ.get("YUOS_DEV_MODE") == "1" or env_key in os.environ or "YUOS_DEV_SECRET" in os.environ:
         return os.environ.get(env_key, os.environ.get("YUOS_DEV_SECRET", ""))
     deadline = time.time_ns() // 1_000_000 + 10_000
     res = call_json_with_stdin_binary(
-        os.environ.get("YUOS_KERNEL_BIN", "/usr/local/bin/yu"),
+        _resolve_yu_binary(),
         ["credential", "load", name.strip(), "--namespace", namespace.strip()],
         b"",
         deadline_unix_ms=deadline,
@@ -253,7 +273,7 @@ def check_permission(
         raise ValueError(
             "check_permission accepts at most one of path / host / name / self_ref / wild"
         )
-    if not os.environ.get("YUOS_SESSION"):
+    if os.environ.get("YUOS_DEV_MODE") == "1":
         return {"decision": "allow", "verb": verb, "granted": True}
     argv = ["__policy", "check", verb]
     if supplied:
@@ -263,7 +283,7 @@ def check_permission(
             argv.append(val)
     deadline = time.time_ns() // 1_000_000 + 10_000
     res = call_json_with_stdin_binary(
-        os.environ.get("YUOS_KERNEL_BIN", "/usr/local/bin/yu"),
+        _resolve_yu_binary(),
         argv,
         b"",
         deadline_unix_ms=deadline,
@@ -292,7 +312,7 @@ def require_permission(
         wild=wild,
     )
     if decision.get("decision") != "allow":
-        raise PermissionError(decision.get("summary") or f"permission denied: {verb}")
+        raise PermissionDenied(decision)
 
 
 def launch_app(app_id: str, uri: Optional[str] = None) -> Dict[str, Any]:
@@ -412,30 +432,93 @@ def _run_desktop(resolved_args: List[str], cli_invoked: bool) -> Any:
     return result
 
 
-def run(name: Optional[str] = None, args: Optional[List[str]] = None) -> Any:
+def _serve_mcp_from_commands() -> None:
+    from .mcp import App, ToolResult
+
+    manifest_path = Path(os.environ.get("YUOS_APP_MANIFEST") or "app.json")
+    mcp_app = App.from_manifest(manifest_path)
+    raw_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    app_id = raw_manifest.get("id", "")
+    tools = raw_manifest.get("mcp", {}).get("tools", [])
+    for tool_decl in tools:
+        tool_name = tool_decl.get("name", "")
+        short_name = tool_name[len(app_id) + 1 :] if tool_name.startswith(f"{app_id}.") else tool_name
+        handler = _commands.get(short_name) or _commands.get(tool_name)
+        if handler is None:
+            continue
+
+        def _make_tool_fn(fn: Callable[..., Any], decl: Dict[str, Any]) -> Callable[..., Any]:
+            def _invoke(**kwargs: Any) -> Any:
+                argv: List[str] = []
+                for arg_decl in decl.get("args", []):
+                    aname = arg_decl["name"]
+                    if aname not in kwargs or kwargs[aname] is None:
+                        continue
+                    val = kwargs[aname]
+                    binding = arg_decl.get("binding") or ("flag" if arg_decl.get("kind") == "bool" else "positional")
+                    flag_str = f"--{aname.replace('_', '-')}"
+                    if arg_decl.get("kind") == "bool":
+                        if val is True:
+                            argv.append(flag_str)
+                        elif val is False:
+                            argv.append(f"{flag_str}=false")
+                    elif binding == "flag":
+                        if isinstance(val, list):
+                            for item in val:
+                                argv.extend([flag_str, str(item)])
+                        else:
+                            argv.extend([flag_str, str(val)])
+                    else:
+                        if isinstance(val, list):
+                            argv.extend(str(item) for item in val)
+                        else:
+                            argv.append(str(val))
+                res = fn(argv)
+                if isinstance(res, dict) and ("error" in res or res.get("ok") is False):
+                    tr = ToolResult.structured(res)
+                    return ToolResult(content=tr.content, is_error=True, structured_content=res)
+                return res
+
+            return _invoke
+
+        mcp_app.tool(tool_name)(_make_tool_fn(handler, tool_decl))
+    mcp_app.serve()
+
+
+def run(name: Optional[str] = None, args: Any = None) -> Any:
     """Call the function for this launch. Yu OS calls this for ``main.py``."""
     global _dispatched
     _dispatched = True
     cli_invoked = name is None
+    if cli_invoked and os.environ.get("YUOS_MCP_SERVER") == "1" and _commands:
+        _serve_mcp_from_commands()
+        return None
     env_args = _parse_env_args()
 
+    def _coerce_args(raw: Any, fallback: List[str]) -> Any:
+        if raw is None:
+            return fallback
+        if isinstance(raw, dict):
+            return raw
+        return list(raw)
+
     if os.environ.get("YUOS_APP_GUI") == "1":
-        resolved_args = list(args) if args is not None else (env_args if env_args is not None else [])
-        return _run_desktop(resolved_args, cli_invoked)
+        resolved_args = _coerce_args(args, env_args if env_args is not None else [])
+        return _run_desktop(resolved_args if isinstance(resolved_args, list) else [], cli_invoked)
 
     if name is None:
         env_cmd = os.environ.get("YUOS_COMMAND")
         if env_cmd:
             name = env_cmd
-            resolved_args = list(args) if args is not None else (env_args if env_args is not None else [])
+            resolved_args = _coerce_args(args, env_args if env_args is not None else [])
         else:
-            cli_args = list(args) if args is not None else list(sys.argv[1:])
+            cli_args = list(args) if args is not None and not isinstance(args, dict) else list(sys.argv[1:])
             if cli_args and cli_args[0] == "--gui":
                 return _run_desktop(cli_args[1:], cli_invoked)
             name = cli_args[0] if cli_args else ""
             resolved_args = env_args if env_args is not None else cli_args[1:]
     else:
-        resolved_args = list(args) if args is not None else (env_args if env_args is not None else [])
+        resolved_args = _coerce_args(args, env_args if env_args is not None else [])
 
     handler = _commands.get(name)
     if handler is None:
@@ -459,6 +542,9 @@ def _main(argv: Optional[List[str]] = None) -> None:
     sys.modules.setdefault("yuos_sdk.app", sys.modules[__name__])
     app_mod = sys.modules["yuos_sdk.app"]
     app_mod._dispatched = False
+    app_mod._commands.clear()
+    app_mod._desktop_commands.clear()
+    app_mod._desktop = None
     old_argv = sys.argv
     sys.argv = [script_path, *cli[1:]]
     try:

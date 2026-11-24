@@ -18,11 +18,14 @@ package yuossdk
 import (
 	"bufio"
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -205,8 +208,13 @@ func runPicker(mode, title, devEnv, name string) (string, error) {
 			return devFile, nil
 		}
 	}
-	reqID := fmt.Sprintf("%032x", time.Now().UnixNano())
-	payload := map[string]any{"request_id": reqID, "title": title, "modal": true, "mode": mode}
+	var rnd [16]byte
+	_, _ = rand.Read(rnd[:])
+	reqID := hex.EncodeToString(rnd[:])
+	payload := map[string]any{"request_id": reqID, "title": title, "modal": true}
+	if mode != "file" {
+		payload["mode"] = mode
+	}
 	if name != "" {
 		payload["name"] = name
 	}
@@ -220,13 +228,23 @@ func runPicker(mode, title, devEnv, name string) (string, error) {
 		}
 		res, _ := raw.(map[string]any)
 		status, _ := res["status"].(string)
-		if status == "pending" || status == "cleanup_pending" {
+		if status == "pending" {
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
+		if status == "cleanup_pending" {
+			return "", fmt.Errorf("OS file picker cleanup is unconfirmed; do not replay")
+		}
 		if status == "selected" {
 			uri, _ := res["uri"].(string)
-			return strings.TrimPrefix(uri, "file://"), nil
+			if strings.HasPrefix(uri, "file://") {
+				rawPath := strings.TrimPrefix(uri, "file://")
+				if decoded, err := url.PathUnescape(rawPath); err == nil {
+					return decoded, nil
+				}
+				return rawPath, nil
+			}
+			return uri, nil
 		}
 		if status == "cancelled" {
 			return "", nil

@@ -244,6 +244,8 @@ const SYSTEM_PATHS: &[&str] = &[
     "/etc/ld.so.conf.d",
     "/etc/localtime",
     "/etc/nsswitch.conf",
+    "/etc/resolv.conf",
+    "/etc/hosts",
     "/etc/ssl",
     "/etc/pki",
     "/etc/ca-certificates",
@@ -727,7 +729,9 @@ fn build_bwrap_args_with_seccomp(
     push!("--unshare-ipc");
     push!("--unshare-uts");
     push!("--unshare-cgroup-try");
-    push!("--unshare-net");
+    if policy.network != NetworkPolicy::PublicInternet {
+        push!("--unshare-net");
+    }
     // Re-entering a user namespace is the standard way back to
     // CAP_SYS_ADMIN and therefore back to mount(2); refuse to launch if
     // the kernel cannot turn it off.

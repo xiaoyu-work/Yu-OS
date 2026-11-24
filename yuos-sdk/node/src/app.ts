@@ -37,7 +37,7 @@ export function dataDir(): string {
         "apps",
         process.env.YUOS_APP_ID || "dev",
       );
-  mkdirSync(dir, { recursive: true });
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
   return dir;
 }
 
@@ -98,14 +98,14 @@ export function clipboardWrite(text: string): void {
   }
 }
 
-/** Load a secret from the Yu OS credential store (`secret.use`). */
+/** Load a secret from the Yu OS credential store (`secret.read`). */
 export function secret(name: string, namespace = "default"): string {
   if (typeof name !== "string" || !name.trim()) throw new Error("secret: name must be non-empty");
   if (typeof namespace !== "string" || !namespace.trim()) {
     throw new Error("secret: namespace must be non-empty");
   }
-  if (!process.env.YUOS_SESSION) {
-    const envKey = `YUOS_DEV_SECRET_${name.trim().toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
+  const envKey = `YUOS_DEV_SECRET_${name.trim().toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
+  if (process.env.YUOS_DEV_MODE === "1" || process.env[envKey] !== undefined || process.env.YUOS_DEV_SECRET !== undefined) {
     return process.env[envKey] ?? process.env.YUOS_DEV_SECRET ?? "";
   }
   const res = yuCallJson(
@@ -139,7 +139,7 @@ export function checkPermission(verb: string, scope: PermissionScope = {}): Reco
   if (supplied.length > 1) {
     throw new Error("checkPermission accepts at most one of path / host / name / selfRef / wild");
   }
-  if (!process.env.YUOS_SESSION) {
+  if (process.env.YUOS_DEV_MODE === "1") {
     return { decision: "allow", verb, granted: true };
   }
   const argv = ["__policy", "check", verb];

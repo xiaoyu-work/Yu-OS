@@ -302,18 +302,29 @@ function validateAskYuLauncher(): void {
  * the GUI). `files` defaults to the launcher's file arguments, decoded
  * from `YUOS_ARGS_JSON` when not supplied explicitly.
  */
-function runPicker(mode: "file" | "save" | "folder", title: string, devEnv: string, name?: string): string | null {
+function runPicker(
+  mode: "file" | "save" | "folder",
+  title: string,
+  devEnv: string,
+  name?: string,
+  filter?: string,
+): string | null {
   if (!process.env.YUOS_SESSION && process.env[devEnv] !== undefined) {
     return process.env[devEnv] || null;
   }
   const requestId = Array.from({ length: 16 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, "0")).join("");
-  const payload: Record<string, unknown> = { request_id: requestId, title, modal: true, mode };
+  const payload: Record<string, unknown> = { request_id: requestId, title, modal: true };
+  if (mode !== "file") payload.mode = mode;
   if (name !== undefined) payload.name = name;
+  if (filter !== undefined) payload.filter = filter;
   selectedFileCall("__gui-file-picker", "open", payload);
   for (;;) {
     const res = selectedFileCall("__gui-file-picker", "status", { request_id: requestId }) as Record<string, unknown>;
     const status = res?.status;
-    if (status === "pending" || status === "cleanup_pending") continue;
+    if (status === "pending") continue;
+    if (status === "cleanup_pending") {
+      throw new Error("OS file picker cleanup is unconfirmed; do not replay");
+    }
     if (status === "selected") {
       const uri = String(res.uri ?? "");
       return uri.startsWith("file://") ? decodeURIComponent(new URL(uri).pathname) : uri;
@@ -324,14 +335,14 @@ function runPicker(mode: "file" | "save" | "folder", title: string, devEnv: stri
 }
 
 /** Open the system file picker and return the selected file path, or `null` if cancelled. */
-export function openFile(title = "Open file"): string | null {
-  return runPicker("file", title, "YUOS_DEV_OPEN_FILE");
+export function openFile(title = "Open file", filter?: string): string | null {
+  return runPicker("file", title, "YUOS_DEV_OPEN_FILE", undefined, filter);
 }
 
 /** Open the system Save dialog and return the chosen path, or `null` if cancelled. */
-export function saveFile(defaultName: string, title = "Save file"): string | null {
+export function saveFile(defaultName: string, title = "Save file", filter?: string): string | null {
   if (!defaultName || !defaultName.trim()) throw new Error("saveFile: defaultName must be non-empty");
-  return runPicker("save", title, "YUOS_DEV_SAVE_FILE", defaultName);
+  return runPicker("save", title, "YUOS_DEV_SAVE_FILE", defaultName, filter);
 }
 
 /** Open the system folder picker and return the selected directory path, or `null` if cancelled. */

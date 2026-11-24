@@ -1103,6 +1103,9 @@ fn finalize_prepared_app_service_call(
         &ceiling,
         app_id,
     )?;
+    for cap in declared_tool.implicit_path_read_caps(&effective.values) {
+        plan.require(cap, delegation);
+    }
     // A broad parent write grant is not the protected approval for this
     // apply. Require either an exact live delegation or the ordinary
     // owner approval for the exact path.

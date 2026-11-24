@@ -62,7 +62,7 @@ func DataDir() (string, error) {
 		}
 		dir = filepath.Join(base, "yuos-dev", "apps", appID)
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
 	return dir, nil
@@ -131,7 +131,7 @@ func ClipboardWrite(text string) error {
 	return err
 }
 
-// Secret loads a secret from the Yu OS credential store (`secret.use`).
+// Secret loads a secret from the Yu OS credential store (`secret.read`).
 func Secret(name, namespace string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -141,20 +141,23 @@ func Secret(name, namespace string) (string, error) {
 	if namespace == "" {
 		namespace = "default"
 	}
-	if os.Getenv("YUOS_SESSION") == "" {
-		var b strings.Builder
-		b.WriteString("YUOS_DEV_SECRET_")
-		for _, r := range strings.ToUpper(name) {
-			if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
-				b.WriteRune(r)
-			} else {
-				b.WriteRune('_')
-			}
+	var b strings.Builder
+	b.WriteString("YUOS_DEV_SECRET_")
+	for _, r := range strings.ToUpper(name) {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune('_')
 		}
-		if v, ok := os.LookupEnv(b.String()); ok {
-			return v, nil
-		}
-		return os.Getenv("YUOS_DEV_SECRET"), nil
+	}
+	if v, ok := os.LookupEnv(b.String()); ok {
+		return v, nil
+	}
+	if v, ok := os.LookupEnv("YUOS_DEV_SECRET"); ok {
+		return v, nil
+	}
+	if os.Getenv("YUOS_DEV_MODE") == "1" {
+		return "", nil
 	}
 	out, err := yuCallJSON("yu credential load", []string{"credential", "load", name, "--namespace", namespace}, nil)
 	if err != nil {
@@ -202,7 +205,7 @@ func CheckPermission(verb string, scope PermissionScope) (map[string]any, error)
 	if len(flags) > 1 {
 		return nil, errors.New("checkPermission accepts at most one of Path / Host / Name / SelfRef / Wild")
 	}
-	if os.Getenv("YUOS_SESSION") == "" {
+	if os.Getenv("YUOS_DEV_MODE") == "1" {
 		return map[string]any{"decision": "allow", "verb": verb, "granted": true}, nil
 	}
 	argv := []string{"__policy", "check", verb}

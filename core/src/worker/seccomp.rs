@@ -74,6 +74,8 @@ const X32_SYSCALL_BIT: u32 = 0x4000_0000;
 /// networking" true at the syscall layer and not only at the namespace
 /// layer.
 const AF_UNIX: u32 = 1;
+const AF_INET: u32 = 2;
+const AF_INET6: u32 = 10;
 
 #[cfg(target_arch = "x86_64")]
 const AUDIT_ARCH: u32 = 0xc000_003e;
@@ -201,10 +203,11 @@ pub fn program(profile: SeccompProfile) -> Vec<Instruction> {
 
     // Fixed prologue (4) + one compare per domain-checked syscall +
     // one compare per denied call + the allow fall-through, then the
-    // domain block (5) and the three returns.
+    // domain block and the three returns.
+    let extra_inet = if profile == SeccompProfile::StrictNetwork { 2 } else { 0 };
     let allow_index = 4 + checked.len() + denied.len();
     let domain_index = allow_index + 1;
-    let domain_allow_index = domain_index + 4;
+    let domain_allow_index = domain_index + 4 + extra_inet;
     let errno_index = domain_allow_index + 1;
     let kill_index = errno_index + 1;
 
@@ -256,9 +259,10 @@ pub fn program(profile: SeccompProfile) -> Vec<Instruction> {
         jf: 0,
         k: SECCOMP_RET_ALLOW,
     });
-    // Domain check. The high word must be zero and the low word must be
-    // AF_UNIX; anything else — including a domain smuggled above 2^32 —
-    // is refused.
+    // Domain check. The high word must be zero; in Strict mode only AF_UNIX
+    // is permitted, while StrictNetwork also admits standard AF_INET and
+    // AF_INET6 sockets (like Windows and macOS) while still refusing
+    // AF_NETLINK, AF_PACKET, etc.
     program.push(Instruction {
         code: BPF_LD | BPF_W | BPF_ABS,
         jt: 0,
@@ -277,12 +281,33 @@ pub fn program(profile: SeccompProfile) -> Vec<Instruction> {
         jf: 0,
         k: OFFSET_ARG0_LOW,
     });
-    program.push(Instruction {
-        code: BPF_JMP | BPF_JEQ | BPF_K,
-        jt: 0,
-        jf: jump(errno_index, domain_index + 3),
-        k: AF_UNIX,
-    });
+    if profile == SeccompProfile::StrictNetwork {
+        program.push(Instruction {
+            code: BPF_JMP | BPF_JEQ | BPF_K,
+            jt: jump(domain_allow_index, domain_index + 3),
+            jf: 0,
+            k: AF_UNIX,
+        });
+        program.push(Instruction {
+            code: BPF_JMP | BPF_JEQ | BPF_K,
+            jt: jump(domain_allow_index, domain_index + 4),
+            jf: 0,
+            k: AF_INET,
+        });
+        program.push(Instruction {
+            code: BPF_JMP | BPF_JEQ | BPF_K,
+            jt: 0,
+            jf: jump(errno_index, domain_index + 5),
+            k: AF_INET6,
+        });
+    } else {
+        program.push(Instruction {
+            code: BPF_JMP | BPF_JEQ | BPF_K,
+            jt: 0,
+            jf: jump(errno_index, domain_index + 3),
+            k: AF_UNIX,
+        });
+    }
     program.push(Instruction {
         code: BPF_RET | BPF_K,
         jt: 0,

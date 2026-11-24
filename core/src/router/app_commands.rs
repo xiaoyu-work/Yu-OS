@@ -1499,6 +1499,7 @@ pub(super) fn dev_cmd(args: &[String], stdin_data: Option<Vec<u8>>) -> Result<Op
     };
 
     proc.current_dir(dir)
+        .env("YUOS_DEV_MODE", "1")
         .env("YUOS_APP_ID", &manifest.id)
         .env("YUOS_COMMAND", command)
         .env("YUOS_ARGS_JSON", &args_json)
