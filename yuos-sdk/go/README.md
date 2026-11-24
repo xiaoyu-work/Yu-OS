@@ -11,7 +11,7 @@ Yu OS handles capability checks, input policy, budgets, and auditing.
 From your App's Go module (Go 1.21 or later):
 
 ```sh
-go get github.com/xiaoyu-work/Yu-OS/yuos-sdk/go@v0.1.0
+go get github.com/xiaoyu-work/Yu-OS/yuos-sdk/go@v0.1.0-dev.2026112401
 ```
 
 ```go

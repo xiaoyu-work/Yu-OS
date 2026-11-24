@@ -9,7 +9,7 @@ In your App's `Cargo.toml`:
 
 ```toml
 [dependencies]
-yuos-sdk = { git = "https://github.com/xiaoyu-work/Yu-OS.git", tag = "yuos-sdk-v0.1.0" }
+yuos-sdk = { git = "https://github.com/xiaoyu-work/Yu-OS.git", tag = "yuos-sdk-v0.1.0.dev2026112401" }
 ```
 
 Live calls require the [Yu OS runtime](../quickstart.html#install).

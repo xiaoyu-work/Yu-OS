@@ -14,7 +14,7 @@ From your App's Node.js project (Node.js 18 or later):
 
 ```sh
 npm install \
-  https://github.com/xiaoyu-work/Yu-OS/releases/download/yuos-sdk-v0.1.0/yuos-sdk-node-0.1.0.tgz
+  https://github.com/xiaoyu-work/Yu-OS/releases/download/yuos-sdk-v0.1.0.dev2026112401/yuos-sdk-node-0.1.0.dev2026112401.tgz
 ```
 
 Live calls require the [Yu OS runtime](../quickstart.html#install).

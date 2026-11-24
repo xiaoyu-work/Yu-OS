@@ -6,7 +6,7 @@ The official Python SDK for Yu OS. Import it as `yuos_sdk`.
 
 ```sh
 python3 -m pip install \
-  https://github.com/xiaoyu-work/Yu-OS/releases/download/yuos-sdk-v0.1.0/yuos_sdk-0.1.0-py3-none-any.whl
+  https://github.com/xiaoyu-work/Yu-OS/releases/download/yuos-sdk-v0.1.0.dev2026112401/yuos_sdk-0.1.0.dev2026112401-py3-none-any.whl
 ```
 
 Requires Python 3.10 or later. The Yu OS Agent package already supplies
