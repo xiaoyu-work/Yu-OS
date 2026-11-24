@@ -18,7 +18,7 @@ go get github.com/xiaoyu-work/Yu-OS/yuos-sdk/go@v0.1.0
 import yuossdk "github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
 ```
 
-Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
+Live calls require the [Yu OS runtime](../quickstart.html#install).
 
 ## Surface
 
@@ -85,7 +85,7 @@ func main() {
 }
 ```
 
-See [Command line and desktop](../REFERENCE.md#command-line-and-desktop).
+See [Command line and desktop](../api.html#go-mod-app).
 
 ## MCP App service
 
@@ -171,7 +171,7 @@ and the optional App manifest `objects` resolver declaration.
 ## AI support
 
 Use `Chat(prompt, ChatOptions{})` or pass an MCP call as the context to
-`ChatContext`. See the [model capabilities](../REFERENCE.md#ai-support).
+`ChatContext`. See the [model capabilities](../api.html#go-mod-ai).
 
 Use `Embed`, `TTS`, `STT`, `ImageGen`, or `Decide` with `ModelOptions{}`. Every
 model reply exposes `Provider`, `Model`, `Units`, and `Output`.
@@ -187,7 +187,7 @@ Each domain returns typed errors you can switch on:
 
 - `*AiDeniedError`, `*AiBudgetExceededError`, `*AiInvalidArgsError`,
   `*AiSafetyViolationError`, and `*AiUnavailableError` correspond to the
-  [AI error codes](../REFERENCE.md#handle-ai-errors). `Payload` carries
+  [AI error codes](../reference.html#handle-ai-errors). `Payload` carries
   the structured error from Yu OS when present.
 - `*ToolUnavailableError` — transport failure.
 - `*ToolDeniedError` — capability / unknown-tool / arg-shape refusal.

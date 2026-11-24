@@ -11,7 +11,7 @@ python3 -m pip install \
 
 Requires Python 3.10 or later. The Yu OS Agent package already supplies
 `yuos_sdk` at `/usr/lib/yuos/python/`. Live calls require the
-[Yu OS runtime](../REFERENCE.md#compatibility).
+[Yu OS runtime](../quickstart.html#install).
 
 ## Use
 
@@ -31,7 +31,7 @@ def summarize(args):
 
 | Module                  | Purpose                                                                |
 |-------------------------|------------------------------------------------------------------------|
-| `yuos_sdk.app`       | Mark the [`@command` and `@desktop`](../REFERENCE.md#command-line-and-desktop) functions Yu OS starts. |
+| `yuos_sdk.app`       | Mark the [`@command` and `@desktop`](../api.html#python-mod-app) functions Yu OS starts. |
 | `yuos_sdk.ai`        | `chat`, `embed`, `tts`, `stt`, `imagegen`, and `decide`. |
 | `yuos_sdk.tools`     | `yu ai tool <name>` — explicitly call a catalog operation.           |
 | `yuos_sdk.gui`       | Desktop GUI bootstrap and kernel-provided launch context.              |
@@ -121,8 +121,8 @@ the optional App manifest `objects` resolver declaration.
 `chat` takes optional image bytes and App functions, and `stt` takes audio
 bytes. `tts` and `imagegen` return `audio` or `image` bytes. All six model
 calls return `provider`, `model`, `units`, and `output`. See the
-[model capabilities](../REFERENCE.md#ai-support) and
-[typed errors](../REFERENCE.md#handle-ai-errors).
+[model capabilities](../api.html#python-mod-ai) and
+[typed errors](../reference.html#handle-ai-errors).
 
 ## Configuration
 

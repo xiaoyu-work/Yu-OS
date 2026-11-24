@@ -21,7 +21,7 @@ entry below is:
   App did under the AI surface.
 
 > `yu ai chat` rejects legacy catalog-name `--tools` lists. It can return
-> proposals for [App-owned functions](../yuos-sdk/REFERENCE.md#app-owned-tools),
+> proposals for [App-owned functions](../yuos-sdk/reference.html#app-owned-tools),
 > but never exposes this catalog or executes a proposal.
 
 For the higher-level architecture and the line between `yu ai`

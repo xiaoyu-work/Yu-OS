@@ -541,7 +541,7 @@ capabilities are derived — not a label.
 | `developer` | The closed allow-list below, and nothing else |
 
 Like macOS and Windows, the catalog separates App permissions from system
-permissions ([SDK permissions](../yuos-sdk/REFERENCE.md#permissions)).
+permissions ([SDK permissions](../yuos-sdk/reference.html#permissions)).
 Official packages — vendor-signed Apps and the OS desktop Shell — keep
 system permissions. For any other package, `yuosd` never delegates one from
 the launcher, saves one as an install or Settings choice, or grants one to

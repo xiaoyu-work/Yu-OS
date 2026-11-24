@@ -17,7 +17,7 @@ npm install \
   https://github.com/xiaoyu-work/Yu-OS/releases/download/yuos-sdk-v0.1.0/yuos-sdk-node-0.1.0.tgz
 ```
 
-Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
+Live calls require the [Yu OS runtime](../quickstart.html#install).
 
 ## Modules
 
@@ -51,7 +51,7 @@ app.run().catch((error) => {
 });
 ```
 
-See [Command line and desktop](../REFERENCE.md#command-line-and-desktop).
+See [Command line and desktop](../api.html#node-mod-app).
 
 ## MCP App service
 
@@ -131,8 +131,8 @@ spelling, byte limits, and the optional manifest `objects` resolver declaration.
 
 Import named calls directly from `@yuos/sdk`. Each model reply has
 `provider`, `model`, `units`, and `output`. See the
-[model capabilities](../REFERENCE.md#ai-support) and
-[typed errors](../REFERENCE.md#handle-ai-errors).
+[model capabilities](../api.html#node-mod-ai) and
+[typed errors](../reference.html#handle-ai-errors).
 `await ai.openPermissionSettings()` opens the [model permission page](../../docs/app-development.md#model-permissions-in-settings)
 after a user action and with the separate desktop launcher permission.
 

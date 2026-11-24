@@ -242,12 +242,12 @@ The broker authenticates registered session ancestry before App invocation
 and System Agent task admission.
 
 The System Agent and Apps use the same Yu OS model service. Apps call its
-[six model slots](../yuos-sdk/REFERENCE.md#ai-support) through the SDK and
+[six model slots](../yuos-sdk/api.html#python-mod-ai) through the SDK and
 declare the matching capability. The service applies the owner's App
 inference limit to App calls and a separate budget to the System Agent.
 `tools.call` runs a capability-checked catalog operation.
 
-[App-owned functions](../yuos-sdk/REFERENCE.md#app-owned-tools) are schemas
+[App-owned functions](../yuos-sdk/reference.html#app-owned-tools) are schemas
 the App passes to its model. The App validates and runs proposed calls, then
 sends the results in a follow-up request.
 

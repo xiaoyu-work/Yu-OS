@@ -12,7 +12,7 @@ In your App's `Cargo.toml`:
 yuos-sdk = { git = "https://github.com/xiaoyu-work/Yu-OS.git", tag = "yuos-sdk-v0.1.0" }
 ```
 
-Live calls require the [Yu OS runtime](../REFERENCE.md#compatibility).
+Live calls require the [Yu OS runtime](../quickstart.html#install).
 
 ## What's in it
 
@@ -142,7 +142,7 @@ fn main() -> Result<(), yuos_sdk::app::AppError> {
 }
 ```
 
-See [Command line and desktop](../REFERENCE.md#command-line-and-desktop).
+See [Command line and desktop](../api.html#rust-mod-app).
 
 ## App object references
 
@@ -177,7 +177,7 @@ optional App manifest `objects` resolver declaration.
 
 Use `ai::embed`, `ai::tts`, `ai::stt`, `ai::imagegen`, or `ai::decide` with
 `ModelOpts::default()`. All six calls expose `provider`, `model`, `units`, and
-`output`. See the [model capabilities](../REFERENCE.md#ai-support).
+`output`. See the [model capabilities](../api.html#rust-mod-ai).
 `ai::stt` takes audio bytes; `Speech::audio` and `Image::image` hold the
 returned bytes. `ChatOpts` takes `.images(...)` with image bytes and
 `.functions(...)`.
@@ -186,7 +186,7 @@ opens the [model permission page](../../docs/app-development.md#model-permission
 after a user action and with the separate desktop launcher permission.
 
 Match `AiError::Denied`, `BudgetExceeded`, `InvalidArg`, `SafetyViolation`,
-or `ServiceUnavailable` for the [AI error codes](../REFERENCE.md#handle-ai-errors).
+or `ServiceUnavailable` for the [AI error codes](../reference.html#handle-ai-errors).
 `Unavailable` and `Bridge` also report transport and decoding failures.
 
 ## Configuration
