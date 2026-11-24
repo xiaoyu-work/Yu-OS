@@ -74,6 +74,17 @@ body {
   background: var(--accent);
 }
 
+.sdk-version {
+  font-size: 12px;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--accent);
+  background: var(--badge-req-bg);
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: 4px;
+}
+
 .page-links {
   display: flex;
   gap: 6px;

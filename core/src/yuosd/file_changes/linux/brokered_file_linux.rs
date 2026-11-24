@@ -449,7 +449,8 @@ fn exchange_existing(
     // Unlike renameat, EXCHANGE cannot turn a concurrent removal into a
     // creation. Linux has no rename-if-this-inode-and-revision primitive.
     if unsafe {
-        libc::renameat2(
+        libc::syscall(
+            libc::SYS_renameat2,
             dir,
             stage.name.as_ptr(),
             dir,

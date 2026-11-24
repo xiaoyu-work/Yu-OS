@@ -23,7 +23,7 @@ REQUIRED = {
     "website": {"index.html", "style.css", "app.js"},
     "apt": {*APT_MARKERS, "dists/trixie/Release.gpg", "yuos-archive-keyring.asc"},
 }
-PREFIXES = {"website": ("assets/brand/", "fonts/", "install/"), "apt": ("dists/", "pool/")}
+PREFIXES = {"website": ("assets/brand/", "fonts/", "install/", "sdk/"), "apt": ("dists/", "pool/")}
 
 
 class NoRedirect(HTTPRedirectHandler):

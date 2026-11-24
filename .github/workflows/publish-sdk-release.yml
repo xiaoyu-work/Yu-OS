@@ -2,12 +2,6 @@ name: Publish SDK Release
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "SDK SemVer already declared by Python, Node, and Rust"
-        required: true
-        default: "0.1.0"
-        type: string
 
 concurrency:
   group: yuos-sdk-release
@@ -19,7 +13,41 @@ permissions:
   contents: write
 
 jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      display_version: ${{ steps.version.outputs.display_version }}
+      semver_version: ${{ steps.version.outputs.semver_version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Compute dated dev SDK version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          build_day="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq '.created_at[:10]')"
+          day="${build_day//-/}"
+          base="$(python3 -c 'import pathlib, re, tomllib; v = tomllib.loads(pathlib.Path("core/Cargo.toml").read_text())["package"]["version"]; print(re.split(r"[-.]dev", v)[0])')"
+          seq=1
+          while git ls-remote --exit-code --tags origin "refs/tags/yuos-sdk-v$(printf '%s.dev%s%02d' "$base" "$day" "$seq")" >/dev/null 2>&1; do
+            seq=$((seq + 1))
+          done
+          stamp="$(printf '%s%02d' "$day" "$seq")"
+          display_version="${base}.dev${stamp}"
+          semver_version="${base}-dev.${stamp}"
+          echo "display_version=$display_version" >> "$GITHUB_OUTPUT"
+          echo "semver_version=$semver_version" >> "$GITHUB_OUTPUT"
+          echo "Computed SDK version: $display_version (SemVer: $semver_version)"
+
   provenance-tools:
+    needs: prepare
     if: github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
@@ -36,7 +64,6 @@ jobs:
       actions: read
       contents: read
     env:
-      SDK_VERSION: ${{ inputs.version }}
       ARCH: ${{ matrix.arch }}
       RUST_TARGET: ${{ matrix.target }}
     steps:
@@ -49,13 +76,12 @@ jobs:
       - name: Test and build the public provenance CLI
         run: |
           set -euo pipefail
-          python3 -c 'import os, pathlib, tomllib; assert tomllib.loads(pathlib.Path("core/Cargo.toml").read_text())["package"]["version"] == os.environ["SDK_VERSION"]'
           cargo test -p yu --lib --locked provenance:: -- --test-threads=1
           cargo build --release --locked -p yu --bin yu --target "$RUST_TARGET"
           mkdir -p dist
           install -m 0755 "target/$RUST_TARGET/release/yu" "dist/yu-provenance-linux-$ARCH"
           test "$(stat -c %s "dist/yu-provenance-linux-$ARCH")" -le 134217728
-          "dist/yu-provenance-linux-$ARCH" --version | grep -F "$SDK_VERSION"
+          "dist/yu-provenance-linux-$ARCH" --version
           cargo metadata --locked --format-version 1 --filter-platform "$RUST_TARGET" > "$RUNNER_TEMP/tool-metadata.json"
       - name: Retain tool source pins and upstream notices
         run: |
@@ -103,11 +129,12 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: provenance-tools
+    needs: [prepare, provenance-tools]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
-      SDK_VERSION: ${{ inputs.version }}
+      DISPLAY_VERSION: ${{ needs.prepare.outputs.display_version }}
+      SEMVER_VERSION: ${{ needs.prepare.outputs.semver_version }}
 
     steps:
       - uses: actions/checkout@v5
@@ -131,55 +158,6 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Validate release version
-        run: |
-          if ! [[ "$SDK_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "error: invalid SDK SemVer: $SDK_VERSION" >&2
-            exit 1
-          fi
-          python3 - <<'PY'
-          import json
-          import os
-          import pathlib
-          import sys
-          import tomllib
-
-          root = pathlib.Path("yuos-sdk")
-          expected = os.environ["SDK_VERSION"]
-          sys.path.insert(0, str(root / "python" / "src"))
-          from yuos_sdk import __version__ as python_version
-
-          versions = {
-              "python": python_version,
-              "node": json.loads(
-                  (root / "node" / "package.json").read_text(encoding="utf-8")
-              )["version"],
-              "node-lock": json.loads(
-                  (root / "node" / "package-lock.json").read_text(encoding="utf-8")
-              )["version"],
-              "node-lock-package": json.loads(
-                  (root / "node" / "package-lock.json").read_text(encoding="utf-8")
-              )["packages"][""]["version"],
-              "rust": tomllib.loads(
-                  (root / "rust" / "Cargo.toml").read_text(encoding="utf-8")
-              )["package"]["version"],
-          }
-          cargo_lock = tomllib.loads(pathlib.Path("Cargo.lock").read_text(encoding="utf-8"))
-          versions["rust-lock"] = next(
-              package["version"]
-              for package in cargo_lock["package"]
-              if package["name"] == "yuos-sdk"
-          )
-          mismatches = {name: version for name, version in versions.items() if version != expected}
-          if mismatches:
-              raise SystemExit(f"SDK version mismatch; expected {expected}: {mismatches}")
-
-          module = (root / "go" / "go.mod").read_text(encoding="utf-8").splitlines()[0]
-          expected_module = "module github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
-          if module != expected_module:
-              raise SystemExit(f"unexpected Go module path: {module!r}")
-          PY
-
       - name: Regenerate wire bindings
         run: |
           python3 yuos-sdk/wire/codegen.py
@@ -188,6 +166,10 @@ jobs:
             yuos-sdk/python/src/yuos_sdk/generated.py \
             yuos-sdk/node/src/generated.ts \
             yuos-sdk/go/generated.go
+
+      - name: Stamp computed version into SDK packages and docs
+        run: |
+          python3 scripts/ci/stamp-sdk-version.py "$DISPLAY_VERSION" "$SEMVER_VERSION"
 
       - name: Install SDK test and build dependencies
         run: |
@@ -218,20 +200,30 @@ jobs:
             node -e 'console.log(require(process.argv[1])[0].filename)' \
               "$RUNNER_TEMP/npm-pack.json"
           )"
-          mv "dist/$node_tarball" "dist/yuos-sdk-node-$SDK_VERSION.tgz"
+          mv "dist/$node_tarball" "dist/yuos-sdk-node-$DISPLAY_VERSION.tgz"
 
-          cargo package -p yuos-sdk
-          cp "target/package/yuos-sdk-$SDK_VERSION.crate" dist/
+          cargo package -p yuos-sdk --allow-dirty
+          cp "target/package/yuos-sdk-$SEMVER_VERSION.crate" "dist/yuos-sdk-$DISPLAY_VERSION.crate"
+
+          git config user.name "Xiaoyu"
+          git config user.email "zxiaoyu.work@gmail.com"
+          git checkout -- yuos-sdk/python/pyproject.toml yuos-sdk/python/src/yuos_sdk/__init__.py yuos-sdk/node/package.json yuos-sdk/node/package-lock.json yuos-sdk/rust/Cargo.toml Cargo.lock
+          git add yuos-sdk/quickstart.html yuos-sdk/api.html yuos-sdk/reference.html yuos-sdk/linux-app-integration.html yuos-sdk/README.md yuos-sdk/llms.txt yuos-sdk/python/README.md yuos-sdk/node/README.md yuos-sdk/go/README.md yuos-sdk/rust/README.md
+          if ! git diff --cached --quiet; then
+            git commit -m "Update SDK documentation version to v$DISPLAY_VERSION"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
 
           git archive \
             --format=tar.gz \
-            --prefix="yuos-sdk-go-$SDK_VERSION/" \
-            --output="dist/yuos-sdk-go-$SDK_VERSION.tar.gz" \
+            --prefix="yuos-sdk-go-$DISPLAY_VERSION/" \
+            --output="dist/yuos-sdk-go-$DISPLAY_VERSION.tar.gz" \
             HEAD:yuos-sdk/go
           git archive \
             --format=tar.gz \
-            --prefix="yuos-sdk-$SDK_VERSION/" \
-            --output="dist/yuos-sdk-$SDK_VERSION-source.tar.gz" \
+            --prefix="yuos-sdk-$DISPLAY_VERSION/" \
+            --output="dist/yuos-sdk-$DISPLAY_VERSION-source.tar.gz" \
             HEAD:yuos-sdk
 
       - name: Collect the tested public signing tools
@@ -249,32 +241,65 @@ jobs:
       - name: Upload SDK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: yuos-sdk-${{ inputs.version }}
+          name: yuos-sdk-${{ needs.prepare.outputs.display_version }}
           path: dist/*
           if-no-files-found: error
 
       - name: Create SDK and Go tags
         run: |
-          sdk_tag="yuos-sdk-v$SDK_VERSION"
-          go_tag="yuos-sdk/go/v$SDK_VERSION"
-          if git ls-remote --exit-code --tags origin "refs/tags/$sdk_tag" >/dev/null 2>&1 \
-              || git ls-remote --exit-code --tags origin "refs/tags/$go_tag" >/dev/null 2>&1; then
-            echo "error: SDK release tag already exists" >&2
-            exit 1
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$sdk_tag" -m "Yu OS SDK v$SDK_VERSION"
-          git tag -a "$go_tag" -m "Yu OS Go SDK v$SDK_VERSION"
+          sdk_tag="yuos-sdk-v$DISPLAY_VERSION"
+          go_tag="yuos-sdk/go/v$SEMVER_VERSION"
+          git config user.name "Xiaoyu"
+          git config user.email "zxiaoyu.work@gmail.com"
+          git tag -a "$sdk_tag" -m "Yu OS SDK v$DISPLAY_VERSION"
+          git tag -a "$go_tag" -m "Yu OS Go SDK v$SEMVER_VERSION"
           git push --atomic origin "refs/tags/$sdk_tag" "refs/tags/$go_tag"
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "yuos-sdk-v$SDK_VERSION" \
+          gh release create "yuos-sdk-v$DISPLAY_VERSION" \
             dist/* \
             --verify-tag \
-            --title "Yu OS SDK v$SDK_VERSION" \
+            --title "Yu OS SDK v$DISPLAY_VERSION" \
             --generate-notes
+
+  publish-docs:
+    needs: [prepare, release]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: yuos-apt-pages
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Stage the website and SDK docs while retaining any live OS APT archive
+        run: |
+          bash web/stage.sh build/pages
+          python3 scripts/ci/pages_files.py record website build/pages
+          python3 scripts/ci/pages_files.py restore apt build/pages/apt --allow-no-apt
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/pages
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
