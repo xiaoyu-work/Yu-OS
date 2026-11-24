@@ -413,7 +413,7 @@ pub(super) fn install(key: &crate::provenance::sign::SigningKeyFile, product: Pr
         product.name != "settings",
     );
     println!(
-        "private actual {} input: App revision {revision}, public platform {platform_digest}, signed ELF/resources/licenses verified",
+        "private actual {} input: App revision {revision}, signed ELF/resources/licenses verified",
         product.name
     );
 }
