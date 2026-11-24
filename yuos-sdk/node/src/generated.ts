@@ -65,6 +65,15 @@ export interface AiToolCall {
 }
 
 /**
+ * AiChatDelta.
+ */
+export interface AiChatDelta {
+  wire_version: 1;
+  event: "text_delta";
+  text: string;
+}
+
+/**
  * App chat request.
  * One model call with a prompt, optional images, and App-defined functions and
  * results.
@@ -1160,6 +1169,17 @@ export function validateAi(value: unknown): asserts value is Ai & Record<string,
 
 export function normalizeAiIntegers(value: unknown): void {
   normalizeWireIntegers(_WIRE_SCHEMA_AI, _WIRE_SCHEMA_AI, value);
+}
+
+const _WIRE_SCHEMA_AI_CHAT_DELTA: WireRule = decodeWireJson("{\"$id\":\"https://yuos.dev/wire/v1/ai_chat_delta.schema.json\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"additionalProperties\":false,\"properties\":{\"event\":{\"const\":\"text_delta\",\"type\":\"string\"},\"text\":{\"minLength\":1,\"type\":\"string\",\"x-max-utf8-bytes\":16384},\"wire_version\":{\"const\":1,\"type\":\"integer\"}},\"required\":[\"wire_version\",\"event\",\"text\"],\"title\":\"AiChatDelta\",\"type\":\"object\"}") as WireRule;
+
+export function validateAiChatDelta(value: unknown): asserts value is AiChatDelta & Record<string, unknown> {
+  validateWireSchema(_WIRE_SCHEMA_AI_CHAT_DELTA, _WIRE_SCHEMA_AI_CHAT_DELTA, value, "AiChatDelta", "$");
+  normalizeWireIntegers(_WIRE_SCHEMA_AI_CHAT_DELTA, _WIRE_SCHEMA_AI_CHAT_DELTA, value);
+}
+
+export function normalizeAiChatDeltaIntegers(value: unknown): void {
+  normalizeWireIntegers(_WIRE_SCHEMA_AI_CHAT_DELTA, _WIRE_SCHEMA_AI_CHAT_DELTA, value);
 }
 
 const _WIRE_SCHEMA_AI_CHAT_REQUEST: WireRule = decodeWireJson("{\"$defs\":{\"AiAppTool\":{\"additionalProperties\":false,\"properties\":{\"description\":{\"type\":\"string\",\"x-max-utf8-bytes\":4096},\"name\":{\"maxLength\":64,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9_-]+$\",\"type\":\"string\"},\"parameters\":{\"description\":\"JSON Schema with a top-level type of object.\",\"type\":\"object\"}},\"required\":[\"name\",\"description\",\"parameters\"],\"type\":\"object\"},\"AiChatToolCall\":{\"additionalProperties\":false,\"properties\":{\"id\":{\"minLength\":1,\"type\":\"string\",\"x-max-utf8-bytes\":256},\"input\":{\"type\":\"object\"},\"name\":{\"maxLength\":64,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9_-]+$\",\"type\":\"string\"}},\"required\":[\"id\",\"name\",\"input\"],\"type\":\"object\"},\"AiChatToolResult\":{\"additionalProperties\":false,\"properties\":{\"content\":{\"type\":\"string\",\"x-max-utf8-bytes\":131072},\"id\":{\"minLength\":1,\"type\":\"string\",\"x-max-utf8-bytes\":256},\"is_error\":{\"type\":\"boolean\"}},\"required\":[\"id\",\"content\"],\"type\":\"object\"},\"AiToolTurn\":{\"additionalProperties\":false,\"properties\":{\"calls\":{\"items\":{\"$ref\":\"#/$defs/AiChatToolCall\"},\"maxItems\":16,\"minItems\":1,\"type\":\"array\"},\"provider_state\":{\"minLength\":1,\"type\":\"string\",\"x-max-utf8-bytes\":65536},\"results\":{\"items\":{\"$ref\":\"#/$defs/AiChatToolResult\"},\"maxItems\":16,\"minItems\":1,\"type\":\"array\"},\"text\":{\"type\":\"string\",\"x-max-utf8-bytes\":131072}},\"required\":[\"calls\",\"results\"],\"type\":\"object\"}},\"$id\":\"https://yuos.dev/wire/v1/ai_chat_request.schema.json\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"additionalProperties\":false,\"description\":\"One model call with a prompt, optional images, and App-defined functions and results.\",\"properties\":{\"images\":{\"description\":\"Standard padded base64 PNG, JPEG or WebP bytes; Yu OS detects the format from the bytes.\",\"items\":{\"maxLength\":699052,\"minLength\":4,\"type\":\"string\"},\"maxItems\":4,\"minItems\":1,\"type\":\"array\"},\"max_units\":{\"maximum\":18446744073709551615,\"minimum\":1,\"type\":\"integer\",\"x-go-type\":\"uint64\",\"x-rust-type\":\"u64\",\"x-ts-type\":\"number | bigint\"},\"origin\":{\"enum\":[\"app\",\"trusted\",\"user-input\",\"external-content\"],\"type\":\"string\"},\"prompt\":{\"minLength\":1,\"type\":\"string\",\"x-max-utf8-bytes\":131072},\"system\":{\"type\":\"string\",\"x-max-utf8-bytes\":131072},\"tool_turns\":{\"items\":{\"$ref\":\"#/$defs/AiToolTurn\"},\"maxItems\":16,\"type\":\"array\"},\"tools\":{\"items\":{\"$ref\":\"#/$defs/AiAppTool\"},\"maxItems\":16,\"type\":\"array\"}},\"required\":[\"origin\",\"prompt\"],\"title\":\"App chat request\",\"type\":\"object\"}") as WireRule;

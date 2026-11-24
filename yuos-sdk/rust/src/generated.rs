@@ -84,6 +84,14 @@ pub struct AiToolCall {
     pub input: serde_json::Value,
 }
 
+/// AiChatDelta
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AiChatDelta {
+    pub wire_version: i64,
+    pub event: String,
+    pub text: String,
+}
+
 /// App chat request
 /// One model call with a prompt, optional images, and App-defined functions and
 /// results.
@@ -1332,6 +1340,19 @@ pub fn validate_ai(value: &serde_json::Value) -> Result<(), WireDecodeError> {
 
 pub fn normalize_ai_integers(value: &mut serde_json::Value) {
     let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_AI)
+        .expect("generated wire schema must be valid JSON");
+    normalize_wire_integers(&schema, &schema, value);
+}
+
+const _WIRE_SCHEMA_AI_CHAT_DELTA: &str = r###"{"$id":"https://yuos.dev/wire/v1/ai_chat_delta.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"event":{"const":"text_delta","type":"string"},"text":{"minLength":1,"type":"string","x-max-utf8-bytes":16384},"wire_version":{"const":1,"type":"integer"}},"required":["wire_version","event","text"],"title":"AiChatDelta","type":"object"}"###;
+pub fn validate_ai_chat_delta(value: &serde_json::Value) -> Result<(), WireDecodeError> {
+    let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_AI_CHAT_DELTA)
+        .expect("generated wire schema must be valid JSON");
+    validate_wire_schema(&schema, &schema, value, "AiChatDelta", "$")
+}
+
+pub fn normalize_ai_chat_delta_integers(value: &mut serde_json::Value) {
+    let schema: serde_json::Value = serde_json::from_str(_WIRE_SCHEMA_AI_CHAT_DELTA)
         .expect("generated wire schema must be valid JSON");
     normalize_wire_integers(&schema, &schema, value);
 }

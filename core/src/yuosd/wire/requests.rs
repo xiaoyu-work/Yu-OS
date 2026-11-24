@@ -1823,6 +1823,8 @@ pub struct AiChatWithRequest {
     pub session: Token,
     pub app_id: Name,
     pub(crate) request: crate::ai::app_tools::ChatInput,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub stream: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

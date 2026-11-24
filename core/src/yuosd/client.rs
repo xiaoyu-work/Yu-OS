@@ -1,10 +1,7 @@
 //! The in-repo broker client.
 //!
-//! One connection carries exactly one request and one response, then
-//! closes. That is the whole concurrency model: nothing is pipelined,
-//! so no response can be attributed to the wrong request, and a frame
-//! the daemon has already answered cannot be followed by a second one
-//! on the same authenticated connection.
+//! One connection carries one request and one terminal response, then closes.
+//! Only opt-in App chat streams can precede their result with text deltas.
 //!
 //! The response is still checked against the request: same protocol
 //! version, same correlation id. A daemon that answered something else
@@ -142,19 +139,44 @@ pub fn request_blocking(
     socket_path: impl AsRef<Path>,
     request: Request,
 ) -> Result<Response, ClientError> {
-    request_blocking_inner(socket_path.as_ref(), request, false)
+    request_blocking_inner(socket_path.as_ref(), request, false, None)
 }
 
+pub(crate) type ChatDelta<'a> = dyn FnMut(&str) -> std::io::Result<()> + 'a;
+
 pub(crate) fn request_for_session(request: Request) -> Result<Response, ClientError> {
+    session_exchange(request, None)
+}
+
+pub(crate) fn request_chat_stream_for_session(
+    request: Request,
+    delta: &mut ChatDelta<'_>,
+) -> Result<Response, ClientError> {
+    session_exchange(request, Some(delta))
+}
+
+fn session_exchange(
+    request: Request,
+    delta: Option<&mut ChatDelta<'_>>,
+) -> Result<Response, ClientError> {
     let command = request.command;
     if std::env::var("YUOS_APP_GUI").as_deref() == Ok("1")
         && super::app_sessions::gui::provider_route(command).is_ok()
         && command.route().authority.audience == super::authority::Audience::SystemService
     {
-        request_gui_provider_blocking(request)
+        gui_provider_exchange(request, delta)
     } else {
-        request_blocking(crate::paths::yuosd_socket_path(), request)
+        request_blocking_inner(&crate::paths::yuosd_socket_path(), request, false, delta)
     }
+}
+
+#[cfg(unix)]
+pub(crate) fn request_chat_stream_relay(
+    path: &Path,
+    request: Request,
+    delta: &mut ChatDelta<'_>,
+) -> Result<Response, ClientError> {
+    request_blocking_inner(path, request, false, Some(delta))
 }
 
 /// This provider hop is pinned/authenticated in the Root GUI connect mediator.
@@ -173,7 +195,7 @@ pub(crate) fn request_gui_resource_blocking(request: Request) -> Result<Response
         return Err(ClientError::before_dispatch("private GUI transport accepts only typed resource commands"));
     }
     request_blocking_inner(
-        Path::new(crate::worker::linux::SANDBOX_BROKER_SOCKET), request, true,
+        Path::new(crate::worker::linux::SANDBOX_BROKER_SOCKET), request, true, None,
     )
 }
 
@@ -182,18 +204,23 @@ pub(crate) fn request_gui_resource_blocking(_request: Request) -> Result<Respons
     Err(ClientError::before_dispatch("private GUI resource transport requires Linux"))
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(test)]
 pub(crate) fn request_gui_provider_blocking(request: Request) -> Result<Response, ClientError> {
+    gui_provider_exchange(request, None)
+}
+
+#[cfg(target_os = "linux")]
+fn gui_provider_exchange(request: Request, delta: Option<&mut ChatDelta<'_>>) -> Result<Response, ClientError> {
     super::app_sessions::gui::provider_route(request.command)
         .map_err(ClientError::before_dispatch)?;
     if request.command.route().authority.audience != super::authority::Audience::SystemService {
         return Err(ClientError::before_dispatch("private GUI provider transport requires a session system service"));
     }
-    request_blocking_inner(Path::new(crate::worker::linux::SANDBOX_BROKER_SOCKET), request, true)
+    request_blocking_inner(Path::new(crate::worker::linux::SANDBOX_BROKER_SOCKET), request, true, delta)
 }
 
 #[cfg(not(target_os = "linux"))]
-pub(crate) fn request_gui_provider_blocking(_request: Request) -> Result<Response, ClientError> {
+fn gui_provider_exchange(_request: Request, _delta: Option<&mut ChatDelta<'_>>) -> Result<Response, ClientError> {
     Err(ClientError::before_dispatch("private GUI provider transport requires Linux"))
 }
 
@@ -227,6 +254,7 @@ pub(crate) fn desktop_events() -> Result<(), String> {
 #[cfg(unix)]
 fn request_blocking_inner(
     socket_path: &Path, request: Request, private_gui: bool,
+    mut delta: Option<&mut ChatDelta<'_>>,
 ) -> Result<Response, ClientError> {
     use std::os::unix::net::UnixStream as StdUnixStream;
 
@@ -248,11 +276,37 @@ fn request_blocking_inner(
     frame::write_request_blocking(&mut stream, &body).map_err(|err| {
         ClientError::after_dispatch(format!("failed to write yuosd request: {err}"))
     })?;
-    let response = frame::read_response_blocking(&mut stream, MAX_RESPONSE_BYTES)
-        .map_err(transport_error)
-        .map_err(ClientError::after_dispatch)?;
-    let response = decode(&response).map_err(ClientError::after_dispatch)?;
-    check(&request, response).map_err(ClientError::after_dispatch)
+    let mut total = 0usize;
+    loop {
+        let body = frame::read_response_blocking(&mut stream, MAX_RESPONSE_BYTES)
+            .map_err(transport_error)
+            .map_err(ClientError::after_dispatch)?;
+        let response = decode(&body).and_then(|response| check(&request, response))
+            .map_err(ClientError::after_dispatch)?;
+        if let Some((sink, value)) = delta.as_deref_mut().zip(
+            response.result.as_ref().and_then(|value| value.get("chat_delta")),
+        ) {
+            let text = value.as_str().filter(|text| !text.is_empty() && text.len() <= super::ai_stream::MAX_DELTA_BYTES)
+                .ok_or_else(|| ClientError::after_dispatch("invalid App chat delta"))?;
+            if !response.ok || response.error.is_some() {
+                return Err(ClientError::after_dispatch("invalid App chat delta response"));
+            }
+            total += text.len();
+            if total > super::ai_stream::MAX_TEXT_BYTES {
+                return Err(ClientError::after_dispatch("App chat stream exceeded its text limit"));
+            }
+            sink(text).map_err(|error| ClientError::after_dispatch(error.to_string()))?;
+            continue;
+        }
+        return Ok(response);
+    }
+}
+
+#[cfg(not(unix))]
+fn request_blocking_inner(
+    path: &Path, request: Request, _private_gui: bool, _delta: Option<&mut ChatDelta<'_>>,
+) -> Result<Response, ClientError> {
+    request_blocking(path, request)
 }
 
 #[cfg(target_os = "linux")]

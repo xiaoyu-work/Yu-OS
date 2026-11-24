@@ -3,6 +3,7 @@
   "validation": {
     "schemas": [
       "ai",
+      "ai_chat_delta",
       "ai_chat_request",
       "ai_inference",
       "ai_inference_request",

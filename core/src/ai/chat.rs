@@ -186,6 +186,27 @@ pub fn chat_cmd(args: &[String]) -> Result<Value, String> {
 }
 
 pub(crate) fn structured_cmd(stdin: Option<&[u8]>) -> Result<Value, String> {
+    broker_request(crate::yuosd::routes::Command::AiChat, structured_params(stdin)?)
+}
+
+#[doc(hidden)]
+pub fn structured_stream_cmd(
+    stdin: &[u8],
+    mut write_delta: impl FnMut(&str) -> std::io::Result<()>,
+) -> Result<Value, String> {
+    let mut params = structured_params(Some(stdin))?;
+    params["stream"] = Value::Bool(true);
+    let command = crate::yuosd::routes::Command::AiChat;
+    (command.route().decode)(params.clone())
+        .map_err(|_| super::invalid_args("invalid or oversized App AI stream request"))?;
+    let response = crate::yuosd::client::request_chat_stream_for_session(
+        crate::yuosd::protocol::Request::build(command, params),
+        &mut write_delta,
+    );
+    broker_reply(response)
+}
+
+fn structured_params(stdin: Option<&[u8]>) -> Result<Value, String> {
     let input = stdin
         .filter(|input| input.len() <= crate::yuosd::wire::bounded::AI_CHAT_REQUEST_BYTES)
         .ok_or_else(|| super::invalid_args("chat requires bounded JSON on stdin"))?;
@@ -197,10 +218,7 @@ pub(crate) fn structured_cmd(stdin: Option<&[u8]>) -> Result<Value, String> {
         .map_err(|_| super::permission_denied("App identity is required", None))?;
     let session = std::env::var("YUOS_SESSION")
         .map_err(|_| super::permission_denied("App session is required", None))?;
-    broker_request(
-        crate::yuosd::routes::Command::AiChat,
-        serde_json::json!({"session": session, "app_id": app, "request": request}),
-    )
+    Ok(serde_json::json!({"session": session, "app_id": app, "request": request}))
 }
 
 fn read_input_file(path: &str) -> Result<String, String> {
@@ -235,10 +253,16 @@ pub(super) fn broker_request(
 ) -> Result<Value, String> {
     (command.route().decode)(params.clone())
         .map_err(|_| super::invalid_args("invalid or oversized App AI request"))?;
-    let response = crate::yuosd::client::request_for_session(
+    broker_reply(crate::yuosd::client::request_for_session(
         crate::yuosd::protocol::Request::build(command, params),
-    )
-    .map_err(|error| super::wire_error("KERNEL_UNAVAILABLE", error.to_string(), None))?;
+    ))
+}
+
+fn broker_reply(
+    response: Result<crate::yuosd::protocol::Response, crate::yuosd::client::ClientError>,
+) -> Result<Value, String> {
+    let response = response
+        .map_err(|error| super::wire_error("KERNEL_UNAVAILABLE", error.to_string(), None))?;
     if response.ok {
         return response.result.ok_or_else(|| {
             super::wire_error("KERNEL_UNAVAILABLE", "AI broker returned no result", None)

@@ -1,4 +1,5 @@
 mod app_commands;
+mod mcp_types;
 mod object_commands;
 mod operation_commands;
 pub(crate) mod system_review;

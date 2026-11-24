@@ -519,11 +519,13 @@ async fn serve(
                 Response::handler_error(request.id, BrokerError::authorization(
                     "this GUI's native resources require exact selected-file consent; scalar filesystem providers cannot bypass it"))
             } else {
+                let dispatch = Box::pin(crate::yuosd::server::dispatch_verified(
+                    request, &client, &daemon, &admission, Some(&mut stream),
+                ));
                 crate::yuosd::notifications::gui::within(endpoint.notifications.clone(),
                     super::file_picker::within(endpoint.picker.clone(),
                         super::audio::within(endpoint.audio.clone(),
-                            crate::yuosd::capture::gui::within(endpoint.capture.clone(),
-                                crate::yuosd::server::dispatch_verified_request(request, &client, &daemon, &admission))))).await
+                            crate::yuosd::capture::gui::within(endpoint.capture.clone(), dispatch)))).await
             }
         }
     };

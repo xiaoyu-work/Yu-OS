@@ -9,8 +9,8 @@
 // app process → yu child). A pure in-process binding could not prove
 // "App X is making this call".
 
-import { execFile, spawnSync } from "node:child_process";
-import { WireDecodeError, decodeWireJson, validateEnvelope } from "./generated";
+import { execFile, spawn, spawnSync } from "node:child_process";
+import { WireDecodeError, decodeWireJson, validateAiChatDelta, validateEnvelope } from "./generated";
 
 /** Default per-call timeout. Bounded so a wedged child never blocks
  * the calling app forever, but long enough for slow providers. */
@@ -67,8 +67,9 @@ export function yuCallJson(
   args: string[],
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
   input?: string,
+  binary?: string,
 ): unknown {
-  const bin = yuBinary();
+  const bin = binary ?? yuBinary();
   const res = spawnSync(bin, [WIRE_ARG, ...args], {
     encoding: "utf8",
     timeout: timeoutMs,
@@ -99,13 +100,13 @@ export async function yuCallJsonAsync(
   args: string[],
   signal?: AbortSignal,
   input?: string,
+  { binary = yuBinary(), timeoutMs = DEFAULT_TIMEOUT_MS }: { binary?: string; timeoutMs?: number } = {},
 ): Promise<unknown> {
   signal?.throwIfAborted();
-  const bin = yuBinary();
   return new Promise((resolve, reject) => {
-    const child = execFile(bin, [WIRE_ARG, ...args], {
+    const child = execFile(binary, [WIRE_ARG, ...args], {
       encoding: "utf8",
-      timeout: DEFAULT_TIMEOUT_MS,
+      timeout: timeoutMs,
       maxBuffer: MAX_BUFFER,
       killSignal: "SIGKILL",
       signal,
@@ -118,7 +119,7 @@ export async function yuCallJsonAsync(
       const status = error ? error.code : 0;
       if (typeof status !== "number") {
         const message = error?.killed
-          ? `${label} timed out after ${DEFAULT_TIMEOUT_MS}ms`
+          ? `${label} timed out after ${timeoutMs}ms`
           : `${label} subprocess failed (${status ?? error?.signal ?? "no exit code"})`;
         reject(new Unavailable(message));
         return;
@@ -171,4 +172,91 @@ function decodeResponse(label: string, stdout: string, status: number): unknown 
     throw new Unavailable(`${label} returned an error envelope with exit 0`);
   }
   throw new Denied(envelope);
+}
+
+/** UTF-8 lines with a byte limit even when the producer omits a newline. */
+export async function* boundedLines(
+  chunks: AsyncIterable<Uint8Array>,
+  maximum = MAX_BUFFER,
+): AsyncGenerator<string> {
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let parts: Buffer[] = [];
+  let size = 0;
+  for await (const bytes of chunks) {
+    const chunk = Buffer.from(bytes);
+    for (let start = 0; start < chunk.length;) {
+      const newline = chunk.indexOf(10, start);
+      const end = newline === -1 ? chunk.length : newline;
+      const part = chunk.subarray(start, end);
+      size += part.length;
+      if (size >= maximum) throw new Unavailable("stream line exceeds the transport limit");
+      if (part.length) parts.push(part);
+      if (newline === -1) break;
+      const line = decoder.decode(Buffer.concat(parts, size));
+      parts = [];
+      size = 0;
+      yield line.endsWith("\r") ? line.slice(0, -1) : line;
+      start = end + 1;
+    }
+  }
+  if (size !== 0) throw new Unavailable("stream ended inside a line");
+}
+
+export async function* yuChatStream(input: string, signal?: AbortSignal): AsyncGenerator<string, unknown> {
+  signal?.throwIfAborted();
+  const child = spawn(yuBinary(), [WIRE_ARG, "ai", "chat", "--request-stdin", "--stream"], {
+    stdio: ["pipe", "pipe", "ignore"],
+    signal,
+    killSignal: "SIGKILL",
+  });
+  let failure: Error | undefined;
+  child.on("error", (error) => { failure = error; });
+  child.stdin.on("error", (error: NodeJS.ErrnoException) => {
+    if (error.code !== "EPIPE" && !signal?.aborted) {
+      failure = error;
+      child.kill("SIGKILL");
+    }
+  });
+  const closed = new Promise<number | null>((resolve) => child.once("close", resolve));
+  const timeout = setTimeout(() => {
+    failure = new Unavailable("App chat stream timed out");
+    child.kill("SIGKILL");
+  }, DEFAULT_TIMEOUT_MS);
+  child.stdin.end(input);
+  try {
+    let final: string | undefined;
+    let total = 0;
+    for await (const line of boundedLines(child.stdout)) {
+      signal?.throwIfAborted();
+      if (final !== undefined) throw new Unavailable("unexpected data after the App chat result");
+      const record = decodeWireJson(line);
+      if (typeof record === "object" && record !== null && "event" in record) {
+        validateAiChatDelta(record);
+        total += Buffer.byteLength(record.text);
+        if (total > 512 * 1024) throw new Unavailable("App chat stream exceeded its text limit");
+        yield record.text;
+      } else {
+        validateEnvelope(record);
+        final = line;
+      }
+    }
+    const status = await closed;
+    signal?.throwIfAborted();
+    if (failure) throw new Unavailable(failure.message);
+    if (final === undefined || status === null) {
+      throw new Unavailable("App chat stream ended without a final response");
+    }
+    return decodeResponse("yu ai chat", final, status);
+  } catch (error) {
+    signal?.throwIfAborted();
+    if (error instanceof SyntaxError || error instanceof TypeError || error instanceof WireDecodeError) {
+      throw new Unavailable(`invalid App chat stream: ${error.message}`);
+    }
+    if (failure) throw new Unavailable(failure.message);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+    await closed;
+  }
 }

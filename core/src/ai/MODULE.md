@@ -26,6 +26,9 @@
   It detects PNG, JPEG, or WebP from bounded image bytes and places them with
   the App's prompt in a user message. Text and images use the same `ai.chat`
   capability.
+- Forward opt-in text deltas from the configured provider through the same
+  consent, liveness, budget and audit path. The ordinary reply follows
+  successful settlement; partial text never carries an App function proposal.
 - Serve SDK `yu ai infer` through the same App authority and budget. The owner
   configures the destination; binary data is bounded stdin/reply data. STT
   detects WAV, MP3, or Ogg from the audio bytes.

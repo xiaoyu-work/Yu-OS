@@ -32,6 +32,11 @@ Rust, Python, Node, and Go bindings.
 - The owner configures the monthly App inference limit in Settings, not in the
   manifest. v1 usage replies remain App-scoped.
 - Keep language bindings behaviorally compatible.
+- Read bounded App chat deltas from the opt-in CLI stream; keep the existing
+  terminal response schema and errors. The Node file client exposes
+  cancellable async transfers alongside the synchronous facade.
+- Support opt-in TypeScript/Rust handler types emitted by
+  `yu app tool types`; the MCP runtime still validates the live manifest.
 - Publish bounded App-owned events through the same live session and named IPC
   capability. Root derives identity/source; reported events never delegate work.
 - Define pure, canonical App object references without discovery, authority,
@@ -54,6 +59,7 @@ Rust, Python, Node, and Go bindings.
 | `wire/` | Versioned contract and code generation |
 | `wire/v1/contract.json` | Generated decoder set, stable validation errors, and JSON-RPC codes |
 | `wire/v1/ai_chat_request.schema.json` | Bounded App model input and optional App-owned function rounds, with no tool dispatch authority |
+| `wire/v1/ai_chat_delta.schema.json` | Provisional streaming text record before the ordinary chat envelope |
 | `wire/v1/object_ref.schema.json`, `wire/v1/object-references.md` | Object reference shape and normative identity/URI semantics |
 | `wire/v1/object_ref.vectors.json` | Shared four-language object-reference conformance vectors |
 | `wire/v1/manifest_extensions.vectors.json` | Shared MCP-only/mixed manifest cases retaining object metadata without exposing extra tools |

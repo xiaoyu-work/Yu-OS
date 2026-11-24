@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yuos.dev/wire/v1/ai_chat_delta.schema.json",
+  "title": "AiChatDelta",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["wire_version", "event", "text"],
+  "properties": {
+    "wire_version": {"type": "integer", "const": 1},
+    "event": {"type": "string", "const": "text_delta"},
+    "text": {"type": "string", "minLength": 1, "x-max-utf8-bytes": 16384}
+  }
+}

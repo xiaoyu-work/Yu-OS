@@ -9,9 +9,11 @@ import { join } from "node:path";
 
 import {
   BridgeError,
+  boundedLines,
   Denied,
   Unavailable,
   yuCallJsonAsync,
+  yuChatStream,
 } from "./transport";
 import {
   WireDecodeError,
@@ -162,13 +164,7 @@ export async function chat(prompt: string, opts: ChatOptions = {}): Promise<AiRe
     if (opts.appId && (envApp || !isDev) && opts.appId !== envApp) {
       throw new AiDenied({ code: "PERMISSION_DENIED", error: "chat: App identity does not match the session" });
     }
-    const request: AiChatRequest = { origin: origin ?? "app", prompt };
-    if (system != null) request.system = system;
-    if (maxUnits != null) request.max_units = maxUnits;
-    if (images?.length) request.images = images.map((image) => encodeMedia(image, "chat: images"));
-    if (functions?.length) request.tools = functions;
-    if (toolTurns?.length) request.tool_turns = toolTurns;
-    return chatRequest(request, { signal });
+    return chatRequest(structuredChatRequest(prompt, opts), { signal });
   }
   const argv = ["ai", "chat", "--app", app, "--origin", origin];
   const privateDir = await mkdtemp(join(tmpdir(), "yuos-ai-"));
@@ -198,6 +194,17 @@ export async function chat(prompt: string, opts: ChatOptions = {}): Promise<AiRe
   }
 }
 
+function structuredChatRequest(prompt: string, opts: ChatOptions): AiChatRequest {
+  const { origin, maxUnits, system, images, functions, toolTurns } = opts;
+  const request: AiChatRequest = { origin: origin ?? "app", prompt };
+  if (system != null) request.system = system;
+  if (maxUnits != null) request.max_units = maxUnits;
+  if (images?.length) request.images = images.map((image) => encodeMedia(image, "chat: images"));
+  if (functions?.length) request.tools = functions;
+  if (toolTurns?.length) request.tool_turns = toolTurns;
+  return request;
+}
+
 /** Call the configured chat model with optional App functions and prior results. */
 export async function chatRequest(
   request: AiChatRequest,
@@ -221,9 +228,18 @@ export async function* chatStream(
   prompt: string,
   opts: ChatOptions = {},
 ): AsyncGenerator<string, void, unknown> {
+  if (typeof prompt !== "string" || !prompt.trim()) {
+    throw new AiInvalidArgs("chat: prompt must be non-empty");
+  }
+  if (opts.tools?.length) throw new AiInvalidArgs("chat: supply App functions in functions");
+  const request = structuredChatRequest(prompt, opts);
+  const input = encodeRequest(request, validateAiChatRequest);
+  const envApp = process.env.YUOS_APP_ID;
   const baseUrl = devAiUrl();
+  if (opts.appId && (envApp || !baseUrl) && opts.appId !== envApp) {
+    throw new AiDenied({ code: "PERMISSION_DENIED", error: "chat: App identity does not match the session" });
+  }
   if (baseUrl !== undefined) {
-    if (!prompt || !prompt.trim()) throw new AiInvalidArgs("chatStream: prompt must be non-empty");
     const messages: Array<Record<string, unknown>> = [];
     if (opts.system != null) messages.push({ role: "system", content: opts.system });
     if (opts.images?.length) {
@@ -237,31 +253,56 @@ export async function* chatStream(
     }
     const body: Record<string, unknown> = { model: devAiModel(), messages, stream: true };
     if (opts.maxUnits != null) body.max_tokens = Number(opts.maxUnits);
-    const raw = Buffer.from(await devPostBytes("/chat/completions", body, opts.signal)).toString("utf8");
-    if (raw.trimStart().startsWith("data:")) {
-      for (const line of raw.split(/\r?\n/)) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data:")) continue;
-        const dataStr = trimmed.slice(5).trim();
-        if (!dataStr || dataStr === "[DONE]") continue;
-        try {
-          const parsed = JSON.parse(dataStr) as { choices?: Array<{ delta?: { content?: string }; message?: { content?: string } }> };
-          const piece = parsed.choices?.[0]?.delta?.content ?? parsed.choices?.[0]?.message?.content;
-          if (typeof piece === "string" && piece) yield piece;
-        } catch {
-          // ignore malformed SSE line
-        }
-      }
-      return;
-    }
-    const parsed = JSON.parse(raw) as { choices?: Array<{ message?: { content?: string } }> };
-    const text = parsed.choices?.[0]?.message?.content;
-    if (typeof text === "string" && text) yield text;
+    yield* devChatDeltas(body, opts.signal);
     return;
   }
-  const reply = await chat(prompt, opts);
-  if (reply.output.text) {
-    yield reply.output.text;
+  try {
+    const result = yield* yuChatStream(input, opts.signal);
+    parseResponse(result);
+  } catch (error) {
+    if (error instanceof Denied) raiseForError(error.payload);
+    if (error instanceof Unavailable) throw new AiUnavailable(error.message);
+    throw error;
+  }
+}
+
+async function* devChatDeltas(body: Record<string, unknown>, signal?: AbortSignal): AsyncGenerator<string> {
+  const response = await devPost("/chat/completions", body, signal);
+  if (!response.body || !response.headers.get("content-type")?.includes("text/event-stream")) {
+    throw new AiUnavailable("dev AI endpoint did not return a streaming response");
+  }
+  const reader = response.body.getReader();
+  async function* chunks() {
+    for (;;) {
+      const next = await reader.read();
+      if (next.done) return;
+      yield next.value;
+    }
+  }
+  let total = 0;
+  try {
+    for await (const line of boundedLines(chunks())) {
+      if (!line.startsWith("data:")) continue;
+      const data = line.slice(5).trim();
+      if (data === "[DONE]") return;
+      if (!data) continue;
+      const parsed = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
+      const piece = parsed.choices?.[0]?.delta?.content;
+      if (typeof piece === "string" && piece) {
+        total += Buffer.byteLength(piece);
+        if (total > 512 * 1024) throw new AiUnavailable("dev AI stream exceeded its text limit");
+        yield piece;
+      }
+    }
+    throw new AiUnavailable("dev AI stream ended without a final event");
+  } catch (error) {
+    signal?.throwIfAborted();
+    if (error instanceof AiUnavailable) throw error;
+    throw new AiUnavailable("dev AI stream could not be decoded");
+  } finally {
+    // A disconnected body may already be errored; keep the stream's original error.
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
   }
 }
 
@@ -486,11 +527,11 @@ function devAiKey(): string | undefined {
   return process.env.YUOS_DEV_AI_KEY?.trim() || undefined;
 }
 
-async function devPostBytes(
+async function devPost(
   path: string,
   payload: Record<string, unknown>,
   signal?: AbortSignal,
-): Promise<Uint8Array> {
+): Promise<Response> {
   signal?.throwIfAborted();
   const baseUrl = devAiUrl();
   if (!baseUrl) throw new AiUnavailable("local dev AI URL is not configured");
@@ -512,6 +553,13 @@ async function devPostBytes(
   if (!response.ok) {
     throw new AiUnavailable(`dev AI HTTP ${response.status}`);
   }
+  return response;
+}
+
+async function devPostBytes(
+  path: string, payload: Record<string, unknown>, signal?: AbortSignal,
+): Promise<Uint8Array> {
+  const response = await devPost(path, payload, signal);
   try {
     return new Uint8Array(await response.arrayBuffer());
   } catch (error) {

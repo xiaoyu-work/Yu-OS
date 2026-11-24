@@ -15,6 +15,7 @@ pub mod agent_account;
 pub mod agent_client;
 pub mod agent_hooks;
 pub mod ai;
+pub(crate) mod ai_stream;
 pub mod app_notifications;
 pub mod app_events;
 pub mod app_permissions;

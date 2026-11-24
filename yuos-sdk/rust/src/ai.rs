@@ -238,6 +238,10 @@ impl ChatOpts {
 // Public helpers
 // ---------------------------------------------------------------------------
 
+mod stream;
+
+pub use stream::chat_stream;
+
 /// Call the configured chat model.
 pub fn chat(prompt: &str, opts: ChatOpts) -> Result<AiResponse, AiError> {
     if prompt.trim().is_empty() {
@@ -253,44 +257,46 @@ pub fn chat(prompt: &str, opts: ChatOpts) -> Result<AiResponse, AiError> {
         {
             return Err(AiError::InvalidArg("chat: supply App functions in functions".into()));
         }
-        let env_app = std::env::var("YUOS_APP_ID").ok().filter(|s| !s.is_empty());
-        if let Some(app) = opts.app_id.as_ref() {
-            if (env_app.is_some() || !is_dev) && env_app.as_ref() != Some(app) {
-                return Err(AiError::Denied {
-                    message: "chat: App identity does not match the session".into(),
-                    code: "PERMISSION_DENIED".into(),
-                    payload: serde_json::json!({"code": "PERMISSION_DENIED", "error": "chat: App identity does not match the session"}),
-                });
-            }
-        }
-        return chat_request(&AiChatRequest {
-            origin: opts.origin.unwrap_or_else(|| "app".into()),
-            prompt: prompt.into(),
-            system: opts.system,
-            images: opts.images.map(|images| images.iter().map(|image| STANDARD.encode(image)).collect()),
-            max_units: opts.max_units,
-            tools: opts.functions,
-            tool_turns: opts.tool_turns,
-        });
+        return chat_request(&structured_chat_request(prompt, opts)?);
     }
     dispatch(prompt, &opts)
 }
 
-/// Stream text chunks from the configured chat model to `on_chunk`.
-pub fn chat_stream<F: FnMut(&str)>(
-    prompt: &str,
-    opts: ChatOpts,
-    mut on_chunk: F,
-) -> Result<AiResponse, AiError> {
-    let reply = chat(prompt, opts)?;
-    if !reply.output.text.is_empty() {
-        on_chunk(&reply.output.text);
+fn structured_chat_request(prompt: &str, opts: ChatOpts) -> Result<AiChatRequest, AiError> {
+    let env_app = std::env::var("YUOS_APP_ID").ok().filter(|s| !s.is_empty());
+    if let Some(app) = opts.app_id.as_ref() {
+        if (env_app.is_some() || dev_ai_url().is_none()) && env_app.as_ref() != Some(app) {
+            return Err(AiError::Denied {
+                message: "chat: App identity does not match the session".into(),
+                code: "PERMISSION_DENIED".into(),
+                payload: serde_json::json!({"code": "PERMISSION_DENIED", "error": "chat: App identity does not match the session"}),
+            });
+        }
     }
-    Ok(reply)
+    Ok(AiChatRequest {
+        origin: opts.origin.unwrap_or_else(|| "app".into()),
+        prompt: prompt.into(),
+        system: opts.system,
+        images: opts.images.map(|images| images.iter().map(|image| STANDARD.encode(image)).collect()),
+        max_units: opts.max_units,
+        tools: opts.functions,
+        tool_turns: opts.tool_turns,
+    })
 }
 
 /// Call the configured chat model with optional App functions and prior results.
 pub fn chat_request(request: &AiChatRequest) -> Result<AiResponse, AiError> {
+    let input = encode_chat_request(request)?;
+    if dev_ai_url().is_some() {
+        return dev_chat(request);
+    }
+    chat_wire_reply(crate::yu_call_json_structured_input(
+        "ai", "chat", ["ai", "chat", "--request-stdin"], Some(&input),
+        std::process::Stdio::piped(), None,
+    ))
+}
+
+fn encode_chat_request(request: &AiChatRequest) -> Result<Vec<u8>, AiError> {
     let value = serde_json::to_value(request)
         .map_err(|error| AiError::InvalidArg(error.to_string()))?;
     let input = serde_json::to_vec(&value)
@@ -300,13 +306,11 @@ pub fn chat_request(request: &AiChatRequest) -> Result<AiResponse, AiError> {
     }
     crate::generated::validate_ai_chat_request(&value)
         .map_err(|error| AiError::InvalidArg(error.to_string()))?;
-    if dev_ai_url().is_some() {
-        return dev_chat(request);
-    }
-    match crate::yu_call_json_structured_input(
-        "ai", "chat", ["ai", "chat", "--request-stdin"], Some(&input),
-        std::process::Stdio::piped(), None,
-    ) {
+    Ok(input)
+}
+
+fn chat_wire_reply(reply: Result<serde_json::Value, StructuredCosError>) -> Result<AiResponse, AiError> {
+    match reply {
         Ok(reply) => parse_response(reply),
         Err(StructuredCosError::App(error)) =>
             Err(classify_ai_error(&error.message, &error.payload)),

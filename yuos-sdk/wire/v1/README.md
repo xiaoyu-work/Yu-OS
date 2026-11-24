@@ -25,6 +25,15 @@ unchanged.
 The named SDK calls supply `origin: "app"` in the wire request. The
 effective App policy controls redaction of text prompts.
 
+`yu --wire=1 ai chat --request-stdin --stream` accepts the same request and
+opts into newline-delimited JSON on stdout. Zero or more
+[`text_delta`](ai_chat_delta.schema.json) records precede one ordinary chat
+envelope. Text is provisional until the terminal success envelope and exit
+status 0. No function proposals or provider state are released as deltas;
+they are validated in the final reply. A missing terminal envelope is an
+error. Each delta is at most 16 KiB of UTF-8, the stream at most 512 KiB
+of delta text, and each stdout line at most 8 MiB including its newline.
+
 Inference stdin accepts up to 720 KiB of JSON. `embed` text is limited to
 16 KiB, TTS and image prompts to 4 KiB, STT input bytes to 512 KiB, and
 decision requests to the local decision model's 16 KiB request envelope.
@@ -58,7 +67,8 @@ permission or retry the model request.
 
 **v1 uses a subprocess transport.** A request is encoded as
 `yu --wire=1` plus command-line arguments and, optionally, stdin JSON. The
-reply is exactly one JSON **envelope** on stdout. Exit code 0 accompanies a
+reply is exactly one JSON **envelope** on stdout unless chat streaming is
+explicitly requested. Exit code 0 accompanies a
 success envelope; non-zero accompanies an error envelope. SDKs reject flat
 command output, JSON on stderr, malformed envelopes, unsupported versions, and
 an exit-status/`ok` mismatch.

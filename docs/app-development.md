@@ -1,6 +1,6 @@
 # Writing Your First Yu OS App
 
-Start with the [system AI Quickstart](../yuos-sdk/QUICKSTART.md) to call the
+Start with the [system AI Quickstart](../yuos-sdk/quickstart.html) to call the
 user's configured model from your App. To let the CLI and the system Agent
 call your App, use the MCP-only example below.
 
@@ -61,6 +61,46 @@ Run the last command as your normal user and complete any invoke approval.
 It prints `Hello from MCP`. No `main.py`, `operations`, or target capabilities
 are needed. A local `python3 server.py` starts the stdio loop but does not
 provide an authenticated Gateway call context.
+
+### Typed MCP handlers
+
+TypeScript and Rust Apps can generate handler argument types from their
+manifest. Regenerate after editing `app.json` so the compiler catches stale
+argument names and types. The generator reads the manifest without running the
+App. Runtime validation, including conditions and choices, still uses the
+signed manifest.
+
+For the `hello-mcp.say` example, generate a TypeScript binding:
+
+```sh
+yu app tool types ./hello-mcp/app.json --lang ts > ./hello-mcp/tools.generated.ts
+```
+
+```ts
+import { mcp } from "@yuos/sdk";
+import { bind_say } from "./tools.generated";
+
+bind_say(app, ({ message }) => mcp.ToolResult.text(message));
+```
+
+For Rust, generate `src/tools.rs` in your App crate:
+
+```sh
+cd hello-mcp
+yu app tool types app.json --lang rust > src/tools.rs
+```
+
+```rust
+mod tools;
+
+tools::say::bind(&mut app, |args, _context| async move {
+    yuos_sdk::mcp::ToolResult::text(args.message)
+})?;
+```
+
+The generated Rust types use `serde` with `derive`, and numeric fields use
+`serde_json::Number` to preserve wire precision. In all languages, existing
+untyped handler registrations remain available.
 
 ## App integration
 
@@ -216,7 +256,7 @@ source checkout in your Python environment. You do not need the first-party
 `yuos_runtime` package. Use the SDK's pure helpers and test business logic
 locally; run live App calls on a system with the matching Yu OS runtime.
 
-For Node, Go, and Rust, use the [language SDK guides](../yuos-sdk/REFERENCE.md#language-support).
+For Node, Go, and Rust, use the [language SDK guides](../yuos-sdk/README.md).
 Ship the dependencies or compiled binaries needed by your declared entries
 before signing the payload.
 
@@ -267,7 +307,7 @@ def say(args):
 `yu app hello say "Hi"` calls the `@command("say")` function once
 ([`bridge.rs`](../core/src/bridge.rs)). The kernel rejects undeclared
 operations before starting the App. A desktop window uses `@desktop`; see
-[Command line and desktop](../yuos-sdk/REFERENCE.md#command-line-and-desktop).
+[Command line and desktop](../yuos-sdk/api.html#python-mod-app).
 
 `args` is a **list of strings**, not a dict — the bridge validates every
 declared positional and `--flag` value, rejects undeclared flags, and then
@@ -613,7 +653,7 @@ envelope) when you want to surface "would-be-denied" without aborting.
 ### App permissions and system permissions
 
 Like macOS and Windows, a verb is either an App permission or a system
-permission; [the SDK reference](../yuos-sdk/REFERENCE.md#permissions) lists
+permission; [the SDK reference](../yuos-sdk/reference.html#permissions) lists
 them with their macOS and Windows equivalents. Any signed App may declare App
 permissions, and the owner approves them as usual. Official Yu OS Apps keep
 system permissions. A third-party App's system permission is never delegated
@@ -711,9 +751,9 @@ def summarize(args):
     return {"summary": reply.output.text, "units": reply.units}
 ```
 
-See the SDK reference for [model capabilities](../yuos-sdk/REFERENCE.md#ai-support),
-[typed errors](../yuos-sdk/REFERENCE.md#handle-ai-errors), and
-[App-owned functions](../yuos-sdk/REFERENCE.md#app-owned-tools).
+See the SDK reference for [model capabilities](../yuos-sdk/api.html#python-mod-ai),
+[typed errors](../yuos-sdk/reference.html#handle-ai-errors), and
+[App-owned functions](../yuos-sdk/reference.html#app-owned-tools).
 
 | Calling surface | Owner consent |
 |---|---|
@@ -742,6 +782,7 @@ and ship an app
 | `yu app submit <file.deb> [--repo <owner/repo>]` | Submit a packaged `.deb` archive to the Store review queue (`xiaoyu-work/yuos-app/submissions/incoming/`). |
 | `yu app lint [<id>]` | Check declared MCP entrypoints and look for blocked model-provider imports in Python files. Run on every discovered App if no ID is given. |
 | `yu app tool list [<id>]` | Show the manifest-declared MCP tools this App exposes through the private Gateway. |
+| `yu app tool types <app.json> --lang ts\|rust` | Generate [typed MCP handlers](#typed-mcp-handlers) from a source manifest. |
 | `yu app install <dir> --review` | Verify the package and return its requested permissions, scopes, conditions, AI policy and execution surfaces as JSON, without installing or granting anything. |
 | `sudo yu app install <dir> [--force] [--no-consent] [--yes]` | Ask Root to publish a signed App into its configured App root after protected review. `--yes` cannot replace first review. `--no-consent` defers the separate legacy AI prompt. Installing an unsigned directory with `--dev-trust` is not supported. |
 | `yu review pending` | List and present the current user's App reviews and existing capability requests using the shared OS review contract. |

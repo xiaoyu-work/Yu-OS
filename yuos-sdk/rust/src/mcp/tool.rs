@@ -344,3 +344,34 @@ pub trait Tool: Send + Sync + 'static {
 
     async fn handle(&self, args: Value, context: CallContext) -> ToolResult;
 }
+
+pub(super) struct TypedTool<Args, Handler> {
+    name: &'static str,
+    handler: Handler,
+    args: std::marker::PhantomData<fn(Args)>,
+}
+
+impl<Args, Handler> TypedTool<Args, Handler> {
+    pub(super) fn new(name: &'static str, handler: Handler) -> Self {
+        Self { name, handler, args: std::marker::PhantomData }
+    }
+}
+
+#[async_trait]
+impl<Args, Handler, Reply> Tool for TypedTool<Args, Handler>
+where
+    Args: serde::de::DeserializeOwned + Send + 'static,
+    Handler: Fn(Args, CallContext) -> Reply + Send + Sync + 'static,
+    Reply: std::future::Future<Output = ToolResult> + Send + 'static,
+{
+    fn name(&self) -> &str {
+        self.name
+    }
+
+    async fn handle(&self, args: Value, context: CallContext) -> ToolResult {
+        match serde_json::from_value(args) {
+            Ok(args) => (self.handler)(args, context).await,
+            Err(_) => ToolResult::error("tool arguments do not match the generated binding"),
+        }
+    }
+}

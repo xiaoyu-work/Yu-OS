@@ -480,6 +480,13 @@ so a peer cannot make the daemon reserve memory it has not justified, and there
 is no terminator to scan for — a short read is a truncation, not a partial
 record the daemon waits on.
 
+The opt-in App chat stream is the only exchange that sends provisional
+reply frames before the terminal response. The direct broker, private
+GUI/extension brokers and ordinary worker relay preserve the same
+correlation and admission. No second request can run on that connection.
+Closing a stream stops pending inference; the usual durable reservation
+and audit rules still apply.
+
 The body is a closed envelope: `deny_unknown_fields` over a version, a bounded
 correlation id, the route name, and that route's parameters. There is no legacy
 shape and no fallback parse. A frame that does not carry the magic is refused

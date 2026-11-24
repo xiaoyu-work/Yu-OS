@@ -454,15 +454,20 @@ async fn serve_connection(stream: UnixStream, state: DaemonState, admission: Arc
             // here, so no privileged effect runs unrecorded.
             match journal::begin(admitted.route, &id, admitted.decision.as_ref(), &client) {
                 Ok(guard) => {
-                    let mut response = dispatch(
+                    let streaming = super::ai_stream::requested(admitted.route.command, &admitted.params);
+                    let run = Box::pin(dispatch(
                         admitted.route,
                         admitted.id,
                         admitted.params,
                         admitted.decision.as_ref(),
                         &state,
                         &client,
-                    )
-                    .await;
+                    ));
+                    let mut response = if streaming {
+                        super::ai_stream::dispatch(&mut peer_stream, id.clone(), limits.write_deadline, run).await
+                    } else {
+                        run.await
+                    };
                     // Closed only once the effect's durable result is
                     // known. If the closing record cannot be written,
                     // the answer becomes an explicit indeterminate.
@@ -505,11 +510,22 @@ async fn serve_connection(stream: UnixStream, state: DaemonState, admission: Arc
 /// broker-owned listener. The private extension proxy applies its stricter
 /// host/descendant/session route filter first; typed admission, authority,
 /// mutation journaling, provider checks and audit remain identical here.
+#[cfg(test)]
 pub(crate) async fn dispatch_verified_request(
     request: crate::yuosd::wire::Request,
     client: &ClientIdentity,
     state: &DaemonState,
     admission: &Arc<Admission>,
+) -> Response {
+    dispatch_verified(request, client, state, admission, None).await
+}
+
+pub(crate) async fn dispatch_verified(
+    request: crate::yuosd::wire::Request,
+    client: &ClientIdentity,
+    state: &DaemonState,
+    admission: &Arc<Admission>,
+    stream: Option<&mut PeerStream>,
 ) -> Response {
     let started = Instant::now();
     let body = match serde_json::to_vec(&request) {
@@ -528,15 +544,20 @@ pub(crate) async fn dispatch_verified_request(
             let response =
                 match journal::begin(admitted.route, &id, admitted.decision.as_ref(), client) {
                     Ok(guard) => {
-                        let mut response = dispatch(
+                        let streaming = super::ai_stream::requested(admitted.route.command, &admitted.params);
+                        let run = Box::pin(dispatch(
                             admitted.route,
                             admitted.id,
                             admitted.params,
                             admitted.decision.as_ref(),
                             state,
                             client,
-                        )
-                        .await;
+                        ));
+                        let mut response = if let Some(stream) = stream.filter(|_| streaming) {
+                            super::ai_stream::dispatch(stream, id.clone(), admission.limits().write_deadline, run).await
+                        } else {
+                            run.await
+                        };
                         if let Some(guard) = guard {
                             if let Some(replacement) = journal::finish(guard, &id, &response) {
                                 response = replacement;

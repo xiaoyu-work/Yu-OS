@@ -21,6 +21,8 @@ from typing import (
     Sequence, TypeVar, cast,
 )
 
+from threading import Timer
+
 from ._transport import WIRE_ARG, WireDenied, WireUnavailable, decode_response
 from .generated import (
     AiAppTool,
@@ -36,12 +38,15 @@ from .generated import (
     WireDecodeError,
     WireDecimal,
     WireJsonValue,
+    decode_wire_json,
     encode_wire_json,
     validate_ai,
+    validate_ai_chat_delta,
     validate_ai_chat_request,
     validate_ai_inference,
     validate_ai_inference_request,
     validate_budget_show,
+    validate_envelope,
     wire_integer_to_int,
 )
 
@@ -281,13 +286,64 @@ def chat_stream(
         request["max_units"] = max_units
     if images:
         request["images"] = [_encode_media(image, "chat_stream: images") for image in images]
-    _encode_request(request, validate_ai_chat_request)
+    data = _encode_request(request, validate_ai_chat_request)
     if _dev_ai_url() is not None:
         yield from _dev_chat_stream(request)
         return
-    reply = chat_request(request)
-    if reply.output.text:
-        yield reply.output.text
+    yield from _model_stream(data)
+
+
+def _model_stream(data: bytes) -> Iterator[str]:
+    argv = [_yu_binary(), WIRE_ARG, "ai", "chat", "--request-stdin", "--stream"]
+    try:
+        process = subprocess.Popen(
+            argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        )
+    except OSError as error:
+        raise AiUnavailable(str(error)) from error
+    timer = Timer(_DEFAULT_TIMEOUT_S, process.kill)
+    timer.daemon = True
+    timer.start()
+    try:
+        assert process.stdin is not None and process.stdout is not None
+        try:
+            with process.stdin as pipe:
+                pipe.write(data)
+        except BrokenPipeError:
+            # The CLI can send a structured refusal without reading the request.
+            pass
+        final = None
+        total_bytes = 0
+        while raw := process.stdout.readline(8 * 1024 * 1024 + 1):
+            if final is not None or len(raw) > 8 * 1024 * 1024 or not raw.endswith(b"\n"):
+                raise AiUnavailable("invalid App chat stream framing")
+            text = raw.decode("utf-8")
+            record = decode_wire_json(text)
+            if isinstance(record, dict) and "event" in record:
+                validate_ai_chat_delta(record)
+                chunk = record["text"]
+                total_bytes += len(chunk.encode("utf-8"))
+                if total_bytes > 512 * 1024:
+                    raise AiUnavailable("App chat stream exceeded its text limit")
+                yield chunk
+            else:
+                validate_envelope(record)
+                final = text
+        status = process.wait()
+        if final is None:
+            raise AiUnavailable("App chat stream ended without a final response")
+        _parse_response(decode_response(final, status, "yu ai chat"))
+    except WireDenied as error:
+        _raise_for_error(error.payload)
+    except (WireDecodeError, WireUnavailable, OSError, UnicodeError, ValueError) as error:
+        raise AiUnavailable(str(error)) from error
+    finally:
+        timer.cancel()
+        if process.poll() is None:
+            process.kill()
+        process.wait()
+        if process.stdout is not None:
+            process.stdout.close()
 
 
 def infer(request: AiInferenceRequest) -> AiInference:
@@ -791,39 +847,33 @@ def _dev_chat_stream(request: AiChatRequest) -> Iterator[str]:
     )
     try:
         with urllib.request.urlopen(req, timeout=_DEFAULT_TIMEOUT_S) as resp:
-            ctype = (resp.headers.get("Content-Type") or "").lower()
-            raw = resp.read().decode("utf-8")
+            if resp.headers.get_content_type() != "text/event-stream":
+                raise AiUnavailable("dev AI endpoint did not return a streaming response")
+            total = 0
+            while raw := resp.readline(8 * 1024 * 1024 + 1):
+                if len(raw) > 8 * 1024 * 1024:
+                    raise AiUnavailable("dev AI stream line exceeds the transport limit")
+                line = raw.decode("utf-8").strip()
+                if not line.startswith("data:"):
+                    continue
+                data_str = line[5:].strip()
+                if data_str == "[DONE]":
+                    return
+                if not data_str:
+                    continue
+                chunk_obj = json.loads(data_str)
+                choices = chunk_obj.get("choices") if isinstance(chunk_obj, dict) else None
+                if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+                    delta = choices[0].get("delta")
+                    piece = delta.get("content") if isinstance(delta, dict) else None
+                    if isinstance(piece, str) and piece:
+                        total += len(piece.encode("utf-8"))
+                        if total > 512 * 1024:
+                            raise AiUnavailable("dev AI stream exceeded its text limit")
+                        yield piece
     except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as error:
         raise AiUnavailable(f"dev AI stream failed: {error}") from error
-    if "text/event-stream" in ctype or raw.lstrip().startswith("data:"):
-        for line in raw.splitlines():
-            line = line.strip()
-            if not line.startswith("data:"):
-                continue
-            data_str = line[5:].strip()
-            if data_str == "[DONE]" or not data_str:
-                continue
-            try:
-                chunk_obj = json.loads(data_str)
-            except json.JSONDecodeError:
-                continue
-            choices = chunk_obj.get("choices") if isinstance(chunk_obj, dict) else None
-            if isinstance(choices, list) and choices and isinstance(choices[0], dict):
-                delta = choices[0].get("delta") or choices[0].get("message") or {}
-                if isinstance(delta, dict):
-                    piece = delta.get("content")
-                    if isinstance(piece, str) and piece:
-                        yield piece
-        return
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError as error:
-        raise AiUnavailable(f"dev AI stream returned invalid JSON: {error}") from error
-    choices = parsed.get("choices") if isinstance(parsed, dict) else None
-    if isinstance(choices, list) and choices and isinstance(choices[0], dict):
-        msg = choices[0].get("message") or {}
-        if isinstance(msg, dict) and isinstance(msg.get("content"), str) and msg["content"]:
-            yield msg["content"]
+    raise AiUnavailable("dev AI stream ended without a final event")
 
 
 def _dev_infer(request: AiInferenceRequest) -> Dict[str, Any]:

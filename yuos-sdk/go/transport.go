@@ -125,6 +125,10 @@ func yuCallJSONContext(parent context.Context, label string, args []string, inpu
 	if err := decoder.Decode(&trailing); err != io.EOF {
 		return nil, &UnavailableError{Msg: fmt.Sprintf("%s returned trailing JSON data", label)}
 	}
+	return decodeYuEnvelope(env, status, label)
+}
+
+func decodeYuEnvelope(env any, status int, label string) (*yuOutcome, error) {
 	if err := ValidateEnvelope(env); err != nil {
 		return nil, &UnavailableError{Msg: fmt.Sprintf("%s returned an invalid wire envelope: %v", label, err)}
 	}

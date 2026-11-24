@@ -23,8 +23,8 @@ pub async fn chat(
     }.to_owned();
     require_app(authority, &app_id)?;
     let home = client.require_home_dir()?;
-    let req = match body {
-        AiChat::Text(body) => gate::ChatRequest {
+    let (req, stream) = match body {
+        AiChat::Text(body) => (gate::ChatRequest {
             app_id: app_id.clone(),
             origin: body.origin.as_str().into(),
             prompt: Some(body.prompt.as_str().into()),
@@ -32,14 +32,20 @@ pub async fn chat(
             max_units: body.max_units,
             tools: body.tools.as_slice().to_vec(),
             ..Default::default()
-        },
-        AiChat::Request(body) => body.request.into_request(app_id.clone()),
+        }, false),
+        AiChat::Request(body) => (body.request.into_request(app_id.clone()), body.stream),
+    };
+    let output = if stream {
+        Some(super::ai_stream::OUTPUT.try_with(Clone::clone)
+            .map_err(|_| BrokerError::unavailable("App chat streaming requires a streaming connection"))?)
+    } else {
+        None
     };
     crate::paths::with_user_override(authority.owner_uid(), home, async {
         // Only daemon configuration is consulted. Client environment fields
         // are neither transported nor installed in this request scope.
         crate::config::with_snapshot(crate::config::load_user_config(), async {
-            tokio::time::timeout(CHAT_TIMEOUT, gate::chat_authorized(req, authority))
+            tokio::time::timeout(CHAT_TIMEOUT, gate::chat_authorized(req, authority, output.as_ref()))
                 .await
                 .map_err(|_| BrokerError::unavailable("AI request deadline exceeded"))?
                 .map_err(|error| error_reply(&app_id, error))

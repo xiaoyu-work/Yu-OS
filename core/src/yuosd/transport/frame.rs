@@ -162,6 +162,11 @@ impl PeerStream {
         self.write_frame(KIND_RESPONSE, body).await
     }
 
+    /// A streaming caller must not send more data or half-close its socket.
+    pub(crate) async fn wait_for_input(&self) {
+        let _ = self.recv(&mut [0]).await;
+    }
+
     /// Answer a peer speaking the pre-v1 newline protocol.
     ///
     /// Written without reading, parsing or authorizing anything the

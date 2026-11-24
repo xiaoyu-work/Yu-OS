@@ -326,19 +326,35 @@ fn main() {
     // guard cleans up its registry row on Drop.
     let _session_guard = caps::bootstrap_user_cli_session(&args);
 
+    let streaming_chat = args.as_slice() == ["ai", "chat", "--request-stdin", "--stream"];
     let ai_stdin_limit = if args.as_slice() == ["ai", "infer", "--request-stdin"] {
         Some(yu::yuosd::wire::bounded::AI_INFERENCE_REQUEST_BYTES)
-    } else if args.as_slice() == ["ai", "chat", "--request-stdin"] {
+    } else if streaming_chat || args.as_slice() == ["ai", "chat", "--request-stdin"] {
         Some(yu::yuosd::wire::bounded::AI_CHAT_REQUEST_BYTES)
     } else {
         None
     };
-    let result = if let Some(limit) = ai_stdin_limit {
+    let result = if streaming_chat && !wire_v1 {
+        Err("App chat streaming requires --wire=1".to_string())
+    } else if let Some(limit) = ai_stdin_limit {
         read_requested_stdin(std::io::stdin(), limit)
         .map_err(|error| {
             serde_json::json!({"error": error, "code": "INVALID_ARGS"}).to_string()
         })
-        .and_then(|input| router::dispatch_with_stdin(&args, Some(input)))
+        .and_then(|input| {
+            if !streaming_chat {
+                return router::dispatch_with_stdin(&args, Some(input));
+            }
+            use std::io::Write;
+            let mut out = std::io::stdout().lock();
+            yu::ai::chat::structured_stream_cmd(&input, |text| {
+                serde_json::to_writer(&mut out, &serde_json::json!({
+                    "wire_version": 1, "event": "text_delta", "text": text,
+                }))?;
+                out.write_all(b"\n")?;
+                out.flush()
+            }).map(|reply| Some(reply.to_string()))
+        })
     } else if stdin_requested {
         match app_stdin_max_bytes().and_then(|limit| {
             let limit = if args.get(3..).is_some_and(|args| args == ["--args-stdin"]) {

@@ -82,6 +82,7 @@ editing additional surfaces.
 | Bundled App product boundary or source fork | `docs/app-product-redesign.md`, external `yuos-app` guides, `packaging/MODULE.md` | Product UI/backend, App-owned common support, manifests, provenance/licenses, native launchers, account/state migration, compatibility packaging |
 | Adapter | `adapters/<id>/app.json`, `adapters/<id>/main.py` | adapter tests and external binary dependency |
 | App/SDK wire contract | `yuos-sdk/wire/`, language SDK package | generated bindings, conformance tests, `publish-sdk-release.yml` |
+| App chat streaming or typed MCP bindings | `core/src/ai/`, `core/src/yuosd/ai_stream.rs`, `core/src/router/mcp_types.rs` | Shared App AI gate and broker transports, generated wire delta types, SDK handler adapters |
 | App development platform release | `packaging/app-platform.json`, `scripts/app_platform.py`, `docs/app-platform.md` | Versioned SDK/runtime/toolkit exports; `publish-app-platform.yml`; never App helpers or private OS providers |
 | Rootfs composition | `scripts/lib/image-profiles.sh`, `rootfs/build.sh`, `rootfs/features/` | target build script and package contents |
 | WSL or Docker image | `targets/wsl/`, `targets/docker/`, `CONTRIBUTING.md` | local builds from the shared rootfs profile; not part of publication CI |
@@ -213,7 +214,7 @@ Documentation-only changes do not require code tests.
   Yu OS SDK/agent gate so consent, budgets, logging, and provider ownership
   remain centralized. Use AI verb-only needs; the owner chooses the model and
   monthly budget in Settings, not the App manifest.
-  Use the named [SDK model calls](yuos-sdk/REFERENCE.md#ai-support) in examples.
+  Use the named [SDK model calls](yuos-sdk/api.html#python-mod-ai) in examples.
 - Ordinary Apps can use their own data, owner-selected files and default
   public egress as described in the [App guide](docs/app-development.md).
   Do not add App-to-App permissions. The built-in System Agent calls enabled

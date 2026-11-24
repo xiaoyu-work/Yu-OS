@@ -96,11 +96,27 @@ impl App {
         if !self.tool_indexes.contains_key(&name) {
             return Err(AppError::UndeclaredTool(name));
         }
+
         if self.bindings.contains_key(&name) {
             return Err(AppError::DuplicateBinding(name));
         }
         self.bindings.insert(name, tool);
         Ok(())
+    }
+
+    /// Bind a manifest tool using argument types from `yu app tool types`.
+    pub fn bind_typed<Args, Handler, Reply>(
+        &mut self,
+        name: &'static str,
+        handler: Handler,
+    ) -> Result<(), AppError>
+    where
+        Args: serde::de::DeserializeOwned + Send + 'static,
+        Handler: Fn(Args, CallContext) -> Reply + Send + Sync + 'static,
+        Reply: std::future::Future<Output = ToolResult> + Send + 'static,
+    {
+        use super::tool::TypedTool;
+        self.bind(Arc::new(TypedTool::new(name, handler)))
     }
 
     pub async fn serve_stdio(self) -> Result<(), AppError> {

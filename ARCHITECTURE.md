@@ -66,7 +66,7 @@ route.
 | Model-input trust | Closed trust lattice, model-input source registry, labelled segments, and the bounded data fence for non-policy content | `core/src/agent/trust/` |
 | LLM abstraction | Provider registry, wire adapters, streaming accumulation, fallback chain, credentials, and usage | `core/src/agent/llm/` |
 | Local decision task | Bounded System One judgments via an owner-only socket; independent of chat and action authority | `core/src/model/tasks/decision.rs`, [Decision models](docs/decision-model.md) |
-| App model inference | Named SDK calls use the owner's configured models. Root checks live App capabilities, consent and budget, and sends chat images as bounded external content. | `core/src/ai/`, `core/src/yuosd/app_sessions.rs`, [SDK AI reference](yuos-sdk/REFERENCE.md#ai-support) |
+| App model inference | Named SDK calls use the owner's configured models. Root checks live App capabilities, consent and budget, and sends chat images as bounded external content. | `core/src/ai/`, `core/src/yuosd/app_sessions.rs`, [SDK AI reference](yuos-sdk/api.html#python-mod-ai) |
 | Tool/capability layer | Model-visible tool registry, guardrails, MCP attachment, scope checks, and approval boundaries | `core/src/agent/tools/`, `core/src/caps/` |
 | Credential service | Validated credential identities, cryptography and master-key ownership, encrypted atomic persistence, authorization, refresh lifecycle, OAuth flows, and stable CLI facade | `core/src/credential/` |
 | Memory and sessions | SQLite/FTS memory, semantic recall, session/message persistence, curation, checkpoints, and owner-scoped learned-memory reset that preserves execution evidence | `core/src/agent/memory/`, `core/src/session/`, `core/src/checkpoint.rs` |
@@ -900,6 +900,9 @@ records the safety-filtered request against the owner and App session.
 Revoking the live grant cancels a call; the ledger conservatively charges
 dispatched work. Apps can send function schemas and prior tool results.
 App code alone decides whether to execute a proposed function.
+Opt-in App chat streaming forwards provisional text over the same authorized
+broker connection. Budget settlement and the audited terminal reply remain
+in the existing gate.
 
 Mail's UI Native Messaging host and Agent MCP server use the same installed
 package at `/usr/lib/yuos/apps/mail-ai`; the desktop feature does not install a

@@ -7,3 +7,5 @@ Call the user's configured models, expose MCP tools, and use OS services from yo
 **Install:** [Python](python/README.md#install) · [Node.js](node/README.md#install) · [Go](go/README.md#install) · [Rust](rust/README.md#install)
 
 **Reference:** [Permissions & Overview (`reference.html`)](reference.html) · [App development](../docs/app-development.md) · [Wire protocol](wire/v1/README.md)
+
+**MCP handlers:** [Generate manifest-based types for TypeScript or Rust](../docs/app-development.md#typed-mcp-handlers)

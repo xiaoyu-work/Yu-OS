@@ -161,18 +161,31 @@ func ChatContext(ctx context.Context, prompt string, opts ChatOptions) (*AiRespo
 		if len(opts.Tools) != 0 && (opts.Origin == "" || len(opts.Images) != 0 || len(opts.Functions) != 0 || len(opts.ToolTurns) != 0) {
 			return nil, &AiInvalidArgsError{Msg: "chat: supply App functions in Functions"}
 		}
+		request, err := structuredChatRequest(prompt, opts)
+		if err != nil {
+			return nil, err
+		}
+		return ChatRequest(ctx, request)
+	}
+	return dispatch(ctx, prompt, opts)
+}
+
+func structuredChatRequest(prompt string, opts ChatOptions) (AiChatRequest, error) {
+	if strings.TrimSpace(prompt) == "" || opts.MaxUnits < 0 {
+		return AiChatRequest{}, &AiInvalidArgsError{Msg: "chat requires a prompt and a nonnegative MaxUnits"}
+	}
+	if opts.AppID != "" {
 		envApp := os.Getenv("YUOS_APP_ID")
-		if opts.AppID != "" && (envApp != "" || !isDev) && opts.AppID != envApp {
-			return nil, &AiDeniedError{Payload: map[string]any{
+		if (envApp != "" || devAiURL() == "") && opts.AppID != envApp {
+			return AiChatRequest{}, &AiDeniedError{Payload: map[string]any{
 				"code": "PERMISSION_DENIED", "error": "chat: App identity does not match the session",
 			}}
 		}
-		return ChatRequest(ctx, AiChatRequest{
-			Origin: appInput(opts.Origin), Prompt: prompt, System: opts.System, MaxUnits: uint64(opts.MaxUnits),
-			Images: encodeImages(opts.Images), Tools: opts.Functions, ToolTurns: opts.ToolTurns,
-		})
 	}
-	return dispatch(ctx, prompt, opts)
+	return AiChatRequest{
+		Origin: appInput(opts.Origin), Prompt: prompt, System: opts.System, MaxUnits: uint64(opts.MaxUnits),
+		Images: encodeImages(opts.Images), Tools: opts.Functions, ToolTurns: opts.ToolTurns,
+	}, nil
 }
 
 func encodeImages(images [][]byte) []string {
@@ -181,20 +194,6 @@ func encodeImages(images [][]byte) []string {
 		encoded[i] = base64.StdEncoding.EncodeToString(image)
 	}
 	return encoded
-}
-
-// ChatStream streams text chunks from the configured chat model to onChunk.
-func ChatStream(ctx context.Context, prompt string, opts ChatOptions, onChunk func(string) error) (*AiResponse, error) {
-	resp, err := ChatContext(ctx, prompt, opts)
-	if err != nil {
-		return nil, err
-	}
-	if resp.Output.Text != "" && onChunk != nil {
-		if err := onChunk(resp.Output.Text); err != nil {
-			return nil, err
-		}
-	}
-	return resp, nil
 }
 
 // ChatRequest calls the configured chat model with optional App functions and prior results.

@@ -138,6 +138,27 @@ pub struct ChatRequest {
     pub(crate) app_tools: AppTools,
 }
 
+async fn send_chat_text(
+    output: &tokio::sync::mpsc::Sender<String>,
+    mut text: &str,
+    total: usize,
+) -> Result<(), String> {
+    use crate::yuosd::ai_stream::{MAX_DELTA_BYTES, MAX_TEXT_BYTES};
+    if total > MAX_TEXT_BYTES {
+        return Err("App chat stream exceeded its text limit".into());
+    }
+    while !text.is_empty() {
+        let mut end = text.len().min(MAX_DELTA_BYTES);
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        output.send(text[..end].to_owned()).await
+            .map_err(|_| "App chat stream closed".to_string())?;
+        text = &text[end..];
+    }
+    Ok(())
+}
+
 /// Structured envelope returned to apps. Always JSON-serialisable.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatResult {
@@ -502,22 +523,24 @@ pub fn chat_blocking(req: ChatRequest) -> Result<ChatResult, AiError> {
 /// allowed (status=ok or status=error after the provider runs) and
 /// denied (status=denied with a stable `denial_reason` token).
 pub async fn chat(req: ChatRequest) -> Result<ChatResult, AiError> {
-    chat_with_authority(req, None).await
+    chat_with_authority(req, None, None).await
 }
 
 pub(crate) async fn chat_authorized(
     req: ChatRequest,
     authority: &crate::yuosd::authority::Decision,
+    output: Option<&tokio::sync::mpsc::Sender<String>>,
 ) -> Result<ChatResult, AiError> {
     authority
         .require_app(&req.app_id)
         .map_err(|error| AiError::Denied(serde_json::json!({"error": error})))?;
-    chat_with_authority(req, Some(authority)).await
+    chat_with_authority(req, Some(authority), output).await
 }
 
 async fn chat_with_authority(
     req: ChatRequest,
     authority: Option<&crate::yuosd::authority::Decision>,
+    output: Option<&tokio::sync::mpsc::Sender<String>>,
 ) -> Result<ChatResult, AiError> {
     let started = std::time::Instant::now();
     // Best-effort verb derivation up-front so audit records carry it
@@ -528,7 +551,7 @@ async fn chat_with_authority(
     let verb_label: Option<String> = Modality::derive(&req)
         .ok()
         .map(|m| m.verb().as_str().to_string());
-    let result = chat_inner(&req, authority).await;
+    let result = chat_inner(&req, authority, output).await;
     let duration_ms = started.elapsed().as_millis() as u64;
 
     match &result {
@@ -711,6 +734,7 @@ pub(super) fn app_policy(
 async fn chat_inner(
     req: &ChatRequest,
     authority: Option<&crate::yuosd::authority::Decision>,
+    output: Option<&tokio::sync::mpsc::Sender<String>>,
 ) -> Result<ChatResult, AiError> {
     let modality = Modality::derive(req)?;
     if !modality.is_chat_like() {
@@ -808,8 +832,22 @@ async fn chat_inner(
         &llm_req,
     )?;
     let (llm_resp, actual_units, snapshot) = call.run(
-        async { provider.chat(llm_req).await.map_err(app_provider_error) },
-        |response| model_service::chat_units(&response.usage),
+        async {
+            match output {
+                Some(output) => stream_chat(provider.as_ref(), llm_req, output).await,
+                None => provider.chat(llm_req).await.map_err(app_provider_error),
+            }
+        },
+        |response| {
+            let reported = model_service::chat_units(&response.usage);
+            if output.is_some() && response.usage.input_tokens == 0 {
+                // Some streaming providers omit usage. Do not refund the
+                // reservation simply because the transport changed.
+                estimated_units.max(reported)
+            } else {
+                reported
+            }
+        },
     ).await?;
     if let Some(limit) = req.max_units {
         if actual_units > limit {
@@ -820,15 +858,42 @@ async fn chat_inner(
         }
     }
 
-    let text = llm_resp
-        .content
-        .iter()
-        .filter_map(|block| match block {
-            ContentBlock::Text { text } => Some(text.as_str()),
-            _ => None,
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
+    async fn stream_chat(
+        provider: &dyn LlmProvider,
+        request: llm::types::ChatRequest,
+        output: &tokio::sync::mpsc::Sender<String>,
+    ) -> Result<llm::types::ChatResponse, String> {
+        use futures_util::StreamExt;
+
+        tokio::select! {
+            biased;
+            _ = output.closed() => Err("App chat stream closed".into()),
+            result = async {
+                let mut accumulator = llm::accumulate::Accumulator::new(&request.model);
+                let mut events = provider.chat_stream(request).await.map_err(app_provider_error)?;
+                let mut total = 0usize;
+                while let Some(event) = events.next().await {
+                    let event = event.map_err(app_provider_error)?;
+                    if let StreamEvent::TextDelta { text } = &event {
+                        total = total.saturating_add(text.len());
+                        send_chat_text(output, text, total).await?;
+                    }
+                    if accumulator.feed(event) {
+                        let reply = accumulator.finish();
+                        // Some providers only supply a complete Message, not text deltas.
+                        if total == 0 {
+                            let text = chat_text(&reply);
+                            send_chat_text(output, &text, text.len()).await?;
+                        }
+                        return Ok(reply);
+                    }
+                }
+                Err("configured chat model did not finish its stream".into())
+            } => result,
+        }
+    }
+
+    let text = chat_text(&llm_resp);
     let input_tokens = llm_resp.usage.input_tokens;
     let output_tokens = llm_resp.usage.output_tokens;
     let (tool_calls, provider_state) = req.app_tools.proposals(&cfg.provider, &model, llm_resp)?;
@@ -857,6 +922,18 @@ async fn chat_inner(
         tool_calls,
         provider_state,
     })
+}
+
+fn chat_text(response: &llm::types::ChatResponse) -> String {
+    response
+        .content
+        .iter()
+        .filter_map(|block| match block {
+            ContentBlock::Text { text } => Some(text.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn app_provider_error(error: llm::LlmError) -> String {

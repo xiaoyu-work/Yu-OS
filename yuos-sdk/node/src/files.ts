@@ -1,7 +1,7 @@
 // Root-brokered access to one explicitly authorized existing App MCP file.
 
 import { createHash } from "node:crypto";
-import { yuCallJson } from "./transport";
+import { Unavailable, yuCallJson, yuCallJsonAsync } from "./transport";
 
 export const MAX_FILE_BYTES = 32 * 1024 * 1024;
 const CHUNK_BYTES = 512 * 1024;
@@ -17,6 +17,10 @@ export interface FileOptions {
   binary?: string;
   deadlineUnixMs?: number;
   checkCancelled?: () => void;
+}
+
+export interface AsyncFileOptions extends FileOptions {
+  signal?: AbortSignal;
 }
 
 function validatePath(path: string): void {
@@ -54,7 +58,31 @@ function callFileBroker(
     ["__app_file", commit ? "commit" : "transfer"],
     timeoutMs,
     payload,
+    options.binary,
   ) as Record<string, unknown>;
+}
+
+async function callFileBrokerAsync(
+  path: string,
+  commit: boolean,
+  fields: Record<string, unknown>,
+  options: AsyncFileOptions,
+): Promise<Record<string, unknown>> {
+  options.checkCancelled?.();
+  options.signal?.throwIfAborted();
+  const timeoutMs = options.deadlineUnixMs === undefined ? 30_000 : options.deadlineUnixMs - Date.now();
+  if (timeoutMs <= 0) throw new Unavailable("brokered file deadline exceeded");
+  const reply = await yuCallJsonAsync(
+    "yu __app_file",
+    ["__app_file", commit ? "commit" : "transfer"],
+    options.signal,
+    JSON.stringify({ path, ...fields }),
+    { binary: options.binary, timeoutMs },
+  );
+  if (typeof reply !== "object" || reply === null || Array.isArray(reply)) {
+    throw new Unavailable("invalid brokered file reply");
+  }
+  return { ...reply };
 }
 
 function extractToken(result: Record<string, unknown>, name: string): string {
@@ -65,12 +93,50 @@ function extractToken(result: Record<string, unknown>, name: string): string {
   return token;
 }
 
-function abortTransfer(path: string, token: string): void {
+function abortTransfer(path: string, token: string, binary?: string): void {
   try {
-    callFileBroker(path, false, { action: "abort", id: token }, { deadlineUnixMs: Date.now() + 250 });
+    callFileBroker(path, false, { action: "abort", id: token }, { binary, deadlineUnixMs: Date.now() + 250 });
   } catch {
     // ignore abort error
   }
+}
+
+async function abortTransferAsync(path: string, token: string, binary?: string): Promise<void> {
+  try {
+    await callFileBrokerAsync(path, false, { action: "abort", id: token }, { binary, deadlineUnixMs: Date.now() + 250 });
+  } catch {
+    // The failed transfer's session also owns its cleanup.
+  }
+}
+
+function readMetadata(metadata: Record<string, unknown>): { size: number; digest: string } {
+  const { size, sha256: digest } = metadata;
+  if (
+    typeof size !== "number" || !Number.isInteger(size) || size < 0 || size > MAX_FILE_BYTES
+    || typeof digest !== "string" || !SHA256_RE.test(digest)
+  ) {
+    throw new Error("broker returned invalid file snapshot metadata");
+  }
+  return { size, digest };
+}
+
+function readChunk(part: Record<string, unknown>, offset: number, size: number): Buffer {
+  if (part.offset !== offset || typeof part.content_base64 !== "string") {
+    throw new Error("broker returned an invalid file chunk");
+  }
+  const chunk = Buffer.from(part.content_base64, "base64");
+  if (chunk.length !== Math.min(CHUNK_BYTES, size - offset)) {
+    throw new Error("broker returned a partial file chunk");
+  }
+  return chunk;
+}
+
+function checkedSnapshot(chunks: Buffer[], digest: string, revision: string): FileSnapshot {
+  const content = Buffer.concat(chunks);
+  if (sha256Hex(content) !== digest) {
+    throw new Error("broker returned a file snapshot with the wrong digest");
+  }
+  return { content, revision };
 }
 
 /** Read an existing file in a `brokered-file` MCP invocation. */
@@ -80,18 +146,7 @@ export function readFile(path: string, options: FileOptions = {}): FileSnapshot 
   const revision = extractToken(metadata, "revision");
   let complete = false;
   try {
-    const size = metadata.size;
-    const digest = metadata.sha256;
-    if (
-      typeof size !== "number" ||
-      !Number.isInteger(size) ||
-      size < 0 ||
-      size > MAX_FILE_BYTES ||
-      typeof digest !== "string" ||
-      !SHA256_RE.test(digest)
-    ) {
-      throw new Error("broker returned invalid file snapshot metadata");
-    }
+    const { size, digest } = readMetadata(metadata);
     const chunks: Buffer[] = [];
     for (let offset = 0; offset < size; offset += CHUNK_BYTES) {
       const part = callFileBroker(
@@ -100,25 +155,53 @@ export function readFile(path: string, options: FileOptions = {}): FileSnapshot 
         { action: "read-chunk", id: revision, offset },
         options,
       );
-      const count = Math.min(CHUNK_BYTES, size - offset);
-      const encoded = part.content_base64;
-      if (part.offset !== offset || typeof encoded !== "string") {
-        throw new Error("broker returned an invalid file chunk");
-      }
-      const chunk = Buffer.from(encoded, "base64");
-      if (chunk.length !== count) {
-        throw new Error("broker returned a partial file chunk");
-      }
-      chunks.push(chunk);
+      chunks.push(readChunk(part, offset, size));
     }
-    const content = Buffer.concat(chunks);
-    if (sha256Hex(content) !== digest) {
-      throw new Error("broker returned a file snapshot with the wrong digest");
-    }
+    const snapshot = checkedSnapshot(chunks, digest, revision);
     complete = true;
-    return { content, revision };
+    return snapshot;
   } finally {
-    if (!complete) abortTransfer(path, revision);
+    if (!complete) abortTransfer(path, revision, options.binary);
+  }
+}
+
+/** Read without blocking the MCP event loop. Pass its CallContext as options. */
+export async function readFileAsync(path: string, options: AsyncFileOptions = {}): Promise<FileSnapshot> {
+  validatePath(path);
+  const metadata = await callFileBrokerAsync(path, false, { action: "read-start" }, options);
+  const revision = extractToken(metadata, "revision");
+  try {
+    const { size, digest } = readMetadata(metadata);
+    const chunks: Buffer[] = [];
+    for (let offset = 0; offset < size; offset += CHUNK_BYTES) {
+      const part = await callFileBrokerAsync(path, false, { action: "read-chunk", id: revision, offset }, options);
+      chunks.push(readChunk(part, offset, size));
+    }
+    return checkedSnapshot(chunks, digest, revision);
+  } catch (error) {
+    await abortTransferAsync(path, revision, options.binary);
+    throw error;
+  }
+}
+
+function replacement(path: string, revision: string, buf: Buffer) {
+  validatePath(path);
+  if (typeof revision !== "string" || !TOKEN_RE.test(revision)) {
+    throw new Error("brokered file requires its opaque read revision");
+  }
+  if (buf.length > MAX_FILE_BYTES) {
+    throw new Error("replacement must be bytes and at most 32 MiB");
+  }
+  return { action: "write-start", revision, size: buf.length, sha256: sha256Hex(buf) };
+}
+
+function checkWriteChunk(result: Record<string, unknown>, end: number): void {
+  if (result.offset !== end) throw new Error("broker did not acknowledge the full file chunk");
+}
+
+function checkCommit(result: Record<string, unknown>): void {
+  if (result.committed !== true || typeof result.changed !== "boolean") {
+    throw new Error("broker returned no conclusive file commit result");
   }
 }
 
@@ -129,23 +212,11 @@ export function replaceFile(
   content: Buffer | Uint8Array,
   options: FileOptions = {},
 ): void {
-  validatePath(path);
-  if (typeof revision !== "string" || !TOKEN_RE.test(revision)) {
-    throw new Error("brokered file requires its opaque read revision");
-  }
   const buf = Buffer.isBuffer(content) ? content : Buffer.from(content);
-  if (buf.length > MAX_FILE_BYTES) {
-    throw new Error("replacement must be bytes and at most 32 MiB");
-  }
   const started = callFileBroker(
     path,
     false,
-    {
-      action: "write-start",
-      revision,
-      size: buf.length,
-      sha256: sha256Hex(buf),
-    },
+    replacement(path, revision, buf),
     options,
   );
   const transfer = extractToken(started, "id");
@@ -164,16 +235,42 @@ export function replaceFile(
         },
         options,
       );
-      if (accepted.offset !== offset + part.length) {
-        throw new Error("broker did not acknowledge the full file chunk");
-      }
+      checkWriteChunk(accepted, offset + part.length);
     }
     committing = true;
     const result = callFileBroker(path, true, { id: transfer }, options);
-    if (result.committed !== true || typeof result.changed !== "boolean") {
-      throw new Error("broker returned no conclusive file commit result");
-    }
+    checkCommit(result);
   } finally {
-    if (!committing) abortTransfer(path, transfer);
+    if (!committing) abortTransfer(path, transfer, options.binary);
   }
+}
+
+/** Replace without blocking the event loop. An interrupted commit is not safe to retry. */
+export async function replaceFileAsync(
+  path: string,
+  revision: string,
+  content: Buffer | Uint8Array,
+  options: AsyncFileOptions = {},
+): Promise<void> {
+  if (content.byteLength > MAX_FILE_BYTES) {
+    throw new Error("replacement must be bytes and at most 32 MiB");
+  }
+  const buf = Buffer.from(content);
+  const started = await callFileBrokerAsync(path, false, replacement(path, revision, buf), options);
+  const transfer = extractToken(started, "id");
+  try {
+    for (let offset = 0; offset < buf.length; offset += CHUNK_BYTES) {
+      const part = buf.subarray(offset, offset + CHUNK_BYTES);
+      const accepted = await callFileBrokerAsync(path, false, {
+        action: "write-chunk", id: transfer, offset, content_base64: part.toString("base64"),
+      }, options);
+      checkWriteChunk(accepted, offset + part.length);
+    }
+    options.checkCancelled?.();
+    options.signal?.throwIfAborted();
+  } catch (error) {
+    await abortTransferAsync(path, transfer, options.binary);
+    throw error;
+  }
+  checkCommit(await callFileBrokerAsync(path, true, { id: transfer }, options));
 }

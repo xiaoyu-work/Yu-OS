@@ -2219,7 +2219,7 @@ routes! {
         budget: Budget { max_in_flight: 4, deadline: Deadline::Uninterruptible },
         authority: session(Audience::SystemService),
         body: body::AiChat,
-        audit: &[("session", FieldRule::Token), ("app_id", FieldRule::Identifier), ("origin", FieldRule::Token), ("prompt", FieldRule::Size), ("system", FieldRule::Size), ("tools", FieldRule::Size), ("max_units", FieldRule::Count), ("request", FieldRule::Size)],
+        audit: &[("session", FieldRule::Token), ("app_id", FieldRule::Identifier), ("origin", FieldRule::Token), ("prompt", FieldRule::Size), ("system", FieldRule::Size), ("tools", FieldRule::Size), ("max_units", FieldRule::Count), ("request", FieldRule::Size), ("stream", FieldRule::Flag)],
         run: |c| {
             let authority = c.authority()?;
             super::ai::chat(c.params, c.client, authority).await

@@ -338,7 +338,12 @@ fn serve(
         return Outcome::Denied;
     }
     let params = envelope.get("params").cloned().unwrap_or(Value::Null);
-    match relay(authority, command, params) {
+    let streaming = crate::yuosd::ai_stream::requested(command, &params);
+    let mut emit = |text: &str| {
+        let body = serde_json::json!({"v": PROTOCOL_VERSION, "id": id, "ok": true, "result": {"chat_delta": text}});
+        write_response_checked(&mut stream, &body)
+    };
+    match relay(authority, command, params, streaming.then_some(&mut emit as &mut crate::yuosd::client::ChatDelta<'_>)) {
         Ok(result) => {
             respond_ok(&mut stream, &id, result);
             Outcome::Relayed
@@ -643,6 +648,7 @@ fn relay(
     authority: &BrokerAuthority,
     command: Command,
     params: Value,
+    delta: Option<&mut crate::yuosd::client::ChatDelta<'_>>,
 ) -> Result<Value, BrokerError> {
     let handle = authority
         .relay_handle()
@@ -656,8 +662,11 @@ fn relay(
             "params": params,
         }),
     );
-    let response =
-        crate::yuosd::client::request_blocking(crate::yuosd::config::socket_path(), request)
+    let socket_path = crate::yuosd::config::socket_path();
+    let response = match delta {
+        Some(delta) => crate::yuosd::client::request_chat_stream_relay(&socket_path, request, delta),
+        None => crate::yuosd::client::request_blocking(&socket_path, request),
+    }
             .map_err(|error| {
                 if error.may_have_dispatched() {
                     BrokerError::indeterminate(
@@ -694,6 +703,7 @@ fn relay(
     _authority: &BrokerAuthority,
     _command: Command,
     _params: Value,
+    _delta: Option<&mut crate::yuosd::client::ChatDelta<'_>>,
 ) -> Result<Value, BrokerError> {
     Err(BrokerError::unavailable(
         "worker broker relays require Unix",
@@ -765,12 +775,17 @@ fn respond_fault(stream: &mut std::os::unix::net::UnixStream, id: &str, fault: F
 
 #[cfg(unix)]
 fn write_response(stream: &mut std::os::unix::net::UnixStream, body: &Value) {
-    let encoded = serde_json::to_vec(body).unwrap_or_default();
-    let _ = stream.write_all(&crate::yuosd::transport::frame::encode_frame(
+    let _ = write_response_checked(stream, body);
+}
+
+#[cfg(unix)]
+fn write_response_checked(stream: &mut std::os::unix::net::UnixStream, body: &Value) -> std::io::Result<()> {
+    let encoded = serde_json::to_vec(body)?;
+    stream.write_all(&crate::yuosd::transport::frame::encode_frame(
         KIND_RESPONSE,
         &encoded,
-    ));
-    let _ = stream.flush();
+    ))?;
+    stream.flush()
 }
 
 /// Ask the launch's broker endpoint for a capability decision.

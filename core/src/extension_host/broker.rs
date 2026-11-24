@@ -544,7 +544,7 @@ async fn serve_connection(
 
     let response = crate::caps::activity_boundary::scope(
         lease.activity_boundary(),
-        crate::yuosd::server::dispatch_verified_request(request, &client, &state, &admission),
+        Box::pin(crate::yuosd::server::dispatch_verified(request, &client, &state, &admission, Some(&mut peer_stream))),
     )
     .await;
     write_response(&mut peer_stream, response).await;
