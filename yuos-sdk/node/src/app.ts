@@ -12,7 +12,7 @@
 //
 // Declare the command under `operations` in app.json.
 
-import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { yuCallJson } from "./transport";
@@ -160,6 +160,59 @@ export function requirePermission(verb: string, scope: PermissionScope = {}): vo
   if (decision.decision !== "allow") {
     throw new Error(typeof decision.summary === "string" ? decision.summary : `permission denied: ${verb}`);
   }
+}
+
+/** Launch a desktop application by freedesktop AppID (`desktop.launch`). */
+export function launchApp(appId: string, uri?: string): Record<string, unknown> {
+  if (typeof appId !== "string" || !appId.trim()) {
+    throw new Error("launchApp: appId must be non-empty");
+  }
+  const argv = ["__desktop", "launch", "--app-id", appId.trim()];
+  if (uri !== undefined) {
+    if (typeof uri !== "string" || !uri.trim() || uri.includes("\0")) {
+      throw new Error("launchApp: uri must be a non-empty string");
+    }
+    argv.push("--uri", uri.trim());
+  }
+  if (!process.env.YUOS_SESSION) {
+    return { launched: true, app_id: appId.trim(), uri: uri ?? null, status: "dev" };
+  }
+  return yuCallJson("yu __desktop launch", argv, 10_000) as Record<string, unknown>;
+}
+
+/** Open an http(s) or mailto URL in the desktop browser (`desktop.launch`). */
+export function openUrl(url: string): Record<string, unknown> {
+  if (typeof url !== "string" || !/^(https?:\/\/|mailto:)/.test(url.trim())) {
+    throw new Error("openUrl: url must start with http://, https://, or mailto:");
+  }
+  return launchApp("com.yuos.Browser", url.trim());
+}
+
+/** Record a structured App log entry (`data.log.write`) to `dataDir()/logs/app.jsonl` and stderr. */
+export function log(
+  message: string,
+  level: "debug" | "info" | "warn" | "error" = "info",
+): Record<string, unknown> {
+  if (typeof message !== "string" || !message.trim()) {
+    throw new Error("log: message must be non-empty");
+  }
+  if (!["debug", "info", "warn", "error"].includes(level)) {
+    throw new Error("log: level must be debug, info, warn, or error");
+  }
+  if (process.env.YUOS_SESSION) {
+    requirePermission("data.log.write", { wild: true });
+  }
+  const entry = {
+    timestamp: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
+    app: process.env.YUOS_APP_ID || "dev",
+    level,
+    message,
+  };
+  const logDir = join(dataDir(), "logs");
+  mkdirSync(logDir, { recursive: true });
+  appendFileSync(join(logDir, "app.jsonl"), `${JSON.stringify(entry)}\n`, "utf8");
+  process.stderr.write(`[${level.toUpperCase()}] ${message}\n`);
+  return entry;
 }
 
 /** Run `handler` for `yu app <id> <name>`. Its return value is printed as JSON. */

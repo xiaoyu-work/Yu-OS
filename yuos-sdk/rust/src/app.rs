@@ -247,6 +247,99 @@ pub fn require_permission(verb: &str, scope: PermissionScope) -> Result<(), crat
     }
 }
 
+/// Launch a desktop application by freedesktop AppID (`desktop.launch`).
+pub fn launch_app(app_id: &str, uri: Option<&str>) -> Result<serde_json::Value, crate::BridgeError> {
+    let app_id = app_id.trim();
+    if app_id.is_empty() {
+        return Err(crate::BridgeError::Decode {
+            app: "desktop".into(),
+            verb: "launch".into(),
+            message: "launch_app: app_id must be non-empty".into(),
+        });
+    }
+    let mut argv = vec![
+        "__desktop".to_owned(),
+        "launch".to_owned(),
+        "--app-id".to_owned(),
+        app_id.to_owned(),
+    ];
+    if let Some(u) = uri {
+        let u = u.trim();
+        if u.is_empty() || u.contains('\0') {
+            return Err(crate::BridgeError::Decode {
+                app: "desktop".into(),
+                verb: "launch".into(),
+                message: "launch_app: uri must be non-empty".into(),
+            });
+        }
+        argv.extend(["--uri".to_owned(), u.to_owned()]);
+    }
+    if std::env::var_os("YUOS_SESSION").is_none() {
+        return Ok(serde_json::json!({
+            "launched": true,
+            "app_id": app_id,
+            "uri": uri,
+            "status": "dev",
+        }));
+    }
+    crate::yu_call_json("desktop", "launch", argv)
+}
+
+/// Open an http(s) or mailto URL in the desktop browser (`desktop.launch`).
+pub fn open_url(url: &str) -> Result<serde_json::Value, crate::BridgeError> {
+    let u = url.trim();
+    if !u.starts_with("http://") && !u.starts_with("https://") && !u.starts_with("mailto:") {
+        return Err(crate::BridgeError::Decode {
+            app: "desktop".into(),
+            verb: "launch".into(),
+            message: "open_url: url must start with http://, https://, or mailto:".into(),
+        });
+    }
+    launch_app("com.yuos.Browser", Some(u))
+}
+
+/// Record a structured App log entry (`data.log.write`) to `data_dir()/logs/app.jsonl` and stderr.
+pub fn log(level: &str, message: &str) -> Result<serde_json::Value, crate::BridgeError> {
+    if message.trim().is_empty() {
+        return Err(crate::BridgeError::Decode {
+            app: "log".into(),
+            verb: "write".into(),
+            message: "log: message must be non-empty".into(),
+        });
+    }
+    if !matches!(level, "debug" | "info" | "warn" | "error") {
+        return Err(crate::BridgeError::Decode {
+            app: "log".into(),
+            verb: "write".into(),
+            message: "log: level must be debug, info, warn, or error".into(),
+        });
+    }
+    if std::env::var_os("YUOS_SESSION").is_some() {
+        require_permission("data.log.write", PermissionScope::Wild)?;
+    }
+    let dir = data_dir()
+        .map_err(crate::BridgeError::BinaryNotFound)?
+        .join("logs");
+    std::fs::create_dir_all(&dir).map_err(crate::BridgeError::BinaryNotFound)?;
+    let app_id = std::env::var("YUOS_APP_ID")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "dev".into());
+    let entry = serde_json::json!({
+        "app": app_id,
+        "level": level,
+        "message": message,
+    });
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join("app.jsonl"))
+        .map_err(crate::BridgeError::BinaryNotFound)?;
+    let _ = writeln!(file, "{entry}");
+    eprintln!("[{}] {message}", level.to_ascii_uppercase());
+    Ok(entry)
+}
+
 /// Error returned by an App function.
 pub type FunctionError = Box<dyn std::error::Error + Send + Sync>;
 

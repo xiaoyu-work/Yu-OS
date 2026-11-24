@@ -36,7 +36,10 @@ __all__ = [
     "command",
     "data_dir",
     "desktop",
+    "launch_app",
+    "log",
     "notify",
+    "open_url",
     "require_permission",
     "run",
     "secret",
@@ -290,6 +293,59 @@ def require_permission(
     )
     if decision.get("decision") != "allow":
         raise PermissionError(decision.get("summary") or f"permission denied: {verb}")
+
+
+def launch_app(app_id: str, uri: Optional[str] = None) -> Dict[str, Any]:
+    """Launch a desktop application by freedesktop AppID (`desktop.launch`)."""
+    if not isinstance(app_id, str) or not app_id.strip():
+        raise ValueError("launch_app: app_id must be a non-empty string")
+    argv = ["__desktop", "launch", "--app-id", app_id.strip()]
+    if uri is not None:
+        if not isinstance(uri, str) or not uri.strip() or "\x00" in uri:
+            raise ValueError("launch_app: uri must be a non-empty string")
+        argv.extend(["--uri", uri.strip()])
+    if not os.environ.get("YUOS_SESSION"):
+        return {"launched": True, "app_id": app_id.strip(), "uri": uri, "status": "dev"}
+    deadline = time.time_ns() // 1_000_000 + 10_000
+    res = call_json_with_stdin_binary(
+        os.environ.get("YUOS_KERNEL_BIN", "/usr/local/bin/yu"),
+        argv,
+        b"",
+        deadline_unix_ms=deadline,
+    )
+    return res if isinstance(res, dict) else {"launched": True, "app_id": app_id.strip()}
+
+
+def open_url(url: str) -> Dict[str, Any]:
+    """Open an http(s) or mailto URL in the desktop browser (`desktop.launch`)."""
+    if not isinstance(url, str) or not url.strip().startswith(("http://", "https://", "mailto:")):
+        raise ValueError("open_url: url must start with http://, https://, or mailto:")
+    return launch_app("com.yuos.Browser", uri=url.strip())
+
+
+def log(message: str, level: str = "info") -> Dict[str, Any]:
+    """Record a structured App log entry (`data.log.write`) to `data_dir()/logs/app.jsonl` and stderr."""
+    if not isinstance(message, str) or not message.strip():
+        raise ValueError("log: message must be a non-empty string")
+    if level not in ("debug", "info", "warn", "error"):
+        raise ValueError("log: level must be debug, info, warn, or error")
+    if os.environ.get("YUOS_SESSION"):
+        require_permission("data.log.write", wild=True)
+    from datetime import datetime, timezone
+
+    entry: Dict[str, Any] = {
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "app": os.environ.get("YUOS_APP_ID") or "dev",
+        "level": level,
+        "message": message,
+    }
+    log_dir = data_dir() / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(entry, ensure_ascii=False)
+    with open(log_dir / "app.jsonl", "a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+    sys.stderr.write(f"[{level.upper()}] {message}\n")
+    return entry
 
 
 def _call_desktop_fn(fn: Callable[..., Any], resolved_args: List[str]) -> Any:

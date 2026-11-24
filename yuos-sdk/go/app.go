@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // CommandFunc receives a command's validated arguments and returns a JSON value.
@@ -232,6 +233,78 @@ func RequirePermission(verb string, scope PermissionScope) error {
 		}
 		return fmt.Errorf("permission denied: %s", verb)
 	}
+	return nil
+}
+
+// LaunchApp launches a desktop application by freedesktop AppID (`desktop.launch`).
+func LaunchApp(appID, uri string) error {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return errors.New("launchApp: appID must be non-empty")
+	}
+	argv := []string{"__desktop", "launch", "--app-id", appID}
+	if strings.TrimSpace(uri) != "" {
+		argv = append(argv, "--uri", strings.TrimSpace(uri))
+	}
+	if os.Getenv("YUOS_SESSION") == "" {
+		return nil
+	}
+	_, err := yuCallJSON("yu __desktop launch", argv, nil)
+	return err
+}
+
+// OpenURL opens an http(s) or mailto URL in the desktop browser (`desktop.launch`).
+func OpenURL(url string) error {
+	u := strings.TrimSpace(url)
+	if !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") && !strings.HasPrefix(u, "mailto:") {
+		return errors.New("openURL: url must start with http://, https://, or mailto:")
+	}
+	return LaunchApp("com.yuos.Browser", u)
+}
+
+// Log records a structured App log entry (`data.log.write`) to DataDir()/logs/app.jsonl and stderr.
+func Log(level, message string) error {
+	if strings.TrimSpace(message) == "" {
+		return errors.New("log: message must be non-empty")
+	}
+	switch level {
+	case "debug", "info", "warn", "error":
+	default:
+		return errors.New("log: level must be debug, info, warn, or error")
+	}
+	if os.Getenv("YUOS_SESSION") != "" {
+		if err := RequirePermission("data.log.write", PermissionScope{Wild: true}); err != nil {
+			return err
+		}
+	}
+	dir, err := DataDir()
+	if err != nil {
+		return err
+	}
+	logDir := filepath.Join(dir, "logs")
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		return err
+	}
+	appID := os.Getenv("YUOS_APP_ID")
+	if appID == "" {
+		appID = "dev"
+	}
+	entry, err := json.Marshal(map[string]any{
+		"timestamp": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		"app":       appID,
+		"level":     level,
+		"message":   message,
+	})
+	if err != nil {
+		return err
+	}
+	f, err := os.OpenFile(filepath.Join(logDir, "app.jsonl"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, _ = f.Write(append(entry, '\n'))
+	fmt.Fprintf(os.Stderr, "[%s] %s\n", strings.ToUpper(level), message)
 	return nil
 }
 
