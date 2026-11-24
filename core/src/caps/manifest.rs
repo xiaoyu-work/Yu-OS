@@ -350,6 +350,39 @@ pub struct Operation {
     pub effects: Vec<OperationEffect>,
 }
 
+impl Operation {
+    /// Derive default `fs.read` capabilities for any supplied `path` argument
+    /// that does not already have an explicit argument-bound `need`.
+    pub fn implicit_path_read_caps(
+        &self,
+        values: &BTreeMap<String, serde_json::Value>,
+    ) -> Vec<super::cap::Cap> {
+        let mut out = Vec::new();
+        for arg in &self.args {
+            if arg.kind != ArgKind::Path {
+                continue;
+            }
+            let explicitly_bound = self.needs.iter().any(|need| match &need.scope {
+                ScopeBinding::FromArg { arg: name, .. }
+                | ScopeBinding::FromArgMap { arg: name, .. }
+                | ScopeBinding::FromArgOrWild { arg: name, .. } => name == &arg.name,
+                _ => false,
+            });
+            if explicitly_bound {
+                continue;
+            }
+            if let Some(val) = values.get(&arg.name) {
+                if let Some(scopes) = scopes_from_arg_value(arg, val, ScopeTransform::Identity) {
+                    for scope in scopes {
+                        out.push(super::cap::Cap::new(Verb::FS_READ, scope));
+                    }
+                }
+            }
+        }
+        out
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct EffectiveCall {
     pub values: BTreeMap<String, serde_json::Value>,

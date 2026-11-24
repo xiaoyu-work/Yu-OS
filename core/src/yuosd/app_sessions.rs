@@ -2204,13 +2204,17 @@ fn operation_plan(
     ceiling: &Ceiling,
 ) -> Result<LaunchPlan, BrokerError> {
     let (declared, effective) = operation_call(app, operation, args, delegation)?;
-    derive_plan(
+    let mut plan = derive_plan(
         &declared.needs,
         &effective.needs,
         delegation,
         ceiling,
         &app.manifest.id,
-    )
+    )?;
+    for cap in declared.implicit_path_read_caps(&effective.values) {
+        plan.require(cap, delegation);
+    }
+    Ok(plan)
 }
 
 fn operation_call<'a>(

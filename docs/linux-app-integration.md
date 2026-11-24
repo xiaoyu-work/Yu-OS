@@ -83,14 +83,7 @@ the binary (`"runtime": "binary"`):
   "operations": {
     "inspect": {
       "label": {"en": "Inspect a file"},
-      "args": [{"name": "file", "kind": "path", "required": true}],
-      "needs": [
-        {
-          "verb": "fs.read",
-          "scope": {"kind": "from-arg", "arg": "file"},
-          "why": {"en": "Read the file passed on the command line"}
-        }
-      ]
+      "args": [{"name": "file", "kind": "path", "required": true}]
     }
   }
 }

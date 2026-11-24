@@ -269,7 +269,9 @@ get a [public-only outbound TCP proxy](../docs/app-development.md#10-what-an-ope
 
 In a signed GUI, the [system Open dialog](../docs/app-development.md#open-a-user-selected-file)
 grants the requesting window read access to the exact file the user selects.
-The selection is the user's approval.
+On the command line, passing a file to an operation argument of `"kind": "path"`
+likewise grants read access (`fs.read`) to that file automatically without
+needing a `needs` block. The user's selection or argument is the approval.
 
 ## Permissions
 

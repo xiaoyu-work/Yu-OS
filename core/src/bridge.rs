@@ -637,12 +637,17 @@ impl AppIdentitySession {
             launch,
             |parent_caps| match declared {
                 Some(declared) => {
-                    let caps = constrained_operation_caps(
+                    let mut caps = constrained_operation_caps(
                         parent_caps,
                         false,
                         &declared.needs,
                         resolved.as_deref().unwrap_or_default(),
                     )?;
+                    for cap in declared.implicit_path_read_caps(&bound.values) {
+                        if parent_caps.covers(&cap) {
+                            caps.insert(cap);
+                        }
+                    }
                     Ok(apply_provenance_ceiling(&local_ceiling, caps))
                 }
                 None => Ok(CapSet::new()),
