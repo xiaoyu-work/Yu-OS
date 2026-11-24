@@ -49,7 +49,7 @@ Rust, Python, Node, and Go bindings.
 
 | Path | Role |
 | --- | --- |
-| `README.md`, `QUICKSTART.md`, `llms.txt`, `REFERENCE.md` | SDK entry points for developers and coding agents, runnable example, and shared reference |
+| `README.md`, `quickstart.html`, `api.html`, `reference.html`, `linux-app-integration.html`, `llms.txt` | SDK entry points for developers and coding agents, PyTorch-style API reference, runnable examples, and shared reference |
 | `python/src/yuos_sdk/app.py`, `node/src/app.ts`, `go/app.go`, `rust/src/app.rs` | Command-line and desktop functions; Python `main.py` without `run` dispatches through `app.py` |
 | `wire/` | Versioned contract and code generation |
 | `wire/v1/contract.json` | Generated decoder set, stable validation errors, and JSON-RPC codes |
