@@ -1,6 +1,6 @@
 # Yu OS SDK — Progressive Instructions for AI Coding Agents
 
-You are building or wrapping a **Yu OS App** using `yuos-sdk` (supported in **Python**, **Node.js / TypeScript**, **Go**, and **Rust**).
+You are building or wrapping a **Yu OS App** using `yuos-sdk` (supported in **Python**, **Node.js / TypeScript**, **Go**, and **Rust**; repository: `https://github.com/xiaoyu-work/Yu-OS`, release `yuos-sdk-v0.1.0`).
 Read the **Core Rules** and **Minimal Template** below first, then use the **Task Routing Table** to read only the specific document section your task requires.
 
 ---
