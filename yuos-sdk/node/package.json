@@ -1,7 +1,7 @@
 {
   "name": "@yuos/sdk",
-  "version": "0.1.0",
-  "description": "Official Node.js SDK for Yu OS Apps — manifest-bound MCP services, gated AI and tools, and desktop GUI bootstrap.",
+  "version": "0.1.0-dev.2026112401",
+  "description": "Official Node.js SDK for Yu OS Apps \u2014 manifest-bound MCP services, gated AI and tools, and desktop GUI bootstrap.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
