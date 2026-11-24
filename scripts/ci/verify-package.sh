@@ -51,7 +51,6 @@ case "$component" in
             usr/local/bin/yuos-semantic
             usr/local/bin/yuos-semantic-daemon
             usr/lib/yuos/python/yuos_sdk/__init__.py
-            usr/lib/yuos/python/yuos_runtime/__init__.py
             usr/share/keyrings/yuos-apps-archive-key.asc
             etc/apt/sources.list.d/yuos-apps.sources
             usr/share/keyrings/yuos-helium-archive-key.asc

@@ -4,7 +4,6 @@ members = [
     "core",
     "yuos-sdk/rust",
     "yuos-sdk/rust/notification-presentation",
-    "yuos-runtime/rust",
     "crates/yuosd-client",
     "crates/yuos-display-control",
     "crates/yuos-compositor",

@@ -4,9 +4,7 @@
   "runtime_abi": 1,
   "exports": {
     "python-sdk": "yuos-sdk/python/src",
-    "python-runtime": "yuos-runtime/python/src",
     "rust-sdk": "yuos-sdk/rust",
-    "rust-runtime": "yuos-runtime/rust",
     "ui-toolkit": "desktop/toolkit",
     "launcher-client": "desktop/launcher-backend"
   }

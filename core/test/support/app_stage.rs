@@ -75,7 +75,6 @@ pub fn python_runtime(source: &Path, root: &Path) -> PathBuf {
     );
     for relative in [
         "yuos-sdk/python/src/yuos_sdk",
-        "yuos-runtime/python/src/yuos_runtime",
     ] {
         let source = repository.join(relative);
         let target = destination.join(source.file_name().unwrap());

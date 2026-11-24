@@ -1357,8 +1357,8 @@ fn open_uri(uri: &str) -> std::io::Result<()> {
         .map(|_| ())
 }
 
-fn parse_arguments() -> (yuos_runtime::ask_yu::UiArguments,bool) {
-    let mut parsed = yuos_runtime::ask_yu::parse_ui_arguments(env::args().skip(1));
+fn parse_arguments() -> (yuos_sdk::ask_yu::UiArguments,bool) {
+    let mut parsed = yuos_sdk::ask_yu::parse_ui_arguments(env::args().skip(1));
     let count=parsed.unknown.iter().filter(|argument|argument.as_str()=="--nearby").count();
     if count>1 || count>0 && (parsed.overlay || parsed.voice || parsed.query.is_some()
         || parsed.context.is_some() || parsed.context_socket) {
@@ -1368,7 +1368,7 @@ fn parse_arguments() -> (yuos_runtime::ask_yu::UiArguments,bool) {
     let nearby=count==1;
     parsed.unknown.retain(|argument|argument!="--nearby");
     if parsed.help {
-        eprintln!("{}", yuos_runtime::ask_yu::UI_USAGE);
+        eprintln!("{}", yuos_sdk::ask_yu::UI_USAGE);
         eprintln!("yuos-agent-ui --nearby  Open Nearby Sharing without starting an Agent task");
         std::process::exit(0);
     }
@@ -1378,7 +1378,7 @@ fn parse_arguments() -> (yuos_runtime::ask_yu::UiArguments,bool) {
     (parsed,nearby)
 }
 
-fn flags_from_arguments(parsed: yuos_runtime::ask_yu::UiArguments) -> Flags {
+fn flags_from_arguments(parsed: yuos_sdk::ask_yu::UiArguments) -> Flags {
     let activation = match parsed.activation_from_process_socket() {
         Ok(activation) => activation,
         Err(error) => {
@@ -1416,7 +1416,7 @@ enum UiLaunchMode {
 }
 
 impl UiLaunchMode {
-    fn from_arguments(arguments: &yuos_runtime::ask_yu::UiArguments) -> Self {
+    fn from_arguments(arguments: &yuos_sdk::ask_yu::UiArguments) -> Self {
         if !arguments.overlay {
             Self::Window
         } else if arguments.context_socket

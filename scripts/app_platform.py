@@ -15,9 +15,9 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_ROOTS = ("yuos-sdk", "yuos-runtime", "desktop/toolkit", "desktop/launcher-backend")
+SOURCE_ROOTS = ("yuos-sdk", "desktop/toolkit", "desktop/launcher-backend")
 EXPORT_NAMES = {
-    "python-sdk", "python-runtime", "rust-sdk", "rust-runtime",
+    "python-sdk", "rust-sdk",
     "ui-toolkit", "launcher-client",
 }
 SCHEMA = "yuos.app-platform/v1"

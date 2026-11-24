@@ -18,7 +18,7 @@ default: build-release
 # Compile with debug profile
 build-debug *args:
     cargo build {{args}}
-    CARGO_TARGET_DIR={{cargo-target-dir}} cargo build --manifest-path ../../../yuos-runtime/rust/Cargo.toml --bin {{launcher-name}} {{args}}
+    CARGO_TARGET_DIR={{cargo-target-dir}} cargo build --manifest-path ../../../yuos-sdk/rust/Cargo.toml --bin {{launcher-name}} {{args}}
 
 # Compile with release profile
 build-release *args: (build-debug '--release' args)

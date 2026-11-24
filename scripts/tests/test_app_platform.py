@@ -95,7 +95,7 @@ def test_applet_export_contains_public_client_and_contract_but_no_os_provider(so
 
 
 def test_modified_export_is_not_published(source, tmp_path):
-    (source / "yuos-runtime/rust/library.txt").write_text("uncommitted change\n")
+    (source / "yuos-sdk/rust/library.txt").write_text("uncommitted change\n")
     with pytest.raises(ValueError, match="Commit the SDK"):
         platform.build(tmp_path / "release", "0.1.0", source)
 
@@ -110,7 +110,7 @@ def test_release_output_cannot_be_rebound(source, tmp_path):
 def test_contract_cannot_export_os_implementation(source):
     path = source / "packaging/app-platform.json"
     contract = json.loads(path.read_text())
-    contract["exports"]["python-runtime"] = "core/src"
+    contract["exports"]["python-sdk"] = "core/src"
     path.write_text(json.dumps(contract))
     with pytest.raises(ValueError, match="not an SDK library"):
         platform.read_contract(source)
@@ -123,7 +123,7 @@ def test_noncanonical_export_path_is_rejected(path):
 
 
 def test_symlink_cannot_smuggle_private_os_sources(source, tmp_path):
-    link = source / "yuos-runtime/rust/private"
+    link = source / "yuos-sdk/rust/private"
     link.symlink_to("../../core")
     subprocess.run(["git", "-C", str(source), "add", str(link)], check=True)
     subprocess.run(

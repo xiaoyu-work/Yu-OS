@@ -611,13 +611,11 @@ if [ -d "$PROJECT_DIR/skills" ]; then
 fi
 
 SDK_PY_SRC="$PROJECT_DIR/yuos-sdk/python/src/yuos_sdk"
-RUNTIME_PY_SRC="$PROJECT_DIR/yuos-runtime/python/src/yuos_runtime"
-if [ ! -d "$SDK_PY_SRC" ] || [ ! -d "$RUNTIME_PY_SRC" ]; then
-    echo "error: Python SDK/runtime source trees are required" >&2
+if [ ! -d "$SDK_PY_SRC" ]; then
+    echo "error: Python SDK source tree is required" >&2
     exit 1
 fi
 cp -a "$SDK_PY_SRC" "$AGENT_STAGE/usr/lib/yuos/python/yuos_sdk"
-cp -a "$RUNTIME_PY_SRC" "$AGENT_STAGE/usr/lib/yuos/python/yuos_runtime"
 python3 "$SCRIPT_DIR/native_runtime_assets.py" --root "$AGENT_STAGE" \
     --launcher-binary "$LAUNCHER_BACKEND_BIN"
 find "$AGENT_STAGE/usr/lib/yuos/python" -name '__pycache__' -type d \

@@ -1109,7 +1109,7 @@ def test_published_capability_pin_stages_all_partitions_and_real_agent_runtime(t
     python = staged / "usr/lib/yuos/python"
     python.mkdir(parents=True)
     (staged / "usr/lib/yuos/apps").mkdir()
-    for library in ("yuos-sdk/python/src/yuos_sdk", "yuos-runtime/python/src/yuos_runtime"):
+    for library in ("yuos-sdk/python/src/yuos_sdk",):
         shutil.copytree(ROOT / library, python / Path(library).name,
                         ignore=shutil.ignore_patterns("__pycache__", "test_*.py"))
     sources.stage_shared(staged, lock=lock)
