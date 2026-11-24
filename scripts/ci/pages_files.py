@@ -109,7 +109,7 @@ def confirm_no_archive(nonce):
                 with published(prefix + name, nonce):
                     raise ValueError(f"Cannot omit the published APT archive: {prefix}{name} exists")
             except HTTPError as error:
-                if error.code != 404:
+                if error.code not in (404, 503):
                     raise
 
 
@@ -133,7 +133,7 @@ def restore(section, root, allow_no_apt):
     try:
         body = read_metadata(prefix + INVENTORY, nonce)
     except HTTPError as error:
-        if error.code != 404:
+        if error.code not in (404, 503):
             raise
         if section == "website":
             raise ValueError("The live website inventory is missing; run Publish Website first") from error
