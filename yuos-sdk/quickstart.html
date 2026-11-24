@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yu OS SDK — Quickstart</title>
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body data-active-lang="python">
+  <header class="topbar">
+    <div class="brand-nav">
+      <a class="brand" href="api.html"><span class="brand-dot"></span>Yu OS SDK</a>
+      <nav class="page-links">
+        <a href="quickstart.html" class="active">Quickstart</a>
+        <a href="api.html">API Reference</a>
+        <a href="linux-app-integration.html">Linux App Integration</a>
+      </nav>
+    </div>
+    <div class="lang-switcher">
+      <span class="lang-switcher-label">Language</span>
+      <div class="lang-tabs" role="tablist">
+        <button class="lang-tab active" data-select-lang="python" role="tab" aria-selected="true">Python</button>
+        <button class="lang-tab" data-select-lang="node" role="tab" aria-selected="false">Node.js / TS</button>
+        <button class="lang-tab" data-select-lang="go" role="tab" aria-selected="false">Go</button>
+        <button class="lang-tab" data-select-lang="rust" role="tab" aria-selected="false">Rust</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-group">
+        <div class="sidebar-title">Quickstart Steps</div>
+        <a href="#install" class="nav-text">1. Install the SDK</a>
+        <a href="#manifest" class="nav-text">2. Create app.json</a>
+        <a href="#code" class="nav-text">3. Write CLI &amp; Desktop Code</a>
+        <a href="#dev" class="nav-text">4. Test Locally</a>
+        <a href="#ship" class="nav-text">5. Package &amp; Submit</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <h1>Yu OS SDK Quickstart</h1>
+      <p class="lead">Build, test, and package your first Yu OS App with command-line, desktop, and system AI support. Select your language in the top-right tab bar.</p>
+
+      <h2 id="install">1. Install the SDK</h2>
+      <div data-lang="python">
+        <p>Requires Python 3.10+. On Yu OS, <code>yuos-sdk</code> is preinstalled.</p>
+        <pre><code>pip install yuos-sdk</code></pre>
+      </div>
+      <div data-lang="node">
+        <p>Requires Node.js 18+.</p>
+        <pre><code>npm install @yuos/sdk</code></pre>
+      </div>
+      <div data-lang="go">
+        <p>Requires Go 1.21+.</p>
+        <pre><code>go get github.com/xiaoyu-work/Yu-OS/yuos-sdk/go@v0.1.0</code></pre>
+      </div>
+      <div data-lang="rust">
+        <p>Requires Rust (Edition 2021).</p>
+        <pre><code>cargo add yuos-sdk</code></pre>
+      </div>
+
+      <h2 id="manifest">2. Create <code>hello-ai/app.json</code></h2>
+      <p>Declare <code>operations</code> once in <code>app.json</code>. Command-line and desktop launches share its permissions.</p>
+      <div data-lang="python">
+        <pre><code>{
+  "id": "hello-ai",
+  "version": "0.1.0",
+  "name": {"en": "Hello AI"},
+  "runtime": "python",
+  "ai": {},
+  "operations": {
+    "summarize": {
+      "label": {"en": "Summarize text in one sentence"},
+      "args": [{"name": "text", "kind": "text", "required": true}],
+      "needs": ["ai.chat"]
+    }
+  }
+}</code></pre>
+      </div>
+      <div data-lang="node">
+        <pre><code>{
+  "id": "hello-ai",
+  "version": "0.1.0",
+  "name": {"en": "Hello AI"},
+  "runtime": "node",
+  "entry": "index.js",
+  "ai": {},
+  "operations": {
+    "summarize": {
+      "label": {"en": "Summarize text in one sentence"},
+      "args": [{"name": "text", "kind": "text", "required": true}],
+      "needs": ["ai.chat"]
+    }
+  }
+}</code></pre>
+      </div>
+      <div data-lang="go">
+        <pre><code>{
+  "id": "hello-ai",
+  "version": "0.1.0",
+  "name": {"en": "Hello AI"},
+  "runtime": "binary",
+  "entry": "bin/hello-ai",
+  "ai": {},
+  "operations": {
+    "summarize": {
+      "label": {"en": "Summarize text in one sentence"},
+      "args": [{"name": "text", "kind": "text", "required": true}],
+      "needs": ["ai.chat"]
+    }
+  }
+}</code></pre>
+      </div>
+      <div data-lang="rust">
+        <pre><code>{
+  "id": "hello-ai",
+  "version": "0.1.0",
+  "name": {"en": "Hello AI"},
+  "runtime": "binary",
+  "entry": "bin/hello-ai",
+  "ai": {},
+  "operations": {
+    "summarize": {
+      "label": {"en": "Summarize text in one sentence"},
+      "args": [{"name": "text", "kind": "text", "required": true}],
+      "needs": ["ai.chat"]
+    }
+  }
+}</code></pre>
+      </div>
+
+      <h2 id="code">3. Write CLI and Desktop Entrypoints</h2>
+      <div data-lang="python">
+        <p>Save as <code>hello-ai/main.py</code>:</p>
+        <pre><code>from yuos_sdk.ai import chat
+from yuos_sdk.app import command, desktop
+
+def summarize_text(text: str) -> str:
+    return chat(text, system="Summarize in one short sentence.").output.text
+
+@command
+def summarize(args: list[str]) -> dict:
+    return {"summary": summarize_text(args[0])}
+
+@desktop
+def main() -> None:
+    print(summarize_text("Desktop mode launched."))</code></pre>
+      </div>
+      <div data-lang="node">
+        <p>Save as <code>hello-ai/index.ts</code>:</p>
+        <pre><code>import { ai, app } from "@yuos/sdk";
+
+async function summarizeText(text: string): Promise&lt;string&gt; {
+  return (await ai.chat(text, { system: "Summarize in one short sentence." })).output.text;
+}
+
+app.command(async function summarize(args: string[]) {
+  return { summary: await summarizeText(args[0]) };
+});
+
+app.desktop(async () => {
+  console.log(await summarizeText("Desktop mode launched."));
+});
+
+app.run();</code></pre>
+      </div>
+      <div data-lang="go">
+        <p>Save as <code>hello-ai/main.go</code> and build to <code>hello-ai/bin/hello-ai</code>:</p>
+        <pre><code>package main
+
+import (
+	"fmt"
+	"log"
+	yuossdk "github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
+)
+
+func summarizeText(text string) (string, error) {
+	reply, err := yuossdk.Chat(text, yuossdk.ChatOptions{System: "Summarize in one short sentence."})
+	if err != nil {
+		return "", err
+	}
+	return reply.Output.Text, nil
+}
+
+func main() {
+	yuossdk.HandleCommand("summarize", func(args []string) (any, error) {
+		out, err := summarizeText(args[0])
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"summary": out}, nil
+	})
+	yuossdk.HandleDesktop(func() error {
+		out, err := summarizeText("Desktop mode launched.")
+		if err == nil {
+			fmt.Println(out)
+		}
+		return err
+	})
+	if err := yuossdk.RunApp(); err != nil {
+		log.Fatal(err)
+	}
+}</code></pre>
+      </div>
+      <div data-lang="rust">
+        <p>Save as <code>hello-ai/src/main.rs</code> and build to <code>hello-ai/bin/hello-ai</code>:</p>
+        <pre><code>use yuos_sdk::{ai, app};
+
+fn summarize_text(text: &amp;str) -&gt; Result&lt;String, ai::AiError&gt; {
+    Ok(ai::chat(text, ai::ChatOpts::new().system("Summarize in one short sentence."))?.output.text)
+}
+
+fn main() -&gt; Result&lt;(), app::AppError&gt; {
+    app::App::new()
+        .command("summarize", |args| {
+            Ok(serde_json::json!({ "summary": summarize_text(&amp;args[0])? }))
+        })
+        .desktop(|| {
+            println!("{}", summarize_text("Desktop mode launched.")?);
+            Ok(())
+        })
+        .run()
+}</code></pre>
+      </div>
+
+      <h2 id="dev">4. Test Locally</h2>
+      <pre><code>YUOS_DEV_AI_URL=http://localhost:11434/v1 yu app dev ./hello-ai summarize "Yu OS lets Apps call the user's configured model."
+YUOS_DEV_AI_URL=http://localhost:11434/v1 yu app dev ./hello-ai --gui</code></pre>
+
+      <h2 id="ship">5. Package into <code>.deb</code> &amp; Submit to the Store</h2>
+      <pre><code>yu app pack ./hello-ai
+yu app submit yuos-app-hello-ai_0.1.0_all.deb</code></pre>
+    </main>
+  </div>
+
+  <script src="docs.js"></script>
+</body>
+</html>

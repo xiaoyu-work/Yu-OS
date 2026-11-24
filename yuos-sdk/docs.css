@@ -1,0 +1,558 @@
+:root {
+  --bg: #f8f9fb;
+  --surface: #ffffff;
+  --surface-alt: #f1f4f9;
+  --code-bg: #111622;
+  --code-fg: #e6edf3;
+  --text: #181a1f;
+  --muted: #5b6270;
+  --border: #e2e6ef;
+  --accent: #005cfe;
+  --accent-soft: rgba(0, 92, 254, 0.09);
+  --badge-req-bg: #eef4ff;
+  --badge-req-fg: #005cfe;
+  --badge-opt-bg: #f1f3f7;
+  --badge-opt-fg: #5b6270;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+/* Sticky Top Header with Page Nav + Global Language Switcher */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.brand-nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.02em;
+}
+
+.brand-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.page-links {
+  display: flex;
+  gap: 6px;
+}
+
+.page-links a {
+  text-decoration: none;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  transition: all 0.15s ease;
+}
+
+.page-links a:hover {
+  color: var(--text);
+  background: var(--surface-alt);
+}
+
+.page-links a.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.lang-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lang-switcher-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.lang-tabs {
+  display: inline-flex;
+  background: var(--surface-alt);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.lang-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lang-tab:hover {
+  color: var(--text);
+}
+
+.lang-tab.active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Layout */
+.layout {
+  max-width: 1360px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 36px;
+  padding: 28px;
+}
+
+.sidebar {
+  position: sticky;
+  top: 90px;
+  align-self: start;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.sidebar-group {
+  margin-bottom: 20px;
+}
+
+.sidebar-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 8px 10px;
+}
+
+.sidebar a {
+  display: block;
+  text-decoration: none;
+  color: var(--muted);
+  font-size: 13.5px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  margin-bottom: 2px;
+}
+
+.sidebar a:hover {
+  color: var(--text);
+  background: var(--surface-alt);
+}
+
+.sidebar a code {
+  font-size: 12.5px;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.content {
+  min-width: 0;
+}
+
+.hero-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  margin-bottom: 28px;
+}
+
+.hero-card h1 {
+  margin: 0 0 10px;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+
+.hero-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.doc-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  margin-bottom: 24px;
+}
+
+.doc-section h2 {
+  margin: 0 0 12px;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.doc-section h3 {
+  margin: 24px 0 10px;
+  font-size: 17px;
+}
+
+.fn-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin: 20px 0;
+  background: #fcfdff;
+}
+
+.fn-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.fn-sig {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-alt);
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.fn-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* PyTorch Summary Table */
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 28px;
+  font-size: 14px;
+}
+
+.summary-table td:first-child {
+  white-space: nowrap;
+  width: 35%;
+}
+
+.summary-table a {
+  color: var(--accent);
+  text-decoration: none;
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.summary-table a:hover {
+  text-decoration: underline;
+}
+
+/* PyTorch <dl class="api-item"> API Definition Block */
+dl.api-item {
+  margin: 26px 0 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+dl.api-item > dt.sig-object {
+  background: #f0f4f9;
+  border-left: 4px solid var(--accent);
+  border-bottom: 1px solid var(--border);
+  padding: 11px 16px;
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #0f172a;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+dt.sig-object .sig-qual {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+dt.sig-object .sig-name {
+  font-weight: 700;
+  color: #0b3d91;
+}
+
+dt.sig-object .sig-param {
+  font-style: italic;
+  color: #1f2937;
+}
+
+dt.sig-object .sig-default {
+  color: #6b7280;
+}
+
+dt.sig-object .sig-ret {
+  color: #047857;
+  font-weight: 600;
+}
+
+dt.sig-object a.headerlink {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+dl.api-item > dd.sig-body {
+  margin: 0;
+  padding: 16px 22px 20px;
+}
+
+dd.sig-body > p:first-child {
+  margin-top: 0;
+}
+
+/* PyTorch Field List (Parameters / Returns / Return type / Raises) */
+dl.field-list {
+  display: grid;
+  grid-template-columns: 125px minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 14px 0;
+  background: var(--surface-alt);
+  border-radius: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+}
+
+dl.field-list > dt {
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding-top: 2px;
+}
+
+dl.field-list > dd {
+  margin: 0;
+  font-size: 14px;
+}
+
+dl.field-list > dd ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+dl.field-list > dd li {
+  margin-bottom: 6px;
+}
+
+dl.field-list > dd li:last-child {
+  margin-bottom: 0;
+}
+
+.param-name {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-weight: 700;
+  color: #111827;
+}
+
+.param-type {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-style: italic;
+  color: #b54708;
+  font-size: 13px;
+}
+
+.example-label {
+  font-weight: 700;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  margin: 14px 0 6px;
+}
+
+.param-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 16px 0 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0 16px;
+  font-size: 14px;
+}
+
+th, td {
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+th {
+  background: var(--surface-alt);
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+code {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 13px;
+  background: var(--surface-alt);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+pre {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  padding: 16px 18px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 12px 0;
+  position: relative;
+}
+
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.badge-req {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: var(--badge-req-bg);
+  color: var(--badge-req-fg);
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+
+.badge-opt {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 500;
+  background: var(--badge-opt-bg);
+  color: var(--badge-opt-fg);
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+
+.callout {
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 14px 0;
+  font-size: 14px;
+}
+
+/* Language-specific visibility */
+[data-lang] {
+  display: none;
+}
+
+body[data-active-lang="python"] [data-lang="python"],
+body[data-active-lang="node"] [data-lang="node"],
+body[data-active-lang="go"] [data-lang="go"],
+body[data-active-lang="rust"] [data-lang="rust"] {
+  display: block;
+}
+
+span[data-lang] {
+  display: none;
+}
+
+body[data-active-lang="python"] span[data-lang="python"],
+body[data-active-lang="node"] span[data-lang="node"],
+body[data-active-lang="go"] span[data-lang="go"],
+body[data-active-lang="rust"] span[data-lang="rust"] {
+  display: inline;
+}
+
+@media (max-width: 960px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: static;
+    max-height: none;
+  }
+  .topbar {
+    height: auto;
+    padding: 12px 18px;
+    flex-wrap: wrap;
+  }
+}

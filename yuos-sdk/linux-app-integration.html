@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yu OS SDK — Linux App Integration</title>
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body data-active-lang="python">
+  <header class="topbar">
+    <div class="brand-nav">
+      <a class="brand" href="api.html"><span class="brand-dot"></span>Yu OS SDK</a>
+      <nav class="page-links">
+        <a href="quickstart.html">Quickstart</a>
+        <a href="api.html">API Reference</a>
+        <a href="linux-app-integration.html" class="active">Linux App Integration</a>
+      </nav>
+    </div>
+    <div class="lang-switcher">
+      <span class="lang-switcher-label">Language</span>
+      <div class="lang-tabs" role="tablist">
+        <button class="lang-tab active" data-select-lang="python" role="tab" aria-selected="true">Python</button>
+        <button class="lang-tab" data-select-lang="node" role="tab" aria-selected="false">Node.js / TS</button>
+        <button class="lang-tab" data-select-lang="go" role="tab" aria-selected="false">Go</button>
+        <button class="lang-tab" data-select-lang="rust" role="tab" aria-selected="false">Rust</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-group">
+        <div class="sidebar-title">Integration Guide</div>
+        <a href="#wrap-binary" class="nav-text">1. Wrap Existing C/C++ Binary</a>
+        <a href="#gui-app" class="nav-text">2. Adapt Existing GUI App</a>
+        <a href="#mcp-agent" class="nav-text">3. Expose Tools to Yu Agent</a>
+        <a href="#pack-submit" class="nav-text">4. Test, Pack &amp; Submit</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <h1>Integrating an Existing Linux App with Yu OS</h1>
+      <p class="lead">Wrap an existing C/C++ Linux binary or integrate your existing Qt, GTK, Electron, or native Linux application with the Yu OS SDK. Select your preferred SDK wrapper language in the top-right tab bar.</p>
+
+      <h2 id="wrap-binary">1. Wrap an Existing C/C++ Linux Binary</h2>
+      <p>Keep your compiled C/C++ binary in <code>bin/my-cpp-tool</code> and wrap it with the SDK in your chosen language to add Yu OS AI and sandboxed permissions. Note that declaring <code>"kind": "path"</code> in <code>app.json</code> automatically grants read access to the user-supplied file without any <code>needs</code> boilerplate:</p>
+      <pre><code>{
+  "id": "my-analyzer",
+  "version": "1.0.0",
+  "name": {"en": "My Analyzer"},
+  "ai": {},
+  "operations": {
+    "analyze": {
+      "label": {"en": "Analyze a file and summarize results"},
+      "args": [{"name": "file", "kind": "path", "required": true}],
+      "needs": ["ai.chat"]
+    }
+  }
+}</code></pre>
+
+      <div data-lang="python">
+        <p>Wrapper in Python (<code>main.py</code>):</p>
+        <pre><code>import subprocess
+from yuos_sdk.ai import chat
+from yuos_sdk.app import command, desktop
+
+@command
+def analyze(args: list[str]) -> dict:
+    raw = subprocess.check_output(["./bin/my-cpp-tool", args[0]], text=True)
+    summary = chat(raw, system="Summarize the output in one sentence.").output.text
+    return {"summary": summary}
+
+@desktop
+def main() -> None:
+    subprocess.run(["./bin/my-cpp-tool", "--gui"], check=True)</code></pre>
+      </div>
+
+      <div data-lang="node">
+        <p>Wrapper in Node.js / TypeScript (<code>index.ts</code>):</p>
+        <pre><code>import { execFileSync, spawnSync } from "node:child_process";
+import { ai, app } from "@yuos/sdk";
+
+app.command(async function analyze(args: string[]) {
+  const raw = execFileSync("./bin/my-cpp-tool", [args[0]], { encoding: "utf8" });
+  const reply = await ai.chat(raw, { system: "Summarize the output in one sentence." });
+  return { summary: reply.output.text };
+});
+
+app.desktop(() => {
+  spawnSync("./bin/my-cpp-tool", ["--gui"], { stdio: "inherit" });
+});
+
+app.run();</code></pre>
+      </div>
+
+      <div data-lang="go">
+        <p>Wrapper in Go (<code>main.go</code>):</p>
+        <pre><code>package main
+
+import (
+	"log"
+	"os/exec"
+	yuossdk "github.com/xiaoyu-work/Yu-OS/yuos-sdk/go"
+)
+
+func main() {
+	yuossdk.HandleCommand("analyze", func(args []string) (any, error) {
+		out, err := exec.Command("./bin/my-cpp-tool", args[0]).Output()
+		if err != nil {
+			return nil, err
+		}
+		reply, err := yuossdk.Chat(string(out), yuossdk.ChatOptions{System: "Summarize in one sentence."})
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"summary": reply.Output.Text}, nil
+	})
+	yuossdk.HandleDesktop(func() error {
+		return exec.Command("./bin/my-cpp-tool", "--gui").Run()
+	})
+	if err := yuossdk.RunApp(); err != nil {
+		log.Fatal(err)
+	}
+}</code></pre>
+      </div>
+
+      <div data-lang="rust">
+        <p>Wrapper in Rust (<code>src/main.rs</code>):</p>
+        <pre><code>use std::process::Command;
+use yuos_sdk::{ai, app};
+
+fn main() -&gt; Result&lt;(), app::AppError&gt; {
+    app::App::new()
+        .command("analyze", |args| {
+            let out = Command::new("./bin/my-cpp-tool").arg(&amp;args[0]).output()?;
+            let text = String::from_utf8_lossy(&amp;out.stdout);
+            let reply = ai::chat(&amp;text, ai::ChatOpts::new().system("Summarize in one sentence."))?;
+            Ok(serde_json::json!({ "summary": reply.output.text }))
+        })
+        .desktop(|| {
+            Command::new("./bin/my-cpp-tool").arg("--gui").status()?;
+            Ok(())
+        })
+        .run()
+}</code></pre>
+      </div>
+
+      <h2 id="gui-app">2. Adapt an Existing Desktop GUI App (File Picker, Data Dir &amp; Notifications)</h2>
+      <p>Replace hardcoded config paths with <code>data_dir</code> and use <code>open_file</code> so user-selected files are automatically granted read access inside the sandbox:</p>
+      <div data-lang="python">
+        <pre><code>from pathlib import Path
+from yuos_sdk import gui
+from yuos_sdk.ai import chat_stream
+from yuos_sdk.app import data_dir, desktop, notify
+
+@desktop
+def main() -> None:
+    chosen = gui.open_file("Select a document")
+    if not chosen:
+        return
+    text = Path(chosen).read_text(encoding="utf-8")
+    chunks = list(chat_stream(text, system="Summarize key points."))
+    out = data_dir() / "last_summary.txt"
+    out.write_text("".join(chunks), encoding="utf-8")
+    notify("Summary saved", str(out))</code></pre>
+      </div>
+      <div data-lang="node">
+        <pre><code>import * as fs from "node:fs";
+import * as path from "node:path";
+import { ai, app, gui } from "@yuos/sdk";
+
+app.desktop(async () => {
+  const chosen = gui.openFile("Select a document");
+  if (!chosen) return;
+  const text = fs.readFileSync(chosen, "utf8");
+  let summary = "";
+  for await (const chunk of ai.chatStream(text, { system: "Summarize key points." })) {
+    summary += chunk;
+  }
+  const out = path.join(app.dataDir(), "last_summary.txt");
+  fs.writeFileSync(out, summary, "utf8");
+  app.notify("Summary saved", out);
+});</code></pre>
+      </div>
+      <div data-lang="go">
+        <pre><code>yuossdk.HandleDesktop(func() error {
+	chosen, err := yuossdk.OpenFile("Select a document")
+	if err != nil || chosen == "" {
+		return err
+	}
+	raw, err := os.ReadFile(chosen)
+	if err != nil {
+		return err
+	}
+	reply, err := yuossdk.Chat(string(raw), yuossdk.ChatOptions{System: "Summarize key points."})
+	if err != nil {
+		return err
+	}
+	dir, _ := yuossdk.DataDir()
+	out := filepath.Join(dir, "last_summary.txt")
+	_ = os.WriteFile(out, []byte(reply.Output.Text), 0o600)
+	return yuossdk.Notify("Summary saved", out)
+})</code></pre>
+      </div>
+      <div data-lang="rust">
+        <pre><code>app::App::new().desktop(|| {
+    if let Some(chosen) = yuos_sdk::gui::open_file("Select a document")? {
+        let text = std::fs::read_to_string(chosen)?;
+        let reply = yuos_sdk::ai::chat(&amp;text, yuos_sdk::ai::ChatOpts::new().system("Summarize key points."))?;
+        let out = yuos_sdk::app::data_dir()?.join("last_summary.txt");
+        std::fs::write(&amp;out, &amp;reply.output.text)?;
+        yuos_sdk::app::notify("Summary saved", &amp;out.display().to_string())?;
+    }
+    Ok(())
+})</code></pre>
+      </div>
+
+      <h2 id="mcp-agent">3. Expose Tools to the Yu OS System Agent (MCP)</h2>
+      <div data-lang="python">
+        <pre><code>from yuos_sdk.mcp import App
+
+app = App.from_manifest()
+
+@app.tool("my-analyzer.analyze")
+def analyze_tool(file: str) -> dict:
+    return {"summary": f"Analyzed {file}"}
+
+if __name__ == "__main__":
+    app.serve()</code></pre>
+      </div>
+      <div data-lang="node">
+        <pre><code>import { mcp } from "@yuos/sdk";
+
+const server = mcp.App.fromManifest();
+server.tool("my-analyzer.analyze", async ({ file }) => ({ summary: `Analyzed ${file}` }));
+server.serve();</code></pre>
+      </div>
+      <div data-lang="go">
+        <pre><code>mcpApp, err := yuossdk.LoadMCPApp()
+if err != nil {
+	log.Fatal(err)
+}
+mcpApp.Bind("my-analyzer.analyze", func(ctx *yuossdk.MCPCallContext, args map[string]any) (*yuossdk.ToolResult, error) {
+	return yuossdk.StructuredResult(map[string]any{"summary": args["file"]})
+})
+_ = mcpApp.ServeStdio()</code></pre>
+      </div>
+      <div data-lang="rust">
+        <pre><code>let mut mcp_app = yuos_sdk::mcp::App::from_environment()?;
+// Bind tool implementations and run:
+mcp_app.serve_stdio().await?;</code></pre>
+      </div>
+
+      <h2 id="pack-submit">4. Test, Package &amp; Submit</h2>
+      <pre><code>YUOS_DEV_AI_URL=http://localhost:11434/v1 yu app dev ./my-analyzer analyze ./report.pdf
+yu app pack ./my-analyzer
+yu app submit yuos-app-my-analyzer_1.0.0_all.deb</code></pre>
+    </main>
+  </div>
+
+  <script src="docs.js"></script>
+</body>
+</html>
