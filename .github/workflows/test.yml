@@ -175,7 +175,7 @@ jobs:
         run: >-
           python3 -m pytest -q adapters yuos-sdk/python/src
           packaging/deb/tests/test_app_sources.py rootfs/features/yuos-mail-ai/test_install.py
-          scripts/tests/test_app_platform.py packaging/deb/tests/test_applet_provider.py
+          packaging/deb/tests/test_applet_provider.py
           scripts/tests/test_native_editor_payload.py scripts/tests/test_system_desktop_tree.py
           core/tests/test_app_apt_metadata.py
 

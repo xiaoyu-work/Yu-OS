@@ -122,52 +122,7 @@ def executable_elf(path):
             raise ValueError("Native ELF has no executable entry segment")
 
 
-def platform_contract():
-    return json.loads((ROOT / "packaging/app-platform.json").read_text())
-
-
-def published_platform(source):
-    selected = json.loads((source / "platform.lock.json").read_text())
-    approved = json.loads(PLATFORM_PIN.read_text())
-    contract = platform_contract()
-    version = contract["version"]
-    if selected != approved or not re.fullmatch(r"[0-9a-f]{64}", selected.get("sha256", "")):
-        raise ValueError("Native acceptance requires the approved published platform bytes")
-    if any(selected.get(name) != contract[name] for name in ("version", "runtime_abi", "schema")) or (
-        selected.get("url") != "https://github.com/xiaoyu-work/Yu-OS/releases/download/"
-        f"yuos-app-platform-v{version}/yuos-app-platform-{version}.tar.gz"
-    ):
-        raise ValueError("Native acceptance requires the published Yu OS platform pin")
-    return selected
-
-
-def development_platform():
-    requested = os.environ.get("YUOS_ACCEPTANCE_PLATFORM")
-    if not requested:
-        return None, []
-    contract = platform_contract()
-    version = contract["version"]
-    archive = Path(requested).resolve(strict=True)
-    expected = ROOT / "build/app-platform-acceptance" / f"yuos-app-platform-{version}.tar.gz"
-    if archive != expected or not archive.is_file():
-        raise ValueError("Use only the platform built from this checkout for private acceptance")
-    sha256 = digest(archive).removeprefix("sha256:")
-    checksum, filename = (archive.parent / "SHA256SUMS").read_text().split()
-    if (sha256, archive.name) != (checksum, filename):
-        raise ValueError("Private acceptance platform checksum changed")
-    revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-    with tarfile.open(archive, "r:gz") as source:
-        with source.extractfile("platform.json") as manifest:
-            if json.load(manifest)["source_revision"] != revision:
-                raise ValueError("Private acceptance platform is not from this checkout")
-    return {
-        "schema": contract["schema"], "version": version, "runtime_abi": contract["runtime_abi"],
-        "sha256": sha256, "source_revision": revision,
-    }, ["--development-platform", str(archive), "--development-platform-version", version,
-        "--development-platform-sha256", sha256]
-
-
-def payload_record(source, payload, lock, product="editor", *, platform=None):
+def payload_record(source, payload, lock, product="editor"):
     app, entries, resources = product_layout(product)
     entry = entries[0]
     manifest_path = source / "products" / product / "apps" / app / "app.json"
@@ -189,8 +144,6 @@ def payload_record(source, payload, lock, product="editor", *, platform=None):
         raise ValueError("Native auxiliary entry must retain its declared GUI binding")
     if (payload / ".provenance.json").exists():
         raise ValueError("The private namespace, not preparation, signs this fixture")
-    if platform is None:
-        platform = published_platform(source)
     licenses = [(payload / "LICENSE", source / "products" / product / "native/LICENSE")]
     if product not in ("calendar", "clipboard", "notifications"):
         licenses.append((payload / "licenses/yuos-app-gui-argv/LICENSE", source / "LICENSE"))
@@ -206,7 +159,7 @@ def payload_record(source, payload, lock, product="editor", *, platform=None):
             raise ValueError(f"Missing original native installer resource: {resource}")
     return {
         "schema": f"yuos.private-native-{product}/v1", "source_lock": lock,
-        "platform_lock": platform, "entrypoints": entries,
+        "entrypoints": entries,
         "resources": sorted(name for name in files if name.startswith("resources/")),
         "payload_inventory": records,
     }
@@ -224,27 +177,17 @@ def prepare(output, target, product="editor"):
     lock = app_sources.resolved_lock(selected, source)
     app_sources.locked_app_paths(lock, source)
     app_sources.write_lock(output / "app-sources.json", lock)
-    platform, platform_arguments = development_platform()
-    platform_lock = source / "platform.lock.json"
-    platform_bytes = platform_lock.read_bytes() if platform is None else None
     app, _, _ = product_layout(product)
-    scratch = source / "build/acceptance" if platform is not None else source / "build"
-    staged = scratch / f"native-{product}-acceptance-{os.getpid()}" / app
-    output_flag = "--acceptance-root" if platform is not None else "--app-root"
+    staged = source / "build" / f"native-{product}-acceptance-{os.getpid()}" / app
     subprocess.run(
         [sys.executable, "-B", str(source / "tools/native_build.py"),
          product, "build", "--release", "--target-dir", str(target.resolve()),
-         output_flag, str(staged), *platform_arguments],
+         "--app-root", str(staged)],
         check=True, cwd=source,
     )
-    # Reuse the resolved lock: do not resolve a newer main after the build.
-    if app_sources.prepare_sources(lock) != source or (
-        platform_bytes is not None and platform_lock.read_bytes() != platform_bytes
-    ):
-        raise ValueError("Native source/platform inputs changed during preparation")
-    if platform is not None and development_platform()[0] != platform:
-        raise ValueError("Private acceptance platform changed during the build")
-    record = payload_record(source, staged, lock, product, platform=platform)
+    if app_sources.prepare_sources(lock) != source:
+        raise ValueError("Native source inputs changed during preparation")
+    record = payload_record(source, staged, lock, product)
     payload = output / app
     shutil.copytree(staged, payload, symlinks=True)
     if inventory(payload) != record["payload_inventory"]:
@@ -255,7 +198,7 @@ def prepare(output, target, product="editor"):
     )
     print(json.dumps({
         "payload": str(payload), "receipt": str(receipt),
-        "app_revision": lock["revision"], "platform": record["platform_lock"],
+        "app_revision": lock["revision"],
         "purpose": "private-acceptance-only; unsigned; not installed or published",
     }, sort_keys=True))
 

@@ -12,7 +12,7 @@ Read the **Core Rules** and **Minimal Template** below first, then use the **Tas
    - Mark CLI handlers with `@command` (defaults to the function name; takes `args: list[str]` and returns a JSON-serializable value).
    - Mark the desktop entry with zero-argument `@desktop` (`def main():`).
    - If an App only implements `@command` or only implements `@desktop`, the SDK automatically returns an unavailable-surface JSON response when the other surface is launched.
-3. **User-intent file access (macOS / Windows model)**:
+3. **User-intent file access**:
    - On the CLI, declaring an argument with `"kind": "path"` **automatically grants `fs.read`** on the file passed by the user. Do **not** add a `from-arg` `fs.read` entry to `needs`.
    - In a desktop GUI, `gui.open_file()` **automatically grants `fs.read`** on the user-selected file.
    - Always store App-private state in `app.data_dir()` (requires no permissions).
@@ -82,5 +82,5 @@ Do **not** guess API parameters or manifest fields. Open the exact HTML doc file
 | **Expose App tools to the Yu OS System Agent (MCP)** | [`yuos-sdk/api.html#python-mod-mcp`](api.html#python-mod-mcp) (or `#node-mod-mcp`) | Setting `schema_version: 2`, declaring `mcp.tools` in `app.json`, binding `@app.tool("<app-id>.<tool>")`, and reading `current_context()`. |
 | **Brokered single-file snapshots (`read_file`, `replace_file`)** | [`yuos-sdk/api.html#python-mod-files`](api.html#python-mod-files) (or `#node-mod-files`, `#go-files-go`, `#rust-files-rs`) | Reading and atomically replacing an existing user file (up to 32 MiB) inside an MCP tool with `transform: "brokered-file"`. |
 | **Wrap an existing C/C++ binary or adapt an existing Linux GUI app** (Qt, GTK, Electron) | [`yuos-sdk/linux-app-integration.html`](linux-app-integration.html) (`#wrap-binary`, `#gui-app`, `#mcp-agent`, `#pack-submit`) | Step-by-step patterns for wrapping compiled C/C++ binaries with Python/Node/Go/Rust SDK or integrating `yuos-sdk` into an existing Linux desktop app. |
-| **App permissions vs. System permissions & AI error codes** | [`yuos-sdk/reference.html`](reference.html) (`#permissions`, `#handle-ai-errors`, `#app-owned-tools`, `#cli-commands`) | Complete table of user-approvable App permissions vs. administrator-gated system permissions, wire error codes, and CLI commands. |
+| **Permissions & AI error codes** | [`yuos-sdk/reference.html`](reference.html) (`#permissions`, `#handle-ai-errors`, `#app-owned-tools`, `#cli-commands`) | Complete table of Yu OS permissions, scopes, wire error codes, and CLI commands. |
 

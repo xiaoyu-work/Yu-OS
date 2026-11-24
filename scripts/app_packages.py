@@ -52,13 +52,20 @@ def settings():
 
 
 def platform():
-    value = json.loads((ROOT / "packaging/app-platform.json").read_text())
-    if value["schema"] != "yuos.app-platform/v1" or value["runtime_abi"] != 1 or (
-        not re.fullmatch(r"0|[1-9][0-9]*", str(value["runtime_abi"]))
-        or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", value["version"])
-    ):
+    legacy = ROOT / "packaging/app-platform.json"
+    if legacy.is_file():
+        value = json.loads(legacy.read_text())
+        if value["schema"] != "yuos.app-platform/v1" or value["runtime_abi"] != 1 or (
+            not re.fullmatch(r"0|[1-9][0-9]*", str(value["runtime_abi"]))
+            or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", value["version"])
+        ):
+            raise ValueError("Invalid App runtime implementation version/ABI")
+        return value
+    import tomllib
+    version = tomllib.loads((ROOT / "yuos-sdk/rust/Cargo.toml").read_text())["package"]["version"]
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
         raise ValueError("Invalid App runtime implementation version/ABI")
-    return value
+    return {"version": version, "runtime_abi": 1}
 
 
 def fields(text):

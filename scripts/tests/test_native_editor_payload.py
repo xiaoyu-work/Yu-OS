@@ -88,16 +88,6 @@ def payload(tmp_path, request, monkeypatch):
         support = prepared / "licenses/yuos-app-gui-argv/LICENSE"
         support.parent.mkdir(parents=True)
         support.write_text("synthetic support license\n")
-    pin = json.dumps({
-        "schema": "yuos.app-platform/v1", "version": "0.1.0", "runtime_abi": 1,
-        "sha256": "b" * 64,
-        "url": "https://github.com/xiaoyu-work/Yu-OS/releases/download/"
-               "yuos-app-platform-v0.1.0/yuos-app-platform-0.1.0.tar.gz",
-    })
-    (source / "platform.lock.json").write_text(pin)
-    approved = tmp_path / "approved-platform.json"
-    approved.write_text(pin)
-    monkeypatch.setattr(editor, "PLATFORM_PIN", approved)
     (prepared / "bin").mkdir()
     for entry in entries:
         shutil.copy2("/bin/true", prepared / entry)
@@ -153,14 +143,3 @@ def test_header_only_elf_and_missing_installer_resources_cannot_enter_lane(paylo
         (prepared / resources[-1]).unlink()
         with pytest.raises(ValueError, match="original native installer resource"):
             editor.payload_record(source, prepared, {}, product)
-
-
-@pytest.mark.parametrize("payload", ["terminal", "calendar", "store", "clipboard", "launcher", "settings", "capture", "notifications", "media-player"], indirect=True)
-def test_native_product_refuses_an_unapproved_platform_digest(payload):
-    source, prepared, product = payload
-    path = source / "platform.lock.json"
-    lock = json.loads(path.read_text())
-    lock["sha256"] = "a" * 64
-    path.write_text(json.dumps(lock))
-    with pytest.raises(ValueError, match="approved published platform bytes"):
-        editor.payload_record(source, prepared, {}, product)

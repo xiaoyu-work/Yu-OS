@@ -20,12 +20,6 @@ selection = app_sources.read_lock()
 app_sources.write_lock(sys.argv[1], {**selection, "version": 1, "revision": sys.argv[2]})
 PY
   export YUOS_APP_SOURCE_LOCK="$lock"
-  if [[ ${1:-} == native-* ]]; then
-    version="$(python3 -c 'import json; print(json.load(open("packaging/app-platform.json"))["version"])')"
-    output="$GITHUB_WORKSPACE/build/app-platform-acceptance"
-    python3 scripts/app_platform.py --version "$version" --output "$output"
-    printf 'YUOS_ACCEPTANCE_PLATFORM=%s/yuos-app-platform-%s.tar.gz\n' "$output" "$version" >> "$GITHUB_ENV"
-  fi
 fi
 
 if [[ -n ${YUOS_APP_SOURCE_LOCK:-} ]]; then

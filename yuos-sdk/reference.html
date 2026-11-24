@@ -35,7 +35,7 @@
         <a href="#manifest-ref" class="nav-text">app.json Manifest &amp; kind</a>
         <a href="#logs" class="nav-text">Logs &amp; Private App Data</a>
         <a href="#env-ref" class="nav-text">Environment Variables</a>
-        <a href="#permissions" class="nav-text">App vs. System Permissions</a>
+        <a href="#permissions" class="nav-text">Permissions</a>
         <a href="#handle-ai-errors" class="nav-text">AI Error Codes</a>
         <a href="#app-owned-tools" class="nav-text">App-Owned AI Functions</a>
         <a href="#app-object-references" class="nav-text">Object References &amp; Events</a>
@@ -45,7 +45,7 @@
 
     <main class="content">
       <h1>Permissions, Manifest &amp; General Reference</h1>
-      <p class="lead">General reference for <code>app.json</code> manifest fields, log and private data directories, environment variables, macOS/Windows permission mapping, AI error codes, and developer CLI commands.</p>
+      <p class="lead">General reference for <code>app.json</code> manifest fields, log and private data directories, environment variables, permissions, AI error codes, and developer CLI commands.</p>
 
       <h2 id="manifest-ref"><code>app.json</code> Manifest &amp; Parameter <code>kind</code> Reference</h2>
       <p>Every Yu OS App declares its metadata, parameters, and permissions in <code>app.json</code>. Command-line and desktop launches share <code>operations</code>.</p>
@@ -115,32 +115,25 @@
         </tbody>
       </table>
 
-      <h2 id="permissions">App Permissions vs. System Permissions</h2>
-      <p>Like macOS and Windows, Yu OS separates <strong>App permissions</strong> from <strong>system permissions</strong>. AI permissions need no extra fields and can be written as strings (<code>"needs": ["ai.chat"]</code>). User-supplied files (CLI <code>"kind": "path"</code> arguments and <code>gui.open_file()</code> selections) automatically receive read access by user intent without needing a <code>needs</code> entry.</p>
+      <h2 id="permissions">Permissions</h2>
+      <p>Declare permissions in the <code>needs</code> array of each operation or MCP tool in <code>app.json</code>. AI permissions take no scope and can be written as strings (<code>"needs": ["ai.chat"]</code>). User-supplied files (CLI <code>"kind": "path"</code> arguments and <code>gui.open_file()</code> selections) automatically receive read access without needing a <code>needs</code> entry.</p>
 
       <table class="summary-table">
-        <thead><tr><th>App Permission</th><th>macOS Equivalent</th><th>Windows Equivalent</th></tr></thead>
+        <thead><tr><th>Permission</th><th>Scope</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>fs.read</code>, <code>fs.write</code>, <code>fs.delete</code>, <code>fs.meta</code>, <code>fs.watch</code></td><td>Files and Folders</td><td>File system capabilities</td></tr>
-          <tr><td><code>ui.prompt</code> (Save &amp; Folder dialogs)</td><td>User-selected files</td><td>File and folder pickers</td></tr>
-          <tr><td><code>net.dial</code>, <code>net.resolve</code>, <code>net.probe</code></td><td>Outgoing connections (client)</td><td><code>internetClient</code></td></tr>
-          <tr><td><code>net.listen</code></td><td>Incoming connections (server)</td><td><code>internetClientServer</code></td></tr>
-          <tr><td><code>device.camera</code></td><td>Camera</td><td><code>webcam</code></td></tr>
-          <tr><td><code>device.microphone</code></td><td>Microphone</td><td><code>microphone</code></td></tr>
-          <tr><td><code>device.location</code></td><td>Location Services</td><td><code>location</code></td></tr>
-          <tr><td><code>device.bluetooth</code></td><td>Bluetooth</td><td><code>bluetooth</code>, <code>radios</code></td></tr>
-          <tr><td><code>device.printer</code></td><td>Printing</td><td>&mdash;</td></tr>
-          <tr><td><code>device.audio</code></td><td>&mdash;</td><td>&mdash;</td></tr>
-          <tr><td><code>desktop.capture</code></td><td>Screen &amp; System Audio Recording</td><td><code>graphicsCapture</code></td></tr>
-          <tr><td><code>desktop.media.observe</code>, <code>desktop.media.control</code></td><td>&mdash;</td><td><code>globalMediaControl</code></td></tr>
-          <tr><td><code>clipboard.read</code>, <code>clipboard.write</code></td><td>&mdash;</td><td>&mdash;</td></tr>
-          <tr><td><code>ui.notify</code></td><td>Notifications</td><td>&mdash;</td></tr>
-          <tr><td><code>ai.chat</code>, <code>ai.embed</code>, <code>ai.audio.tts</code>, <code>ai.audio.stt</code>, <code>ai.image.generate</code>, <code>ai.decide</code></td><td>&mdash;</td><td>&mdash;</td></tr>
-          <tr><td>App-owned data: <code>data.kv.*</code>, <code>data.log.write</code>, <code>ipc.publish</code> on <code>app:&lt;id&gt;</code></td><td>&mdash;</td><td>&mdash;</td></tr>
+          <tr><td><code>ai.chat</code>, <code>ai.embed</code>, <code>ai.audio.tts</code>, <code>ai.audio.stt</code>, <code>ai.image.generate</code>, <code>ai.decide</code></td><td>None (string shorthand)</td><td>Call the corresponding <code>ai.*</code> model capability.</td></tr>
+          <tr><td><code>fs.read</code>, <code>fs.write</code>, <code>fs.delete</code>, <code>fs.meta</code>, <code>fs.watch</code></td><td><code>owner-path</code> / <code>from-arg</code> / <code>app-data</code></td><td>Read, write, delete, stat, or watch files in the declared path scope.</td></tr>
+          <tr><td><code>ui.prompt</code></td><td><code>fixed</code> (<code>save-file</code> / <code>select-folder</code>)</td><td>Open the native Save dialog or Folder picker.</td></tr>
+          <tr><td><code>ui.notify</code></td><td><code>wild</code></td><td>Post desktop notifications.</td></tr>
+          <tr><td><code>net.dial</code>, <code>net.resolve</code>, <code>net.probe</code></td><td><code>host</code> / <code>wild</code></td><td>Outbound network connections and DNS lookups.</td></tr>
+          <tr><td><code>net.listen</code></td><td><code>host</code> / <code>wild</code></td><td>Bind a local listening socket.</td></tr>
+          <tr><td><code>device.camera</code>, <code>device.microphone</code>, <code>device.audio</code>, <code>device.location</code>, <code>device.bluetooth</code>, <code>device.printer</code></td><td><code>wild</code> / <code>name</code></td><td>Access camera, microphone, audio, location, Bluetooth, or printer hardware.</td></tr>
+          <tr><td><code>desktop.capture</code></td><td><code>wild</code></td><td>Capture screenshots or screen recordings.</td></tr>
+          <tr><td><code>desktop.media.observe</code>, <code>desktop.media.control</code></td><td><code>wild</code></td><td>Observe or control active media playback.</td></tr>
+          <tr><td><code>clipboard.read</code>, <code>clipboard.write</code></td><td><code>name</code> (<code>selection</code> / <code>history</code>)</td><td>Read or write the clipboard.</td></tr>
+          <tr><td><code>data.kv.*</code>, <code>data.log.write</code>, <code>ipc.publish</code></td><td><code>app:&lt;id&gt;</code></td><td>Access App-owned KV storage, structured logs, and domain event publishing.</td></tr>
         </tbody>
       </table>
-
-      <p>Every other capability (such as <code>sys.*</code>, <code>secret.*</code>, <code>agent.*</code>, <code>browser.*</code>, <code>proc.*</code>, <code>fs.exec</code>, <code>net.manage</code>, <code>net.firewall</code>, <code>data.log.read</code>) is a <strong>system permission</strong>. Official Yu OS Apps keep them; for third-party Apps, an administrator must approve each use (in a terminal, <code>yu</code> prompts for the administrator password in place like <code>sudo</code> and reuses it for 5 minutes).</p>
 
       <h2 id="handle-ai-errors">Handle AI Errors</h2>
       <table class="summary-table">
