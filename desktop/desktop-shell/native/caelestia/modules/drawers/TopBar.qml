@@ -266,7 +266,7 @@ StyledWindow {
                         text: UPower.displayDevice.isLaptopBattery
                             ? `${Math.round(UPower.displayDevice.percentage * 100)}%` : ""
                         visible: text.length > 0
-                        color: Quiet.accent
+                        color: Quiet.ink
                         font.pixelSize: 12
                     }
                 }
@@ -297,7 +297,7 @@ StyledWindow {
         height: 16
         preferredRendererType: Shape.CurveRenderer
         ShapePath {
-            strokeColor: Quiet.accent
+            strokeColor: Quiet.ink
             strokeWidth: 1.4
             capStyle: ShapePath.RoundCap
             joinStyle: ShapePath.RoundJoin
