@@ -835,6 +835,11 @@ void CWindow::activate(bool force) {
 }
 
 void CWindow::onUpdateState(const SBackendStateRequest& request) {
+    if (request.minimized.value_or(false) && m_isMapped) {
+        Config::Actions::moveToWorkspace("special:minimized", true, m_self.lock());
+        return;
+    }
+
     requestClientFullscreen({
         .fullscreen        = request.fullscreen,
         .maximized         = request.maximized,
@@ -883,14 +888,12 @@ void CWindow::requestClientFullscreen(const SClientFullscreenRequest& request) {
 
     if (request.maximized.has_value() && !SUPPRESSION.maximize) {
         if (m_isMapped) {
-            if (!BACKEND_REQUEST || !m_fullscreenPolicy->consumeExpectedMaximizeEcho(request.maximized.value())) {
-                const auto WINDOW       = m_self.lock();
-                const auto CLIENT_STATE = Fullscreen::controller()->getFullscreenModes(WINDOW).client;
-                if (request.maximized.value() && CLIENT_STATE != Fullscreen::FSMODE_FULLSCREEN)
-                    Fullscreen::controller()->setFullscreenMode(WINDOW, std::nullopt, Fullscreen::FSMODE_MAXIMIZED);
-                else if (CLIENT_STATE == Fullscreen::FSMODE_MAXIMIZED)
-                    Fullscreen::controller()->setFullscreenMode(WINDOW, std::nullopt, Fullscreen::FSMODE_NONE);
-            }
+            const auto WINDOW       = m_self.lock();
+            const auto CLIENT_STATE = Fullscreen::controller()->getFullscreenModes(WINDOW).client;
+            if (request.maximized.value() && CLIENT_STATE != Fullscreen::FSMODE_FULLSCREEN)
+                Fullscreen::controller()->setFullscreenMode(WINDOW, std::nullopt, Fullscreen::FSMODE_MAXIMIZED);
+            else if (CLIENT_STATE == Fullscreen::FSMODE_MAXIMIZED)
+                Fullscreen::controller()->setFullscreenMode(WINDOW, std::nullopt, Fullscreen::FSMODE_NONE);
         } else if (request.maximized.value())
             m_fullscreenPolicy->setPendingClientRequest(Fullscreen::FSMODE_MAXIMIZED);
         else

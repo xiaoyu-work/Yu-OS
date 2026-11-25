@@ -1,4 +1,4 @@
-app-name = Yu OS Agent
+app-name = Yu Agent
 spaces-title = Workspaces
 spaces-refresh = Refresh Workspaces
 spaces-close = Close (work continues)

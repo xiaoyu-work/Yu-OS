@@ -33,46 +33,21 @@ pub(super) fn allows(cap: &Cap, _home: &Path) -> bool {
 
 #[cfg(target_os = "linux")]
 pub(super) fn listed(package: &VerifiedPackage) -> bool {
-    use crate::provenance::{fsec, PackageKind, TrustSource, TrustTier};
+    use crate::provenance::{PackageKind, TrustSource, TrustTier};
 
     if package.kind() != PackageKind::App
         || package.tier() != TrustTier::Vendor
         || !matches!(package.source(), TrustSource::Publisher { .. })
+        || package.envelope_sha256().is_none()
     {
         return false;
     }
-    let Some(digest) = package.envelope_sha256() else {
-        return false;
-    };
     let Ok(relative) = package.dir().strip_prefix("/usr/lib/yuos/apps") else {
         return false;
     };
-    let Some(relative) = relative.to_str().filter(|path| !path.is_empty()) else {
-        return false;
-    };
-    let root = Path::new("/usr/lib/yuos/preinstalled-apps");
-    if fsec::require_secure_location(root, &[0]).is_err() {
-        return false;
-    }
-    let Ok(directory) = fsec::DirHandle::open(root) else {
-        return false;
-    };
-    ["agent.list", "desktop.list"].iter().any(|name| {
-        let Ok(file) = directory.open_file(name) else {
-            return false;
-        };
-        let meta = file.meta();
-        if meta.uid != 0 || meta.nlink != 1 || meta.is_group_or_world_writable() {
-            return false;
-        }
-        let Ok(bytes) = file.read_bounded(64 * 1024) else {
-            return false;
-        };
-        let Ok(list) = std::str::from_utf8(&bytes) else {
-            return false;
-        };
-        list.lines().any(|line| line.split_once(' ') == Some((digest, relative)))
-    })
+    relative
+        .to_str()
+        .is_some_and(|path| !path.is_empty() && !path.contains('/'))
 }
 
 #[cfg(target_os = "linux")]

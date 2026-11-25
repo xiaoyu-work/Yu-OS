@@ -108,11 +108,11 @@ Singleton {
     }
 
     function title(desktopId: string): string {
+        if (desktopId === DesktopMenu.launcher)
+            return Tr.tr("Launcher");
         const entry = desktopEntry(desktopId);
         if (entry)
             return entry.name;
-        if (desktopId === DesktopMenu.launcher)
-            return Tr.tr("Yu Launcher");
         if (desktopId === DesktopMenu.files)
             return Tr.tr("Files");
         return desktopId;
@@ -130,6 +130,17 @@ Singleton {
     }
 
     function activate(desktopId: string): void {
+        if (desktopId === DesktopMenu.agent) {
+            for (const window of Hypr.toplevels.values) {
+                const cls = window.lastIpcObject.class;
+                if (cls === DesktopMenu.agent || cls === "YuOS-Agent") {
+                    Hypr.act("focus", window.identifier, "");
+                    return;
+                }
+            }
+            DesktopMenu.launch(DesktopMenu.agent);
+            return;
+        }
         // Resolve the current target even when the visible roles have not changed.
         const window = dockWindows.get(desktopId);
         if (window)

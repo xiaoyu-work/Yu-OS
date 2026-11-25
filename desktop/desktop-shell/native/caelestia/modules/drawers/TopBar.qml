@@ -74,13 +74,10 @@ StyledWindow {
             width: 36
             height: 36
             objectName: "taskbarLogo"
-            Accessible.name: Tr.tr("Open Yu AI")
-            ToolTip.visible: hovered
-            ToolTip.delay: 450
-            ToolTip.text: Accessible.name
+            Accessible.name: Tr.tr("Yu Agent")
             onClicked: {
                 root.launched();
-                DesktopMenu.launch(DesktopMenu.agent);
+                Quiet.activate(DesktopMenu.agent);
             }
 
             contentItem: Item {
@@ -244,9 +241,6 @@ StyledWindow {
             height: 36
             highlighted: root.menuPage === "control" || root.menuPage === "notifications"
             Accessible.name: Tr.tr("Control Center")
-            ToolTip.text: Accessible.name
-            ToolTip.visible: hovered
-            ToolTip.delay: 450
             onClicked: root.menuRequested("control")
 
             contentItem: Item {
@@ -284,9 +278,6 @@ StyledWindow {
             height: 36
             highlighted: root.menuPage === "power" || root.menuPage === "logout"
             Accessible.name: Tr.tr("Power menu")
-            ToolTip.visible: hovered
-            ToolTip.text: Accessible.name
-            ToolTip.delay: 450
             contentItem: Item {
                 StatusIcon {
                     anchors.centerIn: parent

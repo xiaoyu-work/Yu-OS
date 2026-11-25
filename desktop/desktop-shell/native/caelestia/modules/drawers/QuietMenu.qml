@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Wayland
@@ -26,6 +27,7 @@ StyledWindow {
     property real reveal: opened ? 1 : 0
     readonly property int slideDistance: 4
     readonly property var backlight: screen ? Brightness.getMonitorForScreen(screen) : null
+    property real virtualBrightness: 0.85
     readonly property bool pinMenu: displayedPage === "pin"
 
     // Keep the last page and its anchor for the exit, but release input immediately.
@@ -55,7 +57,7 @@ StyledWindow {
         right: root.pinMenu ? 0 : 8
     }
     exclusiveZone: 0
-    implicitWidth: Math.min(pinMenu ? 216 : 408, screen.width - 16)
+    implicitWidth: Math.min(pinMenu ? 216 : 336, screen.width - 16)
     implicitHeight: slideDistance
         + Math.max(1, Math.min(body.implicitHeight + 28, screen.height - bar.implicitHeight - 16))
     WlrLayershell.layer: WlrLayer.Overlay
@@ -113,98 +115,200 @@ StyledWindow {
                 spacing: 8
 
                 RowLayout {
-                    visible: !root.pinMenu
+                    visible: root.displayedPage === "wifi" || root.displayedPage === "bluetooth" || root.displayedPage === "notifications"
                     Layout.fillWidth: true
+
+                    QuietButton {
+                        text: "\u2039"
+                        padding: 0
+                        font.pixelSize: 20
+                        Layout.preferredWidth: 28
+                        Accessible.name: Tr.tr("Back")
+                        onClicked: root.page = "control"
+                    }
 
                     Text {
                         Layout.fillWidth: true
                         color: Quiet.ink
-                        font.pixelSize: 17
+                        font.pixelSize: 14
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                         text: ({
-                            control: Tr.tr("Control Center"),
-                            notifications: Tr.tr("Notifications"),
-                            overview: Tr.tr("Desktop overview"),
-                            power: Tr.tr("Power"),
-                            logout: Tr.tr("Log out to switch users?")
+                            wifi: Tr.tr("Wi-Fi"),
+                            bluetooth: Tr.tr("Bluetooth"),
+                            notifications: Tr.tr("Notifications")
                         })[root.displayedPage] ?? ""
                     }
 
                     QuietButton {
-                        text: "\u00d7"
-                        padding: 0
-                        font.pixelSize: 20
-                        Layout.preferredWidth: 32
-                        Accessible.name: Tr.tr("Close panel")
-                        onClicked: root.page = ""
+                        visible: root.displayedPage === "wifi"
+                        text: Nmcli.wifiEnabled ? Tr.tr("On") : Tr.tr("Off")
+                        highlighted: Nmcli.wifiEnabled
+                        onClicked: Nmcli.toggleWifi(null)
+                    }
+
+                    QuietButton {
+                        visible: root.displayedPage === "bluetooth"
+                        text: Bluetooth.defaultAdapter?.enabled ? Tr.tr("On") : Tr.tr("Off")
+                        highlighted: Bluetooth.defaultAdapter?.enabled ?? false
+                        enabled: Bluetooth.defaultAdapter !== null
+                        onClicked: {
+                            if (Bluetooth.defaultAdapter)
+                                Bluetooth.defaultAdapter.enabled = !Bluetooth.defaultAdapter.enabled;
+                        }
                     }
                 }
 
-                Separator { visible: !root.pinMenu }
+                Separator { visible: root.displayedPage === "wifi" || root.displayedPage === "bluetooth" || root.displayedPage === "notifications" }
 
                 ColumnLayout {
                     visible: root.displayedPage === "control"
                     Layout.fillWidth: true
-                    spacing: 4
+                    spacing: 10
 
-                    SettingRow {
-                        title: Tr.tr("Wi-Fi")
-                        description: Nmcli.active?.ssid || Tr.tr("Network settings")
-                        action: Tr.tr("Settings")
-                        onClicked: root.settings()
-                    }
-                    SettingRow {
-                        title: Tr.tr("Bluetooth")
-                        description: Bluetooth.defaultAdapter
-                            ? (Bluetooth.defaultAdapter.enabled ? Tr.tr("On") : Tr.tr("Off"))
-                            : Tr.tr("Bluetooth settings")
-                        action: Tr.tr("Settings")
-                        onClicked: root.settings()
-                    }
-                    SettingRow {
-                        title: Tr.tr("Do not disturb")
-                        description: PersistentState.doNotDisturb ? Tr.tr("On") : Tr.tr("Off")
-                        action: PersistentState.doNotDisturb ? Tr.tr("Turn off") : Tr.tr("Turn on")
-                        onClicked: PersistentState.doNotDisturb = !PersistentState.doNotDisturb
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: 2
+                        rowSpacing: 8
+                        columnSpacing: 8
+
+                        ToggleTile {
+                            Layout.fillWidth: true
+                            title: Nmcli.active?.ssid || Tr.tr("Wi-Fi")
+                            toggled: Nmcli.wifiEnabled
+                            hasMore: true
+                            iconPath: "M1.5 5 Q8 -0.5 14.5 5 M4 8 Q8 4.5 12 8 M6.5 11 Q8 9.5 9.5 11 M8 13.5 H8.1"
+                            onClicked: Nmcli.toggleWifi(null)
+                            onMoreClicked: root.page = "wifi"
+                        }
+                        ToggleTile {
+                            Layout.fillWidth: true
+                            title: Tr.tr("Bluetooth")
+                            toggled: Bluetooth.defaultAdapter?.enabled ?? false
+                            hasMore: true
+                            iconPath: "M8 1.5 L12 5.2 4 11.6 M8 14.5 L12 10.8 4 4.4 M8 1.5 V14.5"
+                            onClicked: {
+                                if (Bluetooth.defaultAdapter)
+                                    Bluetooth.defaultAdapter.enabled = !Bluetooth.defaultAdapter.enabled;
+                                else
+                                    root.page = "bluetooth";
+                            }
+                            onMoreClicked: root.page = "bluetooth"
+                        }
+                        ToggleTile {
+                            Layout.fillWidth: true
+                            title: Tr.tr("Do not disturb")
+                            toggled: PersistentState.doNotDisturb
+                            iconPath: "M11.5 2.5 A5.5 5.5 0 1 0 13.5 11.5 A4.5 4.5 0 0 1 11.5 2.5 Z"
+                            onClicked: PersistentState.doNotDisturb = !PersistentState.doNotDisturb
+                        }
+                        ToggleTile {
+                            Layout.fillWidth: true
+                            title: Tr.tr("Dark mode")
+                            toggled: !Quiet.light
+                            iconPath: "M8 2 A6 6 0 1 0 8 14 A6 6 0 1 0 8 2 Z M8 2.2 V13.8 M9.6 3.2 V12.8 M11.2 4.4 V11.6 M12.6 6 V10"
+                            onClicked: Quiet.toggleAppearance()
+                        }
                     }
 
                     LevelRow {
-                        title: Tr.tr("Volume")
-                        available: Audio.sink !== null
-                        adjustable: Audio.canSetOutput
-                        reading: Audio.volume
+                        title: Tr.tr("Display")
+                        iconPath: "M8 4.5 A3.5 3.5 0 1 0 8 11.5 A3.5 3.5 0 1 0 8 4.5 Z M8 1.2 V2.6 M8 13.4 V14.8 M1.2 8 H2.6 M13.4 8 H14.8 M3.2 3.2 L4.2 4.2 M11.8 11.8 L12.8 12.8 M12.8 3.2 L11.8 4.2 M4.2 11.8 L3.2 12.8"
+                        available: true
+                        adjustable: true
+                        reading: (root.backlight?.available ?? false) ? root.backlight.brightness : root.virtualBrightness
+                        onChangedByUser: value => {
+                            if (root.backlight?.adjustable ?? false)
+                                root.backlight.setBrightness(value);
+                            else
+                                root.virtualBrightness = value;
+                        }
+                    }
+                    LevelRow {
+                        title: Tr.tr("Sound")
+                        iconPath: Audio.muted
+                            ? "M2.5 6.2 H5.2 L8.8 3.2 V12.8 L5.2 9.8 H2.5 Z M11.2 5.8 L14.4 10.2 M14.4 5.8 L11.2 10.2"
+                            : "M2.5 6.2 H5.2 L8.8 3.2 V12.8 L5.2 9.8 H2.5 Z M11.2 5.4 Q13 8 11.2 10.6 M12.8 3.6 Q15.5 8 12.8 12.4"
+                        available: true
+                        adjustable: true
+                        reading: Audio.muted ? 0 : (Audio.sink !== null ? Audio.volume : 0.75)
+                        onIconClicked: Audio.setMuted(false, !Audio.muted)
                         onChangedByUser: value => Audio.setVolume(value)
                     }
-                    LevelRow {
-                        title: Tr.tr("Brightness")
-                        available: root.backlight?.available ?? false
-                        adjustable: root.backlight?.adjustable ?? false
-                        reading: root.backlight?.brightness ?? 0
-                        onChangedByUser: value => root.backlight?.setBrightness(value)
-                    }
+
                     Separator {}
 
                     RowLayout {
                         Layout.fillWidth: true
+                        spacing: 6
 
                         QuietButton {
-                            text: Tr.tr("Settings")
-                            onClicked: root.settings()
-                        }
-                        QuietButton {
-                            text: Tr.tr("Notifications")
+                            text: Notifs.notClosed.length > 0
+                                ? `${Tr.tr("Notifications")} (${Notifs.notClosed.length})`
+                                : Tr.tr("Notifications")
                             onClicked: root.page = "notifications"
-                        }
-                        QuietButton {
-                            text: Tr.tr("Power")
-                            onClicked: root.page = "power"
                         }
                         Item { Layout.fillWidth: true }
                         QuietButton {
-                            text: Quiet.light ? Tr.tr("Dark appearance") : Tr.tr("Light appearance")
-                            onClicked: Quiet.toggleAppearance()
+                            width: 34
+                            height: 34
+                            Accessible.name: Tr.tr("Settings")
+                            onClicked: root.settings()
+                            contentItem: Item {
+                                ControlIcon {
+                                    anchors.centerIn: parent
+                                    color: Quiet.ink
+                                    drawing: "M2.5 4.5 H13.5 M2.5 8 H13.5 M2.5 11.5 H13.5 M5.5 3 V6 M10.5 6.5 V9.5 M6.5 10 V13"
+                                }
+                            }
                         }
+                        QuietButton {
+                            width: 34
+                            height: 34
+                            Accessible.name: Tr.tr("Power")
+                            onClicked: root.page = "power"
+                            contentItem: Item {
+                                ControlIcon {
+                                    anchors.centerIn: parent
+                                    color: Quiet.ink
+                                    drawing: "M8 1.8 V7.2 M4.3 4.2 A5.4 5.4 0 1 0 11.7 4.2"
+                                }
+                            }
+                        }
+                    }
+                }
+
+                ColumnLayout {
+                    visible: root.displayedPage === "wifi"
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    Repeater {
+                        model: root.visible && root.displayedPage === "wifi" ? Nmcli.networks : []
+                        delegate: QuietButton {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            highlighted: modelData.active
+                            text: modelData.ssid || Tr.tr("Hidden network")
+                            onClicked: root.settings()
+                        }
+                    }
+                    QuietButton {
+                        Layout.fillWidth: true
+                        text: Tr.tr("Network Settings…")
+                        onClicked: root.settings()
+                    }
+                }
+
+                ColumnLayout {
+                    visible: root.displayedPage === "bluetooth"
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    QuietButton {
+                        Layout.fillWidth: true
+                        text: Tr.tr("Bluetooth Settings…")
+                        onClicked: root.settings()
                     }
                 }
 
@@ -375,47 +479,183 @@ StyledWindow {
         }
     }
 
-    component LevelRow: RowLayout {
+    component ControlIcon: Shape {
+        id: cicon
+
+        required property string drawing
+        property color color: Quiet.ink
+
+        width: 16
+        height: 16
+        preferredRendererType: Shape.CurveRenderer
+        ShapePath {
+            strokeColor: cicon.color
+            strokeWidth: 1.5
+            capStyle: ShapePath.RoundCap
+            joinStyle: ShapePath.RoundJoin
+            fillColor: "transparent"
+            PathSvg { path: cicon.drawing }
+        }
+    }
+
+    component ToggleTile: Rectangle {
+        id: tile
+
+        required property string title
+        required property string iconPath
+        property bool toggled: false
+        property bool hasMore: false
+        signal clicked()
+        signal moreClicked()
+
+        implicitHeight: 46
+        radius: 10
+        color: tile.toggled ? Quiet.accent : (mainMouse.containsMouse ? Quiet.selected : Quiet.field)
+        border.width: tile.toggled ? 0 : 1
+        border.color: Quiet.line
+
+        readonly property color fg: tile.toggled ? "#ffffff" : Quiet.ink
+
+        RowLayout {
+            anchors.fill: parent
+            spacing: 0
+
+            MouseArea {
+                id: mainMouse
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                hoverEnabled: true
+                onClicked: tile.clicked()
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: tile.hasMore ? 6 : 12
+                    spacing: 9
+
+                    ControlIcon {
+                        drawing: tile.iconPath
+                        color: tile.fg
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: tile.title
+                        textFormat: Text.PlainText
+                        color: tile.fg
+                        font.pixelSize: 13
+                        font.weight: Font.Medium
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+
+            Rectangle {
+                visible: tile.hasMore
+                width: 1
+                Layout.fillHeight: true
+                Layout.topMargin: 10
+                Layout.bottomMargin: 10
+                color: tile.toggled ? "#33ffffff" : Quiet.line
+            }
+
+            MouseArea {
+                id: moreMouse
+                visible: tile.hasMore
+                Layout.preferredWidth: 28
+                Layout.fillHeight: true
+                hoverEnabled: true
+                onClicked: tile.moreClicked()
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "\u203a"
+                    color: tile.fg
+                    font.pixelSize: 17
+                    opacity: moreMouse.containsMouse ? 1 : 0.78
+                }
+            }
+        }
+    }
+
+    component LevelRow: Rectangle {
         id: level
 
         required property string title
+        required property string iconPath
         required property bool available
         required property bool adjustable
         required property real reading
         signal changedByUser(real value)
+        signal iconClicked()
 
         Layout.fillWidth: true
+        implicitHeight: 42
+        radius: 10
+        color: Quiet.field
+        border.width: 1
+        border.color: Quiet.line
 
-        Text {
-            Layout.preferredWidth: 75
-            text: level.title
-            color: Quiet.ink
-            elide: Text.ElideRight
-        }
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            spacing: 10
 
-        Slider {
-            id: slider
-
-            Layout.fillWidth: true
-            enabled: level.adjustable
-            live: false
-            Accessible.name: level.title
-            palette.highlight: Quiet.accent
-            palette.base: Quiet.field
-            onMoved: level.changedByUser(value)
-            Binding {
-                target: slider
-                property: "value"
-                value: level.reading
-                when: !slider.pressed
+            MouseArea {
+                width: 20
+                height: 20
+                onClicked: level.iconClicked()
+                ControlIcon {
+                    anchors.centerIn: parent
+                    drawing: level.iconPath
+                    color: Quiet.ink
+                }
             }
-        }
 
-        Text {
-            Layout.preferredWidth: 42
-            horizontalAlignment: Text.AlignRight
-            text: level.available ? `${Math.round(slider.value * 100)}%` : "\u2014"
-            color: Quiet.dim
+            Slider {
+                id: slider
+
+                Layout.fillWidth: true
+                enabled: level.adjustable
+                live: true
+                Accessible.name: level.title
+                onMoved: level.changedByUser(value)
+                Binding {
+                    target: slider
+                    property: "value"
+                    value: level.reading
+                    when: !slider.pressed
+                }
+
+                background: Rectangle {
+                    x: slider.leftPadding
+                    y: slider.topPadding + slider.availableHeight / 2 - height / 2
+                    implicitWidth: 160
+                    implicitHeight: 6
+                    width: slider.availableWidth
+                    height: implicitHeight
+                    radius: 3
+                    color: Quiet.selected
+
+                    Rectangle {
+                        width: slider.visualPosition * parent.width
+                        height: parent.height
+                        radius: 3
+                        color: Quiet.accent
+                    }
+                }
+
+                handle: Rectangle {
+                    x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
+                    y: slider.topPadding + slider.availableHeight / 2 - height / 2
+                    implicitWidth: 16
+                    implicitHeight: 16
+                    radius: 8
+                    color: "#ffffff"
+                    border.width: 1
+                    border.color: Quiet.floatingLine
+                }
+            }
         }
     }
 }

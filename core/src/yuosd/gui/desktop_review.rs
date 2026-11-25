@@ -205,8 +205,7 @@ impl Window {
 
     fn owner_menu(&self, process: &ProcessIdentity, cap: &Cap) -> Result<GrantView, String> {
         let launcher_click = self.registration.desktop_launcher
-            && cap.verb == Verb::DESKTOP_LAUNCH
-            && cap.scope != Scope::name(AGENT_DESKTOP_ID);
+            && cap.verb == Verb::DESKTOP_LAUNCH;
         if !self.registration.desktop_shell && !launcher_click {
             return Err("direct menu actions require the OS-started desktop Shell or Launcher".into());
         }

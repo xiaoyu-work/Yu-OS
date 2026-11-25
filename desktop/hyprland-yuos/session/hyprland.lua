@@ -37,6 +37,15 @@ hl.window_rule({
     border_size = 0,
 })
 
+hl.window_rule({
+    name = "yuos-floating-apps",
+    match = { class = "^(com\\.yuos\\..*|YuOS-Agent)$" },
+    float = true,
+    center = true,
+    size = { 980, 640 },
+    rounding = 12,
+})
+
 hl.bind("SUPER + Q", hl.dsp.window.close())
 for _, direction in ipairs({ "left", "right", "up", "down" }) do
     hl.bind("SUPER + " .. direction, hl.dsp.focus({ direction = direction }))

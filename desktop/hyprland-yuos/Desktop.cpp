@@ -229,6 +229,10 @@ namespace YuOs {
                 result.before     = describe(window);
                 switch (request.kind) {
                     case YUOS_DESKTOP_FOCUS:
+                        if (window->onSpecialWorkspace()) {
+                            if (const auto monitor = Desktop::focusState()->monitor(); monitor && monitor->m_activeWorkspace)
+                                Action::moveToWorkspace(selector(monitor->m_activeWorkspace), false, window);
+                        }
                         window->activate(true);
                         g_pInputManager->simulateMouseMovement();
                         result.requested = 1;
