@@ -10,18 +10,17 @@ import Caelestia.I18n
 Singleton {
     id: root
 
-    readonly property bool light: preferences.appearance === "light"
-        || (preferences.appearance !== "dark" && Colours.light)
-    readonly property color panel: light ? "#f8f7f8f3" : "#f8192522"
-    readonly property color panelTop: light ? "#fcfcfdf9" : "#fc26352f"
-    readonly property color ink: light ? "#25352e" : "#f6f7f5"
-    readonly property color dim: light ? "#516159" : "#c7d0cd"
-    readonly property color line: light ? "#d4dcd2" : "#33d7e3dd"
-    readonly property color floatingLine: light ? "#a5b6ab" : "#60766a"
-    readonly property color field: light ? "#e9eee6" : "#13d4dfdc"
-    readonly property color selected: light ? "#dce8df" : "#23d4dfdc"
-    readonly property color pressed: light ? "#cbdcd0" : "#43d4dfdc"
-    readonly property color accent: light ? "#2a614b" : "#b0e1ce"
+    readonly property bool light: preferences.appearance !== "dark"
+    readonly property color panel: light ? "#f8f7f8fa" : "#f814171c"
+    readonly property color panelTop: light ? "#ebfbfcfd" : "#eb0f1216"
+    readonly property color ink: light ? "#19202b" : "#eef2f7"
+    readonly property color dim: light ? "#5a6270" : "#b8c0cc"
+    readonly property color line: light ? "#dde2e8" : "#26ffffff"
+    readonly property color floatingLine: light ? "#cfd6df" : "#38ffffff"
+    readonly property color field: light ? "#eef1f5" : "#1affffff"
+    readonly property color selected: light ? "#e2e7ee" : "#26ffffff"
+    readonly property color pressed: light ? "#d5dce5" : "#38ffffff"
+    readonly property color accent: "#005cfe"
 
     readonly property list<string> pins: {
         const valid = preferences.pins.filter(id => /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/.test(id));
@@ -120,12 +119,14 @@ Singleton {
     }
 
     function icon(desktopId: string): url {
+        const entry = desktopEntry(desktopId);
+        if (entry?.icon)
+            return Quickshell.iconPath(entry.icon, "application-x-executable");
         if (desktopId === DesktopMenu.files)
             return Quickshell.shellPath("assets/dock/files.svg");
         if (desktopId === DesktopMenu.launcher)
             return Quickshell.shellPath("assets/dock/launcher.svg");
-        const name = desktopEntry(desktopId)?.icon ?? desktopId;
-        return Quickshell.iconPath(name, "application-x-executable");
+        return Quickshell.iconPath(desktopId, "application-x-executable");
     }
 
     function activate(desktopId: string): void {

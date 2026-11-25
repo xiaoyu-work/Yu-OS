@@ -137,35 +137,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "yuos-nearby"
-version = "0.1.0"
-dependencies = [
- "yuosd-client",
- "libc",
- "owly-airdrop",
- "owly-radio",
- "owlyd",
- "rustls",
- "serde_json",
- "tempfile",
- "tokio",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
-name = "yuosd-client"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "uuid",
-]
-
-[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1591,6 +1562,35 @@ checksum = "b5f6765e852b9b4dc8e2a76843e4d64d1cea8e79bcde0b6901aea8e7c7f08282"
 dependencies = [
  "bit-vec",
  "time",
+]
+
+[[package]]
+name = "yuos-nearby"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "owly-airdrop",
+ "owly-radio",
+ "owlyd",
+ "rustls",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing-subscriber",
+ "uuid",
+ "yuosd-client",
+]
+
+[[package]]
+name = "yuosd-client"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]

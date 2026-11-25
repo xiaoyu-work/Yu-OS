@@ -69,35 +69,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
-name = "yuos-applet-services"
-version = "0.1.0"
-dependencies = [
- "yuos-sdk",
- "jiff",
- "libc",
- "rusqlite",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "yuos-sdk"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64",
- "libc",
- "num-bigint",
- "num-traits",
- "regex",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -666,6 +637,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
 dependencies = [
  "windows-link",
+]
+
+[[package]]
+name = "yuos-applet-services"
+version = "0.1.0"
+dependencies = [
+ "jiff",
+ "libc",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tokio",
+ "yuos-sdk",
+]
+
+[[package]]
+name = "yuos-sdk"
+version = "0.1.0-dev.2026112401"
+dependencies = [
+ "async-trait",
+ "base64",
+ "libc",
+ "num-bigint",
+ "num-traits",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

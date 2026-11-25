@@ -104,7 +104,7 @@ StyledWindow {
                     width: 3.2
                     height: width
                     radius: width / 2
-                    color: Quiet.ink
+                    color: "#005cfe"
                 }
             }
         }

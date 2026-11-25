@@ -328,7 +328,8 @@ identity_regular_root_file() {
     IFS=:
     set -- $metadata
     IFS=$old_ifs
-    [ "$1" = 0 ] && [ "$2" = 0 ] && [ "$4" = "regular file" ] &&
+    [ "$1" = 0 ] && [ "$2" = 0 ] &&
+        { [ "$4" = "regular file" ] || [ "$4" = "regular empty file" ]; } &&
         [ "$5" = 1 ] || {
         identity_fail "$file must be a single-link root-owned regular file"
         return 1

@@ -1307,7 +1307,10 @@ pub struct AppSessionRegister {
     /// daemon already resolved for it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_caps: Option<Structured>,
-    pub package: Structured,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package: Option<Structured>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system_desktop: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

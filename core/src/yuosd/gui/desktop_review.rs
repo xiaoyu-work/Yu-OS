@@ -176,7 +176,9 @@ impl Window {
             return Err("desktop reviews require an independent interactive desktop".into());
         }
         let launch = &self.registration.launch;
-        if !matches!(launch.package().source(), TrustSource::Publisher { .. }) {
+        if !matches!(launch.package().source(), TrustSource::Publisher { .. })
+            && !launch.package().source().is_system_desktop()
+        {
             return Err("desktop requests require a signed GUI".into());
         }
         let selected = launch

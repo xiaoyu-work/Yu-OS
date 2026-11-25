@@ -1850,6 +1850,7 @@ routes! {
             ("tool", FieldRule::Token),
             ("args", FieldRule::Size),
             ("package", FieldRule::Size),
+            ("system_desktop", FieldRule::Flag),
         ],
         run: |c| app_sessions::register(c.params, c.client).await,
     }

@@ -857,34 +857,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "yuos-sdk"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64",
- "libc",
- "num-bigint",
- "num-traits",
- "regex",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "yuosd-client"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "uuid",
-]
-
-[[package]]
 name = "clipboard-win"
 version = "5.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1082,81 +1054,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ceec7a6067e62d6f931a2baf6f3a751f4a892595bcec1461a3c94ef9949864b6"
 dependencies = [
  "bindgen",
-]
-
-[[package]]
-name = "yuos-agent-bridge"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-stream",
- "axum",
- "bytes",
- "chrono",
- "yuosd-client",
- "yuos-agent-protocol",
- "futures",
- "regex",
- "serde",
- "serde_json",
- "tokio",
- "tower",
- "tracing",
- "tracing-subscriber",
- "zbus",
-]
-
-[[package]]
-name = "yuos-agent-protocol"
-version = "0.1.0"
-dependencies = [
- "base64",
- "chrono",
- "yuosd-client",
- "serde",
- "serde_json",
- "sha2",
- "uuid",
-]
-
-[[package]]
-name = "yuos-agent-ui"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-stream",
- "base64",
- "bytes",
- "yuos-agent-protocol",
- "yuos-runtime",
- "cpal",
- "futures",
- "futures-util",
- "hound",
- "i18n-embed",
- "i18n-embed-fl",
- "libcosmic",
- "reqwest",
- "rust-embed",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "yuos-runtime"
-version = "0.1.0"
-dependencies = [
- "base64",
- "yuos-sdk",
- "libc",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -7397,6 +7294,97 @@ dependencies = [
  "quote",
  "syn",
  "synstructure",
+]
+
+[[package]]
+name = "yuos-agent-bridge"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "axum",
+ "bytes",
+ "chrono",
+ "futures",
+ "regex",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
+ "yuos-agent-protocol",
+ "yuosd-client",
+ "zbus",
+]
+
+[[package]]
+name = "yuos-agent-protocol"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "chrono",
+ "serde",
+ "serde_json",
+ "sha2",
+ "uuid",
+ "yuosd-client",
+]
+
+[[package]]
+name = "yuos-agent-ui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "base64",
+ "bytes",
+ "cpal",
+ "futures",
+ "futures-util",
+ "hound",
+ "i18n-embed",
+ "i18n-embed-fl",
+ "libcosmic",
+ "reqwest",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+ "yuos-agent-protocol",
+ "yuos-sdk",
+]
+
+[[package]]
+name = "yuos-sdk"
+version = "0.1.0-dev.2026112401"
+dependencies = [
+ "async-trait",
+ "base64",
+ "libc",
+ "num-bigint",
+ "num-traits",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "yuosd-client"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
