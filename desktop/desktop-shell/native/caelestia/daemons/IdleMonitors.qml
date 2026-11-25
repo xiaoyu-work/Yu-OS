@@ -13,9 +13,9 @@ Scope {
     readonly property bool hasPlayer: Players.list.some(p => p.isPlaying)
     readonly property bool isCharging: !UPower.onBattery
     readonly property bool enabled: {
-        if (GlobalConfig.general.idle.inhibitWhenAudio && hasPlayer)
+        if (isCharging)
             return false;
-        if (GlobalConfig.general.idle.inhibitWhenCharging && isCharging)
+        if (GlobalConfig.general.idle.inhibitWhenAudio && hasPlayer)
             return false;
         return true;
     }

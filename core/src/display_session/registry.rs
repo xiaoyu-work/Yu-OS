@@ -632,115 +632,120 @@ fn monitor(
                 Instant::now() + Duration::from_millis(250),
             )?; }
         }
-        match channel.receive::<AuthorityReply>(host, Instant::now() + Duration::from_millis(100)) {
-            Ok(mut packet) => match packet.message {
-                AuthorityReply::Prepared {
-                    epoch: received_epoch,
-                } => {
-                    let mut state = display.lock().map_err(|_| Error::Identity)?;
-                    if received_epoch != epoch || state.workload.is_some() {
-                        return Err(Error::Protocol("duplicate or stale display preparation"));
-                    }
-                    state.workload = Some(Arc::new(Workload::receive(
-                        packet.descriptors.pop().ok_or(Error::Identity)?,
-                        anchor,
-                        epoch,
-                    )?));
-                    channel.send(
-                        &AuthorityCommand::Prepared { epoch },
-                        &[],
-                        Instant::now() + Duration::from_millis(250),
-                    )?;
-                }
-                AuthorityReply::Ready {
-                    epoch: received_epoch,
-                    wayland_display,
-                } => {
-                    let mut state = display.lock().map_err(|_| Error::Identity)?;
-                    if received_epoch != epoch
-                        || state.workload.is_none()
-                        || state.wayland_display.is_some()
-                    {
-                        return Err(Error::Protocol(
-                            "unprepared, duplicate or stale display readiness",
-                        ));
-                    }
-                    state.wayland_display = Some(wayland_display);
-                }
-                AuthorityReply::Retired {
-                    epoch: received_epoch,
-                } if received_epoch == epoch => {
-                    retire_display(display, channel)?;
-                    channel.send(
-                        &AuthorityCommand::Retired { epoch },
-                        &[],
-                        Instant::now() + Duration::from_millis(250),
-                    )?;
-                    return Ok(());
-                }
-                AuthorityReply::Launch { epoch: received_epoch, request, submitted }
-                    if received_epoch == epoch =>
-                {
-                    if launch_pending.as_ref().is_some_and(|(id, _)| *id == request) {
-                        if let Some((_, call)) = launch_pending.take() {
-                            let _ = call.reply.send(Ok(submitted));
+        for index in 0..32 {
+            if index > 0 && !channel.readable()? {
+                break;
+            }
+            match channel.receive::<AuthorityReply>(host, Instant::now() + Duration::from_millis(100)) {
+                Ok(mut packet) => match packet.message {
+                    AuthorityReply::Prepared {
+                        epoch: received_epoch,
+                    } => {
+                        let mut state = display.lock().map_err(|_| Error::Identity)?;
+                        if received_epoch != epoch || state.workload.is_some() {
+                            return Err(Error::Protocol("duplicate or stale display preparation"));
                         }
-                    }
-                }
-                AuthorityReply::Gui { reply: CompositorReply::DesktopChanged { epoch: received } }
-                    if ready && received == epoch =>
-                {
-                    desktop_changes.send_replace(());
-                }
-                AuthorityReply::Gui { reply } => {
-                    let (instance, kind) = reply_target(&reply, epoch)?;
-                    if kind == 3 {
-                        timed_out.remove(&instance);
-                    }
-                    if matches!(kind, 3 | 5) {
-                        crate::yuosd::gui::compositor_retired(epoch, instance)
-                            .map_err(|_| Error::Protocol("GUI retirement notification failed"))?;
-                    }
-                    if kind == 5 {
-                        tracing::debug!(instance = %Epoch(instance.0).label(),
-                            "compositor ended an inactive GUI instance");
-                        continue;
-                    }
-                    let Some((expected, call)) = pending.remove(&instance) else {
-                        if kind == 3 {
-                            tracing::info!(instance = %Epoch(instance.0).label(),
-                                "compositor retired an expired GUI instance");
-                            continue;
-                        }
-                        if timed_out.contains(&instance) {
-                            tracing::warn!(instance = %Epoch(instance.0).label(),
-                                "ignoring a late response for an already retiring GUI instance");
-                            continue;
-                        }
-                        return Err(Error::Protocol("unsolicited GUI control response"));
-                    };
-                    if expected != kind && kind != 4 && kind != 3 {
-                        return Err(Error::Protocol("GUI control response changed transition"));
-                    }
-                    if call.reply.send(Ok(Received {
-                        message: reply,
-                        descriptors: packet.descriptors,
-                        sender: packet.sender,
-                    })).is_err() && !matches!(expected, 6..=8) {
-                        tracing::warn!("GUI control requester disappeared; retiring its instance");
+                        state.workload = Some(Arc::new(Workload::receive(
+                            packet.descriptors.pop().ok_or(Error::Identity)?,
+                            anchor,
+                            epoch,
+                        )?));
                         channel.send(
-                            &AuthorityCommand::Gui {
-                                command: CompositorCommand::Retire { epoch, instance },
-                            },
+                            &AuthorityCommand::Prepared { epoch },
                             &[],
                             Instant::now() + Duration::from_millis(250),
                         )?;
                     }
-                }
-                _ => return Err(Error::Protocol("stale display epoch")),
-            },
-            Err(Error::Timeout) => {}
-            Err(error) => return Err(error),
+                    AuthorityReply::Ready {
+                        epoch: received_epoch,
+                        wayland_display,
+                    } => {
+                        let mut state = display.lock().map_err(|_| Error::Identity)?;
+                        if received_epoch != epoch
+                            || state.workload.is_none()
+                            || state.wayland_display.is_some()
+                        {
+                            return Err(Error::Protocol(
+                                "unprepared, duplicate or stale display readiness",
+                            ));
+                        }
+                        state.wayland_display = Some(wayland_display);
+                    }
+                    AuthorityReply::Retired {
+                        epoch: received_epoch,
+                    } if received_epoch == epoch => {
+                        retire_display(display, channel)?;
+                        channel.send(
+                            &AuthorityCommand::Retired { epoch },
+                            &[],
+                            Instant::now() + Duration::from_millis(250),
+                        )?;
+                        return Ok(());
+                    }
+                    AuthorityReply::Launch { epoch: received_epoch, request, submitted }
+                        if received_epoch == epoch =>
+                    {
+                        if launch_pending.as_ref().is_some_and(|(id, _)| *id == request) {
+                            if let Some((_, call)) = launch_pending.take() {
+                                let _ = call.reply.send(Ok(submitted));
+                            }
+                        }
+                    }
+                    AuthorityReply::Gui { reply: CompositorReply::DesktopChanged { epoch: received } }
+                        if ready && received == epoch =>
+                    {
+                        desktop_changes.send_replace(());
+                    }
+                    AuthorityReply::Gui { reply } => {
+                        let (instance, kind) = reply_target(&reply, epoch)?;
+                        if kind == 3 {
+                            timed_out.remove(&instance);
+                        }
+                        if matches!(kind, 3 | 5) {
+                            crate::yuosd::gui::compositor_retired(epoch, instance)
+                                .map_err(|_| Error::Protocol("GUI retirement notification failed"))?;
+                        }
+                        if kind == 5 {
+                            tracing::debug!(instance = %Epoch(instance.0).label(),
+                                "compositor ended an inactive GUI instance");
+                            continue;
+                        }
+                        let Some((expected, call)) = pending.remove(&instance) else {
+                            if kind == 3 {
+                                tracing::info!(instance = %Epoch(instance.0).label(),
+                                    "compositor retired an expired GUI instance");
+                                continue;
+                            }
+                            if timed_out.contains(&instance) {
+                                tracing::warn!(instance = %Epoch(instance.0).label(),
+                                    "ignoring a late response for an already retiring GUI instance");
+                                continue;
+                            }
+                            return Err(Error::Protocol("unsolicited GUI control response"));
+                        };
+                        if expected != kind && kind != 4 && kind != 3 {
+                            return Err(Error::Protocol("GUI control response changed transition"));
+                        }
+                        if call.reply.send(Ok(Received {
+                            message: reply,
+                            descriptors: packet.descriptors,
+                            sender: packet.sender,
+                        })).is_err() && !matches!(expected, 6..=8) {
+                            tracing::warn!("GUI control requester disappeared; retiring its instance");
+                            channel.send(
+                                &AuthorityCommand::Gui {
+                                    command: CompositorCommand::Retire { epoch, instance },
+                                },
+                                &[],
+                                Instant::now() + Duration::from_millis(250),
+                            )?;
+                        }
+                    }
+                    _ => return Err(Error::Protocol("stale display epoch")),
+                },
+                Err(Error::Timeout) => break,
+                Err(error) => return Err(error),
+            }
         }
     }
 }

@@ -10,6 +10,9 @@ Singleton {
     id: root
 
     readonly property string files: "com.yuos.Files"
+    readonly property string browser: "com.yuos.Browser"
+    readonly property string terminal: "com.yuos.Term"
+    readonly property string store: "com.yuos.Store"
     readonly property string launcher: "com.yuos.Launcher"
     readonly property string agent: "com.yuos.Agent"
     readonly property alias pendingDesktopId: effect.desktopId

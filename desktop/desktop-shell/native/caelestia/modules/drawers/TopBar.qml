@@ -126,6 +126,14 @@ StyledWindow {
             reuseItems: true
             model: Quiet.dock
 
+            moveDisplaced: Transition {
+                NumberAnimation {
+                    properties: "x"
+                    duration: 130
+                    easing.type: Easing.OutCubic
+                }
+            }
+
             WheelHandler {
                 orientation: Qt.Vertical
                 onWheel: event => dock.contentX = Math.max(0,
@@ -135,9 +143,11 @@ StyledWindow {
             delegate: QuietButton {
                 id: app
 
+                required property int index
                 required property string desktopId
                 required property bool appRunning
                 required property string focusedOutput
+                property bool reordering: false
                 readonly property bool waiting: DesktopMenu.pendingDesktopId === desktopId || Quiet.pendingDockId === desktopId
                 readonly property real iconSize: 25
                 readonly property real hoverScale: 1.08
@@ -147,11 +157,13 @@ StyledWindow {
                 width: 35
                 height: 36
                 padding: 3
-                highlighted: focusedOutput !== "" && focusedOutput === root.screen?.name
+                z: reordering ? 10 : 0
+                down: dragArea.pressed && (dragArea.pressedButtons & Qt.LeftButton) && !reordering
+                highlighted: reordering || (focusedOutput !== "" && focusedOutput === root.screen?.name)
                 Accessible.name: Quiet.title(desktopId)
                 Accessible.description: waiting ? Tr.tr("Waiting for Yu OS") : ""
                 onHoveredChanged: {
-                    if (hovered)
+                    if (hovered && !reordering)
                         root.hoveredApp = app;
                     else
                         clearHover();
@@ -161,12 +173,6 @@ StyledWindow {
                 function clearHover(): void {
                     if (root.hoveredApp === app)
                         root.hoveredApp = null;
-                }
-
-                onClicked: {
-                    clearHover();
-                    root.launched();
-                    Quiet.activate(desktopId);
                 }
 
                 contentItem: Item {
@@ -180,7 +186,7 @@ StyledWindow {
                         source: Quiet.icon(app.desktopId)
                         fillMode: Image.PreserveAspectFit
                         asynchronous: true
-                        scale: app.down ? 0.94 : app.hovered && !dock.moving ? app.hoverScale : 1
+                        scale: app.reordering ? 1.15 : app.down ? 0.94 : app.hovered && !dock.moving ? app.hoverScale : 1
 
                         Behavior on scale {
                             Anim { type: Anim.FastEffects }
@@ -204,12 +210,79 @@ StyledWindow {
                     }
                 }
 
-                TapHandler {
-                    acceptedButtons: Qt.RightButton
-                    onTapped: {
-                        app.clearHover();
-                        if (app.desktopId !== DesktopMenu.launcher)
+                MouseArea {
+                    id: dragArea
+
+                    property real pressX: 0
+                    property bool moved: false
+
+                    anchors.fill: parent
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    pressAndHoldInterval: 220
+
+                    onPressed: mouse => {
+                        if (mouse.button === Qt.RightButton) {
+                            app.clearHover();
                             root.pinMenuRequested(app.desktopId, app.mapToItem(leading, 0, 0).x + leading.x);
+                            return;
+                        }
+                        pressX = app.mapToItem(dock, mouse.x, mouse.y).x + dock.contentX;
+                        moved = false;
+                        app.reordering = false;
+                    }
+
+                    onPressAndHold: mouse => {
+                        if (mouse.button === Qt.LeftButton) {
+                            app.clearHover();
+                            app.reordering = true;
+                            Quiet.reordering = true;
+                            dock.interactive = false;
+                        }
+                    }
+
+                    onPositionChanged: mouse => {
+                        if (!(dragArea.pressedButtons & Qt.LeftButton))
+                            return;
+                        const xInDock = app.mapToItem(dock, mouse.x, mouse.y).x + dock.contentX;
+                        if (!app.reordering && Math.abs(xInDock - dragArea.pressX) > 7) {
+                            app.clearHover();
+                            app.reordering = true;
+                            Quiet.reordering = true;
+                            dock.interactive = false;
+                        }
+                        if (app.reordering) {
+                            const target = Math.max(0, Math.min(dock.count - 1, Math.floor(xInDock / 38)));
+                            if (target !== app.index) {
+                                Quiet.moveItem(app.index, target);
+                                dragArea.moved = true;
+                            }
+                        }
+                    }
+
+                    onReleased: mouse => {
+                        if (mouse.button !== Qt.LeftButton)
+                            return;
+                        dock.interactive = true;
+                        if (app.reordering || dragArea.moved) {
+                            app.reordering = false;
+                            Quiet.reordering = false;
+                            Quiet.commitOrder(app.desktopId);
+                        } else if (dragArea.containsMouse) {
+                            app.clearHover();
+                            root.launched();
+                            Quiet.activate(app.desktopId);
+                        }
+                        dragArea.moved = false;
+                    }
+
+                    onCanceled: {
+                        dock.interactive = true;
+                        if (app.reordering || dragArea.moved) {
+                            app.reordering = false;
+                            Quiet.reordering = false;
+                            Quiet.commitOrder(app.desktopId);
+                        }
+                        dragArea.moved = false;
                     }
                 }
             }

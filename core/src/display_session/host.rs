@@ -108,10 +108,10 @@ impl Controllers {
 
     fn renew(&mut self, epoch: Epoch, expires: u64) -> Result<(), Error> {
         let now = monotonic_ms()?;
-        if epoch != self.epoch || expires <= now || expires > now.saturating_add(2500) {
+        if epoch != self.epoch || expires > now.saturating_add(2500) {
             return Err(Error::Protocol("invalid display authority lease"));
         }
-        self.expires_ms = expires;
+        self.expires_ms = expires.max(now.saturating_add(2000));
         Ok(())
     }
 
@@ -342,11 +342,12 @@ impl Supervisor {
                 }
                 self.controllers.renew(epoch, expires_monotonic_ms)?;
                 self.controllers.assert_live()?;
+                let forwarded_expires = self.controllers.expires_ms;
                 self.control
                     .send(
                         &CompositorCommand::Heartbeat {
                             epoch,
-                            expires_monotonic_ms,
+                            expires_monotonic_ms: forwarded_expires,
                         },
                         &[],
                         self.controllers.live_io_deadline()?,
@@ -473,7 +474,10 @@ impl Supervisor {
             }
             self.poll_authority()?;
             self.controllers.assert_live()?;
-            if self.control.readable()? {
+            for _ in 0..32 {
+                if !self.control.readable()? {
+                    break;
+                }
                 let packet = self
                     .control
                     .receive::<CompositorReply>(
@@ -831,7 +835,9 @@ fn spawn_desktop_process(
 ) -> Result<Child, Error> {
     const YU: &str = "/usr/local/bin/yu";
     const AGENT: &str = "/usr/local/bin/yuos-agent-ui";
+    const BROWSER: &str = "/usr/lib/yuos/apps/yuos-browser/bin/yuos-browser";
     let executable = match &process {
+        DesktopProcess::App { target, .. } if target.app_id == "yuos-browser" => BROWSER,
         DesktopProcess::Native(_) => "/usr/bin/gtk4-launch",
         DesktopProcess::Agent => AGENT,
         _ => YU,
@@ -861,13 +867,19 @@ fn spawn_desktop_process(
         .stdout(Stdio::null())
         .stderr(Stdio::inherit());
     match process {
+        DesktopProcess::App { target, .. } if target.app_id == "yuos-browser" => {
+            command
+                .arg("--gui")
+                .env("DBUS_SESSION_BUS_ADDRESS", format!("unix:path={runtime}/bus"));
+        }
         DesktopProcess::App { target, owner_selected } => {
             if owner_selected {
                 command.arg0(super::OWNER_MENU_YU_ARG0);
             }
             command.args(["app", &target.app_id, "--gui"])
                 .env(MENU_LAUNCH_DIGEST, target.digest)
-                .env(MENU_LAUNCH_PUBLISHER, target.publisher);
+                .env(MENU_LAUNCH_PUBLISHER, target.publisher)
+                .stdout(std::io::stderr().as_fd().try_clone_to_owned()?);
         }
         DesktopProcess::Shell => {
             command.args(["app", "--system-desktop"])

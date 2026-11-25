@@ -430,6 +430,11 @@ pub(crate) async fn launch(params: Value, client: &ClientIdentity) -> Result<Val
                         } else {
                             format!("{error}\n{}", outcome.stderr.text)
                         };
+                        tracing::error!(
+                            app_id = job.registration.launch.app_id(),
+                            %error,
+                            "GUI launch failed"
+                        );
                         return Err(BrokerError::execution(error));
                     }
                 }

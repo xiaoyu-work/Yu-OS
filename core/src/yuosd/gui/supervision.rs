@@ -28,8 +28,8 @@ use super::transport::{Binding, Bootstrap, Guard, Targets};
 #[path = "resources.rs"]
 mod resources;
 
-const CONTROL: Duration = Duration::from_secs(2);
-const RETIREMENT: Duration = Duration::from_secs(5);
+const CONTROL: Duration = Duration::from_secs(10);
+const RETIREMENT: Duration = Duration::from_secs(10);
 
 fn health_while_running(
     child: &mut Child,

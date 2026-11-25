@@ -22,16 +22,25 @@ Singleton {
     readonly property color pressed: light ? "#d5dce5" : "#38ffffff"
     readonly property color accent: "#005cfe"
 
+    property bool reordering: false
+    readonly property list<string> defaultPins: [
+        DesktopMenu.files,
+        DesktopMenu.browser,
+        DesktopMenu.terminal,
+        DesktopMenu.store,
+        DesktopMenu.launcher
+    ]
     readonly property list<string> pins: {
         const valid = preferences.pins.filter(id => /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/.test(id));
-        const ordered = [...new Set([...valid, DesktopMenu.launcher])];
-        return ordered.length <= 24 ? ordered : [DesktopMenu.launcher, ...ordered.filter(id => id !== DesktopMenu.launcher).slice(0, 23)];
+        return [...new Set(valid)].slice(0, 24);
     }
     readonly property var byDesktopId: new Map(DesktopEntries.applications.values
         .map(entry => [entry.id, entry]))
+    readonly property var byLowerId: new Map(DesktopEntries.applications.values
+        .map(entry => [entry.id.toLowerCase(), entry]))
     readonly property var byStartupClass: new Map(DesktopEntries.applications.values
         .filter(entry => entry.startupClass)
-        .map(entry => [entry.startupClass, entry]))
+        .map(entry => [entry.startupClass.toLowerCase(), entry]))
 
     readonly property ListModel dock: ListModel {}
 
@@ -46,11 +55,12 @@ Singleton {
     }
 
     readonly property var dockRows: {
-        const running = new Set(Hypr.desktop.runningApps);
+        const running = new Set(Hypr.desktop.runningApps
+            .filter(id => !id.startsWith("com.yuos.Settings.")));
         const rows = new Map();
         for (const id of new Set([...pins, ...running, ...dockWindows.keys()])) {
             const window = dockWindows.get(id);
-            if (window || id === DesktopMenu.files || id === DesktopMenu.launcher || desktopEntry(id)) {
+            if (pins.includes(id) || window || (running.has(id) && desktopEntry(id))) {
                 rows.set(id, {
                     desktopId: id,
                     appRunning: running.has(id) || !!window,
@@ -73,6 +83,8 @@ Singleton {
     Component.onCompleted: Qt.callLater(syncDock)
 
     function syncDock(): void {
+        if (reordering)
+            return;
         for (let i = dock.count - 1; i >= 0; --i) {
             if (!dockRows.has(dock.get(i).desktopId))
                 dock.remove(i);
@@ -97,9 +109,15 @@ Singleton {
     }
 
     function dockId(app: string): string {
-        if (!app || app === DesktopMenu.agent)
+        if (!app || app === DesktopMenu.agent || app === "YuOS-Agent" || app === "yuos-desktop-reviews")
             return "";
-        return desktopEntry(app)?.id ?? byStartupClass.get(app)?.id ?? (pins.includes(app) ? app : "");
+        const lower = app.toLowerCase();
+        if (lower === "helium" || lower === "helium-browser" || lower === "chromium" || lower === "com.yuos.browser")
+            return DesktopMenu.browser;
+        return desktopEntry(app)?.id
+            ?? byLowerId.get(lower)?.id
+            ?? byStartupClass.get(lower)?.id
+            ?? (/^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/.test(app) ? app : "");
     }
 
     function desktopEntry(desktopId: string): DesktopEntry {
@@ -110,6 +128,12 @@ Singleton {
     function title(desktopId: string): string {
         if (desktopId === DesktopMenu.launcher)
             return Tr.tr("Launcher");
+        if (desktopId === DesktopMenu.store)
+            return Tr.tr("App Store");
+        if (desktopId === DesktopMenu.terminal)
+            return Tr.tr("Terminal");
+        if (desktopId === DesktopMenu.browser)
+            return Tr.tr("Helium");
         const entry = desktopEntry(desktopId);
         if (entry)
             return entry.name;
@@ -119,13 +143,19 @@ Singleton {
     }
 
     function icon(desktopId: string): url {
+        if (desktopId === DesktopMenu.files)
+            return Quickshell.shellPath("assets/dock/files.svg");
+        if (desktopId === DesktopMenu.browser)
+            return Quickshell.shellPath("assets/dock/browser.svg");
+        if (desktopId === DesktopMenu.terminal)
+            return Quickshell.shellPath("assets/dock/terminal.svg");
+        if (desktopId === DesktopMenu.store)
+            return Quickshell.shellPath("assets/dock/store.svg");
+        if (desktopId === DesktopMenu.launcher)
+            return Quickshell.shellPath("assets/dock/launcher.svg");
         const entry = desktopEntry(desktopId);
         if (entry?.icon)
             return Quickshell.iconPath(entry.icon, "application-x-executable");
-        if (desktopId === DesktopMenu.files)
-            return Quickshell.shellPath("assets/dock/files.svg");
-        if (desktopId === DesktopMenu.launcher)
-            return Quickshell.shellPath("assets/dock/launcher.svg");
         return Quickshell.iconPath(desktopId, "application-x-executable");
     }
 
@@ -150,12 +180,31 @@ Singleton {
     }
 
     function togglePin(id: string): void {
-        if (id === DesktopMenu.launcher)
-            return;
         if (pins.includes(id))
             preferences.pins = pins.filter(pin => pin !== id);
         else if (pins.length < 24 && (desktopEntry(id) || dockRows.has(id)))
             preferences.pins = [...pins, id];
+    }
+
+    function moveItem(fromIndex: int, toIndex: int): void {
+        if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0
+            || fromIndex >= dock.count || toIndex >= dock.count)
+            return;
+        dock.move(fromIndex, toIndex, 1);
+    }
+
+    function commitOrder(movedId: string): void {
+        const pinnedSet = new Set(pins);
+        if (movedId && !pinnedSet.has(movedId) && pinnedSet.size < 24)
+            pinnedSet.add(movedId);
+        const ordered = [];
+        for (let i = 0; i < dock.count; ++i) {
+            const id = dock.get(i).desktopId;
+            if (pinnedSet.has(id))
+                ordered.push(id);
+        }
+        preferences.pins = ordered;
+        Qt.callLater(syncDock);
     }
 
     function toggleAppearance(): void {
@@ -181,7 +230,13 @@ Singleton {
         JsonAdapter {
             id: preferences
 
-            property list<string> pins: [DesktopMenu.files, DesktopMenu.launcher]
+            property list<string> pins: [
+                DesktopMenu.files,
+                DesktopMenu.browser,
+                DesktopMenu.terminal,
+                DesktopMenu.store,
+                DesktopMenu.launcher
+            ]
             property string appearance: ""
         }
     }
