@@ -20,7 +20,7 @@ use super::{registry::parent_pid, SHELL_APP};
 const STARTUP: Duration = Duration::from_secs(20);
 const STOP: Duration = Duration::from_secs(5);
 const TICK: Duration = Duration::from_millis(10);
-const CONTROL_IO: Duration = Duration::from_millis(250);
+const CONTROL_IO: Duration = Duration::from_secs(2);
 const MAX_SUBSCRIBERS: usize = 32;
 const MAX_APP_LAUNCHERS: usize = 16;
 
@@ -126,9 +126,7 @@ impl Controllers {
     }
 
     fn live_io_deadline(&self) -> Result<Instant, Error> {
-        let now = Instant::now();
-        let remaining = self.expires_ms.saturating_sub(monotonic_ms()?);
-        Ok(now + CONTROL_IO.min(Duration::from_millis(remaining)))
+        Ok(Instant::now() + CONTROL_IO)
     }
 
     fn wait_authority(&mut self, retired: bool, deadline: Instant) -> Result<(), Error> {
@@ -154,6 +152,12 @@ impl Controllers {
                     epoch,
                     expires_monotonic_ms,
                 } => {
+                    if epoch != self.epoch {
+                        return Err(Error::Protocol("invalid display authority lease"));
+                    }
+                    if expires_monotonic_ms <= monotonic_ms()? && self.authority.readable()? {
+                        continue;
+                    }
                     self.renew(epoch, expires_monotonic_ms)?;
                 }
                 AuthorityCommand::Shutdown { epoch } if retired && epoch == self.epoch => {}
@@ -311,7 +315,7 @@ impl Supervisor {
     }
 
     fn poll_authority(&mut self) -> Result<(), Error> {
-        for _ in 0..8 {
+        for _ in 0..64 {
             if !self.controllers.authority.readable()? {
                 break;
             }
@@ -320,17 +324,26 @@ impl Supervisor {
                 .authority
                 .receive::<AuthorityCommand>(
                     &self.controllers.broker,
-                    self.controllers.live_io_deadline()?,
+                    Instant::now() + CONTROL_IO,
                 )
                 .map_err(|error| io_timeout(error, "timed out receiving display authority"))?;
-            self.controllers.assert_live()?;
-            match packet.message {
-                AuthorityCommand::Heartbeat {
-                    epoch,
-                    expires_monotonic_ms,
-                } => {
-                    self.controllers.renew(epoch, expires_monotonic_ms)?;
-                    self.control.send(
+            if let AuthorityCommand::Heartbeat {
+                epoch,
+                expires_monotonic_ms,
+            } = packet.message
+            {
+                if epoch != self.controllers.epoch {
+                    return Err(Error::Protocol("invalid display authority lease"));
+                }
+                if expires_monotonic_ms <= monotonic_ms()?
+                    && self.controllers.authority.readable()?
+                {
+                    continue;
+                }
+                self.controllers.renew(epoch, expires_monotonic_ms)?;
+                self.controllers.assert_live()?;
+                self.control
+                    .send(
                         &CompositorCommand::Heartbeat {
                             epoch,
                             expires_monotonic_ms,
@@ -339,7 +352,11 @@ impl Supervisor {
                         self.controllers.live_io_deadline()?,
                     )
                     .map_err(|error| io_timeout(error, "timed out forwarding display heartbeat"))?;
-                }
+                continue;
+            }
+            self.controllers.assert_live()?;
+            match packet.message {
+                AuthorityCommand::Heartbeat { .. } => unreachable!(),
                 AuthorityCommand::Shutdown { epoch } if epoch == self.controllers.epoch => {
                     return Err(Error::Closed);
                 }

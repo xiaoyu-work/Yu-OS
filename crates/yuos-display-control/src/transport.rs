@@ -412,13 +412,14 @@ fn collect_ancillary(header: &libc::msghdr) -> Result<(Option<libc::ucred>, Vec<
 fn wait(fd: BorrowedFd<'_>, events: i16, deadline: Instant) -> Result<(), Error> {
     loop {
         let remaining = deadline.saturating_duration_since(Instant::now());
-        if remaining.is_zero() {
-            return Err(Error::Timeout);
-        }
-        let timeout = remaining
-            .as_millis()
-            .saturating_add(1)
-            .min(i32::MAX as u128) as i32;
+        let timeout = if remaining.is_zero() {
+            0
+        } else {
+            remaining
+                .as_millis()
+                .saturating_add(1)
+                .min(i32::MAX as u128) as i32
+        };
         let mut descriptor = libc::pollfd {
             fd: fd.as_raw_fd(),
             events,
@@ -432,6 +433,9 @@ fn wait(fd: BorrowedFd<'_>, events: i16, deadline: Instant) -> Result<(), Error>
             return Ok(());
         }
         if result == 0 {
+            if remaining.is_zero() {
+                return Err(Error::Timeout);
+            }
             continue;
         }
         let error = io::Error::last_os_error();
