@@ -7,7 +7,8 @@ Maintainer: Yu OS <noreply@github.com>
 Homepage: https://github.com/xiaoyu-work/Yu-OS
 XB-YuOS-Security-Epoch: __SECURITY_EPOCH__
 XB-YuOS-Abi: __ABI__
-Depends: yuos-framework (= __VERSION__), yuos-abi-__ABI__
+Pre-Depends: yuos-framework (= __VERSION__)
+Depends: yuos-abi-__ABI__
 Recommends: nodejs, python3-pip, git, ripgrep, jq, sqlite3
 Description: official Yu Agent for Yu OS
  Installs the optional first-party Yu Agent on top of `yuos-framework`: the

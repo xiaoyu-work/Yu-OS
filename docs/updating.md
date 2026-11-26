@@ -28,7 +28,7 @@ artifacts do not contain the new command.
 ### Coordinated 0.2.1 ownership boundary (source only)
 
 The initial independent App packaging boundary is `1:0.2.1`, not `1:0.3.0`.
-Agent and Desktop do not stage the independently packaged Apps or App-owned
+Framework and Desktop do not stage the independently packaged Apps or App-owned
 common/named Python libraries. Desktop owns its release-authenticated Shell.
 Separate App APT packages replace
 former owners only `(<< 1:0.2.1)`; no new OS package may be overwritten.
@@ -36,10 +36,10 @@ SDK/runtime Python and OS toolkit/services, PAM, initial setup, keyboard and
 policy stay OS-owned. Identities, installed App paths, data, credentials and
 existing grants do not migrate.
 
-The runtime ABI remains 1. Agent's versioned `yuos-app-runtime-v1` uses
+The runtime ABI remains 1. Framework's versioned `yuos-app-runtime-v1` uses
 [the SDK's base version](../packaging/README.md#coordinated-021-source-ownership-cutover),
 not its dated build suffix. An unversioned Provides cannot satisfy the
-Apps' versioned dependencies. Agent recommends only `yuos-apps-agent`; native
+Apps' versioned dependencies. Framework recommends only `yuos-apps-agent`; native
 packages can be selected independently on Ubuntu/WSL without the full OS
 Desktop. `apt install yuos-desktop` installs all Yu OS Apps, including the
 headless set and the individually packaged graphical Apps and Thunderbird
@@ -49,7 +49,7 @@ channels for the normal transaction. Desktop releases build the OS Shell and
 bind its complete tree inventory to the signed release, while separately
 verifying the signed App APT closure before package assembly.
 
-The matching Agent and Desktop packages carry the OS release's
+The matching Framework and Desktop packages carry the OS release's
 [preapproved App selection](../packaging/README.md#preinstalled-app-defaults).
 Eligible signed builds use their declared local permissions without a first-use
 prompt. Updates that do not match the OS selection use the ordinary review;
@@ -317,7 +317,7 @@ human restoration decision. The requester cannot select another owner, widen
 target manifests or manage unsupported direct resources. Existing Settings
 requests and owner/App policy receipts stay compatible; no grant migration,
 new capability or reapproval is implied. The desktop package depends
-on `yuos-app-permissions-v1`, provided by the matching newer Agent package:
+on `yuos-app-permissions-v1`, provided by the matching newer Framework package:
 APT cannot install the feature with an old `yu`/`yuosd` that lacks its routes.
 Restart Settings after upgrade. Source-only development against an older
 service reports an actionable unavailable-service error; there is no direct
@@ -1345,6 +1345,24 @@ restart is deferred until the whole transaction has been configured.
 Removing or purging a Yu OS package deliberately **does not** delete
 `/var/lib/yuos/security` or `/var/lib/yuos-security`. That is what makes
 `apt remove yuos-agent` followed by an install of an old version still fail.
+
+The upgrade that splits a pre-split `yuos-agent` runs the APT hook and
+verifier that the installed `yuos-agent` shipped. That verifier still checks
+`yuos-agent`, `yuos-base` and `yuos-desktop` in the candidate set; it does
+not list `yuos-framework` or `yuos-agent-desktop`. Each of those two
+packages is then refused or admitted by its own `preinst`, which runs the
+installed verifier against its embedded signed manifest (signature, epoch,
+version, ABI and minimum compatible siblings) before dpkg unpacks it. Every
+published version of either package carries that `preinst`, so no older
+artifact exists that only the hook could stop. From the next transaction on,
+the Framework's hook checks all five packages.
+
+That pre-split `yuos-agent` also owns the verifier, the hook and `yuosd`.
+`yuos-agent` therefore `Pre-Depends` on the exact `yuos-framework`, so dpkg
+unpacks and configures the Framework, which takes those files over through
+`Replaces`, before the slimmer Agent is unpacked. Otherwise dpkg could
+unpack the new Agent first and delete the verifier, and every later
+`preinst` in the transaction would then refuse.
 
 ### What it does not protect against
 

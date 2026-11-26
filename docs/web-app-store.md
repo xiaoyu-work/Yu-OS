@@ -40,7 +40,7 @@ revocation and audit. Updating a package invalidates the old view. App code
 cannot obtain the Agent Web token, submit a task, call another App or confirm
 its own permissions through the browser transport.
 
-Ubuntu and WSL2 users can use the same `yuos-agent` runtime without
+Ubuntu and WSL2 users can use the same `yuos-framework` runtime without
 `yuos-base`, COSMIC or a full OS image. Required OS services, libraries,
 hardware, account setup and exact permissions still apply.
 

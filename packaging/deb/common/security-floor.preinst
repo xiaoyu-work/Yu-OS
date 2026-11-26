@@ -67,7 +67,7 @@ if [ ! -x "$HELPER" ]; then
     if [ -e "$STATE_DIR/floor.json" ]; then
         echo "error: $PACKAGE $VERSION (security epoch $SECURITY_EPOCH) cannot be" >&2
         echo "       installed: this system has recorded update-security state but" >&2
-        echo "       the verifier $HELPER is missing. Reinstall yuos-agent from" >&2
+        echo "       the verifier $HELPER is missing. Reinstall yuos-framework from" >&2
         echo "       the signed repository before continuing." >&2
         exit 1
     fi

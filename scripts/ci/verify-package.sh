@@ -97,7 +97,7 @@ case "$component" in
             usr/lib/yuos/skills/yuos/SKILL.md
             usr/lib/yuos/skills/yuos/diagnostics.md
         )
-        dpkg-deb -f "$deb" Depends | grep -Fq "yuos-framework (= $YUOS_PACKAGE_VERSION)"
+        dpkg-deb -f "$deb" Pre-Depends | grep -Fq "yuos-framework (= $YUOS_PACKAGE_VERSION)"
         dpkg-deb -x "$deb" "$extract/payload"
         test "$(stat -c '%a' "$extract/payload/usr/lib/yuos/skills/yuos")" = "755"
         test "$(stat -c '%a' "$extract/payload/usr/lib/yuos/skills/yuos/SKILL.md")" = "644"

@@ -211,7 +211,7 @@ Stdout/stderr-derived errors and tool results remain untrusted and wrapped.
 | `YUOSD_EXTENSION_CGROUP_ROOT` | Optional pre-created empty, root-owned delegated cgroup-v2 root; normally omitted so `yuosd.service` prepares its own delegated subtree |
 | `YUOSD_EXTENSION_HOST_NAMESPACES` | Set to `off` to disable best-effort IPC/UTS namespaces |
 
-The binary is shipped in `yuos-agent` and configured by `yuosd.service`.
+The binary is shipped in `yuos-framework` and configured by `yuosd.service`.
 There is no supported mode that falls back to executing dynamic code inside
 `yuos-agentd`.
 

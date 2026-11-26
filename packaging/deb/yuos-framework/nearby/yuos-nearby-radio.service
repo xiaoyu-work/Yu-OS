@@ -9,7 +9,7 @@ After=sys-kernel-debug.mount
 [Service]
 Type=dbus
 BusName=io.github.t4t5.Owly
-ExecStartPre=/usr/lib/yuos/bin/yuos-security-floor service-gate --package yuos-agent --manifest /usr/lib/yuos/release-security/yuos-agent/manifest.json
+ExecStartPre=/usr/lib/yuos/bin/yuos-security-floor service-gate --package yuos-framework --manifest /usr/lib/yuos/release-security/yuos-framework/manifest.json
 ExecStart=/usr/lib/yuos/bin/yuos-nearby-radio
 Restart=on-failure
 RestartSec=3

@@ -34,12 +34,12 @@ for d in "$APP_DEST" \
 done
 for file in app.json main.py server.py native_host.py README.md; do
     if [ ! -f "$APP_DEST/$file" ]; then
-        echo "  error: yuos-agent Mail package is incomplete: $APP_DEST/$file" >&2
+        echo "  error: yuos-framework Mail package is incomplete: $APP_DEST/$file" >&2
         exit 1
     fi
 done
 if [ ! -f "$XPI_DEST" ]; then
-    echo "  error: yuos-agent Mail extension is missing: $XPI_DEST" >&2
+    echo "  error: yuos-framework Mail extension is missing: $XPI_DEST" >&2
     exit 1
 fi
 
@@ -51,14 +51,14 @@ if [ -d "$FEATURE_DIR/overlay" ] && [ -n "$(ls -A "$FEATURE_DIR/overlay" 2>/dev/
     cp -a --no-preserve=ownership "$FEATURE_DIR/overlay/." "$ROOTFS/"
 fi
 if [ ! -x "$ROOTFS/usr/lib/yuos/yuos-mail-ai-host" ]; then
-    echo "  error: trusted yuos-mail-ai-host binary is missing from yuos-agent" >&2
+    echo "  error: trusted yuos-mail-ai-host binary is missing from yuos-framework" >&2
     exit 1
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Use the canonical App and SDK already installed by yuos-agent.
+# 2. Use the canonical App and SDK already installed by yuos-framework.
 #    Do not overwrite authenticated package contents or maintain a separate
-#    Python copy for the UI that can drift from the Agent's implementation.
+#    Python copy for the UI that can drift from the Framework's implementation.
 # ---------------------------------------------------------------------------
 echo "  :: using package-owned Mail host and extension"
 

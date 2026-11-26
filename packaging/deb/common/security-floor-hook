@@ -48,7 +48,7 @@ if [ -e "$FLOOR" ] || [ -e "$RUNTIME_FLOOR" ]; then
     cat > /dev/null
     echo "yuos: refusing this transaction: $HELPER is missing but this" >&2
     echo "         system has recorded update-security state. Reinstall" >&2
-    echo "         yuos-agent from the signed repository first." >&2
+    echo "         yuos-framework from the signed repository first." >&2
     exit 1
 fi
 

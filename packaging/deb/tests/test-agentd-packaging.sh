@@ -155,8 +155,8 @@ assert_contains "$SYSUSERS" 'g yuos-extension - -' \
     "sysusers must preserve a safely retained legacy extension gid"
 assert_contains "$POSTINST" 'systemd-sysusers /usr/lib/sysusers.d/yuos-agent.conf' \
     "postinst must create the extension execution group before starting yuosd"
-assert_contains "$BUILD_DEBS" 'yuos-agent/preinst' \
-    "yuos-agent must ship an identity-provisioning preinst"
+assert_contains "$BUILD_DEBS" 'yuos-framework/preinst' \
+    "yuos-framework must ship an identity-provisioning preinst"
 assert_contains "$BUILD_DEBS" 'ensure_calendar_reader' \
     "Agent must build the independent Calendar reader"
 assert_contains "$BUILD_DEBS" '--manifest-path desktop/services/yuos-applet-services/Cargo.toml' \

@@ -684,13 +684,6 @@ fi
 echo "  :: dpkg-deb --build yuos-agent"
 write_release_manifest yuos-agent "$AGENT_STAGE" "$DEB_ARCH"
 render_security_preinst yuos-agent "$AGENT_STAGE"
-mv "$AGENT_STAGE/DEBIAN/preinst" "$AGENT_STAGE/DEBIAN/preinst.security"
-{
-    sed '$d' "$SCRIPT_DIR/yuos-agent/preinst"
-    tail -n +2 "$AGENT_STAGE/DEBIAN/preinst.security"
-} > "$AGENT_STAGE/DEBIAN/preinst"
-rm -f "$AGENT_STAGE/DEBIAN/preinst.security"
-chmod 0755 "$AGENT_STAGE/DEBIAN/preinst"
 $FAKEROOT $DPKG_DEB --root-owner-group --build "$AGENT_STAGE" \
     "$OUT_DIR/yuos-agent_${FILE_VERSION}_${DEB_ARCH}.deb" >/dev/null
 fi
