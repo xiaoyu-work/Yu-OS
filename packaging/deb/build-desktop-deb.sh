@@ -24,7 +24,8 @@ source "$PROJECT_DIR/scripts/lib/package-version.sh"
 VERSION="$(package_version "$PROJECT_DIR")"
 APP_RUNTIME_VERSION="$(python3 "$PROJECT_DIR/scripts/app_packages.py" runtime-version)"
 NATIVE_DEPS="${YUOS_DESKTOP_RUNTIME_DEPS:?native dependency scan is required}"
-if [[ ! "$NATIVE_DEPS" =~ ^[a-z0-9+.,~:\(\)=\<\>\ -]+$ ]]; then
+AGENT_NATIVE_DEPS="${YUOS_AGENT_DESKTOP_RUNTIME_DEPS:?graphical Agent dependency scan is required}"
+if [[ ! "$NATIVE_DEPS" =~ ^[a-z0-9+.,~:\(\)=\<\>\ -]+$ || ! "$AGENT_NATIVE_DEPS" =~ ^[a-z0-9+.,~:\(\)=\<\>\ -]+$ ]]; then
     echo "error: invalid native desktop package dependencies" >&2
     exit 1
 fi
@@ -221,6 +222,7 @@ mkdir -p "$AGENT_STAGE/DEBIAN"
 chmod 0755 "$AGENT_STAGE/DEBIAN"
 sed -e "s/__VERSION__/$VERSION/g" -e "s/__ARCH__/$DEB_ARCH/g" \
     -e "s/__ABI__/$SECURITY_ABI/g" \
+    -e "s/__NATIVE_DEPS__/$AGENT_NATIVE_DEPS/g" \
     -e "s/__SECURITY_EPOCH__/$SECURITY_EPOCH/g" \
     "$SCRIPT_DIR/yuos-agent-desktop/control" > "$AGENT_STAGE/DEBIAN/control"
 sed -e "s/__VERSION__/$VERSION/g" \

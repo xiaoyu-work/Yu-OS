@@ -9,7 +9,7 @@ Debian packages and a signed multi-architecture APT repository.
 
 - Assemble `yuos-framework`, the optional `yuos-agent`, `yuos-base`, `yuos-desktop`
   and the optional `yuos-agent-desktop` as separate packages; dependencies only
-  point Agent → Framework
+  point Agent → Framework, and Desktop only recommends its default graphical Agent,
   for one coordinated APT publication.
 - Preserve conffiles and run service-safe maintainer scripts.
 - Bind each release to a signed release-security manifest so an installed

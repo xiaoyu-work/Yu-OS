@@ -44,10 +44,12 @@ Depends: yuos-base (>= __MIN_BASE__), yuos-abi-__ABI__, yuos-app-runtime-v1 (>= 
  va-driver-all, __VAAPI_INTEL_NONFREE_DEP__gstreamer1.0-vaapi, v4l-utils,
  libcamera-tools, modemmanager, network-manager-config-connectivity-debian,
  gnome-bluetooth-sendto, recoll
+Recommends: yuos-agent-desktop
 Conflicts: yuos-apps-desktop, yuos-app-desktop-shell
 Description: Yu OS — graphical desktop environment
  Installs the Root-managed Hyprland compositor and authenticated greetd login.
- The graphical Yu Agent ships separately in yuos-agent-desktop. Includes
+ The graphical Yu Agent ships in yuos-agent-desktop, a recommended default
+ that can be removed. Includes
  the OS-owned Desktop Shell with Quickshell, Caelestia and their private
  runtime. All other Yu OS Apps are installed
  as independently maintained packages.

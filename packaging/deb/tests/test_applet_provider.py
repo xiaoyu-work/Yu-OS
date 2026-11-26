@@ -21,7 +21,7 @@ def package_attempt(stage):
     return subprocess.run(
         ["bash", str(ROOT / "packaging/deb/build-desktop-deb.sh"), str(stage)],
         env={**os.environ, "ARCH": ARCH, "YUOS_PACKAGE_VERSION": f"{epoch}:{version}",
-             "YUOS_DESKTOP_RUNTIME_DEPS": "libc6"},
+             "YUOS_DESKTOP_RUNTIME_DEPS": "libc6", "YUOS_AGENT_DESKTOP_RUNTIME_DEPS": "libc6"},
         capture_output=True, text=True, timeout=10,
     )
 

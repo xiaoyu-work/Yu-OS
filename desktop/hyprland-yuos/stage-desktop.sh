@@ -197,9 +197,13 @@ done | LC_ALL=C sort -u >debian/shlibs.local
 mkdir "$stage/DEBIAN"
 dpkg-shlibdeps -O -l"$native/lib" "${shell_libargs[@]}" -xyuos-desktop "$native/Hyprland" "${libraries[@]}" \
     "${shell_elfs[@]}" \
-    "$native/yuos-lockscreen" \
-    "$stage/usr/local/bin/yuos-agent-ui" "$stage/usr/local/bin/yuos-agent-bridge" \
-    "$stage/usr/local/bin/yuos-ask-launcher" "$stage/usr/libexec/yuos-applet-provider" \
+    "$native/yuos-lockscreen" "$stage/usr/libexec/yuos-applet-provider" \
     | sed -n 's/^shlibs:Depends=//p' >"$work/runtime-depends"
+# The graphical Agent binaries ship in yuos-agent-desktop with their own libraries.
+dpkg-shlibdeps -O -xyuos-desktop \
+    "$stage/usr/local/bin/yuos-agent-ui" "$stage/usr/local/bin/yuos-agent-bridge" \
+    "$stage/usr/local/bin/yuos-ask-launcher" \
+    | sed -n 's/^shlibs:Depends=//p' >"$work/agent-runtime-depends"
 rmdir "$stage/DEBIAN"
 test -s "$work/runtime-depends"
+test -s "$work/agent-runtime-depends"

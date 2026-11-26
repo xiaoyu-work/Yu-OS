@@ -180,7 +180,7 @@ release schedules:
 | `yuos-agent` | Optional official Yu Agent: `yuos-agentd` and skills |
 | `yuos-base` | Yu OS recovery, managed agent home, distribution boot/service policy, and device-specific udev/libinput rules |
 | `yuos-desktop` | Desktop shell and graphical applications, when installed |
-| `yuos-agent-desktop` | Optional graphical Agent UI, bridge and Ask launcher |
+| `yuos-agent-desktop` | Graphical Agent UI, bridge and Ask launcher; a removable default recommended by `yuos-desktop` |
 
 After upgrading Base and Desktop (if installed), reboot to apply the [hardware workarounds](image-architecture.md#hardware-enablement) to devices already present and reload the desktop's libinput rules. Existing installs do not gain newly added image-only firmware packages via the Base upgrade; install `firmware-cirrus` or, on a Qualcomm arm64 machine, `firmware-qcom-soc` from the configured Debian repositories if needed.
 

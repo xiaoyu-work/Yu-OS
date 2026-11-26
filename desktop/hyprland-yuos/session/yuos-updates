@@ -18,8 +18,8 @@ import time
 
 
 PACKAGES = ("yuos-framework", "yuos-agent", "yuos-base", "yuos-desktop", "yuos-agent-desktop")
-# Packages the Framework/Agent split introduced. Pre-split systems receive
-# them as new installs so the existing Agent and its desktop payload remain.
+# Packages the Framework/Agent split introduced. Earlier systems receive
+# them as new installs so the Agent and Desktop's default graphical Agent remain.
 SPLIT_PACKAGES = ("yuos-framework", "yuos-agent-desktop")
 ROOT = Path("/var/lib/yuos-updates")
 STATE = ROOT / "state.json"
@@ -141,11 +141,13 @@ def split_installs(current):
         needed.append("yuos-framework")
     if ("yuos-agent" in current and "yuos-desktop" in current
             and "yuos-agent-desktop" not in current):
-        owner = subprocess.run(
-            ["/usr/bin/dpkg-query", "-S", "/usr/local/bin/yuos-agent-ui"],
+        # Desktop recommends its graphical Agent. Like APT, add it only while the
+        # installed Desktop predates that recommendation, so a removal sticks.
+        recommends = subprocess.run(
+            ["/usr/bin/dpkg-query", "-W", "-f=${Recommends}", "yuos-desktop"],
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, env=ENV, timeout=5,
         ).stdout
-        if owner.startswith("yuos-desktop:"):
+        if not re.search(r"(^|[ ,])yuos-agent-desktop([ ,(]|$)", recommends):
             needed.append("yuos-agent-desktop")
     return needed
 

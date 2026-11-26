@@ -154,10 +154,11 @@ case "$component" in
             etc/greetd/yuos-desktop.toml
         )
         if grep -Eq '^\./usr/(local/bin/yuos-(agent-ui|agent-bridge|ask-launcher)|share/applications/com\.yuos\.Agent\.desktop)$' "$files" \
-            || dpkg-deb -f "$deb" Depends Recommends Pre-Depends | grep -Eq '(^|[ ,])yuos-agent'; then
-            echo "error: Desktop contains or pulls in the optional graphical Agent" >&2
+            || dpkg-deb -f "$deb" Depends Pre-Depends | grep -Eq '(^|[ ,])yuos-agent'; then
+            echo "error: Desktop contains or requires the optional graphical Agent" >&2
             exit 1
         fi
+        dpkg-deb -f "$deb" Recommends | grep -Eq '(^|[ ,])yuos-agent-desktop([ ,]|$)'
         ;;
     agent-desktop)
         required=(

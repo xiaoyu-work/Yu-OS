@@ -7,7 +7,7 @@ Maintainer: Yu OS <noreply@github.com>
 Homepage: https://github.com/xiaoyu-work/Yu-OS
 XB-YuOS-Security-Epoch: __SECURITY_EPOCH__
 XB-YuOS-Abi: __ABI__
-Depends: yuos-agent (= __VERSION__), yuos-desktop (= __VERSION__), yuos-abi-__ABI__
+Depends: yuos-agent (= __VERSION__), yuos-desktop (= __VERSION__), yuos-abi-__ABI__, __NATIVE_DEPS__
 Breaks: yuos-desktop (<< __VERSION__)
 Replaces: yuos-desktop (<< __VERSION__)
 Description: Yu OS — graphical Yu Agent

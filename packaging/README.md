@@ -40,17 +40,22 @@ packaging/
 | `yuos-agent` | Optional official Yu Agent: `yuos-agentd` and skills | `amd64`, `arm64` | `yuos-framework` of the same version |
 | `yuos-base` | `yuos-init`, managed agent-home setup, Yu OS boot/service policy, and model-specific udev/libinput rules | `all` | `yuos-framework` |
 | `yuos-desktop` | Protected Hyprland, graphical login, system services, and the OS-owned Desktop Shell (Quickshell, Caelestia and private Qt) | `amd64`, `arm64` | `yuos-base`, `yuos-display-session-v3`, `yuos-apps-agent`, every individual graphical Yu OS App package and the Thunderbird integration |
-| `yuos-agent-desktop` | Optional graphical Agent: Agent UI, bridge, Ask launcher, browser chat host and launcher entry | `amd64`, `arm64` | `yuos-agent` and `yuos-desktop` of the same version |
+| `yuos-agent-desktop` | Graphical Agent: Agent UI, bridge, Ask launcher, browser chat host and launcher entry; Desktop's default App, removable | `amd64`, `arm64` | `yuos-agent` and `yuos-desktop` of the same version and the graphical Agent's own shared libraries |
 
-The Framework never depends on or recommends the Agent. Images select
-`yuos-agent` (and `yuos-agent-desktop` on Desktop) explicitly; set
-`YUOS_AGENT=0` for a Framework-only image. Without the Agent, Agent tasks,
+The Framework never depends on or recommends the Agent. `yuos-desktop`
+recommends `yuos-agent-desktop`, so installing Desktop or a plain
+`apt upgrade` to a Desktop that newly recommends it also installs the
+graphical Agent and the Agent, like any default App. It stays removable:
+`sudo apt remove yuos-agent-desktop` keeps Desktop, and later upgrades do not
+reinstall it. Images select `yuos-agent` (and `yuos-agent-desktop` on
+Desktop) explicitly; set `YUOS_AGENT=0` for a Framework-only image, and install
+later Desktop releases with `--no-install-recommends` to keep it that way.
+Without the Agent, Agent tasks,
 triggers, Activity and Agent memory report `Yu Agent is not installed`, while
 Apps, App permissions and platform services keep working. Upgrading from a
 pre-split `yuos-agent` installs `yuos-framework` through the Agent's
-dependency; System Updates also adds `yuos-agent-desktop` on Desktop. A plain
-`apt upgrade` does not install new packages, so run
-`sudo apt install yuos-agent-desktop` there to keep the graphical Agent.
+dependency. When the Agent is installed, System Updates also adds
+`yuos-agent-desktop` once to a Desktop that did not yet recommend it.
 
 Keep the [hardware workarounds](../docs/image-architecture.md#hardware-enablement) in `deb/yuos-base/hardware/`. Base stages the system udev and libinput data; Desktop stages the same libinput quirk source into Hyprland's private libinput database. Both packages use the existing signed release path.
 

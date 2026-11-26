@@ -35,6 +35,7 @@ else
     chroot "$ROOTFS" /bin/bash "$inside/source/desktop/hyprland-yuos/stage-desktop.sh" \
         "$inside/source" "$inside/package" "$inside"
     YUOS_DESKTOP_RUNTIME_DEPS="$(cat "$work/runtime-depends")" \
+        YUOS_AGENT_DESKTOP_RUNTIME_DEPS="$(cat "$work/agent-runtime-depends")" \
         "$PROJECT_DIR/packaging/deb/build-desktop-deb.sh" "$stage"
 
     if [[ "${DESKTOP_PACKAGE_ONLY:-0}" == 1 ]]; then
