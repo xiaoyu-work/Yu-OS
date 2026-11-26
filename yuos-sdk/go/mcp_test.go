@@ -75,7 +75,7 @@ func TestRemovedCrossAppContractIsRejected(t *testing.T) {
 	if _, err := LoadMCPApp(path); err == nil {
 		t.Fatal("removed App access allowlist accepted")
 	}
-	for _, field := range []string{"app", "app-agent", "app_id", "depth", "parent_call_id"} {
+	for _, field := range []string{"app-agent", "app_id", "depth", "parent_call_id"} {
 		t.Run(field, func(t *testing.T) {
 			app, err := LoadMCPApp(writeMCPTestManifest(t, `{"name":"example.noop","summary":{"en":"Noop"}}`))
 			if err != nil {
@@ -90,7 +90,7 @@ func TestRemovedCrossAppContractIsRejected(t *testing.T) {
 			value := decodeWireValue(t, validMCPContextJSON("removed", 0)).(map[string]any)
 			code := WireUnknownField
 			switch field {
-			case "app", "app-agent":
+			case "app-agent":
 				value["caller"].(map[string]any)["kind"] = field
 				code = WireEnum
 			case "app_id":

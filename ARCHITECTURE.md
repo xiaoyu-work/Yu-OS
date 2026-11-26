@@ -2290,13 +2290,57 @@ tunnel can finish. All returned TCP addresses still pass the public-address
 gate before the first pinned address is connected; the helper grants no
 direct-worker network access and is not a second DNS server.
 
-Cross-App workflows belong to the built-in system Agent, never to Apps calling
-Apps. Apps may use gated AI, controlled system services, and shared libraries.
-App processes and App-owned agents cannot discover or invoke App services,
-launch other Apps, or submit system Agent tasks. External agents also cannot
-discover or call App services.
-Registered session ancestry is checked so an intermediate task Host, helper,
-or a claimed CLI identity cannot erase App ownership.
+Apps may use gated AI, controlled system services, and shared libraries. App
+processes and App-owned agents cannot discover App services, launch other
+Apps, or submit system Agent tasks; external agents cannot discover or call
+App services. Registered session ancestry is checked so an intermediate task
+Host, helper, or a claimed CLI identity cannot erase App ownership.
+
+#### Controlled App-to-App calls
+
+The one exception is a controlled, mutually declared App→App call, modelled
+on macOS Automation (Apple Events) consent. It reuses the App Gateway and the
+target App's MCP tool; there is no second bus.
+
+- **Both sides declare.** The caller lists exact `<app-id>/<tool>` entries in
+  top-level `app_calls`. The provider opts one tool in with
+  `mcp.tools[].app_access.callers`: either an explicit App id allowlist or
+  `["*"]` (any installed App). Both declarations appear in installation and
+  permission review. Default deny: only the declared tool is callable.
+- **Caller identity comes from the signed package.** `system.app-call`
+  (`yu __app_call`, SDK `yuos_sdk.app_calls.call`) is a session-authenticated
+  user route. `yuosd` takes the caller App id from the Root-registered App
+  session, re-checks that the live instance runs the verified package and
+  that trust was not withdrawn. A request never names its own caller.
+- **The target authorizes itself.** The Gateway mints an `app` principal with
+  an empty capability ceiling and derives the grant solely from the target
+  tool's own `needs[]`, approved exactly as for an Agent call. The caller's
+  grants never flow to the target, and the caller only receives that tool's
+  result — never the target's other data or storage.
+- **Assertions are caller statements.** A provider may list
+  `app_access.assertions` names; the caller can then send at most eight
+  bounded string values, delivered as `context.assertions`. They are the
+  verified caller's own claims (for example Mail's verified source mailbox
+  and organizer), not OS-verified facts.
+- **Audit and deadline.** Every call is audited with caller, target App and
+  tool, and is bounded by the Gateway request deadline.
+- **Built-in Apps** (vendor-signed and OS-approved preinstalled packages, as
+  determined only by the trust store and the OS preinstalled selection) call
+  each other without a prompt; the user's click inside the built-in App is
+  the trigger. This does not waive trust, caller binding or target ceilings.
+- **Third-party callers** get first-use consent: on the first call to a
+  target tool, the OS protected review surface asks the current user "X wants
+  to use Y's Z". The decision is remembered per caller, target tool and user,
+  is listed and revocable in Settings → Privacy, and a denial returns
+  `not_authorized`. The prompt is raised only by the OS; a caller cannot
+  render or answer it. Existing third-party permission review and revocation
+  remain in force. Until that consent store and prompt ship, third-party
+  callers fail closed with `not_authorized`.
+
+Agent→App authority is unchanged. Cross-owner calls, discovery, background
+chaining and access to another App's data partition remain unavailable. The
+first use case is Mail submitting a selected invitation to Calendar's
+`import_invite`, not reading Calendar's store.
 
 Agent-to-App calls use the private App Gateway. `yuosd` authenticates the
 built-in Agent's task and Host, re-verifies the installed package and enabled

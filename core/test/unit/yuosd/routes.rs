@@ -40,6 +40,7 @@ const EXPECTED_USER_COMMANDS: &[&str] = &[
     "channel.manage",
     "system.channel.control",
     "system.app-event.publish",
+    "system.app-call",
     "activity.create",
     "activity.list",
     "activity.get",

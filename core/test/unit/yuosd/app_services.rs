@@ -13,6 +13,7 @@ fn context() -> McpCallContext {
             id: "session-a".to_string(),
             owner_uid: 1000,
         },
+        assertions: Default::default(),
     }
 }
 

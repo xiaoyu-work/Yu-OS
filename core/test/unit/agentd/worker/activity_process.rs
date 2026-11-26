@@ -59,6 +59,7 @@ fn context_for_call(binding: &crate::extension_host::protocol::ExtensionBinding)
             id: binding.session_id.clone().expect("root assigned session"),
             owner_uid: binding.owner_uid,
         },
+        assertions: Default::default(),
     }
 }
 

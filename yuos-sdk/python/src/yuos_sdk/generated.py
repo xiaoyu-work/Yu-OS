@@ -489,6 +489,7 @@ class Manifest(_ManifestRequired, total=False):
     mcp: "Mcpservice"
     objects: Dict[str, Any]
     desktop: "Desktop"
+    app_calls: List[str]
     dependencies: Dict[str, Any]
 
 class _ObjecttypeRequired(TypedDict):
@@ -676,6 +677,19 @@ class Mcptool(_McptoolRequired, total=False):
     args: List["Arg"]
     needs: List[Any]
     effects: List["Operationeffect"]
+    app_access: "Mcpappaccess"
+
+class _McpappaccessRequired(TypedDict):
+    callers: List[str]
+
+class Mcpappaccess(_McpappaccessRequired, total=False):
+    """mcpAppAccess.
+
+    Opt-in for controlled App→App calls to this tool. The tool still runs only
+    with authority derived from its own needs; nothing is inherited from the
+    caller.
+    """
+    assertions: List[str]
 
 class Desktop(TypedDict, total=False):
     """desktop.
@@ -727,6 +741,7 @@ class McpCallContext(_McpCallContextRequired, total=False):
     deadline_unix_ms: int
     session_id: str
     task_id: str
+    assertions: Dict[str, Any]
 
 class McpPrincipal(TypedDict):
     """McpPrincipal.
@@ -1288,7 +1303,7 @@ def validate_gui_file_write(value: Any) -> None:
     """Validate a value against wire/v1/gui_file_write.schema.json."""
     _validate_wire_schema(_WIRE_SCHEMA_GUI_FILE_WRITE, _WIRE_SCHEMA_GUI_FILE_WRITE, value, "GuiFileWrite", "$")
 
-_WIRE_SCHEMA_MCP_CALL_CONTEXT: Dict[str, Any] = decode_wire_json(r'''{"$defs":{"McpPrincipal":{"additionalProperties":false,"properties":{"id":{"maxLength":256,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$","type":"string","x-full-match":true},"kind":{"enum":["system-agent","cli"],"type":"string"},"owner_uid":{"maximum":4294967295,"minimum":0,"type":"integer"}},"required":["kind","id","owner_uid"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/mcp_call_context.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"description":"Authenticated call identity and lineage injected by the Yu OS MCP Gateway over the private App-host transport. Caller-supplied MCP arguments must never populate this object.","properties":{"call_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:-]*$","type":"string","x-full-match":true},"caller":{"$ref":"#/$defs/McpPrincipal"},"deadline_unix_ms":{"maximum":9007199254740991,"minimum":1,"type":"integer"},"session_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$","type":"string","x-full-match":true},"task_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$","type":"string","x-full-match":true},"trace_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:-]*$","type":"string","x-full-match":true},"wire_version":{"const":1,"maximum":1,"minimum":1,"type":"integer"}},"required":["wire_version","call_id","trace_id","caller"],"title":"MCP call context","type":"object"}''')
+_WIRE_SCHEMA_MCP_CALL_CONTEXT: Dict[str, Any] = decode_wire_json(r'''{"$defs":{"McpPrincipal":{"additionalProperties":false,"properties":{"id":{"maxLength":256,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$","type":"string","x-full-match":true},"kind":{"enum":["system-agent","cli","app"],"type":"string"},"owner_uid":{"maximum":4294967295,"minimum":0,"type":"integer"}},"required":["kind","id","owner_uid"],"type":"object"}},"$id":"https://yuos.dev/wire/v1/mcp_call_context.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"description":"Authenticated call identity and lineage injected by the Yu OS MCP Gateway over the private App-host transport. Caller-supplied MCP arguments must never populate this object.","properties":{"assertions":{"additionalProperties":{"maxLength":512,"type":"string"},"description":"Statements by a verified caller App (caller.kind `app`) whose names the target tool listed in `app_access.assertions`. The OS bounds them but does not check their truth.","maxProperties":8,"propertyNames":{"pattern":"^[a-z][a-z0-9_]{0,63}$"},"type":"object"},"call_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:-]*$","type":"string","x-full-match":true},"caller":{"$ref":"#/$defs/McpPrincipal"},"deadline_unix_ms":{"maximum":9007199254740991,"minimum":1,"type":"integer"},"session_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$","type":"string","x-full-match":true},"task_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$","type":"string","x-full-match":true},"trace_id":{"maxLength":128,"minLength":1,"pattern":"^[A-Za-z0-9][A-Za-z0-9._:-]*$","type":"string","x-full-match":true},"wire_version":{"const":1,"maximum":1,"minimum":1,"type":"integer"}},"required":["wire_version","call_id","trace_id","caller"],"title":"MCP call context","type":"object"}''')
 
 def validate_mcp_call_context(value: Any) -> None:
     """Validate a value against wire/v1/mcp_call_context.schema.json."""

@@ -115,6 +115,7 @@ export class CallContext {
   readonly deadlineUnixMs?: number;
   readonly sessionId?: string;
   readonly taskId?: string;
+  readonly assertions: Readonly<Record<string, string>>;
   readonly caller: Readonly<McpPrincipal>;
   readonly signal: AbortSignal;
 
@@ -135,6 +136,9 @@ export class CallContext {
     this.deadlineUnixMs = authenticated.deadline_unix_ms;
     this.sessionId = authenticated.session_id;
     this.taskId = authenticated.task_id;
+    this.assertions = Object.freeze({
+      ...((authenticated.assertions ?? {}) as Record<string, string>),
+    });
     this.caller = Object.freeze({ ...authenticated.caller });
     this.signal = signal;
     this.progressToken = progressToken;

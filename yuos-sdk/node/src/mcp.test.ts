@@ -168,7 +168,6 @@ test("removed cross-App call context is rejected before handlers", async () => {
   const base = context("removed");
   const caller = { kind: "system-agent", id: "agent", owner_uid: 1000 };
   const cases = [
-    { ...base, caller: { ...caller, kind: "app" } },
     { ...base, caller: { ...caller, kind: "app-agent" } },
     { ...base, caller: { ...caller, app_id: null } },
     { ...base, parent_call_id: null },

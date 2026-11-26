@@ -1847,6 +1847,7 @@ async fn run_shipped_app(
                         id: "fixture-system-agent".into(),
                         owner_uid: 1000,
                     },
+                    assertions: Default::default(),
                 },
             )
             .await

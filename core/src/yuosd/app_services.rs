@@ -1427,6 +1427,22 @@ pub async fn cli_call(
         .map_err(|error| BrokerError::execution(format!("encode App service result: {error}")))
 }
 
+/// Controlled App→App call from an authenticated App session. See
+/// [`super::app_sessions::prepare_app_to_app_call`].
+pub async fn app_call(
+    state: &DaemonState,
+    params: Value,
+    decision: &super::authority::Decision,
+) -> Result<Value, BrokerError> {
+    let prepared = super::app_sessions::prepare_app_to_app_call(params, decision).await?;
+    let manager = state
+        .app_service_manager()
+        .ok_or_else(|| BrokerError::unavailable("App service manager is unavailable"))?;
+    let result = manager.call(prepared).await?;
+    serde_json::to_value(result)
+        .map_err(|error| BrokerError::execution(format!("encode App service result: {error}")))
+}
+
 #[cfg(test)]
 mod tests {
     include!(concat!(

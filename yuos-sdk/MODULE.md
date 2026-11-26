@@ -11,8 +11,9 @@ Rust, Python, Node, and Go bindings.
 - Define the MCP-first App service contract: lifecycle, caller restrictions,
   manifest-declared tools, and capability needs.
 - Only the built-in System Agent calls enabled App MCP tools as an Agent; the
-  authenticated owner's direct CLI/UI is separate. Apps and their agents cannot
-  invoke other Apps.
+  authenticated owner's direct CLI/UI is separate. Apps call other Apps only
+  through the controlled, mutually declared `app_calls`/`app_access` path
+  (Python `yuos_sdk.app_calls.call`).
 - Provide public SDK calls without exposing internal broker details.
 - Let Apps mark the functions Yu OS starts for their command line
   (`operations`) and desktop window (`desktop`): Python `@command`/`@desktop`,

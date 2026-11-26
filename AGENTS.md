@@ -215,8 +215,12 @@ Documentation-only changes do not require code tests.
   Use the named [SDK model calls](yuos-sdk/api.html#python-mod-ai) in examples.
 - Ordinary Apps can use their own data, owner-selected files and default
   public egress as described in the [App guide](docs/app-development.md).
-  Do not add App-to-App permissions. The built-in System Agent calls enabled
-  App MCP tools through the authenticated App Host.
+  App→App calls exist only as the controlled, mutually declared mechanism in
+  [ARCHITECTURE.md](ARCHITECTURE.md#controlled-app-to-app-calls): caller
+  `app_calls`, provider `app_access`, signed-package caller identity, target
+  authority from its own `needs[]`, audit and deadline. Do not add other
+  App-to-App permissions. The built-in System Agent calls enabled App MCP
+  tools through the authenticated App Host.
 - Privileged or model-visible behavior must remain capability-gated and
   reconstructable from session/audit logs.
 - Reuse the service-definition/provider/consumer seam documented in

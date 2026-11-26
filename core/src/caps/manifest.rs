@@ -155,6 +155,12 @@ pub struct Manifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub desktop: Option<Desktop>,
 
+    /// Exact `<app-id>/<tool>` MCP tools this App may call through the
+    /// App Gateway. The target must also list this App in that tool's
+    /// `app_access.callers`; either side alone grants nothing.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub app_calls: Vec<String>,
+
     /// Free-form dependency declarations consumed by the bridge's package
     /// resolver.
     #[serde(default)]
@@ -702,6 +708,44 @@ pub struct McpTool {
     /// App-declared expectations; never execution or recovery authority.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: Vec<OperationEffect>,
+    /// Other Apps allowed to call this exact tool. Absent means no App
+    /// may call it; the System Agent path is governed by `mcp.access`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_access: Option<McpAppAccess>,
+}
+
+/// Target-side opt-in for App→App calls to one MCP tool.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct McpAppAccess {
+    /// App ids allowed to call the tool, or exactly `["*"]` for every
+    /// installed App that declares the call. The caller identity comes
+    /// from its verified package, never from the request.
+    pub callers: Vec<String>,
+    /// Names of caller assertions the tool accepts in its call context.
+    /// They are statements by the verified caller App, not facts the OS
+    /// checked.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assertions: Vec<String>,
+}
+
+pub const APP_ACCESS_ANY_CALLER: &str = "*";
+pub const MAX_APP_CALL_ASSERTIONS: usize = 8;
+
+impl McpAppAccess {
+    pub fn admits(&self, caller: &str) -> bool {
+        self.callers
+            .iter()
+            .any(|entry| entry == APP_ACCESS_ANY_CALLER || entry == caller)
+    }
+}
+pub const MAX_APP_CALL_ASSERTION_BYTES: usize = 512;
+
+pub fn is_valid_app_call_assertion_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    matches!(chars.next(), Some('a'..='z'))
+        && name.len() <= 64
+        && chars.all(|c| matches!(c, 'a'..='z' | '0'..='9' | '_'))
 }
 
 impl McpTool {
@@ -1135,6 +1179,8 @@ pub enum ManifestError {
     Json(#[from] serde_json::Error),
     #[error("invalid manifest id `{0}`: must match [a-z][a-z0-9_-]*")]
     InvalidId(String),
+    #[error("manifest App call declaration: {0}")]
+    AppCallInvalid(String),
     #[error("invalid operation key `{0}`: must match [a-z][a-z0-9_.]*")]
     InvalidOperationKey(String),
     #[error("object type `{object_type}`: {detail}")]
@@ -1416,6 +1462,78 @@ impl Manifest {
         Ok(())
     }
 
+    /// Parse one `app_calls` entry into `(app_id, tool)`.
+    pub fn parse_app_call(entry: &str) -> Option<(&str, &str)> {
+        let (app, tool) = entry.split_once('/')?;
+        (is_valid_id(app) && is_valid_mcp_tool_name(tool)).then_some((app, tool))
+    }
+
+    /// Whether this App declared a call to exactly `app/tool`.
+    pub fn declares_app_call(&self, app: &str, tool: &str) -> bool {
+        self.app_calls
+            .iter()
+            .any(|entry| Self::parse_app_call(entry) == Some((app, tool)))
+    }
+
+    fn validate_app_calls(&self) -> Result<(), ManifestError> {
+        let mut seen = std::collections::BTreeSet::new();
+        for entry in &self.app_calls {
+            let Some((app, _)) = Self::parse_app_call(entry) else {
+                return Err(ManifestError::AppCallInvalid(format!(
+                    "`app_calls` entry `{entry}` must be `<app-id>/<tool>`"
+                )));
+            };
+            if app == self.id {
+                return Err(ManifestError::AppCallInvalid(format!(
+                    "`app_calls` entry `{entry}` targets this App"
+                )));
+            }
+            if !seen.insert(entry.as_str()) {
+                return Err(ManifestError::AppCallInvalid(format!(
+                    "`app_calls` entry `{entry}` declared twice"
+                )));
+            }
+        }
+        for tool in self.mcp.iter().flat_map(|service| &service.tools) {
+            let Some(access) = &tool.app_access else {
+                continue;
+            };
+            if access.callers.is_empty() {
+                return Err(ManifestError::AppCallInvalid(format!(
+                    "tool `{}` app_access.callers must not be empty",
+                    tool.name
+                )));
+            }
+            let any = access.callers.iter().any(|caller| caller == APP_ACCESS_ANY_CALLER);
+            if any && access.callers.len() != 1 {
+                return Err(ManifestError::AppCallInvalid(format!(
+                    "tool `{}` app_access.callers `*` must be the only entry",
+                    tool.name
+                )));
+            }
+            for caller in access.callers.iter().filter(|_| !any) {
+                if !is_valid_id(caller) || caller == &self.id {
+                    return Err(ManifestError::AppCallInvalid(format!(
+                        "tool `{}` app_access caller `{caller}` is invalid",
+                        tool.name
+                    )));
+                }
+            }
+            if access.assertions.len() > MAX_APP_CALL_ASSERTIONS
+                || !access
+                    .assertions
+                    .iter()
+                    .all(|name| is_valid_app_call_assertion_name(name))
+            {
+                return Err(ManifestError::AppCallInvalid(format!(
+                    "tool `{}` app_access.assertions must be at most {MAX_APP_CALL_ASSERTIONS} names matching [a-z][a-z0-9_]*",
+                    tool.name
+                )));
+            }
+        }
+        Ok(())
+    }
+
     /// Validate the manifest's invariants. Called automatically by
     /// [`from_json`].
     pub fn validate(&self) -> Result<(), ManifestError> {
@@ -1430,6 +1548,7 @@ impl Manifest {
                 return Err(ManifestError::McpNoTools);
             }
         }
+        self.validate_app_calls()?;
         self.name
             .validate()
             .map_err(|d| ManifestError::TopLevelTextInvalid {

@@ -513,6 +513,7 @@ export interface Manifest {
   mcp?: Mcpservice;
   objects?: Record<string, unknown>;
   desktop?: Desktop;
+  app_calls?: string[];
   dependencies?: Record<string, unknown>;
 }
 
@@ -698,6 +699,18 @@ export interface Mcptool {
   args?: Arg[];
   needs?: unknown[];
   effects?: Operationeffect[];
+  app_access?: Mcpappaccess;
+}
+
+/**
+ * mcpAppAccess.
+ * Opt-in for controlled App→App calls to this tool. The tool still runs only
+ * with authority derived from its own needs; nothing is inherited from the
+ * caller.
+ */
+export interface Mcpappaccess {
+  callers: string[];
+  assertions?: string[];
 }
 
 /**
@@ -748,13 +761,14 @@ export interface McpCallContext {
   session_id?: string;
   task_id?: string;
   caller: McpPrincipal;
+  assertions?: Record<string, unknown>;
 }
 
 /**
  * McpPrincipal.
  */
 export interface McpPrincipal {
-  kind: "system-agent" | "cli";
+  kind: "system-agent" | "cli" | "app";
   id: string;
   owner_uid: number;
 }
@@ -1303,7 +1317,7 @@ export function normalizeGuiFileWriteIntegers(value: unknown): void {
   normalizeWireIntegers(_WIRE_SCHEMA_GUI_FILE_WRITE, _WIRE_SCHEMA_GUI_FILE_WRITE, value);
 }
 
-const _WIRE_SCHEMA_MCP_CALL_CONTEXT: WireRule = decodeWireJson("{\"$defs\":{\"McpPrincipal\":{\"additionalProperties\":false,\"properties\":{\"id\":{\"maxLength\":256,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"kind\":{\"enum\":[\"system-agent\",\"cli\"],\"type\":\"string\"},\"owner_uid\":{\"maximum\":4294967295,\"minimum\":0,\"type\":\"integer\"}},\"required\":[\"kind\",\"id\",\"owner_uid\"],\"type\":\"object\"}},\"$id\":\"https://yuos.dev/wire/v1/mcp_call_context.schema.json\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"additionalProperties\":false,\"description\":\"Authenticated call identity and lineage injected by the Yu OS MCP Gateway over the private App-host transport. Caller-supplied MCP arguments must never populate this object.\",\"properties\":{\"call_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:-]*$\",\"type\":\"string\",\"x-full-match\":true},\"caller\":{\"$ref\":\"#/$defs/McpPrincipal\"},\"deadline_unix_ms\":{\"maximum\":9007199254740991,\"minimum\":1,\"type\":\"integer\"},\"session_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"task_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"trace_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:-]*$\",\"type\":\"string\",\"x-full-match\":true},\"wire_version\":{\"const\":1,\"maximum\":1,\"minimum\":1,\"type\":\"integer\"}},\"required\":[\"wire_version\",\"call_id\",\"trace_id\",\"caller\"],\"title\":\"MCP call context\",\"type\":\"object\"}") as WireRule;
+const _WIRE_SCHEMA_MCP_CALL_CONTEXT: WireRule = decodeWireJson("{\"$defs\":{\"McpPrincipal\":{\"additionalProperties\":false,\"properties\":{\"id\":{\"maxLength\":256,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"kind\":{\"enum\":[\"system-agent\",\"cli\",\"app\"],\"type\":\"string\"},\"owner_uid\":{\"maximum\":4294967295,\"minimum\":0,\"type\":\"integer\"}},\"required\":[\"kind\",\"id\",\"owner_uid\"],\"type\":\"object\"}},\"$id\":\"https://yuos.dev/wire/v1/mcp_call_context.schema.json\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"additionalProperties\":false,\"description\":\"Authenticated call identity and lineage injected by the Yu OS MCP Gateway over the private App-host transport. Caller-supplied MCP arguments must never populate this object.\",\"properties\":{\"assertions\":{\"additionalProperties\":{\"maxLength\":512,\"type\":\"string\"},\"description\":\"Statements by a verified caller App (caller.kind `app`) whose names the target tool listed in `app_access.assertions`. The OS bounds them but does not check their truth.\",\"maxProperties\":8,\"propertyNames\":{\"pattern\":\"^[a-z][a-z0-9_]{0,63}$\"},\"type\":\"object\"},\"call_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:-]*$\",\"type\":\"string\",\"x-full-match\":true},\"caller\":{\"$ref\":\"#/$defs/McpPrincipal\"},\"deadline_unix_ms\":{\"maximum\":9007199254740991,\"minimum\":1,\"type\":\"integer\"},\"session_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"task_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:@/+%-]*$\",\"type\":\"string\",\"x-full-match\":true},\"trace_id\":{\"maxLength\":128,\"minLength\":1,\"pattern\":\"^[A-Za-z0-9][A-Za-z0-9._:-]*$\",\"type\":\"string\",\"x-full-match\":true},\"wire_version\":{\"const\":1,\"maximum\":1,\"minimum\":1,\"type\":\"integer\"}},\"required\":[\"wire_version\",\"call_id\",\"trace_id\",\"caller\"],\"title\":\"MCP call context\",\"type\":\"object\"}") as WireRule;
 
 export function validateMcpCallContext(value: unknown): asserts value is McpCallContext & Record<string, unknown> {
   validateWireSchema(_WIRE_SCHEMA_MCP_CALL_CONTEXT, _WIRE_SCHEMA_MCP_CALL_CONTEXT, value, "McpCallContext", "$");

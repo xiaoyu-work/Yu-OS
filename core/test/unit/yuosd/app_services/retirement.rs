@@ -435,6 +435,7 @@ mod process {
                 id: "retirement-session".into(),
                 owner_uid: owner.uid,
             },
+            assertions: Default::default(),
         };
         let error = manager
             .call(PreparedAppServiceCall {

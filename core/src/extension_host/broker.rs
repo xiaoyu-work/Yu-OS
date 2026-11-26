@@ -36,6 +36,7 @@ const HOST_LIFECYCLE_ROUTES: &[Command] = &[
 
 const CHILD_PROVIDER_ROUTES: &[Command] = &[
     Command::SystemAppEventPublish,
+    Command::SystemAppCall,
     Command::SystemChannelControl,
     Command::SystemAppPermissions,
     Command::AiChat,

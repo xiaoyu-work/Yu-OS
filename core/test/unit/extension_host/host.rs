@@ -416,6 +416,7 @@ async fn app_owned_tasks_cannot_run_apps_or_relay_forged_system_agent_calls() {
                 id: app_task.binding.session_id.clone().unwrap(),
                 owner_uid: app_task.binding.owner_uid,
             },
+            assertions: Default::default(),
         };
         let audit = super::super::protocol::AppInvocationAudit::new(
             target,
@@ -457,6 +458,7 @@ async fn daemon_authorized_calls_cannot_execute_in_the_model_workers_task_host()
             id: task.binding.session_id.clone().unwrap(),
             owner_uid: task.binding.owner_uid,
         },
+        assertions: Default::default(),
     };
     let error = dispatch(
         HostAction::AuthorizedAppCall {

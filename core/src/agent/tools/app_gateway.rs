@@ -4,6 +4,7 @@
 //! App service. Tool arguments select work; they never supply identity or
 //! authority.
 
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -21,6 +22,8 @@ pub const CALL_CONTEXT_WIRE_VERSION: u8 = 1;
 pub enum McpPrincipalKind {
     SystemAgent,
     Cli,
+    /// Another installed App, identified by its verified package.
+    App,
 }
 
 impl McpPrincipalKind {
@@ -28,6 +31,7 @@ impl McpPrincipalKind {
         match self {
             Self::SystemAgent => "system-agent",
             Self::Cli => "cli",
+            Self::App => "app",
         }
     }
 }
@@ -91,6 +95,11 @@ pub struct McpCallContext {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub task_id: Option<String>,
     pub caller: McpPrincipal,
+    /// Statements made by a verified caller App (only for `kind: app`),
+    /// limited to names the target tool declared. The OS authenticates
+    /// who said them, not whether they are true.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub assertions: BTreeMap<String, String>,
 }
 
 impl McpCallContext {
@@ -171,6 +180,7 @@ impl McpCallContext {
             session_id: Some(exposure.authority_session_id().to_string()),
             task_id: exposure.task_id().map(str::to_string),
             caller: McpPrincipal::from_exposure(exposure)?,
+            assertions: BTreeMap::new(),
         };
         context.validate()?;
         Ok(context)
@@ -194,6 +204,16 @@ impl McpCallContext {
                 .is_some_and(|value| !valid_workload_id(value, 128))
         {
             return Err("MCP call context has invalid lineage".to_string());
+        }
+        if !self.assertions.is_empty()
+            && (self.caller.kind != McpPrincipalKind::App
+                || self.assertions.len() > crate::caps::manifest::MAX_APP_CALL_ASSERTIONS
+                || self.assertions.iter().any(|(name, value)| {
+                    !crate::caps::manifest::is_valid_app_call_assertion_name(name)
+                        || value.len() > crate::caps::manifest::MAX_APP_CALL_ASSERTION_BYTES
+                }))
+        {
+            return Err("MCP call context has invalid caller assertions".to_string());
         }
         self.caller.validate()
     }
@@ -291,6 +311,57 @@ pub fn authorize_manifest(manifest: &Manifest, caller: &McpPrincipal) -> Result<
     if caller.kind == McpPrincipalKind::SystemAgent && !service.access.system_agent {
         return Err(format!(
             "MCP caller is not allowed to address App `{}`",
+            manifest.id
+        ));
+    }
+    if caller.kind == McpPrincipalKind::App
+        && !service.tools.iter().any(|tool| {
+            tool.app_access
+                .as_ref()
+                .is_some_and(|access| access.admits(&caller.id))
+        })
+    {
+        return Err(format!(
+            "App `{}` does not accept calls from App `{}`",
+            manifest.id, caller.id
+        ));
+    }
+    Ok(())
+}
+
+/// Exact per-tool App→App gate: the target tool lists the caller App and
+/// every supplied assertion name. Default deny.
+pub fn authorize_app_tool(
+    manifest: &Manifest,
+    tool: &str,
+    context: &McpCallContext,
+) -> Result<(), String> {
+    if context.caller.kind != McpPrincipalKind::App {
+        return if context.assertions.is_empty() {
+            Ok(())
+        } else {
+            Err("caller assertions are only accepted from Apps".to_string())
+        };
+    }
+    let access = manifest
+        .mcp
+        .as_ref()
+        .and_then(|service| service.tools.iter().find(|declared| declared.name == tool))
+        .and_then(|declared| declared.app_access.as_ref())
+        .filter(|access| access.admits(&context.caller.id))
+        .ok_or_else(|| {
+            format!(
+                "App `{}` tool `{tool}` does not accept calls from App `{}`",
+                manifest.id, context.caller.id
+            )
+        })?;
+    if let Some(name) = context
+        .assertions
+        .keys()
+        .find(|name| !access.assertions.contains(name))
+    {
+        return Err(format!(
+            "App `{}` tool `{tool}` does not accept assertion `{name}`",
             manifest.id
         ));
     }

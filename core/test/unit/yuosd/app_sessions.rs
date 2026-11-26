@@ -1239,6 +1239,7 @@ fn leased_task_call_context() -> crate::agent::tools::app_gateway::McpCallContex
             id: "task-session".into(),
             owner_uid: 1000,
         },
+        assertions: Default::default(),
     }
 }
 
@@ -4651,6 +4652,7 @@ fn cli_principal_is_daemon_derived_and_the_context_is_exact() {
             id: cli_principal_id(1000, 4242, Some(99)),
             owner_uid: 1000,
         },
+        assertions: Default::default(),
     };
     context
         .validate()

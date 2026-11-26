@@ -92,6 +92,7 @@ fn app_control_retains_main_task_identity_and_rejects_owner_or_policy_selectors(
             id: binding.session_id.clone().unwrap(),
             owner_uid: binding.owner_uid,
         },
+        assertions: Default::default(),
     };
     let audit = super::super::protocol::AppInvocationAudit::new(
         "notes",

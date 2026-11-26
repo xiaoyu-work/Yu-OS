@@ -1289,6 +1289,19 @@ pub struct AppServiceCliCall {
     pub expected_package: Option<Structured>,
 }
 
+/// A controlled App→App call. The caller is the authenticated App
+/// session; only the exact target and its inputs are supplied.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AppServiceAppCall {
+    pub session: Token,
+    pub app_id: Name,
+    pub tool: Text<LABEL_BYTES>,
+    pub arguments: super::bounded::McpArguments,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assertions: Option<Structured>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AppSessionRegister {

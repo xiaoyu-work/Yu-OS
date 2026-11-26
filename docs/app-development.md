@@ -217,6 +217,32 @@ Input is at most 1008 KiB of serialized JSON (including escapes and base64), or
 a lower `YUOS_APP_STDIN_MAX_BYTES`. This leaves 16 KiB for the unchanged 1 MiB
 broker request envelope. Canonical arguments must also fit this budget.
 
+### Calling another App
+
+An App may call one exact MCP tool of another App only when both sides
+declare it. The caller lists the target in its manifest, and the target tool
+admits the caller:
+
+```json
+// caller (email/app.json)
+"app_calls": ["calendar/calendar.import_invite"]
+
+// target tool (calendar/app.json, mcp.tools[])
+"app_access": {"callers": ["email"], "assertions": ["source_mailbox", "organizer"]}
+```
+
+`callers` is an App id allowlist or `["*"]` for any installed App. The caller
+invokes it with `yuos_sdk.app_calls.call("calendar", "calendar.import_invite", {...},
+assertions={"source_mailbox": ..., "organizer": ...})`. The target sees
+`context.caller.kind == "app"`, `context.caller.id == "email"` and the bounded
+`context.assertions`; these are the caller's claims, not OS-verified facts.
+The OS binds the caller id to its signed package, authorizes the target only
+from its own `needs[]`, audits and deadline-bounds the call. Built-in Apps
+call each other without a prompt; third-party callers will get a one-time OS
+consent prompt per caller, tool and user (revocable in Settings → Privacy)
+and currently receive `not_authorized`. See
+[ARCHITECTURE.md](../ARCHITECTURE.md#controlled-app-to-app-calls).
+
 ## 1. What is a Yu OS app?
 
 A Yu OS App ships `app.json` and the entrypoints for its declared surfaces:

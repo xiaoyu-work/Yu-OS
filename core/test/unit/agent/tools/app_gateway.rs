@@ -28,6 +28,7 @@ fn principal(kind: McpPrincipalKind) -> McpPrincipal {
         id: match kind {
             McpPrincipalKind::Cli => "cli-session",
             McpPrincipalKind::SystemAgent => "agent-session",
+            McpPrincipalKind::App => "email",
         }
         .to_string(),
         owner_uid: 1000,
@@ -113,6 +114,7 @@ fn cli_principal_is_allowed_but_never_valid_on_the_task_host_binding() {
             id: "cli.uid1000.pid42.start1".to_string(),
             owner_uid: 1000,
         },
+        assertions: Default::default(),
     };
     // The daemon-derived CLI context is structurally valid on its own...
     context.validate().unwrap();
@@ -135,6 +137,7 @@ fn call_context_is_bound_to_extension_lease() {
             id: "session-a".to_string(),
             owner_uid: 1000,
         },
+        assertions: Default::default(),
     };
     context.validate_extension_binding(&binding).unwrap();
 
@@ -173,6 +176,7 @@ fn renewed_task_lease_supersedes_only_the_bootstrap_deadline() {
             id: "session-a".to_string(),
             owner_uid: 1000,
         },
+        assertions: Default::default(),
     };
     assert!(
         context.validate_extension_binding(&binding).is_err(),
@@ -211,6 +215,7 @@ fn app_owned_agent_cannot_claim_a_system_agent_identity() {
             id: "session-a".to_string(),
             owner_uid: 1000,
         },
+        assertions: Default::default(),
     };
     assert!(context.validate_extension_binding(&binding).is_err());
     assert!(context.validate_extension_audit_binding(&binding).is_err());
@@ -226,6 +231,7 @@ fn call_context_rejects_unbounded_or_inconsistent_identity() {
         session_id: Some("session-a".to_string()),
         task_id: Some("task-a".to_string()),
         caller: principal(McpPrincipalKind::SystemAgent),
+        assertions: Default::default(),
     };
     context.validate().unwrap();
 
@@ -246,7 +252,7 @@ fn removed_app_principals_and_cross_call_fields_are_rejected() {
         "wire_version": 1, "call_id": "call-1", "trace_id": "trace-1",
         "caller": {"kind": "cli", "id": "cli-1", "owner_uid": 1000}
     });
-    for kind in ["app", "app-agent"] {
+    for kind in ["app-agent"] {
         let mut value = base.clone();
         value["caller"]["kind"] = kind.into();
         assert!(serde_json::from_value::<McpCallContext>(value).is_err());

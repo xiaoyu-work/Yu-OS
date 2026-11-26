@@ -745,6 +745,7 @@ func materializeMCPCallContext(raw map[string]any) McpCallContext {
 		DeadlineUnixMs: asUint64(raw["deadline_unix_ms"]),
 		SessionId:      asString(raw["session_id"]),
 		TaskId:         asString(raw["task_id"]),
+		Assertions:     asMap(raw["assertions"]),
 		Caller: McpPrincipal{
 			Kind:     caller["kind"].(string),
 			Id:       caller["id"].(string),

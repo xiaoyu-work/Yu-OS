@@ -806,6 +806,16 @@ fn dispatch_with_stdin_impl(
         let value = request_wire_yuosd(Command::SystemAppEventPublish, Value::Object(request))?;
         return Ok(Some(value.to_string()));
     }
+    if name == "__app_call" {
+        if args.len() != 1 {
+            return Err("App call bridge takes its request on bounded stdin".into());
+        }
+        let mut request = parse_internal_request_object(stdin_data.as_deref(), 256 * 1024, "App call")?;
+        let session = env::var("YUOS_SESSION").map_err(|_| "App calls require an authenticated App session")?;
+        request.insert("session".into(), json!(session));
+        let value = request_wire_yuosd(Command::SystemAppCall, Value::Object(request))?;
+        return Ok(Some(value.to_string()));
+    }
     if name == "__channel" {
         if args.len() != 2 || args[1] != "control" {
             return Err("channel bridge requires `control` with bounded stdin".into());

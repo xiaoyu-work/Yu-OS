@@ -65,12 +65,33 @@ pub(super) fn require_product_component(
     decision: &authority::Decision,
     components: &[&str],
 ) -> Result<(), String> {
-    use crate::provenance::{
-        runtime::{self, InstanceClass, PackageRef}, verify, PackageKind,
-    };
+    use crate::provenance::{runtime::PackageRef, verify, PackageKind};
 
     let refused = || "This data belongs to the verified owning product".to_string();
     let app_id = decision.app_id().filter(|id| components.contains(id)).ok_or_else(refused)?;
+    let instance = live_app_instance(decision, app_id).map_err(|_| refused())?;
+    let trust = crate::provenance::trust_store();
+    let root = std::path::Path::new("/usr/lib/yuos/apps").join(app_id);
+    let installed = verify::verify_package(
+        &root,
+        &verify::VerifyOptions::new(PackageKind::App).expect_id(app_id).signature_only(),
+        &trust,
+    ).map_err(|_| refused())?;
+    if instance.package.as_ref() != Some(&PackageRef::of(&installed)) {
+        return Err(refused());
+    }
+    verify_vendor_app(&installed, &trust)?;
+    decision.ensure_current()
+}
+
+/// The live, bound App instance behind an authenticated App session.
+fn live_app_instance(
+    decision: &authority::Decision,
+    app_id: &str,
+) -> Result<crate::provenance::runtime::Instance, String> {
+    use crate::provenance::runtime::{self, InstanceClass};
+
+    let refused = || "The caller is not a live authenticated App session".to_string();
     let session = decision.session()?;
     if session.app_id.as_deref() != Some(app_id)
         || decision.session_id() != Some(session.session_id.as_str())
@@ -83,7 +104,7 @@ pub(super) fn require_product_component(
     let trust = crate::provenance::trust_store();
     runtime::assert_live_instance(owner, &session.session_id, &trust)?;
     let instance = runtime::instance_for(owner, &session.session_id)?.ok_or_else(refused)?;
-    let process = instance.process.ok_or_else(refused)?;
+    let process = instance.process.as_ref().ok_or_else(refused)?;
     if instance.class != InstanceClass::App
         || process.uid != owner
         || process.pid != session.pid
@@ -93,17 +114,7 @@ pub(super) fn require_product_component(
     {
         return Err(refused());
     }
-    let root = std::path::Path::new("/usr/lib/yuos/apps").join(app_id);
-    let installed = verify::verify_package(
-        &root,
-        &verify::VerifyOptions::new(PackageKind::App).expect_id(app_id).signature_only(),
-        &trust,
-    ).map_err(|_| refused())?;
-    if instance.package.as_ref() != Some(&PackageRef::of(&installed)) {
-        return Err(refused());
-    }
-    verify_vendor_app(&installed, &trust)?;
-    decision.ensure_current()
+    Ok(instance)
 }
 
 fn verify_vendor_app(
@@ -1060,6 +1071,8 @@ fn finalize_prepared_app_service_call(
     }
     crate::agent::tools::app_gateway::authorize_manifest(&app.manifest, &context.caller)
         .map_err(BrokerError::authorization)?;
+    crate::agent::tools::app_gateway::authorize_app_tool(&app.manifest, tool, &context)
+        .map_err(BrokerError::authorization)?;
     crate::agent::tools::app_gateway::invoke_target(app_id, tool)?;
     let generation = crate::agent::tools::exposure::capability_generation(&delegation.ceiling);
     let service = app
@@ -1247,6 +1260,7 @@ pub(crate) async fn prepare_cli_app_service_call(
             id: cli_principal_id(uid, launcher.pid, launcher.start_time_ticks),
             owner_uid: uid,
         },
+        assertions: Default::default(),
     };
     context.validate().map_err(BrokerError::authorization)?;
 
@@ -1268,6 +1282,112 @@ pub(crate) async fn prepare_cli_app_service_call(
         &app, &tool, &supplied, &delegation, context, uid,
         launcher.parent.is_none() && client.attended_local,
     )
+}
+
+/// Controlled App→App call preparation.
+///
+/// The caller is the authenticated App session behind `decision`; its
+/// identity and manifest come from its live instance and verified package,
+/// never from the request. Both sides must declare the exact tool: the
+/// caller in `app_calls`, the target in that tool's `app_access`. The
+/// target receives only authority derived from its own `needs[]` with an
+/// empty ceiling, so nothing is inherited from the caller. A built-in
+/// caller (protected vendor package selected by the OS) gets the target's
+/// preinstalled defaults; every other caller uses the ordinary approvals.
+pub(crate) async fn prepare_app_to_app_call(
+    params: Value,
+    decision: &authority::Decision,
+) -> Result<super::app_services::PreparedAppServiceCall, BrokerError> {
+    use crate::agent::tools::app_gateway::{
+        McpCallContext, McpPrincipal, McpPrincipalKind, CALL_CONTEXT_WIRE_VERSION,
+    };
+    use crate::provenance::runtime::PackageRef;
+
+    let caller_id = decision
+        .app_id()
+        .ok_or_else(|| BrokerError::authorization("App calls require an authenticated App session"))?
+        .to_string();
+    let uid = decision.owner_uid();
+    if uid == 0 {
+        return Err(BrokerError::authorization("App calls require a non-root owner"));
+    }
+    let instance = live_app_instance(decision, &caller_id).map_err(BrokerError::authorization)?;
+    let caller = installed_app(&caller_id)?;
+    let caller_package = caller.require_verified()?;
+    if instance.package.as_ref() != Some(&PackageRef::of(caller_package)) {
+        return Err(BrokerError::authorization("The calling App package changed; restart it"));
+    }
+    super::trust_withdrawal::check_package(uid, caller_package)
+        .map_err(BrokerError::authorization)?;
+
+    let app_id = required_string(&params, "app_id")?;
+    let tool = required_string(&params, "tool")?;
+    if !caller.manifest.declares_app_call(&app_id, &tool) {
+        return Err(BrokerError::authorization(format!(
+            "App `{caller_id}` did not declare a call to `{app_id}/{tool}`"
+        )));
+    }
+    let arguments = params
+        .get("arguments")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "App call arguments must be an object".to_string())?;
+    let assertions = match params.get("assertions") {
+        None | Some(Value::Null) => BTreeMap::new(),
+        Some(value) => serde_json::from_value::<BTreeMap<String, String>>(value.clone())
+            .map_err(|_| BrokerError::authorization("App call assertions must be a string map"))?,
+    };
+
+    let session = decision.session()?;
+    let ticks = session.start_time_ticks;
+    let home = crate::paths::verified_home_for_uid(uid).map_err(BrokerError::execution)?;
+    let delegation = Delegation {
+        uid,
+        grant_session: session.session_id.clone(),
+        requester: format!("app:{caller_id} {}", requester_identity(uid, session.pid, ticks)),
+        ceiling: CapSet::new(),
+        paths: crate::caps::args::PathContext { home, cwd: None },
+        activity: None,
+        workspace: None,
+    };
+    let now = crate::agentd::grant::now_ms();
+    let call_id = format!("app-{}", uuid::Uuid::new_v4().simple());
+    let context = McpCallContext {
+        wire_version: CALL_CONTEXT_WIRE_VERSION,
+        trace_id: call_id.clone(),
+        call_id,
+        deadline_unix_ms: Some(
+            now.saturating_add(crate::extension_host::protocol::MAX_REQUEST_TIMEOUT_MS),
+        ),
+        session_id: None,
+        task_id: None,
+        caller: McpPrincipal {
+            kind: McpPrincipalKind::App,
+            id: caller_id.clone(),
+            owner_uid: uid,
+        },
+        assertions,
+    };
+    context.validate().map_err(BrokerError::authorization)?;
+
+    let builtin = verify_vendor_app(caller_package, &crate::provenance::trust_store()).is_ok()
+        && super::preinstalled::approved(caller_package);
+    if !builtin {
+        // Third-party callers need the per-user first-call consent
+        // (caller + target tool + owner) from the protected OS review,
+        // which is not wired yet. Fail closed rather than reuse approvals.
+        return Err(BrokerError::authorization(format!(
+            "not_authorized: App `{caller_id}` has no consent to call `{app_id}/{tool}`"
+        )));
+    }
+    let target = installed_app(&app_id)?;
+    let supplied: BTreeMap<String, Value> = arguments
+        .iter()
+        .map(|(name, value)| (name.clone(), value.clone()))
+        .collect();
+    let prepared =
+        finalize_prepared_app_service_call(&target, &tool, &supplied, &delegation, context, uid, true)?;
+    decision.ensure_current().map_err(BrokerError::authorization)?;
+    Ok(prepared)
 }
 
 pub async fn set_transient(

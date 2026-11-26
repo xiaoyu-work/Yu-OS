@@ -109,6 +109,7 @@ fn test_call_context() -> crate::agent::tools::app_gateway::McpCallContext {
             id: "test-session".to_string(),
             owner_uid: 1000,
         },
+        assertions: Default::default(),
     }
 }
 

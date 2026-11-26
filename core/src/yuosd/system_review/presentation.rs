@@ -161,6 +161,18 @@ pub(super) fn app(record: &ReviewRecord) -> Result<SystemReview, String> {
             value: service.access.system_agent.to_string(),
         });
     }
+    for call in &disclosure.app_calls {
+        disclosures.push(ReviewDetail {
+            label: "Calls another App's tool".into(),
+            value: call.clone(),
+        });
+    }
+    for (tool, access) in &disclosure.app_access {
+        disclosures.push(ReviewDetail {
+            label: format!("Tool {tool} may be called by Apps"),
+            value: serde_json::to_string(access).map_err(|error| error.to_string())?,
+        });
+    }
     if let Some(policy) = &disclosure.ai_policy {
         disclosures.push(ReviewDetail {
             label: if record.ai_model.is_some() {

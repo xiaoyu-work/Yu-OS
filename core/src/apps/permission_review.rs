@@ -88,6 +88,12 @@ pub struct PermissionReview {
     pub desktop: Option<Desktop>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub gui_entries: Vec<GuiDisclosure>,
+    /// Exact other-App MCP tools this App declares it calls.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub app_calls: Vec<String>,
+    /// This App's tools that other Apps may call, keyed by tool name.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub app_access: BTreeMap<String, crate::caps::manifest::McpAppAccess>,
     pub contract_digest: String,
     pub permissions_granted: bool,
 }
@@ -187,6 +193,13 @@ impl PermissionReview {
             }),
             desktop: manifest.desktop.clone(),
             gui_entries,
+            app_calls: manifest.app_calls.clone(),
+            app_access: manifest
+                .mcp
+                .iter()
+                .flat_map(|service| &service.tools)
+                .filter_map(|tool| Some((tool.name.clone(), tool.app_access.clone()?)))
+                .collect(),
             contract_digest: String::new(),
             permissions_granted: false,
         };
@@ -256,6 +269,12 @@ impl PermissionReview {
         }) {
             contract["gui_entries"] = json!(self.gui_entries);
         }
+        if !self.app_calls.is_empty() {
+            contract["app_calls"] = json!(self.app_calls);
+        }
+        if !self.app_access.is_empty() {
+            contract["app_access"] = json!(self.app_access);
+        }
         contract
     }
 
@@ -307,6 +326,17 @@ impl PermissionReview {
                 serde_json::to_string(&service.lifecycle)
                     .map_err(|error| format!("format App lifecycle: {error}"))?,
                 service.access.system_agent,
+            ));
+        }
+        for call in &self.app_calls {
+            text.push_str(&format!("\nCalls another App's tool: {}\n", quote(call)?));
+        }
+        for (tool, access) in &self.app_access {
+            text.push_str(&format!(
+                "\nTool {} may be called by Apps: {}\n",
+                quote(tool)?,
+                serde_json::to_string(access)
+                    .map_err(|error| format!("format App access: {error}"))?,
             ));
         }
         if let Some(desktop) = &self.desktop {

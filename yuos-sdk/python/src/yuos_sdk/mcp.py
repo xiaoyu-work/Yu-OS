@@ -146,6 +146,7 @@ class CallContext:
     deadline_unix_ms: Optional[int] = None
     session_id: Optional[str] = None
     task_id: Optional[str] = None
+    assertions: Dict[str, str] = field(default_factory=dict)
     _cancelled: threading.Event = field(
         default_factory=threading.Event,
         repr=False,
@@ -782,6 +783,7 @@ class App:
             deadline_unix_ms=raw_context.get("deadline_unix_ms"),
             session_id=raw_context.get("session_id"),
             task_id=raw_context.get("task_id"),
+            assertions=dict(raw_context.get("assertions") or {}),
             caller=McpPrincipal(
                 kind=caller["kind"],
                 id=caller["id"],

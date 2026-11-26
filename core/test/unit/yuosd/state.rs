@@ -89,6 +89,7 @@ fn app_authorization(expires_at_ms: u64) -> super::super::app_services::AppCallA
                 id: "session-a".to_string(),
                 owner_uid: 1000,
             },
+            assertions: Default::default(),
         },
         capability_generation: "a".repeat(16),
         package: crate::provenance::runtime::PackageRef {

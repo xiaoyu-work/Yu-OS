@@ -923,6 +923,7 @@ fn consent_grant_yes_writes_record_and_show_reads_it_back() {
         }),
         mcp: None,
         desktop: None,
+        app_calls: Vec::new(),
         dependencies: serde_json::Value::Null,
     };
     let mut discovered = std::collections::BTreeMap::new();

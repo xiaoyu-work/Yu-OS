@@ -1835,6 +1835,22 @@ routes! {
         ],
         run: |c| app_services::cli_call(c.state, c.params, c.client).await,
     }
+    SystemAppCall {
+        name: "system.app-call",
+        access: Access::User,
+        kind: Kind::Mutation,
+        budget: Budget::launch(),
+        authority: session(Audience::SystemService),
+        body: body::AppServiceAppCall,
+        audit: &[
+            ("app_id", FieldRule::Token),
+            ("tool", FieldRule::Token),
+        ],
+        run: |c| {
+            let authority = c.authority()?;
+            app_services::app_call(c.state, c.params, authority).await
+        },
+    }
     AppSessionRegister {
         name: "app_session.register",
         access: Access::User,

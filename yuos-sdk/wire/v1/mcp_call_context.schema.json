@@ -48,6 +48,18 @@
     },
     "caller": {
       "$ref": "#/$defs/McpPrincipal"
+    },
+    "assertions": {
+      "description": "Statements by a verified caller App (caller.kind `app`) whose names the target tool listed in `app_access.assertions`. The OS bounds them but does not check their truth.",
+      "type": "object",
+      "maxProperties": 8,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,63}$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 512
+      }
     }
   },
   "$defs": {
@@ -58,7 +70,7 @@
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["system-agent", "cli"]
+          "enum": ["system-agent", "cli", "app"]
         },
         "id": {
           "type": "string",

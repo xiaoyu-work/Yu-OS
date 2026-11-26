@@ -621,6 +621,7 @@ async fn worker_child() {
             id: binding.session_id.clone().expect("bound session"),
             owner_uid: binding.owner_uid,
         },
+        assertions: Default::default(),
     };
     let error = client
         .call_app(
