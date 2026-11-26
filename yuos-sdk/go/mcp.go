@@ -927,8 +927,9 @@ var mcpAssertionNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 
 const mcpMaxAppCallAssertions = 8
 
-func validateMCPAppCalls(value any, appID string) error {
-	if value == nil {
+func validateMCPAppCalls(manifest map[string]any, appID string) error {
+	value, present := manifest["app_calls"]
+	if !present {
 		return nil
 	}
 	entries, ok := value.([]any)
@@ -1024,7 +1025,7 @@ func parseMCPManifest(manifest map[string]any) (*MCPApp, error) {
 	if !ok {
 		return nil, &MCPManifestError{Message: "App manifest has no `mcp` service"}
 	}
-	if err := validateMCPAppCalls(manifest["app_calls"], id); err != nil {
+	if err := validateMCPAppCalls(manifest, id); err != nil {
 		return nil, err
 	}
 	if _, err := mcpLocalizedEnglish(manifest["name"], "name"); err != nil {
