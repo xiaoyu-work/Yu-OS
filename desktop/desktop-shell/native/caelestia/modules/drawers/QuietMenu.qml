@@ -25,10 +25,10 @@ StyledWindow {
     readonly property bool opened: page !== ""
     property string displayedPage
     property real reveal: opened ? 1 : 0
-    readonly property int slideDistance: 4
+    readonly property bool pinMenu: displayedPage === "pin"
+    readonly property int slideDistance: pinMenu ? 0 : 4
     readonly property var backlight: screen ? Brightness.getMonitorForScreen(screen) : null
     property real virtualBrightness: 0.85
-    readonly property bool pinMenu: displayedPage === "pin"
 
     // Keep the last page and its anchor for the exit, but release input immediately.
     onPageChanged: {
@@ -52,14 +52,14 @@ StyledWindow {
         right: !root.pinMenu
     }
     margins {
-        top: 8 - root.slideDistance
+        top: root.pinMenu ? 0 : 6 - root.slideDistance
         left: root.pinMenu ? Math.max(8, Math.min(root.pinX, root.screen.width - root.implicitWidth - 8)) : 0
         right: root.pinMenu ? 0 : 8
     }
     exclusiveZone: 0
-    implicitWidth: Math.min(pinMenu ? 216 : 336, screen.width - 16)
+    implicitWidth: Math.min(pinMenu ? 168 : 336, screen.width - 16)
     implicitHeight: slideDistance
-        + Math.max(1, Math.min(body.implicitHeight + 28, screen.height - bar.implicitHeight - 16))
+        + Math.max(1, Math.min(body.implicitHeight + (pinMenu ? 8 : 28), screen.height - bar.implicitHeight - 16))
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: opened ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
@@ -72,7 +72,19 @@ StyledWindow {
     }
 
     function toggle(name: string): void {
-        page = page === name ? "" : name;
+        if (page === name) {
+            page = "";
+        } else {
+            displayedPage = name;
+            page = name;
+        }
+    }
+
+    function openPin(id: string, x: real): void {
+        displayedPage = "pin";
+        pinId = id;
+        pinX = x;
+        page = "pin";
     }
 
     function settings(): void {
@@ -93,13 +105,14 @@ StyledWindow {
         height: Math.max(0, parent.height - root.slideDistance)
         y: root.slideDistance * root.reveal
         opacity: root.reveal
+        radius: root.pinMenu ? 8 : 12
         border.color: Quiet.floatingLine
 
         ScrollView {
             id: scroll
 
             anchors.fill: parent
-            anchors.margins: 14
+            anchors.margins: root.pinMenu ? 4 : 14
             contentWidth: availableWidth
             clip: true
             enabled: root.opened
@@ -112,7 +125,7 @@ StyledWindow {
                 id: body
 
                 width: scroll.availableWidth
-                spacing: 8
+                spacing: root.pinMenu ? 2 : 8
 
                 RowLayout {
                     visible: root.displayedPage === "wifi" || root.displayedPage === "bluetooth" || root.displayedPage === "notifications"
@@ -420,13 +433,45 @@ StyledWindow {
                     }
                 }
 
-                QuietButton {
+                ColumnLayout {
                     visible: root.pinMenu
                     Layout.fillWidth: true
-                    text: Quiet.pins.includes(root.pinId) ? Tr.tr("Unpin from top bar") : Tr.tr("Pin to top bar")
-                    onClicked: {
-                        Quiet.togglePin(root.pinId);
-                        root.page = "";
+                    spacing: 1
+
+                    PinMenuItem {
+                        label: Quiet.title(root.pinId)
+                        iconSource: root.pinId ? Quiet.icon(root.pinId).toString() : ""
+                        onClicked: {
+                            const id = root.pinId;
+                            root.page = "";
+                            if (id)
+                                Quiet.activate(id);
+                        }
+                    }
+
+                    PinMenuItem {
+                        label: Quiet.pins.includes(root.pinId)
+                            ? Tr.tr("Unpin from top bar")
+                            : Tr.tr("Pin to top bar")
+                        drawing: Quiet.pins.includes(root.pinId)
+                            ? "M2 2 L14 14 M9.5 2.5 L13.5 6.5 L12 8 L10.2 6.8 L7.5 9.5 M6.5 8.5 L4.5 7.5 L3.3 8.7 L7.3 12.7 L8.5 11.5 M5.3 10.7 L2.5 13.5"
+                            : "M9.5 2.5 L13.5 6.5 L12 8 L10.2 6.8 L7.5 9.5 L8.5 11.5 L7.3 12.7 L5.2 10.6 L2.5 13.3 M5.2 10.6 L3.3 8.7 L4.5 7.5 L6.5 8.5 L9.2 5.8 L8 4 Z"
+                        onClicked: {
+                            Quiet.togglePin(root.pinId);
+                            root.page = "";
+                        }
+                    }
+
+                    PinMenuItem {
+                        visible: Quiet.dockWindows.has(root.pinId)
+                        label: Tr.tr("Close window")
+                        drawing: "M4 4 L12 12 M12 4 L4 12"
+                        onClicked: {
+                            const win = Quiet.dockWindows.get(root.pinId);
+                            root.page = "";
+                            if (win)
+                                Hypr.act("close", win.identifier, "");
+                        }
                     }
                 }
             }
@@ -495,6 +540,65 @@ StyledWindow {
             joinStyle: ShapePath.RoundJoin
             fillColor: "transparent"
             PathSvg { path: cicon.drawing }
+        }
+    }
+
+    component PinMenuItem: Rectangle {
+        id: item
+
+        required property string label
+        property string iconSource: ""
+        property string drawing: ""
+        signal clicked()
+
+        Layout.fillWidth: true
+        implicitHeight: 28
+        radius: 5
+        color: itemMouse.pressed ? Quiet.pressed : (itemMouse.containsMouse ? Quiet.field : "transparent")
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 8
+            anchors.rightMargin: 10
+            spacing: 9
+
+            Item {
+                Layout.preferredWidth: 16
+                Layout.preferredHeight: 16
+
+                Image {
+                    anchors.fill: parent
+                    visible: item.iconSource !== ""
+                    source: item.iconSource
+                    sourceSize: Qt.size(16, 16)
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                }
+
+                ControlIcon {
+                    anchors.centerIn: parent
+                    visible: item.drawing !== ""
+                    drawing: item.drawing !== "" ? item.drawing : "M0 0"
+                    color: Quiet.ink
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: item.label
+                textFormat: Text.PlainText
+                color: Quiet.ink
+                font.pixelSize: 12
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+            }
+        }
+
+        MouseArea {
+            id: itemMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            onClicked: item.clicked()
         }
     }
 

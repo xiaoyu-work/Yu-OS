@@ -153,6 +153,16 @@ Singleton {
             return Quickshell.shellPath("assets/dock/store.svg");
         if (desktopId === DesktopMenu.launcher)
             return Quickshell.shellPath("assets/dock/launcher.svg");
+        if (desktopId === "com.yuos.Settings")
+            return Quickshell.shellPath("assets/dock/settings.svg");
+        if (desktopId === "com.yuos.Edit")
+            return Quickshell.shellPath("assets/dock/edit.svg");
+        if (desktopId === "com.yuos.Screenshot")
+            return Quickshell.shellPath("assets/dock/screenshot.svg");
+        if (desktopId === "com.yuos.Player")
+            return Quickshell.shellPath("assets/dock/player.svg");
+        if (desktopId === "com.yuos.Office")
+            return Quickshell.shellPath("assets/dock/office.svg");
         const entry = desktopEntry(desktopId);
         if (entry?.icon)
             return Quickshell.iconPath(entry.icon, "application-x-executable");

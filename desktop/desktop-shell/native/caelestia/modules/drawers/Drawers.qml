@@ -18,11 +18,7 @@ Variants {
             screen: scope.modelData
             menuPage: menu.page
             onMenuRequested: name => menu.toggle(name)
-            onPinMenuRequested: (id, x) => {
-                menu.pinId = id;
-                menu.pinX = x;
-                menu.page = "pin";
-            }
+            onPinMenuRequested: (id, x) => menu.openPin(id, x)
             onLaunched: menu.page = ""
         }
 
