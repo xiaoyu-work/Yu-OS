@@ -721,6 +721,17 @@ export class App {
         `invalid authenticated call context: ${asError(error).message}`,
       );
     }
+    const assertions = (rawContext as McpCallContext).assertions;
+    if (
+      assertions !== undefined &&
+      Object.keys(assertions).length > 0 &&
+      (rawContext as McpCallContext).caller.kind !== "app"
+    ) {
+      throw new RpcError(
+        ERR_INVALID_PARAMS,
+        "invalid authenticated call context: caller assertions are only accepted from Apps",
+      );
+    }
     const snapshot = deepFreeze(deepClone(rawContext)) as McpCallContext;
     return new CallContext(
       snapshot,
@@ -883,6 +894,70 @@ function bindingIdent(raw: string): string {
   return /^[A-Za-z]/.test(ident) ? ident : `arg_${ident}`;
 }
 
+const ASSERTION_NAME_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
+const MAX_APP_CALL_ASSERTIONS = 8;
+
+function validateAppCalls(entries: unknown, appId: string): void {
+  if (entries === undefined) {
+    return;
+  }
+  if (!Array.isArray(entries)) {
+    throw new ManifestError("`app_calls` must be an array");
+  }
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    const [app, tool, extra] = typeof entry === "string" ? entry.split("/") : [];
+    if (
+      extra !== undefined
+      || app === undefined
+      || tool === undefined
+      || !APP_ID_PATTERN.test(app)
+      || !TOOL_NAME_PATTERN.test(tool)
+    ) {
+      throw new ManifestError(`\`app_calls\` entry \`${String(entry)}\` must be \`<app-id>/<tool>\``);
+    }
+    if (app === appId) {
+      throw new ManifestError(`\`app_calls\` entry \`${entry}\` targets this App`);
+    }
+    if (seen.has(entry)) {
+      throw new ManifestError(`\`app_calls\` entry \`${entry}\` declared twice`);
+    }
+    seen.add(entry);
+  }
+}
+
+function validateAppAccess(access: unknown, tool: string, appId: string): void {
+  if (!isObject(access)) {
+    throw new ManifestError(`tool \`${tool}\` app_access must be an object`);
+  }
+  rejectUnknownFields(access, `tool \`${tool}\` app_access`, ["callers", "assertions"]);
+  const callers = access.callers;
+  if (!Array.isArray(callers) || callers.length === 0) {
+    throw new ManifestError(`tool \`${tool}\` app_access.callers must not be empty`);
+  }
+  if (callers.includes("*")) {
+    if (callers.length !== 1) {
+      throw new ManifestError(`tool \`${tool}\` app_access.callers \`*\` must be the only entry`);
+    }
+  } else {
+    for (const caller of callers) {
+      if (typeof caller !== "string" || !APP_ID_PATTERN.test(caller) || caller === appId) {
+        throw new ManifestError(`tool \`${tool}\` app_access caller \`${String(caller)}\` is invalid`);
+      }
+    }
+  }
+  const assertions = access.assertions ?? [];
+  if (
+    !Array.isArray(assertions)
+    || assertions.length > MAX_APP_CALL_ASSERTIONS
+    || !assertions.every((name) => typeof name === "string" && ASSERTION_NAME_PATTERN.test(name))
+  ) {
+    throw new ManifestError(
+      `tool \`${tool}\` app_access.assertions must be at most ${MAX_APP_CALL_ASSERTIONS} names matching [a-z][a-z0-9_]*`,
+    );
+  }
+}
+
 function loadManifest(path: string): {
   id: string;
   version: string;
@@ -916,6 +991,7 @@ function loadManifest(path: string): {
     "mcp",
     "desktop",
     "dependencies",
+    "app_calls",
   ]);
   if (manifest.schema_version !== 2) {
     throw new ManifestError("MCP Apps require `schema_version: 2`");
@@ -936,6 +1012,7 @@ function loadManifest(path: string): {
   if (!isObject(manifest.mcp)) {
     throw new ManifestError("App manifest has no `mcp` service");
   }
+  validateAppCalls(manifest.app_calls, manifest.id);
   localizedEnglish(manifest.name, "name");
   rejectUnknownFields(manifest.mcp, "`mcp`", [
     "entry",
@@ -975,6 +1052,7 @@ function loadManifest(path: string): {
     throw new ManifestError("`mcp.tools` must contain at least one tool");
   }
   const names = new Set<string>();
+  const appId = manifest.id;
   const tools = rawTools.map((rawTool, index) => {
     if (!isObject(rawTool)) {
       throw new ManifestError(`\`mcp.tools[${index}]\` must be an object`);
@@ -985,6 +1063,7 @@ function loadManifest(path: string): {
       "args",
       "needs",
       "effects",
+      "app_access",
     ]);
     if (typeof rawTool.name !== "string" || !TOOL_NAME_PATTERN.test(rawTool.name)) {
       throw new ManifestError(`\`mcp.tools[${index}].name\` is invalid`);
@@ -993,6 +1072,9 @@ function loadManifest(path: string): {
       throw new ManifestError(`tool \`${rawTool.name}\` is declared twice`);
     }
     names.add(rawTool.name);
+    if (rawTool.app_access !== undefined) {
+      validateAppAccess(rawTool.app_access, rawTool.name, appId);
+    }
     const summary = localizedEnglish(
       rawTool.summary,
       `mcp.tools[${index}].summary`,

@@ -54,11 +54,13 @@
       "type": "object",
       "maxProperties": 8,
       "propertyNames": {
-        "pattern": "^[a-z][a-z0-9_]{0,63}$"
+        "pattern": "^[a-z][a-z0-9_]{0,63}$",
+        "x-full-match": true
       },
       "additionalProperties": {
         "type": "string",
-        "maxLength": 512
+        "maxLength": 512,
+        "x-max-utf8-bytes": 512
       }
     }
   },

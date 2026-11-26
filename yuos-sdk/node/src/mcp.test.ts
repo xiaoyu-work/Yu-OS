@@ -178,7 +178,7 @@ test("removed cross-App call context is rejected before handlers", async () => {
     const reply = await harness.waitFor((frame) => frame.id === id);
     const error = reply.error as Frame;
     assert.equal(error.code, ERR_INVALID_PARAMS);
-    assert.match(String(error.message), id < 2 ? /WIRE_ENUM/ : /WIRE_UNKNOWN_FIELD/);
+    assert.match(String(error.message), id === 0 ? /WIRE_ENUM/ : /WIRE_UNKNOWN_FIELD/);
   }
   await harness.close();
 });

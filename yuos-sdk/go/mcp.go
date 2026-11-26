@@ -708,6 +708,11 @@ func (r *mcpRuntime) makeCall(state *mcpCallState) (*MCPCall, context.CancelFunc
 	if err := ValidateMcpCallContext(rawContext); err != nil {
 		return nil, nil, &mcpRPCError{code: mcpErrInvalidParams, message: "invalid authenticated call context: " + err.Error()}
 	}
+	if assertions, _ := rawContext.(map[string]any)["assertions"].(map[string]any); len(assertions) > 0 {
+		if caller, _ := rawContext.(map[string]any)["caller"].(map[string]any); caller["kind"] != "app" {
+			return nil, nil, &mcpRPCError{code: mcpErrInvalidParams, message: "invalid authenticated call context: caller assertions are only accepted from Apps"}
+		}
+	}
 	authenticated := materializeMCPCallContext(rawContext.(map[string]any))
 	callContext := state.ctx
 	cleanup := context.CancelFunc(func() {})
@@ -918,6 +923,80 @@ func rejectMCPUnknownFields(object map[string]any, context string, allowed ...st
 	return nil
 }
 
+var mcpAssertionNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
+
+const mcpMaxAppCallAssertions = 8
+
+func validateMCPAppCalls(value any, appID string) error {
+	if value == nil {
+		return nil
+	}
+	entries, ok := value.([]any)
+	if !ok {
+		return &MCPManifestError{Message: "`app_calls` must be an array"}
+	}
+	seen := map[string]bool{}
+	for _, raw := range entries {
+		entry, _ := raw.(string)
+		app, tool, found := strings.Cut(entry, "/")
+		if !found || !mcpAppIDPattern.MatchString(app) || !mcpToolNamePattern.MatchString(tool) {
+			return &MCPManifestError{Message: fmt.Sprintf("`app_calls` entry %v must be `<app-id>/<tool>`", raw)}
+		}
+		if app == appID {
+			return &MCPManifestError{Message: fmt.Sprintf("`app_calls` entry %q targets this App", entry)}
+		}
+		if seen[entry] {
+			return &MCPManifestError{Message: fmt.Sprintf("`app_calls` entry %q declared twice", entry)}
+		}
+		seen[entry] = true
+	}
+	return nil
+}
+
+func validateMCPAppAccess(value any, tool, appID string) error {
+	access, ok := value.(map[string]any)
+	if !ok {
+		return &MCPManifestError{Message: fmt.Sprintf("tool %q app_access must be an object", tool)}
+	}
+	if err := rejectMCPUnknownFields(access, fmt.Sprintf("tool %q app_access", tool), "callers", "assertions"); err != nil {
+		return err
+	}
+	callers, ok := access["callers"].([]any)
+	if !ok || len(callers) == 0 {
+		return &MCPManifestError{Message: fmt.Sprintf("tool %q app_access.callers must not be empty", tool)}
+	}
+	wildcard := false
+	for _, caller := range callers {
+		if caller == "*" {
+			wildcard = true
+		}
+	}
+	if wildcard && len(callers) != 1 {
+		return &MCPManifestError{Message: fmt.Sprintf("tool %q app_access.callers `*` must be the only entry", tool)}
+	}
+	if !wildcard {
+		for _, raw := range callers {
+			caller, ok := raw.(string)
+			if !ok || !mcpAppIDPattern.MatchString(caller) || caller == appID {
+				return &MCPManifestError{Message: fmt.Sprintf("tool %q app_access caller %v is invalid", tool, raw)}
+			}
+		}
+	}
+	valid := true
+	if raw, present := access["assertions"]; present {
+		names, ok := raw.([]any)
+		valid = ok && len(names) <= mcpMaxAppCallAssertions
+		for _, name := range names {
+			text, ok := name.(string)
+			valid = valid && ok && mcpAssertionNamePattern.MatchString(text)
+		}
+	}
+	if !valid {
+		return &MCPManifestError{Message: fmt.Sprintf("tool %q app_access.assertions must be at most %d names matching [a-z][a-z0-9_]*", tool, mcpMaxAppCallAssertions)}
+	}
+	return nil
+}
+
 func parseMCPManifest(manifest map[string]any) (*MCPApp, error) {
 	if err := validateOwnerPathBindings(manifest); err != nil {
 		return nil, &MCPManifestError{Message: err.Error()}
@@ -926,7 +1005,7 @@ func parseMCPManifest(manifest map[string]any) (*MCPApp, error) {
 		manifest,
 		"App manifest",
 		"id", "version", "schema_version", "name", "summary", "icon", "runtime",
-		"entry", "operations", "objects", "ai", "mcp", "desktop", "dependencies",
+		"entry", "operations", "objects", "ai", "mcp", "desktop", "dependencies", "app_calls",
 	); err != nil {
 		return nil, err
 	}
@@ -944,6 +1023,9 @@ func parseMCPManifest(manifest map[string]any) (*MCPApp, error) {
 	service, ok := manifest["mcp"].(map[string]any)
 	if !ok {
 		return nil, &MCPManifestError{Message: "App manifest has no `mcp` service"}
+	}
+	if err := validateMCPAppCalls(manifest["app_calls"], id); err != nil {
+		return nil, err
 	}
 	if _, err := mcpLocalizedEnglish(manifest["name"], "name"); err != nil {
 		return nil, err
@@ -996,7 +1078,7 @@ func parseMCPManifest(manifest map[string]any) (*MCPApp, error) {
 		if err := rejectMCPUnknownFields(
 			object,
 			fmt.Sprintf("`mcp.tools[%d]`", index),
-			"name", "summary", "args", "needs", "effects",
+			"name", "summary", "args", "needs", "effects", "app_access",
 		); err != nil {
 			return nil, err
 		}
@@ -1006,6 +1088,11 @@ func parseMCPManifest(manifest map[string]any) (*MCPApp, error) {
 		}
 		if app.byName[name] != nil {
 			return nil, &MCPManifestError{Message: fmt.Sprintf("tool %q is declared twice", name)}
+		}
+		if access, present := object["app_access"]; present {
+			if err := validateMCPAppAccess(access, name, id); err != nil {
+				return nil, err
+			}
 		}
 		summary, err := mcpLocalizedEnglish(object["summary"], fmt.Sprintf("mcp.tools[%d].summary", index))
 		if err != nil {
