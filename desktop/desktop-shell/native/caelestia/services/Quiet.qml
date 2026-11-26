@@ -163,6 +163,10 @@ Singleton {
             return Quickshell.shellPath("assets/dock/player.svg");
         if (desktopId === "com.yuos.Office")
             return Quickshell.shellPath("assets/dock/office.svg");
+        if (desktopId === "com.yuos.Calendar" || desktopId === "com.yuos.PanelCalendarButton")
+            return Quickshell.shellPath("assets/dock/calendar.svg");
+        if (desktopId === "com.yuos.Mail" || desktopId === "thunderbird" || desktopId === "org.mozilla.Thunderbird")
+            return Quickshell.shellPath("assets/dock/mail.svg");
         const entry = desktopEntry(desktopId);
         if (entry?.icon)
             return Quickshell.iconPath(entry.icon, "application-x-executable");

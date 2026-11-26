@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="ym_env" x1="24" y1="68" x2="232" y2="216" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  <!-- Back envelope body -->
+  <rect x="24" y="64" width="208" height="152" rx="34" fill="#1D4ED8"/>
+  <!-- Warm amber letter card peeking out -->
+  <rect x="52" y="38" width="152" height="110" rx="20" fill="#FBBF24"/>
+  <rect x="78" y="64" width="68" height="12" rx="6" fill="#FFFFFF"/>
+  <!-- Front envelope V-pocket -->
+  <path d="M24 96L128 160L232 96V182C232 200.778 216.778 216 198 216H58C39.222 216 24 200.778 24 182V96Z" fill="url(#ym_env)"/>
+</svg>
