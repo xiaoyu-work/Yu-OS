@@ -2785,6 +2785,9 @@ fn dispatch_agent(args: &[String]) -> Result<Option<String>, String> {
     // Explicit help should not be hijacked.
     let explicit_help =
         args.len() >= 2 && matches!(args[1].as_str(), "--help" | "-h" | "help" | "--schema");
+    if !explicit_help && !crate::agentd::spawn::agent_installed() {
+        return Err(crate::agentd::spawn::AGENT_NOT_INSTALLED.to_string());
+    }
     if !explicit_help && args.len() == 1 {
         use std::io::IsTerminal;
         let interactive = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();

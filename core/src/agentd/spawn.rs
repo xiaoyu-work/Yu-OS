@@ -469,6 +469,17 @@ pub fn worker_binary_path() -> PathBuf {
     PathBuf::from("/usr/local/bin/yuos-agentd")
 }
 
+/// Explanation returned by every Agent-only entry point when the optional
+/// `yuos-agent` package is not installed.
+pub const AGENT_NOT_INSTALLED: &str = "Yu Agent is not installed; install the optional \
+     yuos-agent package to use Agent features";
+
+/// Whether the optional Agent worker is present. Framework-only installs run
+/// every platform service without it; Agent-only features refuse explicitly.
+pub fn agent_installed() -> bool {
+    cfg!(test) || worker_binary_path().exists()
+}
+
 /// True when the supervisor itself is privileged — the production
 /// configuration, where the child must be forced down to the owner's
 /// account. A dev tree or test harness running as an ordinary user

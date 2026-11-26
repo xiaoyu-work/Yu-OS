@@ -97,7 +97,7 @@ async fn stop_runtime(runtime: &mut ServiceRuntime) -> Result<(), String> {
     } else {
         Ok(())
     };
-    let containment = crate::agentd::supervisor::reap_extension_host(&mut runtime.host).await;
+    let containment = crate::yuosd::app_host::reap_extension_host(&mut runtime.host).await;
     join_cleanup_result(broker, containment)?;
 
     let acl = crate::storage::remove_routed_extension_reader(

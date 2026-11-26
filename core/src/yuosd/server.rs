@@ -124,21 +124,21 @@ pub async fn run(options: ServerOptions) -> Result<(), DaemonError> {
     )?;
     let state = DaemonState::try_new()?;
     let admission = Admission::new(Limits::default());
-    let agentd_broker = crate::agentd::supervisor::BrokerContext::new(
+    let app_host = crate::yuosd::app_host::BrokerContext::new(
         state.clone(),
         admission.clone(),
         options.socket_path.clone(),
     )
     .map_err(|message| DaemonError::Startup {
-        operation: "agentd.initialize",
+        operation: "app-host.initialize",
         message,
         source: None,
     })?;
     // Establish the delegated subtree before Event Center or any other
     // long-lived helper can inherit the systemd service cgroup.
-    agentd_broker.prime_extension_containment();
+    app_host.prime_extension_containment();
     #[cfg(target_os = "linux")]
-    let _ = agentd_broker.initialize_app_custody();
+    let _ = app_host.initialize_app_custody();
     let _event_center = event_center::start();
     if let Err(error) = firewall::reconcile_on_start().await {
         tracing::error!(error = %error, "failed to reconcile managed firewall state");
@@ -179,8 +179,8 @@ pub async fn run(options: ServerOptions) -> Result<(), DaemonError> {
             tracing::error!(%error, "Root display activation unavailable; GUI requests are refused");
         }
     }
-    let agentd_shutdown = Arc::new(AtomicBool::new(false));
-    let app_services = super::app_services::AppServiceManager::new(agentd_broker.clone());
+    let app_shutdown = Arc::new(AtomicBool::new(false));
+    let app_services = super::app_services::AppServiceManager::new(app_host.clone());
     state
         .install_app_service_manager(&app_services)
         .map_err(|message| DaemonError::Startup {
@@ -188,14 +188,15 @@ pub async fn run(options: ServerOptions) -> Result<(), DaemonError> {
             message,
             source: None,
         })?;
-    let _app_service_sweeper = app_services.spawn_sweeper(agentd_shutdown.clone());
+    let _app_service_sweeper = app_services.spawn_sweeper(app_shutdown.clone());
     super::trust_withdrawal::initialize(state.clone());
-    // Agent work runs in unprivileged `yuos-agentd` processes. The
+    // Agent work runs in unprivileged `yuos-agentd` processes shipped by the
+    // optional `yuos-agent` package. The
     // supervisor handle is deliberately *not* part of the daemon's
     // fatal path: a worker exiting — normally or not — must never take
     // the broker down, and supervision stopping still leaves every
     // non-agent primitive served.
-    let _agentd = crate::agentd::supervisor::spawn_supervisor(agentd_shutdown, agentd_broker);
+    let _agentd = crate::agentd::supervisor::spawn_supervisor(app_shutdown, app_host);
     let _notification_dispatcher = super::notifications::spawn_external_dispatcher();
     super::channels::spawn();
     #[cfg(target_os = "linux")]

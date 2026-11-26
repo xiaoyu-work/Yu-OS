@@ -27,6 +27,9 @@ fn presence_leases() -> &'static Mutex<HashMap<String, PendingPresence>> {
 }
 
 pub async fn submit(params: Value, client: &ClientIdentity) -> Result<Value, String> {
+    if !crate::agentd::spawn::agent_installed() {
+        return Err(crate::agentd::spawn::AGENT_NOT_INSTALLED.to_string());
+    }
     let owner_uid = client.require_uid()?;
     if owner_uid == 0 {
         // The agent runtime executes in an unprivileged `yuos-agentd`
@@ -645,6 +648,9 @@ pub fn cancel(params: Value, client: &ClientIdentity) -> Result<Value, String> {
 }
 
 pub fn retry(params: Value, client: &ClientIdentity) -> Result<Value, String> {
+    if !crate::agentd::spawn::agent_installed() {
+        return Err(crate::agentd::spawn::AGENT_NOT_INSTALLED.to_string());
+    }
     let id = required_string(&params, "id")?;
     let store = Store::open_default().map_err(|err| err.to_string())?;
     let Some((_bucket, original)) = store

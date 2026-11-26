@@ -18,6 +18,7 @@ pub mod ai;
 pub(crate) mod ai_stream;
 pub mod app_notifications;
 pub mod app_events;
+pub mod app_host;
 pub mod app_permissions;
 pub mod app_services;
 pub mod app_sessions;

@@ -75,9 +75,9 @@ pub const SECURITY_EPOCH: u64 = 1;
 
 /// Cross-package ABI generation.
 ///
-/// `yuos-agent` advertises `Provides: yuos-abi-<ABI>` and the
+/// `yuos-framework` advertises `Provides: yuos-abi-<ABI>` and the
 /// dependent packages `Depends:` on that virtual name, so APT's own
-/// solver refuses to combine an agent with a base or desktop outside
+/// solver refuses to combine a Framework with an Agent, base or desktop outside
 /// the supported protocol range — without pinning exact versions,
 /// which would make phased publication impossible.
 pub const ABI: u32 = 1;
@@ -151,7 +151,7 @@ pub const COMPONENTS: &[Component] = &[
     Component {
         name: "yuosd",
         path: "/usr/local/bin/yuosd",
-        package: "yuos-agent",
+        package: "yuos-framework",
         critical: true,
     },
     Component {
@@ -163,55 +163,55 @@ pub const COMPONENTS: &[Component] = &[
     Component {
         name: "yuos-extension-host",
         path: "/usr/local/bin/yuos-extension-host",
-        package: "yuos-agent",
+        package: "yuos-framework",
         critical: true,
     },
     Component {
         name: "yuos-approval-helper",
         path: "/usr/local/bin/yuos-approval-helper",
-        package: "yuos-agent",
+        package: "yuos-framework",
         critical: true,
     },
     Component {
         name: "yuos-admin-approval-helper",
         path: "/usr/local/bin/yuos-admin-approval-helper",
-        package: "yuos-agent",
+        package: "yuos-framework",
         critical: true,
     },
     Component {
         name: "yuos-app-runner",
         path: "/usr/local/bin/yuos-app-runner",
-        package: "yuos-agent",
+        package: "yuos-framework",
         critical: true,
     },
     Component {
         name: "yuos-calendar-reader",
         path: "/usr/lib/yuos/bin/yuos-calendar-reader",
-        package: "yuos-agent",
+        package: "yuos-framework",
         critical: true,
     },
     Component {
         name: "yuos-nearby-worker",
         path: "/usr/lib/yuos/bin/yuos-nearby-worker",
-        package: "yuos-agent",
+        package: "yuos-framework",
         critical: true,
     },
     Component {
         name: "yuos-nearby-radio",
         path: "/usr/lib/yuos/bin/yuos-nearby-radio",
-        package: "yuos-agent",
+        package: "yuos-framework",
         critical: true,
     },
     Component {
         name: "yuos-security-floor",
         path: "/usr/lib/yuos/bin/yuos-security-floor",
-        package: "yuos-agent",
+        package: "yuos-framework",
         critical: true,
     },
     Component {
         name: "yu",
         path: "/usr/local/bin/yu",
-        package: "yuos-agent",
+        package: "yuos-framework",
         critical: true,
     },
     Component {
@@ -223,25 +223,25 @@ pub const COMPONENTS: &[Component] = &[
     Component {
         name: "yuos-agent-bridge",
         path: "/usr/local/bin/yuos-agent-bridge",
-        package: "yuos-desktop",
+        package: "yuos-agent-desktop",
         critical: false,
     },
     Component {
         name: "yuos-agent-ui",
         path: "/usr/local/bin/yuos-agent-ui",
-        package: "yuos-desktop",
+        package: "yuos-agent-desktop",
         critical: false,
     },
     Component {
         name: "yuos-ask-launcher",
         path: "/usr/local/bin/yuos-ask-launcher",
-        package: "yuos-desktop",
+        package: "yuos-agent-desktop",
         critical: false,
     },
     Component {
         name: "browser-chat-native-host",
         path: "/usr/lib/yuos/browser-chat-native-host",
-        package: "yuos-desktop",
+        package: "yuos-agent-desktop",
         critical: false,
     },
     Component {
@@ -254,7 +254,13 @@ pub const COMPONENTS: &[Component] = &[
 
 /// The packages whose lifecycle is gated. Anything owning a security
 /// policy, protocol or privileged component belongs here.
-pub const GATED_PACKAGES: &[&str] = &["yuos-agent", "yuos-base", "yuos-desktop"];
+pub const GATED_PACKAGES: &[&str] = &[
+    "yuos-framework",
+    "yuos-agent",
+    "yuos-base",
+    "yuos-desktop",
+    "yuos-agent-desktop",
+];
 
 /// Look up a tracked component by name.
 pub fn component(name: &str) -> Option<&'static Component> {

@@ -40,12 +40,18 @@ and agent tasks.
   extension code in this process (see `core/src/agentd/MODULE.md`).
 - Install audit hooks around broker-visible work, including runtime audit
   forwarded by a worker.
+- Run without the optional Agent. `yuosd` ships in `yuos-framework`; the
+  `yuos-agentd` worker ships in the optional `yuos-agent`. When the worker is
+  absent, Agent task submission/retry, triggers and `yu agent` fail with
+  `Yu Agent is not installed`; the trigger tick skips. App hosting, App
+  permissions, approvals, audit, sessions and platform services are unaffected.
 
 ## Key Files
 
 | Path | Role |
 | --- | --- |
 | `server.rs` | Socket lifecycle and request admission order, agentd supervision start |
+| `app_host.rs` | Broker context, approved extension paths and App extension-host reaping shared by App and Agent execution; no Agent dependency |
 | `transport/` | Frame reader/writer, per-message peer credentials, admission ceilings |
 | `wire/` | Versioned envelope, bounded field types, one typed request body per route |
 | `client.rs` | Broker client with correlation checks and pre-/post-dispatch transport classification |

@@ -448,6 +448,12 @@ pub(crate) fn preflight_activity_command(
 /// CLI entry — dispatched from the router under `yu triggers`.
 pub fn run(command: &str, args: &[String]) -> Result<Value, String> {
     validate_arguments(command, args)?;
+    // Triggers submit Agent tasks. Without the optional Agent, rules can still
+    // be inspected and removed, but nothing is armed or fired.
+    let agent_installed = crate::agentd::spawn::agent_installed();
+    if !agent_installed && matches!(command, "add" | "enable" | "run") {
+        return Err(crate::agentd::spawn::AGENT_NOT_INSTALLED.to_string());
+    }
     match command {
         "add" => cmd_add(args),
         "list" => cmd_list(args),
@@ -458,6 +464,11 @@ pub fn run(command: &str, args: &[String]) -> Result<Value, String> {
         "tick" => {
             crate::caps::require(Verb::SYS_KERNEL, Scope::Wild)
                 .map_err(|denial| denial.summary())?;
+            if !agent_installed {
+                return Ok(serde_json::json!({
+                    "skipped": crate::agentd::spawn::AGENT_NOT_INSTALLED,
+                }));
+            }
             with_trigger_lock(delivery::tick)
         }
         _ => unreachable!("validated trigger command"),

@@ -7,7 +7,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::{Mutex as AsyncMutex, OwnedSemaphorePermit, Semaphore};
 
 use crate::agent::tools::app_gateway::McpCallContext;
-use crate::agentd::supervisor::BrokerContext;
+use crate::yuosd::app_host::BrokerContext;
 use crate::caps::manifest::McpLifecycle;
 use crate::caps::{CapSet, Role};
 use crate::yuosd::client_identity::ClientIdentity;
@@ -643,7 +643,7 @@ impl AppServiceManager {
             self.broker.isolated_execution_gid,
         )
         .map_err(RuntimeStartError::admission)?;
-        let approved_paths = crate::agentd::supervisor::extension_approved_paths(&owner, None)
+        let approved_paths = crate::yuosd::app_host::extension_approved_paths(&owner, None)
             .map_err(RuntimeStartError::admission)?;
         let containment = self
             .broker

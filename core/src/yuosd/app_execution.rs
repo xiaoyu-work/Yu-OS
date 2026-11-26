@@ -48,7 +48,7 @@ struct Resources {
     cleanup_confirmed: bool,
 }
 
-pub(crate) fn initialize(broker: &crate::agentd::supervisor::BrokerContext) {
+pub(crate) fn initialize(broker: &crate::yuosd::app_host::BrokerContext) {
     let _ = ROOT.set(broker.extension_containment());
     if let Err(error) = std::thread::Builder::new().name("ordinary-app-custody".into()).spawn(|| loop {
         std::thread::sleep(Duration::from_millis(250));

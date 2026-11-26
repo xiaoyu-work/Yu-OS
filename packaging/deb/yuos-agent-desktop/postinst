@@ -1,0 +1,39 @@
+#!/bin/sh
+set -e
+
+DPKG_ROOT="${DPKG_ROOT:-}"
+ROOT_ARG="${DPKG_ROOT:-/}"
+SECURITY_HELPER="$DPKG_ROOT/usr/lib/yuos/bin/yuos-security-floor"
+RELEASE_MANIFEST="$DPKG_ROOT/usr/lib/yuos/release-security/yuos-agent-desktop/manifest.json"
+RELEASE_SIGNATURE="$RELEASE_MANIFEST.asc"
+
+# Record this release in the update-security floor only after its files
+# match the content its signed release manifest declares.
+commit_security_floor() {
+    if [ ! -x "$SECURITY_HELPER" ] || [ ! -f "$RELEASE_MANIFEST" ]; then
+        echo "error: yuos-agent-desktop is missing its update-security metadata" >&2
+        return 1
+    fi
+    if [ -f "$RELEASE_SIGNATURE" ]; then
+        "$SECURITY_HELPER" commit \
+            --root "$ROOT_ARG" \
+            --package yuos-agent-desktop \
+            --version "__VERSION__" \
+            --manifest "$RELEASE_MANIFEST" \
+            --signature "$RELEASE_SIGNATURE" \
+            --reason "yuos-agent-desktop configure"
+    else
+        "$SECURITY_HELPER" commit \
+            --root "$ROOT_ARG" \
+            --package yuos-agent-desktop \
+            --version "__VERSION__" \
+            --manifest "$RELEASE_MANIFEST" \
+            --reason "yuos-agent-desktop configure"
+    fi
+}
+
+if [ "$1" = "configure" ]; then
+    commit_security_floor
+fi
+
+exit 0

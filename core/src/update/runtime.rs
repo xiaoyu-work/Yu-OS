@@ -97,7 +97,7 @@ pub fn enforce_startup_in(
                 super::decide::class::FLOOR_UNAVAILABLE,
                 format!(
                     "{error}. Yu OS refuses to run against unreadable update-security state; \
-                     reinstall yuos-agent from the signed repository, or recover the state \
+                     reinstall yuos-framework from the signed repository, or recover the state \
                      described in docs/updating.md."
                 ),
             ))
@@ -110,7 +110,7 @@ pub fn enforce_startup_in(
             format!(
                 "this binary belongs to Yu OS security epoch {}, but this system has already \
                  accepted epoch {}. Refusing to run a superseded build; reinstall the current \
-                 yuos-agent package.",
+                 yuos-framework package.",
                 super::SECURITY_EPOCH,
                 projection.security_epoch
             ),
@@ -170,7 +170,7 @@ pub fn enforce_broker_startup_in(
             super::decide::class::FLOOR_UNAVAILABLE,
             format!(
                 "{error}. Yu OS refuses to run against unreadable update-security state; \
-                 reinstall yuos-agent from the signed repository, or recover the state \
+                 reinstall yuos-framework from the signed repository, or recover the state \
                  described in docs/updating.md."
             ),
         )
@@ -182,7 +182,7 @@ pub fn enforce_broker_startup_in(
             return Err(refuse(
                 super::decide::class::FLOOR_UNAVAILABLE,
                 "this system publishes an update-security runtime view but has no authoritative \
-                 floor state; refusing to start. Reinstall yuos-agent from the signed \
+                 floor state; refusing to start. Reinstall yuos-framework from the signed \
                  repository."
                     .to_string(),
             ));
@@ -196,7 +196,7 @@ pub fn enforce_broker_startup_in(
             format!(
                 "this binary belongs to Yu OS security epoch {}, but this system has already \
                  accepted epoch {}. Refusing to run a superseded build; reinstall the current \
-                 yuos-agent package.",
+                 yuos-framework package.",
                 super::SECURITY_EPOCH,
                 floor.security_epoch
             ),
@@ -269,7 +269,7 @@ fn verify_components(
                 format!(
                     "`{}` does not match the content this system recorded for the installed \
                      release. Refusing to start against a replaced security component; \
-                     reinstall yuos-agent from the signed repository.",
+                     reinstall yuos-framework from the signed repository.",
                     component.path
                 ),
             ));
@@ -350,7 +350,7 @@ pub fn check_peer_epoch(peer: &str, declared: u64) -> Result<(), Refusal> {
         super::decide::class::EPOCH_REGRESSION,
         format!(
             "{peer} reports Yu OS security epoch {declared} but this build is epoch {}; \
-             reinstall yuos-agent so every binary comes from the same release",
+             reinstall yuos-framework so every binary comes from the same release",
             super::SECURITY_EPOCH
         ),
     ))

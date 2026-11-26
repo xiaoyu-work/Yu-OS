@@ -284,7 +284,7 @@ fn a_peer_reporting_another_epoch_is_refused() {
         crate::update::decide::class::EPOCH_REGRESSION
     );
     assert!(
-        refusal.message.contains("reinstall yuos-agent"),
+        refusal.message.contains("reinstall yuos-framework"),
         "{refusal}"
     );
 }
