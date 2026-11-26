@@ -44,9 +44,9 @@ root or copying product source into Agent. Desktop uses the same independent
 package graph, including matching native packages. Prebuilt-only composition
 requires the matching package artifacts and does not start another build.
 
-Desktop composition requires both Agent packages, including with
-`--no-install-recommends`. `YUOS_AGENT=0` selects a headless Framework-only image
-and is rejected when the desktop feature is selected.
+Images install `yuos-agent` by default, including desktop images.
+`YUOS_AGENT=0` selects a Framework-only image, with or without the desktop
+feature.
 
 Production Desktop no longer resolves App `main`, mounts native App sources or
 copies App manifests. Shell product UI/private-library links are removed,

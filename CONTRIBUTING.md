@@ -14,6 +14,8 @@ routing and authoritative validation commands, then
 - Docker (for building the image)
 - Root access (for rootfs bootstrap)
 - `libpam0g-dev` on Debian/Ubuntu when building the OS display PAM module
+- `pkg-config libasound2-dev libxkbcommon-dev libwayland-dev` when
+  `packaging/deb/build-debs.sh` builds the graphical Agent into `yuos-agent`
 
 ### Build the Rust Core
 

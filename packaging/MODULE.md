@@ -7,10 +7,11 @@ Debian packages and a signed multi-architecture APT repository.
 
 ## Responsibilities
 
-- Assemble `yuos-framework`, `yuos-agent`, `yuos-base`, `yuos-desktop`
-  and `yuos-agent-desktop` as separate packages for one coordinated APT publication.
-  Agent depends on Framework, never the reverse; Base remains Agent-independent.
-  Desktop requires the same-version graphical Agent and its Agent backend.
+- Assemble `yuos-framework`, `yuos-agent`, `yuos-base` and `yuos-desktop`
+  as separate packages for one coordinated APT publication.
+  Agent (including the graphical Agent, inert without a desktop) depends on
+  Framework, never the reverse; Base remains Agent-independent.
+  Desktop does not depend on the Agent; images install it by default.
 - Preserve conffiles and run service-safe maintainer scripts.
 - Bind each release to a signed release-security manifest so an installed
   system can refuse a superseded — but still validly signed — release.
@@ -116,10 +117,10 @@ OS-owned. Browser's independently owned extension and compatibility launchers
 consume this interface; they do not supply a socket server, privileged policy
 or another App identity. The manual registration command checks installed
 protected assets rather than cloning or overwriting App package files.
-Desktop supplies the separate `browser-chat-native-host` client for the
+The Agent supplies the separate `browser-chat-native-host` client for the
 existing desktop Agent service. The installer registers it for the same
-extension ID when Desktop is present. Agent-only installs retain browser
-control without requiring the chat client or a Desktop dependency.
+extension ID when it is installed; Framework-only installs retain browser
+control without the chat client.
 
 Agent depends on `pkexec` and `polkitd`, which provide the polkit runtime and
 password verifier used by the installed `yuos-approval-helper` and its

@@ -87,12 +87,11 @@ echo ":: yuos deb build — version $VERSION arch $DEB_ARCH"
 
 rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR" "$OUT_DIR"
-# The package contract has exactly five names. Never let obsolete local
+# The package contract has exactly four names. Never let obsolete local
 # artifacts leak into a newly generated repository.
 find "$OUT_DIR" -maxdepth 1 -type f -name 'yuos-*.deb' \
     ! -name 'yuos-framework_*.deb' \
     ! -name 'yuos-agent_*.deb' \
-    ! -name 'yuos-agent-desktop_*.deb' \
     ! -name 'yuos-base_*.deb' \
     ! -name 'yuos-desktop_*.deb' \
     -delete
@@ -302,6 +301,26 @@ ensure_nearby_bin() {
     ( cd "$PROJECT_DIR" && cargo build --release --locked --target "$target" \
         --target-dir "$PROJECT_DIR/target" \
         --manifest-path crates/yuos-nearby/Cargo.toml --bins ) >&2
+    find_bin "$bin"
+}
+
+# The graphical Agent links the target's glibc and display libraries.
+ensure_agent_gui_bin() {
+    local bin="$1" path target="${RUST_TARGET/-musl/-gnu}"
+    if path="$(find_bin "$bin")"; then
+        echo "$path"
+        return 0
+    fi
+    ensure_cargo
+    if [ "$bin" = yuos-ask-launcher ]; then
+        ( cd "$PROJECT_DIR" && cargo build --release --locked --target "$target" \
+            --target-dir "$PROJECT_DIR/target" \
+            --manifest-path yuos-sdk/rust/Cargo.toml --bin yuos-ask-launcher ) >&2
+    else
+        ( cd "$PROJECT_DIR" && cargo build --release --locked --target "$target" \
+            --target-dir "$PROJECT_DIR/target" \
+            --manifest-path desktop/agent/Cargo.toml --workspace ) >&2
+    fi
     find_bin "$bin"
 }
 
@@ -662,6 +681,18 @@ AGENTD_BIN="$(ensure_bin yuos-agentd yu)" || {
     echo "error: yuos-agentd binary not built" >&2; exit 1; }
 echo "  :: yuos-agentd            <- $AGENTD_BIN"
 install -m 755 "$AGENTD_BIN" "$AGENT_STAGE/usr/local/bin/yuos-agentd"
+
+# The graphical Agent. Its bridge is wanted only by the Yu OS desktop session,
+# so without yuos-desktop these files stay inert.
+for gui_bin in yuos-agent-ui yuos-agent-bridge yuos-ask-launcher; do
+    GUI_PATH="$(ensure_agent_gui_bin "$gui_bin")" || {
+        echo "error: $gui_bin binary not built" >&2; exit 1; }
+    echo "  :: $gui_bin <- $GUI_PATH"
+    install -m 755 "$GUI_PATH" "$AGENT_STAGE/usr/local/bin/$gui_bin"
+done
+install -Dm755 "$PROJECT_DIR/tools/browser-chat-native-host" \
+    "$AGENT_STAGE/usr/lib/yuos/browser-chat-native-host"
+cp -a "$PROJECT_DIR/desktop/agent/package/." "$AGENT_STAGE/"
 
 if [ -d "$PROJECT_DIR/skills" ]; then
     cp -a "$PROJECT_DIR/skills/." "$AGENT_STAGE/usr/lib/yuos/skills/"

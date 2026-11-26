@@ -8,8 +8,9 @@ OS-owned [Quickshell/Caelestia frontend](../desktop-shell/MODULE.md).
 It does not replace the system Agent.
 
 Desktop source builds select only the Root-integrated Hyprland executable.
-Installed acceptance requires the corresponding Agent package, the
-release-authenticated Desktop Shell and a real authenticated graphical session.
+Installed acceptance requires the release-authenticated Desktop Shell and a
+real authenticated graphical session; Agent features also need the optional
+`yuos-agent` package.
 
 ## Source ownership
 

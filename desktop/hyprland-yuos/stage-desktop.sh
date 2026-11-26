@@ -11,9 +11,6 @@ export CARGO_TARGET_DIR="$work/cargo"
 rustup toolchain install stable --profile minimal
 
 cargo +stable build --manifest-path "$project/Cargo.toml" --locked --release -p yuos-compositor
-cargo +stable build --manifest-path "$project/desktop/agent/Cargo.toml" --locked --release --workspace
-cargo +stable build --manifest-path "$project/yuos-sdk/rust/Cargo.toml" --locked --release \
-    --bin yuos-ask-launcher
 cargo +stable build --manifest-path "$project/desktop/services/yuos-applet-services/Cargo.toml" \
     --locked --release --features provider --bin yuos-applet-provider
 
@@ -78,11 +75,6 @@ for source in "$dependencies"/sources/*; do
 done
 install -Dm0644 "$dependencies/sources/lua-5.5.1/doc/readme.html" "$license/hyprland/lua/LICENSE.html"
 
-for binary in yuos-agent-ui yuos-agent-bridge yuos-ask-launcher; do
-    install -Dm0755 "$CARGO_TARGET_DIR/release/$binary" "$stage/usr/local/bin/$binary"
-done
-install -Dm0755 "$project/tools/browser-chat-native-host" \
-    "$stage/usr/lib/yuos/browser-chat-native-host"
 install -Dm0755 "$CARGO_TARGET_DIR/release/yuos-applet-provider" \
     "$stage/usr/libexec/yuos-applet-provider"
 install -Dm0644 "$project/desktop/services/yuos-applet-services/LICENSE" "$license/applet-services.LICENSE"
@@ -199,11 +191,5 @@ dpkg-shlibdeps -O -l"$native/lib" "${shell_libargs[@]}" -xyuos-desktop "$native/
     "${shell_elfs[@]}" \
     "$native/yuos-lockscreen" "$stage/usr/libexec/yuos-applet-provider" \
     | sed -n 's/^shlibs:Depends=//p' >"$work/runtime-depends"
-# The graphical Agent binaries ship in yuos-agent-desktop with their own libraries.
-dpkg-shlibdeps -O -xyuos-desktop \
-    "$stage/usr/local/bin/yuos-agent-ui" "$stage/usr/local/bin/yuos-agent-bridge" \
-    "$stage/usr/local/bin/yuos-ask-launcher" \
-    | sed -n 's/^shlibs:Depends=//p' >"$work/agent-runtime-depends"
 rmdir "$stage/DEBIAN"
 test -s "$work/runtime-depends"
-test -s "$work/agent-runtime-depends"

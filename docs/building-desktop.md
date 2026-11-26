@@ -1,6 +1,7 @@
 # Building the Yu OS Desktop Image
 
-The desktop profile builds Hyprland and the graphical Agent against Debian 13.
+The desktop profile builds Hyprland against Debian 13. The graphical Agent is
+built by `packaging/deb/build-debs.sh` and ships in `yuos-agent`.
 `yuos-desktop` builds and embeds the OS-owned Desktop Shell (Quickshell,
 Caelestia and private Qt). Its complete tree inventory is bound to the signed
 OS release. There is no separate Shell release, version to enter, or package
@@ -16,7 +17,8 @@ image tools. On amd64:
 ```bash
 sudo apt install git git-lfs build-essential musl-tools debootstrap qemu-utils \
   parted dosfstools mtools rsync util-linux e2fsprogs grub-efi-amd64-bin \
-  grub-pc-bin dpkg-dev curl gnupg ca-certificates python3
+  grub-pc-bin dpkg-dev curl gnupg ca-certificates python3 pkg-config \
+  libpam0g-dev libasound2-dev libxkbcommon-dev libwayland-dev
 arch=amd64
 rust_target=x86_64-unknown-linux-musl
 rustup target add --toolchain stable "$rust_target"

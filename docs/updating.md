@@ -177,16 +177,17 @@ release schedules:
 | Package | Contents |
 | --- | --- |
 | `yuos-framework` | Platform: `yu`, `yuosd`, `yuos-extension-host`, browser/semantic runtimes, SDKs, approval, audit, App host and platform services |
-| `yuos-agent` | Optional official Yu Agent: `yuos-agentd` and skills |
+| `yuos-agent` | Optional official Yu Agent: `yuos-agentd`, skills and the graphical Agent UI, bridge and Ask launcher (started only in a desktop session) |
 | `yuos-base` | Yu OS recovery, managed agent home, distribution boot/service policy, and device-specific udev/libinput rules |
 | `yuos-desktop` | Desktop shell and graphical applications, when installed |
-| `yuos-agent-desktop` | Graphical Agent UI, bridge and Ask launcher; required by same-version `yuos-desktop` |
 
-Desktop always includes the Agent backend and graphical Agent. These are
-required dependencies, not recommendations; removing either Agent package also
-requires removing Desktop. Framework and Base remain independent of Agent.
-System Updates adds `yuos-framework` and `yuos-agent-desktop` when upgrading a
-pre-split installation.
+Framework, Base and Desktop are independent of `yuos-agent`; images install
+it by default and it can be removed without removing Desktop. System Updates
+adds `yuos-framework` when upgrading a pre-split installation. The former
+`yuos-agent-desktop`
+package is retired: `yuos-agent` now carries its files and `Breaks`/`Replaces`
+it, so `full-upgrade` and System Updates remove it (plain `upgrade` holds the
+Agent back).
 
 After upgrading Base and Desktop (if installed), reboot to apply the [hardware workarounds](image-architecture.md#hardware-enablement) to devices already present and reload the desktop's libinput rules. Existing installs do not gain newly added image-only firmware packages via the Base upgrade; install `firmware-cirrus` or, on a Qualcomm arm64 machine, `firmware-qcom-soc` from the configured Debian repositories if needed.
 
@@ -578,7 +579,7 @@ Check the installed and available versions with:
 
 ```bash
 dpkg-query -W 'yuos-*'
-apt-cache policy yuos-framework yuos-agent yuos-base yuos-desktop yuos-agent-desktop
+apt-cache policy yuos-framework yuos-agent yuos-base yuos-desktop
 sudo systemctl status yuosd
 ```
 
@@ -1115,10 +1116,10 @@ it. A console, SSH or locked desktop session can defer that restart. Turning
 off automatic updates also turns off automatic restart; cancel separately
 if an install is already scheduled.
 
-This installs newer `yuos-framework`, `yuos-agent`, `yuos-base`, `yuos-desktop` and `yuos-agent-desktop`
+This installs newer `yuos-framework`, `yuos-agent`, `yuos-base` and `yuos-desktop`
 packages only. Desktop includes its selected Desktop Shell. The controller
-refuses removals, held packages and plans that require installing or changing
-other packages. Coordinated App dependency changes may require an
+refuses removals other than the retired `yuos-agent-desktop`, held packages
+and plans that require installing or changing other packages. Coordinated App dependency changes may require an
 administrator APT transaction and logout; independently published Apps still
 use their existing App update path. Debian security updates are unchanged.
 Installation still goes through the release security floor and its
@@ -1355,13 +1356,12 @@ Removing or purging a Yu OS package deliberately **does not** delete
 The upgrade that splits a pre-split `yuos-agent` runs the APT hook and
 verifier that the installed `yuos-agent` shipped. That verifier still checks
 `yuos-agent`, `yuos-base` and `yuos-desktop` in the candidate set; it does
-not list `yuos-framework` or `yuos-agent-desktop`. Each of those two
-packages is then refused or admitted by its own `preinst`, which runs the
-installed verifier against its embedded signed manifest (signature, epoch,
-version, ABI and minimum compatible siblings) before dpkg unpacks it. Every
-published version of either package carries that `preinst`, so no older
-artifact exists that only the hook could stop. From the next transaction on,
-the Framework's hook checks all five packages.
+not list `yuos-framework`. That package is then refused or admitted by its
+own `preinst`, which runs the installed verifier against its embedded signed
+manifest (signature, epoch, version, ABI and minimum compatible siblings)
+before dpkg unpacks it. Every published Framework version carries that
+`preinst`, so no older artifact exists that only the hook could stop. From
+the next transaction on, the Framework's hook checks all four packages.
 
 That pre-split `yuos-agent` also owns the verifier, the hook and `yuosd`.
 `yuos-agent` therefore `Pre-Depends` on the exact `yuos-framework`, so dpkg

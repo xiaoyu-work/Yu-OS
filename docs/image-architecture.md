@@ -29,9 +29,9 @@ required artifact.
 
 A feature owns one capability and must not assume an output format.
 
-Desktop images always include the Agent backend and graphical Agent.
-`YUOS_AGENT=0` supports only headless Framework-only images; the desktop
-feature rejects it. See the [package contract](../packaging/README.md).
+Images install `yuos-agent`, including its graphical Agent, by default.
+`YUOS_AGENT=0` builds a Framework-only image, with or without the desktop
+feature. See the [package contract](../packaging/README.md).
 
 Examples:
 

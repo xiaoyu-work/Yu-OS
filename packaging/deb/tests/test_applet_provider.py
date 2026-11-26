@@ -21,7 +21,7 @@ def package_attempt(stage):
     return subprocess.run(
         ["bash", str(ROOT / "packaging/deb/build-desktop-deb.sh"), str(stage)],
         env={**os.environ, "ARCH": ARCH, "YUOS_PACKAGE_VERSION": f"{epoch}:{version}",
-             "YUOS_DESKTOP_RUNTIME_DEPS": "libc6", "YUOS_AGENT_DESKTOP_RUNTIME_DEPS": "libc6"},
+             "YUOS_DESKTOP_RUNTIME_DEPS": "libc6"},
         capture_output=True, text=True, timeout=10,
     )
 
@@ -65,6 +65,6 @@ def test_native_provider_passes_abi_guard_without_bypassing_other_package_requir
     shutil.copy2("/bin/true", compositor.with_name("yuos-lockscreen"))
     result = package_attempt(tmp_path)
     assert result.returncode != 0
-    assert "required desktop Agent binary missing" in result.stderr
+    assert "Official App artifacts are required" in result.stderr
     assert "yuos-applet-provider" not in result.stderr
     assert not (tmp_path / "DEBIAN").exists()

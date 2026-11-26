@@ -9,7 +9,7 @@ XB-YuOS-Security-Epoch: __SECURITY_EPOCH__
 XB-YuOS-Abi: __ABI__
 Provides: yuos-applet-services-v1 (= 1)
 Depends: yuos-base (>= __MIN_BASE__), yuos-abi-__ABI__, yuos-app-runtime-v1 (>= __APP_RUNTIME_VERSION__), yuos-display-session-v3, yuos-file-manager-v1 (= 1), yuos-app-permissions-v1, yuos-capture-v1, yuos-media-player-v1, yuos-notifications-v1, yuos-calendar-read-v1, yuos-nearby-v1, yuos-desktop-settings-v1, adduser,
- yuos-software-store-v1 (= 1), yuos-agent-desktop (= __VERSION__), __APP_DEPS__, __NATIVE_DEPS__,
+ yuos-software-store-v1 (= 1), __APP_DEPS__, __NATIVE_DEPS__,
  greetd, cage, gir1.2-gtk-3.0, mate-polkit, kbd, gnome-keyring, libpam-gnome-keyring, polkitd, pkexec, dbus,
  pipewire, pipewire-pulse, pipewire-alsa, wireplumber, libspa-0.2-libcamera, libcamera-ipa, alsa-utils,
  network-manager, iwd, wpasupplicant, bluez, bluez-tools, udev,
@@ -47,7 +47,7 @@ Depends: yuos-base (>= __MIN_BASE__), yuos-abi-__ABI__, yuos-app-runtime-v1 (>= 
 Conflicts: yuos-apps-desktop, yuos-app-desktop-shell
 Description: Yu OS — graphical desktop environment
  Installs the Root-managed Hyprland compositor and authenticated greetd login.
- The graphical Yu Agent ships in the required yuos-agent-desktop package.
+ The graphical Yu Agent ships in the optional yuos-agent package.
  Includes
  the OS-owned Desktop Shell with Quickshell, Caelestia and their private
  runtime. All other Yu OS Apps are installed

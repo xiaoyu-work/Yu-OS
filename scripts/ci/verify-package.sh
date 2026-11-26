@@ -7,9 +7,9 @@ cd "${GITHUB_WORKSPACE:?GITHUB_WORKSPACE is required}"
 : "${YUOS_RELEASE_SECURITY_KEYRING:?YUOS_RELEASE_SECURITY_KEYRING is required}"
 component="${1:-}"
 case "$component" in
-    framework|agent|desktop|agent-desktop) arch="${ARCH:?ARCH is required}" ;;
+    framework|agent|desktop) arch="${ARCH:?ARCH is required}" ;;
     base) arch=all ;;
-    *) echo "usage: $0 {framework|agent|base|desktop|agent-desktop}" >&2; exit 2 ;;
+    *) echo "usage: $0 {framework|agent|base|desktop}" >&2; exit 2 ;;
 esac
 file_version="${YUOS_PACKAGE_VERSION//:/%3a}"
 deb="build/debs/yuos-${component}_${file_version}_${arch}.deb"
@@ -96,6 +96,12 @@ case "$component" in
             usr/local/bin/yuos-agentd
             usr/lib/yuos/skills/yuos/SKILL.md
             usr/lib/yuos/skills/yuos/diagnostics.md
+            usr/local/bin/yuos-agent-ui
+            usr/local/bin/yuos-agent-bridge
+            usr/local/bin/yuos-ask-launcher
+            usr/lib/yuos/browser-chat-native-host
+            usr/lib/systemd/user/yuos-agent-bridge.service
+            usr/share/applications/com.yuos.Agent.desktop
         )
         dpkg-deb -f "$deb" Pre-Depends | grep -Fq "yuos-framework (= $YUOS_PACKAGE_VERSION)"
         dpkg-deb -x "$deb" "$extract/payload"
@@ -154,22 +160,13 @@ case "$component" in
             etc/greetd/yuos-desktop.toml
         )
         if grep -Eq '^\./usr/(local/bin/yuos-(agent-ui|agent-bridge|ask-launcher)|share/applications/com\.yuos\.Agent\.desktop)$' "$files"; then
-            echo "error: Desktop contains payload owned by yuos-agent-desktop" >&2
+            echo "error: Desktop contains payload owned by yuos-agent" >&2
             exit 1
         fi
-        dpkg-deb -f "$deb" Depends | grep -Fq "yuos-agent-desktop (= $YUOS_PACKAGE_VERSION)"
-        ;;
-    agent-desktop)
-        required=(
-            usr/local/bin/yuos-agent-ui
-            usr/local/bin/yuos-agent-bridge
-            usr/local/bin/yuos-ask-launcher
-            usr/lib/yuos/browser-chat-native-host
-            usr/lib/systemd/user/yuos-agent-bridge.service
-            usr/share/applications/com.yuos.Agent.desktop
-        )
-        dpkg-deb -f "$deb" Depends | grep -Fq "yuos-agent (= $YUOS_PACKAGE_VERSION)"
-        dpkg-deb -f "$deb" Depends | grep -Fq "yuos-desktop (= $YUOS_PACKAGE_VERSION)"
+        if dpkg-deb -f "$deb" Pre-Depends Depends Recommends | grep -Eq '(^|[ ,:])yuos-agent([ (,]|$)'; then
+            echo "error: Desktop must not depend on the optional yuos-agent" >&2
+            exit 1
+        fi
         ;;
 esac
 for path in "${required[@]}"; do

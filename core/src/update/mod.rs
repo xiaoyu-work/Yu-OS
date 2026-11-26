@@ -223,25 +223,25 @@ pub const COMPONENTS: &[Component] = &[
     Component {
         name: "yuos-agent-bridge",
         path: "/usr/local/bin/yuos-agent-bridge",
-        package: "yuos-agent-desktop",
+        package: "yuos-agent",
         critical: false,
     },
     Component {
         name: "yuos-agent-ui",
         path: "/usr/local/bin/yuos-agent-ui",
-        package: "yuos-agent-desktop",
+        package: "yuos-agent",
         critical: false,
     },
     Component {
         name: "yuos-ask-launcher",
         path: "/usr/local/bin/yuos-ask-launcher",
-        package: "yuos-agent-desktop",
+        package: "yuos-agent",
         critical: false,
     },
     Component {
         name: "browser-chat-native-host",
         path: "/usr/lib/yuos/browser-chat-native-host",
-        package: "yuos-agent-desktop",
+        package: "yuos-agent",
         critical: false,
     },
     Component {
@@ -259,7 +259,6 @@ pub const GATED_PACKAGES: &[&str] = &[
     "yuos-agent",
     "yuos-base",
     "yuos-desktop",
-    "yuos-agent-desktop",
 ];
 
 /// Look up a tracked component by name.

@@ -17,7 +17,7 @@ Both are optional. `packages.txt` runs first, then `install.sh`.
 |---|---|
 | `kernel-platform` | Opt-in vendor kernel, selected firmware/driver stack and boot settings for `YUOS_PLATFORM`, after the standard kernel and image features |
 | `base` | Core CLI tools, Node.js 24 (+ pnpm/typescript/tsx), Python apt packages, runtime dirs, `/etc/yuos/profile.sh` sourcing, version injection |
-| `yuos-core` | `yuos-framework` plus `yuos-base`, and `yuos-agent` unless `YUOS_AGENT=0` for a headless Framework-only image; desktop images require Agent. Platform/browser binaries, SDK/runtime, OS integration, Agent and skills; separately checked App APT packages supply the headless/support/library set |
+| `yuos-core` | `yuos-framework` plus `yuos-base`, and `yuos-agent` unless `YUOS_AGENT=0` for a Framework-only image. Platform/browser binaries, SDK/runtime, OS integration, Agent and skills; separately checked App APT packages supply the headless/support/library set |
 | `browser` | Chromium executable and target runtime integration for the browser binaries already shipped by `yuos-framework` |
 | `qwen3-embedding` | Downloads the public Hugging Face `johnucm/Qwen-Qwen3-Embedding-0.6B-onnx` ONNX GenAI bundle into `/var/lib/yuos/models/qwen3-embedding-0.6b/v1` and installs the validated `ort` plus `ort-genai` pair in `/var/lib/yuos/engines` where upstream provides Linux assets |
 | `desktop` | Packages the OS compositor, services and release-authenticated OS Shell, then installs ordinary Yu OS Apps from checked independent APT packages. Set `DESKTOP_SKIP=1` for runtime deps + overlay only, never a completed desktop. |

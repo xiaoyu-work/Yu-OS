@@ -45,7 +45,7 @@ authorization. Switch tabs or origins to clear the selection. **Pause tab
 access** disconnects browser control for new operations until resumed; it
 does not undo actions already started, or stop ordinary chat.
 
-The Desktop package owns `/usr/lib/yuos/browser-chat-native-host`. This separate
+The `yuos-agent` package owns `/usr/lib/yuos/browser-chat-native-host`. This separate
 unprivileged Native Messaging client accepts only chat, stream, and cancel and
 relays them to the existing owner-authenticated desktop Agent bridge. It
 does not return the bridge token to Helium, expose a new TCP listener, or turn
@@ -183,7 +183,7 @@ registration remain unchanged. Reload the extension/browser explicitly.
 | `/etc/chromium/native-messaging-hosts/com.yuos.browser_chat.json` | separate chat registration, when Desktop chat host is installed |
 | `/usr/lib/yuos/yuos-browser-host` | fixed native-host launcher |
 | `/usr/lib/yuos/browser-native-host.py` | OS-owned Native Messaging/socket bridge |
-| `/usr/lib/yuos/browser-chat-native-host` | Desktop-owned client for the existing local Agent bridge |
+| `/usr/lib/yuos/browser-chat-native-host` | Agent-owned client for the existing local Agent bridge |
 | `$XDG_RUNTIME_DIR/yuos-browser.sock` | owner-owned mode-`0600` socket; root clients only |
 
 The Native Messaging host validates that `XDG_RUNTIME_DIR` resolves exactly to

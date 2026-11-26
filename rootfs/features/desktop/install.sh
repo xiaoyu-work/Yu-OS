@@ -6,7 +6,6 @@ APP_PACKAGE_INPUTS="$(python3 "$PROJECT_DIR/scripts/app_packages.py" check \
 
 FILE_VERSION="${YUOS_VERSION//:/%3a}"
 DESKTOP_DEB="$PROJECT_DIR/build/debs/yuos-desktop_${FILE_VERSION}_${DEB_ARCH}.deb"
-AGENT_DESKTOP_DEB="$PROJECT_DIR/build/debs/yuos-agent-desktop_${FILE_VERSION}_${DEB_ARCH}.deb"
 install -d "$ROOTFS/build"
 work="$(mktemp -d "$ROOTFS/build/yuos-desktop.XXXXXX")"
 inside="${work#"$ROOTFS"}"
@@ -20,7 +19,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ "${YUOS_PREBUILT_SYSTEM_PACKAGES:-0}" == 1 ]]; then
-    if [[ "${DESKTOP_PACKAGE_ONLY:-0}" == 1 || ! -f "$DESKTOP_DEB" || ! -f "$AGENT_DESKTOP_DEB" ]]; then
+    if [[ "${DESKTOP_PACKAGE_ONLY:-0}" == 1 || ! -f "$DESKTOP_DEB" ]]; then
         echo "error: installer requires the prepared Desktop package for $YUOS_VERSION" >&2
         exit 1
     fi
@@ -35,7 +34,6 @@ else
     chroot "$ROOTFS" /bin/bash "$inside/source/desktop/hyprland-yuos/stage-desktop.sh" \
         "$inside/source" "$inside/package" "$inside"
     YUOS_DESKTOP_RUNTIME_DEPS="$(cat "$work/runtime-depends")" \
-        YUOS_AGENT_DESKTOP_RUNTIME_DEPS="$(cat "$work/agent-runtime-depends")" \
         "$PROJECT_DIR/packaging/deb/build-desktop-deb.sh" "$stage"
 
     if [[ "${DESKTOP_PACKAGE_ONLY:-0}" == 1 ]]; then
@@ -44,8 +42,6 @@ else
 fi
 
 install -m0644 "$DESKTOP_DEB" "$work/desktop.deb"
-install -m0644 "$AGENT_DESKTOP_DEB" "$work/agent-desktop.deb"
-desktop_debs=("$inside/desktop.deb" "$inside/agent-desktop.deb")
 install -d "$work/apps"
 cp -- "$APP_PACKAGE_INPUTS"/archives/*.deb "$work/apps/"
 app_debs=()
@@ -54,10 +50,11 @@ for app_deb in "$work"/apps/*.deb; do
 done
 chroot "$ROOTFS" apt-get update --error-on=any -qq
 chroot "$ROOTFS" env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    "${desktop_debs[@]}" "${app_debs[@]}"
+    "$inside/desktop.deb" "${app_debs[@]}"
 test "$(chroot "$ROOTFS" dpkg-query -W -f='${db:Status-Status}' yuos-desktop)" = installed
-test "$(chroot "$ROOTFS" dpkg-query -W -f='${db:Status-Status}' yuos-agent)" = installed
-test "$(chroot "$ROOTFS" dpkg-query -W -f='${db:Status-Status}' yuos-agent-desktop)" = installed
+if [[ "${YUOS_AGENT:-1}" == 1 ]]; then
+    test "$(chroot "$ROOTFS" dpkg-query -S /usr/local/bin/yuos-agent-ui)" = "yuos-agent: /usr/local/bin/yuos-agent-ui"
+fi
 test -x "$ROOTFS/usr/libexec/yuos-hyprland/Hyprland"
 test -x "$ROOTFS/usr/libexec/yuos-hyprland/yuos-lockscreen"
 test -x "$ROOTFS/usr/libexec/yuos-greeter"

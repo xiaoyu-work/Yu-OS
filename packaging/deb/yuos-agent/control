@@ -9,13 +9,17 @@ XB-YuOS-Security-Epoch: __SECURITY_EPOCH__
 XB-YuOS-Abi: __ABI__
 Pre-Depends: yuos-framework (= __VERSION__)
 Depends: yuos-abi-__ABI__
+Breaks: yuos-agent-desktop, yuos-desktop (<< __VERSION__)
+Replaces: yuos-agent-desktop, yuos-desktop (<< __VERSION__)
 Recommends: nodejs, python3-pip, git, ripgrep, jq, sqlite3
 Description: official Yu Agent for Yu OS
  Installs the optional first-party Yu Agent on top of `yuos-framework`: the
- unprivileged per-task `yuos-agentd` worker and the vendor Agent skills.
+ unprivileged per-task `yuos-agentd` worker, the vendor Agent skills and the
+ graphical Agent (window, Ask Yu, session bridge and Browser chat host).
  `yuosd` claims Agent tasks, leases each worker its grant and persists its
  results; the Agent reaches Apps only through the tools those Apps expose.
  .
  Without this package the Framework, its system services and ordinary Apps
  keep working, while Agent tasks, triggers and Agent memory report that the
- Agent is not installed.
+ Agent is not installed. The graphical Agent starts only inside a Yu OS
+ desktop session; `yuos-desktop` provides its display libraries.

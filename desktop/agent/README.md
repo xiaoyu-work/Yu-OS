@@ -216,7 +216,7 @@ avoiding plaintext context on the unauthenticated single-instance D-Bus path.
 It then sends context through an untrusted-data system boundary without
 storing it as the visible user prompt.
 
-The UI install and desktop package recipes target
+The UI install and `yuos-agent` package recipes target
 `/usr/local/bin/yuos-agent-ui` and install the
 cross-language SDK entry point at `/usr/local/bin/yuos-ask-launcher`;
 private context launches accept no executable override or `PATH` lookup.

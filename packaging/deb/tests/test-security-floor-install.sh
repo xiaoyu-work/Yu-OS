@@ -710,7 +710,7 @@ if grep -q 'manifest is not in canonical encoding\|manifest_extrac[^t]' \
     "$RELEASE_WORKFLOW" "$PACKAGE_CHECK"; then
     fail "publication duplicates manifest checks or uses a mistyped extraction directory"
 fi
-for component in framework agent base desktop agent-desktop; do
+for component in framework agent base desktop; do
     grep -Fq "bash scripts/ci/verify-package.sh $component" "$RELEASE_WORKFLOW" \
         || fail "$component does not invoke shared package verification"
 done

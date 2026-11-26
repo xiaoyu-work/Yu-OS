@@ -17,10 +17,12 @@ import tempfile
 import time
 
 
-PACKAGES = ("yuos-framework", "yuos-agent", "yuos-base", "yuos-desktop", "yuos-agent-desktop")
-# Packages the Framework/Agent split introduced. Pre-split systems receive
-# them as new installs so the existing Agent and its desktop payload remain.
-SPLIT_PACKAGES = ("yuos-framework", "yuos-agent-desktop")
+PACKAGES = ("yuos-framework", "yuos-agent", "yuos-base", "yuos-desktop")
+# The Framework/Agent split introduced yuos-framework. Pre-split systems
+# receive it as a new install so the existing Agent remains.
+SPLIT_PACKAGES = ("yuos-framework",)
+# Retired packages whose payload moved; APT removes them through Breaks.
+OBSOLETE = ("yuos-agent-desktop",)
 ROOT = Path("/var/lib/yuos-updates")
 STATE = ROOT / "state.json"
 POLICY = ROOT / "policy.json"
@@ -123,31 +125,22 @@ def apt_options():
 def installed():
     result = subprocess.run(
         ["/usr/bin/dpkg-query", "-W", "-f=${binary:Package} ${db:Status-Abbrev} ${Version}\\n",
-         *PACKAGES], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, env=ENV,
+         *PACKAGES, *OBSOLETE], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, env=ENV,
         timeout=5,
     )
     states = {}
     for line in result.stdout.splitlines():
         name, mark, version = line.split()
-        if name in PACKAGES and mark in {"ii", "hi"} and VERSION.fullmatch(version):
+        if name in PACKAGES + OBSOLETE and mark in {"ii", "hi"} and VERSION.fullmatch(version):
             states[name] = (version, mark == "hi")
     return states
 
 
 def split_installs(current):
     """New packages a pre-split installation needs to keep what it already has."""
-    needed = []
     if "yuos-agent" in current and "yuos-framework" not in current:
-        needed.append("yuos-framework")
-    if ("yuos-agent" in current and "yuos-desktop" in current
-            and "yuos-agent-desktop" not in current):
-        owner = subprocess.run(
-            ["/usr/bin/dpkg-query", "-S", "/usr/local/bin/yuos-agent-ui"],
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, env=ENV, timeout=5,
-        ).stdout
-        if owner.startswith("yuos-desktop:"):
-            needed.append("yuos-agent-desktop")
-    return needed
+        return ["yuos-framework"]
+    return []
 
 
 def check(state, options):
@@ -193,7 +186,8 @@ def plan(state, options):
                 or current.get(name) != (item["installed"], False)):
             raise ValueError("An installed version or package hold changed; check again")
         expected[name] = version
-    args = ("--no-remove", "--no-install-recommends", "install",
+    # Only the retired packages' removal is allowed, as yuos-agent Breaks them.
+    args = ("--no-install-recommends", "install",
             *(f"{name}={version}" for name, version in expected.items()))
     simulation = run("/usr/bin/apt-get", *options, "--simulate", *args, capture=True)
     unpack = {}
@@ -203,6 +197,8 @@ def plan(state, options):
             if not match:
                 raise ValueError("This update needs a separate administrator APT transaction")
             unpack[match[1]] = match[2]
+        elif line.startswith("Remv ") and line.split()[1] in OBSOLETE:
+            continue
         elif line.startswith(("Remv ", "Purg ")) or (
             line.startswith("Conf ") and line.split()[1] not in expected
         ):

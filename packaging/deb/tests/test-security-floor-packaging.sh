@@ -722,7 +722,7 @@ assert commit < start, "the floor must be committed before yuosd is started"
 PY
 ok "the framework postinst commits the floor before starting the broker"
 
-for package in yuos-framework yuos-agent yuos-base yuos-desktop yuos-agent-desktop; do
+for package in yuos-framework yuos-agent yuos-base yuos-desktop; do
     grep -Fq 'check-incoming' "$DEB_DIR/$package/prerm" \
         || fail "$package prerm must gate the incoming version"
 done
@@ -773,8 +773,6 @@ for package in yuos-framework yuos-base; do
 done
 grep -Fq 'release-security/yuos-desktop/manifest.json' "$BUILD_DESKTOP" \
     || fail "the desktop package must stage its own manifest directory"
-grep -Fq 'release-security/yuos-agent-desktop/manifest.json' "$BUILD_DESKTOP" \
-    || fail "the graphical Agent package must stage its own manifest directory"
 ok "every gated package build embeds the verifier and its own release manifest"
 
 # The APT hook must be one executable token: APT looks its protocol

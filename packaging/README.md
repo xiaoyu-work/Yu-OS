@@ -37,24 +37,23 @@ packaging/
 | Package | Contains | Architecture | Depends |
 |---|---|---|---|
 | `yuos-framework` | Platform: `yu` with the Yu OS-owned TUI, `yuosd`, `yuos-extension-host`, browser provider, semantic binaries, SDK/runtime, approval/audit/session services, App host and isolation, trust roots, system/user units and App channel configuration; no App payloads | `amd64`, `arm64` | Debian/Ubuntu runtime libraries, `systemd`, and `pkexec`; recommends `yuos-apps-agent` and Helium; never the Agent |
-| `yuos-agent` | Optional official Yu Agent: `yuos-agentd` and skills | `amd64`, `arm64` | `yuos-framework` of the same version |
+| `yuos-agent` | Optional official Yu Agent: `yuos-agentd`, skills and the graphical Agent (Agent UI, bridge, Ask launcher, browser chat host and launcher entry), which starts only in a Yu OS desktop session | `amd64`, `arm64` | `yuos-framework` of the same version; the graphical Agent's display libraries come from Desktop |
 | `yuos-base` | `yuos-init`, managed agent-home setup, Yu OS boot/service policy, and model-specific udev/libinput rules | `all` | `yuos-framework` |
-| `yuos-desktop` | Protected Hyprland, graphical login, system services, and the OS-owned Desktop Shell (Quickshell, Caelestia and private Qt) | `amd64`, `arm64` | Same-version `yuos-agent-desktop`, `yuos-base`, `yuos-display-session-v3`, `yuos-apps-agent`, every individual graphical Yu OS App package and the Thunderbird integration |
-| `yuos-agent-desktop` | Required graphical Agent: Agent UI, bridge, Ask launcher, browser chat host and launcher entry | `amd64`, `arm64` | `yuos-agent` and `yuos-desktop` of the same version and the graphical Agent's own shared libraries |
+| `yuos-desktop` | Protected Hyprland, graphical login, system services, and the OS-owned Desktop Shell (Quickshell, Caelestia and private Qt) | `amd64`, `arm64` | `yuos-base`, `yuos-display-session-v3`, `yuos-apps-agent`, every individual graphical Yu OS App package and the Thunderbird integration |
 
-Framework and Base never depend on or recommend the Agent. Desktop requires
-`yuos-agent-desktop`, which requires `yuos-agent`; all three follow the same
-system release. `--no-install-recommends` does not omit this required component.
-Removing either Agent package also requires removing Desktop.
-Images select `yuos-agent` explicitly and desktop images always include both
-Agent packages. `YUOS_AGENT=0` is supported only for headless Framework-only
-images; combining it with the desktop feature is rejected before composition.
-Without the Agent on a headless system, Agent tasks,
-triggers, Activity and Agent memory report `Yu Agent is not installed`, while
-Apps, App permissions and platform services keep working. Upgrading from a
+Framework, Base and Desktop never depend on or recommend the Agent. Images
+select `yuos-agent` explicitly and install it by default, including desktop
+images; `YUOS_AGENT=0` builds a headless or desktop image without it. With a
+Yu OS desktop session the graphical Agent starts automatically; on a headless
+system its files stay installed but inert, because only the Desktop session
+target wants its bridge. Without the Agent, Agent tasks, triggers, Activity
+and Agent memory report `Yu Agent is not installed`, and opening the Desktop's
+Agent entry fails explicitly, while Apps, App permissions and platform
+services keep working. Upgrading from a
 pre-split `yuos-agent` installs `yuos-framework` through the Agent's
-dependency; System Updates also adds `yuos-agent-desktop` when the installed
-pre-split Desktop still owns the graphical Agent.
+dependency. The retired `yuos-agent-desktop` package is replaced by
+`yuos-agent`, which `Breaks`/`Replaces` it; `apt full-upgrade` and System
+Updates remove it, while plain `apt upgrade` holds the Agent back.
 
 Keep the [hardware workarounds](../docs/image-architecture.md#hardware-enablement) in `deb/yuos-base/hardware/`. Base stages the system udev and libinput data; Desktop stages the same libinput quirk source into Hyprland's private libinput database. Both packages use the existing signed release path.
 

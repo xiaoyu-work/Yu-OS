@@ -76,25 +76,25 @@
     {
       "critical": false,
       "name": "yuos-agent-bridge",
-      "package": "yuos-agent-desktop",
+      "package": "yuos-agent",
       "path": "/usr/local/bin/yuos-agent-bridge"
     },
     {
       "critical": false,
       "name": "browser-chat-native-host",
-      "package": "yuos-agent-desktop",
+      "package": "yuos-agent",
       "path": "/usr/lib/yuos/browser-chat-native-host"
     },
     {
       "critical": false,
       "name": "yuos-agent-ui",
-      "package": "yuos-agent-desktop",
+      "package": "yuos-agent",
       "path": "/usr/local/bin/yuos-agent-ui"
     },
     {
       "critical": false,
       "name": "yuos-ask-launcher",
-      "package": "yuos-agent-desktop",
+      "package": "yuos-agent",
       "path": "/usr/local/bin/yuos-ask-launcher"
     },
     {
@@ -108,7 +108,6 @@
   "manifest_validity_days": 400,
   "minimum_compatible": {
     "yuos-agent": "1:0.1.0",
-    "yuos-agent-desktop": "1:0.1.0",
     "yuos-base": "1:0.1.0",
     "yuos-desktop": "1:0.1.0",
     "yuos-framework": "1:0.1.0"
@@ -117,8 +116,7 @@
     "yuos-framework",
     "yuos-agent",
     "yuos-base",
-    "yuos-desktop",
-    "yuos-agent-desktop"
+    "yuos-desktop"
   ],
   "protocols": {
     "agentd_worker": 22,

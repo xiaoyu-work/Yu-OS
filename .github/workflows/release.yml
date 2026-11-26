@@ -88,7 +88,7 @@ jobs:
           targets: ${{ matrix.musl_target }},${{ matrix.gnu_target }}
 
       - name: Install host build tools
-        run: sudo apt-get update -qq && sudo apt-get install -y musl-tools dpkg-dev fakeroot libpam0g-dev
+        run: sudo apt-get update -qq && sudo apt-get install -y musl-tools dpkg-dev fakeroot libpam0g-dev pkg-config libasound2-dev libxkbcommon-dev libwayland-dev
 
       - name: Import signing key
         env:
@@ -121,6 +121,11 @@ jobs:
             --target "${RUST_TARGET/-musl/-gnu}" --target-dir "$GITHUB_WORKSPACE/target"
           cargo build --release --locked -p yuos-display-login --target "${RUST_TARGET/-musl/-gnu}"
           cargo build --release --locked -p yuos-semantic --target "${RUST_TARGET/-musl/-gnu}"
+          cargo build --release --locked --manifest-path desktop/agent/Cargo.toml --workspace \
+            --target "${RUST_TARGET/-musl/-gnu}" --target-dir "$GITHUB_WORKSPACE/target"
+          cargo build --release --locked --manifest-path yuos-sdk/rust/Cargo.toml \
+            --bin yuos-ask-launcher --target "${RUST_TARGET/-musl/-gnu}" \
+            --target-dir "$GITHUB_WORKSPACE/target"
 
       - name: Build Framework and Agent packages
         env:
@@ -255,15 +260,12 @@ jobs:
       - name: Verify Desktop ownership, App APT inputs and signed release manifests
         run: |
           bash scripts/ci/verify-package.sh desktop
-          bash scripts/ci/verify-package.sh agent-desktop
 
       - name: Upload Desktop package
         uses: actions/upload-artifact@v4
         with:
           name: yuos-desktop-${{ matrix.arch }}
-          path: |
-            build/debs/yuos-desktop_*_${{ matrix.arch }}.deb
-            build/debs/yuos-agent-desktop_*_${{ matrix.arch }}.deb
+          path: build/debs/yuos-desktop_*_${{ matrix.arch }}.deb
           if-no-files-found: error
           retention-days: 30
           overwrite: true

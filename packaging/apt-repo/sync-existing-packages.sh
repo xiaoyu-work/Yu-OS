@@ -42,8 +42,6 @@ targets=(
     "yuos-base|all|amd64|yuos-base"
     "yuos-desktop|amd64|amd64|yuos-desktop:amd64"
     "yuos-desktop|arm64|arm64|yuos-desktop:arm64"
-    "yuos-agent-desktop|amd64|amd64|yuos-agent-desktop:amd64"
-    "yuos-agent-desktop|arm64|arm64|yuos-agent-desktop:arm64"
 )
 
 inrelease_url="$EXISTING_APT_REPO_URL/dists/$SUITE/InRelease"
@@ -221,7 +219,7 @@ fi
 # so the publication step can refuse a set that regresses it. Which of
 # these must exist is decided by the *signed* Packages indexes below,
 # not by whether a fetch happened to succeed.
-for package in yuos-framework yuos-agent yuos-base yuos-desktop yuos-agent-desktop; do
+for package in yuos-framework yuos-agent yuos-base yuos-desktop; do
     for arch in amd64 arm64 all; do
         name="${package}_${arch}.json"
         if [ "$baseline_field" = "1" ]; then

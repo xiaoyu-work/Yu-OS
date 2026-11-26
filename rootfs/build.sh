@@ -129,11 +129,6 @@ for f in "${FEATURE_LIST[@]}"; do
     fi
 done
 
-if [[ ",$FEATURES," == *",desktop,"* && "${YUOS_AGENT:-1}" != 1 ]]; then
-    echo "error: desktop images require Yu Agent; YUOS_AGENT=0 is only supported without desktop" >&2
-    exit 1
-fi
-
 # ---------------------------------------------------------------------------
 # apt-source needs the archive public key to pin `signed-by=` against. The
 # signing key is optional infrastructure (see todo.md): without it there is
