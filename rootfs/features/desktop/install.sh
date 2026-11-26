@@ -44,12 +44,8 @@ else
 fi
 
 install -m0644 "$DESKTOP_DEB" "$work/desktop.deb"
-desktop_debs=("$inside/desktop.deb")
-# The graphical Agent follows the image's explicit choice of the official Agent.
-if chroot "$ROOTFS" dpkg-query -W -f='${db:Status-Status}' yuos-agent 2>/dev/null | grep -qx installed; then
-    install -m0644 "$AGENT_DESKTOP_DEB" "$work/agent-desktop.deb"
-    desktop_debs+=("$inside/agent-desktop.deb")
-fi
+install -m0644 "$AGENT_DESKTOP_DEB" "$work/agent-desktop.deb"
+desktop_debs=("$inside/desktop.deb" "$inside/agent-desktop.deb")
 install -d "$work/apps"
 cp -- "$APP_PACKAGE_INPUTS"/archives/*.deb "$work/apps/"
 app_debs=()
@@ -60,6 +56,8 @@ chroot "$ROOTFS" apt-get update --error-on=any -qq
 chroot "$ROOTFS" env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     "${desktop_debs[@]}" "${app_debs[@]}"
 test "$(chroot "$ROOTFS" dpkg-query -W -f='${db:Status-Status}' yuos-desktop)" = installed
+test "$(chroot "$ROOTFS" dpkg-query -W -f='${db:Status-Status}' yuos-agent)" = installed
+test "$(chroot "$ROOTFS" dpkg-query -W -f='${db:Status-Status}' yuos-agent-desktop)" = installed
 test -x "$ROOTFS/usr/libexec/yuos-hyprland/Hyprland"
 test -x "$ROOTFS/usr/libexec/yuos-hyprland/yuos-lockscreen"
 test -x "$ROOTFS/usr/libexec/yuos-greeter"

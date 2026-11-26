@@ -29,6 +29,10 @@ required artifact.
 
 A feature owns one capability and must not assume an output format.
 
+Desktop images always include the Agent backend and graphical Agent.
+`YUOS_AGENT=0` supports only headless Framework-only images; the desktop
+feature rejects it. See the [package contract](../packaging/README.md).
+
 Examples:
 
 - `kernel` installs the Debian kernel and initramfs tooling.

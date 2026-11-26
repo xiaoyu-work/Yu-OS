@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # packaging/deb/build-desktop-deb.sh — wrap a staged desktop root into
-# yuos-desktop_<version>_<arch>.deb and the optional graphical Agent into
+# yuos-desktop_<version>_<arch>.deb and its required graphical Agent into
 # yuos-agent-desktop_<version>_<arch>.deb.
 #
 # The desktop feature builds inside the target rootfs, then installs the
@@ -90,8 +90,7 @@ APP_DEPS="$(python3 "$PROJECT_DIR/scripts/app_packages.py" check \
     --preinstall-policy stage --print-depends)"
 python3 "$PROJECT_DIR/scripts/system_desktop_tree.py" --stage "$STAGE_ROOT" --check
 
-# The graphical Agent ships with the optional official Agent, not with the
-# desktop every Framework installation uses.
+# Keep the required graphical Agent in its own package with separate ownership.
 AGENT_STAGE="${STAGE_ROOT%/}-agent"
 AGENT_PAYLOAD=(
     usr/local/bin/yuos-agent-ui

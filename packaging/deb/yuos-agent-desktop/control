@@ -12,6 +12,5 @@ Breaks: yuos-desktop (<< __VERSION__)
 Replaces: yuos-desktop (<< __VERSION__)
 Description: Yu OS — graphical Yu Agent
  The desktop window, Ask Yu overlay, session bridge and Browser chat host
- of the official Yu Agent. Without it the desktop and every App keep
- working; only Agent features such as Ask Yu report that they are
- unavailable.
+ of the official Yu Agent. This package is required by yuos-desktop and
+ follows the same system release.

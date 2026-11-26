@@ -11,6 +11,10 @@ same composed rootfs for WSL, Docker, VM, ISO, Azure, and desktop targets.
 This document maps the source architecture. Image identity and packaging detail
 remain in [`docs/image-architecture.md`](docs/image-architecture.md).
 
+Framework and Base can run without the Agent. Desktop requires the graphical
+Agent package and its backend at the same system release; the Agent depends on
+Framework, never the reverse. See [package ownership](packaging/README.md).
+
 The [product-centric App redesign plan](docs/app-product-redesign.md) records
 the target ownership of bundled Apps, system capabilities and connectors.
 Its milestones are prospective; existing implementation boundaries below are
