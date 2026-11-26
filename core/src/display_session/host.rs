@@ -871,6 +871,10 @@ fn spawn_desktop_process(
             command
                 .arg("--gui")
                 .env("DBUS_SESSION_BUS_ADDRESS", format!("unix:path={runtime}/bus"));
+            let ext_dir = Path::new("/usr/share/yuos/extensions/yuos-agent-browser");
+            if ext_dir.join("manifest.json").is_file() {
+                command.arg(format!("--load-extension={}", ext_dir.display()));
+            }
         }
         DesktopProcess::App { target, owner_selected } => {
             if owner_selected {

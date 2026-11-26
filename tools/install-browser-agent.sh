@@ -30,10 +30,8 @@ NM_MANIFEST="/etc/chromium/native-messaging-hosts/com.yuos.browser.json"
 CHAT_MANIFEST="/etc/chromium/native-messaging-hosts/com.yuos.browser_chat.json"
 POLICY_FILE="/etc/chromium/policies/managed/yuos-agent.json"
 
-# Extension ID is deterministic when packed with a known key, but for the MVP
-# we install the unpacked extension for the administrator to load explicitly.
-# Callers can override YUOS_EXT_ID once they generate a stable packed CRX.
-EXT_ID="${YUOS_EXT_ID:-}"
+# Extension ID is deterministic from the public key in manifest.json.
+EXT_ID="${YUOS_EXT_ID:-fclfbhenknddfhcijnlcgamfeeokjekl}"
 
 if [[ -n "${EXT_ID}" && ! "${EXT_ID}" =~ ^[a-p]{32}$ ]]; then
   echo "YUOS_EXT_ID must be the Chromium extension's 32-letter ID" >&2
@@ -90,13 +88,19 @@ if [[ -x "${CHAT_HOST}" ]]; then
   cat > "${CHAT_MANIFEST}" <<EOF
 {
   "name": "com.yuos.browser_chat",
-  "description": "Yu OS Agent chat for Helium",
+  "description": "Helium AI built-in browser assistant",
   "path": "${CHAT_HOST}",
   "type": "stdio",
   "allowed_origins": [${ALLOWED_ORIGINS}]
 }
 EOF
   chmod 0644 "${CHAT_MANIFEST}"
+fi
+
+install -d -m 0755 /etc/opt/chrome/native-messaging-hosts
+cp -f "${NM_MANIFEST}" /etc/opt/chrome/native-messaging-hosts/com.yuos.browser.json
+if [[ -f "${CHAT_MANIFEST}" ]]; then
+  cp -f "${CHAT_MANIFEST}" /etc/opt/chrome/native-messaging-hosts/com.yuos.browser_chat.json
 fi
 
 echo "[yuos] installing Chromium managed policy → ${POLICY_FILE}"

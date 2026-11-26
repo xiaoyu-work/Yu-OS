@@ -9,6 +9,7 @@ import os
 import re
 import stat
 import struct
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -148,9 +149,38 @@ def exit_on_disconnect() -> None:
     os._exit(0)
 
 
+def run_browser_ai_assist(request: dict) -> None:
+    payload = request.get("payload")
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid Browser AI payload.")
+    raw_payload = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    proc = subprocess.run(
+        ["/usr/local/bin/yu", "--json", "app", "web", "assist", raw_payload],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    output = (proc.stdout or "").strip()
+    if not output:
+        err = (proc.stderr or "").strip() or "Browser AI returned no response."
+        post_frame({"event": "assistant_turn", "data": {"error": err}})
+        return
+    parsed = json.loads(output)
+    if isinstance(parsed, dict) and "data" in parsed and isinstance(parsed["data"], dict):
+        parsed = parsed["data"]
+    if not isinstance(parsed, dict):
+        post_frame({"event": "assistant_turn", "data": {"error": "Invalid Browser AI response."}})
+        return
+    post_frame({"event": "assistant_turn", "data": parsed})
+
+
 def main() -> None:
     request = read_request()
     if request is None:
+        return
+    if request.get("action") == "assist":
+        threading.Thread(target=exit_on_disconnect, daemon=True).start()
+        run_browser_ai_assist(request)
         return
     path, params = route(request)
     try:
