@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # packaging/deb/build-desktop-deb.sh — wrap a staged desktop root into
-# yuos-desktop_<version>_<arch>.deb.
+# yuos-desktop_<version>_<arch>.deb and the optional graphical Agent into
+# yuos-agent-desktop_<version>_<arch>.deb.
 #
 # The desktop feature builds inside the target rootfs, then installs the
 # workspace into a staging root under $ROOTFS/build. This script adds Debian
@@ -33,12 +34,12 @@ if [ ! -d "$STAGE_ROOT" ]; then
     exit 1
 fi
 if [ -e "$STAGE_ROOT/usr/share/icons/Cosmic" ] || [ -L "$STAGE_ROOT/usr/share/icons/Cosmic" ]; then
-    echo "error: shared Cosmic icons belong to yuos-agent, not Desktop" >&2
+    echo "error: shared Cosmic icons belong to yuos-framework, not Desktop" >&2
     exit 1
 fi
 if [ -e "$STAGE_ROOT/usr/bin/pop-launcher" ] || [ -L "$STAGE_ROOT/usr/bin/pop-launcher" ] \
     || [ -e "$STAGE_ROOT/usr/lib/pop-launcher" ] || [ -L "$STAGE_ROOT/usr/lib/pop-launcher" ]; then
-    echo "error: shared Launcher runtime belongs to yuos-agent, not Desktop" >&2
+    echo "error: shared Launcher runtime belongs to yuos-framework, not Desktop" >&2
     exit 1
 fi
 compositor="$STAGE_ROOT/usr/libexec/yuos-hyprland/Hyprland"
@@ -88,6 +89,30 @@ APP_DEPS="$(python3 "$PROJECT_DIR/scripts/app_packages.py" check \
     --preinstall-policy stage --print-depends)"
 python3 "$PROJECT_DIR/scripts/system_desktop_tree.py" --stage "$STAGE_ROOT" --check
 
+# The graphical Agent ships with the optional official Agent, not with the
+# desktop every Framework installation uses.
+AGENT_STAGE="${STAGE_ROOT%/}-agent"
+AGENT_PAYLOAD=(
+    usr/local/bin/yuos-agent-ui
+    usr/local/bin/yuos-agent-bridge
+    usr/local/bin/yuos-ask-launcher
+    usr/lib/yuos/browser-chat-native-host
+    usr/lib/systemd/user/yuos-agent-bridge.service
+    usr/share/applications/com.yuos.Agent.desktop
+    usr/share/icons/hicolor/scalable/apps/yuos-agent.svg
+    usr/share/icons/hicolor/scalable/apps/yuos-agent-symbolic.svg
+    etc/geoclue/conf.d/90-yuos-agent.conf
+)
+rm -rf -- "$AGENT_STAGE"
+for path in "${AGENT_PAYLOAD[@]}"; do
+    if [ ! -e "$STAGE_ROOT/$path" ]; then
+        echo "error: graphical Agent payload missing: /$path" >&2
+        exit 1
+    fi
+    install -d -m 0755 "$AGENT_STAGE/$(dirname "$path")"
+    mv -- "$STAGE_ROOT/$path" "$AGENT_STAGE/$path"
+done
+
 DPKG_DEB="$(command -v dpkg-deb || true)"
 if [ -z "$DPKG_DEB" ]; then
     echo "error: dpkg-deb not found. Install it with: apt-get install dpkg-dev" >&2
@@ -110,9 +135,9 @@ chmod 0755 "$STAGE_ROOT/DEBIAN"
 THERMALD_DEP="${THERMALD_PKG:+$THERMALD_PKG, }"
 VAAPI_INTEL_NONFREE_DEP="${VAAPI_INTEL_NONFREE_PKG:+$VAAPI_INTEL_NONFREE_PKG, }"
 
-# Release-security metadata. The desktop package owns the graphical
-# Agent binaries, so it carries its own signed manifest, preinst and
-# prerm gate rather than inheriting the agent's.
+# Release-security metadata. The desktop and graphical Agent packages own
+# floor-controlled binaries, so each carries its own signed manifest,
+# preinst and prerm gate.
 RELEASE_SECURITY_DIR="$PROJECT_DIR/packaging/release-security"
 RELEASE_SECURITY_POLICY="$RELEASE_SECURITY_DIR/policy.json"
 if ! command -v python3 >/dev/null 2>&1; then
@@ -131,7 +156,7 @@ PY
 }
 SECURITY_EPOCH="$(policy_field security_epoch)"
 SECURITY_ABI="$(policy_field abi)"
-MIN_AGENT_VERSION="$(policy_field minimum_compatible.yuos-agent)"
+MIN_FRAMEWORK_VERSION="$(policy_field minimum_compatible.yuos-framework)"
 MIN_BASE_VERSION="$(policy_field minimum_compatible.yuos-base)"
 MIN_DESKTOP_VERSION="$(policy_field minimum_compatible.yuos-desktop)"
 source "$RELEASE_SECURITY_DIR/sign-manifest.sh"
@@ -153,6 +178,13 @@ yuos_write_release_manifest \
     "$RELEASE_SECURITY_DIR/make-manifest.py" yuos-desktop "$VERSION" \
     "$DEB_ARCH" "${SUITE:-trixie}" "$STAGE_ROOT" "$RELEASE_SECURITY_POLICY" \
     "$DESKTOP_MANIFEST" || exit 1
+AGENT_DESKTOP_MANIFEST="$AGENT_STAGE/usr/lib/yuos/release-security/yuos-agent-desktop/manifest.json"
+install -d -m 0755 "$AGENT_STAGE/usr/lib/yuos/release-security"
+yuos_write_release_manifest \
+    "$RELEASE_SECURITY_KEY_ID" "$RELEASE_SECURITY_PASSPHRASE" \
+    "$RELEASE_SECURITY_DIR/make-manifest.py" yuos-agent-desktop "$VERSION" \
+    "$DEB_ARCH" "${SUITE:-trixie}" "$AGENT_STAGE" "$RELEASE_SECURITY_POLICY" \
+    "$AGENT_DESKTOP_MANIFEST" || exit 1
 # The signing material has done its job; drop the shell-local copy too.
 unset RELEASE_SECURITY_PASSPHRASE
 
@@ -162,7 +194,7 @@ sed -e "s/__VERSION__/$VERSION/g" -e "s/__ARCH__/$DEB_ARCH/g" \
     -e "s/__APP_DEPS__/$APP_DEPS/g" \
     -e "s/__NATIVE_DEPS__/$NATIVE_DEPS/g" \
     -e "s/__SECURITY_EPOCH__/$SECURITY_EPOCH/g" \
-    -e "s/__MIN_AGENT__/$MIN_AGENT_VERSION/g" \
+    -e "s/__MIN_FRAMEWORK__/$MIN_FRAMEWORK_VERSION/g" \
     -e "s/__MIN_BASE__/$MIN_BASE_VERSION/g" \
     -e "s/__MIN_DESKTOP__/$MIN_DESKTOP_VERSION/g" \
     -e "s/__THERMALD_DEP__/$THERMALD_DEP/g" \
@@ -184,3 +216,19 @@ FILE_VERSION="${VERSION//:/%3a}"
 OUT="$OUT_DIR/yuos-desktop_${FILE_VERSION}_${DEB_ARCH}.deb"
 echo ":: dpkg-deb --build yuos-desktop -> $OUT"
 $FAKEROOT "$DPKG_DEB" --root-owner-group --build "$STAGE_ROOT" "$OUT" >/dev/null
+
+mkdir -p "$AGENT_STAGE/DEBIAN"
+chmod 0755 "$AGENT_STAGE/DEBIAN"
+sed -e "s/__VERSION__/$VERSION/g" -e "s/__ARCH__/$DEB_ARCH/g" \
+    -e "s/__ABI__/$SECURITY_ABI/g" \
+    -e "s/__SECURITY_EPOCH__/$SECURITY_EPOCH/g" \
+    "$SCRIPT_DIR/yuos-agent-desktop/control" > "$AGENT_STAGE/DEBIAN/control"
+sed -e "s/__VERSION__/$VERSION/g" \
+    "$SCRIPT_DIR/yuos-agent-desktop/postinst" > "$AGENT_STAGE/DEBIAN/postinst"
+chmod 0755 "$AGENT_STAGE/DEBIAN/postinst"
+install -m 755 "$SCRIPT_DIR/yuos-agent-desktop/prerm" "$AGENT_STAGE/DEBIAN/prerm"
+"$RELEASE_SECURITY_DIR/render-preinst.sh" \
+    yuos-agent-desktop "$VERSION" "$SECURITY_EPOCH" "$AGENT_STAGE" "$AGENT_STAGE/DEBIAN/preinst"
+AGENT_OUT="$OUT_DIR/yuos-agent-desktop_${FILE_VERSION}_${DEB_ARCH}.deb"
+echo ":: dpkg-deb --build yuos-agent-desktop -> $AGENT_OUT"
+$FAKEROOT "$DPKG_DEB" --root-owner-group --build "$AGENT_STAGE" "$AGENT_OUT" >/dev/null

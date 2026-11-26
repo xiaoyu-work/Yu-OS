@@ -133,7 +133,7 @@ gpg --batch --export "$KEY_ID" > "$KEYRING"
 # ---------------------------------------------------------------------------
 # Fixture package builder.
 #
-# Stages every component yuos-agent declares, generates a real
+# Stages every component yuos-framework declares, generates a real
 # signed manifest with the production script, renders the production
 # preinst, and assembles a real .deb.
 # ---------------------------------------------------------------------------
@@ -141,7 +141,7 @@ COMPONENT_PATHS=$(python3 - "$POLICY" <<'PY'
 import json, sys
 policy = json.load(open(sys.argv[1], encoding="utf-8"))
 for entry in policy["components"]:
-    if entry["package"] == "yuos-agent":
+    if entry["package"] == "yuos-framework":
         print(entry["path"])
 PY
 )
@@ -191,26 +191,26 @@ PY
     [ -n "$issued_at" ] && issued_args=(--issued-at "$issued_at")
     mkdir -p "$stage/usr/lib/yuos/release-security"
     python3 "$MAKE_MANIFEST" \
-        --package yuos-agent \
+        --package yuos-framework \
         --version "$version" \
         --arch amd64 \
         --suite trixie \
         --stage-dir "$stage" \
         --policy "$policy" \
-        --output "$stage/usr/lib/yuos/release-security/yuos-agent/manifest.json" \
+        --output "$stage/usr/lib/yuos/release-security/yuos-framework/manifest.json" \
         "${sign_args[@]}" "${issued_args[@]}" > /dev/null
     rm -f "$stage/policy.json"
 
     local staged_epoch="${epoch:-$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["security_epoch"])' "$POLICY")}"
-    "$RENDER_PREINST" yuos-agent "$version" "$staged_epoch" "$stage" \
+    "$RENDER_PREINST" yuos-framework "$version" "$staged_epoch" "$stage" \
         "$stage/DEBIAN/preinst"
-    install -m 755 "$DEB_DIR/yuos-agent/prerm" "$stage/DEBIAN/prerm"
-    install -m 755 "$DEB_DIR/yuos-agent/postrm" "$stage/DEBIAN/postrm"
-    sed -e "s/__VERSION__/$version/g" "$DEB_DIR/yuos-agent/postinst" \
+    install -m 755 "$DEB_DIR/yuos-framework/prerm" "$stage/DEBIAN/prerm"
+    install -m 755 "$DEB_DIR/yuos-framework/postrm" "$stage/DEBIAN/postrm"
+    sed -e "s/__VERSION__/$version/g" "$DEB_DIR/yuos-framework/postinst" \
         > "$stage/DEBIAN/postinst"
     chmod 0755 "$stage/DEBIAN/postinst"
     cat > "$stage/DEBIAN/control" <<EOF
-Package: yuos-agent
+Package: yuos-framework
 Version: $version
 Section: admin
 Priority: optional
@@ -234,17 +234,17 @@ unpack_into() {
 # Run the exact helper invocation the postinst performs.
 commit_release() {
     local root="$1" version="$2"
-    local manifest="$root/usr/lib/yuos/release-security/yuos-agent/manifest.json"
+    local manifest="$root/usr/lib/yuos/release-security/yuos-framework/manifest.json"
     local signature="$manifest.asc"
     if [ -f "$signature" ]; then
         "$root/usr/lib/yuos/bin/yuos-security-floor" commit \
-            --root "$root" --package yuos-agent --version "$version" \
+            --root "$root" --package yuos-framework --version "$version" \
             --manifest "$manifest" --signature "$signature" \
-            --reason "yuos-agent configure"
+            --reason "yuos-framework configure"
     else
         "$root/usr/lib/yuos/bin/yuos-security-floor" commit \
-            --root "$root" --package yuos-agent --version "$version" \
-            --manifest "$manifest" --reason "yuos-agent configure"
+            --root "$root" --package yuos-framework --version "$version" \
+            --manifest "$manifest" --reason "yuos-framework configure"
     fi
 }
 
@@ -308,7 +308,7 @@ ok "the floor records the publisher key that signed the release"
 # 2. A newer, correctly signed release is accepted.
 # ---------------------------------------------------------------------------
 DPKG_ROOT="$ROOT" "$ROOT/DEBIAN_prerm_missing" 2>/dev/null || true
-install -m 755 "$DEB_DIR/yuos-agent/prerm" "$WORK/installed-prerm"
+install -m 755 "$DEB_DIR/yuos-framework/prerm" "$WORK/installed-prerm"
 DPKG_ROOT="$ROOT" "$WORK/installed-prerm" upgrade "$V2" \
     || fail "an upgrade to a newer version must be allowed by prerm"
 DPKG_ROOT="$ROOT" "$STAGE2/DEBIAN/preinst" upgrade "$V1" \
@@ -406,7 +406,7 @@ ok "an expired release manifest is refused even though it is newer"
 # ---------------------------------------------------------------------------
 STAGE_TAMPERED="$WORK/stage-tampered"
 stage_package "$STAGE_TAMPERED" "1:0.2.0+git700.gxxxxxxxxxxxx" eta
-python3 - "$STAGE_TAMPERED/usr/lib/yuos/release-security/yuos-agent/manifest.json" <<'PY'
+python3 - "$STAGE_TAMPERED/usr/lib/yuos/release-security/yuos-framework/manifest.json" <<'PY'
 import json, sys
 path = sys.argv[1]
 document = json.loads(open(path, encoding="utf-8").read())
@@ -415,7 +415,7 @@ open(path, "w", encoding="utf-8").write(
     json.dumps(document, sort_keys=True, separators=(",", ":")) + "\n"
 )
 PY
-"$RENDER_PREINST" yuos-agent "1:0.2.0+git700.gxxxxxxxxxxxx" "$SECURITY_EPOCH" \
+"$RENDER_PREINST" yuos-framework "1:0.2.0+git700.gxxxxxxxxxxxx" "$SECURITY_EPOCH" \
     "$STAGE_TAMPERED" "$STAGE_TAMPERED/DEBIAN/preinst"
 if DPKG_ROOT="$ROOT2" "$STAGE_TAMPERED/DEBIAN/preinst" upgrade "$V1" \
     2>"$WORK/tampered.err"; then
@@ -441,22 +441,22 @@ ok "an unsigned candidate is refused once a signed release has been recorded"
 GENERATION_BEFORE="$(floor_generation "$ROOT2")"
 DPKG_ROOT="$ROOT2" "$ROOT2/usr/lib/yuos/bin/yuos-security-floor" show \
     --root "$ROOT2" >/dev/null
-"$DEB_DIR/yuos-agent/postrm" remove >/dev/null 2>&1 || true
+"$DEB_DIR/yuos-framework/postrm" remove >/dev/null 2>&1 || true
 [ -f "$ROOT2/var/lib/yuos/security/floor.json" ] \
     || fail "package removal deleted the floor"
 [ "$(floor_generation "$ROOT2")" = "$GENERATION_BEFORE" ] \
     || fail "package removal changed the floor"
-grep -q "NOT removed" "$DEB_DIR/yuos-agent/postrm" \
-    || fail "the agent postrm must state that the floor survives purge"
+grep -q "NOT removed" "$DEB_DIR/yuos-framework/postrm" \
+    || fail "the framework postrm must state that the floor survives purge"
 grep -Fq 'rm -rf "$DPKG_ROOT/var/lib/yuos/security/staging"' \
-    "$DEB_DIR/yuos-agent/postrm" \
+    "$DEB_DIR/yuos-framework/postrm" \
     || fail "purge should still clean the candidate staging directory"
 if grep -Eq 'rm -rf?[[:space:]]+"?\$?\{?DPKG_ROOT\}?"?/var/lib/yuos/security"?[[:space:]]*$' \
-    "$DEB_DIR/yuos-agent/postrm"; then
-    fail "the agent postrm must never delete the floor directory"
+    "$DEB_DIR/yuos-framework/postrm"; then
+    fail "the framework postrm must never delete the floor directory"
 fi
-if grep -Fq '/var/lib/yuos-security' "$DEB_DIR/yuos-agent/postrm"; then
-    fail "the agent postrm must never delete the runtime projection"
+if grep -Fq '/var/lib/yuos-security' "$DEB_DIR/yuos-framework/postrm"; then
+    fail "the framework postrm must never delete the runtime projection"
 fi
 ok "removal and purge preserve the security floor"
 
@@ -479,10 +479,10 @@ build_deb() {
     # `-Znone` keeps the fixture archives fast to assemble; the hook
     # path under test reads the payload tar, not a specific compressor.
     fakeroot dpkg-deb -Znone --root-owner-group --build "$stage" \
-        "$DEBS/yuos-agent_${version}_amd64.deb" >/dev/null 2>&1 \
+        "$DEBS/yuos-framework_${version}_amd64.deb" >/dev/null 2>&1 \
         || dpkg-deb -Znone --root-owner-group --build "$stage" \
-            "$DEBS/yuos-agent_${version}_amd64.deb" >/dev/null
-    printf '%s\n' "$DEBS/yuos-agent_${version}_amd64.deb"
+            "$DEBS/yuos-framework_${version}_amd64.deb" >/dev/null
+    printf '%s\n' "$DEBS/yuos-framework_${version}_amd64.deb"
 }
 OLD_DEB="$(build_deb "$STAGE1" "$V1")"
 NEW_DEB="$(build_deb "$STAGE2" "$V2")"
@@ -498,7 +498,7 @@ hook_input() {
     printf 'VERSION 2\nAPT::Architecture=amd64\n\n%s\n' "$1"
 }
 
-if hook_input "yuos-agent $V2 < $V1 $OLD_DEB" \
+if hook_input "yuos-framework $V2 < $V1 $OLD_DEB" \
     | "$HELPER" apt-hook --root "$ROOT3" 2>"$WORK/hook.err"; then
     fail "the APT hook accepted an older candidate"
 fi
@@ -506,7 +506,7 @@ grep -q "version_regression" "$WORK/hook.err" \
     || fail "the APT hook refusal was not classified"
 ok "the APT hook refuses an older candidate before anything is unpacked"
 
-hook_input "yuos-agent $V2 = $V2 $NEW_DEB" \
+hook_input "yuos-framework $V2 = $V2 $NEW_DEB" \
     | "$HELPER" apt-hook --root "$ROOT3" >/dev/null \
     || fail "the APT hook refused the current release"
 ok "the APT hook accepts the current release"
@@ -522,7 +522,7 @@ HOOK_WRAPPER="$WORK/hook-wrapper"
 sed 's|^HELPER=.*|HELPER=/nonexistent/yuos-security-floor|' \
     "$DEB_DIR/common/security-floor-hook" > "$HOOK_WRAPPER"
 chmod 0755 "$HOOK_WRAPPER"
-hook_input "yuos-agent $V2 < $V1 $OLD_DEB" | "$HOOK_WRAPPER" \
+hook_input "yuos-framework $V2 < $V1 $OLD_DEB" | "$HOOK_WRAPPER" \
     || fail "the APT hook wrapper must tolerate a missing verifier"
 ok "the APT hook wrapper tolerates a missing verifier"
 
@@ -539,7 +539,7 @@ FLOOR_GENERATION="$(floor_generation "$ROOT3")"
 MANIFEST_DIGEST="$(python3 -c '
 import hashlib, sys
 print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest())
-' "$STAGE1/usr/lib/yuos/release-security/yuos-agent/manifest.json")"
+' "$STAGE1/usr/lib/yuos/release-security/yuos-framework/manifest.json")"
 
 write_authorization() {
     local id="$1" package="$2" version="$3" digest="$4" expires="$5"
@@ -588,7 +588,7 @@ ok "a recovery authorization for another package does not apply"
 
 # Expired.
 rm -f "$RECOVERY_DIR"/*.json
-write_authorization "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" yuos-agent "$V1" \
+write_authorization "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" yuos-framework "$V1" \
     "$MANIFEST_DIGEST" "$PAST"
 if DPKG_ROOT="$ROOT3" "$STAGE1/DEBIAN/preinst" upgrade "$V2" >/dev/null 2>&1; then
     fail "an expired authorization permitted a downgrade"
@@ -597,7 +597,7 @@ ok "an expired recovery authorization does not apply"
 
 # Wrong artifact digest.
 rm -f "$RECOVERY_DIR"/*.json
-write_authorization "cccccccccccccccccccccccccccccccc" yuos-agent "$V1" \
+write_authorization "cccccccccccccccccccccccccccccccc" yuos-framework "$V1" \
     "$(printf 'f%.0s' $(seq 64))" "$FUTURE"
 if DPKG_ROOT="$ROOT3" "$STAGE1/DEBIAN/preinst" upgrade "$V2" >/dev/null 2>&1; then
     fail "an authorization naming another artifact permitted a downgrade"
@@ -606,7 +606,7 @@ ok "a recovery authorization for another artifact does not apply"
 
 # Exactly right: allowed once, then consumed by the configure step.
 rm -f "$RECOVERY_DIR"/*.json
-write_authorization "dddddddddddddddddddddddddddddddd" yuos-agent "$V1" \
+write_authorization "dddddddddddddddddddddddddddddddd" yuos-framework "$V1" \
     "$MANIFEST_DIGEST" "$FUTURE"
 DPKG_ROOT="$ROOT3" "$STAGE1/DEBIAN/preinst" upgrade "$V2" >/dev/null \
     || fail "an exactly matching authorization must permit the downgrade"
@@ -629,7 +629,7 @@ ok "a consumed recovery authorization cannot be replayed"
 
 # The authorize path itself cannot be driven without a terminal, which
 # is exactly the condition an agent, App or MCP session runs in.
-if "$HELPER" recover authorize --root "$ROOT3" --package yuos-agent \
+if "$HELPER" recover authorize --root "$ROOT3" --package yuos-framework \
     --version "$V1" --epoch 1 --manifest-sha256 "$MANIFEST_DIGEST" \
     --reason "automated attempt" --expires-in 1 </dev/null >/dev/null 2>&1; then
     fail "a recovery authorization was recorded without an operator terminal"
@@ -709,35 +709,35 @@ ok "deleting the verifier does not disable the floor"
 # ---------------------------------------------------------------------------
 # 12. Package wiring contracts.
 # ---------------------------------------------------------------------------
-grep -Fq 'commit_security_floor' "$DEB_DIR/yuos-agent/postinst" \
-    || fail "the agent postinst must commit the floor"
-grep -Fq 'security_set_is_runnable' "$DEB_DIR/yuos-agent/postinst" \
-    || fail "the agent postinst must gate the service start on a compatible set"
-python3 - "$DEB_DIR/yuos-agent/postinst" <<'PY'
+grep -Fq 'commit_security_floor' "$DEB_DIR/yuos-framework/postinst" \
+    || fail "the framework postinst must commit the floor"
+grep -Fq 'security_set_is_runnable' "$DEB_DIR/yuos-framework/postinst" \
+    || fail "the framework postinst must gate the service start on a compatible set"
+python3 - "$DEB_DIR/yuos-framework/postinst" <<'PY'
 import sys
 body = open(sys.argv[1], encoding="utf-8").read()
 commit = body.index("        commit_security_floor")
 start = body.index("deb-systemd-invoke start yuosd.service")
 assert commit < start, "the floor must be committed before yuosd is started"
 PY
-ok "the agent postinst commits the floor before starting the broker"
+ok "the framework postinst commits the floor before starting the broker"
 
-for package in yuos-agent yuos-base yuos-desktop; do
+for package in yuos-framework yuos-agent yuos-base yuos-desktop yuos-agent-desktop; do
     grep -Fq 'check-incoming' "$DEB_DIR/$package/prerm" \
         || fail "$package prerm must gate the incoming version"
 done
 ok "every gated package refuses an older incoming version in prerm"
 
 grep -Fq 'yuos-abi-__ABI__' "$DEB_DIR/yuos-base/control" \
-    || fail "yuos-base must depend on the agent ABI generation"
+    || fail "yuos-base must depend on the framework ABI generation"
 grep -Fq 'yuos-abi-__ABI__' "$DEB_DIR/yuos-desktop/control" \
-    || fail "yuos-desktop must depend on the agent ABI generation"
-grep -Fq 'Provides: yuos-abi-__ABI__' "$DEB_DIR/yuos-agent/control" \
-    || fail "yuos-agent must provide the ABI generation"
+    || fail "yuos-desktop must depend on the framework ABI generation"
+grep -Fq 'Provides: yuos-abi-__ABI__' "$DEB_DIR/yuos-framework/control" \
+    || fail "yuos-framework must provide the ABI generation"
 ok "package dependencies encode the compatible ABI generation"
 
 grep -Fq '/etc/apt/apt.conf.d/50yuos-security-floor' \
-    "$DEB_DIR/yuos-agent/conffiles" \
+    "$DEB_DIR/yuos-framework/conffiles" \
     || fail "the APT hook configuration must be a conffile"
 ok "the APT hook configuration ships as a conffile"
 
@@ -753,8 +753,10 @@ for needle in \
     '/usr/lib/yuos/bin/yuos-security-floor' \
     '/usr/lib/yuos/apt/security-floor-hook' \
     '/etc/apt/apt.conf.d/50yuos-security-floor' \
-    'write_release_manifest yuos-agent' \
+    'write_release_manifest yuos-framework' \
     'write_release_manifest yuos-base' \
+    'render_security_preinst yuos-framework' \
+    'write_release_manifest yuos-agent' \
     'render_security_preinst yuos-agent' \
     'render_security_preinst yuos-base'; do
     grep -Fq "$needle" "$BUILD_DEBS" \
@@ -765,12 +767,14 @@ grep -Fq 'render-preinst.sh' "$BUILD_DESKTOP" \
 grep -Fq 'make-manifest.py' "$BUILD_DESKTOP" \
     || fail "the desktop package must carry a release manifest"
 # Every package must stage into its own manifest subdirectory.
-for package in yuos-agent yuos-base; do
+for package in yuos-framework yuos-base; do
     grep -Fq "release-security/\$package" "$BUILD_DEBS" \
         || fail "build-debs.sh must stage per-package manifest directories"
 done
 grep -Fq 'release-security/yuos-desktop/manifest.json' "$BUILD_DESKTOP" \
     || fail "the desktop package must stage its own manifest directory"
+grep -Fq 'release-security/yuos-agent-desktop/manifest.json' "$BUILD_DESKTOP" \
+    || fail "the graphical Agent package must stage its own manifest directory"
 ok "every gated package build embeds the verifier and its own release manifest"
 
 # The APT hook must be one executable token: APT looks its protocol
@@ -792,8 +796,8 @@ ok "the APT hook registration parses to exactly the intended keys"
 # 14. The control metadata the publication merge job reads.
 # ---------------------------------------------------------------------------
 CONTROL_STAGE="$WORK/stage-control"
-mkdir -p "$CONTROL_STAGE/DEBIAN" "$CONTROL_STAGE/usr/share/doc/yuos-agent"
-echo "fixture" > "$CONTROL_STAGE/usr/share/doc/yuos-agent/README"
+mkdir -p "$CONTROL_STAGE/DEBIAN" "$CONTROL_STAGE/usr/share/doc/yuos-framework"
+echo "fixture" > "$CONTROL_STAGE/usr/share/doc/yuos-framework/README"
 POLICY_EPOCH="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["security_epoch"])' "$POLICY")"
 POLICY_ABI="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["abi"])' "$POLICY")"
 MIN_BASE="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["minimum_compatible"]["yuos-base"])' "$POLICY")"
@@ -806,7 +810,7 @@ sed -e "s/__VERSION__/$V2/g" \
     -e "s/__SECURITY_EPOCH__/$POLICY_EPOCH/g" \
     -e "s/__MIN_BASE__/$MIN_BASE/g" \
     -e "s/__MIN_DESKTOP__/$MIN_DESKTOP/g" \
-    "$DEB_DIR/yuos-agent/control" > "$CONTROL_STAGE/DEBIAN/control"
+    "$DEB_DIR/yuos-framework/control" > "$CONTROL_STAGE/DEBIAN/control"
 CONTROL_DEB="$WORK/control-fixture.deb"
 dpkg-deb -Znone --root-owner-group --build "$CONTROL_STAGE" "$CONTROL_DEB" >/dev/null
 [ "$(dpkg-deb --field "$CONTROL_DEB" XB-YuOS-Security-Epoch)" = "$POLICY_EPOCH" ] \
@@ -870,12 +874,12 @@ ok "a requested but unavailable signing key aborts the build"
 SIGN_STAGE="$WORK/stage-sign-failure"
 rm -rf "$SIGN_STAGE"
 mkdir -p "$SIGN_STAGE"
-for path in $(component_paths yuos-agent); do
+for path in $(component_paths yuos-framework); do
     mkdir -p "$SIGN_STAGE$(dirname "$path")"
     printf 'component %s\n' "$path" > "$SIGN_STAGE$path"
     chmod 0755 "$SIGN_STAGE$path"
 done
-SIGN_OUT="$SIGN_STAGE/usr/lib/yuos/release-security/yuos-agent/manifest.json"
+SIGN_OUT="$SIGN_STAGE/usr/lib/yuos/release-security/yuos-framework/manifest.json"
 
 FAILING_BIN="$WORK/failing-gpg"
 mkdir -p "$FAILING_BIN"
@@ -894,7 +898,7 @@ EOF
 chmod +x "$FAILING_BIN/gpg"
 
 if PATH="$FAILING_BIN:$PATH" yuos_write_release_manifest \
-    "$KEY_ID" "" "$MAKE_MANIFEST" yuos-agent "$V1" amd64 trixie \
+    "$KEY_ID" "" "$MAKE_MANIFEST" yuos-framework "$V1" amd64 trixie \
     "$SIGN_STAGE" "$POLICY" "$SIGN_OUT" >/dev/null 2>"$WORK/sign-failure.err"; then
     fail "a failed signature was reported as success"
 fi
@@ -930,7 +934,7 @@ EOF
 chmod +x "$TRUNCATING_BIN/gpg"
 
 if PATH="$TRUNCATING_BIN:$PATH" yuos_write_release_manifest \
-    "$KEY_ID" "" "$MAKE_MANIFEST" yuos-agent "$V1" amd64 trixie \
+    "$KEY_ID" "" "$MAKE_MANIFEST" yuos-framework "$V1" amd64 trixie \
     "$SIGN_STAGE" "$POLICY" "$SIGN_OUT" >/dev/null 2>"$WORK/bad-signature.err"; then
     fail "a signature that does not verify was accepted"
 fi
@@ -941,14 +945,14 @@ ok "a signature that does not verify aborts the build and removes the manifest"
 
 # A genuine signed build still works, and an unsigned one is allowed but
 # carries no signature.
-yuos_write_release_manifest "$KEY_ID" "" "$MAKE_MANIFEST" yuos-agent "$V1" \
+yuos_write_release_manifest "$KEY_ID" "" "$MAKE_MANIFEST" yuos-framework "$V1" \
     amd64 trixie "$SIGN_STAGE" "$POLICY" "$SIGN_OUT" >/dev/null \
     || fail "a genuine signed build must succeed"
 [ -s "$SIGN_OUT.asc" ] || fail "a signed build produced no signature"
 gpgv --keyring "$KEYRING" "$SIGN_OUT.asc" "$SIGN_OUT" >/dev/null 2>&1 \
     || fail "the signature does not verify against the publishing key"
 rm -f "$SIGN_OUT" "$SIGN_OUT.asc"
-yuos_write_release_manifest "" "" "$MAKE_MANIFEST" yuos-agent "$V1" \
+yuos_write_release_manifest "" "" "$MAKE_MANIFEST" yuos-framework "$V1" \
     amd64 trixie "$SIGN_STAGE" "$POLICY" "$SIGN_OUT" >/dev/null \
     || fail "an explicitly unsigned local build must succeed"
 [ -s "$SIGN_OUT" ] || fail "an unsigned build produced no manifest"
@@ -964,7 +968,7 @@ if YUOS_PACKAGE_VERSION="1:0.2.1+gitprobe.gaaaaaaaaaaaa" \
     YUOS_DEB_OUT_DIR="$BUILD_PROBE_OUT" \
     YUOS_DEB_STAGE_DIR="$BUILD_PROBE_STAGE" \
     YUOS_RELEASE_SECURITY_KEY_ID="DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF" \
-    bash "$BUILD_DEBS" agent >"$WORK/build-probe.out" 2>"$WORK/build-probe.err"; then
+    bash "$BUILD_DEBS" framework >"$WORK/build-probe.out" 2>"$WORK/build-probe.err"; then
     fail "build-debs.sh continued with an unusable signing key"
 fi
 grep -q "secret key is unavailable" "$WORK/build-probe.err" \

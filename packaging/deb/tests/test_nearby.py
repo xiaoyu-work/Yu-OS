@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 
 
 ROOT = Path(__file__).resolve().parents[3]
-ASSETS = ROOT / "packaging" / "deb" / "yuos-agent" / "nearby"
+ASSETS = ROOT / "packaging" / "deb" / "yuos-framework" / "nearby"
 
 
 class NearbyPackaging(unittest.TestCase):
@@ -52,12 +52,12 @@ class NearbyPackaging(unittest.TestCase):
         inventory = {entry["name"]: entry for entry in policy["components"]}
         for name in ("yuos-nearby-radio", "yuos-nearby-worker"):
             self.assertTrue(inventory[name]["critical"])
-            self.assertEqual(inventory[name]["package"], "yuos-agent")
+            self.assertEqual(inventory[name]["package"], "yuos-framework")
             self.assertEqual(inventory[name]["path"], f"/usr/lib/yuos/bin/{name}")
         build = (ROOT / "packaging/deb/build-debs.sh").read_text()
         self.assertIn("--manifest-path crates/yuos-nearby/Cargo.toml --bins", build)
         self.assertIn("cargo build --release --locked --target", build)
-        self.assertIn("yuos-nearby-v1", (ROOT / "packaging/deb/yuos-agent/control").read_text())
+        self.assertIn("yuos-nearby-v1", (ROOT / "packaging/deb/yuos-framework/control").read_text())
         self.assertIn("yuos-nearby-v1", (ROOT / "packaging/deb/yuos-desktop/control").read_text())
 
 

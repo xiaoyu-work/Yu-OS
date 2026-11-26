@@ -36,9 +36,21 @@ packaging/
 
 | Package | Contains | Architecture | Depends |
 |---|---|---|---|
-| `yuos-agent` | `yu` with the Yu OS-owned TUI, `yuosd`, `yuos-agentd`, browser provider, semantic binaries, skills, SDK/runtime, trust roots, Agent system/user units and App channel configuration; no App payloads | `amd64`, `arm64` | Debian/Ubuntu runtime libraries, `systemd`, and `pkexec`; recommends `yuos-apps-agent` and Helium |
-| `yuos-base` | `yuos-init`, managed agent-home setup, Yu OS boot/service policy, and model-specific udev/libinput rules | `all` | `yuos-agent` |
-| `yuos-desktop` | Protected Hyprland, graphical login and Agent, system services, and the OS-owned Desktop Shell (Quickshell, Caelestia and private Qt) | `amd64`, `arm64` | `yuos-base`, `yuos-display-session-v3`, `yuos-apps-agent`, every individual graphical Yu OS App package and the Thunderbird integration |
+| `yuos-framework` | Platform: `yu` with the Yu OS-owned TUI, `yuosd`, `yuos-extension-host`, browser provider, semantic binaries, SDK/runtime, approval/audit/session services, App host and isolation, trust roots, system/user units and App channel configuration; no App payloads | `amd64`, `arm64` | Debian/Ubuntu runtime libraries, `systemd`, and `pkexec`; recommends `yuos-apps-agent` and Helium; never the Agent |
+| `yuos-agent` | Optional official Yu Agent: `yuos-agentd` and skills | `amd64`, `arm64` | `yuos-framework` of the same version |
+| `yuos-base` | `yuos-init`, managed agent-home setup, Yu OS boot/service policy, and model-specific udev/libinput rules | `all` | `yuos-framework` |
+| `yuos-desktop` | Protected Hyprland, graphical login, system services, and the OS-owned Desktop Shell (Quickshell, Caelestia and private Qt) | `amd64`, `arm64` | `yuos-base`, `yuos-display-session-v3`, `yuos-apps-agent`, every individual graphical Yu OS App package and the Thunderbird integration |
+| `yuos-agent-desktop` | Optional graphical Agent: Agent UI, bridge, Ask launcher, browser chat host and launcher entry | `amd64`, `arm64` | `yuos-agent` and `yuos-desktop` of the same version |
+
+The Framework never depends on or recommends the Agent. Images select
+`yuos-agent` (and `yuos-agent-desktop` on Desktop) explicitly; set
+`YUOS_AGENT=0` for a Framework-only image. Without the Agent, Agent tasks,
+triggers, Activity and Agent memory report `Yu Agent is not installed`, while
+Apps, App permissions and platform services keep working. Upgrading from a
+pre-split `yuos-agent` installs `yuos-framework` through the Agent's
+dependency; System Updates also adds `yuos-agent-desktop` on Desktop. A plain
+`apt upgrade` does not install new packages, so run
+`sudo apt install yuos-agent-desktop` there to keep the graphical Agent.
 
 Keep the [hardware workarounds](../docs/image-architecture.md#hardware-enablement) in `deb/yuos-base/hardware/`. Base stages the system udev and libinput data; Desktop stages the same libinput quirk source into Hyprland's private libinput database. Both packages use the existing signed release path.
 
@@ -490,7 +502,7 @@ This source wiring changes no release, App pin, security floor or update gate.
 | `/etc/yuos/trust/state.json` | `0644` | Combined generation recorded during Agent package configuration |
 
 Content for the vendor root comes from
-`packaging/deb/yuos-agent/trust/publishers.d/`. The build fails if a
+`packaging/deb/yuos-framework/trust/publishers.d/`. The build fails if a
 file there contains a `private_key` field, so signing keys can never be
 shipped by accident. Both roots — and every ancestor up to `/` — must be
 root-owned, non-symlink and free of group/world write bits; the loader

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # rootfs/features/systemd/install.sh -- verify and finish wiring the units
-# owned by yuos-agent and yuos-base.
+# owned by yuos-framework and yuos-base.
 #
 # Inherited from environment: ROOTFS, PROJECT_DIR, SCRIPT_DIR.
 

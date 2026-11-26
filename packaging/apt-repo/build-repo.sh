@@ -13,9 +13,11 @@
 #   │       ├── binary-amd64/Packages{,.gz}    (if amd64 .debs present)
 #   │       ├── binary-arm64/Packages{,.gz}    (if arm64 .debs present)
 #   │       └── binary-all/Packages{,.gz}      (always — Architecture: all)
-#   └── pool/main/c/yuos-agent/yuos-agent_<v>_<arch>.deb
+#   └── pool/main/c/yuos-framework/yuos-framework_<v>_<arch>.deb
+#       pool/main/c/yuos-agent/yuos-agent_<v>_<arch>.deb
 #       pool/main/c/yuos-base/yuos-base_<v>_all.deb
 #       pool/main/c/yuos-desktop/yuos-desktop_<v>_<arch>.deb
+#       pool/main/c/yuos-agent-desktop/yuos-agent-desktop_<v>_<arch>.deb
 #
 # Dual-arch: the script auto-discovers every Architecture: in build/debs/
 # and emits one binary-<arch>/ tree per architecture, so an admin can run

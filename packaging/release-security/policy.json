@@ -4,7 +4,7 @@
     {
       "critical": true,
       "name": "yuosd",
-      "package": "yuos-agent",
+      "package": "yuos-framework",
       "path": "/usr/local/bin/yuosd"
     },
     {
@@ -16,55 +16,55 @@
     {
       "critical": true,
       "name": "yuos-extension-host",
-      "package": "yuos-agent",
+      "package": "yuos-framework",
       "path": "/usr/local/bin/yuos-extension-host"
     },
     {
       "critical": true,
       "name": "yuos-approval-helper",
-      "package": "yuos-agent",
+      "package": "yuos-framework",
       "path": "/usr/local/bin/yuos-approval-helper"
     },
     {
       "critical": true,
       "name": "yuos-admin-approval-helper",
-      "package": "yuos-agent",
+      "package": "yuos-framework",
       "path": "/usr/local/bin/yuos-admin-approval-helper"
     },
     {
       "critical": true,
       "name": "yuos-app-runner",
-      "package": "yuos-agent",
+      "package": "yuos-framework",
       "path": "/usr/local/bin/yuos-app-runner"
     },
     {
       "critical": true,
       "name": "yuos-security-floor",
-      "package": "yuos-agent",
+      "package": "yuos-framework",
       "path": "/usr/lib/yuos/bin/yuos-security-floor"
     },
     {
       "critical": true,
       "name": "yuos-calendar-reader",
-      "package": "yuos-agent",
+      "package": "yuos-framework",
       "path": "/usr/lib/yuos/bin/yuos-calendar-reader"
     },
     {
       "critical": true,
       "name": "yuos-nearby-worker",
-      "package": "yuos-agent",
+      "package": "yuos-framework",
       "path": "/usr/lib/yuos/bin/yuos-nearby-worker"
     },
     {
       "critical": true,
       "name": "yuos-nearby-radio",
-      "package": "yuos-agent",
+      "package": "yuos-framework",
       "path": "/usr/lib/yuos/bin/yuos-nearby-radio"
     },
     {
       "critical": true,
       "name": "yu",
-      "package": "yuos-agent",
+      "package": "yuos-framework",
       "path": "/usr/local/bin/yu"
     },
     {
@@ -76,25 +76,25 @@
     {
       "critical": false,
       "name": "yuos-agent-bridge",
-      "package": "yuos-desktop",
+      "package": "yuos-agent-desktop",
       "path": "/usr/local/bin/yuos-agent-bridge"
     },
     {
       "critical": false,
       "name": "browser-chat-native-host",
-      "package": "yuos-desktop",
+      "package": "yuos-agent-desktop",
       "path": "/usr/lib/yuos/browser-chat-native-host"
     },
     {
       "critical": false,
       "name": "yuos-agent-ui",
-      "package": "yuos-desktop",
+      "package": "yuos-agent-desktop",
       "path": "/usr/local/bin/yuos-agent-ui"
     },
     {
       "critical": false,
       "name": "yuos-ask-launcher",
-      "package": "yuos-desktop",
+      "package": "yuos-agent-desktop",
       "path": "/usr/local/bin/yuos-ask-launcher"
     },
     {
@@ -108,13 +108,17 @@
   "manifest_validity_days": 400,
   "minimum_compatible": {
     "yuos-agent": "1:0.1.0",
+    "yuos-agent-desktop": "1:0.1.0",
     "yuos-base": "1:0.1.0",
-    "yuos-desktop": "1:0.1.0"
+    "yuos-desktop": "1:0.1.0",
+    "yuos-framework": "1:0.1.0"
   },
   "packages": [
+    "yuos-framework",
     "yuos-agent",
     "yuos-base",
-    "yuos-desktop"
+    "yuos-desktop",
+    "yuos-agent-desktop"
   ],
   "protocols": {
     "agentd_worker": 22,

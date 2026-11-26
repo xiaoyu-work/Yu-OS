@@ -15,7 +15,7 @@ set -euo pipefail
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../../.." && pwd)
 
-CONTROL="$PROJECT_DIR/packaging/deb/yuos-agent/control"
+CONTROL="$PROJECT_DIR/packaging/deb/yuos-framework/control"
 PROVIDER="$PROJECT_DIR/core/src/worker/linux.rs"
 
 fail() {

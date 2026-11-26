@@ -1,0 +1,61 @@
+#!/bin/sh
+# yuos-agent postinst -- record the Agent release and resume yuosd if a
+# pre-split upgrade stopped it.
+
+set -e
+
+DPKG_ROOT="${DPKG_ROOT:-}"
+ROOT_ARG="${DPKG_ROOT:-/}"
+SECURITY_HELPER="$DPKG_ROOT/usr/lib/yuos/bin/yuos-security-floor"
+RELEASE_MANIFEST="$DPKG_ROOT/usr/lib/yuos/release-security/yuos-agent/manifest.json"
+RELEASE_SIGNATURE="$RELEASE_MANIFEST.asc"
+
+commit_security_floor() {
+    if [ ! -x "$SECURITY_HELPER" ] || [ ! -f "$RELEASE_MANIFEST" ]; then
+        echo "error: yuos-agent is missing its update-security metadata" >&2
+        return 1
+    fi
+    if [ -f "$RELEASE_SIGNATURE" ]; then
+        "$SECURITY_HELPER" commit \
+            --root "$ROOT_ARG" \
+            --package yuos-agent \
+            --version "__VERSION__" \
+            --manifest "$RELEASE_MANIFEST" \
+            --signature "$RELEASE_SIGNATURE" \
+            --reason "yuos-agent configure"
+    else
+        "$SECURITY_HELPER" commit \
+            --root "$ROOT_ARG" \
+            --package yuos-agent \
+            --version "__VERSION__" \
+            --manifest "$RELEASE_MANIFEST" \
+            --reason "yuos-agent configure"
+    fi
+}
+
+case "$1" in
+    configure)
+        commit_security_floor
+        if [ -z "$DPKG_ROOT" ] && [ -d /run/systemd/system ] &&
+            ! systemctl --quiet is-active yuosd.service &&
+            deb-systemd-helper --quiet was-enabled yuosd.service; then
+            if "$SECURITY_HELPER" service-gate \
+                --root "$ROOT_ARG" \
+                --package yuos-agent \
+                --manifest "$RELEASE_MANIFEST" >/dev/null 2>&1; then
+                deb-systemd-invoke start yuosd.service >/dev/null || true
+            else
+                echo "yuos-agent: deferring yuosd start until the rest of this" >&2
+                echo "            Yu OS package set is configured" >&2
+            fi
+        fi
+        ;;
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+    *)
+        echo "postinst called with unknown argument '$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

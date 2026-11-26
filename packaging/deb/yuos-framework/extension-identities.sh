@@ -25,7 +25,7 @@ identity_name() {
 }
 
 identity_fail() {
-    echo "yuos-agent: $*" >&2
+    echo "yuos-framework: $*" >&2
     return 1
 }
 
@@ -675,7 +675,7 @@ identity_purge_owned() {
     if [ -s "$remaining" ]; then
         chmod 0600 "$remaining"
         mv -f "$remaining" "$identity_owned_manifest"
-        echo "yuos-agent: retained identities whose package ownership could not be proven" >&2
+        echo "yuos-framework: retained identities whose package ownership could not be proven" >&2
     else
         rm -f "$remaining" "$identity_owned_manifest"
     fi

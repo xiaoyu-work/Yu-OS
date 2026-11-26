@@ -13,7 +13,7 @@ specified in [`../../docs/nearby-sharing.md`](../../docs/nearby-sharing.md).
 | `src/radio.rs` | Root Owly radio/lease wrapper on the fixed system bus, without file-transfer parsing |
 | `Cargo.lock` | Immutable dependency graph for both binaries and package builds |
 | `PROVENANCE.md`, `OWLY-LICENSE` | Upstream revision, license and packaging adaptations |
-| `../../packaging/deb/yuos-agent/nearby/` | D-Bus-only activation, Root-only acquisition and interface policies |
+| `../../packaging/deb/yuos-framework/nearby/` | D-Bus-only activation, Root-only acquisition and interface policies |
 
 The file worker receives only the current link and staged source assignments.
 Package payloads use the GNU target, like the browser/PAM helpers: upstream

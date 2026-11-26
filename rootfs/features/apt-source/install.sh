@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # rootfs/features/apt-source/install.sh — configure the Yu OS apt repo on
 # the installed system. After this runs, `apt update` will see
-# yuos-agent, yuos-base, and yuos-desktop as upgradeable packages.
+# yuos-framework, yuos-agent, yuos-base, yuos-desktop and yuos-agent-desktop
+# as upgradeable packages.
 #
 # Inherited from environment: ROOTFS.
 #

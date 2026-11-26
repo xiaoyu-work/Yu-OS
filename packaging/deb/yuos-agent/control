@@ -1,0 +1,20 @@
+Package: yuos-agent
+Version: __VERSION__
+Section: admin
+Priority: optional
+Architecture: __ARCH__
+Maintainer: Yu OS <noreply@github.com>
+Homepage: https://github.com/xiaoyu-work/Yu-OS
+XB-YuOS-Security-Epoch: __SECURITY_EPOCH__
+XB-YuOS-Abi: __ABI__
+Depends: yuos-framework (= __VERSION__), yuos-abi-__ABI__
+Recommends: nodejs, python3-pip, git, ripgrep, jq, sqlite3
+Description: official Yu Agent for Yu OS
+ Installs the optional first-party Yu Agent on top of `yuos-framework`: the
+ unprivileged per-task `yuos-agentd` worker and the vendor Agent skills.
+ `yuosd` claims Agent tasks, leases each worker its grant and persists its
+ results; the Agent reaches Apps only through the tools those Apps expose.
+ .
+ Without this package the Framework, its system services and ordinary Apps
+ keep working, while Agent tasks, triggers and Agent memory report that the
+ Agent is not installed.

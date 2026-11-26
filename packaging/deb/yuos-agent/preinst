@@ -1,0 +1,21 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+    install|upgrade)
+        # A pre-split yuos-agent shipped yuosd. Its files move to
+        # yuos-framework in this transaction, so the daemon must not run
+        # while they are replaced; yuos-framework starts it again.
+        if [ -z "${DPKG_ROOT:-}" ] && [ -d /run/systemd/system ] &&
+            dpkg-query -S /usr/local/bin/yuosd 2>/dev/null | grep -q '^yuos-agent:'; then
+            deb-systemd-invoke stop yuosd.service >/dev/null
+            if systemctl --quiet is-active yuosd.service; then
+                echo "yuos-agent: yuosd.service did not stop before the Framework takeover" >&2
+                exit 1
+            fi
+        fi
+        ;;
+esac
+
+exit 0

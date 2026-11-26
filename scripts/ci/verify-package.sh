@@ -7,9 +7,9 @@ cd "${GITHUB_WORKSPACE:?GITHUB_WORKSPACE is required}"
 : "${YUOS_RELEASE_SECURITY_KEYRING:?YUOS_RELEASE_SECURITY_KEYRING is required}"
 component="${1:-}"
 case "$component" in
-    agent|desktop) arch="${ARCH:?ARCH is required}" ;;
+    framework|agent|desktop|agent-desktop) arch="${ARCH:?ARCH is required}" ;;
     base) arch=all ;;
-    *) echo "usage: $0 {agent|base|desktop}" >&2; exit 2 ;;
+    *) echo "usage: $0 {framework|agent|base|desktop|agent-desktop}" >&2; exit 2 ;;
 esac
 file_version="${YUOS_PACKAGE_VERSION//:/%3a}"
 deb="build/debs/yuos-${component}_${file_version}_${arch}.deb"
@@ -24,11 +24,10 @@ files="$extract/files"
 dpkg-deb --fsys-tarfile "$deb" | tar -tf - > "$files"
 required=()
 case "$component" in
-    agent)
+    framework)
         required=(
             usr/local/bin/yu
             usr/local/bin/yuosd
-            usr/local/bin/yuos-agentd
             usr/local/bin/yuos-extension-host
             usr/lib/yuos/bin/yuos-calendar-reader
             usr/share/doc/yuos-agent/calendar-reader.LICENSE
@@ -59,8 +58,6 @@ case "$component" in
             usr/lib/yuos/bin/yuos-app-apt-hook
             usr/lib/yuos/bin/yuos-notification-panel
             usr/lib/yuos/app-apt-metadata.py
-            usr/lib/yuos/skills/yuos/SKILL.md
-            usr/lib/yuos/skills/yuos/diagnostics.md
             usr/lib/systemd/system/yuosd.service
             usr/lib/yuos/bin/yuos-security-floor
             usr/lib/yuos/apt/security-floor-hook
@@ -70,7 +67,7 @@ case "$component" in
         dpkg-deb -f "$deb" Provides | grep -qw yuos-nearby-v1
         dpkg-deb -f "$deb" Provides | grep -qw yuos-display-session-v3
         if dpkg-deb -f "$deb" Provides | grep -qw yuos-display-session-v2; then
-            echo "error: Agent still advertises the incompatible display session v2" >&2
+            echo "error: Framework still advertises the incompatible display session v2" >&2
             exit 1
         fi
         dpkg-deb -f "$deb" Provides | grep -qw yuos-browser-render-v1
@@ -80,20 +77,36 @@ case "$component" in
         fi
         if grep -Fxq './etc/yuos/oauth.conf' "$files" \
             || grep -q '/usr/lib/yuos/apps/' "$files"; then
-            echo "error: Agent contains excluded OAuth configuration or App payloads" >&2
+            echo "error: Framework contains excluded OAuth configuration or App payloads" >&2
             exit 1
         fi
+        if grep -Eq '^\./usr/(local/bin/yuos-agentd|lib/yuos/skills/)' "$files"; then
+            echo "error: Framework contains the optional Agent" >&2
+            exit 1
+        fi
+        if dpkg-deb -f "$deb" Depends Recommends Pre-Depends | grep -Eq '(^|[ ,])yuos-agent([ ,(]|$)'; then
+            echo "error: Framework pulls in the optional Agent" >&2
+            exit 1
+        fi
+        runtime_version="$(python3 scripts/app_packages.py runtime-version)"
+        dpkg-deb -f "$deb" Provides | grep -Fq "yuos-app-runtime-v1 (= $runtime_version)"
+        ;;
+    agent)
+        required=(
+            usr/local/bin/yuos-agentd
+            usr/lib/yuos/skills/yuos/SKILL.md
+            usr/lib/yuos/skills/yuos/diagnostics.md
+        )
+        dpkg-deb -f "$deb" Depends | grep -Fq "yuos-framework (= $YUOS_PACKAGE_VERSION)"
         dpkg-deb -x "$deb" "$extract/payload"
         test "$(stat -c '%a' "$extract/payload/usr/lib/yuos/skills/yuos")" = "755"
         test "$(stat -c '%a' "$extract/payload/usr/lib/yuos/skills/yuos/SKILL.md")" = "644"
-        runtime_version="$(python3 scripts/app_packages.py runtime-version)"
-        dpkg-deb -f "$deb" Provides | grep -Fq "yuos-app-runtime-v1 (= $runtime_version)"
         ;;
     base)
         required=(usr/local/bin/yuos-init usr/lib/systemd/system/yuos-home-setup.service)
         if grep -Fxq './usr/local/bin/yu' "$files" \
             || grep -q '/usr/lib/yuos/apps/' "$files"; then
-            echo "error: Base contains Agent-owned binaries or Apps" >&2
+            echo "error: Base contains Framework-owned binaries or Apps" >&2
             exit 1
         fi
         ;;
@@ -139,11 +152,24 @@ case "$component" in
             usr/share/wayland-sessions/yuos.desktop
             etc/pam.d/yuos-desktop
             etc/greetd/yuos-desktop.toml
+        )
+        if grep -Eq '^\./usr/(local/bin/yuos-(agent-ui|agent-bridge|ask-launcher)|share/applications/com\.yuos\.Agent\.desktop)$' "$files" \
+            || dpkg-deb -f "$deb" Depends Recommends Pre-Depends | grep -Eq '(^|[ ,])yuos-agent'; then
+            echo "error: Desktop contains or pulls in the optional graphical Agent" >&2
+            exit 1
+        fi
+        ;;
+    agent-desktop)
+        required=(
             usr/local/bin/yuos-agent-ui
             usr/local/bin/yuos-agent-bridge
             usr/local/bin/yuos-ask-launcher
+            usr/lib/yuos/browser-chat-native-host
+            usr/lib/systemd/user/yuos-agent-bridge.service
             usr/share/applications/com.yuos.Agent.desktop
         )
+        dpkg-deb -f "$deb" Depends | grep -Fq "yuos-agent (= $YUOS_PACKAGE_VERSION)"
+        dpkg-deb -f "$deb" Depends | grep -Fq "yuos-desktop (= $YUOS_PACKAGE_VERSION)"
         ;;
 esac
 for path in "${required[@]}"; do
@@ -153,16 +179,18 @@ for path in "${required[@]}"; do
     fi
 done
 
-if [ "$component" != base ]; then
+if [ "$component" = framework ] || [ "$component" = desktop ]; then
+    dpkg-deb -x "$deb" "$extract/payload"
     if [ "$component" = desktop ]; then
-        dpkg-deb -x "$deb" "$extract/payload"
         python3 scripts/system_desktop_tree.py --stage "$extract/payload" --check
         if [ -e "$extract/payload/usr/lib/yuos/apps/desktop-shell" ]; then
             echo "error: Desktop still packages the old App shell" >&2
             exit 1
         fi
     fi
-    python3 scripts/app_packages.py check --variant "$component" \
+    variant="$component"
+    [ "$component" = framework ] && variant=agent
+    python3 scripts/app_packages.py check --variant "$variant" \
         --architecture "$arch" --stage "$extract/payload" --preinstall-policy verify >/dev/null
 fi
 

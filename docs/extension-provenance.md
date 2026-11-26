@@ -634,7 +634,7 @@ the key material and `key_id` unchanged; no public trust change is needed.
 yu provenance keygen --out ~/.secrets/yuos-release.json --comment "release 2026"
 
 # Publish the printed `trust_entry` object into a trust root:
-#   packaging/deb/yuos-agent/trust/publishers.d/<name>.json  (vendor)
+#   packaging/deb/yuos-framework/trust/publishers.d/<name>.json  (vendor)
 #   /etc/yuos/trust/publishers.d/<name>.json                     (operator)
 #   yu provenance trust add --file <entry.json>                (per-user)
 

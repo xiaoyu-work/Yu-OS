@@ -176,9 +176,11 @@ release schedules:
 
 | Package | Contents |
 | --- | --- |
-| `yuos-agent` | Reusable Agent, `yuosd`, `yuos-agentd`, `yuos-extension-host`, browser/semantic runtimes, headless apps, skills, SDKs, and Agent services |
+| `yuos-framework` | Platform: `yu`, `yuosd`, `yuos-extension-host`, browser/semantic runtimes, SDKs, approval, audit, App host and platform services |
+| `yuos-agent` | Optional official Yu Agent: `yuos-agentd` and skills |
 | `yuos-base` | Yu OS recovery, managed agent home, distribution boot/service policy, and device-specific udev/libinput rules |
-| `yuos-desktop` | Desktop shell, graphical Agent UI, and graphical applications, when installed |
+| `yuos-desktop` | Desktop shell and graphical applications, when installed |
+| `yuos-agent-desktop` | Optional graphical Agent UI, bridge and Ask launcher |
 
 After upgrading Base and Desktop (if installed), reboot to apply the [hardware workarounds](image-architecture.md#hardware-enablement) to devices already present and reload the desktop's libinput rules. Existing installs do not gain newly added image-only firmware packages via the Base upgrade; install `firmware-cirrus` or, on a Qualcomm arm64 machine, `firmware-qcom-soc` from the configured Debian repositories if needed.
 
@@ -196,9 +198,9 @@ through APT. See [release numbering](../packaging/README.md#independent-publicat
 
 The Mail Native Messaging launcher and MCP service now use the same Python
 package at `/usr/lib/yuos/apps/mail-ai`. The Thunderbird XPI is also owned by
-`yuos-agent`, so an APT upgrade replaces both ends of their protocol.
+`yuos-framework`, so an APT upgrade replaces both ends of their protocol.
 The rootfs Mail feature and `tools/install-mail-ai.sh` reuse the App, XPI,
-SDK and launcher installed by `yuos-agent`; they no longer copy another implementation to
+SDK and launcher installed by `yuos-framework`; they no longer copy another implementation to
 `/usr/lib/yuos/mail-ai` or overwrite package-authenticated code. Install the
 matching Agent package before installing the Thunderbird extension, then
 restart Thunderbird to replace any running native host. The old duplicate
@@ -373,7 +375,7 @@ forever, so the signature alone cannot tell a current release from a superseded
 one; see [Downgrade protection](#downgrade-protection) for what stops one being
 installed, activated or run.
 
-On a running systemd target, `yuos-agent` reloads systemd and runs
+On a running systemd target, `yuos-framework` reloads systemd and runs
 `try-restart` for `yuosd.service` and the opt-in browser service during an
 upgrade. Newly launched `yu` commands use the replaced binary immediately;
 the running daemon is restarted automatically. `yuos-base` separately
@@ -516,7 +518,7 @@ upgrade replaces the whole set. Agent tasks run in `yuos-agentd` processes that
 - A `yu` binary from before broker protocol v1 fails closed against a new
   `yuosd`: the daemon answers one line naming the protocol and closes without
   parsing, authorizing or dispatching anything. There is no compatibility
-  listener, so the fix is to finish the upgrade — reinstall `yuos-agent` and
+  listener, so the fix is to finish the upgrade — reinstall `yuos-framework` and
   re-run the command.
 - Broker envelope v1 and v2 clients also fail closed when paired with the
   other version. Protocol v2 adds the durable Web task-control fields, so
@@ -545,7 +547,7 @@ upgrade replaces the whole set. Agent tasks run in `yuos-agentd` processes that
   and submit as that user.
 
 The Yu OS Agent terminal renderer is compiled into `yu`, so upgrading
-`yuos-agent` replaces the terminal and line interfaces together. It has no
+`yuos-framework` replaces the terminal and line interfaces together. It has no
 separate frontend binary, self-updater or compatibility protocol. Canonical
 conversations, credentials and task state remain in their existing stores.
 Reopen running terminals after upgrade; `yu agent chat --plain` remains
@@ -559,7 +561,8 @@ read by the Yu OS-owned renderer and may be removed manually after inspection.
 Confirm both binaries and the running daemon after an upgrade:
 
 ```bash
-dpkg-query -L yuos-agent | grep -E '/(yu|yuosd|yuos-agentd|yuos-extension-host)$'
+dpkg-query -L yuos-framework | grep -E '/(yu|yuosd|yuos-extension-host)$'
+dpkg-query -L yuos-agent | grep -E '/yuos-agentd$'
 getent group yuos-extension
 sudo systemctl status yuosd
 yu agent service list --status pending
@@ -569,7 +572,7 @@ Check the installed and available versions with:
 
 ```bash
 dpkg-query -W 'yuos-*'
-apt-cache policy yuos-agent yuos-base yuos-desktop
+apt-cache policy yuos-framework yuos-agent yuos-base yuos-desktop yuos-agent-desktop
 sudo systemctl status yuosd
 ```
 
@@ -1106,7 +1109,7 @@ it. A console, SSH or locked desktop session can defer that restart. Turning
 off automatic updates also turns off automatic restart; cancel separately
 if an install is already scheduled.
 
-This installs newer `yuos-agent`, `yuos-base` and `yuos-desktop`
+This installs newer `yuos-framework`, `yuos-agent`, `yuos-base`, `yuos-desktop` and `yuos-agent-desktop`
 packages only. Desktop includes its selected Desktop Shell. The controller
 refuses removals, held packages and plans that require installing or changing
 other packages. Coordinated App dependency changes may require an
@@ -1335,7 +1338,7 @@ unprivileged Yu OS binary.
 The daemon measures the `yuos-agentd` binary before spawning it, so a replaced
 worker is refused before it becomes a process rather than being asked to vouch
 for itself. Package dependencies additionally pin an ABI generation
-(`yuos-agent` provides `yuos-abi-<N>`, Base and Desktop depend on it), so
+(`yuos-framework` provides `yuos-abi-<N>`, Base and Desktop depend on it), so
 APT's own solver will not schedule an incompatible combination, and a broker
 restart is deferred until the whole transaction has been configured.
 
@@ -1545,7 +1548,8 @@ index cannot be downloaded or verified, stop and fix the repository
 configuration instead of installing unsigned or stale packages.
 
 Yu OS image composition installs `yuos-base` instead. Its runtime
-dependency pulls in the same `yuos-agent` package used by Ubuntu:
+dependency pulls in the same `yuos-framework` package used by Ubuntu;
+the image also selects the optional `yuos-agent`:
 
 ```bash
 sudo apt install yuos-base

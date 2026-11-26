@@ -17,7 +17,10 @@ import tempfile
 import time
 
 
-PACKAGES = ("yuos-agent", "yuos-base", "yuos-desktop")
+PACKAGES = ("yuos-framework", "yuos-agent", "yuos-base", "yuos-desktop", "yuos-agent-desktop")
+# Packages the Framework/Agent split introduced. Pre-split systems receive
+# them as new installs so the existing Agent and its desktop payload remain.
+SPLIT_PACKAGES = ("yuos-framework", "yuos-agent-desktop")
 ROOT = Path("/var/lib/yuos-updates")
 STATE = ROOT / "state.json"
 POLICY = ROOT / "policy.json"
@@ -131,6 +134,22 @@ def installed():
     return states
 
 
+def split_installs(current):
+    """New packages a pre-split installation needs to keep what it already has."""
+    needed = []
+    if "yuos-agent" in current and "yuos-framework" not in current:
+        needed.append("yuos-framework")
+    if ("yuos-agent" in current and "yuos-desktop" in current
+            and "yuos-agent-desktop" not in current):
+        owner = subprocess.run(
+            ["/usr/bin/dpkg-query", "-S", "/usr/local/bin/yuos-agent-ui"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, env=ENV, timeout=5,
+        ).stdout
+        if owner.startswith("yuos-desktop:"):
+            needed.append("yuos-agent-desktop")
+    return needed
+
+
 def check(state, options):
     state.update(phase="checking", packages=[])
     for key in ("error", "setup_update", "setup_boot", "setup_mutating"):
@@ -140,15 +159,16 @@ def check(state, options):
         "-o", "APT::Update::Error-Mode=any", "update", timeout=180)
     current = installed()
     updates = []
+    new = split_installs(current)
     for name in PACKAGES:
-        if name not in current:
+        if name not in current and name not in new:
             continue
-        version, held = current[name]
+        version, held = current.get(name, (None, False))
         result = run("/usr/bin/apt-cache", *options, "policy", name, capture=True, timeout=15)
         candidate = re.search(r"^  Candidate: (\S+)$", result, re.MULTILINE)
-        if candidate and VERSION.fullmatch(candidate[1]) and subprocess.run(
+        if candidate and VERSION.fullmatch(candidate[1]) and (version is None or subprocess.run(
             ["/usr/bin/dpkg", "--compare-versions", candidate[1], "gt", version], check=False,
-        ).returncode == 0:
+        ).returncode == 0):
             updates.append({"package": name, "installed": version, "version": candidate[1],
                             "held": held})
     state.update(phase="available" if updates else "up-to-date", packages=updates,
@@ -166,7 +186,10 @@ def plan(state, options):
     expected = {}
     for item in updates:
         name, version = item["package"], item["version"]
-        if (name not in PACKAGES or not VERSION.fullmatch(version)
+        if item["installed"] is None:
+            if name not in SPLIT_PACKAGES or name in current:
+                raise ValueError("An installed version or package hold changed; check again")
+        elif (name not in PACKAGES or not VERSION.fullmatch(version)
                 or current.get(name) != (item["installed"], False)):
             raise ValueError("An installed version or package hold changed; check again")
         expected[name] = version
@@ -176,7 +199,7 @@ def plan(state, options):
     unpack = {}
     for line in simulation.splitlines():
         if line.startswith("Inst "):
-            match = re.match(r"Inst (\S+) \[[^\]]+\] \((\S+) ", line)
+            match = re.match(r"Inst (\S+) (?:\[[^\]]+\] )?\((\S+) ", line)
             if not match:
                 raise ValueError("This update needs a separate administrator APT transaction")
             unpack[match[1]] = match[2]
@@ -324,7 +347,11 @@ def coherent_packages(state):
         not state.get("setup_update") or state.get("setup_mutating")
     ):
         return False
-    return (set(installed()) == set(PACKAGES)
+    # Base and Desktop run on the Framework; the official Agent is optional.
+    # A pre-split yuos-agent still carries the Framework until it is updated.
+    current = set(installed())
+    return ({"yuos-base", "yuos-desktop"} <= current
+            and bool(current & {"yuos-framework", "yuos-agent"})
             and not run("/usr/bin/dpkg", "--audit", capture=True, timeout=15).strip())
 
 

@@ -122,16 +122,20 @@ jobs:
           cargo build --release --locked -p yuos-display-login --target "${RUST_TARGET/-musl/-gnu}"
           cargo build --release --locked -p yuos-semantic --target "${RUST_TARGET/-musl/-gnu}"
 
-      - name: Build Agent package
+      - name: Build Framework and Agent packages
         env:
           GPG_PASSPHRASE: ${{ secrets.YUOS_APT_SIGNING_PASSPHRASE }}
-        run: bash packaging/deb/build-debs.sh agent
+        run: |
+          bash packaging/deb/build-debs.sh framework
+          bash packaging/deb/build-debs.sh agent
 
       - name: Exercise the Yu OS-owned Agent TUI
         run: bash scripts/ci/test-agent-package.sh tui
 
-      - name: Verify Agent ownership, App APT inputs and signed release manifest
-        run: bash scripts/ci/verify-package.sh agent
+      - name: Verify Framework and Agent ownership, App APT inputs and signed release manifests
+        run: |
+          bash scripts/ci/verify-package.sh framework
+          bash scripts/ci/verify-package.sh agent
 
       - name: Download compatible Base for the install transaction
         uses: actions/download-artifact@v4
@@ -154,7 +158,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: yuos-agent-${{ matrix.arch }}
-          path: build/debs/yuos-agent_*_${{ matrix.arch }}.deb
+          path: |
+            build/debs/yuos-framework_*_${{ matrix.arch }}.deb
+            build/debs/yuos-agent_*_${{ matrix.arch }}.deb
           if-no-files-found: error
           overwrite: true
 
@@ -246,14 +252,18 @@ jobs:
             env ARCH="$ARCH" DESKTOP_PACKAGE_ONLY=1 \
             ./rootfs/build.sh --features base,desktop
 
-      - name: Verify Desktop ownership, App APT inputs and signed release manifest
-        run: bash scripts/ci/verify-package.sh desktop
+      - name: Verify Desktop ownership, App APT inputs and signed release manifests
+        run: |
+          bash scripts/ci/verify-package.sh desktop
+          bash scripts/ci/verify-package.sh agent-desktop
 
       - name: Upload Desktop package
         uses: actions/upload-artifact@v4
         with:
           name: yuos-desktop-${{ matrix.arch }}
-          path: build/debs/yuos-desktop_*_${{ matrix.arch }}.deb
+          path: |
+            build/debs/yuos-desktop_*_${{ matrix.arch }}.deb
+            build/debs/yuos-agent-desktop_*_${{ matrix.arch }}.deb
           if-no-files-found: error
           retention-days: 30
           overwrite: true

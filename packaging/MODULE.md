@@ -7,7 +7,9 @@ Debian packages and a signed multi-architecture APT repository.
 
 ## Responsibilities
 
-- Assemble `yuos-agent`, `yuos-base`, and `yuos-desktop` as separate packages
+- Assemble `yuos-framework`, the optional `yuos-agent`, `yuos-base`, `yuos-desktop`
+  and the optional `yuos-agent-desktop` as separate packages; dependencies only
+  point Agent → Framework
   for one coordinated APT publication.
 - Preserve conffiles and run service-safe maintainer scripts.
 - Bind each release to a signed release-security manifest so an installed
@@ -50,7 +52,7 @@ Debian packages and a signed multi-architecture APT repository.
 | `deb/tests/test-security-floor-install.sh` | Real `dpkg` multi-package and `apt-get` hook transactions |
 | `apt-repo/verify-release-security.sh` | Refuse a publication that regresses, is incoherent, or has no authenticated baseline |
 | `deb/tests/test-agentd-packaging.sh` | Worker/extension-host binary, identity, service, and isolation contract |
-| `deb/yuos-agent/nearby/`, `deb/tests/test_nearby.py` | D-Bus-only Root radio activation, network/link policies and isolated nearby transport package contract |
+| `deb/yuos-framework/nearby/`, `deb/tests/test_nearby.py` | D-Bus-only Root radio activation, network/link policies and isolated nearby transport package contract |
 | `../core/src/bin/yuos-file-manager.rs`, `../core/src/display_session/client.rs` | Agent-owned unprivileged FileManager1 transport started only by the authenticated desktop subscriber |
 | `../desktop/hyprland-yuos/stage-desktop.sh`, `../scripts/system_desktop_tree.py` | Target-native compositor and OS Shell staging, complete Shell inventory and greetd/PAM integration |
 | `../crates/yuos-display-login/MODULE.md`, `../core/src/display_session/MODULE.md` | Native GNU PAM/display helpers, OS-only Agent-to-Desktop interface, private installation fixture and logout boundary |
@@ -82,12 +84,12 @@ The APT publisher merges the three OS packages once and refuses to replace
 equal or newer authenticated candidates.
 
 The coordinated first transfer is strictly below `1:0.2.1`; runtime ABI stays
-1. Agent's `yuos-app-runtime-v1` Provides uses the implementation version
+1. Framework's `yuos-app-runtime-v1` Provides uses the implementation version
 reported by `scripts/app_packages.py runtime-version`.
-Agent recommends `yuos-apps-agent`. Desktop requires that headless set, the
+Framework recommends `yuos-apps-agent`. Desktop requires that headless set, the
 independently owned graphical App packages and Mail's Thunderbird integration.
-No Agent → App hard dependency prevents publishing independent App APT
-packages before the new Agent. SDK/runtime Python and Root authority stay
+No Framework → App hard dependency prevents publishing independent App APT
+packages before the new Framework. SDK/runtime Python and Root authority stay
 OS-owned; `_shared`, `gateway`, `canonical_argv` and `yuos_files` do not.
 See [current ownership and bootstrap blockers](README.md#coordinated-021-source-ownership-cutover).
 
@@ -167,7 +169,7 @@ record it in their package's `usr/share/doc/<package>/app-sources.json`;
 subsequent staging reuses that snapshot rather than moving with the branch.
 Product-owned
 staging builds the Mail XPI and Python payload; OS packaging retains the native
-authority launcher and distributes these together in `yuos-agent`.
+authority launcher and distributes these together in `yuos-framework`.
 External desktop Apps are excluded from Agent staging. `panel-calendar` and
 `panel-clipboard` have App-owned native payloads. The desktop dependency
 selection no longer includes Widget Rail.

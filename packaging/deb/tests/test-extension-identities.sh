@@ -4,10 +4,10 @@ set -euo pipefail
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../../.." && pwd)
-HELPER="$PROJECT_DIR/packaging/deb/yuos-agent/extension-identities.sh"
-PREINST="$PROJECT_DIR/packaging/deb/yuos-agent/preinst"
-POSTINST="$PROJECT_DIR/packaging/deb/yuos-agent/postinst"
-POSTRM="$PROJECT_DIR/packaging/deb/yuos-agent/postrm"
+HELPER="$PROJECT_DIR/packaging/deb/yuos-framework/extension-identities.sh"
+PREINST="$PROJECT_DIR/packaging/deb/yuos-framework/preinst"
+POSTINST="$PROJECT_DIR/packaging/deb/yuos-framework/postinst"
+POSTRM="$PROJECT_DIR/packaging/deb/yuos-framework/postrm"
 SCRATCH="$PROJECT_DIR/.test-extension-identities.$$"
 trap 'rm -rf "$SCRATCH"' EXIT
 mkdir -p "$SCRATCH/bin" "$SCRATCH/etc" "$SCRATCH/proc" "$SCRATCH/scan" "$SCRATCH/state" "$SCRATCH/systemd"

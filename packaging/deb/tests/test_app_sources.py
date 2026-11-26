@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[3]
     "yuos-app-permissions-v1", "yuos-capture-v1", "yuos-media-player-v1", "yuos-notifications-v1",
 ])
 def test_brokered_desktop_service_is_an_installed_dependency(service):
-    agent = (ROOT / "packaging/deb/yuos-agent/control").read_text()
+    agent = (ROOT / "packaging/deb/yuos-framework/control").read_text()
     desktop = (ROOT / "packaging/deb/yuos-desktop/control").read_text()
     assert service in next(line for line in agent.splitlines() if line.startswith("Provides:"))
     assert service in next(line for line in desktop.splitlines() if line.startswith("Depends:"))
@@ -39,7 +39,7 @@ PACKAGE_SPEC.loader.exec_module(packages)
 
 
 def test_display_session_dependency_rejects_mixed_generations(tmp_path):
-    agent = packages.fields((ROOT / "packaging/deb/yuos-agent/control").read_text())
+    agent = packages.fields((ROOT / "packaging/deb/yuos-framework/control").read_text())
     desktop = packages.fields((ROOT / "packaging/deb/yuos-desktop/control").read_text())
     provides = [item.strip() for item in agent["Provides"].split(",")]
     depends = [item.strip() for item in desktop["Depends"].split(",")]
@@ -556,10 +556,10 @@ def test_unexpected_installed_identity_is_rejected(locked_source, tmp_path):
 def test_agent_package_keeps_native_authority_in_os():
     script = (ROOT / "packaging/deb/build-debs.sh").read_text()
     assert "scripts/app_sources.py" not in script
-    assert '--variant agent --architecture "$DEB_ARCH" --stage "$AGENT_STAGE"' in script
-    assert '$AGENT_STAGE/usr/lib/yuos/yuos-mail-ai-host' in script
-    assert '$AGENT_STAGE/usr/lib/yuos/bin/yuos-app-apt-hook' in script
-    assert '$AGENT_STAGE/usr/lib/yuos/app-apt-metadata.py' in script
+    assert '--variant agent --architecture "$DEB_ARCH" --stage "$FRAMEWORK_STAGE"' in script
+    assert '$FRAMEWORK_STAGE/usr/lib/yuos/yuos-mail-ai-host' in script
+    assert '$FRAMEWORK_STAGE/usr/lib/yuos/bin/yuos-app-apt-hook' in script
+    assert '$FRAMEWORK_STAGE/usr/lib/yuos/app-apt-metadata.py' in script
     assert '"$PROJECT_DIR/extensions/yuos-mail-ai"' not in script
 
 
@@ -749,7 +749,7 @@ def test_os_build_refuses_missing_official_artifacts_without_fetching_source(tmp
         packages.check("agent", "amd64", tmp_path)
     assert list(tmp_path.iterdir()) == []
     result = subprocess.run(
-        ["bash", str(ROOT / "packaging/deb/build-debs.sh"), "agent"],
+        ["bash", str(ROOT / "packaging/deb/build-debs.sh"), "framework"],
         capture_output=True, text=True, env={
             **os.environ, "YUOS_PACKAGE_VERSION": "1:0.0.9", "ARCH": "amd64",
             "YUOS_DEB_OUT_DIR": str(tmp_path / "debs"), "YUOS_DEB_STAGE_DIR": str(tmp_path / "staging"),
@@ -867,10 +867,10 @@ def test_runtime_dependencies_use_the_sdk_compatibility_version(tmp_path):
         [sys.executable, "-B", str(ROOT / "scripts/app_packages.py"), "runtime-version"], text=True,
     ).strip()
     subprocess.run(["bash", "-euc", function + '\nrender_control "$CONTROL" "$OUTPUT"'], check=True, env={
-        **os.environ, "CONTROL": str(ROOT / "packaging/deb/yuos-agent/control"),
+        **os.environ, "CONTROL": str(ROOT / "packaging/deb/yuos-framework/control"),
         "OUTPUT": str(rendered), "VERSION": "1:0.1.0", "DEB_ARCH": "amd64",
         "APP_RUNTIME_VERSION": runtime_version, "SECURITY_ABI": "1",
-        "SECURITY_EPOCH": "1", "MIN_AGENT_VERSION": "1:0.1.0",
+        "SECURITY_EPOCH": "1", "MIN_FRAMEWORK_VERSION": "1:0.1.0",
         "MIN_BASE_VERSION": "1:0.1.0", "MIN_DESKTOP_VERSION": "1:0.1.0",
     })
     control = packages.fields(rendered.read_text())
@@ -879,7 +879,7 @@ def test_runtime_dependencies_use_the_sdk_compatibility_version(tmp_path):
     assert "yuos-apps-agent" in control["Recommends"]
     assert "yuos-app-support" not in control["Depends"]
     assert "yuos-apps-desktop" not in control["Depends"]
-    assert "Replaces" not in control
+    assert control["Replaces"] == "yuos-agent (<< 1:0.1.0)"
     desktop = (ROOT / "packaging/deb/yuos-desktop/control").read_text()
     desktop = desktop.replace("__APP_RUNTIME_VERSION__", runtime_version)
     assert "yuos-app-runtime-v1 (>= 0.1.0)" in packages.fields(desktop)["Depends"]

@@ -24,9 +24,9 @@ timestamps, so two builds of the same commit produce byte-identical
 manifests.
 
 Usage:
-  make-manifest.py --package yuos-agent --version 0.2.0+git1.gabc \\
-      --arch amd64 --stage-dir build/deb-staging/yuos-agent \\
-      --output build/deb-staging/yuos-agent/usr/lib/yuos/release-security/yuos-agent/manifest.json
+  make-manifest.py --package yuos-framework --version 0.2.0+git1.gabc \\
+      --arch amd64 --stage-dir build/deb-staging/yuos-framework \\
+      --output build/deb-staging/yuos-framework/usr/lib/yuos/release-security/yuos-framework/manifest.json
 """
 
 from __future__ import annotations

@@ -164,8 +164,8 @@ stage_package() {
         install -m 755 "$DEB_DIR/$package/postrm" "$stage/DEBIAN/postrm"
     fi
 
-    # The APT integration belongs to the agent package.
-    if [ "$package" = "yuos-agent" ]; then
+    # The APT integration belongs to the framework package.
+    if [ "$package" = "yuos-framework" ]; then
         mkdir -p "$stage/usr/lib/yuos/apt" "$stage/etc/apt/apt.conf.d"
         install -m 755 "$DEB_DIR/common/security-floor-hook" \
             "$stage/usr/lib/yuos/apt/security-floor-hook"
@@ -176,8 +176,8 @@ stage_package() {
 
     local depends="" provides=""
     case "$package" in
-        yuos-agent) provides="yuos-abi-$POLICY_ABI" ;;
-        yuos-base) depends="yuos-agent, yuos-abi-$POLICY_ABI" ;;
+        yuos-framework) provides="yuos-abi-$POLICY_ABI" ;;
+        yuos-base) depends="yuos-framework, yuos-abi-$POLICY_ABI" ;;
         yuos-desktop) depends="yuos-base, yuos-abi-$POLICY_ABI" ;;
     esac
     {
@@ -231,13 +231,13 @@ V2="1:0.2.1+git200.gbbbbbbbbbbbb"
 V0="1:0.2.0+git50.gccccccccccc0"
 
 DEBS="$WORK/debs"
-AGENT_V1="$(stage_package yuos-agent "$V1" amd64 alpha "$DEBS")"
+AGENT_V1="$(stage_package yuos-framework "$V1" amd64 alpha "$DEBS")"
 BASE_V1="$(stage_package yuos-base "$V1" all alpha "$DEBS")"
 DESKTOP_V1="$(stage_package yuos-desktop "$V1" amd64 alpha "$DEBS")"
-AGENT_V2="$(stage_package yuos-agent "$V2" amd64 beta "$DEBS")"
+AGENT_V2="$(stage_package yuos-framework "$V2" amd64 beta "$DEBS")"
 BASE_V2="$(stage_package yuos-base "$V2" all beta "$DEBS")"
 DESKTOP_V2="$(stage_package yuos-desktop "$V2" amd64 beta "$DEBS")"
-AGENT_V0="$(stage_package yuos-agent "$V0" amd64 gamma "$DEBS")"
+AGENT_V0="$(stage_package yuos-framework "$V0" amd64 gamma "$DEBS")"
 
 # ---------------------------------------------------------------------------
 # 1. One transaction installs all three packages.
@@ -248,7 +248,7 @@ cp "$KEYRING" "$ROOT/usr/share/keyrings/yuos-archive-keyring.gpg"
 
 dpkg_install "$ROOT" "$AGENT_V1" "$BASE_V1" "$DESKTOP_V1" >"$WORK/install.log" 2>&1 \
     || { cat "$WORK/install.log" >&2; fail "installing the Yu OS set must succeed"; }
-for package in yuos-agent yuos-base yuos-desktop; do
+for package in yuos-framework yuos-base yuos-desktop; do
     [ -s "$ROOT/usr/lib/yuos/release-security/$package/manifest.json" ] \
         || fail "$package did not install its own release manifest"
     [ -s "$ROOT/usr/lib/yuos/release-security/$package/manifest.json.asc" ] \
@@ -265,7 +265,7 @@ duplicate="$(cat "$ROOT/var/lib/dpkg/info/"yuos-*.list \
 ok "no release-security file is owned by two packages"
 
 # Each manifest describes its own package, not whichever was unpacked last.
-for package in yuos-agent yuos-base yuos-desktop; do
+for package in yuos-framework yuos-base yuos-desktop; do
     named="$(python3 -c '
 import json, sys
 print(json.load(open(sys.argv[1]))["release"]["package"])
@@ -279,14 +279,14 @@ FLOOR="$ROOT/var/lib/yuos/security/floor.json"
 [ -s "$FLOOR" ] || fail "the transaction did not record a security floor"
 [ "$(floor_field "$FLOOR" generation)" = "3" ] \
     || fail "each package's postinst must commit its own generation"
-for package in yuos-agent yuos-base yuos-desktop; do
+for package in yuos-framework yuos-base yuos-desktop; do
     [ "$(floor_field "$FLOOR" "packages.$package.version")" = "$V1" ] \
         || fail "$package did not record its own version in the floor"
 done
 ok "each package's postinst commits its own release into the floor"
 
 # Every component of every package is measured, not just the agent's.
-for name in yuosd yuos-init yuos-agent-ui; do
+for name in yuosd yuos-init yuos-system-desktop-tree; do
     floor_field "$FLOOR" "components.$name.sha256" >/dev/null \
         || fail "component $name was not recorded"
 done
@@ -364,7 +364,7 @@ ok "a deleted projection fails closed and is republished from the authority"
 # ---------------------------------------------------------------------------
 dpkg_install "$ROOT" "$AGENT_V2" "$BASE_V2" "$DESKTOP_V2" >"$WORK/upgrade.log" 2>&1 \
     || { cat "$WORK/upgrade.log" >&2; fail "upgrading the Yu OS set must succeed"; }
-for package in yuos-agent yuos-base yuos-desktop; do
+for package in yuos-framework yuos-base yuos-desktop; do
     [ "$(floor_field "$FLOOR" "packages.$package.version")" = "$V2" ] \
         || fail "$package did not advance its own floor entry"
 done
@@ -380,12 +380,12 @@ ok "an ordered multi-package upgrade advances every package's floor"
 # refuses to start the broker while the set is still mixed.
 grep -q 'deferring yuosd start' "$WORK/upgrade.log" && \
     fail "no start should be deferred when the whole set moves together"
-"$HELPER" service-gate --root "$ROOT" --package yuos-agent \
-    --manifest "$ROOT/usr/lib/yuos/release-security/yuos-agent/manifest.json" \
+"$HELPER" service-gate --root "$ROOT" --package yuos-framework \
+    --manifest "$ROOT/usr/lib/yuos/release-security/yuos-framework/manifest.json" \
     --installed "yuos-base=$V2" --installed "yuos-desktop=$V2" >/dev/null \
     || fail "a coherent installed set must pass the service gate"
-if "$HELPER" service-gate --root "$ROOT" --package yuos-agent \
-    --manifest "$ROOT/usr/lib/yuos/release-security/yuos-agent/manifest.json" \
+if "$HELPER" service-gate --root "$ROOT" --package yuos-framework \
+    --manifest "$ROOT/usr/lib/yuos/release-security/yuos-framework/manifest.json" \
     --installed "yuos-base=0.1.0" >/dev/null 2>&1; then
     fail "an incompatible installed set must fail the service gate"
 fi
@@ -395,11 +395,11 @@ ok "service coherence is decided from the installed set"
 # 4. Downgrading one package out of the set.
 # ---------------------------------------------------------------------------
 if dpkg_install "$ROOT" "$AGENT_V0" >"$WORK/downgrade.log" 2>&1; then
-    fail "dpkg accepted a downgrade of yuos-agent"
+    fail "dpkg accepted a downgrade of yuos-framework"
 fi
 grep -q "security floor only moves forward" "$WORK/downgrade.log" \
     || { cat "$WORK/downgrade.log" >&2; fail "dpkg did not report the floor refusal"; }
-[ "$(floor_field "$FLOOR" "packages.yuos-agent.version")" = "$V2" ] \
+[ "$(floor_field "$FLOOR" "packages.yuos-framework.version")" = "$V2" ] \
     || fail "a refused downgrade must not change the floor"
 ok "dpkg refuses a downgrade of one package in an installed set"
 
@@ -525,7 +525,7 @@ apt_run -y install unrelated-pkg --reinstall >"$WORK/apt-unrelated.log" 2>&1 \
 ok "an unrelated package installs while Yu OS is absent"
 
 mv "$WORK/apt/helper-shim.hidden" "$WORK/apt/helper-shim"
-apt_run -y install "yuos-agent=$V2" >"$WORK/apt-bootstrap.log" 2>&1 \
+apt_run -y install "yuos-framework=$V2" >"$WORK/apt-bootstrap.log" 2>&1 \
     || { cat "$WORK/apt-bootstrap.log" >&2; fail "the first Yu OS install must succeed"; }
 [ -s "$APT_ROOT/var/lib/yuos/security/floor.json" ] \
     || fail "the first apt install did not record a floor"
@@ -535,28 +535,28 @@ apt_run -y install unrelated-pkg --reinstall >"$WORK/apt-unrelated2.log" 2>&1 \
     || { cat "$WORK/apt-unrelated2.log" >&2; fail "unrelated installs must keep working"; }
 ok "unrelated package operations keep working on a protected machine"
 
-if apt_run -y --allow-downgrades install "yuos-agent=$V1" \
+if apt_run -y --allow-downgrades install "yuos-framework=$V1" \
     >"$WORK/apt-downgrade.log" 2>&1; then
     fail "apt installed an older Yu OS release"
 fi
 grep -q "version_regression" "$WORK/apt-downgrade.log" \
     || { cat "$WORK/apt-downgrade.log" >&2; fail "the APT hook did not report the refusal"; }
 [ "$(floor_field "$APT_ROOT/var/lib/yuos/security/floor.json" \
-    "packages.yuos-agent.version")" = "$V2" ] \
+    "packages.yuos-framework.version")" = "$V2" ] \
     || fail "a refused apt transaction must not change the floor"
 ok "apt aborts a downgrade before anything is unpacked"
 
 # A tampered candidate: same version, different bytes.
 TAMPERED="$WORK/tampered"
 mkdir -p "$TAMPERED"
-TAMPERED_DEB="$(stage_package yuos-agent "$V2" amd64 "different-bytes" "$TAMPERED")"
+TAMPERED_DEB="$(stage_package yuos-framework "$V2" amd64 "different-bytes" "$TAMPERED")"
 cp "$TAMPERED_DEB" "$REPO/"
 ( cd "$REPO" && apt-ftparchive packages . > Packages \
     && apt-ftparchive -o APT::FTPArchive::Release::Suite=./ release . > Release )
 gpg --batch --yes --pinentry-mode loopback --default-key "$KEY_ID" \
     --clearsign -o "$REPO/InRelease" "$REPO/Release"
 apt_run update -qq >/dev/null 2>&1
-if apt_run -y --reinstall install "yuos-agent=$V2" \
+if apt_run -y --reinstall install "yuos-framework=$V2" \
     >"$WORK/apt-tampered.log" 2>&1; then
     fail "apt installed a substituted artifact for a recorded version"
 fi
@@ -642,7 +642,7 @@ grep -q "names version" "$WORK/verify-relabel.log" \
 ok "the shared verifier refuses a package relabelled to another version"
 
 SWAPPED="$(repack "$AGENT_V1" "$WORK/verify-swapped.deb" \
-    "cp -a usr/lib/yuos/release-security/yuos-agent usr/lib/yuos/release-security/yuos-base")"
+    "cp -a usr/lib/yuos/release-security/yuos-framework usr/lib/yuos/release-security/yuos-base")"
 if "$VERIFY_MANIFEST" "$SWAPPED" >"$WORK/verify-swapped.log" 2>&1; then
     fail "the verifier accepted a package shipping another package's manifest directory"
 fi
@@ -678,7 +678,7 @@ control = stage / "DEBIAN/control"
 control.write_text(
     re.sub(r"^Version: .*$", f"Version: {plain_version}", control.read_text(), flags=re.M)
 )
-manifest = stage / "usr/lib/yuos/release-security/yuos-agent/manifest.json"
+manifest = stage / "usr/lib/yuos/release-security/yuos-framework/manifest.json"
 document = json.loads(manifest.read_text(encoding="utf-8"))
 document["release"]["version"] = plain_version
 body = json.dumps(document, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n"
@@ -710,7 +710,7 @@ if grep -q 'manifest is not in canonical encoding\|manifest_extrac[^t]' \
     "$RELEASE_WORKFLOW" "$PACKAGE_CHECK"; then
     fail "publication duplicates manifest checks or uses a mistyped extraction directory"
 fi
-for component in agent base desktop; do
+for component in framework agent base desktop agent-desktop; do
     grep -Fq "bash scripts/ci/verify-package.sh $component" "$RELEASE_WORKFLOW" \
         || fail "$component does not invoke shared package verification"
 done
@@ -739,7 +739,7 @@ PY
 EMERGENCY_STAGE="$WORK/stage-emergency"
 rm -rf "$EMERGENCY_STAGE"
 mkdir -p "$EMERGENCY_STAGE/DEBIAN"
-for path in $(component_paths yuos-agent); do
+for path in $(component_paths yuos-framework); do
     mkdir -p "$EMERGENCY_STAGE$(dirname "$path")"
     if [ "$path" = "/usr/lib/yuos/bin/yuos-security-floor" ]; then
         cp "$HELPER" "$EMERGENCY_STAGE$path"
@@ -750,18 +750,18 @@ for path in $(component_paths yuos-agent); do
     chmod 0755 "$EMERGENCY_STAGE$path"
 done
 python3 "$MAKE_MANIFEST" \
-    --package yuos-agent \
+    --package yuos-framework \
     --version "$EMERGENCY_VERSION" \
     --arch amd64 \
     --suite trixie \
     --stage-dir "$EMERGENCY_STAGE" \
     --policy "$EMERGENCY_POLICY" \
-    --output "$EMERGENCY_STAGE/usr/lib/yuos/release-security/yuos-agent/manifest.json" \
+    --output "$EMERGENCY_STAGE/usr/lib/yuos/release-security/yuos-framework/manifest.json" \
     --sign-key "$KEY_ID" > /dev/null
-"$RENDER_PREINST" yuos-agent "$EMERGENCY_VERSION" 2 \
+"$RENDER_PREINST" yuos-framework "$EMERGENCY_VERSION" 2 \
     "$EMERGENCY_STAGE" "$EMERGENCY_STAGE/DEBIAN/preinst"
 {
-    printf 'Package: yuos-agent\nVersion: %s\n' "$EMERGENCY_VERSION"
+    printf 'Package: yuos-framework\nVersion: %s\n' "$EMERGENCY_VERSION"
     printf 'Section: admin\nPriority: optional\nArchitecture: amd64\n'
     printf 'Maintainer: Yu OS <noreply@github.com>\n'
     printf 'Provides: yuos-abi-%s\n' "$POLICY_ABI"
@@ -769,7 +769,7 @@ python3 "$MAKE_MANIFEST" \
     printf 'Description: emergency release fixture\n'
 } > "$EMERGENCY_STAGE/DEBIAN/control"
 fakeroot dpkg-deb -Znone --root-owner-group --build "$EMERGENCY_STAGE" \
-    "$REPO/yuos-agent_2%3a0.2.0+git10.gemergency00_amd64.deb" >/dev/null
+    "$REPO/yuos-framework_2%3a0.2.0+git10.gemergency00_amd64.deb" >/dev/null
 
 ( cd "$REPO" && apt-ftparchive packages . > Packages \
     && apt-ftparchive -o APT::FTPArchive::Release::Suite=./ release . > Release )
@@ -786,7 +786,7 @@ candidate="$(apt-cache \
     -o "Dir::Cache=$WORK/apt/cache" \
     -o "APT::Architecture=amd64" \
     -o "APT::Architectures=amd64" \
-    policy yuos-agent 2>/dev/null \
+    policy yuos-framework 2>/dev/null \
     | awk '/Candidate:/ { print $2; exit }' || true)"
 [ "$candidate" = "$EMERGENCY_VERSION" ] \
     || fail "apt chose $candidate, not the higher security epoch $EMERGENCY_VERSION"
@@ -802,7 +802,7 @@ UNSIGNED_DEB="$WORK/verify-unsigned.deb"
 rm -rf "$UNSIGNED_DIR"
 mkdir -p "$UNSIGNED_DIR"
 dpkg-deb -R "$AGENT_V1" "$UNSIGNED_DIR"
-rm -f "$UNSIGNED_DIR/usr/lib/yuos/release-security/yuos-agent/manifest.json.asc"
+rm -f "$UNSIGNED_DIR/usr/lib/yuos/release-security/yuos-framework/manifest.json.asc"
 fakeroot dpkg-deb -Znone --root-owner-group --build "$UNSIGNED_DIR" \
     "$UNSIGNED_DEB" >/dev/null
 
@@ -865,7 +865,7 @@ ABI_OK_DEB="$WORK/verify-abi-ok.deb"
 rm -rf "$ABI_OK_DIR"
 mkdir -p "$ABI_OK_DIR"
 dpkg-deb -R "$BASE_V1" "$ABI_OK_DIR"
-sed -i "s|^Depends: .*|Depends: yuos-agent (>= 1:0.2.0), yuos-abi-$POLICY_ABI:any, adduser|" \
+sed -i "s|^Depends: .*|Depends: yuos-framework (>= 1:0.2.0), yuos-abi-$POLICY_ABI:any, adduser|" \
     "$ABI_OK_DIR/DEBIAN/control"
 fakeroot dpkg-deb -Znone --root-owner-group --build "$ABI_OK_DIR" "$ABI_OK_DEB" >/dev/null
 "$VERIFY_MANIFEST" "$ABI_OK_DEB" >/dev/null \
@@ -895,7 +895,7 @@ for component in ("agent", "base", "desktop"):
     imported = next(index for index, step in enumerate(steps)
                     if step.get("run") == "bash scripts/ci/import-signing-key.sh")
     checked = next(index for index, step in enumerate(steps)
-                   if step.get("run") == f"bash scripts/ci/verify-package.sh {component}")
+                   if f"bash scripts/ci/verify-package.sh {component}\n" in step.get("run", "") + "\n")
     uploaded = next(index for index, step in enumerate(steps)
                     if "upload-artifact" in step.get("uses", ""))
     assert imported < checked < uploaded, component

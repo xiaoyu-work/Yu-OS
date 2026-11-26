@@ -19,11 +19,11 @@ TEST_BOUNDARIES="$PROJECT_DIR/scripts/ci/test-boundaries.sh"
 RELEASE_WORKFLOW="$PROJECT_DIR/.github/workflows/release.yml"
 AGENT_PACKAGE_TESTS="$PROJECT_DIR/scripts/ci/test-agent-package.sh"
 CARGO_TOML="$PROJECT_DIR/core/Cargo.toml"
-SYSUSERS="$PROJECT_DIR/packaging/deb/yuos-agent/yuos-agent.sysusers"
-PREINST="$PROJECT_DIR/packaging/deb/yuos-agent/preinst"
-POSTINST="$PROJECT_DIR/packaging/deb/yuos-agent/postinst"
-POSTRM="$PROJECT_DIR/packaging/deb/yuos-agent/postrm"
-IDENTITY_HELPER="$PROJECT_DIR/packaging/deb/yuos-agent/extension-identities.sh"
+SYSUSERS="$PROJECT_DIR/packaging/deb/yuos-framework/yuos-agent.sysusers"
+PREINST="$PROJECT_DIR/packaging/deb/yuos-framework/preinst"
+POSTINST="$PROJECT_DIR/packaging/deb/yuos-framework/postinst"
+POSTRM="$PROJECT_DIR/packaging/deb/yuos-framework/postrm"
+IDENTITY_HELPER="$PROJECT_DIR/packaging/deb/yuos-framework/extension-identities.sh"
 IDENTITY_RS="$PROJECT_DIR/core/src/extension_host/identity.rs"
 
 fail() {
@@ -77,26 +77,26 @@ assert_contains "$BUILD_DEBS" 'install -Dm0644 "$PAM_DISPLAY_MODULE"' \
     "the PAM module must retain its non-executable installation mode"
 assert_contains "$BUILD_DEBS" '/usr/lib/$PAM_MULTIARCH/security/pam_yuos_display.so' \
     "the PAM module must use the target multiarch installation directory"
-assert_contains "$PROJECT_DIR/packaging/deb/yuos-agent/control" 'yuos-display-session-v3' \
+assert_contains "$PROJECT_DIR/packaging/deb/yuos-framework/control" 'yuos-display-session-v3' \
     "Agent must provide the internal display runtime interface"
-assert_contains "$PROJECT_DIR/packaging/deb/yuos-agent/control" 'libpam0g' \
+assert_contains "$PROJECT_DIR/packaging/deb/yuos-framework/control" 'libpam0g' \
     "Agent must declare its PAM runtime dependency"
-assert_contains "$PROJECT_DIR/packaging/deb/yuos-agent/control" 'pkexec' \
+assert_contains "$PROJECT_DIR/packaging/deb/yuos-framework/control" 'pkexec' \
     "Agent must install the protected terminal approval launcher"
-assert_contains "$PROJECT_DIR/packaging/deb/yuos-agent/control" 'polkitd' \
+assert_contains "$PROJECT_DIR/packaging/deb/yuos-framework/control" 'polkitd' \
     "Agent must install the unprivileged pkttyagent authentication presenter"
 assert_contains "$PROJECT_DIR/packaging/deb/yuos-desktop/control" 'yuos-display-session-v3' \
     "Desktop must require the Agent display runtime"
 if grep -Fq 'yuos-display-session-v2' \
-    "$PROJECT_DIR/packaging/deb/yuos-agent/control" \
+    "$PROJECT_DIR/packaging/deb/yuos-framework/control" \
     "$PROJECT_DIR/packaging/deb/yuos-desktop/control"; then
     fail "the OS Shell requires the new display runtime without a v2 fallback"
 fi
-assert_contains "$PROJECT_DIR/packaging/deb/yuos-agent/control" 'yuos-file-manager-v1 (= 1)' \
+assert_contains "$PROJECT_DIR/packaging/deb/yuos-framework/control" 'yuos-file-manager-v1 (= 1)' \
     "Agent must provide the unprivileged file-manager transport interface"
 assert_contains "$PROJECT_DIR/packaging/deb/yuos-desktop/control" 'yuos-file-manager-v1 (= 1)' \
     "Desktop must require the file-manager interface without an App entitlement"
-assert_contains "$BUILD_DEBS" 'install -m 755 "$FILE_MANAGER_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-file-manager"' \
+assert_contains "$BUILD_DEBS" 'install -m 755 "$FILE_MANAGER_BIN" "$FRAMEWORK_STAGE/usr/lib/yuos/bin/yuos-file-manager"' \
     "Agent must own the actual file-manager transport binary"
 assert_contains "$PROJECT_DIR/core/src/display_session/client.rs" 'command("/usr/lib/yuos/bin/yuos-file-manager").spawn()' \
     "the authenticated session must start and retain the OS intent transport itself"
@@ -165,7 +165,7 @@ assert_contains "$BUILD_DEBS" 'usr/lib/yuos/bin/yuos-calendar-reader' \
     "Agent must own the Calendar reader executable"
 assert_contains "$BUILD_DEBS" 'calendar-reader.LICENSE' \
     "Agent must carry the Calendar reader GPL license"
-assert_contains "$PROJECT_DIR/packaging/deb/yuos-agent/control" 'yuos-calendar-read-v1' \
+assert_contains "$PROJECT_DIR/packaging/deb/yuos-framework/control" 'yuos-calendar-read-v1' \
     "Agent must provide the Calendar read service"
 assert_contains "$PROJECT_DIR/packaging/deb/yuos-desktop/control" 'yuos-calendar-read-v1' \
     "Desktop must depend on the Calendar read service"

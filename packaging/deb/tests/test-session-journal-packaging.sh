@@ -14,8 +14,8 @@ set -euo pipefail
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../../.." && pwd)
 
-POSTINST="$PROJECT_DIR/packaging/deb/yuos-agent/postinst"
-POSTRM="$PROJECT_DIR/packaging/deb/yuos-agent/postrm"
+POSTINST="$PROJECT_DIR/packaging/deb/yuos-framework/postinst"
+POSTRM="$PROJECT_DIR/packaging/deb/yuos-framework/postrm"
 STORAGE="$PROJECT_DIR/core/src/storage.rs"
 
 fail() {

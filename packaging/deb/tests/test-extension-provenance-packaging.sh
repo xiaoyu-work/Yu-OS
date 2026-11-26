@@ -24,7 +24,7 @@ BUILD="$PROJECT_DIR/packaging/deb/build-debs.sh"
 TRUST_MODULE="$PROJECT_DIR/core/src/provenance/trust.rs"
 VERIFY_MODULE="$PROJECT_DIR/core/src/provenance/verify.rs"
 SIGN_MODULE="$PROJECT_DIR/core/src/provenance/sign.rs"
-VENDOR_TRUST_DIR="$PROJECT_DIR/packaging/deb/yuos-agent/trust/publishers.d"
+VENDOR_TRUST_DIR="$PROJECT_DIR/packaging/deb/yuos-framework/trust/publishers.d"
 
 fail() {
     printf 'not ok - %s\n' "$*" >&2

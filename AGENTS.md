@@ -452,5 +452,5 @@ Before completion:
 | App/manifest/SDK contract | `docs/app-development.md`, SDK README |
 | Image feature/profile/identity | `docs/image-architecture.md`, `rootfs/features/README.md` |
 | Package or installed update behavior | `packaging/README.md`, `docs/updating.md` |
-| Extension signing, trust roots, or package verification | `docs/extension-provenance.md`, `packaging/deb/yuos-agent/trust/publishers.d/README.md` |
+| Extension signing, trust roots, or package verification | `docs/extension-provenance.md`, `packaging/deb/yuos-framework/trust/publishers.d/README.md` |
 | Desktop boundary or provenance | `desktop/README.md`, `desktop/PROVENANCE.md` |

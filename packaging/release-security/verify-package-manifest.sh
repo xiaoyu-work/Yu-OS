@@ -68,7 +68,7 @@ PROVIDES="$(dpkg-deb -f "$DEB" Provides || true)"
 DEPENDS="$(dpkg-deb -f "$DEB" Depends || true)"
 
 case "$PACKAGE" in
-    yuos-agent|yuos-base|yuos-desktop) ;;
+    yuos-framework|yuos-agent|yuos-base|yuos-desktop|yuos-agent-desktop) ;;
     *) echo "error: $PACKAGE is not a gated Yu OS package" >&2; exit 1 ;;
 esac
 if [ -n "$EXPECT_ARCH" ] && [ "$ARCH" != "$EXPECT_ARCH" ]; then
@@ -108,9 +108,9 @@ PY
 }
 
 case "$PACKAGE" in
-    yuos-agent)
+    yuos-framework)
         declares_abi "$PROVIDES" "yuos-abi-$ABI" \
-            || { echo "error: yuos-agent must provide yuos-abi-$ABI" >&2; exit 1; }
+            || { echo "error: yuos-framework must provide yuos-abi-$ABI" >&2; exit 1; }
         ;;
     *)
         declares_abi "$DEPENDS" "yuos-abi-$ABI" \

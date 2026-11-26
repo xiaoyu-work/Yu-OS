@@ -1,10 +1,10 @@
 #!/bin/sh
-# yuos-agent postrm -- purge systemd state owned by the agent package.
+# yuos-framework postrm -- purge systemd state owned by the Framework package.
 #
 # The update-security floor under /var/lib/yuos/security is deliberately
 # NOT removed, on remove or on purge. It is the record of the newest
 # Yu OS release this machine has ever accepted; deleting it would let
-# a later `apt install yuos-agent=<old-version>` reinstate a
+# a later `apt install yuos-framework=<old-version>` reinstate a
 # superseded, still validly signed release with nothing to compare
 # against. Removing it is an explicit, documented operator action —
 # see docs/updating.md.

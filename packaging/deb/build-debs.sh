@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# packaging/deb/build-debs.sh -- assemble yuos-agent and yuos-base
+# packaging/deb/build-debs.sh -- assemble yuos-framework, yuos-agent and yuos-base
 # from already-built binaries and source-tree files.
 #
 # Output: $PROJECT_DIR/build/debs/
 #
 # Usage:
-#   ./packaging/deb/build-debs.sh [all|agent|base]
+#   ./packaging/deb/build-debs.sh [all|framework|agent|base]
 #
 # Required tools: dpkg-deb, fakeroot (or run as root).
 # Optional:       gzip, find, install, sed.
@@ -35,13 +35,13 @@ source "$PROJECT_DIR/scripts/lib/package-version.sh"
 VERSION="$(package_version "$PROJECT_DIR")"
 PACKAGE_SET="${1:-all}"
 if [ "$#" -gt 1 ]; then
-    echo "usage: $0 [all|agent|base]" >&2
+    echo "usage: $0 [all|framework|agent|base]" >&2
     exit 2
 fi
 case "$PACKAGE_SET" in
-    all|agent|base) ;;
+    all|framework|agent|base) ;;
     *)
-        echo "error: unknown package set '$PACKAGE_SET'; expected all, agent, or base" >&2
+        echo "error: unknown package set '$PACKAGE_SET'; expected all, framework, agent, or base" >&2
         exit 2
         ;;
 esac
@@ -59,7 +59,7 @@ unset GPG_PASSPHRASE
 RELEASE_SECURITY_KEY_ID="$(yuos_resolve_signing_key)" || exit 1
 
 APP_RUNTIME_VERSION="$(python3 "$PROJECT_DIR/scripts/app_packages.py" runtime-version)"
-if [ "$PACKAGE_SET" = all ] || [ "$PACKAGE_SET" = agent ]; then
+if [ "$PACKAGE_SET" = all ] || [ "$PACKAGE_SET" = framework ]; then
     python3 "$PROJECT_DIR/scripts/app_packages.py" check-version --version "$VERSION"
     python3 "$PROJECT_DIR/scripts/app_packages.py" check \
         --variant agent --architecture "$DEB_ARCH" >/dev/null
@@ -87,18 +87,22 @@ echo ":: yuos deb build — version $VERSION arch $DEB_ARCH"
 
 rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR" "$OUT_DIR"
-# The package contract has exactly three names. Never let obsolete local
+# The package contract has exactly five names. Never let obsolete local
 # artifacts leak into a newly generated repository.
 find "$OUT_DIR" -maxdepth 1 -type f -name 'yuos-*.deb' \
+    ! -name 'yuos-framework_*.deb' \
     ! -name 'yuos-agent_*.deb' \
+    ! -name 'yuos-agent-desktop_*.deb' \
     ! -name 'yuos-base_*.deb' \
     ! -name 'yuos-desktop_*.deb' \
     -delete
 case "$PACKAGE_SET" in
     all)
+        rm -f "$OUT_DIR"/yuos-framework_*_"$DEB_ARCH".deb
         rm -f "$OUT_DIR"/yuos-agent_*_"$DEB_ARCH".deb
         rm -f "$OUT_DIR"/yuos-base_*_all.deb
         ;;
+    framework) rm -f "$OUT_DIR"/yuos-framework_*_"$DEB_ARCH".deb ;;
     agent) rm -f "$OUT_DIR"/yuos-agent_*_"$DEB_ARCH".deb ;;
     base) rm -f "$OUT_DIR"/yuos-base_*_all.deb ;;
 esac
@@ -312,7 +316,7 @@ render_control() {
         -e "s/__ABI__/$SECURITY_ABI/g" \
         -e "s/__APP_RUNTIME_VERSION__/$APP_RUNTIME_VERSION/g" \
         -e "s/__SECURITY_EPOCH__/$SECURITY_EPOCH/g" \
-        -e "s/__MIN_AGENT__/$MIN_AGENT_VERSION/g" \
+        -e "s/__MIN_FRAMEWORK__/$MIN_FRAMEWORK_VERSION/g" \
         -e "s/__MIN_BASE__/$MIN_BASE_VERSION/g" \
         -e "s/__MIN_DESKTOP__/$MIN_DESKTOP_VERSION/g" \
         "$src" > "$dst"
@@ -350,7 +354,7 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 SECURITY_EPOCH="$(policy_field security_epoch)"
 SECURITY_ABI="$(policy_field abi)"
-MIN_AGENT_VERSION="$(policy_field minimum_compatible.yuos-agent)"
+MIN_FRAMEWORK_VERSION="$(policy_field minimum_compatible.yuos-framework)"
 MIN_BASE_VERSION="$(policy_field minimum_compatible.yuos-base)"
 MIN_DESKTOP_VERSION="$(policy_field minimum_compatible.yuos-desktop)"
 RELEASE_SECURITY_SUITE="${SUITE:-trixie}"
@@ -389,27 +393,26 @@ render_security_preinst() {
 SYSTEM_UNITS_SRC="$PROJECT_DIR/rootfs/features/systemd/overlay/usr/lib/systemd/system"
 
 ###############################################################################
-# 1. yuos-agent
+# 1. yuos-framework (platform services, App host and system API)
 ###############################################################################
-if [ "$PACKAGE_SET" = "all" ] || [ "$PACKAGE_SET" = "agent" ]; then
-echo "===> staging yuos-agent"
-AGENT_STAGE="$STAGE_DIR/yuos-agent"
+if [ "$PACKAGE_SET" = "all" ] || [ "$PACKAGE_SET" = "framework" ]; then
+echo "===> staging yuos-framework"
+FRAMEWORK_STAGE="$STAGE_DIR/yuos-framework"
 mkdir -p \
-    "$AGENT_STAGE/DEBIAN" \
-    "$AGENT_STAGE/etc/apt/apt.conf.d" \
-    "$AGENT_STAGE/etc/yuos" \
-    "$AGENT_STAGE/etc/yuos/trust/publishers.d" \
-    "$AGENT_STAGE/usr/lib/yuos/apt" \
-    "$AGENT_STAGE/usr/lib/yuos/bin" \
-    "$AGENT_STAGE/usr/lib/yuos/python" \
-    "$AGENT_STAGE/usr/lib/yuos/release-security" \
-    "$AGENT_STAGE/usr/lib/yuos/skills" \
-    "$AGENT_STAGE/usr/lib/yuos/trust/publishers.d" \
-    "$AGENT_STAGE/usr/lib/systemd/system" \
-    "$AGENT_STAGE/usr/lib/systemd/user" \
-    "$AGENT_STAGE/usr/local/bin" \
-    "$AGENT_STAGE/usr/share/polkit-1/actions"
-chmod 0755 "$AGENT_STAGE/DEBIAN"
+    "$FRAMEWORK_STAGE/DEBIAN" \
+    "$FRAMEWORK_STAGE/etc/apt/apt.conf.d" \
+    "$FRAMEWORK_STAGE/etc/yuos" \
+    "$FRAMEWORK_STAGE/etc/yuos/trust/publishers.d" \
+    "$FRAMEWORK_STAGE/usr/lib/yuos/apt" \
+    "$FRAMEWORK_STAGE/usr/lib/yuos/bin" \
+    "$FRAMEWORK_STAGE/usr/lib/yuos/python" \
+    "$FRAMEWORK_STAGE/usr/lib/yuos/release-security" \
+    "$FRAMEWORK_STAGE/usr/lib/yuos/trust/publishers.d" \
+    "$FRAMEWORK_STAGE/usr/lib/systemd/system" \
+    "$FRAMEWORK_STAGE/usr/lib/systemd/user" \
+    "$FRAMEWORK_STAGE/usr/local/bin" \
+    "$FRAMEWORK_STAGE/usr/share/polkit-1/actions"
+chmod 0755 "$FRAMEWORK_STAGE/DEBIAN"
 
 # Extension-provenance trust roots.
 #
@@ -421,11 +424,11 @@ chmod 0755 "$AGENT_STAGE/DEBIAN"
 # rather than silently widening trust. Ownership is asserted by dpkg
 # (packages install as root); the modes are set explicitly here.
 chmod 0755 \
-    "$AGENT_STAGE/usr/lib/yuos/trust" \
-    "$AGENT_STAGE/usr/lib/yuos/trust/publishers.d" \
-    "$AGENT_STAGE/etc/yuos/trust" \
-    "$AGENT_STAGE/etc/yuos/trust/publishers.d"
-VENDOR_TRUST_SRC="$SCRIPT_DIR/yuos-agent/trust/publishers.d"
+    "$FRAMEWORK_STAGE/usr/lib/yuos/trust" \
+    "$FRAMEWORK_STAGE/usr/lib/yuos/trust/publishers.d" \
+    "$FRAMEWORK_STAGE/etc/yuos/trust" \
+    "$FRAMEWORK_STAGE/etc/yuos/trust/publishers.d"
+VENDOR_TRUST_SRC="$SCRIPT_DIR/yuos-framework/trust/publishers.d"
 if [ -d "$VENDOR_TRUST_SRC" ]; then
     for trust_file in "$VENDOR_TRUST_SRC"/*.json; do
         [ -e "$trust_file" ] || continue
@@ -435,46 +438,42 @@ if [ -d "$VENDOR_TRUST_SRC" ]; then
             exit 1
         fi
         install -m 0644 "$trust_file" \
-            "$AGENT_STAGE/usr/lib/yuos/trust/publishers.d/$(basename "$trust_file")"
+            "$FRAMEWORK_STAGE/usr/lib/yuos/trust/publishers.d/$(basename "$trust_file")"
     done
 fi
 
-render_control "$SCRIPT_DIR/yuos-agent/control" "$AGENT_STAGE/DEBIAN/control"
-install -m 644 "$SCRIPT_DIR/yuos-agent/conffiles" "$AGENT_STAGE/DEBIAN/conffiles"
+render_control "$SCRIPT_DIR/yuos-framework/control" "$FRAMEWORK_STAGE/DEBIAN/control"
+install -m 644 "$SCRIPT_DIR/yuos-framework/conffiles" "$FRAMEWORK_STAGE/DEBIAN/conffiles"
 install -Dm0644 "$PROJECT_DIR/core/assets/app-store-archive-key.asc" \
-    "$AGENT_STAGE/usr/share/keyrings/yuos-apps-archive-key.asc"
-install -Dm0644 "$SCRIPT_DIR/yuos-agent/yuos-apps.sources" \
-    "$AGENT_STAGE/etc/apt/sources.list.d/yuos-apps.sources"
-install -Dm0644 "$SCRIPT_DIR/yuos-agent/helium-archive-key.asc" \
-    "$AGENT_STAGE/usr/share/keyrings/yuos-helium-archive-key.asc"
-install -Dm0644 "$SCRIPT_DIR/yuos-agent/yuos-helium.sources" \
-    "$AGENT_STAGE/etc/apt/sources.list.d/yuos-helium.sources"
-install -Dm0644 "$SCRIPT_DIR/yuos-agent/yuos-helium.pref" \
-    "$AGENT_STAGE/etc/apt/preferences.d/yuos-helium.pref"
-render_control "$SCRIPT_DIR/yuos-agent/postinst" "$AGENT_STAGE/DEBIAN/postinst.body"
+    "$FRAMEWORK_STAGE/usr/share/keyrings/yuos-apps-archive-key.asc"
+install -Dm0644 "$SCRIPT_DIR/yuos-framework/yuos-apps.sources" \
+    "$FRAMEWORK_STAGE/etc/apt/sources.list.d/yuos-apps.sources"
+install -Dm0644 "$SCRIPT_DIR/yuos-framework/helium-archive-key.asc" \
+    "$FRAMEWORK_STAGE/usr/share/keyrings/yuos-helium-archive-key.asc"
+install -Dm0644 "$SCRIPT_DIR/yuos-framework/yuos-helium.sources" \
+    "$FRAMEWORK_STAGE/etc/apt/sources.list.d/yuos-helium.sources"
+install -Dm0644 "$SCRIPT_DIR/yuos-framework/yuos-helium.pref" \
+    "$FRAMEWORK_STAGE/etc/apt/preferences.d/yuos-helium.pref"
+render_control "$SCRIPT_DIR/yuos-framework/postinst" "$FRAMEWORK_STAGE/DEBIAN/postinst.body"
 {
-    cat "$SCRIPT_DIR/yuos-agent/extension-identities.sh"
-    tail -n +2 "$AGENT_STAGE/DEBIAN/postinst.body"
-} > "$AGENT_STAGE/DEBIAN/postinst"
-rm -f "$AGENT_STAGE/DEBIAN/postinst.body"
-chmod 0755 "$AGENT_STAGE/DEBIAN/postinst"
-install -m 755 "$SCRIPT_DIR/yuos-agent/prerm" "$AGENT_STAGE/DEBIAN/prerm"
+    cat "$SCRIPT_DIR/yuos-framework/extension-identities.sh"
+    tail -n +2 "$FRAMEWORK_STAGE/DEBIAN/postinst.body"
+} > "$FRAMEWORK_STAGE/DEBIAN/postinst"
+rm -f "$FRAMEWORK_STAGE/DEBIAN/postinst.body"
+chmod 0755 "$FRAMEWORK_STAGE/DEBIAN/postinst"
+install -m 755 "$SCRIPT_DIR/yuos-framework/prerm" "$FRAMEWORK_STAGE/DEBIAN/prerm"
 {
-    cat "$SCRIPT_DIR/yuos-agent/extension-identities.sh"
-    tail -n +2 "$SCRIPT_DIR/yuos-agent/postrm"
-} > "$AGENT_STAGE/DEBIAN/postrm"
-chmod 0755 "$AGENT_STAGE/DEBIAN/postrm"
-install -d -m 755 "$AGENT_STAGE/usr/lib/sysusers.d"
-install -d -m 755 "$AGENT_STAGE/usr/lib/yuos/extensions"
-install -m 644 "$SCRIPT_DIR/yuos-agent/yuos-agent.sysusers" \
-    "$AGENT_STAGE/usr/lib/sysusers.d/yuos-agent.conf"
+    cat "$SCRIPT_DIR/yuos-framework/extension-identities.sh"
+    tail -n +2 "$SCRIPT_DIR/yuos-framework/postrm"
+} > "$FRAMEWORK_STAGE/DEBIAN/postrm"
+chmod 0755 "$FRAMEWORK_STAGE/DEBIAN/postrm"
+install -d -m 755 "$FRAMEWORK_STAGE/usr/lib/sysusers.d"
+install -d -m 755 "$FRAMEWORK_STAGE/usr/lib/yuos/extensions"
+install -m 644 "$SCRIPT_DIR/yuos-framework/yuos-agent.sysusers" \
+    "$FRAMEWORK_STAGE/usr/lib/sysusers.d/yuos-agent.conf"
 
 YUOS_BIN="$(ensure_bin yu yu)" || { echo "error: yu binary not built" >&2; exit 1; }
 YUOSD_BIN="$(ensure_bin yuosd yu)" || { echo "error: yuosd binary not built" >&2; exit 1; }
-# The unprivileged agent worker. yuosd refuses to run agent tasks without
-# it, so it ships in lockstep with the broker it is spawned by.
-AGENTD_BIN="$(ensure_bin yuos-agentd yu)" || {
-    echo "error: yuos-agentd binary not built" >&2; exit 1; }
 EXTENSION_HOST_BIN="$(ensure_bin yuos-extension-host yu)" || {
     echo "error: yuos-extension-host binary not built" >&2; exit 1; }
 CALENDAR_READER_BIN="$(ensure_calendar_reader)" || {
@@ -513,7 +512,6 @@ SECURITY_FLOOR_BIN="$(ensure_bin yuos-security-floor yu)" || {
 
 echo "  :: yu                     <- $YUOS_BIN"
 echo "  :: yuosd                  <- $YUOSD_BIN"
-echo "  :: yuos-agentd            <- $AGENTD_BIN"
 echo "  :: yuos-extension-host    <- $EXTENSION_HOST_BIN"
 echo "  :: yuos-approval-helper   <- $APPROVAL_HELPER_BIN (also yuos-admin-approval-helper)"
 echo "  :: yuos-app-runner        <- $APP_RUNNER_BIN"
@@ -526,55 +524,54 @@ echo "  :: yuos-app-apt-hook      <- $APP_APT_HOOK_BIN"
 echo "  :: pam_yuos_display.so    <- $PAM_DISPLAY_MODULE"
 echo "  :: yuos-mail-ai-host      <- $MAIL_AI_HOST_BIN"
 echo "  :: yuos-security-floor    <- $SECURITY_FLOOR_BIN"
-install -m 755 "$YUOS_BIN" "$AGENT_STAGE/usr/local/bin/yu"
-install -m 755 "$YUOSD_BIN" "$AGENT_STAGE/usr/local/bin/yuosd"
-install -m 755 "$AGENTD_BIN" "$AGENT_STAGE/usr/local/bin/yuos-agentd"
-install -m 755 "$EXTENSION_HOST_BIN" "$AGENT_STAGE/usr/local/bin/yuos-extension-host"
-install -Dm0755 "$CALENDAR_READER_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-calendar-reader"
-install -Dm0755 "$NEARBY_WORKER_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-nearby-worker"
-install -Dm0755 "$NEARBY_RADIO_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-nearby-radio"
+install -m 755 "$YUOS_BIN" "$FRAMEWORK_STAGE/usr/local/bin/yu"
+install -m 755 "$YUOSD_BIN" "$FRAMEWORK_STAGE/usr/local/bin/yuosd"
+install -m 755 "$EXTENSION_HOST_BIN" "$FRAMEWORK_STAGE/usr/local/bin/yuos-extension-host"
+install -Dm0755 "$CALENDAR_READER_BIN" "$FRAMEWORK_STAGE/usr/lib/yuos/bin/yuos-calendar-reader"
+install -Dm0755 "$NEARBY_WORKER_BIN" "$FRAMEWORK_STAGE/usr/lib/yuos/bin/yuos-nearby-worker"
+install -Dm0755 "$NEARBY_RADIO_BIN" "$FRAMEWORK_STAGE/usr/lib/yuos/bin/yuos-nearby-radio"
 install -Dm0644 "$PROJECT_DIR/crates/yuos-nearby/OWLY-LICENSE" \
-    "$AGENT_STAGE/usr/share/doc/yuos-agent/nearby-owly.LICENSE"
+    "$FRAMEWORK_STAGE/usr/share/doc/yuos-agent/nearby-owly.LICENSE"
 install -Dm0644 "$PROJECT_DIR/crates/yuos-nearby/PROVENANCE.md" \
-    "$AGENT_STAGE/usr/share/doc/yuos-agent/nearby-PROVENANCE.md"
+    "$FRAMEWORK_STAGE/usr/share/doc/yuos-agent/nearby-PROVENANCE.md"
 install -Dm0644 "$PROJECT_DIR/crates/yuos-nearby/vendor/owlyd/PROVENANCE.md" \
-    "$AGENT_STAGE/usr/share/doc/yuos-agent/vendor/owlyd/PROVENANCE.md"
+    "$FRAMEWORK_STAGE/usr/share/doc/yuos-agent/vendor/owlyd/PROVENANCE.md"
 install -Dm0644 "$PROJECT_DIR/crates/yuos-nearby/vendor/owlyd/LICENSE" \
-    "$AGENT_STAGE/usr/share/doc/yuos-agent/vendor/owlyd/LICENSE"
+    "$FRAMEWORK_STAGE/usr/share/doc/yuos-agent/vendor/owlyd/LICENSE"
 install -Dm0644 "$PROJECT_DIR/desktop/services/yuos-applet-services/LICENSE" \
-    "$AGENT_STAGE/usr/share/doc/yuos-agent/calendar-reader.LICENSE"
-install -m 755 "$APPROVAL_HELPER_BIN" "$AGENT_STAGE/usr/local/bin/yuos-approval-helper"
+    "$FRAMEWORK_STAGE/usr/share/doc/yuos-agent/calendar-reader.LICENSE"
+install -m 755 "$APPROVAL_HELPER_BIN" "$FRAMEWORK_STAGE/usr/local/bin/yuos-approval-helper"
 # The administrator copy: polkit asks for an administrator's password before
 # running it, and the helper reports that authentication by its own path.
-install -m 755 "$APPROVAL_HELPER_BIN" "$AGENT_STAGE/usr/local/bin/yuos-admin-approval-helper"
-install -m 755 "$APP_RUNNER_BIN" "$AGENT_STAGE/usr/local/bin/yuos-app-runner"
-install -m 755 "$GUI_RUNNER_BIN" "$AGENT_STAGE/usr/local/bin/yuos-gui-runner"
-install -m 755 "$DISPLAY_SESSION_BIN" "$AGENT_STAGE/usr/local/bin/yuos-display-session"
-install -m 755 "$DISPLAY_HOST_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-display-host"
-install -m 755 "$FILE_MANAGER_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-file-manager"
-install -m 755 "$NOTIFICATION_PANEL_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-notification-panel"
-install -m 755 "$APP_APT_HOOK_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-app-apt-hook"
+install -m 755 "$APPROVAL_HELPER_BIN" "$FRAMEWORK_STAGE/usr/local/bin/yuos-admin-approval-helper"
+install -m 755 "$APP_RUNNER_BIN" "$FRAMEWORK_STAGE/usr/local/bin/yuos-app-runner"
+install -m 755 "$GUI_RUNNER_BIN" "$FRAMEWORK_STAGE/usr/local/bin/yuos-gui-runner"
+install -m 755 "$DISPLAY_SESSION_BIN" "$FRAMEWORK_STAGE/usr/local/bin/yuos-display-session"
+install -m 755 "$DISPLAY_HOST_BIN" "$FRAMEWORK_STAGE/usr/lib/yuos/bin/yuos-display-host"
+install -m 755 "$FILE_MANAGER_BIN" "$FRAMEWORK_STAGE/usr/lib/yuos/bin/yuos-file-manager"
+install -m 755 "$NOTIFICATION_PANEL_BIN" "$FRAMEWORK_STAGE/usr/lib/yuos/bin/yuos-notification-panel"
+install -m 755 "$APP_APT_HOOK_BIN" "$FRAMEWORK_STAGE/usr/lib/yuos/bin/yuos-app-apt-hook"
 install -Dm0644 "$PROJECT_DIR/tools/app_apt_metadata.py" \
-    "$AGENT_STAGE/usr/lib/yuos/app-apt-metadata.py"
+    "$FRAMEWORK_STAGE/usr/lib/yuos/app-apt-metadata.py"
 case "$DEB_ARCH" in
     amd64) PAM_MULTIARCH=x86_64-linux-gnu ;;
     arm64) PAM_MULTIARCH=aarch64-linux-gnu ;;
     *) echo "error: unsupported PAM display architecture: $DEB_ARCH" >&2; exit 1 ;;
 esac
 install -Dm0644 "$PAM_DISPLAY_MODULE" \
-    "$AGENT_STAGE/usr/lib/$PAM_MULTIARCH/security/pam_yuos_display.so"
-install -m 755 "$MAIL_AI_HOST_BIN" "$AGENT_STAGE/usr/lib/yuos/yuos-mail-ai-host"
+    "$FRAMEWORK_STAGE/usr/lib/$PAM_MULTIARCH/security/pam_yuos_display.so"
+install -m 755 "$MAIL_AI_HOST_BIN" "$FRAMEWORK_STAGE/usr/lib/yuos/yuos-mail-ai-host"
 install -Dm0644 "$PROJECT_DIR/tools/browser_native_host.py" \
-    "$AGENT_STAGE/usr/lib/yuos/browser-native-host.py"
-install -m 755 "$SECURITY_FLOOR_BIN" "$AGENT_STAGE/usr/lib/yuos/bin/yuos-security-floor"
+    "$FRAMEWORK_STAGE/usr/lib/yuos/browser-native-host.py"
+install -m 755 "$SECURITY_FLOOR_BIN" "$FRAMEWORK_STAGE/usr/lib/yuos/bin/yuos-security-floor"
 install -m 755 "$SCRIPT_DIR/common/security-floor-hook" \
-    "$AGENT_STAGE/usr/lib/yuos/apt/security-floor-hook"
+    "$FRAMEWORK_STAGE/usr/lib/yuos/apt/security-floor-hook"
 install -m 644 "$SCRIPT_DIR/common/50yuos-security-floor" \
-    "$AGENT_STAGE/etc/apt/apt.conf.d/50yuos-security-floor"
+    "$FRAMEWORK_STAGE/etc/apt/apt.conf.d/50yuos-security-floor"
 
 install -m 644 \
     "$PROJECT_DIR/rootfs/overlay/usr/share/polkit-1/actions/org.yuos.approval.policy" \
-    "$AGENT_STAGE/usr/share/polkit-1/actions/org.yuos.approval.policy"
+    "$FRAMEWORK_STAGE/usr/share/polkit-1/actions/org.yuos.approval.policy"
 
 YUOS_SEMANTIC_DAEMON_BIN="$(
     ensure_bin yuos-semantic-daemon yuos-semantic "${RUST_TARGET/-musl/-gnu}"
@@ -585,13 +582,86 @@ YUOS_SEMANTIC_CLI_BIN="$(
 echo "  :: yuos-semantic-daemon  <- $YUOS_SEMANTIC_DAEMON_BIN"
 echo "  :: yuos-semantic         <- $YUOS_SEMANTIC_CLI_BIN"
 install -m 755 "$YUOS_SEMANTIC_DAEMON_BIN" \
-    "$AGENT_STAGE/usr/local/bin/yuos-semantic-daemon"
-install -m 755 "$YUOS_SEMANTIC_CLI_BIN" "$AGENT_STAGE/usr/local/bin/yuos-semantic"
+    "$FRAMEWORK_STAGE/usr/local/bin/yuos-semantic-daemon"
+install -m 755 "$YUOS_SEMANTIC_CLI_BIN" "$FRAMEWORK_STAGE/usr/local/bin/yuos-semantic"
 
 install -m 644 "$PROJECT_DIR/rootfs/overlay/etc/yuos/profile.sh" \
-    "$AGENT_STAGE/etc/yuos/profile.sh"
+    "$FRAMEWORK_STAGE/etc/yuos/profile.sh"
 sed -i "s/YUOS_VERSION=\".*\"/YUOS_VERSION=\"$VERSION\"/" \
-    "$AGENT_STAGE/etc/yuos/profile.sh"
+    "$FRAMEWORK_STAGE/etc/yuos/profile.sh"
+
+SDK_PY_SRC="$PROJECT_DIR/yuos-sdk/python/src/yuos_sdk"
+if [ ! -d "$SDK_PY_SRC" ]; then
+    echo "error: Python SDK source tree is required" >&2
+    exit 1
+fi
+cp -a "$SDK_PY_SRC" "$FRAMEWORK_STAGE/usr/lib/yuos/python/yuos_sdk"
+python3 "$SCRIPT_DIR/native_runtime_assets.py" --root "$FRAMEWORK_STAGE" \
+    --launcher-binary "$LAUNCHER_BACKEND_BIN"
+find "$FRAMEWORK_STAGE/usr/lib/yuos/python" -name '__pycache__' -type d \
+    -exec rm -rf {} + 2>/dev/null || true
+
+USER_UNITS_SRC="$PROJECT_DIR/rootfs/features/systemd/overlay/usr/lib/systemd/user"
+install -m 644 "$SYSTEM_UNITS_SRC/yuosd.service" \
+    "$FRAMEWORK_STAGE/usr/lib/systemd/system/yuosd.service"
+NEARBY_ASSETS="$SCRIPT_DIR/yuos-framework/nearby"
+install -Dm0644 "$NEARBY_ASSETS/yuos-nearby-radio.service" \
+    "$FRAMEWORK_STAGE/usr/lib/systemd/system/yuos-nearby-radio.service"
+install -Dm0644 "$NEARBY_ASSETS/io.github.t4t5.Owly.service" \
+    "$FRAMEWORK_STAGE/usr/share/dbus-1/system-services/io.github.t4t5.Owly.service"
+install -Dm0644 "$NEARBY_ASSETS/io.github.t4t5.Owly.conf" \
+    "$FRAMEWORK_STAGE/usr/share/dbus-1/system.d/io.github.t4t5.Owly.conf"
+install -Dm0644 "$NEARBY_ASSETS/90-yuos-nearby-unmanaged.conf" \
+    "$FRAMEWORK_STAGE/usr/lib/NetworkManager/conf.d/90-yuos-nearby-unmanaged.conf"
+install -Dm0644 "$NEARBY_ASSETS/10-yuos-nearby-awdl0.link" \
+    "$FRAMEWORK_STAGE/usr/lib/systemd/network/10-yuos-nearby-awdl0.link"
+install -m 644 "$USER_UNITS_SRC/yuos-recoll-index.service" \
+    "$FRAMEWORK_STAGE/usr/lib/systemd/user/yuos-recoll-index.service"
+install -m 644 "$USER_UNITS_SRC/yuos-semantic.service" \
+    "$FRAMEWORK_STAGE/usr/lib/systemd/user/yuos-semantic.service"
+
+echo "  :: dpkg-deb --build yuos-framework"
+python3 "$PROJECT_DIR/scripts/app_packages.py" check \
+    --variant agent --architecture "$DEB_ARCH" --stage "$FRAMEWORK_STAGE" \
+    --preinstall-policy stage >/dev/null
+write_release_manifest yuos-framework "$FRAMEWORK_STAGE" "$DEB_ARCH"
+render_security_preinst yuos-framework "$FRAMEWORK_STAGE"
+mv "$FRAMEWORK_STAGE/DEBIAN/preinst" "$FRAMEWORK_STAGE/DEBIAN/preinst.security"
+{
+    cat "$SCRIPT_DIR/yuos-framework/extension-identities.sh"
+    sed '1d;$d' "$SCRIPT_DIR/yuos-framework/preinst"
+    tail -n +2 "$FRAMEWORK_STAGE/DEBIAN/preinst.security"
+} > "$FRAMEWORK_STAGE/DEBIAN/preinst"
+rm -f "$FRAMEWORK_STAGE/DEBIAN/preinst.security"
+chmod 0755 "$FRAMEWORK_STAGE/DEBIAN/preinst"
+$FAKEROOT $DPKG_DEB --root-owner-group --build "$FRAMEWORK_STAGE" \
+    "$OUT_DIR/yuos-framework_${FILE_VERSION}_${DEB_ARCH}.deb" >/dev/null
+fi
+
+###############################################################################
+# 2. yuos-agent (optional official Yu Agent on top of yuos-framework)
+###############################################################################
+if [ "$PACKAGE_SET" = "all" ] || [ "$PACKAGE_SET" = "agent" ]; then
+echo "===> staging yuos-agent"
+AGENT_STAGE="$STAGE_DIR/yuos-agent"
+mkdir -p \
+    "$AGENT_STAGE/DEBIAN" \
+    "$AGENT_STAGE/usr/lib/yuos/release-security" \
+    "$AGENT_STAGE/usr/lib/yuos/skills" \
+    "$AGENT_STAGE/usr/local/bin"
+chmod 0755 "$AGENT_STAGE/DEBIAN"
+
+render_control "$SCRIPT_DIR/yuos-agent/control" "$AGENT_STAGE/DEBIAN/control"
+render_control "$SCRIPT_DIR/yuos-agent/postinst" "$AGENT_STAGE/DEBIAN/postinst"
+chmod 0755 "$AGENT_STAGE/DEBIAN/postinst"
+install -m 755 "$SCRIPT_DIR/yuos-agent/prerm" "$AGENT_STAGE/DEBIAN/prerm"
+
+# The unprivileged agent worker. yuosd runs Agent tasks only when it is
+# installed, and ships it in lockstep with the Framework that spawns it.
+AGENTD_BIN="$(ensure_bin yuos-agentd yu)" || {
+    echo "error: yuos-agentd binary not built" >&2; exit 1; }
+echo "  :: yuos-agentd            <- $AGENTD_BIN"
+install -m 755 "$AGENTD_BIN" "$AGENT_STAGE/usr/local/bin/yuos-agentd"
 
 if [ -d "$PROJECT_DIR/skills" ]; then
     cp -a "$PROJECT_DIR/skills/." "$AGENT_STAGE/usr/lib/yuos/skills/"
@@ -610,46 +680,13 @@ if [ -d "$PROJECT_DIR/skills" ]; then
     done < <(find "$AGENT_STAGE/usr/lib/yuos/skills" -type f -print0)
 fi
 
-SDK_PY_SRC="$PROJECT_DIR/yuos-sdk/python/src/yuos_sdk"
-if [ ! -d "$SDK_PY_SRC" ]; then
-    echo "error: Python SDK source tree is required" >&2
-    exit 1
-fi
-cp -a "$SDK_PY_SRC" "$AGENT_STAGE/usr/lib/yuos/python/yuos_sdk"
-python3 "$SCRIPT_DIR/native_runtime_assets.py" --root "$AGENT_STAGE" \
-    --launcher-binary "$LAUNCHER_BACKEND_BIN"
-find "$AGENT_STAGE/usr/lib/yuos/python" -name '__pycache__' -type d \
-    -exec rm -rf {} + 2>/dev/null || true
-
-USER_UNITS_SRC="$PROJECT_DIR/rootfs/features/systemd/overlay/usr/lib/systemd/user"
-install -m 644 "$SYSTEM_UNITS_SRC/yuosd.service" \
-    "$AGENT_STAGE/usr/lib/systemd/system/yuosd.service"
-NEARBY_ASSETS="$SCRIPT_DIR/yuos-agent/nearby"
-install -Dm0644 "$NEARBY_ASSETS/yuos-nearby-radio.service" \
-    "$AGENT_STAGE/usr/lib/systemd/system/yuos-nearby-radio.service"
-install -Dm0644 "$NEARBY_ASSETS/io.github.t4t5.Owly.service" \
-    "$AGENT_STAGE/usr/share/dbus-1/system-services/io.github.t4t5.Owly.service"
-install -Dm0644 "$NEARBY_ASSETS/io.github.t4t5.Owly.conf" \
-    "$AGENT_STAGE/usr/share/dbus-1/system.d/io.github.t4t5.Owly.conf"
-install -Dm0644 "$NEARBY_ASSETS/90-yuos-nearby-unmanaged.conf" \
-    "$AGENT_STAGE/usr/lib/NetworkManager/conf.d/90-yuos-nearby-unmanaged.conf"
-install -Dm0644 "$NEARBY_ASSETS/10-yuos-nearby-awdl0.link" \
-    "$AGENT_STAGE/usr/lib/systemd/network/10-yuos-nearby-awdl0.link"
-install -m 644 "$USER_UNITS_SRC/yuos-recoll-index.service" \
-    "$AGENT_STAGE/usr/lib/systemd/user/yuos-recoll-index.service"
-install -m 644 "$USER_UNITS_SRC/yuos-semantic.service" \
-    "$AGENT_STAGE/usr/lib/systemd/user/yuos-semantic.service"
 
 echo "  :: dpkg-deb --build yuos-agent"
-python3 "$PROJECT_DIR/scripts/app_packages.py" check \
-    --variant agent --architecture "$DEB_ARCH" --stage "$AGENT_STAGE" \
-    --preinstall-policy stage >/dev/null
 write_release_manifest yuos-agent "$AGENT_STAGE" "$DEB_ARCH"
 render_security_preinst yuos-agent "$AGENT_STAGE"
 mv "$AGENT_STAGE/DEBIAN/preinst" "$AGENT_STAGE/DEBIAN/preinst.security"
 {
-    cat "$SCRIPT_DIR/yuos-agent/extension-identities.sh"
-    sed '1d;$d' "$SCRIPT_DIR/yuos-agent/preinst"
+    sed '$d' "$SCRIPT_DIR/yuos-agent/preinst"
     tail -n +2 "$AGENT_STAGE/DEBIAN/preinst.security"
 } > "$AGENT_STAGE/DEBIAN/preinst"
 rm -f "$AGENT_STAGE/DEBIAN/preinst.security"
@@ -659,7 +696,7 @@ $FAKEROOT $DPKG_DEB --root-owner-group --build "$AGENT_STAGE" \
 fi
 
 ###############################################################################
-# 2. yuos-base (architecture-independent Yu OS integration)
+# 3. yuos-base (architecture-independent Yu OS integration)
 ###############################################################################
 if [ "$PACKAGE_SET" = "all" ] || [ "$PACKAGE_SET" = "base" ]; then
 echo "===> staging yuos-base"

@@ -6,6 +6,7 @@ APP_PACKAGE_INPUTS="$(python3 "$PROJECT_DIR/scripts/app_packages.py" check \
 
 FILE_VERSION="${YUOS_VERSION//:/%3a}"
 DESKTOP_DEB="$PROJECT_DIR/build/debs/yuos-desktop_${FILE_VERSION}_${DEB_ARCH}.deb"
+AGENT_DESKTOP_DEB="$PROJECT_DIR/build/debs/yuos-agent-desktop_${FILE_VERSION}_${DEB_ARCH}.deb"
 install -d "$ROOTFS/build"
 work="$(mktemp -d "$ROOTFS/build/yuos-desktop.XXXXXX")"
 inside="${work#"$ROOTFS"}"
@@ -19,7 +20,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ "${YUOS_PREBUILT_SYSTEM_PACKAGES:-0}" == 1 ]]; then
-    if [[ "${DESKTOP_PACKAGE_ONLY:-0}" == 1 || ! -f "$DESKTOP_DEB" ]]; then
+    if [[ "${DESKTOP_PACKAGE_ONLY:-0}" == 1 || ! -f "$DESKTOP_DEB" || ! -f "$AGENT_DESKTOP_DEB" ]]; then
         echo "error: installer requires the prepared Desktop package for $YUOS_VERSION" >&2
         exit 1
     fi
@@ -42,6 +43,12 @@ else
 fi
 
 install -m0644 "$DESKTOP_DEB" "$work/desktop.deb"
+desktop_debs=("$inside/desktop.deb")
+# The graphical Agent follows the image's explicit choice of the official Agent.
+if chroot "$ROOTFS" dpkg-query -W -f='${db:Status-Status}' yuos-agent 2>/dev/null | grep -qx installed; then
+    install -m0644 "$AGENT_DESKTOP_DEB" "$work/agent-desktop.deb"
+    desktop_debs+=("$inside/agent-desktop.deb")
+fi
 install -d "$work/apps"
 cp -- "$APP_PACKAGE_INPUTS"/archives/*.deb "$work/apps/"
 app_debs=()
@@ -50,7 +57,7 @@ for app_deb in "$work"/apps/*.deb; do
 done
 chroot "$ROOTFS" apt-get update --error-on=any -qq
 chroot "$ROOTFS" env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    "$inside/desktop.deb" "${app_debs[@]}"
+    "${desktop_debs[@]}" "${app_debs[@]}"
 test "$(chroot "$ROOTFS" dpkg-query -W -f='${db:Status-Status}' yuos-desktop)" = installed
 test -x "$ROOTFS/usr/libexec/yuos-hyprland/Hyprland"
 test -x "$ROOTFS/usr/libexec/yuos-hyprland/yuos-lockscreen"

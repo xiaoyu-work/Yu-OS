@@ -1,5 +1,5 @@
 #!/bin/sh
-# yuos-agent postinst -- initialize and start the reusable system agent.
+# yuos-framework postinst -- initialize and start the Yu OS Framework platform services.
 
 set -e
 
@@ -12,7 +12,7 @@ fi
 DPKG_ROOT="${DPKG_ROOT:-}"
 ROOT_ARG="${DPKG_ROOT:-/}"
 SECURITY_HELPER="$DPKG_ROOT/usr/lib/yuos/bin/yuos-security-floor"
-RELEASE_MANIFEST="$DPKG_ROOT/usr/lib/yuos/release-security/yuos-agent/manifest.json"
+RELEASE_MANIFEST="$DPKG_ROOT/usr/lib/yuos/release-security/yuos-framework/manifest.json"
 RELEASE_SIGNATURE="$RELEASE_MANIFEST.asc"
 
 enable_if_previously_enabled() {
@@ -32,24 +32,24 @@ enable_if_previously_enabled() {
 # startup check sees the release it is about to run.
 commit_security_floor() {
     if [ ! -x "$SECURITY_HELPER" ] || [ ! -f "$RELEASE_MANIFEST" ]; then
-        echo "error: yuos-agent is missing its update-security metadata" >&2
+        echo "error: yuos-framework is missing its update-security metadata" >&2
         return 1
     fi
     if [ -f "$RELEASE_SIGNATURE" ]; then
         "$SECURITY_HELPER" commit \
             --root "$ROOT_ARG" \
-            --package yuos-agent \
+            --package yuos-framework \
             --version "__VERSION__" \
             --manifest "$RELEASE_MANIFEST" \
             --signature "$RELEASE_SIGNATURE" \
-            --reason "yuos-agent configure"
+            --reason "yuos-framework configure"
     else
         "$SECURITY_HELPER" commit \
             --root "$ROOT_ARG" \
-            --package yuos-agent \
+            --package yuos-framework \
             --version "__VERSION__" \
             --manifest "$RELEASE_MANIFEST" \
-            --reason "yuos-agent configure"
+            --reason "yuos-framework configure"
     fi
 }
 
@@ -61,7 +61,7 @@ security_set_is_runnable() {
     [ -x "$SECURITY_HELPER" ] || return 1
     "$SECURITY_HELPER" service-gate \
         --root "$ROOT_ARG" \
-        --package yuos-agent \
+        --package yuos-framework \
         --manifest "$RELEASE_MANIFEST" >/dev/null 2>&1
 }
 
@@ -69,7 +69,7 @@ case "$1" in
     configure)
         if [ -z "$DPKG_ROOT" ]; then
             command -v identity_finalize >/dev/null 2>&1 || {
-                echo "error: yuos-agent identity policy is unavailable" >&2
+                echo "error: yuos-framework identity policy is unavailable" >&2
                 exit 1
             }
             if [ -n "$2" ]; then
@@ -137,15 +137,15 @@ case "$1" in
                 systemctl --system daemon-reload >/dev/null || true
                 systemctl --global daemon-reload >/dev/null 2>&1 || true
                 deb-systemd-invoke reload dbus.service >/dev/null ||
-                    echo "yuos-agent: reload the system D-Bus configuration before using Nearby Sharing" >&2
+                    echo "yuos-framework: reload the system D-Bus configuration before using Nearby Sharing" >&2
                 if command -v udevadm >/dev/null 2>&1; then
                     udevadm control --reload >/dev/null 2>&1 ||
-                        echo "yuos-agent: reload udev rules before using Nearby Sharing" >&2
+                        echo "yuos-framework: reload udev rules before using Nearby Sharing" >&2
                 fi
                 if systemctl --quiet is-active NetworkManager.service &&
                     command -v nmcli >/dev/null 2>&1; then
                     nmcli general reload conf >/dev/null 2>&1 ||
-                        echo "yuos-agent: run nmcli general reload conf before using Nearby Sharing" >&2
+                        echo "yuos-framework: run nmcli general reload conf before using Nearby Sharing" >&2
                 fi
                 if security_set_is_runnable; then
                     if [ -n "$2" ]; then
@@ -160,7 +160,7 @@ case "$1" in
                         deb-systemd-invoke start yuosd.service >/dev/null || true
                     fi
                 else
-                    echo "yuos-agent: deferring yuosd start until the rest of this" >&2
+                    echo "yuos-framework: deferring yuosd start until the rest of this" >&2
                     echo "               Yu OS package set is configured" >&2
                 fi
             fi

@@ -133,7 +133,7 @@ for deb in "${debs[@]}"; do
     version="$(dpkg-deb --field "$deb" Version)"
     arch="$(dpkg-deb --field "$deb" Architecture)"
     case "$package" in
-        yuos-agent|yuos-base|yuos-desktop) ;;
+        yuos-framework|yuos-agent|yuos-base|yuos-desktop|yuos-agent-desktop) ;;
         *) continue ;;
     esac
 

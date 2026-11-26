@@ -23,20 +23,7 @@ tui() {
     done
 }
 
-installed() {
-    : "${YUOS_PACKAGE_VERSION:?YUOS_PACKAGE_VERSION is required}"
-    file_version="${YUOS_PACKAGE_VERSION//:/%3a}"
-    agent_deb="build/debs/yuos-agent_${file_version}_${ARCH}.deb"
-    install_deb="$(mktemp /tmp/yuos-agent.XXXXXX.deb)"
-    install_debs=("$install_deb")
-    trap 'rm -f -- "${install_debs[@]}"' EXIT
-    install -m 0644 "$agent_deb" "$install_deb"
-    if [ "${1:-}" = core ]; then
-        base_deb="build/debs/yuos-base_${file_version}_all.deb"
-        base_install_deb="$(mktemp /tmp/yuos-base.XXXXXX.deb)"
-        install_debs+=("$base_install_deb")
-        install -m 0644 "$base_deb" "$base_install_deb"
-    fi
+apt_install() {
     # Keep the real postinst scan away from transient build caches.
     sudo unshare --mount --propagation private \
         /bin/bash -euo pipefail -c '
@@ -53,7 +40,10 @@ installed() {
             apt-get install -y --no-install-recommends "$@"
             apt-get install -y --reinstall --no-install-recommends "$@"
         ' bash "$GITHUB_WORKSPACE" "$CARGO_HOME" \
-        "${RUSTUP_HOME:-$HOME/.rustup}" "${install_debs[@]}"
+        "${RUSTUP_HOME:-$HOME/.rustup}" "$@"
+}
+
+wait_for_yuosd() {
     for attempt in {1..30}; do
         if sudo systemctl is-active --quiet yuosd.service \
             && sudo test -S /run/yuos/yuosd.sock; then
@@ -68,6 +58,36 @@ installed() {
         sudo journalctl -u yuosd.service --no-pager -n 100 || true
         exit 1
     fi
+}
+
+installed() {
+    : "${YUOS_PACKAGE_VERSION:?YUOS_PACKAGE_VERSION is required}"
+    file_version="${YUOS_PACKAGE_VERSION//:/%3a}"
+    install_debs=()
+    trap 'rm -f -- "${install_debs[@]}"' EXIT
+    stage_deb() {
+        local copy
+        copy="$(mktemp "/tmp/$1.XXXXXX.deb")"
+        install_debs+=("$copy")
+        install -m 0644 "build/debs/$1_${file_version}_$2.deb" "$copy"
+    }
+    stage_deb yuos-framework "$ARCH"
+    if [ "${1:-}" = core ]; then
+        stage_deb yuos-base all
+        # The Framework and Base run without the optional Agent.
+        apt_install "${install_debs[@]}"
+        wait_for_yuosd
+        sudo /usr/lib/yuos/bin/yuos-security-floor verify-installed
+        test ! -e /usr/local/bin/yuos-agentd
+        if output="$(/usr/local/bin/yu agent skills list 2>&1)"; then
+            echo "error: Agent commands succeeded without the Agent installed" >&2
+            exit 1
+        fi
+        grep -Fq "Yu Agent is not installed" <<<"$output"
+    fi
+    stage_deb yuos-agent "$ARCH"
+    apt_install "${install_debs[@]}"
+    wait_for_yuosd
     test -x /usr/bin/pkexec
     test -x /usr/bin/pkttyagent
     test -x /usr/local/bin/yuos-approval-helper

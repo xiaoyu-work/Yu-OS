@@ -46,7 +46,8 @@ Depends: yuos-base (>= __MIN_BASE__), yuos-abi-__ABI__, yuos-app-runtime-v1 (>= 
  gnome-bluetooth-sendto, recoll
 Conflicts: yuos-apps-desktop, yuos-app-desktop-shell
 Description: Yu OS — graphical desktop environment
- Installs the Root-managed Hyprland compositor, authenticated greetd login
- and graphical Agent. Includes the OS-owned Desktop Shell with Quickshell,
- Caelestia and their private runtime. All other Yu OS Apps are installed
+ Installs the Root-managed Hyprland compositor and authenticated greetd login.
+ The graphical Yu Agent ships separately in yuos-agent-desktop. Includes
+ the OS-owned Desktop Shell with Quickshell, Caelestia and their private
+ runtime. All other Yu OS Apps are installed
  as independently maintained packages.
