@@ -53,8 +53,8 @@ Without the Agent on a headless system, Agent tasks,
 triggers, Activity and Agent memory report `Yu Agent is not installed`, while
 Apps, App permissions and platform services keep working. Upgrading from a
 pre-split `yuos-agent` installs `yuos-framework` through the Agent's
-dependency. System Updates includes missing required packages in its checked
-release plan, including both Agent packages for earlier Desktop installations.
+dependency; System Updates also adds `yuos-agent-desktop` when the installed
+pre-split Desktop still owns the graphical Agent.
 
 Keep the [hardware workarounds](../docs/image-architecture.md#hardware-enablement) in `deb/yuos-base/hardware/`. Base stages the system udev and libinput data; Desktop stages the same libinput quirk source into Hyprland's private libinput database. Both packages use the existing signed release path.
 

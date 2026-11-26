@@ -18,8 +18,9 @@ import time
 
 
 PACKAGES = ("yuos-framework", "yuos-agent", "yuos-base", "yuos-desktop", "yuos-agent-desktop")
-# Dependencies that earlier installations may not yet have.
-DEPENDENCY_PACKAGES = ("yuos-framework", "yuos-agent", "yuos-agent-desktop")
+# Packages the Framework/Agent split introduced. Pre-split systems receive
+# them as new installs so the existing Agent and its desktop payload remain.
+SPLIT_PACKAGES = ("yuos-framework", "yuos-agent-desktop")
 ROOT = Path("/var/lib/yuos-updates")
 STATE = ROOT / "state.json"
 POLICY = ROOT / "policy.json"
@@ -133,13 +134,19 @@ def installed():
     return states
 
 
-def dependency_installs(current):
-    """Missing dependencies included in the checked system update."""
+def split_installs(current):
+    """New packages a pre-split installation needs to keep what it already has."""
     needed = []
-    if ("yuos-agent" in current or "yuos-desktop" in current) and "yuos-framework" not in current:
+    if "yuos-agent" in current and "yuos-framework" not in current:
         needed.append("yuos-framework")
-    if "yuos-desktop" in current:
-        needed.extend(name for name in ("yuos-agent", "yuos-agent-desktop") if name not in current)
+    if ("yuos-agent" in current and "yuos-desktop" in current
+            and "yuos-agent-desktop" not in current):
+        owner = subprocess.run(
+            ["/usr/bin/dpkg-query", "-S", "/usr/local/bin/yuos-agent-ui"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, env=ENV, timeout=5,
+        ).stdout
+        if owner.startswith("yuos-desktop:"):
+            needed.append("yuos-agent-desktop")
     return needed
 
 
@@ -152,7 +159,7 @@ def check(state, options):
         "-o", "APT::Update::Error-Mode=any", "update", timeout=180)
     current = installed()
     updates = []
-    new = dependency_installs(current)
+    new = split_installs(current)
     for name in PACKAGES:
         if name not in current and name not in new:
             continue
@@ -180,7 +187,7 @@ def plan(state, options):
     for item in updates:
         name, version = item["package"], item["version"]
         if item["installed"] is None:
-            if name not in DEPENDENCY_PACKAGES or name in current:
+            if name not in SPLIT_PACKAGES or name in current:
                 raise ValueError("An installed version or package hold changed; check again")
         elif (name not in PACKAGES or not VERSION.fullmatch(version)
                 or current.get(name) != (item["installed"], False)):

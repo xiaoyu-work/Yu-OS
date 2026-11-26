@@ -185,8 +185,8 @@ release schedules:
 Desktop always includes the Agent backend and graphical Agent. These are
 required dependencies, not recommendations; removing either Agent package also
 requires removing Desktop. Framework and Base remain independent of Agent.
-System Updates includes missing required packages when upgrading earlier
-Desktop installations, without an optional-App reinstall policy.
+System Updates adds `yuos-framework` and `yuos-agent-desktop` when upgrading a
+pre-split installation.
 
 After upgrading Base and Desktop (if installed), reboot to apply the [hardware workarounds](image-architecture.md#hardware-enablement) to devices already present and reload the desktop's libinput rules. Existing installs do not gain newly added image-only firmware packages via the Base upgrade; install `firmware-cirrus` or, on a Qualcomm arm64 machine, `firmware-qcom-soc` from the configured Debian repositories if needed.
 
