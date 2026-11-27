@@ -156,7 +156,8 @@ supervisor retirement recovers a dead locker without exposing the old desktop.
 The installed [`hyprland.lua`](session/hyprland.lua) at
 `/etc/xdg/hypr/hyprland.lua` selects the detected output's preferred mode and
 computes scale automatically for a new owner. Existing owner configuration
-takes precedence. The default pairs short geometry and opacity transitions
+takes precedence. Keyboard focus is click-to-focus: hovering moves only pointer
+focus, so an open dialog keeps typed input. The default pairs short geometry and opacity transitions
 when opening and closing windows, with brief window moves and directional
 workspace slides. Only the `caelestia-yuos-top-menu` layer skips compositor
 animation because the Shell's QML already animates it. The config

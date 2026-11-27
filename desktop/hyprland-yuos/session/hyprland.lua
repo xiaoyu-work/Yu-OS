@@ -1,6 +1,11 @@
 hl.monitor({ output = "", mode = "preferred", position = "auto", scale = "auto" })
 
 hl.config({
+    -- Keyboard focus changes only on click; hovering must not take it from an open dialog.
+    input = {
+        follow_mouse = 2,
+        float_switch_override_focus = 0,
+    },
     misc = {
         disable_hyprland_logo = true,
         disable_splash_rendering = true,
