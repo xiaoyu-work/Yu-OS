@@ -87,7 +87,7 @@ void CFocusState::fullWindowFocus(PHLWINDOW pWindow, eFocusReason reason, SP<CWL
 
     static auto PMODALPARENTBLOCKING = CConfigValue<Config::INTEGER>("general:modal_parent_blocking");
 
-    if (*PMODALPARENTBLOCKING && pWindow && !pWindow->backend().isX11() && pWindow->backend().traits().hasModalChild) {
+    if (*PMODALPARENTBLOCKING && pWindow && pWindow->backend().traits().hasModalChild) {
         LOG(Log::DEBUG, "Refusing focus to window shadowed by modal dialog");
         return;
     }

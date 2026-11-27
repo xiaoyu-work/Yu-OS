@@ -45,6 +45,11 @@ listeners, standard/primary/data-control selections, layer-shell, focus grabs
 and checked shutdown. Selection and drag-and-drop offers retain distinct roles.
 XWayland focus never supplies a selection grant: its unleased clipboard bridge
 is refused, independently of drag-and-drop and window rendering.
+XWayland modal dialogs block focus and pointer hits on their parent, just like
+Wayland dialogs. Managed modal and transient dialogs stay within the reserved
+work area even after client configure requests; oversized floating windows are
+resized when fully-on-screen placement is requested. Override-redirect menus
+retain their client-owned coordinates.
 `Desktop.cpp` handles the closed Root list/observe/focus/close operations
 against native stable window IDs. On native window, workspace and output
 events it marks the view as changed, without opening a second socket.

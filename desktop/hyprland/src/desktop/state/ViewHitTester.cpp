@@ -52,7 +52,7 @@ PHLWINDOW CViewHitTester::windowAtInternal(const Vector2D& pos, uint16_t propert
     const auto  LASTFOCUSED           = focusState()->window();
     const auto& WINDOWS               = m_tracker.windows();
 
-    const auto  isShadowedByModal = [](PHLWINDOW w) -> bool { return *PMODALPARENTBLOCKING && !w->backend().isX11() && w->backend().traits().hasModalChild; };
+    const auto  isShadowedByModal = [](PHLWINDOW w) -> bool { return *PMODALPARENTBLOCKING && w->backend().traits().hasModalChild; };
 
     // pinned windows on top of floating regardless
     if (properties & ALLOW_FLOATING) {

@@ -184,14 +184,10 @@ CBox CDefaultFloatingAlgorithm::fitBoxInWorkArea(const CBox& box, SP<ITarget> t,
     CBox       targetBox = box.copy().addExtents(EXTENTS);
 
     if (fully) {
-        targetBox.x = std::max(targetBox.x, WORK_AREA.x);
-        targetBox.y = std::max(targetBox.y, WORK_AREA.y);
-
-        if (targetBox.x + targetBox.w > WORK_AREA.x + WORK_AREA.w)
-            targetBox.x = WORK_AREA.x + WORK_AREA.w - targetBox.w;
-
-        if (targetBox.y + targetBox.h > WORK_AREA.y + WORK_AREA.h)
-            targetBox.y = WORK_AREA.y + WORK_AREA.h - targetBox.h;
+        targetBox.w = std::min(targetBox.w, WORK_AREA.w);
+        targetBox.h = std::min(targetBox.h, WORK_AREA.h);
+        targetBox.x = std::clamp(targetBox.x, WORK_AREA.x, WORK_AREA.x + WORK_AREA.w - targetBox.w);
+        targetBox.y = std::clamp(targetBox.y, WORK_AREA.y, WORK_AREA.y + WORK_AREA.h - targetBox.h);
 
     } else {
         // If we'd move offscreen, place centerpoint on nearest edge instead
@@ -269,7 +265,12 @@ void CDefaultFloatingAlgorithm::recenter(SP<ITarget> t) {
 }
 
 void CDefaultFloatingAlgorithm::setTargetGeom(const CBox& geom, SP<ITarget> target) {
-    setPositionGlobal(target, geom);
+    const auto WINDOW = target->window();
+    const auto TRAITS = WINDOW ? WINDOW->backend().traits() : Desktop::View::SBackendTraits{};
+    if (!TRAITS.overrideRedirect && (TRAITS.modal || TRAITS.transient))
+        setPositionGlobal(target, fitBoxInWorkArea(geom, target, true));
+    else
+        setPositionGlobal(target, geom);
 }
 
 void CDefaultFloatingAlgorithm::updateTarget(SP<ITarget> t) {

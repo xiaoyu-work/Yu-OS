@@ -15,6 +15,7 @@
 #include "XWayland.hpp"
 #include "../../../hyprland-yuos/YuOs.hpp"
 #include "../Compositor.hpp"
+#include "../config/ConfigValue.hpp"
 #include "../protocols/core/Seat.hpp"
 #include "../managers/eventLoop/EventLoopManager.hpp"
 #include "../managers/SeatManager.hpp"
@@ -252,6 +253,7 @@ void CXWM::readProp(SP<CXWaylandSurface> XSURF, uint32_t atom, xcb_get_property_
     };
 
     auto handleWMState = [&]() {
+        XSURF->m_modal = false;
         auto* atoms = rc<const xcb_atom_t*>(value);
         for (uint32_t i = 0; i < reply->value_len; i++) {
             if (atoms[i] == HYPRATOMS["_NET_WM_STATE_MODAL"])
@@ -526,10 +528,14 @@ void CXWM::handleFocusIn(xcb_focus_in_event_t* e) {
     if (!XSURF)
         return;
 
-    if (m_focusedSurface && m_focusedSurface->m_pid == XSURF->m_pid && e->sequence - m_lastFocusSeq <= 255)
+    static auto PMODALPARENTBLOCKING = CConfigValue<Config::INTEGER>("general:modal_parent_blocking");
+    const bool  HAS_MODAL_CHILD = *PMODALPARENTBLOCKING &&
+        std::ranges::any_of(XSURF->m_children, [](const auto& child) { return child && child->m_mapped && child->m_modal; });
+
+    if (!HAS_MODAL_CHILD && m_focusedSurface && m_focusedSurface->m_pid == XSURF->m_pid && e->sequence - m_lastFocusSeq <= 255)
         focusWindow(XSURF);
     else
-        focusWindow(m_focusedSurface.lock());
+        focusWindow(m_focusedSurface.lock(), true);
 }
 
 void CXWM::handleFocusOut(xcb_focus_out_event_t* e) {
@@ -560,8 +566,8 @@ void CXWM::sendWMMessage(SP<CXWaylandSurface> surf, xcb_client_message_data_t* d
     xcb_flush(getConnection());
 }
 
-void CXWM::focusWindow(SP<CXWaylandSurface> surf) {
-    if (surf == m_focusedSurface)
+void CXWM::focusWindow(SP<CXWaylandSurface> surf, bool force) {
+    if (!force && surf == m_focusedSurface)
         return;
 
     m_focusedSurface = surf;

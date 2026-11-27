@@ -976,10 +976,11 @@ void CWindow::onConfigureRequest(const CBox& box) {
     else
         setHidden(true);
 
-    layoutTarget()->setPositionGlobal(box);
+    g_layoutManager->setTargetGeom(box, layoutTarget());
     layoutTarget()->warpPositionSize();
-    m_backend->configure(box, m_monitor.lock());
-    acknowledgeClientGeometry(box);
+    const auto GEOMETRY = layoutTarget()->position();
+    m_backend->configure(GEOMETRY, m_monitor.lock());
+    acknowledgeClientGeometry(GEOMETRY);
     m_presentation->updateDecorations();
 
     if (!m_workspace || !m_workspace->visible())
