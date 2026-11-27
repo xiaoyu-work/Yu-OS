@@ -45,6 +45,7 @@
 #include "../output/OutputCommitCoordinator.hpp"
 #include "../output/MonitorWindowTransaction.hpp"
 #include "../state/MonitorState.hpp"
+#include "../state/MonitorLayoutController.hpp"
 #include "../state/WorkspaceState.hpp"
 #include "macros.hpp"
 #include "pass/TexPassElement.hpp"
@@ -2979,6 +2980,7 @@ void IHyprRenderer::arrangeLayersForMonitor(const MONITORID& monitor) {
         arrangeLayerArray(PMONITOR, la, false, &usableArea);
 
     PMONITOR->m_reservedArea.addType(Desktop::RESERVED_DYNAMIC_TYPE_LS, Desktop::CReservedArea{ORIGINAL_USABLE_AREA, usableArea});
+    State::monitorLayoutController()->updateXWaylandWorkArea();
 
     // damage the monitor if can
     damageMonitor(PMONITOR);

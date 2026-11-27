@@ -14,6 +14,7 @@ namespace State {
         bool                isPointOnAnyMonitor(const Vector2D&);
         bool                isPointOnReservedArea(const Vector2D& point, const PHLMONITOR monitor = nullptr);
         std::optional<CBox> calculateUnifiedX11WorkArea() const;
+        void                updateXWaylandWorkArea() const;
 
         bool                isVRRActiveOnAnyMonitor() const;
 

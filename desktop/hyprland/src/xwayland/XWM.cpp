@@ -24,6 +24,7 @@
 #include "../protocols/core/Compositor.hpp"
 #include "../desktop/state/FocusState.hpp"
 #include "../desktop/view/window/X11Backend.hpp"
+#include "../state/MonitorLayoutController.hpp"
 using Hyprutils::Memory::CUniquePointer;
 
 using namespace Hyprutils::OS;
@@ -1078,6 +1079,7 @@ CXWM::CXWM() : m_connection(makeUnique<CXCBConnection>(g_pXWayland->m_server->m_
     xcb_change_property(getConnection(), XCB_PROP_MODE_REPLACE, m_screen->root, HYPRATOMS["_NET_SUPPORTED"], XCB_ATOM_ATOM, 32, sizeof(supported) / sizeof(*supported), supported);
 
     setActiveWindow(XCB_WINDOW_NONE);
+    updateWorkArea();
     initSelection();
 
     m_listeners.newWLSurface     = PROTO::compositor->m_events.newSurface.listen([this](const auto& surface) { onNewSurface(surface); });
@@ -1279,18 +1281,19 @@ void CXWM::updateClientList() {
     xcb_change_property(getConnection(), XCB_PROP_MODE_REPLACE, m_screen->root, HYPRATOMS["_NET_CLIENT_LIST_STACKING"], XCB_ATOM_WINDOW, 32, windows.size(), windows.data());
 }
 
-void CXWM::updateWorkArea(int x, int y, int w, int h) {
-    if (!g_pXWayland || !g_pXWayland->m_wm || !g_pXWayland->m_wm->getConnection() || !m_screen || !m_screen->root)
+void CXWM::updateWorkArea() {
+    const auto connection = getConnection();
+    if (!connection || !m_screen || !m_screen->root)
         return;
-    auto connection = g_pXWayland->m_wm->getConnection();
 
-    if (w <= 0 || h <= 0) {
+    const auto box = State::monitorLayoutController()->calculateUnifiedX11WorkArea();
+    if (!box || box->w <= 0 || box->h <= 0) {
         xcb_delete_property(connection, m_screen->root, HYPRATOMS["_NET_WORKAREA"]);
         xcb_flush(connection);
         return;
     }
 
-    uint32_t values[4] = {sc<uint32_t>(x), sc<uint32_t>(y), sc<uint32_t>(w), sc<uint32_t>(h)};
+    uint32_t values[4] = {sc<uint32_t>(box->x), sc<uint32_t>(box->y), sc<uint32_t>(box->w), sc<uint32_t>(box->h)};
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, m_screen->root, HYPRATOMS["_NET_WORKAREA"], XCB_ATOM_CARDINAL, 32, 4, values);
     xcb_flush(connection);
 }

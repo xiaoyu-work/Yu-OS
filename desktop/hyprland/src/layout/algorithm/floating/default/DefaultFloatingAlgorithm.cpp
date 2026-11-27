@@ -92,7 +92,9 @@ void CDefaultFloatingAlgorithm::newTarget(SP<ITarget> target) {
         windowGeometry = CBox{WORK_AREA.middle() - windowGeometry.size() / 2.F, windowGeometry.size()};
 
     static auto PFORCEONSCREEN = CConfigValue<Config::INTEGER>("misc:new_float_force_onscreen");
-    switch (*PFORCEONSCREEN) {
+    // X11 override-redirect windows own their position; moving them desyncs client-side popup coordinates.
+    const bool  CLIENT_POSITIONED = target->window() && target->window()->backend().traits().overrideRedirect;
+    switch (CLIENT_POSITIONED ? 0 : *PFORCEONSCREEN) {
         default:
         case 0: target->setPositionGlobal(windowGeometry); break;
         case 1: target->setPositionGlobal(fitBoxInWorkArea(windowGeometry, target, false)); break;
@@ -278,7 +280,8 @@ CBox CDefaultFloatingAlgorithm::setPositionGlobal(SP<ITarget> t, const CBox& box
     CBox        adjustedBox;
 
     static auto PFORCEONSCREEN = CConfigValue<Config::INTEGER>("misc:float_force_onscreen");
-    switch (*PFORCEONSCREEN) {
+    const bool  CLIENT_POSITIONED = t->window() && t->window()->backend().traits().overrideRedirect;
+    switch (CLIENT_POSITIONED ? 0 : *PFORCEONSCREEN) {
         // No no limits, we'll reach for the sky
         default:
         case 0: adjustedBox = box.copy(); break;

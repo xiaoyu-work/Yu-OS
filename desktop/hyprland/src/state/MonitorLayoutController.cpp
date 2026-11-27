@@ -78,15 +78,13 @@ void CMonitorLayoutController::arrange() const {
     PROTO::xdgOutput->updateAllOutputs();
     Event::bus()->m_events.monitor.layoutChanged.emit();
 
-#ifndef NO_XWAYLAND
-    const auto box = calculateUnifiedX11WorkArea();
-    if (g_pXWayland && g_pXWayland->m_wm) {
-        if (box)
-            g_pXWayland->m_wm->updateWorkArea(box->x, box->y, box->w, box->h);
-        else
-            g_pXWayland->m_wm->updateWorkArea(0, 0, 0, 0);
-    }
+    updateXWaylandWorkArea();
+}
 
+void CMonitorLayoutController::updateXWaylandWorkArea() const {
+#ifndef NO_XWAYLAND
+    if (g_pXWayland && g_pXWayland->m_wm)
+        g_pXWayland->m_wm->updateWorkArea();
 #endif
 }
 
