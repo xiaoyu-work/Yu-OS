@@ -9,7 +9,7 @@ use yuos_display_control::identity::pidfd_exited;
 use yuos_display_control::wire::{
     monotonic_ms, AuthorityCommand, AuthorityReply, CompositorCommand, CompositorReply, PamCommand,
     PamReply, SessionEvent, SessionRequest, LaunchTarget, COMPOSITOR, HOST_RETIRE_TIMEOUT,
-    GuiRefusal, MENU_LAUNCH_DIGEST, MENU_LAUNCH_PUBLISHER, SESSION_DIRECTORY,
+    GuiRefusal, LEASE_BOUND_MS, LEASE_MS, MENU_LAUNCH_DIGEST, MENU_LAUNCH_PUBLISHER, SESSION_DIRECTORY,
 };
 use yuos_display_control::{Connection, Epoch, Error, KernelLogin, Listener, ProcessIdentity};
 
@@ -108,10 +108,10 @@ impl Controllers {
 
     fn renew(&mut self, epoch: Epoch, expires: u64) -> Result<(), Error> {
         let now = monotonic_ms()?;
-        if epoch != self.epoch || expires > now.saturating_add(2500) {
+        if epoch != self.epoch || expires > now.saturating_add(LEASE_BOUND_MS) {
             return Err(Error::Protocol("invalid display authority lease"));
         }
-        self.expires_ms = expires.max(now.saturating_add(2000));
+        self.expires_ms = expires.max(now.saturating_add(LEASE_MS));
         Ok(())
     }
 

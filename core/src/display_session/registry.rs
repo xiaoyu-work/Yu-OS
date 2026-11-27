@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use yuos_display_control::identity::pidfd_exited;
 use yuos_display_control::wire::{
     monotonic_ms, AuthorityCommand, AuthorityReply, CompositorCommand, CompositorReply, LoginReply,
-    LaunchTarget, LoginRequest, BROKER_RETIRE_TIMEOUT, LOGIN_SOCKET,
+    LaunchTarget, LoginRequest, BROKER_RETIRE_TIMEOUT, LEASE_MS, LOGIN_SOCKET,
 };
 use yuos_display_control::workload::{SessionGroup, Workload};
 use yuos_display_control::{
@@ -19,7 +19,6 @@ use yuos_display_control::{
 
 const MAX_DISPLAYS: usize = 16;
 const STARTUP_LIMIT: Duration = Duration::from_secs(20);
-const LEASE_MS: u64 = 2000;
 const RETIRE_RETRY_MIN: Duration = Duration::from_millis(250);
 const RETIRE_RETRY_MAX: Duration = Duration::from_secs(2);
 static REGISTRY: OnceLock<Arc<Registry>> = OnceLock::new();
@@ -526,6 +525,7 @@ fn monitor(
     let mut pending = HashMap::<InstanceId, (u8, GuiCall)>::new();
     let mut timed_out = std::collections::HashSet::new();
     let mut launch_pending: Option<(InstanceId, LaunchCall)> = None;
+    let mut heartbeat = Instant::now();
     loop {
         if pidfd_exited(host_pidfd.as_fd())? || pidfd_exited(authenticator_pidfd.as_fd())? {
             return Err(Error::Closed);
@@ -537,16 +537,20 @@ fn monitor(
         if !ready && started.elapsed() >= STARTUP_LIMIT {
             return Err(Error::Timeout);
         }
-        channel.send(
-            &AuthorityCommand::Heartbeat {
-                epoch,
-                expires_monotonic_ms: monotonic_ms()?
-                    .checked_add(LEASE_MS)
-                    .ok_or(Error::Timeout)?,
-            },
-            &[],
-            Instant::now() + Duration::from_millis(250),
-        )?;
+        // A stalled host must not fill its socket with renewals the lease does not need.
+        if Instant::now() >= heartbeat {
+            channel.send(
+                &AuthorityCommand::Heartbeat {
+                    epoch,
+                    expires_monotonic_ms: monotonic_ms()?
+                        .checked_add(LEASE_MS)
+                        .ok_or(Error::Timeout)?,
+                },
+                &[],
+                Instant::now() + Duration::from_millis(250),
+            )?;
+            heartbeat = Instant::now() + Duration::from_millis(LEASE_MS / 10);
+        }
         if launch_pending.as_ref().is_some_and(|(_, call)| Instant::now() >= call.deadline) {
             if let Some((_, call)) = launch_pending.take() {
                 let _ = call.reply.send(Err(Error::Timeout));

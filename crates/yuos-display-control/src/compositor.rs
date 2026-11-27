@@ -7,7 +7,7 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use crate::identity::pidfd_exited;
-use crate::wire::{monotonic_ms, CompositorCommand, CompositorReply};
+use crate::wire::{monotonic_ms, CompositorCommand, CompositorReply, LEASE_BOUND_MS};
 use crate::{Connection, Epoch, Error, KernelLogin, ProcessIdentity, Received};
 
 pub struct DisplayBinding {
@@ -44,7 +44,7 @@ impl DisplayBinding {
 
     fn renew(&self, epoch: Epoch, expires: u64) -> Result<(), Error> {
         let now = monotonic_ms()?;
-        if epoch != self.epoch || expires <= now || expires > now.saturating_add(2500) {
+        if epoch != self.epoch || expires <= now || expires > now.saturating_add(LEASE_BOUND_MS) {
             return Err(Error::Protocol("invalid compositor authority lease"));
         }
         self.expires_ms.store(expires, Ordering::Release);

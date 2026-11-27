@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use yuos_display_control::{
-    wire::monotonic_ms, CompositorCommand, CompositorReply, Epoch, ProcessIdentity,
+    wire::{monotonic_ms, LEASE_MS}, CompositorCommand, CompositorReply, Epoch, ProcessIdentity,
 };
 
 use crate::caps::{Cap, Scope, Verb};
@@ -584,7 +584,7 @@ pub(super) fn admit_home_metadata(job: &Job) -> Result<(), crate::yuosd::protoco
 }
 
 fn lease_expiry(view: &GrantView) -> Result<u64, String> {
-    let lifetime = view.expires_in.min(Duration::from_secs(2));
+    let lifetime = view.expires_in.min(Duration::from_millis(LEASE_MS));
     if lifetime < Duration::from_millis(250) {
         return Err("GUI authority is expiring".to_string());
     }
@@ -643,16 +643,11 @@ pub(super) fn run(
         (None, None) => None,
     };
     if error.is_some() || !supervised.status.is_some_and(|status| status.success()) {
-        // yuosd emits only errors to the journal, and GUI stderr otherwise reaches only the caller.
-        let text = &stderr.text;
-        let start = (text.len().saturating_sub(4096)..=text.len())
-            .find(|&index| text.is_char_boundary(index))
-            .unwrap_or(0);
+        // yuosd emits only errors to the journal; App stderr stays with the caller.
         tracing::error!(
             app = job.registration.launch.app_id(),
             status = ?supervised.status,
             error = error.as_deref().unwrap_or(""),
-            stderr = &text[start..],
             "supervised GUI exited without success"
         );
     }

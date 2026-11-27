@@ -8,6 +8,10 @@ pub const LOGIN_SOCKET: &str = "/run/yuos/display-login.sock";
 pub const DISPLAY_HOST: &str = "/usr/lib/yuos/bin/yuos-display-host";
 pub const COMPOSITOR: &str = "/usr/libexec/yuos-hyprland/Hyprland";
 pub const SESSION_DIRECTORY: &str = "/run/yuos/display-sessions";
+// Liveness window for display and GUI leases. It must outlast multi-second compositor
+// stalls under software rendering; revocation stays explicit and immediate.
+pub const LEASE_MS: u64 = 10_000;
+pub const LEASE_BOUND_MS: u64 = LEASE_MS + 500;
 
 // Allow workload shutdown, the broker's checked GUI cleanup, and the final handshakes.
 pub const BROKER_RETIRE_TIMEOUT: Duration = Duration::from_secs(5);
