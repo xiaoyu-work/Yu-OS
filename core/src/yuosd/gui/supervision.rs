@@ -615,9 +615,6 @@ pub(super) fn run(
     );
     drop(request);
     let result = started.and_then(|view| supervised.watch(&view));
-    if let Err(error) = &result {
-        tracing::warn!(%error, "supervised GUI did not complete successfully");
-    }
     job.retiring(None);
     loop {
         match supervised.retire() {
@@ -645,6 +642,20 @@ pub(super) fn run(
         (Some(error), None) | (None, Some(error)) => Some(error),
         (None, None) => None,
     };
+    if error.is_some() || !supervised.status.is_some_and(|status| status.success()) {
+        // yuosd emits only errors to the journal, and GUI stderr otherwise reaches only the caller.
+        let text = &stderr.text;
+        let start = (text.len().saturating_sub(4096)..=text.len())
+            .find(|&index| text.is_char_boundary(index))
+            .unwrap_or(0);
+        tracing::error!(
+            app = job.registration.launch.app_id(),
+            status = ?supervised.status,
+            error = error.as_deref().unwrap_or(""),
+            stderr = &text[start..],
+            "supervised GUI exited without success"
+        );
+    }
     crate::worker::audit::outcome(
         &supervised.digest,
         &format!(

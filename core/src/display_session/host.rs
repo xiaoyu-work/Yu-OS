@@ -561,6 +561,13 @@ impl Supervisor {
                 .map(|(_, child)| child.try_wait()).transpose()?.flatten()
             {
                 let (subscriber, _) = self.shell.take().ok_or(Error::Identity)?;
+                if !status.success() {
+                    if let Ok(reason) = std::ffi::CString::new(status.to_string()) {
+                        unsafe {
+                            libc::syslog(libc::LOG_DAEMON | libc::LOG_ERR, c"system desktop shell exited: %s".as_ptr(), reason.as_ptr());
+                        }
+                    }
+                }
                 self.shell_result(&subscriber, status.success());
             }
             let mut index = 0;
