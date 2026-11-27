@@ -128,6 +128,15 @@ if [ "$1" = "configure" ]; then
         ensure_line /etc/environment "XMODIFIERS=@im=fcitx"
         ensure_line /etc/environment "SDL_IM_MODULE=fcitx"
         ensure_line /etc/environment "GLFW_IM_MODULE=ibus"
+        if [ -d /usr/share/glib-2.0/schemas ] && command -v glib-compile-schemas >/dev/null 2>&1; then
+            printf "[org.gnome.desktop.wm.preferences]\nbutton-layout='appmenu:minimize,maximize,close'\n" \
+                > /usr/share/glib-2.0/schemas/90-yuos-desktop.gschema.override
+            glib-compile-schemas /usr/share/glib-2.0/schemas || true
+        fi
+        ensure_line /etc/gtk-3.0/settings.ini "[Settings]"
+        ensure_line /etc/gtk-3.0/settings.ini "gtk-decoration-layout=appmenu:minimize,maximize,close"
+        ensure_line /etc/gtk-4.0/settings.ini "[Settings]"
+        ensure_line /etc/gtk-4.0/settings.ini "gtk-decoration-layout=appmenu:minimize,maximize,close"
         enable_desktop_links
         enable_desktop_services
         enable_fingerprint_auth

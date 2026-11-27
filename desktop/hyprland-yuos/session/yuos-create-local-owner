@@ -128,10 +128,16 @@ def initialize_home(account, data):
                   "[Groups/0/Items/0]\nName=keyboard-us\nLayout=\n\n"
                   f'[Groups/0/Items/1]\nName={data["inputMethod"]}\nLayout=\n\n'
                   "[GroupOrder]\n0=Default\n")
-        # Set the application theme.
+        # Set the application theme and full window controls (minimize, maximize, close).
         for gtk in ("gtk-3.0", "gtk-4.0"):
             write(config / gtk / "settings.ini",
-                  f'[Settings]\ngtk-application-prefer-dark-theme={int(not data["light"])}\n')
+                  f'[Settings]\ngtk-application-prefer-dark-theme={int(not data["light"])}\n'
+                  'gtk-decoration-layout=appmenu:minimize,maximize,close\n')
+        write(config / "net.imput.helium/Default/Preferences",
+              json.dumps({
+                  "extensions": {"pinned_extensions": ["fclfbhenknddfhcijnlcgamfeeokjekl"]},
+                  "helium": {"browser": {"rounded_frame": False}},
+              }) + "\n")
         if data["agent"] is not None:
             write(config / "yuos/config.json", json.dumps(data["agent"]["config"]) + "\n")
             directory = home / ".local/share/yuos/credentials/agent"

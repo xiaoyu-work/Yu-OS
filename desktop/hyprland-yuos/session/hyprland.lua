@@ -1,10 +1,14 @@
 hl.monitor({ output = "", mode = "preferred", position = "auto", scale = "auto" })
 
 hl.config({
-    -- Keyboard focus changes only on click; hovering must not take it from an open dialog.
-    input = {
-        follow_mouse = 2,
-        float_switch_override_focus = 0,
+    general = {
+        border_size = 0,
+    },
+    decoration = {
+        rounding = 12,
+        shadow = {
+            enabled = false,
+        },
     },
     misc = {
         disable_hyprland_logo = true,
@@ -44,11 +48,12 @@ hl.window_rule({
 
 hl.window_rule({
     name = "yuos-floating-apps",
-    match = { class = "^(com\\.yuos\\..*|YuOS-Agent)$" },
+    match = { class = "^(com\\.yuos\\..*|YuOS-Agent|helium|helium-browser|chromium|thunderbird|org\\.mozilla\\.Thunderbird|Mail|soffice\\.bin|libreoffice-.*)$" },
     float = true,
     center = true,
     size = { 980, 640 },
     rounding = 12,
+    border_size = 0,
 })
 
 hl.bind("SUPER + Q", hl.dsp.window.close())
