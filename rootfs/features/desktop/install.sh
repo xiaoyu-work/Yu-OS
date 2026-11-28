@@ -31,7 +31,7 @@ if [[ "${YUOS_PREBUILT_SYSTEM_PACKAGES:-0}" == 1 ]]; then
         echo "error: installer requires the prepared Desktop package for $YUOS_VERSION" >&2
         exit 1
     fi
-else
+elif [[ "${DESKTOP_PACKAGE_ONLY:-0}" == 1 || ! -f "$DESKTOP_DEB" ]]; then
     install -d "$work/source" "$stage"
     mount --bind "$PROJECT_DIR" "$work/source"
     mount --make-private "$work/source"
@@ -47,6 +47,8 @@ else
     if [[ "${DESKTOP_PACKAGE_ONLY:-0}" == 1 ]]; then
         exit 0
     fi
+else
+    echo "  :: reusing existing $(basename "$DESKTOP_DEB")"
 fi
 
 install -m0644 "$DESKTOP_DEB" "$work/desktop.deb"

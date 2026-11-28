@@ -290,7 +290,11 @@ def build_surface(profile, source, provenance, work, out, package, *, debian=Fal
     release = profile["release"]
     os_release = Path("/etc/os-release").read_text().splitlines()
     arch = subprocess.check_output(["dpkg", "--print-architecture"], text=True).strip()
-    if arch != profile["arch"] or "ID=debian" not in os_release or "VERSION_CODENAME=trixie" not in os_release:
+    if (
+        arch != profile["arch"]
+        or ("ID=debian" not in os_release and "ID_LIKE=debian" not in os_release)
+        or "VERSION_CODENAME=trixie" not in os_release
+    ):
         raise ValueError("build the Intel Surface Laptop 7 packages on amd64 Debian 13 (trixie)")
     name = "yuos-surface-laptop-7"
     if debian:

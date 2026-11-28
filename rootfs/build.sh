@@ -163,6 +163,24 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Build a Debian-monotonic rolling version from semver + git commit count + SHA.
+if [ -z "${YUOS_PACKAGE_VERSION:-}" ] && [ "${DESKTOP_PACKAGE_ONLY:-0}" != 1 ] \
+    && [ -d "$PROJECT_DIR/build/debs" ]; then
+    cached_desktop="$(ls -t "$PROJECT_DIR/build/debs"/yuos-desktop_*_"$DEB_ARCH".deb 2>/dev/null | head -1 || true)"
+    if [ -n "$cached_desktop" ] && command -v dpkg-deb >/dev/null 2>&1; then
+        cached_ver="$(dpkg-deb -f "$cached_desktop" Version 2>/dev/null || true)"
+        cached_file_ver="${cached_ver//:/%3a}"
+        cached_sha="${cached_ver##*.g}"
+        if [[ "$cached_sha" =~ ^[0-9a-f]{7,40}$ ]] \
+            && [ -f "$PROJECT_DIR/build/debs/yuos-framework_${cached_file_ver}_${DEB_ARCH}.deb" ] \
+            && [ -f "$PROJECT_DIR/build/debs/yuos-base_${cached_file_ver}_all.deb" ] \
+            && { [ "${YUOS_AGENT:-1}" != 1 ] || [ -f "$PROJECT_DIR/build/debs/yuos-agent_${cached_file_ver}_${DEB_ARCH}.deb" ]; } \
+            && git_readonly -C "$PROJECT_DIR" diff --quiet "$cached_sha" HEAD -- \
+                core crates desktop yuos-sdk packaging/deb packaging/release-security skills tools 2>/dev/null; then
+            echo ":: reusing built system packages ($cached_ver)"
+            export YUOS_PACKAGE_VERSION="$cached_ver"
+        fi
+    fi
+fi
 source "$PROJECT_DIR/scripts/lib/package-version.sh"
 YUOS_VERSION="$(package_version "$PROJECT_DIR")"
 YUOS_PACKAGE_VERSION="$YUOS_VERSION"
