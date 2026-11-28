@@ -13,8 +13,16 @@
 set -euo pipefail
 
 DEBS_DIR="$PROJECT_DIR/build/debs"
-APP_PACKAGE_INPUTS="$(python3 "$PROJECT_DIR/scripts/app_packages.py" check \
-    --variant agent --architecture "$DEB_ARCH")"
+if ! APP_PACKAGE_INPUTS="$(python3 "$PROJECT_DIR/scripts/app_packages.py" check \
+    --variant agent --architecture "$DEB_ARCH" 2>/dev/null)"; then
+    if [ "${YUOS_PREBUILT_SYSTEM_PACKAGES:-0}" = 1 ]; then
+        echo "error: installer requires prepared official App packages for agent/$DEB_ARCH" >&2
+        exit 1
+    fi
+    echo "  :: official App packages (agent/$DEB_ARCH) not prepared -- fetching them"
+    APP_PACKAGE_INPUTS="$(python3 "$PROJECT_DIR/scripts/app_packages.py" prepare \
+        --variant agent --architecture "$DEB_ARCH")"
+fi
 
 FILE_VERSION="${YUOS_VERSION//:/%3a}"
 FRAMEWORK_DEB="$DEBS_DIR/yuos-framework_${FILE_VERSION}_${DEB_ARCH:-amd64}.deb"

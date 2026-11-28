@@ -61,8 +61,12 @@ RELEASE_SECURITY_KEY_ID="$(yuos_resolve_signing_key)" || exit 1
 APP_RUNTIME_VERSION="$(python3 "$PROJECT_DIR/scripts/app_packages.py" runtime-version)"
 if [ "$PACKAGE_SET" = all ] || [ "$PACKAGE_SET" = framework ]; then
     python3 "$PROJECT_DIR/scripts/app_packages.py" check-version --version "$VERSION"
-    python3 "$PROJECT_DIR/scripts/app_packages.py" check \
-        --variant agent --architecture "$DEB_ARCH" >/dev/null
+    if ! python3 "$PROJECT_DIR/scripts/app_packages.py" check \
+        --variant agent --architecture "$DEB_ARCH" >/dev/null 2>&1; then
+        echo "  :: official App packages (agent/$DEB_ARCH) not prepared -- fetching them"
+        python3 "$PROJECT_DIR/scripts/app_packages.py" prepare \
+            --variant agent --architecture "$DEB_ARCH" >/dev/null
+    fi
 fi
 
 # Prefer fakeroot so files in the .deb are owned by root even when this

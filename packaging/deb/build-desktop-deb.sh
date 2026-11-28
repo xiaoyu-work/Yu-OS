@@ -72,6 +72,12 @@ if (
     raise SystemExit(f"error: invalid executable header or architecture for {arch}: {path}")
 PY
 done
+if ! python3 "$PROJECT_DIR/scripts/app_packages.py" check \
+    --variant desktop --architecture "$DEB_ARCH" >/dev/null 2>&1; then
+    echo "  :: official App packages (desktop/$DEB_ARCH) not prepared -- fetching them"
+    python3 "$PROJECT_DIR/scripts/app_packages.py" prepare \
+        --variant desktop --architecture "$DEB_ARCH" >/dev/null
+fi
 APP_DEPS="$(python3 "$PROJECT_DIR/scripts/app_packages.py" check \
     --variant desktop --architecture "$DEB_ARCH" --stage "$STAGE_ROOT" \
     --preinstall-policy stage --print-depends)"

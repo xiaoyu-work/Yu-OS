@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_PACKAGE_INPUTS="$(python3 "$PROJECT_DIR/scripts/app_packages.py" check \
-    --variant desktop --architecture "$DEB_ARCH")"
+if ! APP_PACKAGE_INPUTS="$(python3 "$PROJECT_DIR/scripts/app_packages.py" check \
+    --variant desktop --architecture "$DEB_ARCH" 2>/dev/null)"; then
+    if [[ "${YUOS_PREBUILT_SYSTEM_PACKAGES:-0}" == 1 ]]; then
+        echo "error: installer requires prepared official App packages for desktop/$DEB_ARCH" >&2
+        exit 1
+    fi
+    echo "  :: official App packages (desktop/$DEB_ARCH) not prepared -- fetching them"
+    APP_PACKAGE_INPUTS="$(python3 "$PROJECT_DIR/scripts/app_packages.py" prepare \
+        --variant desktop --architecture "$DEB_ARCH")"
+fi
 
 FILE_VERSION="${YUOS_VERSION//:/%3a}"
 DESKTOP_DEB="$PROJECT_DIR/build/debs/yuos-desktop_${FILE_VERSION}_${DEB_ARCH}.deb"
