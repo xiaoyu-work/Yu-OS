@@ -49,16 +49,27 @@ missing=""
 for tool in mksquashfs unsquashfs xorriso grub-mkrescue mformat; do
     command -v "$tool" >/dev/null 2>&1 || missing="$missing $tool"
 done
+required_grub_dirs=("/usr/lib/grub/$GRUB_EFI_TARGET")
+[ -n "$GRUB_BIOS_TARGET" ] && required_grub_dirs+=("/usr/lib/grub/$GRUB_BIOS_TARGET")
+for moddir in "${required_grub_dirs[@]}"; do
+    [ -d "$moddir" ] || missing="$missing $moddir"
+done
+if [ -n "$missing" ] && command -v apt-get >/dev/null 2>&1; then
+    echo ":: installing missing ISO host tools:$missing"
+    DEBIAN_FRONTEND=noninteractive apt-get update -qq
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        squashfs-tools xorriso "$GRUB_EFI_PKG" ${GRUB_BIOS_PKG:+"$GRUB_BIOS_PKG"} mtools grub-common
+    missing=""
+    for tool in mksquashfs unsquashfs xorriso grub-mkrescue mformat; do
+        command -v "$tool" >/dev/null 2>&1 || missing="$missing $tool"
+    done
+fi
 if [ -n "$missing" ]; then
     echo "error: missing host tools:$missing" >&2
     echo "install: apt install squashfs-tools xorriso $GRUB_EFI_PKG ${GRUB_BIOS_PKG:-} mtools grub-common" >&2
     exit 1
 fi
 
-# grub-mkrescue uses these at build time. arm64 has no BIOS path so we
-# only require the UEFI module dir there.
-required_grub_dirs=("/usr/lib/grub/$GRUB_EFI_TARGET")
-[ -n "$GRUB_BIOS_TARGET" ] && required_grub_dirs+=("/usr/lib/grub/$GRUB_BIOS_TARGET")
 for moddir in "${required_grub_dirs[@]}"; do
     if [ ! -d "$moddir" ]; then
         echo "error: $moddir is missing — apt install $GRUB_EFI_PKG${GRUB_BIOS_PKG:+ $GRUB_BIOS_PKG}" >&2

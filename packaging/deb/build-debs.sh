@@ -229,7 +229,45 @@ ensure_cargo() {
         echo "       no default toolchain, set one with:  rustup default stable" >&2
         exit 1
     fi
+    if [ "$(id -u)" -eq 0 ] && command -v apt-get >/dev/null 2>&1; then
+        local host_pkgs=(
+            build-essential pkg-config musl-tools dpkg-dev fakeroot
+            libpam0g-dev libasound2-dev libxkbcommon-dev libwayland-dev
+        )
+        local missing_pkgs=() pkg
+        for pkg in "${host_pkgs[@]}"; do
+            if [ "$(dpkg-query -W -f='${db:Status-Status}' "$pkg" 2>/dev/null || true)" != "installed" ]; then
+                missing_pkgs+=("$pkg")
+            fi
+        done
+        if [ "${#missing_pkgs[@]}" -gt 0 ]; then
+            echo "  :: installing missing host build packages: ${missing_pkgs[*]}" >&2
+            DEBIAN_FRONTEND=noninteractive apt-get update -qq >&2
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing_pkgs[@]}" >&2
+        fi
+    fi
     return 0
+}
+
+ensure_rust_target() {
+    local target="$1"
+    ensure_cargo
+    local rustup_bin
+    rustup_bin="$(command -v rustup 2>/dev/null || true)"
+    if [ -z "$rustup_bin" ]; then
+        local cargo_dir
+        cargo_dir="$(dirname "$(command -v cargo)")"
+        [ -x "$cargo_dir/rustup" ] && rustup_bin="$cargo_dir/rustup"
+    fi
+    if [ -n "$rustup_bin" ] \
+        && ! "$rustup_bin" target list --installed 2>/dev/null | grep -qx "$target"; then
+        echo "  :: rust target $target not installed — adding" >&2
+        if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ] && command -v runuser >/dev/null 2>&1; then
+            runuser -u "$SUDO_USER" -- "$rustup_bin" target add "$target" >&2 || "$rustup_bin" target add "$target" >&2 || true
+        else
+            "$rustup_bin" target add "$target" >&2 || true
+        fi
+    fi
 }
 
 ###############################################################################
@@ -255,14 +293,7 @@ ensure_bin() {
         echo "$path"
         return 0
     fi
-    ensure_cargo
-    # rustup installs the host gnu triple by default but musl (and a
-    # non-host triple generally) may be missing on a fresh box.
-    if command -v rustup >/dev/null 2>&1 \
-        && ! rustup target list --installed 2>/dev/null | grep -qx "$target"; then
-        echo "  :: rust target $target not installed — adding" >&2
-        rustup target add "$target" >&2 || true
-    fi
+    ensure_rust_target "$target"
     echo "  :: $bin not built — compiling (cargo build --release --target $target -p $pkg)" >&2
     ( cd "$PROJECT_DIR" && cargo build --release --target "$target" -p "$pkg" ) >&2
     find_bin "$bin"
@@ -274,7 +305,7 @@ ensure_calendar_reader() {
         echo "$path"
         return 0
     fi
-    ensure_cargo
+    ensure_rust_target "$RUST_TARGET"
     ( cd "$PROJECT_DIR" && cargo build --release --locked --target "$RUST_TARGET" \
         --target-dir "$PROJECT_DIR/target" \
         --manifest-path desktop/services/yuos-applet-services/Cargo.toml \
@@ -288,7 +319,7 @@ ensure_launcher_backend() {
         echo "$path"
         return 0
     fi
-    ensure_cargo
+    ensure_rust_target "$target"
     ( cd "$PROJECT_DIR" && cargo build --release --locked --target "$target" \
         --target-dir "$PROJECT_DIR/target" \
         --manifest-path desktop/launcher-backend/Cargo.toml -p pop-launcher-bin ) >&2
@@ -301,7 +332,7 @@ ensure_nearby_bin() {
         echo "$path"
         return 0
     fi
-    ensure_cargo
+    ensure_rust_target "$target"
     ( cd "$PROJECT_DIR" && cargo build --release --locked --target "$target" \
         --target-dir "$PROJECT_DIR/target" \
         --manifest-path crates/yuos-nearby/Cargo.toml --bins ) >&2
@@ -315,7 +346,7 @@ ensure_agent_gui_bin() {
         echo "$path"
         return 0
     fi
-    ensure_cargo
+    ensure_rust_target "$target"
     if [ "$bin" = yuos-ask-launcher ]; then
         ( cd "$PROJECT_DIR" && cargo build --release --locked --target "$target" \
             --target-dir "$PROJECT_DIR/target" \

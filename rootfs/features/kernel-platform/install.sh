@@ -72,6 +72,22 @@ elif [[ ${mode[0]:-} == --apple-tools ]]; then
     chroot "$ROOTFS" env PYTHONDONTWRITEBYTECODE=1 python3 "${stage#"$ROOTFS"}/scripts/platform_kernels.py" \
         "$platform" "${mode[@]}" --output "${stage#"$ROOTFS"}/packages"
     artifacts="$stage/packages"
+elif [[ $platform == x86-surface-laptop-7-intel ]]; then
+    install -d "$stage"/{scripts,packaging}
+    install -m0644 "$PROJECT_DIR"/scripts/{platform_kernels,surface_laptop7}.py "$stage/scripts/"
+    install -m0644 "$PROJECT_DIR/packaging/platform-kernels.json" "$stage/packaging/"
+    chroot "$ROOTFS" apt-get update -qq
+    chroot "$ROOTFS" env DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Use-Pty=0 \
+        install -y --no-install-recommends \
+        build-essential pkg-config meson ninja-build cmake bc libelf-dev libssl-dev \
+        systemd-dev libudev-dev patch ca-certificates debhelper dh-sequence-python3 \
+        libdrm-dev libdw-dev libevent-dev libgnutls28-dev libgstreamer-plugins-base1.0-dev \
+        libgstreamer1.0-dev libjpeg-dev liblttng-ust-dev libpython3-dev libsdl2-dev \
+        libtiff-dev libyaml-dev libyuv-dev openssl python3-jinja2 python3-ply \
+        python3-pybind11 python3-yaml qt6-base-dev </dev/null
+    chroot "$ROOTFS" env PYTHONDONTWRITEBYTECODE=1 python3 "${stage#"$ROOTFS"}/scripts/platform_kernels.py" \
+        "$platform" --output "${stage#"$ROOTFS"}/packages"
+    artifacts="$stage/packages"
 else
     python3 "$builder" "$platform" --output "$stage"
     artifacts=$stage
